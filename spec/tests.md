@@ -35,7 +35,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | StR-004 Safety scaffolding | NFR-003, NFR-004 | TC-050, TC-051 | ✅ Complete |
 | StR-005 Native Python bindings | US-011, FR-023, FR-024, NFR-016 | TC-460, TC-461, TC-456, TC-466, TC-465 | ✅ Complete |
 | StR-006 Whole-spec corpus | US-012, US-013, FR-025, FR-026, FR-027 | TC-485, TC-493, TC-488, TC-484, TC-483 | ✅ Complete |
-| StR-007 Source-grounded assurance data | US-018, FR-067, FR-068 | TC-1091, TC-1087, TC-1096, TC-1089 | ✅ Producer complete |
+| StR-007 Source-grounded assurance data | US-018, FR-067, FR-068 | TC-1091, TC-1087, TC-1096 | ✅ Producer complete |
 
 ### User Story Coverage
 
@@ -104,22 +104,23 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | FR-042 Requirement-grammar check (EARS) | AC-1..10 | TC-657 (6 patterns + unclassifiable), TC-658 (non-singular + enumerated-stem exemption), TC-659 (missing-subject + StR relaxed subject), TC-660 (vague-response + passive exemption), TC-661 (non-canonical-trigger + NFR no-trigger), TC-662 (archetype/section binding), TC-663 (warning vs error severity routing), TC-664 (finding fields), TC-665 (fence/quote/reference skip), TC-666 (PyO3 parity) | 🚧 Pending implementation |
 | FR-043 Module-supplied concrete lexicon | AC-1..7 | TC-667 (lexicon registry load + accessor), TC-668 (first-wins merge + DuplicateLexiconTerm), TC-669 (lexicon term suppresses vague-response; removed re-flags), TC-670 (no hardcoded noun list under empty lexicon), TC-671 (backtick/mechanism/bound hold under empty lexicon), TC-672 (registry vs type-only lexicon paths), TC-673 (PyO3 check_grammar module_root) | 🚧 Pending implementation |
 | FR-044 Project Ubiquitous-Language lexicon | AC-1..7 | TC-674 (harvest Term column from Glossary `## Terms` table), TC-675 (harvest bold term from `## Ubiquitous Language` bullets), TC-676 (combined lexicon = registry keys ∪ project terms), TC-677 (validate_document_in_registry_with_lexicon injects lexicon), TC-678 (validate_bundle harvests Spec + applies combined lexicon), TC-679 (advisory: project suppression never changes is_valid), TC-680 (no glossary → empty terms → module-only path) | 🚧 Pending implementation |
-| FR-067 Versioned assurance export | AC-1..7; CON-1..5 | TC-1084..TC-1090 | ✅ Implemented |
+| FR-067 Versioned assurance export | AC-1..7 (AC-6 withdrawn); CON-1..5 | TC-1084..TC-1090 (TC-1089 withdrawn) | ✅ Implemented |
 | FR-068 Source-grounded assurance projection | AC-1..9; CON-1..4 | TC-1091..TC-1099 | ✅ Implemented |
 | FR-069 Semantic module contract at load | AC-1..8, AC-10..12; CON-1, CON-2, CON-4 | TC-1599..TC-1606, TC-1608, TC-1609, TC-1645, TC-1646, TC-1848 | ✅ Implemented |
-| FR-070 Typed Properties extraction to FieldDecl[] | AC-1..10; CON-1..3 | TC-1610..TC-1621, TC-1647 | ✅ Implemented |
+| FR-070 Typed Properties extraction to FieldDecl[] | AC-1..14; CON-1..3 | TC-1610..TC-1621, TC-1647, TC-1945..TC-1947, TC-1952 | ✅ AC-1..10 Implemented; AC-11..14 🚧 |
 | FR-071 Clause and operation extraction | AC-1..9; CON-1..2 | TC-1622..TC-1629, TC-1648, TC-1850, TC-1851 | ✅ Implemented |
 | FR-072 Semantic extraction surface | AC-1..9; CON-1..3 | TC-1630..TC-1640, TC-1650 (TC-1636 external: quire-wasm#3) | ✅ Implemented; WASM leg external |
 | FR-073 Generic rights-aware clause sets | AC-1..6 | TC-1806..TC-1809 | ✅ Implemented |
-| FR-075 Model feature extraction | AC-1..15; CON-1 | TC-1840..TC-1847, TC-1849, TC-1869, TC-1870, TC-1872..TC-1875 | ✅ Implemented |
+| FR-075 Model feature extraction | AC-1..21; CON-1 | TC-1840..TC-1847, TC-1849, TC-1869, TC-1870, TC-1872..TC-1875, TC-1948..TC-1951, TC-1953 | ✅ AC-1..15 Implemented; AC-16..21 🚧 |
 | FR-076 Relationships extraction to RelationDecl[] | AC-1..15; CON-1..2 | TC-1852..TC-1868 | ✅ Implemented |
 | FR-077 Trace search index (structural forward/inverse lookup) | AC-1..6; CON-1..3 | TC-1887..TC-1894 | ✅ Implemented |
+| FR-078 Qualified retained evidence | AC-1..20; CON-1..4 | TC-1963..TC-1982 | 🚧 Planned — spec-first, no execution claim |
 
 ### Integration Requirement Coverage
 
 | Integration Req | Target Boundary | Test Cases | Status |
 |-----------------|-----------------|------------|-----------------|
-| IT-001 Quoin consumes pinned Quire export | Quire producer → versioned JSON/schema → Quoin consumer | TC-1084, TC-1087, TC-1088, TC-1091..TC-1099 | ⚠️ Producer schema/fixture complete; Quoin consumer downstream |
+| IT-001 Quoin consumes Quire export | Quire producer → versioned JSON/schema → Quoin consumer | TC-1084, TC-1087, TC-1088, TC-1091..TC-1099 | ⚠️ Producer schema/fixture complete; Quoin consumer downstream |
 
 ### Non-Functional Requirement Coverage
 
@@ -144,10 +145,11 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | FR-047 Acceptance-criteria grammar | AC-1..14; CON-1..2 | TC-707 (shape classification, assertion canonical), TC-708 (every non-empty cell segmented), TC-709 (non-singular + pair idiom), TC-710 (vague-response via lexicon), TC-711 (vacuous-outcome), TC-712 (binding), TC-713 (finding fields + routing), TC-714 (generic --summary prefix), TC-715 (PyO3 parity), TC-751 (non-canonical-shape steers obligation/GWT → assertion), TC-754 (fenced/blockquote skip in supplements), TC-757 (module-data observable/vacuity vocabularies), TC-761 (quoted keywords are mentions, not uses — CR-017), TC-763 (elided-copula predication is a predicate — CR-019) | ✅ Implemented (CLI-surface AC-8 awaits EXT-3 `quire-cli`) |
 | FR-048 Per-check grammar severity | AC-1..11 | TC-794 (own `spec/` dogfooded against the shipped promotion), TC-716 (manifest registry + accessor), TC-717 (first-wins + DuplicateGrammarSeverity), TC-718 (per-check error routing), TC-719 (absent key → warning), TC-720 (--severity override + repeatable), TC-721 (--strict unchanged), TC-722 (type-only all-default), TC-723 (malformed entry fails load), TC-752 (`off` suppresses a check entirely), TC-755 (malformed --severity CLI entry rejected) | ✅ Implemented (CLI-surface AC-5/6/10 await EXT-3 `quire-cli`) |
 | FR-049 Verification-reference integrity | AC-1..9 | TC-814 (CR-045 two-root reference resolution), TC-724 (resolved reference clean), TC-725 (dangling finding), TC-726 (posture degradation), TC-727 (model-driven pattern/column), TC-728 (auxiliary trace-source harvest), TC-729 (no model → no findings), TC-730 (multi-annotation cells), TC-731 (deterministic findings) | ✅ Implemented |
-| FR-050 Declarative coverage computation | AC-1..51; CON-1..2 (FR-050-AC-47..51 revised in the SR-117/SR-118 fix round) | TC-1930, TC-1931, TC-1942 (CR-187/PLAT-1077 in-memory `coverage_matrix` over the derived-obligation population, not the minted-target population; obligation-only ids resolve and leave `untracked_symbols`), TC-1932, TC-1944 (CR-187 binder identity is `(path, line, column)`, not `(path, symbol)`, so two identically-named registrations in different suites don't collapse), TC-1933, TC-1934, TC-1935 (CR-187 computed status: tagged/untagged/tagged-by-ignored-test/method-without-symbol, method exemption wins), TC-1936, TC-1937 (CR-187 a range in any tag form, marker or legacy, is a finding and binds nothing — a behavior change for the legacy left-endpoint case), TC-1938 (CR-187 determinism, baseline inclusion, zero-population omission), TC-1804 (FR-050-AC-45 explicit status column), TC-1805 (FR-050-AC-46 mixed default/explicit status columns), TC-1083 (#367 mixed binding channels retain the self-named subpopulation), TC-1079 (CR-146 status-column near miss), TC-1050, TC-1051 (CR-136 an id that binds to nothing and a row backed by nothing, joined), TC-1048, TC-1049 (CR-135 a declared target that matched no document is reported), TC-1033, TC-1034, TC-1035 (CR-117 the archetype matched and the declared table did not), `scripts/tests/test_overfit_check.py` (CR-101 cross-corpus generalization statistics),  `scripts/tests/test_bench.py` (CR-099 the corpus benchmark's ratchet and metric semantics), TC-992..TC-996 (CR-098 the declarative regression corpus), TC-989 (CR-095 the catch-all is split out of the headline), TC-983, TC-984 (CR-093 the binding census and its two diagnostics), TC-955, TC-956, TC-957 (CR-089 records carry the matrix-row line), TC-952, TC-953, TC-954 (CR-088 source_exclude observability + loud invalid globs), TC-950, TC-951 (CR-087 shared trace ids are a reported defect), TC-944, TC-945, TC-949 (CR-085 source_exclude scopes the symbol walk), TC-941, TC-942 (CR-083 undeclared status values are a reported defect), TC-946 (CR-086 duplicate undeclared-status rows dedup), TC-829, TC-830 (CR-062 archetype is the only origin), TC-826 (CR-060 model-level exclusion scopes the criteria walk), TC-824 (CR-057 byte-identity baseline gate), TC-822 (CR-054 declarations that select nothing), TC-818 (CR-049 declaration-driven body selection), TC-809, TC-810, TC-811 (CR-045 two roots from one scope), TC-805 (CR-041 no-source-symbol methods), TC-801 (CR-038 declared path scoping), TC-797 (CR-035 zero matched rows ≠ 100%), TC-788 (CR-028 criteria counts + totals), TC-732 (traceability model load), TC-733 (malformed/absent model), TC-734 (unbacked rows), TC-735 (status lies), TC-736 (untracked symbols), TC-737 (per-group counts), TC-738 (byte-identical output), TC-739 (non-ISO model), TC-740 (no model → diagnostic exit), TC-758 (status marker + note, retired class), TC-759 (declared column vocabularies), TC-760 (range expansion + annotation stripping), TC-756 (CON-2 static boundary audit) | ✅ Implemented (AC-9 CLI exit awaits EXT-3 `quire-cli`; AC-47..51 (CR-187, PLAT-1077) now implemented) |
+| FR-050 Declarative coverage computation | AC-1..51; CON-1..2 (FR-050-AC-47..51 revised in the SR-117/SR-118 fix round) | TC-1930, TC-1931, TC-1942 (CR-187/PLAT-1077 in-memory `coverage_matrix` over the derived-obligation population, not the minted-target population; obligation-only ids resolve and leave `untracked_symbols`), TC-1932, TC-1944 (CR-187 binder identity is `(path, line, column)`, not `(path, symbol)`, so two identically-named registrations in different suites don't collapse), TC-1933, TC-1934, TC-1935 (CR-187 computed status: tagged/untagged/tagged-by-ignored-test/method-without-symbol, method exemption wins), TC-1936, TC-1937 (CR-187 a range in any tag form, marker or legacy, is a finding and binds nothing — a behavior change for the legacy left-endpoint case), TC-1938 (CR-187 determinism, baseline inclusion, zero-population omission), TC-1804 (FR-050-AC-45 explicit status column), TC-1805 (FR-050-AC-46 mixed default/explicit status columns), TC-1083 (#367 mixed binding channels retain the self-named subpopulation), TC-1079 (CR-146 status-column near miss), TC-1050, TC-1051 (CR-136 an id that binds to nothing and a row backed by nothing, joined), TC-1048, TC-1049 (CR-135 a declared target that matched no document is reported), TC-1033, TC-1034, TC-1035 (CR-117 the archetype matched and the declared table did not), `scripts/tests/test_overfit_check.py` (CR-101 cross-corpus generalization statistics),  `tools/quire-bench/tests/benchmark.rs` (CR-099 the corpus benchmark's ratchet and metric semantics), TC-992..TC-996 (CR-098 the declarative regression corpus), TC-989 (CR-095 the catch-all is split out of the headline), TC-983, TC-984 (CR-093 the binding census and its two diagnostics), TC-955, TC-956, TC-957 (CR-089 records carry the matrix-row line), TC-952, TC-953, TC-954 (CR-088 source_exclude observability + loud invalid globs), TC-950, TC-951 (CR-087 shared trace ids are a reported defect), TC-944, TC-945, TC-949 (CR-085 source_exclude scopes the symbol walk), TC-941, TC-942 (CR-083 undeclared status values are a reported defect), TC-946 (CR-086 duplicate undeclared-status rows dedup), TC-829, TC-830 (CR-062 archetype is the only origin), TC-826 (CR-060 model-level exclusion scopes the criteria walk), TC-824 (CR-057 byte-identity baseline gate), TC-822 (CR-054 declarations that select nothing), TC-818 (CR-049 declaration-driven body selection), TC-809, TC-810, TC-811 (CR-045 two roots from one scope), TC-805 (CR-041 no-source-symbol methods), TC-801 (CR-038 declared path scoping), TC-797 (CR-035 zero matched rows ≠ 100%), TC-788 (CR-028 criteria counts + totals), TC-732 (traceability model load), TC-733 (malformed/absent model), TC-734 (unbacked rows), TC-735 (status lies), TC-736 (untracked symbols), TC-737 (per-group counts), TC-738 (byte-identical output), TC-739 (non-ISO model), TC-740 (no model → diagnostic exit), TC-758 (status marker + note, retired class), TC-759 (declared column vocabularies), TC-760 (range expansion + annotation stripping), TC-756 (CON-2 static boundary audit) | ✅ Implemented (AC-9 CLI exit awaits EXT-3 `quire-cli`; AC-47..51 (CR-187, PLAT-1077) now implemented) |
 | FR-051 Source symbol extraction with relations | AC-1..28; CON-1..3 | TC-1939 (CR-187/PLAT-1077 Rust `#[ignore]`, `cfg_attr` control), TC-1940 (CR-187 TypeScript `.skip`/`xit`/`xtest`/`xdescribe`, suite-inherits-ignored, `skipIf`/`.todo`/`.fixme` controls), TC-1941 (CR-187 Python `@pytest.mark.skip`/`@unittest.skip`, class/module-level skip, `skipif`/`xfail` controls), TC-1943 (CR-187 `ignored` serialized only when true, TC-750 byte-identity preserved), TC-1936, TC-1937 (CR-187/FR-051-AC-28 a range in any tag form binds nothing and is a finding), TC-1879, TC-1880, TC-1881, TC-1885, TC-1886 (CR-176/PLAT-843 attachment decides a symbol and its ids, not page position), TC-1882, TC-1883 (CR-176 no build of the analysed tree, and the parse itself), TC-1884 (CR-176 the per-file diagnostic names `file:line`), TC-1055, TC-1056, TC-1057 (CR-139 string-literal masking reaches every language), TC-1052, TC-1053, TC-1054 (CR-138 the extracted symbol table gets a surface), TC-1042 (CR-121 a suite anywhere along the name chain), TC-1060 (CR-142 authored tags separated from authoring absence), TC-1044, TC-1045, TC-1046, TC-1047 (CR-134 a tag that reaches no channel is reported), TC-1039, TC-1040 (CR-119 a suite header is a container that binds nothing), TC-1029, TC-1030, TC-1031 (CR-115 a python triple-quoted body is content wherever its delimiter sits), TC-982 (CR-093 the binder says what it looked at), TC-958, TC-960, TC-961 (CR-090 widened registration grammar pinned through `extract_tree`), TC-943, TC-948 (CR-084 curried and wrapped registrations), TC-827, TC-828 (CR-061 benchmarks and fuzz targets are leaf evidence), TC-806 (CR-043 legacy comma lists bind every id), TC-804 (CR-040 Rust raw strings, lifetimes, and string state across lines), TC-803 (CR-039 one reading serves every consumer), TC-800 (CR-037 wrapped signature span), TC-798 (CR-036 string-aware comment stripping), TC-799 (CR-036 template state across lines), TC-741 (adapter symbol extraction), TC-742 (identity stability), TC-743 (test-symbol classification), TC-744 (canonical markers bind statically), TC-745 (marker/tag forms are module data), TC-746 (duplicate-id dedup), TC-747 (FR-045 record shapes), TC-748 (defined_in/contains edges), TC-749 (unparseable-file degradation), TC-750 (byte-identical repeat, at a pinned grammar version and feature set), TC-753 (legacy textual forms + rewrite suggestions), TC-756 (CON-1 static boundary audit) | ✅ Implemented (AC-25's Rust and Python shapes landed with `PLAT-843`/`PLAT-868`; its TypeScript shape and AC-9's `file:line` clause are this branch, `PLAT-882` — open as `agent-ix/quire-rs#481` at the time this row was last edited, not yet merged. All three are now bound on this branch (TC-1879, TC-1880, TC-1881, TC-1884, TC-1885, TC-1886), each from its own adapter's own tests, not from a doc-comment mention (PLAT-868 PR #479 review F1, PLAT-882 PR #481 review round 2: both `TC-1880` and `TC-1881` were found bound only via a legacy fallback or not at all, and fixed with real `#[trace(...)]` tags — see `tests/trace_dogfood.rs`); `CON-1`'s grammar-driven-parser clause now covers **all three adapters — Rust, Python, and TypeScript** once this branch merges. AC-26 stays `🚧`, unbound; AC-27 and AC-28 (CR-187, PLAT-1077, revised in the SR-117/SR-118 fix round) now implemented) |
 | FR-052 Acceptance-criteria property classification | AC-1..20; CON-1..4 | TC-1078 (CR-145 whole-word, subject-grounded boundaries and safe refusal), TC-990 (CR-096 decomposition keys on quantification, not on the label), TC-989 (CR-095 specific-shape split + per-shape span grounding), TC-779 (universal decomposition, three spans), TC-780 (metamorphic idioms + fixed precedence), TC-781 (CR-017 mask parity), TC-782 (weak-only boundary → no spans), TC-783 (`Example`, not extractable, no finding), TC-784 (span/offset invariants), TC-785 (CON-1 `ac` finding stream unchanged), TC-786 (`property_idioms` first-wins merge), TC-787 (binding parity with `ac`), TC-788 (FR-050 rollup counts), TC-789 (PyO3 parity), TC-790 (CON-4 `extractable` registry-independent), TC-791 (closed structural signals without a registry), TC-792 (determiner read at a bounded subject position, CR-030), TC-793 (byte-identity of everything the widening does not claim), TC-795 (three-valued `extraction` outcome, CR-033), TC-796 (`extraction` derived; CON-4 unchanged) | ✅ Implemented |
-| FR-053 Obligation record | AC-1..14; CON-1..4 | TC-831 (target-bound source, ids the rollup already mints), TC-832 (archetype-bound source, rendered ids over the NFR measurement table), TC-833 (both-or-neither origin rejected at parse), TC-834 (hash is whitespace-insensitive and word-sensitive, incl. inside code spans), TC-835 (one cell, two readings: method vs FR-049 reference), TC-836 (absent parameters omitted), TC-837 (criticality optional), TC-838 (empty statement skipped and reported), TC-839 (deterministic, ordered), TC-840 (classification record carries it), TC-841 (coverage report carries it; absent key preserves FR-050-AC-7), TC-842 (hash follows the statement, not its position), TC-843 (nested form does not repeat the record), TC-870 (the skipped-row diagnostic reaches the report), TC-871 (NFC), TC-872 (declaration order, not source name), TC-873 (`exclude` binds both surfaces), TC-1878 (an underscore-shaped object-archetype id registers the same way an FR does, #460) | ✅ Implemented |
+| FR-053 Obligation record | AC-1..14; CON-1..4 | TC-831 (target-bound source, ids the rollup already mints), TC-832 (archetype-bound source, rendered ids over the NFR measurement table), TC-833 (both-or-neither origin rejected at parse), TC-835 (one cell, two readings: method vs FR-049 reference), TC-836 (absent parameters omitted), TC-837 (criticality optional), TC-838 (empty statement skipped and reported), TC-839 (deterministic, ordered), TC-840 (classification record carries it), TC-841 (coverage report carries it; absent key preserves FR-050-AC-7), TC-843 (nested form does not repeat the record), TC-870 (the skipped-row diagnostic reaches the report), TC-872 (declaration order, not source name), TC-873 (`exclude` binds both surfaces), TC-1878 (an underscore-shaped object-archetype id registers the same way an FR does, #460) | ✅ Implemented |
+| FR-053 Selected criterion inventory (PLAT-1165) | AC-15..23 | TC-1954..TC-1962 (explicit entry point, origin-aware selection/entry identity, complete population, typed failure/partial rows, ambiguity, valid empty, observed-end stopping, deterministic ownership and legacy preservation) | 🚧 Planned |
 | FR-054 Verification-method catalog | AC-1..13; CON-1..6 | TC-844 (entries exposed intact), TC-845 (first-wins + DuplicateVerificationMethod), TC-846 (undeclared is None, not empty), TC-847 (unknown key fails load), TC-848 (empty required field fails load), TC-849 (derived vocabularies track the merge), TC-850 (test_type unchanged; unknown name empty), TC-851 (CON-2 applicability opaque), TC-852 (CON-3 no finding), TC-853 (CON-4 derived, never authored twice), TC-874 (an uncatalogued method is reported), TC-875 (no catalog asks no question), TC-967 (CR-091 the diagnostic carries the method as a structured `value`), TC-968, TC-969 (CR-092 `cost` exposed intact + additive serialization) | ✅ Implemented |
 | FR-055 Published JSON output contract | AC-1..8; CON-1..3 | TC-854 (schemas valid + versioned), TC-855 (baseline conforms), TC-856 (every optional key exercised), TC-857 (emitted criteria conform), TC-858 (additionalProperties closed at depth), TC-859 (optional/required split matches the engine), TC-947 (CR-086 `implements` optional-key record), TC-860 (CON-1/CON-2 no version key, no schemars), TC-1010 (CR-104 instrument provenance is optional and closed) | ✅ Implemented (the `properties` envelope conformance test lives in `quire-cli`, which assembles it) |
 | FR-065 Controlled-corpus contract | AC-1..47; CON-1..4 | TC-1011 (read in place; mutating copies), TC-1012 (required fields + control pairing), TC-1013 (optional expect fields), TC-1014 (the bounds vocabulary), TC-1015 (gap_count is a count), TC-1016 (the L1/L2/L3 ladder), TC-1017 (every failure case has its control), TC-1018 (the real module binds by default), TC-1019 (determinism), TC-1020 (reproducible by hand, with a module), TC-1021 (one declaration of each vocabulary, read from corpus.yaml), TC-1022 (a variant varies expectations, not identity), TC-1023 (the live block and the forward block), TC-1024 (unbacked_rows, groups and L3 lists are exact), TC-1025 (the loader refuses a block asserting the wrong thing), TC-1026 (the vocabulary is checked against the engine), TC-1027 (a control binds its partner's declaration), TC-1028 (a failure case discriminates from its control), TC-1032 (a regression case pins a landed fix; an ecosystem-bound one credits its cell, a variant-bound one credits none), TC-1043 (the Rust reader requires what `case_schema` declares required, and models every field it declares) | ✅ |
@@ -165,6 +167,8 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 ---
 
 ## Test Case Summary
+
+Reserved withdrawn IDs (not active test cases): TC-834, TC-842, TC-871, TC-1089, TC-890.
 
 | Test ID | Title | Type | Priority | Traces To | Status |
 |---------|-------|------|----------|-----------|--------|
@@ -219,7 +223,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-058 | Static audit: no HashMap in render/parse code paths | Static | P1 | NFR-006-AC-3 | 🚧 |
 | TC-060 | Registry behavior identical across three on-disk corpora (Filament/hand/test) | Integration | P0 | StR-001-AC-5 | 🚧 |
 | TC-061 | LLM tool-call schema round-trip: schema_for → tool input → render | Integration | P1 | US-001-AC-2, US-001-AC-3 | 🚧 |
-| TC-062 | Cargo.lock has no schemars dependency | Static | P1 | FR-003-AC-4 | 🚧 |
+| TC-062 | All-feature cargo-deny bans `schemars` | Static | P1 | FR-003-AC-4 | ✅ |
 | TC-070 | DSL multi-yield (iterate_over) emits one record per iteration unit | Unit | P0 | FR-011-AC-2 | 🚧 |
 | TC-072 | Each of 6 Locator primitives exercised by ≥1 unit test | Unit | P0 | FR-011-AC-1 | 🚧 |
 | TC-073 | DSL required:true missing field returns MissingField | Unit | P0 | FR-011-AC-4 | 🚧 |
@@ -230,7 +234,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-082 | Manifest with missing schema_ref produces ArchetypeLoadError; siblings still load | Integration | P0 | FR-013-AC-3 | 🚧 |
 | TC-083 | Bench: Registry::load_from baseline corpus < 100 ms median | Benchmark | P0 | FR-013-AC-4, NFR-007-AC-1 | 🚧 |
 | TC-084 | After load, render does no disk I/O (verified via strace / tracing audit) | Static | P0 | FR-013-AC-5 | 🚧 |
-| TC-085 | Cargo.lock has no HTTP/RPC client crates | Static | P0 | FR-013-AC-6, StR-001-AC-3 | 🚧 |
+| TC-085 | All-feature cargo-deny bans HTTP/RPC client crates | Static | P0 | FR-013-AC-6, StR-001-AC-3 | ✅ |
 | TC-1803 | Native unittest.TestCase methods and supported imported aliases bind independently of class name; helper and unrelated-base controls remain non-evidence | Integration | P0 | FR-051-AC-3 | ✅ |
 | TC-1804 | Explicit reference status column validates and defaults without serialization drift; blank, wrong-type and vocabulary-less overrides refuse | Unit | P0 | FR-050-AC-45 | ✅ |
 | TC-1805 | Mixed default/explicit status columns classify unknown and complete-unbacked rows; absent selected columns never fall back and name the correct configuration | Integration | P0 | FR-050-AC-46 | ✅ |
@@ -377,7 +381,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-500 | Untyped doc (no `type` field): excluded from `by_type`, found by `by_id`, emits UntypedArtifact diagnostic | Unit | P1 | FR-027-AC-9 | 🚧 |
 | TC-501 | Identical edge from frontmatter + body deduped to one; same-pair different-type kept as two | Unit | P0 | FR-026-AC-8 | 🚧 |
 | TC-620 | Relative-path body link to a loaded doc → Resolved `references` edge (text/slug-independent); rel link to no loaded path → Dangling | Unit | P0 | FR-026-AC-9 | 🚧 |
-| TC-621 | Relative-path links in `index.md`/`log.md` contribute no `references` edges; the same link in an ordinary artifact is harvested | Unit | P0 | FR-026-AC-10 | 🚧 |
+| TC-621 | Relative-path links in `index.md` contribute no `references` edges; the same link in an ordinary artifact is harvested | Unit | P0 | FR-026-AC-10 | 🚧 |
 | TC-622 | Identical `(source, FR-002, references)` from a relative-path link and an `ix://` link / frontmatter entry dedups to one edge | Unit | P0 | FR-026-AC-11 | 🚧 |
 | TC-880 | The `ix://` grammar accepts every shape the ecosystem authors — `org/repo/ID` (5,080 uses), `org/repo/spec/class/ID` (540), `org/repo` (225), `org/repo/spec/class/subdir/ID` (107), an object-slug target (`master-requirements`, `spire-partition-object-header`), `aggregate_root/User`, `ix://npm/…`, a `#fragment`, and both `[t](ix://…)` and `<ix://…>` wrappers. Occurrence counts are carried in the test so a future tightening argues with real usage | Unit | P0 | FR-026-AC-12, FR-026-CON-1 | ✅ |
 | TC-881 | The grammar rejects the bare protocol `` `ix://` `` (158 uses — the #89 defect, whose target was the closing backtick), a single-segment URI, the `<org>`/`<ID>` and `{code}` doc templates, an `ix://([^)]+)` regex in prose, and a URI truncated by an elided segment (`ix://org/repo/...` mints nothing, not an edge to `repo`) | Unit | P0 | FR-026-AC-13 | ✅ |
@@ -674,7 +678,6 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-831 | A `target:`-bound obligation source mints one record per row of the named trace target's table, each keyed on the id the coverage rollup already mints, carrying statement, method and criticality (FR-053) | Integration | P0 | FR-053-AC-1 | ✅ |
 | TC-832 | An `archetype:`+`section:`+`id_format:` source covers rows with no id column — the NFR `Measurement and Evaluation` table — rendering `{document}` and the 1-based `{row}`, and carrying the metric's target and threshold as parameters (FR-053) | Integration | P0 | FR-053-AC-2 | ✅ |
 | TC-833 | A source declaring both `target:` and `archetype:`, or neither, is rejected at manifest parse: the module contributes nothing, the failure names the offending source, and no obligation reaches a consumer (FR-053) | Integration | P0 | FR-053-AC-3 | ✅ |
-| TC-834 | Whitespace and line-wrapping do not churn the statement hash; any word change does — **including a word inside an inline code span**, which the CR-017 mask would have collapsed (FR-053) | Unit | P0 | FR-053-AC-4 | ✅ |
 | TC-835 | One `Verification` cell, two readings: the obligation's method drops the trailing annotation (`Test (TC-707)` → `Test`) while FR-049's integrity check still reads `TC-707` out of the same cell (FR-053) | Integration | P0 | FR-053-AC-5 | ✅ |
 | TC-836 | A declared parameter whose cell is empty is **omitted** from the record rather than carried as an empty string — a threshold nobody wrote is not a threshold of zero (FR-053) | Integration | P1 | FR-053-AC-6 | ✅ |
 | TC-837 | A source declaring no `criticality_column`, and one declaring an empty column, both yield an absent criticality and are otherwise identical — criticality is genuinely optional, since the ISO AC contract carries no priority column (FR-053) | Integration | P1 | FR-053-AC-7 | ✅ |
@@ -682,10 +685,8 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-839 | Two derivations over an identical corpus are equal and serialize identically, ordered by source, then document, then authored row order (FR-053) | Integration | P0 | FR-053-AC-9 | ✅ |
 | TC-840 | A criterion carries its obligation on the property-classification record, matched by row id; with no source declared it carries `None` and every other field is unchanged (FR-053) | Integration | P0 | FR-053-AC-10 | ✅ |
 | TC-841 | The coverage report carries one obligation per minting row, and a model declaring none serializes the key **away entirely** rather than as an empty list, so FR-050-AC-7 byte-identity holds for every module that has not adopted them (FR-053) | Integration | P0 | FR-053-AC-11 | ✅ |
-| TC-842 | The hash follows the statement, not its position: the same statement in a different file, under a different id, hashes the same, while a one-word rewording does not (FR-053) | Integration | P0 | FR-053-AC-12 | ✅ |
 | TC-843 | The obligation nested on a classification record carries no `id`, `statement` or `document` — the record and its enclosing object already carry all three (FR-053) | Integration | P1 | FR-053-AC-13 | ✅ |
 | TC-870 | The skipped-row diagnostic reaches the **coverage report** — declaration, document, row ordinal, and the `obligation-row-states-nothing` reason in the JSON — not only `derive`'s return value (FR-053, CR-063) | Integration | P1 | FR-053-AC-8 | ✅ |
-| TC-871 | A composed and a decomposed accent hash identically: normalization is NFC before trim-and-collapse, so an editor rewriting NFD is not a suspect link (FR-053, CR-063) | Unit | P0 | FR-053-AC-4 | ✅ |
 | TC-872 | Record order follows source **declaration** order, proven with a module whose two sources are declared in reverse alphabetical order — the only arrangement where declaration order and name order disagree (FR-053, CR-063) | Integration | P0 | FR-053-AC-9 | ✅ |
 | TC-873 | An `exclude`d document states no obligation on **either** surface — absent from the coverage rollup and `None` on its classification record — so a generator cannot emit a trace tag for an id nothing mints (FR-053, CR-063) | Integration | P0 | FR-053-AC-14 | ✅ |
 | TC-1878 | A lowercase `object_types` archetype whose own id joins KIND and NUMBER with an underscore (`interface_004`, matching spec-objects-architecture's real `interface` object type and its 3-column `\| ID \| Criteria \| Verification \|` Acceptance Criteria table) registers as an obligation-bearing kind exactly like an FR does — one `trace_targets` entry plus one `obligations` source, no engine change. One AC backed, one not: both land in `coverage.totals`/`minted_targets` and neither in `untracked_symbols` (FR-053, agent-ix/quire-rs#460) | Integration | P0 | FR-053-AC-1 | ✅ |
@@ -769,22 +770,21 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-1807 | Clause-set text-rights violations fail closed | Unit | P0 | FR-073-AC-1, FR-073-AC-6 | ✅ |
 | TC-1808 | Clause-set diff reports added, removed, and changed clauses by stable id | Unit | P0 | FR-073-AC-4 | ✅ |
 | TC-1809 | A module loads a referenced synthetic clause set and both output reports conform to their hand-authored schemas | Integration | P0 | FR-073-AC-1, FR-073-AC-5 | ✅ |
-| TC-1076 | `required` defaults true and is omitted on serialization; `required: false` round-trips, suppresses only an absent target section and its section-hit denominator entry, while a present section still mints and validates; a non-boolean value fails load (#327) | Integration | P0 | FR-050-AC-41 | ✅ |
+| TC-1076 | `required` defaults true and is omitted on serialization; `required: false` round-trips, suppresses missing-archetype and missing-section findings (with an omitted section excluded from the minting census), and still scans a present table, diagnoses a missing id column, and returns its rows; a non-boolean value fails load (#327) | Integration | P0 | FR-050-AC-41 | ✅ |
 | TC-1077 | A bound bare requirement id remains untracked and backs no criterion, while `untracked-id-has-minted-children` names its exact source locus and real minted `-AC-` children in Rust, Python and TypeScript. Direct parents recommend the exact applicable child; a nested unminted class forbids substituting a sibling obligation and directs declaration/correction instead. The exact-id control and an unrelated typo remain silent (#328) | Integration | P0 | FR-050-AC-42 | ✅ |
 | TC-1078 | Exact, mid-word truncation, over-broad domain, wrong-subject and justified safe-refusal controls pin the span boundary contract; emitted spans retain exact statement-relative coordinates and a refusal retains `span:refused-weak-boundary` (#241) | Unit | P0 | FR-052-AC-20 | ✅ |
 | TC-1079 | A `Coverage Status` header against configured `Status` preserves the former skipped-classification state but emits `status-column-matches-nothing` at the header, naming configured and observed columns plus both safe change targets; restoring `Status` is quiet and restores status-lie detection (#341) | Integration | P0 | FR-050-AC-43 | ✅ |
 | TC-1080 | The retained `filament-ide-rs` TC-1598 helper oracle is detected at its assertion and names the copied `validate_artifact_path` decision with score and repair; a reduced corpus pair reproduces it, while an independent helper, an unused copied helper, and two matching production subjects stay silent (#236) | Integration | P0 | FR-064-AC-7, FR-064-CON-6 | ✅ |
 | TC-1081 | A trace id quoted inside legacy prose remains visible to the shared binder/detector matcher, while the same prose with a redacted non-id stays silent. The retained #355 calibration treats this as an advisory precision cost and does not introduce a caller-specific mask. | Unit | P0 | FR-051-AC-22 | ✅ |
 | TC-1083 | Three Rust tests whose comments bind while their `tc_NNN` names match no declared name form retain aggregate 3/3 binding but report the self-named subpopulation as 0/3, with located `marker-form-mismatch` and named `hollow-denominator`; the census retains one deterministic example (#367) | Integration | P0 | FR-050-AC-44 | ✅ |
-| TC-1084 | The hand-authored assurance-v1 schema compiles under JSON Schema 2020-12, carries the versioned `$id`, and accepts the complete compatibility fixture | Unit | P0 | FR-067-AC-1 | ✅ |
-| TC-1085 | Export construction refuses each incomplete provenance premise independently — empty repository, moving or abbreviated revision, unnamed/unversioned module, archetype load failure, and a document outside the supplied corpus root — returning no partial value | Unit | P0 | FR-067-AC-2 | ✅ |
+| TC-1084 | The hand-authored assurance-v1 schema compiles under JSON Schema 2020-12, carries the versioned `$id`, and accepts the complete v1 fixture | Unit | P0 | FR-067-AC-1 | ✅ |
+| TC-1085 | Export construction refuses each incomplete provenance premise independently — unnamed/unversioned module, archetype load failure, and a document outside the supplied corpus root — returning no partial value | Unit | P0 | FR-067-AC-2 | ✅ |
 | TC-1086 | Two loaded modules with several archetypes export a sorted, duplicate-free module/version inventory | Unit | P0 | FR-067-AC-3 | ✅ |
 | TC-1087 | Import rejects an unknown format version and module version one at a time before exposing records, naming the exact failed premise | Unit | P0 | FR-067-AC-4, StR-007-VC-2 | ✅ |
 | TC-1088 | Identical inputs produce byte-identical exports; changing only the full source revision changes only that premise | Property | P0 | FR-067-AC-5 | ✅ |
-| TC-1089 | The checked-in assurance-v1 golden fixture round-trips under additive readers, while deleting, renaming, retyping, or reinterpreting every pinned v1 field is rejected | Snapshot | P0 | FR-067-AC-6, StR-007-VC-4 | ✅ |
 | TC-1090 | Enabling assurance export leaves the coverage-v1 and properties-v1 byte goldens unchanged and adds no assurance version key to either payload | Integration | P0 | FR-067-AC-7, FR-067-CON-4, FR-055-AC-7 | ✅ |
-| TC-1091 | Every exported artifact id/type/UUID and source locator equals the loaded document; resolving its path at the pinned Git object reproduces the exact-byte SHA-256 digest | Integration | P0 | FR-068-AC-1, StR-007-VC-1 | ✅ |
-| TC-1092 | Obligation projection is field-for-field equal to FR-053 and its row locator selects the verbatim statement whose normalized and exact hashes reproduce the export | Integration | P0 | FR-068-AC-2 | ✅ |
+| TC-1091 | Every exported artifact id/type/UUID and source locator equals the loaded document; resolving its path and line locates the same record | Integration | P0 | FR-068-AC-1, StR-007-VC-1 | ✅ |
+| TC-1092 | Obligation projection is field-for-field equal to FR-053 and its row locator selects the verbatim statement | Integration | P0 | FR-068-AC-2 | ✅ |
 | TC-1093 | Symbol projection preserves FR-051 identity, qualified name, language, kind, path, line and capabilities; same-named symbols in different paths or containers remain distinct | Integration | P0 | FR-068-AC-3 | ✅ |
 | TC-1094 | Exported corpus relations form a bijection with `Spec::edges()` including resolution state; the relation-kind catalog retains every module-declared, trace-binding and observed kind, including a supported kind with zero observed edges | Property | P0 | FR-068-AC-4 | ✅ |
 | TC-1095 | A verifies binding retains evidence provenance while an implements binding remains production scope with no invented provenance or evidence count | Unit | P0 | FR-068-AC-5 | ✅ |
@@ -793,13 +793,13 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-1098 | Repeated projections are byte-identical and editing one unrelated document changes no other projected identity or relation | Property | P0 | FR-068-AC-8 | ✅ |
 | TC-1099 | A static dependency boundary permits only the existing corpus, obligation and symbol-record accessors and rejects direct frontmatter, markdown-query or source-tag harvesting from the exporter | Static | P0 | FR-068-AC-9, FR-068-CON-1 | ✅ |
 | TC-1599 | A module with a valid `semantic` block and a reference `data_schema` loads a `SemanticModule` record and resolved schema; `validate_document_in_registry` validates the declaration record against it | Integration | P0 | FR-069-AC-1 | ✅ |
-| TC-1600 | `contract_version: 2.0.0` fails with `semantic.unsupported-contract-version` and no other semantic diagnostic; `semantic_core: 0.9.0` fails naming `0.9.0` and the embedded version | Unit | P0 | FR-069-AC-2 | ✅ |
+| TC-1600 | `contract_version: 2.0.0` fails with `semantic.unsupported-contract-version` and no other semantic diagnostic (the former `semantic_core: 0.9.0` clause is removed) | Unit | P0 | FR-069-AC-2 | ✅ |
 | TC-1601 | An unknown block key, an undeclared export, `package: ix://agent-ix/x`, and `targets: [go]` each fail with their named code and value | Unit | P0 | FR-069-AC-3 | ✅ |
 | TC-1602 | Missing file, non-JSON, no `$schema`, `..` and symlink escapes each fail with code, path, and reason; `{ schema, type }` fails `semantic.data-schema-ambiguous` | Unit | P0 | FR-069-AC-4 | ✅ |
-| TC-1603 | `$ref` to semantic-core `0.2.0`, an unshipped sibling, an outside `https://` `$ref`, and a two-file cycle each fail naming the `$ref`; a self-`$id` fragment loads; identical results under `--no-default-features --features wasm` | Unit | P0 | FR-069-AC-5 | ✅ |
+| TC-1603 | `$ref` to semantic-core `0.2.0` loads, resolved to the embedded bundle; an unshipped sibling, an outside `https://` `$ref`, and a two-file cycle each fail naming the `$ref`; a self-`$id` fragment loads; identical results under `--no-default-features --features wasm` | Unit | P0 | FR-069-AC-5 | ✅ |
 | TC-1604 | Inline `data_schema` under a `semantic` block warns `semantic.inline-data-schema`; the same manifest without the block is silent | Unit | P1 | FR-069-AC-6 | ✅ |
 | TC-1605 | A Filament snapshot with a reference-form `data_schema` is refused with `semantic.data-schema-unresolved-reference`; inline schema plus `semantic` context extracts | Unit | P0 | FR-069-AC-7 | ✅ |
-| TC-1606 | Every semantic-core version a `semantic` block may declare is a non-empty embedded bundle, sourced from the published `@agent-ix/semantic-core` package, and every embedded file is a valid draft 2020-12 JSON Schema | Static | P0 | FR-069-AC-8 | ✅ |
+| TC-1606 | The embedded semantic-core bundle is non-empty, sourced from the published `@agent-ix/semantic-core` package, and every embedded file is a valid draft 2020-12 JSON Schema | Static | P0 | FR-069-AC-8 | ✅ |
 | TC-1608 | Schema resolution performs no network fetch and no read outside the module root: an `https://` `$ref` outside the vendored bundle fails as unshipped and a static audit finds no fetch path | Static | P0 | FR-069-CON-1 | ✅ |
 | TC-1610 | Vendored `config-version.table.md` extracts to the normalized `fields` of `config-version.expected.json`, every entry validating against `FieldDecl.json` | Unit | P0 | FR-070-AC-1 | ✅ |
 | TC-1611 | Vendored `config-version.fence.md` extracts to the identical normalized array with `fieldsForm: fence` | Unit | P0 | FR-070-AC-2 | ✅ |
@@ -824,7 +824,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-1630 | Every case in `tests/fixtures/semantic/cases.json` yields the expected declarations, `availability`, and ordered diagnostics through the library, and the record validates against `semantic-v1.schema.json`; every case carries `issue_ref` | Integration | P0 | FR-072-AC-1 | ✅ |
 | TC-1631 | Fixtures exercise `available`, `not_applicable`, `missing`, `unavailable` per kind and both `lossy` values; each is a distinct JSON token and `unavailable` carries a non-empty `reason` | Unit | P0 | FR-072-AC-2 | ✅ |
 | TC-1632 | A Filament snapshot with a `semantic` context yields `dataJson.semantic` and diagnostics with `locus` and mapped severity; without the context the result carries no `semantic` key and no `locus` | Snapshot | P0 | FR-072-AC-3, FR-072-CON-1 | ✅ |
-| TC-1633 | A snapshot naming `contractVersion: 2.0.0` or `semanticCore: 0.9.0` is refused with the FR-069 code before any node is produced | Unit | P0 | FR-072-AC-4 | ✅ |
+| TC-1633 | A snapshot naming `contractVersion: 2.0.0` is refused with the FR-069 code before any node is produced | Unit | P0 | FR-072-AC-4 | ✅ |
 | TC-1634 | `validate_document` over the vendored corpus copy reports the legacy-form warning at its line and over `both-forms.md` the both-forms error at the fence line, with the library's codes; the error fails validation | Integration | P0 | FR-072-AC-5 | ✅ |
 | TC-1635 | Under `make ci-python`, the Python binding's `extract_filament_core` and `extract_semantic` return JSON values equal to the Rust output for every semantic fixture case | Integration | P0 | FR-072-AC-6 | ✅ |
 | TC-1636 | The WASM `extractFilamentCore` and `extractSemantic` return JSON values equal to the Rust output for every semantic fixture case — external: runs in `agent-ix/quire-wasm#3` CI, reported here by reference | Integration | P0 | FR-072-AC-6 | 🚧 external — agent-ix/quire-wasm#3 |
@@ -897,17 +897,46 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-1873 | The published `@agent-ix/spec-objects-architecture` module, resolved at test time via the `spec-objects-architecture-fixture` crate (PLAT-901), validates its `part`, `port`, `connection`, and `allocation` skeletons with zero errors, and each declaration record carries exactly its schema's required keys (`tests/semantic_systems.rs`) | Integration | P0 | FR-075-AC-13 | ✅ |
 | TC-1874 | A `Features` table interleaving one field and two operations yields `model.featureOrder` in row order with row spans; the declaration record carries `featureOrder` as the ordered names and satisfies the vendored `Interface.json`; `FeatureKind`'s cell spelling, `Display`, and serde form agree (`tests/semantic_features.rs`) | Integration | P0 | FR-075-AC-14 | ✅ |
 | TC-1875 | A `Features` row naming no declared feature (`semantic.unknown-feature`), of the wrong kind (`semantic.feature-kind-mismatch`), with an unknown kind, with a non-Identifier name, or repeated, is refused at its row, and a declared field or operation with no row is `semantic.missing-feature` at the header; a wrong-kind row is not also missing; each omits `model`; with `operations` unavailable no row naming an operation is checked (`tests/semantic_features.rs`) | Integration | P0 | FR-075-AC-15 | ✅ |
+| TC-1948 | A declared `Base` locator and a `Dimension \| Exponent` locator extract `model.dimension` and `model.terms` with dimension-token verdicts, placeholders, ambiguity and every refused cell (`Base`, `Exponent`, duplicate, non-`Identifier`) at its row | Unit | P0 | FR-075-AC-16, FR-075-AC-17 | 🚧 |
+| TC-1949 | A declared `Dimension \| Target \| Scale \| Offset` locator extracts `model.unit` for root and non-root units, accepts the canonical rationals and refuses `2/4`, `1/1`, `-0`, `0/5`, `01/3`, `1.5`, `1/0` and empty cells, resolves `Target` as a unit token, extracts a cyclic unit graph unchanged, and resolves qualified and imported dimension and target tokens to owner-qualified identities | Unit | P0 | FR-075-AC-18 | 🚧 |
+| TC-1950 | A manifest declaring none of the dimension, terms and unit locators refuses each table with `semantic.feature-not-extractable`, and an artifact with none of the tables yields the FR-072 record byte-for-byte | Unit | P0 | FR-075-AC-19 | 🚧 |
+| TC-1951 | Dimension, terms and unit records validate against `semantic-v1.schema.json`, Rust and Python agree as JSON values, and repeated extraction is byte-identical | Integration | P0 | FR-075-AC-20 | 🚧 |
+| TC-1952 | Unit and dimension tokens resolve through `importedArtifacts`: bare tokens from own then imported artifacts, qualified `<org>/<repo>::name` tokens, cross-package ambiguity naming both packages, own-package precedence, owner-qualified identities for two `Time` dimensions in one record, the `unknown-token` and `import-unresolved` reasons, and the single `no-bundle-index` reason for every unresolved token (qualified, in `imports` or not, and bare) under an empty index | Unit | P0 | FR-070-AC-14 | 🚧 |
+| TC-1953 | A repeated `Base`, `terms` or unit table, and a `Base` table beside a unit table, each yield `semantic.duplicate-section` at the second table's header line, keep the earlier kind, and a `Base` table with a `terms` table extracts both | Unit | P0 | FR-075-AC-21 | 🚧 |
+| TC-1963 | Qualified performed Inspection binds only its exact selected obligation | Integration | P0 | FR-078-AC-1 | 🚧 Blocked — Quoin owner qualification/CI carrier; not run |
+| TC-1964 | Analysis requires both lint lanes and CI association; one-lane and wrong-method controls refuse | Integration | P0 | FR-078-AC-2 | 🚧 Blocked — Quoin owner qualification/CI carrier; not run |
+| TC-1965 | Executed shell and Makefile evidence binds with exact producer/source/tool/configuration | Integration | P0 | FR-078-AC-3 | 🚧 Blocked — Quoin owner qualification/CI carrier; not run |
+| TC-1966 | Executed compile_fail doctest expected refusal passes; unrun and wrong-error controls do not | Integration | P0 | FR-078-AC-4 | 🚧 Blocked — Quoin owner qualification/CI carrier; not run |
+| TC-1967 | Citations, unrun suites/scripts and validated Inspections tables remain unbacked | Unit | P0 | FR-078-AC-5 | 🚧 Planned — not run |
+| TC-1968 | Failed, errored, skipped, absent and unevaluated evidence retains distinct non-passing causes | Unit | P0 | FR-078-AC-6 | 🚧 Planned — not run |
+| TC-1969 | Wrong revision, selection and qualification premises do not bind | Unit | P0 | FR-078-AC-7 | 🚧 Blocked — Quoin owner qualification/CI carrier; not run |
+| TC-1970 | Waiver report and strict disposition stay distinct under pending Peter policy | Unit | P0 | FR-078-AC-8 | 🚧 Blocked — Peter waiver policy + owner representation; not run |
+| TC-1971 | Missing/wrong/ambiguous declared targets refuse rather than selecting a sibling or first duplicate | Unit | P0 | FR-078-AC-9 | 🚧 Planned — not run |
+| TC-1972 | Identical records deduplicate; conflicts are deterministic in both input orders | Unit | P0 | FR-078-AC-10 | 🚧 Planned — not run |
+| TC-1973 | Latest failed/error run revokes prior pass using owner audit precedence | Integration | P0 | FR-078-AC-11 | 🚧 Planned — not run |
+| TC-1974 | No-qualified-input source report and source claims remain unchanged | Snapshot | P0 | FR-078-AC-12, FR-078-CON-3 | 🚧 Planned — not run |
+| TC-1975 | Qualified matrix record binders/status and exact no-symbol/status-lie membership | Unit | P0 | FR-078-AC-13, FR-078-CON-3 | 🚧 Planned — not run |
+| TC-1976 | Qualified claims have symmetric forward/inverse lookup distinct from source claims and citations | Integration | P0 | FR-078-AC-14 | 🚧 Planned — not run |
+| TC-1977 | Borrowed complete inventory retains unmapped rows and AuthoredRow/RenderedRow/CombinatorialTable selection identity | Integration | P0 | FR-078-AC-15 | 🚧 Planned — not run |
+| TC-1978 | Partial/invalid/non-Complete inventory cannot earn whole-selection coverage completion | Integration | P0 | FR-078-AC-16 | 🚧 Planned — not run |
+| TC-1979 | Producer-facing shared-record/audit example executes against the public consumer boundary | Integration | P0 | FR-078-AC-17 | 🚧 Planned — not run |
+| TC-1980 | RT Inspection, TC-198/199 gate and compile_fail equivalent fixtures record before/after strict outcomes | Integration | P0 | FR-078-AC-18 | 🚧 Planned — not run |
+| TC-1981 | Unknown method/catalog/kind and unsupported qualification refuse with deterministic diagnostics | Unit | P0 | FR-078-AC-19, FR-078-CON-4 | 🚧 Blocked — Quoin owner qualification/CI carrier; not run |
+| TC-1982 | Retained-evidence queries perform no gate, code, network, store mutation or publication | Integration | P0 | FR-078-AC-20, FR-078-CON-2 | 🚧 Planned — not run |
 | TC-1641 | A static audit of `cargo metadata` and the semantic module finds none of the NFR-021 denylisted crates and no `eval`/`parse_expr`/`typecheck` symbol over clause text | Static | P0 | NFR-021-AC-1 | ✅ |
 | TC-1642 | A static audit finds no `std::net`, `std::process`, or filesystem write on the semantic path | Static | P0 | NFR-021-AC-2 | ✅ |
 | TC-1644 | The semantic fixture suite yields identical JSON values across repeated runs and between Rust and Python under `make ci-python`, including diagnostic order and loci; WASM external via `agent-ix/quire-wasm#3` | Integration | P0 | NFR-021-AC-4 | ✅ |
 | TC-1645 | Two loaded modules with one `semantic.package` fail the later sorted root with `semantic.duplicate-package` naming both; an unprovided import warns `semantic.import-unresolved` and loads; a two-module import cycle fails both with `semantic.import-cycle` | Unit | P0 | FR-069-AC-10 | ✅ |
 | TC-1646 | `Registry::from_inline_parts` resolves a reference-form `data_schema` from the `schemas` map with the same digest, `$id`, escape, and `$ref` rules, and refuses a key with a `..` segment | Unit | P0 | FR-069-AC-11 | ✅ |
 | TC-1647 | A single row error yields `fields` `unavailable` (`row-errors`) naming every erroring locus and no partial array; a typed header with zero rows yields `available` and empty | Unit | P0 | FR-070-AC-10 | ✅ |
+| TC-1945 | A `Clock` Type cell yields the target `Clock` with no `decimal` or `unit` in the table and the fence, validates against `FieldDecl.json` read as `ix://quire/native/Clock` and `semantic-v1.schema.json`; `Clock [ms]` is `UNIT_NOT_ALLOWED`, `Clock(1,2)` is `semantic.invalid-type-token`, and a bundle object titled `Clock` changes nothing | Unit | P0 | FR-070-AC-11 | 🚧 |
+| TC-1946 | `Quantity<ms>` resolves to the `type/` identity of the unit artifact by `id` and by title; an unknown unit, an entity, and an empty index yield the unresolved placeholder with reasons `unknown-token` and `no-bundle-index`; two unit artifacts of one name yield `semantic.ambiguous-type`; a bare `Quantity` resolves by steps 2..5 | Unit | P0 | FR-070-AC-12 | 🚧 |
+| TC-1947 | Each malformed quantity token of FR-070-AC-13 (`Quantity<>`, spaced, hyphenated, nested, trailing text, parameters, `a::b::c`, `::ms`, unqualified `acme::ms`, empty name after `::`) yields `semantic.invalid-type-token` and only `Quantity<ms> [s]` yields `UNIT_NOT_ALLOWED`, `ref item` of `Clock` or a quantity yields `semantic.sysml-outside-subset`, and the path reads only the `BundleIndex` | Unit | P0 | FR-070-AC-13, FR-070-CON-2 | 🚧 |
 | TC-1648 | Without a caller `sourceIdentity`, spans carry `ix://local/<scope>/spec` and one `semantic.source-identity-defaulted` advisory per document; with one, spans carry it and no advisory | Unit | P0 | FR-071-AC-7 | ✅ |
-| TC-1850 | A `quire` fence under the embedded semantic-core extracts cleanly; an `ocl` fence under the embedded semantic-core and `0.1.0` is carried with `semantic.clause-language-unchecked` and a lossy kind; `quire` under `0.1.0` is `semantic.clause-language-invalid` | Unit | P0 | FR-071-AC-8 | ✅ |
-| TC-1851 | `clause-language-0.1.0-cases.json` `fence-quire-invalid` yields the recorded diagnostic, empty `clauseText`, and unavailable clause kind under `0.1.0` | Unit | P0 | FR-071-AC-9 | ✅ |
+| TC-1850 | A `quire` fence under the embedded semantic-core extracts cleanly; an `ocl` fence under the embedded semantic-core is carried with `semantic.clause-language-unchecked` and a lossy kind | Unit | P0 | FR-071-AC-8 | ✅ |
+| TC-1851 | Removed: covered the `0.1.0` clause-language fixture, deleted with `0.1.0`; the id is not reused | Unit | P0 | FR-071-AC-9 | ✅ |
 | TC-1649 | `make check-wasm` (in `make ci`): `cargo check` for wasm32 plus the four semantic suites under `--no-default-features --features wasm` — a Make gate, no test symbol | Compile | P0 | NFR-021-AC-2 | ✅ |
-| TC-1650 | `scripts/audits/check_no_schemars.sh` covers `schemas/output/semantic-v1.schema.json`; introducing a generator-derived schema fails the audit | Static | P0 | FR-072-CON-3 | ✅ |
+| TC-1650 | `tests/semantic_surface.rs` rejects generator markers in `schemas/output/semantic-v1.schema.json`; introducing a generator-derived schema fails the test | Static | P0 | FR-072-CON-3 | ✅ |
 | TC-1651 | `Registry::load_module_set` over an exact set (each module declared once) emits no `DuplicateModuleName`/`DuplicateArchetype` even with a same-named second copy alongside; the same directory named twice loads once | Unit | P0 | FR-013-AC-15 | ✅ |
 | TC-1652 | Closed, not preferred: `{base, extra}` resolves the archetype `extra` declares and validates a document using it; `{base}` does not resolve it | Unit | P0 | FR-013-AC-16 | ✅ |
 | TC-1653 | `load_module_set` consults neither the search-path env vars nor `~/.ix/filament/modules/`: a module outside the declared set is not loaded, and an empty set yields an empty registry with no path diagnostics | Unit | P0 | FR-013-AC-17 | ✅ |
@@ -945,7 +974,6 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-887 | Findings appear in the same order with and without a severity map, and repeated runs over one bundle agree (NFR-006) | Integration | P1 | FR-057-AC-10 | ✅ |
 | TC-888 | `unknown-type` and the missing-`type` error stand even with `bundle:unknown-type` and `bundle:frontmatter` mapped `off`, and carry no pack, so no key can ever address them | Integration | P0 | FR-057-CON-1 | ✅ |
 | TC-889 | With `refs:dangling-reference` off, a bundle that also has a dangling trace reference still reports `dangling-trace-reference` at its unchanged count | Integration | P0 | FR-057-AC-6 | ✅ |
-| TC-890 | `normalize_statement` is idempotent, and `statement_hash` is invariant under it — an obligation's identity cannot depend on how many times its text was round-tripped | Property | P0 | FR-053-AC-4 | ✅ |
 | TC-891 | `ears::normalize` is idempotent and never lengthens its input. Before CR-069 stripping `**` could synthesize a link the link pass had already run past (`[]**()` → `[]()` → `""`); the generator draws from the tokens the function rewrites, because a plain `.*` strategy passed 2 000 cases against the broken form | Property | P0 | FR-042-AC-1 | ✅ |
 | TC-892 | `normalize_reference_cell` is idempotent under every combination of the two opt-in flags, and is the identity with both off. Before CR-069 a chained range `FR-001..FR-003..FR-005` expanded only its first range and left a `..` the pattern rejects | Property | P0 | FR-049-AC-1 | ✅ |
 | TC-893 | `slug` is idempotent, its output alphabet is closed over `[a-z0-9-]` for any input including non-ASCII, and `slug_line_id` ignores surrounding whitespace on the heading — formatting cannot move a block id | Property | P0 | FR-009-AC-1, FR-009-AC-3, FR-009-AC-6 | ✅ |
@@ -983,12 +1011,12 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-926 | A strength of 0, or above the dimension count, yields 0 tuples rather than an error or the full product | Unit | P0 | FR-061-AC-2 | ✅ |
 | TC-927 | A forbidden combination is excluded — counting one that cannot exist makes the target permanently unreachable | Unit | P0 | FR-061-AC-3 | ✅ |
 | TC-928 | An exclusion forbids every wider tuple containing it, so a two-value constraint bites at strength 3 | Unit | P0 | FR-061-AC-4 | ✅ |
-| TC-929 | The hashed statement carries every value and the strength, so any change to the space suspects every binding over it | Unit | P0 | FR-061-AC-5 | ✅ |
+| TC-929 | The statement carries every value and the strength, so any change to the space changes the statement | Unit | P0 | FR-061-AC-5 | ✅ |
 | TC-930 | Cells parse as authored; a repeated value counts once and a single-assignment exclusion is rejected | Unit | P1 | FR-061-AC-6 | ✅ |
 | TC-931 | `obligation::for_document` mints ONE obligation for the whole table with strength/dimensions/tuples in parameters | Integration | P0 | FR-061-AC-7 | ✅ |
 | TC-932 | A space with fewer than two real dimensions mints nothing — a permanently-satisfied row reads exactly like a real one | Integration | P0 | FR-061-AC-8 | ✅ |
 | TC-933 | A combinatorial source declaring strength 0 fails at module load | Unit | P0 | FR-061-AC-9 | ✅ |
-| TC-934 | The corpus path mints the same one obligation as the single-document path — same id, parameters and statement hash, so a binding made against one matches the other | Unit | P0 | FR-061-AC-10 | ✅ |
+| TC-934 | The corpus path mints the same one obligation as the single-document path — same id and parameters, so a binding made against one matches the other | Unit | P0 | FR-061-AC-10 | ✅ |
 | TC-935 | The obligation record carries the test-case ids its method cell names — several, none, and an unclosed parenthetical that must read nothing rather than invent an id | Unit | P0 | FR-053-AC-11 | ✅ |
 | TC-936 | A production symbol carrying an `implements` marker mints the relation and backs NO trace id — scope is not evidence | Unit | P0 | FR-062-AC-1 | ✅ |
 | TC-937 | An `implements` marker on a test, and a `trace` marker on production code, each bind nothing: the symbol kinds are complements, so getting it wrong yields no relation rather than the wrong one | Unit | P0 | FR-062-AC-2 | ✅ |
@@ -1077,8 +1105,87 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-1892 | Over a genuinely mixed-language fixture (a Rust claim and a Python claim, each asserted non-empty before any `.all()` check so an empty result cannot pass vacuously), `symbol_language()` + `language_confidence()` resolve `structural` for the Rust claim (AST-grounded, PLAT-843) and `line_heuristic` for the Python claim (pre-PLAT-851 line scanner) — no result presents uniform confidence across languages (PLAT-844) | Unit | P0 | FR-077-AC-5 | ✅ |
 | TC-1893 | Querying `FR-047` does not implicitly match a `FR-047-AC-2` relation — exact match only, post `normalized_trace_id` normalization, with no engine-side FR/AC/TC hierarchy knowledge (PLAT-844) | Unit | P0 | FR-077-AC-6 | ✅ |
 | TC-1894 | The `mentions` pass does not mask Rust string-literal content: an id-shaped token inside a string literal is reported as a citation, not hidden — deliberately unlike the unchanged legacy-form masking on the `verifies`/`non_binding_tags` claim paths (PLAT-844) | Unit | P1 | FR-077-CON-3 | ✅ |
+| TC-1954 | Call the public root/model/nonempty-source-name/optional-stop-limit entry point; borrow valid selection data; reject empty, unknown and duplicate selectors and invalid models, with no caller Spec/RepoLoad/completion input (PLAT-1165) | Integration | P0 | FR-053-AC-15 | 🚧 |
+| TC-1955 | Enumerate two authored rows including a zero-mapping criterion; change a statement and delete each actual row; assert exact remaining entries, owner statement, count and normally exhausted Complete (PLAT-1165) | Integration | P0 | FR-053-AC-16 | 🚧 |
+| TC-1956 | Compile/run the external public consumer borrowing typed AuthoredRow/RenderedRow/CombinatorialTable origins and owner data; exact lookup requires no Markdown/private diagnostics/QSL ClauseRef, and deleting an earlier rendered row never presents its renumbered ID as authored (PLAT-1165) | Integration | P0 | FR-053-AC-17 | 🚧 |
+| TC-1957 | Exercise missing/file/unreadable roots, invalid-UTF8 and absent/malformed-frontmatter non-excluded files, plus healthy partial rows; compare readable valid unselected nonmembers and wholly excluded malformed/unreadable files as controls, retaining exact typed causes/loci (PLAT-1165) | Integration | P0 | FR-053-AC-18 | 🚧 |
+| TC-1958 | Compare missing selected section/table/headers and unusable rows with a nonempty selection over a valid empty root/empty headed table; duplicate same-source/document authored IDs retain both loci, refuse ambiguous lookup and keep other partial rows available (PLAT-1165) | Integration | P0 | FR-053-AC-19 | 🚧 |
+| TC-1959 | Observe real walk failure and explicit stop after a retained prefix; on an N-entry selection compare limits zero, N and greater than N with absent limit, requiring non-Complete at the reached limit and Complete only after normal end observation without another blocking cause (PLAT-1165) | Integration | P0 | FR-053-AC-20 | 🚧 |
+| TC-1960 | Compare canonical-root/resolved-declaration/selected-path-and-byte identity across equal captures and selected-document edits (including unrelated sections), membership changes, valid still-unselected edits, wholly excluded edits and outside-root edits; reject wrong selections and caller-created Complete (PLAT-1165) | Integration | P0 | FR-053-AC-21 | 🚧 |
+| TC-1961 | Repeat real enumeration and compare origin-aware records/identities/count/terminal ordering; check exact declared exclusions, healthy unexcluded rows and changed selection/exclusion identity even for equal emitted records (PLAT-1165) | Integration | P1 | FR-053-AC-22 | 🚧 |
+| TC-1962 | Compare legacy derive/classification/coverage healthy, skipped and tolerant bad-root outputs; execute public-boundary regression tests for no evidence/freshness verdict, GrammarFinding, copied IR schema or caller-authored revision/hash ledger (PLAT-1165) | Integration | P0 | FR-053-AC-23 | 🚧 |
 
 ---
+
+### PLAT-1181: guarded Rust implements attributes (planned)
+
+The following cases are planned implementation obligations. Their presence
+in this specification is not runtime or coverage evidence.
+
+| Test ID | Title | Type | Priority | Traces To | Status |
+|---------|-------|------|----------|-----------|--------|
+| TC-1983 | Load and round-trip a module-declared Rust attribute syntax guard; omitted guard retains the unguarded form | Integration | P0 | FR-062-AC-12 | 🚧 Planned |
+| TC-1984 | A genuine production attribute with two ids yields exactly two scope edges and zero verification edges | Integration | P0 | FR-062-AC-13 | 🚧 Planned |
+| TC-1985 | Real attribute control binds while attribute-shaped doc/line/block/nested-block comments and normal/byte/raw string data bind nothing | Integration | P0 | FR-062-AC-14 | 🚧 Planned |
+| TC-1986 | Multiline attributes, trailing comments and same-line declarations preserve valid guarded bindings | Integration | P0 | FR-062-AC-13 | 🚧 Planned |
+| TC-1987 | Nested and sibling declarations retain exact attribute ownership; an evidence symbol carries no implements edge | Integration | P0 | FR-062-AC-15 | 🚧 Planned |
+| TC-1988 | Existing unguarded Rust and Python/TypeScript comment forms remain module-driven and unchanged | Integration | P0 | FR-062-AC-16 | 🚧 Planned |
+| TC-1989 | Unknown guard, non-Rust guarded form and use outside implements are invalid module input, never an unguarded fallback | Integration | P0 | FR-062-AC-12 | 🚧 Planned |
+| TC-1990 | Guarded forms preserve identities, range-finding locations, parse-failure isolation, deterministic outputs and the scope/evidence separation | Integration | P0 | FR-062-AC-17 | 🚧 Planned |
+
+Procedures use the public module-load-to-bind path, not a manually patched
+`TraceabilityModel`. Each form declares its pattern and template in the
+fixture module. The source fixture is parsed as Rust; no test executes the
+attribute or the source it decorates. Assert the exact `implements` edge
+set, the absence of false `implements` edges and zero `verifies` evidence
+edges for production controls. The real multi-id attribute and all
+comment/string counterexamples (including attribute-shaped data inside a
+real, different attribute's payload) share one source/model input so masking the
+entire file cannot make the adverse controls pass.
+
+For TC-1987, include a parent function, a nested production declaration,
+a sibling and a test function with distinct ids; assert each id's exact
+owner rather than only a total count. Include `fn a() {} #[implements(...)]
+fn b() {}` on ONE source line and assert only b owns that attribute. Add
+attributes on a field, enum variant, statement, expression and closure;
+assert none bind the enclosing symbol. Include inner attributes, a function
+attribute inside a `proptest!` token tree, a `cfg_attr`-nested implements
+attribute and an ERROR-recovered attribute, with a real outer-attribute
+control. Assert no nested/inner/token/error relation; an explicitly
+whole-matching outer cfg_attr form may bind only that complete outer node.
+
+For TC-1989, check the module refusal names the configured form and no graph
+is returned by falling back to the unguarded matcher. Separately load a valid
+module with an old substring-only pattern against real eligible attributes:
+assert zero relations and one `CoverageReport.diagnostics` record per
+form/candidate pair with reason `partial-implements-attribute-match`,
+severity `warning`, exact form, file, 1-based candidate start line,
+qualified symbol and complete attribute text. Repeat with a partial match
+beside a full match (only the full match binds; partial finding retained).
+A completely nonmatching pattern and a file with no attributes each produce
+zero such findings. A separate file carrying `#[derive(...)]`, `#[inline]`
+and `#[must_use]` on production declarations WITHOUT any implements
+attribute SHALL produce zero guarded relations and zero partial-match
+findings for the declared implements form. These are bind findings, not
+invented module-load errors.
+
+TC-1990 SHALL have the following independently failing subcases; each SHALL
+assert its complete expected value rather than only successful execution:
+
+| Subcase | Required oracle |
+|----------|-----------------|
+| Identity | Extract the same declarations with and without the guard and compare every symbol id, path, kind and declaration position; compare exact relation endpoints for eligible attributes. |
+| Locations | Place a multiline attribute after unrelated source and a trailing comment; assert the actual candidate's byte/line location, not the start of the attached-source span. |
+| Range refusal | Put a declared-id range inside the real attribute; assert the existing typed finding and no expanded or partial relation. |
+| File isolation | Compare a declaration-syntax-rejected file with an independently valid file; assert the existing per-file failure, zero synthetic rejected-file relations and unchanged valid-file relations. |
+| Determinism | Repeat identical inputs and compare complete ordered relations and diagnostics, including partial-match findings. |
+| Verification separation | Include a genuine evidence-symbol control; compare the complete verifies-edge set before/after adding guarded production attributes. |
+| Backing separation | Compute coverage through the public path before/after adding guarded production attributes; assert exact equality of backed trace ids, totals and untracked_symbols, while the expected implements edges change. |
+
+Keep the existing ungated relation contract as the compatibility oracle for
+TC-1988. Inspection of FR-062-CON-4 SHALL follow syntax-node acquisition and
+ownership through the adapter/binder and verify that no parallel lexer or
+macro-expansion matcher supplies guarded candidates.
 
 ## Option Permutation Matrix
 
@@ -1440,8 +1547,8 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-064-AC-6 | TC-1061 |
 | FR-064-AC-7 | TC-1080 |
 | FR-050-AC-31 | `scripts/tests/test_overfit_check.py` (Inspection — python-side sweep, mints no Rust symbol) |
-| FR-050-AC-32 | `scripts/tests/test_bench.py` (Inspection — python-side gate, mints no Rust symbol) |
-| FR-050-AC-30 | `scripts/tests/test_bench.py` (Inspection — python-side gate, mints no Rust symbol) |
+| FR-050-AC-32 | `tools/quire-bench/tests/benchmark.rs` (Rust benchmark runner) |
+| FR-050-AC-30 | `tools/quire-bench/tests/benchmark.rs`, `tools/quire-bench/tests/measurement_export.rs` (Rust benchmark runner and governed exporter) |
 | FR-052-AC-18 | TC-989, TC-1007 |
 | FR-052-AC-19 | TC-780, TC-990 |
 | FR-052-AC-20 | TC-1078 |
@@ -1479,6 +1586,12 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-075-AC-13 | TC-1873 |
 | FR-075-AC-14 | TC-1874 |
 | FR-075-AC-15 | TC-1875 |
+| FR-075-AC-16 | TC-1948 |
+| FR-075-AC-17 | TC-1948 |
+| FR-075-AC-18 | TC-1949 |
+| FR-075-AC-19 | TC-1950 |
+| FR-075-AC-20 | TC-1951 |
+| FR-075-AC-21 | TC-1953 |
 | FR-076-AC-1 | TC-1852 |
 | FR-076-AC-2 | TC-1853 |
 | FR-076-AC-3 | TC-1854 |
@@ -1786,7 +1899,7 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-053-AC-1 | TC-831 |
 | FR-053-AC-2 | TC-832 |
 | FR-053-AC-3 | TC-833 |
-| FR-053-AC-4 | TC-834, TC-871, TC-890 |
+| FR-053-AC-4 | Withdrawn |
 | FR-053-AC-5 | TC-835 |
 | FR-053-AC-6 | TC-836 |
 | FR-053-AC-7 | TC-837 |
@@ -1794,9 +1907,18 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-053-AC-9 | TC-839, TC-872 |
 | FR-053-AC-10 | TC-840 |
 | FR-053-AC-11 | TC-841 |
-| FR-053-AC-12 | TC-842 |
+| FR-053-AC-12 | Withdrawn |
 | FR-053-AC-13 | TC-843 |
 | FR-053-AC-14 | TC-873 |
+| FR-053-AC-15 | TC-1954 |
+| FR-053-AC-16 | TC-1955 |
+| FR-053-AC-17 | TC-1956 |
+| FR-053-AC-18 | TC-1957 |
+| FR-053-AC-19 | TC-1958 |
+| FR-053-AC-20 | TC-1959 |
+| FR-053-AC-21 | TC-1960 |
+| FR-053-AC-22 | TC-1961 |
+| FR-053-AC-23 | TC-1962 |
 | FR-054-AC-1 | TC-844 |
 | FR-054-AC-2 | TC-845 |
 | FR-054-AC-3 | TC-846 |
@@ -1907,6 +2029,30 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-077-AC-5 | TC-1892 |
 | FR-077-AC-6 | TC-1893 |
 | FR-077-CON-3 | TC-1894 |
+| FR-078-AC-1 | TC-1963 |
+| FR-078-AC-2 | TC-1964 |
+| FR-078-AC-3 | TC-1965 |
+| FR-078-AC-4 | TC-1966 |
+| FR-078-AC-5 | TC-1967 |
+| FR-078-AC-6 | TC-1968 |
+| FR-078-AC-7 | TC-1969 |
+| FR-078-AC-8 | TC-1970 |
+| FR-078-AC-9 | TC-1971 |
+| FR-078-AC-10 | TC-1972 |
+| FR-078-AC-11 | TC-1973 |
+| FR-078-AC-12 | TC-1974 |
+| FR-078-AC-13 | TC-1975 |
+| FR-078-AC-14 | TC-1976 |
+| FR-078-AC-15 | TC-1977 |
+| FR-078-AC-16 | TC-1978 |
+| FR-078-AC-17 | TC-1979 |
+| FR-078-AC-18 | TC-1980 |
+| FR-078-AC-19 | TC-1981 |
+| FR-078-AC-20 | TC-1982 |
+| FR-078-CON-1 | Inspection — shared owner contract/dependency use; not performed |
+| FR-078-CON-2 | TC-1982 |
+| FR-078-CON-3 | TC-1974, TC-1975 |
+| FR-078-CON-4 | TC-1981 |
 
 ### Non-Functional Requirements
 

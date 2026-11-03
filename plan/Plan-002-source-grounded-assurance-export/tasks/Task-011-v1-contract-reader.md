@@ -12,8 +12,6 @@ relationships:
     type: verifies
   - target: ix://agent-ix/quire-rs/TC-1087
     type: verifies
-  - target: ix://agent-ix/quire-rs/TC-1089
-    type: verifies
 ---
 # Task-011: FR-067 — v1 assurance contract and reader
 
@@ -32,7 +30,7 @@ Define the public v1 types, hand-authored schema, deterministic serialization en
 
 - `schemas/output/assurance-v1.schema.json`
 - Public v1 contract and reader API in `src/assurance.rs`
-- Contract fixture and tests for TC-1084, TC-1087, TC-1089
+- Contract fixture and tests for TC-1084, TC-1087
 
 ## Notes
 

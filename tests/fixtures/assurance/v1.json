@@ -1,10 +1,6 @@
 {
   "format": "quire-assurance",
   "format_version": 1,
-  "source": {
-    "repository": "agent-ix/fixture",
-    "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-  },
   "modules": [
     {
       "name": "fixture-module",
@@ -23,8 +19,7 @@
       "artifact_type": "FR",
       "locator": {
         "path": "spec/functional/FR-001.md",
-        "line": 1,
-        "digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        "line": 1
       }
     }
   ],
@@ -34,21 +29,19 @@
       "id": "FR-001-AC-1",
       "document": "spec/functional/FR-001.md",
       "statement": "The export contains one artifact.",
-      "statement_hash": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
       "method": "Test",
       "parameters": { "threshold": "1" },
       "criticality": "P0",
       "target_ids": ["TC-001"],
       "locator": {
         "path": "spec/functional/FR-001.md",
-        "line": 20,
-        "digest": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+        "line": 20
       }
     }
   ],
   "symbols": [
     {
-      "id": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "id": "[\"rust\",\"tests/assurance.rs\",\"tests::exports_artifact\",\"test_function\"]",
       "language": "rust",
       "kind": "test_function",
       "qualified_name": "tests::exports_artifact",
@@ -56,8 +49,7 @@
       "capabilities": ["verifies"],
       "locator": {
         "path": "tests/assurance.rs",
-        "line": 9,
-        "digest": "1111111111111111111111111111111111111111111111111111111111111111"
+        "line": 9
       }
     }
   ],
@@ -87,33 +79,30 @@
       "resolution": "resolved",
       "locator": {
         "path": "spec/functional/FR-001.md",
-        "line": 7,
-        "digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        "line": 7
       },
       "freshness": "not_applicable"
     },
     {
       "kind": "verifies",
-      "source": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "source": "[\"rust\",\"tests/assurance.rs\",\"tests::exports_artifact\",\"test_function\"]",
       "target": "TC-001",
       "form": "rust-trace",
       "provenance": "canonical",
       "locator": {
         "path": "tests/assurance.rs",
-        "line": 9,
-        "digest": "1111111111111111111111111111111111111111111111111111111111111111"
+        "line": 9
       },
       "freshness": "unknown"
     },
     {
       "kind": "implements",
-      "source": "2222222222222222222222222222222222222222222222222222222222222222",
+      "source": "[\"rust\",\"src/lib.rs\",\"export\",\"function\"]",
       "target": "FR-001",
       "form": "rust-implements",
       "locator": {
         "path": "src/lib.rs",
-        "line": 3,
-        "digest": "3333333333333333333333333333333333333333333333333333333333333333"
+        "line": 3
       },
       "freshness": "not_applicable"
     }

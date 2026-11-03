@@ -122,11 +122,6 @@ fn strict_conformant_bundle_with_complete_index_is_valid() {
         "index.md",
         "---\ntype: index\ntitle: Root\nokf_version: \"0.1\"\n---\n# Root\n\n## Contents\n\n* [NOTE-001](./NOTE-001.md)\n",
     );
-    write(
-        &root,
-        "log.md",
-        "---\ntype: log\n---\n# Log\n\n## History\n\n* 2026-06-16 created\n",
-    );
 
     let report = validate_bundle_at(&root, &bundle_registry(), BundlePosture::Strict);
     assert!(report.is_valid(), "errors: {:?}", report.errors);
@@ -141,6 +136,7 @@ fn index_incompleteness_is_error_strict_warning_okf() {
     let root = tmpdir("index_incomplete");
     write(&root, "NOTE-001.md", &note("NOTE-001", "body"));
     write(&root, "NOTE-002.md", &note("NOTE-002", "body"));
+    write(&root, "log.md", &note("NOTE-003", "body"));
     // index lists only NOTE-001.
     write(
         &root,
@@ -153,12 +149,20 @@ fn index_incompleteness_is_error_strict_warning_okf() {
         .errors
         .iter()
         .any(|f| f.reason == "index-incomplete" && f.message.contains("NOTE-002")));
+    assert!(strict
+        .errors
+        .iter()
+        .any(|f| f.reason == "index-incomplete" && f.message.contains("log.md")));
 
     let okf = validate_bundle_at(&root, &bundle_registry(), BundlePosture::Okf);
     assert!(okf
         .warnings
         .iter()
         .any(|f| f.reason == "index-incomplete" && f.message.contains("NOTE-002")));
+    assert!(okf
+        .warnings
+        .iter()
+        .any(|f| f.reason == "index-incomplete" && f.message.contains("log.md")));
 }
 
 /// The bundle-root index.md must declare `okf_version`.

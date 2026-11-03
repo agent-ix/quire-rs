@@ -26,10 +26,12 @@ fn declared_core() -> &'static str {
 }
 
 fn semantic_v1() -> JSONSchema {
-    JSONSchema::options()
-        .with_draft(jsonschema::Draft::Draft202012)
-        .compile(&serde_json::from_str::<Value>(SEMANTIC_V1_SCHEMA).unwrap())
-        .unwrap()
+    compile_module_schema(
+        &serde_json::from_str::<Value>(SEMANTIC_V1_SCHEMA).unwrap(),
+        &|_| None,
+        "https://agent-ix.github.io/quire-rs/schemas/output/",
+    )
+    .unwrap()
 }
 
 fn relation_decl_gate(core: &str) -> JSONSchema {
@@ -41,7 +43,6 @@ fn relation_decl_gate(core: &str) -> JSONSchema {
     compile_module_schema(
         &schema,
         &|_| None,
-        core,
         "https://schemas.agent-ix.org/agent-ix/quire-rs/",
     )
     .unwrap()
@@ -80,7 +81,6 @@ fn request(fixture: &Value, markdown: &str, path: &str, case: Option<&Value>) ->
         "markdown": markdown,
         "module": {
             "contractVersion": "1.0.0",
-            "semanticCore": declared_core(),
             "package": "agent-ix/spec-objects-business",
             "exports": ["entity"],
             "imports": imports,

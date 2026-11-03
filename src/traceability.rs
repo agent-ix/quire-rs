@@ -477,7 +477,7 @@ pub struct ObligationSource {
     /// Scope-relative globs whose matching documents state no obligations.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub exclude: Vec<String>,
-    /// Column carrying the normative statement — the text that is hashed.
+    /// Column carrying the normative statement.
     pub statement_column: String,
     /// Column carrying the declared verification method. A trailing
     /// parenthetical annotation is dropped, so a `Verification` cell reading
@@ -499,9 +499,8 @@ pub struct ObligationSource {
     /// Read this source's table as a **configuration space** and mint ONE
     /// obligation for the whole table rather than one per row (FR-061).
     ///
-    /// A new source *kind*, not a new mechanism: the statement hash, the
-    /// suspect link and the `parameters` carriage are the ones FR-053 already
-    /// defines. What differs is arity — a t-way obligation is a statement about
+    /// A new source *kind*, not a new mechanism: the `parameters`
+    /// carriage is the one FR-053 already defines. What differs is arity — a t-way obligation is a statement about
     /// the interaction of every row, so one row cannot carry it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub combinatorial: Option<CombinatorialColumns>,
@@ -555,9 +554,37 @@ pub struct ColumnVocabularies {
     /// opinion about which methods produce code.
     #[serde(default)]
     pub no_source_symbol: Vec<String>,
+    /// Exact verification-cell values declaring a historical, retired row.
+    /// Retirement is distinct from a live method that mints no source symbol.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub retired: Vec<String>,
 }
 
 impl ColumnVocabularies {
+    /// Validate retirement independently so selected modules can be checked again after merging.
+    pub(crate) fn validate_retirement(&self) -> Result<(), String> {
+        for value in &self.retired {
+            if value.trim().is_empty() {
+                return Err(
+                    "traceability: vocabularies.retired values must be nonblank".to_string()
+                );
+            }
+            if self.mints_no_symbol(value) {
+                return Err(format!(
+                    "traceability: vocabularies.retired value '{value}' is also declared in no_source_symbol"
+                ));
+            }
+        }
+        Ok(())
+    }
+
+    /// Whether a whole normalized verification-cell value declares retirement.
+    pub fn is_retired(&self, value: &str) -> bool {
+        self.retired
+            .iter()
+            .any(|declared| declared.trim() == value.trim())
+    }
+
     /// True when `value` names a declared method that mints no source symbol.
     /// Compared case-insensitively, as the column vocabularies are elsewhere.
     pub fn mints_no_symbol(&self, value: &str) -> bool {
@@ -625,10 +652,11 @@ pub struct TraceTarget {
     pub section: SectionNames,
     /// Table column holding the minted id.
     pub id_column: String,
-    /// Whether every selected document must carry the minting section.
-    /// Omitted preserves the historical required posture. Optional targets
-    /// still mint and validate a section when it is present; only its absence
-    /// is healthy (FR-050-AC-41, #327).
+    /// Whether this target must be represented in the corpus. Omitted
+    /// preserves the historical required posture. An optional target may have
+    /// no documents of its archetype, or its selected documents may omit the
+    /// section; when the section is present it is still scanned and validated
+    /// (FR-050-AC-41, #327).
     #[serde(default = "default_true", skip_serializing_if = "is_true")]
     pub required: bool,
     /// Whether rows require source-symbol evidence. Omitted is the historical
@@ -855,9 +883,12 @@ pub struct TraceTagGrammar {
 /// One canonical marker form — a statically parseable construct attached to a
 /// test symbol (a pytest marker, a Rust attribute, a TS helper call). `pattern`
 /// matches the construct; capture group 1 is the id-bearing argument list.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct TraceMarkerForm {
+    /// Optional syntax position; patterns remain declared by the module.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub syntax: Option<TraceMarkerSyntax>,
     pub name: String,
     pub language: SourceLanguage,
     pub pattern: String,
@@ -869,10 +900,66 @@ pub struct TraceMarkerForm {
     pub template: Option<String>,
 }
 
+/// Syntax positions supported for module-declared marker forms.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TraceMarkerSyntax {
+    /// A complete outer Rust attribute attached to a declaration.
+    RustAttribute,
+}
+
+// Preserve field presence: explicit null is an invalid guard, not omission.
+fn present_syntax<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Option<serde_json::Value>, D::Error> {
+    serde_json::Value::deserialize(deserializer).map(Some)
+}
+
+impl<'de> Deserialize<'de> for TraceMarkerForm {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        #[derive(Deserialize)]
+        #[serde(deny_unknown_fields)]
+        struct Wire {
+            name: String,
+            language: SourceLanguage,
+            pattern: String,
+            #[serde(default)]
+            template: Option<String>,
+            #[serde(default, deserialize_with = "present_syntax")]
+            syntax: Option<serde_json::Value>,
+        }
+        let wire = Wire::deserialize(deserializer)?;
+        let syntax = match wire.syntax.as_ref() {
+            None => None,
+            Some(value)
+                if value.as_str() == Some("rust_attribute")
+                    && wire.language == SourceLanguage::Rust =>
+            {
+                Some(TraceMarkerSyntax::RustAttribute)
+            }
+            Some(value) => {
+                return Err(serde::de::Error::custom(format!(
+                    "trace marker '{}' has invalid syntax '{}' for {}",
+                    wire.name,
+                    value,
+                    wire.language.as_str()
+                )))
+            }
+        };
+        Ok(Self {
+            name: wire.name,
+            language: wire.language,
+            pattern: wire.pattern,
+            template: wire.template,
+            syntax,
+        })
+    }
+}
+
 /// One legacy textual form (bare id in a docstring, a `Trace:` line, a
 /// line-comment id, a trace-embedding test name). `rewrite_to` names the
 /// marker form a mechanical rewrite suggestion should target, when derivable.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct TraceLegacyForm {
     pub name: String,
@@ -886,6 +973,38 @@ pub struct TraceLegacyForm {
     pub id_format: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub rewrite_to: Option<String>,
+}
+
+impl<'de> Deserialize<'de> for TraceLegacyForm {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        #[derive(Deserialize)]
+        #[serde(deny_unknown_fields)]
+        struct Wire {
+            name: String,
+            #[serde(default)]
+            language: Option<SourceLanguage>,
+            pattern: String,
+            #[serde(default)]
+            id_format: Option<String>,
+            #[serde(default)]
+            rewrite_to: Option<String>,
+            #[serde(default, deserialize_with = "present_syntax")]
+            syntax: Option<serde_json::Value>,
+        }
+        let wire = Wire::deserialize(deserializer)?;
+        if wire.syntax.is_some() {
+            return Err(serde::de::Error::custom(format!(
+                "trace_tags.legacy form '{}' cannot declare syntax; only trace_tags.implements supports it", wire.name
+            )));
+        }
+        Ok(Self {
+            name: wire.name,
+            language: wire.language,
+            pattern: wire.pattern,
+            id_format: wire.id_format,
+            rewrite_to: wire.rewrite_to,
+        })
+    }
 }
 
 impl TraceabilityModel {
@@ -1335,9 +1454,14 @@ impl TraceabilityModel {
             }
         }
 
+        self.vocabularies.validate_retirement()?;
+
         let mut marker_names: BTreeSet<&str> = BTreeSet::new();
         for marker in &self.trace_tags.markers {
             check_named("trace_tags.markers", &marker.name)?;
+            if marker.syntax.is_some() {
+                return Err(format!("trace_tags.markers form '{}' cannot declare syntax; only trace_tags.implements supports it", marker.name));
+            }
             if !marker_names.insert(marker.name.as_str()) {
                 return Err(format!(
                     "traceability: duplicate trace_tags.markers entry '{}'",
@@ -1345,6 +1469,16 @@ impl TraceabilityModel {
                 ));
             }
             check_capturing_pattern("trace_tags.markers", &marker.name, &marker.pattern)?;
+        }
+        for marker in &self.trace_tags.implements {
+            check_named("trace_tags.implements", &marker.name)?;
+            check_capturing_pattern("trace_tags.implements", &marker.name, &marker.pattern)?;
+            if marker.syntax.is_some() && marker.language != SourceLanguage::Rust {
+                return Err(format!(
+                    "trace_tags.implements form '{}' requires Rust for rust_attribute",
+                    marker.name
+                ));
+            }
         }
         for legacy in &self.trace_tags.legacy {
             check_named("trace_tags.legacy", &legacy.name)?;

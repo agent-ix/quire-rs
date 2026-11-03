@@ -58,18 +58,7 @@ pub fn embedded_semantic_core_version() -> &'static str {
     })
 }
 
-/// Semantic-core versions with an embedded bundle: exactly the one the
-/// embedded bundle itself declares.
-pub fn semantic_core_versions() -> &'static [&'static str] {
-    static VERSIONS: std::sync::OnceLock<[&'static str; 1]> = std::sync::OnceLock::new();
-    VERSIONS.get_or_init(|| [embedded_semantic_core_version()])
-}
-
-/// The embedded bundle for `version`, if any.
-pub fn semantic_core_bundle(version: &str) -> Option<&'static [(&'static str, &'static str)]> {
-    if version == embedded_semantic_core_version() {
-        Some(agent_ix_semantic_schema::SEMANTIC_CORE_SCHEMAS)
-    } else {
-        None
-    }
+/// The embedded semantic-core bundle: the only one there is.
+pub fn semantic_core_bundle() -> &'static [(&'static str, &'static str)] {
+    agent_ix_semantic_schema::SEMANTIC_CORE_SCHEMAS
 }

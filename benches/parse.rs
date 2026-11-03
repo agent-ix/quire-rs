@@ -85,7 +85,7 @@ fn bench_parse(c: &mut Criterion) {
 /// TC-577, NFR-002-AC-4, NFR-007-AC-1: `validate_document` on a typical
 /// FR-sized artifact against a **warm** Registry (load cost excluded).
 /// Target: median below 1 ms on the canonical baseline runner, which is the
-/// `check_perf_regression.sh` baseline this bench is compared against.
+/// `quire-perf-gate` baseline this bench is compared against.
 ///
 /// The ids are a **comma list**, not `NFR-002-AC-4 / TC-577`: the declared
 /// legacy form's list separator is a comma only, so a `/`-separated pair binds

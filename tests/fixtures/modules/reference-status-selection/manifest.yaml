@@ -1,0 +1,36 @@
+name: reference-status-selection-test
+version: 0.1.0
+artifact_types:
+  - name: Matrix409
+traceability:
+  trace_targets:
+    - name: case
+      archetype: Matrix409
+      section: [Default, Alternate]
+      id_column: ID
+  document_references:
+    - name: default-status
+      archetype: Matrix409
+      section: Default
+      column: Tests
+      row_id_column: ID
+      pattern: '(TC-[0-9]+)'
+      targets: [case]
+    - name: alternate-status
+      archetype: Matrix409
+      section: Alternate
+      column: Tests
+      row_id_column: ID
+      pattern: '(TC-[0-9]+)'
+      targets: [case]
+      status_column: Coverage Status
+  status:
+    column: Status
+    complete: [done]
+    pending: [planned]
+    failed: [failed]
+  trace_tags:
+    legacy:
+      - name: rust-case-comment
+        language: rust
+        pattern: 'Trace:\s*(TC-[0-9]+)'

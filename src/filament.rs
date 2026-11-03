@@ -11,7 +11,6 @@ use std::path::Path;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
-use sha2::{Digest, Sha256};
 
 use crate::error::QuireError;
 use crate::extract::dsl::{validate_dsl, ExtractionDsl};
@@ -78,8 +77,6 @@ pub struct FilamentObjectType {
 pub struct SemanticSnapshot {
     #[serde(rename = "contractVersion", alias = "contract_version")]
     pub contract_version: String,
-    #[serde(rename = "semanticCore", alias = "semantic_core")]
-    pub semantic_core: String,
     pub package: String,
     #[serde(default)]
     pub exports: Vec<String>,
@@ -449,21 +446,6 @@ fn compile_object_type_snapshots(
                 refused.insert(snapshot.name.clone());
                 continue;
             }
-            if crate::semantic::embedded::semantic_core_bundle(&semantic.semantic_core).is_none() {
-                diagnostics.push(diagnostic(
-                    "semantic.unsupported-semantic-core",
-                    format!(
-                        "{}: semantic.semanticCore {:?} has no embedded bundle (embedded: {})",
-                        snapshot.name,
-                        semantic.semantic_core,
-                        crate::semantic::embedded::semantic_core_versions().join(", ")
-                    ),
-                    "error",
-                    Some(snapshot.name.clone()),
-                ));
-                refused.insert(snapshot.name.clone());
-                continue;
-            }
             let module_base = format!(
                 "{}{}/",
                 crate::semantic::embedded::MODULE_SCHEMA_BASE,
@@ -472,7 +454,6 @@ fn compile_object_type_snapshots(
             match crate::semantic::compile_module_schema(
                 &snapshot.data_schema(),
                 &|_| None,
-                &semantic.semantic_core,
                 &module_base,
             ) {
                 Ok(v) => validator = Some(std::sync::Arc::new(v)),
@@ -1127,14 +1108,7 @@ fn diagnostic(
 }
 
 fn stable_id(parts: &[&str]) -> String {
-    let mut hasher = Sha256::new();
-    for (idx, part) in parts.iter().enumerate() {
-        if idx > 0 {
-            hasher.update([0]);
-        }
-        hasher.update(part.as_bytes());
-    }
-    format!("{:x}", hasher.finalize())
+    serde_json::to_string(parts).expect("string slices serialize")
 }
 
 /// Build the FR-072 record for one document and put it on every node of
@@ -1151,7 +1125,6 @@ fn attach_semantic(
     use crate::semantic::{RequiredSections, SemanticContext, SemanticModule};
     let module = SemanticModule {
         contract_version: snapshot.contract_version.clone(),
-        semantic_core: snapshot.semantic_core.clone(),
         package: snapshot.package.clone(),
         exports: snapshot.exports.clone(),
         imports: snapshot.imports.clone(),

@@ -44,8 +44,6 @@ pub mod typescript;
 
 use std::path::Path;
 
-use sha2::{Digest, Sha256};
-
 use crate::traceability::SourceLanguage;
 
 /// What a symbol is. `kind` is part of the identity: a `Container` named `Foo`
@@ -71,7 +69,7 @@ pub enum SymbolKind {
 }
 
 impl SymbolKind {
-    /// Stable machine-readable label (part of the identity digest).
+    /// Stable machine-readable label (part of the identity).
     pub fn as_str(self) -> &'static str {
         match self {
             Self::Function => "function",
@@ -120,9 +118,20 @@ impl SymbolKind {
     }
 }
 
+/// An adapter-resolved outer attribute; offsets are not symbol identity.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SourceAttribute {
+    /// Verbatim complete attribute node, excluding comments and declaration.
+    pub text: String,
+    /// Actual 1-based source line of the attribute start.
+    pub line: usize,
+}
+
 /// One extracted symbol.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Symbol {
+    /// Exact outer Rust attributes owned by this declaration, in source order.
+    pub attributes: Vec<SourceAttribute>,
     pub language: SourceLanguage,
     /// Repo-relative path, `/`-separated so identities are platform-stable.
     pub path: String,
@@ -143,7 +152,8 @@ pub struct Symbol {
     pub end_line: usize,
     /// Qualified name of the containing symbol, when nested.
     pub container: Option<String>,
-    /// Stable SHA-256 digest of the identity (FR-045 record-id convention).
+    /// The identity itself (FR-045 record-id convention): language, path,
+    /// qualified name, kind.
     pub id: String,
     /// Whether a statically decidable language form marks this test-kind or
     /// suite-kind symbol ignored (CR-187, FR-051-AC-27) — inherited by every
@@ -156,7 +166,7 @@ pub struct Symbol {
 }
 
 impl Symbol {
-    /// The identity digest: language, path, qualified name, kind. Excludes
+    /// The identity: language, path, qualified name, kind. Excludes
     /// every positional and formatting attribute (FR-051-AC-2).
     fn compute_id(
         language: SourceLanguage,
@@ -245,15 +255,16 @@ impl SymbolExtraction {
     /// The retained source of `path`, if the file was read.
     pub fn source_of(&self, path: &str) -> Option<&str> {
         self.files
-            .iter()
-            .find(|f| f.path == path)
-            .map(|f| f.source.as_str())
+            .binary_search_by(|file| file.path.as_str().cmp(path))
+            .ok()
+            .map(|index| self.files[index].source.as_str())
     }
 }
 
 /// A symbol as an adapter produces it, before identity and path are attached.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct RawSymbol {
+    pub attributes: Vec<SourceAttribute>,
     pub qualified_name: String,
     pub kind: SymbolKind,
     pub line: usize,
@@ -476,6 +487,7 @@ impl SymbolExtraction {
         };
         for r in raw {
             self.symbols.push(Symbol {
+                attributes: r.attributes,
                 language,
                 path: path.to_string(),
                 id: Symbol::compute_id(language, path, &r.qualified_name, r.kind),
@@ -509,17 +521,10 @@ fn normalize_path(path: &Path) -> String {
         .join("/")
 }
 
-/// NUL-separated SHA-256 over the identity parts — the FR-045 record-id
-/// convention (mirrors `crate::filament`'s `stable_id`).
+/// Record id from its identity parts: the JSON array of the parts, so the id
+/// is the identity itself, readable and injective, with nothing derived from it.
 pub(crate) fn stable_id(parts: &[&str]) -> String {
-    let mut hasher = Sha256::new();
-    for (idx, part) in parts.iter().enumerate() {
-        if idx > 0 {
-            hasher.update([0]);
-        }
-        hasher.update(part.as_bytes());
-    }
-    format!("{:x}", hasher.finalize())
+    serde_json::to_string(parts).expect("string slices serialize")
 }
 
 /// Shared adapter helper (PLAT-897): the 1-based first line of `node`'s

@@ -166,7 +166,7 @@ fn minted_ids(
         // vocabulary, two surfaces (CR-054).
         mints: Some(&target.id_column),
         status_column: None,
-        section_required: target.required,
+        target_required: target.required,
     };
     let mut ids: BTreeSet<String> = BTreeSet::new();
     // A document of the target archetype mints its own id, too — an authored
@@ -176,13 +176,8 @@ fn minted_ids(
     //
     // This is an axis `scan()` does not cover: it reads table rows, this reads
     // frontmatter `id`.
-    for doc in &spec.inner.documents {
-        if doc.concept_type() == Some(target.archetype.as_str())
-            && !doc.id.is_empty()
-            && !scope.excludes(root, &doc.path)
-        {
-            ids.insert(doc.id.clone());
-        }
+    for doc in target_documents(spec, root, target, model_exclude) {
+        ids.insert(doc.id.clone());
     }
     for row in declared_tables::scan(spec, root, scope, &target.section, ctx) {
         if let Some(id) = row.cell(&target.id_column) {
@@ -190,6 +185,23 @@ fn minted_ids(
         }
     }
     ids
+}
+
+/// Frontmatter-minted targets shared by reference resolution and retained lookup.
+/// Row declarations remain the existing `declared_tables::scan` path.
+pub(crate) fn target_documents<'a>(
+    spec: &'a Spec,
+    root: &'a Path,
+    target: &'a TraceTarget,
+    model_exclude: &'a declared_tables::ExcludeSet,
+) -> impl Iterator<Item = &'a super::walk::LoadedDocument> {
+    let exclude = declared_tables::ExcludeSet::compile_validated(&target.exclude);
+    spec.documents().iter().filter(move |document| {
+        document.concept_type() == Some(target.archetype.as_str())
+            && !document.id.is_empty()
+            && !model_exclude.excludes(root, &document.path)
+            && !exclude.excludes(root, &document.path)
+    })
 }
 
 /// Every referencing row a declaration covers, in bundle order.
@@ -211,7 +223,7 @@ fn referencing_rows(
             model_exclude,
             mints: None,
             status_column: None,
-            section_required: false,
+            target_required: false,
         },
         &declaration.section,
         ctx,

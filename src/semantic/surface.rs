@@ -45,7 +45,6 @@ pub struct Availability {
 pub struct SemanticExtraction {
     pub format_version: u64,
     pub contract_version: String,
-    pub semantic_core: String,
     pub package: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub fields: Option<Vec<FieldDecl>>,
@@ -278,7 +277,6 @@ pub fn extract_semantic(
     SemanticExtraction {
         format_version: SEMANTIC_FORMAT_VERSION,
         contract_version: ctx.module.contract_version.clone(),
-        semantic_core: ctx.module.semantic_core.clone(),
         package: ctx.module.package.clone(),
         fields: fields.fields,
         fields_form: fields.form,

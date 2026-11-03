@@ -8,7 +8,10 @@
         "Type": "UUID"
       },
       "expected": {
-        "target": "UUID"
+        "target": {
+          "kind": "KernelScalar",
+          "value": "UUID"
+        }
       }
     },
     {
@@ -17,7 +20,10 @@
         "Type": "Decimal(10,2)"
       },
       "expected": {
-        "target": "Decimal",
+        "target": {
+          "kind": "KernelScalar",
+          "value": "Decimal"
+        },
         "decimal": {
           "precision": 10,
           "scale": 2
@@ -30,7 +36,10 @@
         "Type": "Duration [ms]"
       },
       "expected": {
-        "target": "Duration",
+        "target": {
+          "kind": "KernelScalar",
+          "value": "Duration"
+        },
         "unit": "ms"
       }
     },
@@ -48,7 +57,10 @@
         ]
       },
       "expected": {
-        "target": "ix://agent-ix/config-service/type/ConfigOverlay"
+        "target": {
+          "kind": "SemanticId",
+          "value": "ix://agent-ix/config-service/type/ConfigOverlay"
+        }
       }
     },
     {
@@ -65,7 +77,10 @@
         ]
       },
       "expected": {
-        "target": "ix://agent-ix/config-service/type/Status"
+        "target": {
+          "kind": "SemanticId",
+          "value": "ix://agent-ix/config-service/type/Status"
+        }
       }
     },
     {
@@ -81,7 +96,10 @@
         }
       },
       "expected": {
-        "target": "ix://agent-ix/spec-artifacts-iso/type/Requirement"
+        "target": {
+          "kind": "SemanticId",
+          "value": "ix://agent-ix/spec-artifacts-iso/type/Requirement"
+        }
       }
     },
     {
@@ -90,7 +108,10 @@
         "Type": "Mystery"
       },
       "expected": {
-        "target": "ix://agent-ix/config-service/unresolved/Mystery"
+        "target": {
+          "kind": "SemanticId",
+          "value": "ix://agent-ix/config-service/unresolved/Mystery"
+        }
       },
       "diagnostics": [
         {
@@ -203,12 +224,21 @@
       "expected": {
         "constraints": [
           {
-            "keyword": "min",
-            "value": 1
+            "kind": "MinConstraint",
+            "value": {
+              "keyword": "min",
+              "value": {
+                "kind": "number",
+                "value": 1
+              }
+            }
           },
           {
-            "keyword": "maxLength",
-            "value": 64
+            "kind": "MaxLengthConstraint",
+            "value": {
+              "keyword": "maxLength",
+              "value": 64
+            }
           }
         ],
         "identity": true
@@ -222,9 +252,12 @@
       "expected": {
         "constraints": [
           {
-            "keyword": "pattern",
-            "regex": "^[a-z]+$",
-            "dialect": "ecma-262"
+            "kind": "PatternConstraint",
+            "value": {
+              "keyword": "pattern",
+              "regex": "^[a-z]+$",
+              "dialect": "ecma-262"
+            }
           }
         ]
       }
@@ -237,11 +270,20 @@
       "expected": {
         "constraints": [
           {
-            "keyword": "enumValues",
-            "values": [
-              "draft",
-              "final"
-            ]
+            "kind": "EnumValuesConstraint",
+            "value": {
+              "keyword": "enumValues",
+              "values": [
+                {
+                  "kind": "string",
+                  "value": "draft"
+                },
+                {
+                  "kind": "string",
+                  "value": "final"
+                }
+              ]
+            }
           }
         ]
       }
@@ -254,7 +296,10 @@
       "expected": {
         "constraints": [
           {
-            "keyword": "nonEmpty"
+            "kind": "NonEmptyConstraint",
+            "value": {
+              "keyword": "nonEmpty"
+            }
           }
         ]
       }
@@ -267,8 +312,11 @@
       "expected": {
         "constraints": [
           {
-            "keyword": "format",
-            "name": "agent-ix:email"
+            "kind": "FormatConstraint",
+            "value": {
+              "keyword": "format",
+              "name": "agent-ix:email"
+            }
           }
         ]
       }

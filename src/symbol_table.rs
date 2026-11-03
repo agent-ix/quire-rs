@@ -68,7 +68,7 @@ pub struct SymbolRecord {
     pub end_line: usize,
     /// Qualified name of the containing symbol, when nested.
     pub container: Option<String>,
-    /// The identity digest (FR-045): language, path, qualified name, kind. No
+    /// The identity (FR-045): language, path, qualified name, kind. No
     /// positional attribute, so a symbol keeps its id when lines move.
     pub id: String,
     /// Whether this KIND can bind a trace id at all. The first thing to check
@@ -149,7 +149,7 @@ pub struct SymbolTableReport {
 /// bound — and that half REQUIRES a module, since which forms exist is a
 /// declaration.
 pub fn build(extraction: &SymbolExtraction, graph: Option<&SymbolGraph>) -> SymbolTableReport {
-    // Keyed on the symbol's identity digest rather than its name: two symbols
+    // Keyed on the symbol's identity rather than its name: two symbols
     // can share a qualified name across files, and a name-keyed join would
     // silently merge their tags.
     let mut verifies: BTreeMap<&str, Vec<String>> = BTreeMap::new();

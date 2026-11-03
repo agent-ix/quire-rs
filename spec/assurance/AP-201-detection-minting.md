@@ -69,9 +69,14 @@ portfolio reads those stores without moving or retyping their observations.
 ## Tool Reliance and Independence
 
 Quire's tests show implementation conformance but are not independent of the
-engine. The language-neutral corpus and its Python reader provide a distinct
-data and implementation path; human adjudication remains necessary for policy
-or semantic-quality claims.
+engine. The language-neutral corpus is read by the QA corpus Rust crate and
+by Quire's separate Rust test harness. Their independent case loading and
+grading paths can expose disagreement; bounds assertions that call the QA
+crate directly share its implementation and provide no second bounds oracle.
+Human adjudication remains necessary for policy or semantic-quality claims.
+
+> **CR-190 note (STD-227):** The QA reader moved from Python to Rust. This
+> statement names the remaining independent paths and the shared bounds API.
 
 ## Exceptions and Escalation
 

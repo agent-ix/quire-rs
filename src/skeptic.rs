@@ -22,6 +22,7 @@
 //! one: these fire on *test* code, and a check that can fail somebody's build
 //! over a heuristic about their assertions will be turned off within a week.
 
+use std::collections::{BTreeSet, HashMap};
 use std::sync::OnceLock;
 
 use regex::Regex;
@@ -342,6 +343,12 @@ pub fn oracle_copies(pairs: &[(OracleUnderTest, &str)]) -> Vec<Suspicion> {
 /// compound shapes stand down instead of manufacturing a plausible pair.
 pub fn oracle_copies_in(extraction: &SymbolExtraction) -> Vec<Suspicion> {
     let mut out = Vec::new();
+    // The helper-oracle path compares against Rust functions. Prepare their
+    // expressions once, then use an inverted token index to avoid rescoring
+    // every function for every helper candidate.
+    let mut comparable_functions: Option<Vec<(&Symbol, BTreeSet<String>)>> = None;
+    let mut function_tokens: Option<HashMap<String, Vec<usize>>> = None;
+    let mut helpers_by_file_and_name: Option<HashMap<(String, String), Vec<usize>>> = None;
     for test in &extraction.symbols {
         if !test.kind.binds_trace_ids() {
             continue;
@@ -385,29 +392,90 @@ pub fn oracle_copies_in(extraction: &SymbolExtraction) -> Vec<Suspicion> {
         // `expected` binding nor direct call-name resolution can reach it.
         if test.language == SourceLanguage::Rust {
             if let Some(candidate) = helper_oracle_candidate(&code) {
+                let helpers = helpers_by_file_and_name.get_or_insert_with(|| {
+                    let mut index: HashMap<(String, String), Vec<usize>> = HashMap::new();
+                    for (symbol_index, symbol) in extraction.symbols.iter().enumerate() {
+                        if symbol.language == SourceLanguage::Rust
+                            && symbol.kind == SymbolKind::Function
+                        {
+                            index
+                                .entry((
+                                    symbol.path.clone(),
+                                    simple_name(&symbol.qualified_name).to_string(),
+                                ))
+                                .or_default()
+                                .push(symbol_index);
+                        }
+                    }
+                    index
+                });
                 if let Some((helper, oracle_expression)) =
-                    resolve_same_file_helper(extraction, test, &candidate.function)
+                    resolve_same_file_helper(extraction, test, &candidate.function, helpers)
                 {
-                    let matches: Vec<(&Symbol, String, f64)> = extraction
-                        .symbols
-                        .iter()
-                        .filter(|symbol| {
-                            symbol.language == SourceLanguage::Rust
-                                && symbol.kind == SymbolKind::Function
-                                && symbol.path != helper.path
-                        })
-                        .filter_map(|symbol| {
-                            let expression = comparable_expression(extraction, symbol)?;
-                            let score = token_similarity(&oracle_expression, &expression);
-                            (score >= ORACLE_SIMILARITY_FLOOR)
-                                .then_some((symbol, expression, score))
+                    let functions = comparable_functions.get_or_insert_with(|| {
+                        extraction
+                            .symbols
+                            .iter()
+                            .filter(|symbol| {
+                                symbol.language == SourceLanguage::Rust
+                                    && symbol.kind == SymbolKind::Function
+                            })
+                            .filter_map(|symbol| {
+                                let expression = comparable_expression(extraction, symbol)?;
+                                Some((symbol, tokens(&expression)))
+                            })
+                            .collect()
+                    });
+                    let token_index = function_tokens.get_or_insert_with(|| {
+                        let mut index: HashMap<String, Vec<usize>> = HashMap::new();
+                        for (function_index, (_, function_tokens)) in functions.iter().enumerate() {
+                            for token in function_tokens {
+                                index.entry(token.clone()).or_default().push(function_index);
+                            }
+                        }
+                        index
+                    });
+                    let oracle_tokens = tokens(&oracle_expression);
+                    let min_function_tokens = (3 * oracle_tokens.len()).div_ceil(4);
+                    let max_function_tokens = (4 * oracle_tokens.len()) / 3;
+                    let mut shared_tokens: HashMap<usize, usize> = HashMap::new();
+                    for token in &oracle_tokens {
+                        if let Some(function_indices) = token_index.get(token) {
+                            for function_index in function_indices {
+                                let function_token_count = functions[*function_index].1.len();
+                                if function_token_count < min_function_tokens
+                                    || function_token_count > max_function_tokens
+                                {
+                                    continue;
+                                }
+                                *shared_tokens.entry(*function_index).or_default() += 1;
+                            }
+                        }
+                    }
+                    let matches: Vec<(&Symbol, f64)> = shared_tokens
+                        .into_iter()
+                        .filter_map(|(function_index, shared_count)| {
+                            let (symbol, expression_tokens) = &functions[function_index];
+                            if symbol.path == helper.path {
+                                return None;
+                            }
+                            // Jaccard >= 0.75 requires at least 3/7 of the
+                            // combined set sizes to be shared. This cheap bound
+                            // rejects most indexed candidates before scoring.
+                            let minimum_shared =
+                                (3 * (oracle_tokens.len() + expression_tokens.len())).div_ceil(7);
+                            if shared_count < minimum_shared {
+                                return None;
+                            }
+                            let score = token_similarity_sets(&oracle_tokens, expression_tokens);
+                            (score >= ORACLE_SIMILARITY_FLOOR).then_some((*symbol, score))
                         })
                         .collect();
 
                     // Similarity is evidence, not name resolution. More than
                     // one matching production predicate leaves the subject
                     // ambiguous, so stand down instead of guessing.
-                    if let [(implementation, _, score)] = matches.as_slice() {
+                    if let [(implementation, score)] = matches.as_slice() {
                         out.push(Suspicion {
                             kind: SuspicionKind::OracleResemblesImplementation
                                 .as_str()
@@ -477,17 +545,15 @@ fn resolve_same_file_helper<'a>(
     extraction: &'a SymbolExtraction,
     test: &Symbol,
     function: &str,
+    helpers_by_file_and_name: &HashMap<(String, String), Vec<usize>>,
 ) -> Option<(&'a Symbol, String)> {
-    let helpers: Vec<_> = extraction
-        .symbols
+    let helpers: Vec<_> = helpers_by_file_and_name
+        .get(&(test.path.clone(), function.to_string()))?
         .iter()
-        .filter(|symbol| {
-            symbol.language == test.language
-                && symbol.kind == SymbolKind::Function
-                && symbol.path == test.path
-                && simple_name(&symbol.qualified_name) == function
+        .filter_map(|symbol_index| {
+            let symbol = extraction.symbols.get(*symbol_index)?;
+            comparable_expression(extraction, symbol).map(|body| (symbol, body))
         })
-        .filter_map(|symbol| comparable_expression(extraction, symbol).map(|body| (symbol, body)))
         .collect();
     let [(helper, expression)] = helpers.as_slice() else {
         return None;
@@ -720,11 +786,15 @@ pub struct OracleUnderTest {
 pub fn token_similarity(left: &str, right: &str) -> f64 {
     let a = tokens(left);
     let b = tokens(right);
+    token_similarity_sets(&a, &b)
+}
+
+fn token_similarity_sets(a: &BTreeSet<String>, b: &BTreeSet<String>) -> f64 {
     if a.is_empty() || b.is_empty() {
         return 0.0;
     }
-    let intersection = a.intersection(&b).count() as f64;
-    let union = a.union(&b).count() as f64;
+    let intersection = a.intersection(b).count() as f64;
+    let union = a.union(b).count() as f64;
     intersection / union
 }
 

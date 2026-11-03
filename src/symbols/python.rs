@@ -38,7 +38,7 @@
 //!
 //! ## What survives byte-for-byte (a compatibility surface, PLAT-868)
 //!
-//! `Symbol::compute_id` hashes `(language, path, qualified_name, kind)`
+//! `Symbol::compute_id` composes `(language, path, qualified_name, kind)`
 //! (`src/symbols/mod.rs`) — qualified-name construction is an identity
 //! surface, not a style choice, and every quirk below is preserved exactly
 //! rather than "cleaned up", the same discipline PLAT-843 documented for
@@ -149,6 +149,7 @@ pub(crate) fn parse(path: &str, source: &str) -> Result<Vec<RawSymbol>, String> 
     let lines: Vec<&str> = source.lines().collect();
     let module = module_name(path);
     let mut out = vec![RawSymbol {
+        attributes: Vec::new(),
         qualified_name: module.clone(),
         kind: SymbolKind::Container,
         line: 1,
@@ -407,6 +408,7 @@ impl<'a> Walk<'a> {
                 let class_ignored = own_ignored || enclosing_ignored;
                 let is_suite = !matches!(test_class, TestClass::None);
                 self.out.push(RawSymbol {
+                    attributes: Vec::new(),
                     qualified_name: qualified_name.clone(),
                     kind: SymbolKind::Container,
                     line: def_node.start_position().row + 1,
@@ -453,6 +455,7 @@ impl<'a> Walk<'a> {
                 let ignored =
                     kind == SymbolKind::TestFunction && (own_ignored || enclosing_ignored);
                 self.out.push(RawSymbol {
+                    attributes: Vec::new(),
                     qualified_name,
                     kind,
                     line: def_node.start_position().row + 1,
@@ -616,7 +619,7 @@ fn declaration(trimmed: &str) -> Option<(String, bool)> {
 /// free to close. Recognizing them now would change which methods classify
 /// as [`SymbolKind::TestFunction`] versus [`SymbolKind::Function`] for any
 /// corpus file using a wrapped import or base list — a `kind` change is an
-/// identity change (`Symbol::compute_id` hashes it), which PLAT-868's own
+/// identity change (`Symbol::compute_id` composes it), which PLAT-868's own
 /// non-negotiable rule reserves for a separate, deliberately-scoped ticket,
 /// not a side effect of porting the structural walk to tree-sitter.
 #[derive(Default)]

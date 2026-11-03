@@ -10,7 +10,6 @@ use std::path::{Component, Path, PathBuf};
 use jsonschema::{Draft, JSONSchema};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use sha2::{Digest, Sha256};
 
 use crate::corpus::declared_tables::ExcludeSet;
 use crate::corpus::{Resolution, Spec};
@@ -22,13 +21,6 @@ use crate::traceability::RelationDirection;
 
 /// Published, hand-authored v1 contract.
 pub const ASSURANCE_V1_SCHEMA: &str = include_str!("../schemas/output/assurance-v1.schema.json");
-
-/// Caller-selected immutable repository identity.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct AssuranceSource {
-    pub repository: String,
-    pub revision: String,
-}
 
 /// One active archetype's semantic schema premise.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
@@ -49,7 +41,6 @@ pub struct AssuranceModulePremise {
 pub struct AssuranceLocator {
     pub path: String,
     pub line: usize,
-    pub digest: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -67,7 +58,6 @@ pub struct AssuranceObligation {
     pub id: String,
     pub document: String,
     pub statement: String,
-    pub statement_hash: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub method: Option<String>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
@@ -181,7 +171,6 @@ pub struct AssuranceRelationObservation {
 pub struct AssuranceExport {
     pub format: String,
     pub format_version: u32,
-    pub source: AssuranceSource,
     pub modules: Vec<AssuranceModulePremise>,
     pub artifacts: Vec<AssuranceArtifact>,
     pub obligations: Vec<AssuranceObligation>,
@@ -223,17 +212,12 @@ pub struct AssuranceInput<'a> {
     pub corpus_root: &'a Path,
     pub symbols: &'a SymbolExtraction,
     pub symbol_graph: &'a SymbolGraph,
-    pub source: AssuranceSource,
 }
 
 /// Fail-closed error from export construction or import.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 #[non_exhaustive]
 pub enum AssuranceError {
-    #[error("assurance source repository is empty")]
-    EmptyRepository,
-    #[error("assurance source revision is not a full lowercase Git object id: {revision}")]
-    InvalidRevision { revision: String },
     #[error("loaded module has no authored name: {path}")]
     MissingModuleName { path: String },
     #[error("loaded module '{module}' has no declared version")]
@@ -278,7 +262,6 @@ pub enum AssuranceError {
 pub fn build_assurance_export(
     input: AssuranceInput<'_>,
 ) -> Result<AssuranceExport, AssuranceError> {
-    validate_source(&input.source)?;
     validate_registry(input.registry)?;
 
     let modules = module_premises(input.registry)?;
@@ -299,7 +282,6 @@ pub fn build_assurance_export(
     let export = AssuranceExport {
         format: "quire-assurance".to_string(),
         format_version: 1,
-        source: input.source,
         modules,
         artifacts,
         obligations,
@@ -349,23 +331,6 @@ pub fn read_assurance_export(
         })?;
     validate_accepted_premises(&export, accepted)?;
     Ok(export)
-}
-
-fn validate_source(source: &AssuranceSource) -> Result<(), AssuranceError> {
-    if source.repository.is_empty() {
-        return Err(AssuranceError::EmptyRepository);
-    }
-    let valid_revision = source.revision.len() == 40
-        && source
-            .revision
-            .bytes()
-            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte));
-    if !valid_revision {
-        return Err(AssuranceError::InvalidRevision {
-            revision: source.revision.clone(),
-        });
-    }
-    Ok(())
 }
 
 fn validate_registry(registry: &Registry) -> Result<(), AssuranceError> {
@@ -438,11 +403,7 @@ fn project_artifacts(spec: &Spec, root: &Path) -> Result<Vec<AssuranceArtifact>,
             id: document.id.clone(),
             uuid: document.uuid.map(|value| value.to_string()),
             artifact_type: artifact_type.to_string(),
-            locator: AssuranceLocator {
-                path,
-                line: 1,
-                digest: digest_bytes(document.raw().as_bytes()),
-            },
+            locator: AssuranceLocator { path, line: 1 },
         });
     }
     artifacts.sort_by(|left, right| {
@@ -485,7 +446,6 @@ fn project_obligations(
             id: obligation.id,
             document: obligation.document.clone(),
             statement: obligation.statement.clone(),
-            statement_hash: obligation.statement_hash,
             method: obligation.method,
             parameters: obligation.parameters,
             criticality: obligation.criticality,
@@ -493,7 +453,6 @@ fn project_obligations(
             locator: AssuranceLocator {
                 path: obligation.document,
                 line,
-                digest: digest_bytes(obligation.statement.as_bytes()),
             },
         });
     }
@@ -509,9 +468,6 @@ fn project_symbols(extraction: &SymbolExtraction) -> Result<Vec<AssuranceSymbol>
     let mut symbols = Vec::with_capacity(extraction.symbols.len());
     for symbol in &extraction.symbols {
         let path = source_relative_path(&symbol.path)?;
-        let source = extraction
-            .source_of(&symbol.path)
-            .ok_or_else(|| AssuranceError::MissingSourceBytes { path: path.clone() })?;
         let mut capabilities = Vec::with_capacity(1);
         if symbol.kind.binds_trace_ids() {
             capabilities.push("verifies".to_string());
@@ -529,7 +485,6 @@ fn project_symbols(extraction: &SymbolExtraction) -> Result<Vec<AssuranceSymbol>
             locator: AssuranceLocator {
                 path,
                 line: symbol.line,
-                digest: digest_bytes(source.as_bytes()),
             },
         });
     }
@@ -563,7 +518,6 @@ fn project_relations(
             locator: AssuranceLocator {
                 path,
                 line: first_line_containing(document.raw(), &edge.target).unwrap_or(1),
-                digest: digest_bytes(document.raw().as_bytes()),
             },
             freshness: AssuranceFreshness::NotApplicable,
         });
@@ -574,7 +528,7 @@ fn project_relations(
             target: relation.trace_id.clone(),
             form: relation.form.clone(),
             provenance: relation.provenance.as_str().to_string(),
-            locator: symbol_locator(extraction, &relation.path, relation.line)?,
+            locator: symbol_locator(&relation.path, relation.line)?,
             freshness: AssuranceFreshness::Unknown,
         });
     }
@@ -591,7 +545,7 @@ fn project_relations(
             source: relation.symbol_id.clone(),
             target: relation.trace_id.clone(),
             form: relation.form.clone(),
-            locator: symbol_locator(extraction, &relation.path, line)?,
+            locator: symbol_locator(&relation.path, line)?,
             freshness: AssuranceFreshness::NotApplicable,
         });
     }
@@ -748,20 +702,9 @@ fn required_relation_satisfied(
     }
 }
 
-fn symbol_locator(
-    extraction: &SymbolExtraction,
-    path: &str,
-    line: usize,
-) -> Result<AssuranceLocator, AssuranceError> {
+fn symbol_locator(path: &str, line: usize) -> Result<AssuranceLocator, AssuranceError> {
     let path = source_relative_path(path)?;
-    let source = extraction
-        .source_of(&path)
-        .ok_or_else(|| AssuranceError::MissingSourceBytes { path: path.clone() })?;
-    Ok(AssuranceLocator {
-        path,
-        line,
-        digest: digest_bytes(source.as_bytes()),
-    })
+    Ok(AssuranceLocator { path, line })
 }
 
 fn relation_key(relation: &AssuranceRelation) -> (u8, &str, &str, &str) {
@@ -854,10 +797,6 @@ fn validate_premise_uniqueness(modules: &[AssuranceModulePremise]) -> Result<(),
         }
     }
     Ok(())
-}
-
-fn digest_bytes(bytes: &[u8]) -> String {
-    format!("{:x}", Sha256::digest(bytes))
 }
 
 fn relative_path(root: &Path, path: &Path) -> Result<String, AssuranceError> {

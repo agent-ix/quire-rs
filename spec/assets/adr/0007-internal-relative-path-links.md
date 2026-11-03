@@ -45,8 +45,8 @@ reference to a sibling in the same bundle.
 
 3. **Relative-path links become a third edge source** in resolution ([FR-026](../../functional/FR-026-intra-spec-reference-resolution.md)),
    alongside frontmatter `relationships` and body `ix://` links, contributing
-   `references` edges. `index.md` / `log.md` are navigation documents — their
-   wall-to-wall relative links do **not** flood the graph with `references`
+   `references` edges. `index.md` is a navigation document — its
+   relative links do **not** flood the graph with `references`
    edges.
 
 4. **Bare prose codes are never harvested.** We deliberately do not scan prose

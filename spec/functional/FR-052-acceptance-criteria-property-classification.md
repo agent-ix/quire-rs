@@ -149,7 +149,7 @@ The signals distinguish the three so a census can attribute them:
 > open question below was filed against. Three candidate widenings were built
 > behind measurement-only cargo features and measured factorially; one passed
 > its precision gate and became positions 2 and 3, and two were deleted. The
-> full result is CR-030 in [the log](../log.md).
+> adopted precision result is recorded in CR-030.
 
 ### Closed structural signals, and the idiom registry as a booster
 

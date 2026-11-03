@@ -191,6 +191,16 @@ fn tc856_payload_carrying_every_optional_key_conforms() {
             "target_ids": ["TC-001"],
             "line": 9
         }],
+        "retired_rows": [{
+            "reference": "traces-to",
+            "document": "tests.md",
+            "row_id": "TC-099",
+            "target_ids": ["TC-099"],
+            "line": 99,
+            "column": "Status",
+            "value": "⛔",
+            "cells": {"ID": "TC-099", "Status": "⛔", "Purpose": "Withdrawn; identity retained."}
+        }],
         "status_lies": [{
             "reference": "traces-to",
             "document": "tests.md",
@@ -227,13 +237,26 @@ fn tc856_payload_carrying_every_optional_key_conforms() {
                 {"path": "src/lib.rs", "symbol": "tests::also_covers_it"}
             ]
         }],
-        "groups": [{"document": "tests.md", "target": "test-case", "backed": 1, "total": 2}],
+        "groups": [{"document": "tests.md", "target": "test-case", "backed": 1, "total": 2, "retired": 1}],
         "minted_targets": [{
             "id": "TC-001",
             "target": "test-case",
             "document": "tests.md",
             "line": 11,
             "backed": true
+        }, {
+            "id": "TC-002",
+            "target": "test-case",
+            "document": "tests.md",
+            "line": 12,
+            "backed": false
+        }, {
+            "id": "TC-099",
+            "target": "test-case",
+            "document": "tests.md",
+            "line": 99,
+            "backed": false,
+            "retired": true
         }],
         "criteria": [{
             "document": "FR-001.md",
@@ -270,10 +293,21 @@ fn tc856_payload_carrying_every_optional_key_conforms() {
             "id": "FR-001-AC-1",
             "document": "FR-001.md",
             "statement": "The system shall do it.",
-            "statement_hash": "5b3f1a2c4d6e8f0a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f607182",
             "method": "Test",
             "parameters": {"threshold": "< 8ms"},
             "criticality": "P1"
+        }],
+        "evidence_results": [{
+            "requested_target": "FR-001-AC-2", "cause": "absent", "detail": "requested act absent"
+        }],
+        "inventory_causes": [{
+            "code": "limit-reached", "source": null, "document": null,
+            "row": null, "line": null, "detail": "owner emitted-entry limit reached"
+        }],
+        "record_binders": [{
+            "target": {"source": "acceptance-criterion", "document": "FR-001.md", "id": "FR-001-AC-1", "origin": "authored-row", "line": 9},
+            "locator": {"record": "owner/record", "run": "owner/run", "entry": "owner/entry"},
+            "method": "Test", "actor": "owner-attester", "provenance": ["owner/qualification"]
         }],
         // CR-187: coverage_matrix arrived additively too.
         "coverage_matrix": [{
@@ -290,6 +324,8 @@ fn tc856_payload_carrying_every_optional_key_conforms() {
                     "kind": "test_function",
                     "ignored": false
                 }],
+                "record_binders": [],
+                "identity": {"source": "acceptance-criterion", "document": "FR-001.md", "id": "FR-001-AC-1", "origin": "authored-row"},
                 "status": "tagged"
             }]
         }],
@@ -371,7 +407,7 @@ fn tc856_payload_carrying_every_optional_key_conforms() {
             "engine": "0.45.0",
             "capabilities": ["binding_census", "metrics_envelope"]
         },
-        "totals": {"backed": 1, "total": 2, "criteria": 2, "property_shaped": 1}
+        "totals": {"backed": 1, "total": 2, "retired": 1, "criteria": 2, "property_shaped": 1}
     });
     let errs = errors(&schema, &full);
     assert!(errs.is_empty(), "{errs:#?}");
@@ -454,7 +490,6 @@ fn record_json(r: &quire_rs::AcClassification) -> Value {
         Some(o) => {
             let mut out = json!({
                 "source": o.source,
-                "statement_hash": o.statement_hash,
                 "method": o.method,
                 "criticality": o.criticality,
             });

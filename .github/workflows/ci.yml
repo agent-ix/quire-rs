@@ -70,28 +70,15 @@ jobs:
         run: cargo fmt --all -- --check
 
       - name: Lint
-        run: cargo clippy --locked --all-targets -- -D warnings
-
-      # TC-1025/TC-1027 drive the corpus LOADER (`corpus/bounds.py`) over a
-      # mutated copy — the only way to prove those gates refuse what they claim
-      # to refuse rather than merely reading a corpus that already conforms.
-      # That makes `python3` + PyYAML a test dependency of this crate, which it
-      # was not before. PyYAML is not guaranteed on the runner image, and
-      # without it both tests fail on an ImportError.
-      # `actions/setup-python` first, matching this repo's `python.yml`.
-      # `python3 -m pip install` against the system interpreter fails on
-      # ubuntu-24.04, which is PEP-668 externally-managed — and it would fail
-      # the whole Rust gate, not just these two tests.
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - name: Corpus runner dependencies
         run: |
-          python3 -m pip install --require-hashes -r requirements/ci.txt
-          python3 -c "import yaml"   # a partial install must fail HERE
+          cargo clippy --locked --all-targets -- -D warnings
+          cargo clippy --locked --all-targets --features python -- -D warnings
+          cargo clippy --locked -p quire-bench --all-targets -- -D warnings
 
       - name: Test
-        run: cargo test --locked
+        run: |
+          cargo test --locked
+          cargo test --locked -p quire-bench
 
       # PLAT-868 (found during PLAT-851's review): `python-symbols` is
       # default (this port promoted it), so the `Test` step above already
@@ -125,13 +112,7 @@ jobs:
         run: make check-wasm
 
       - name: Validate spec against schema providers
-        run: >-
-          python3 scripts/validate_spec.py
-          --process-root .ci/spec-artifacts-process
-          --iso-root .ci/spec-artifacts-iso
-
-      - name: Unsafe audit
-        run: bash scripts/check_unsafe_comments.sh
+        run: make validate VALIDATION_PROCESS_ROOT=.ci/spec-artifacts-process VALIDATION_ISO_ROOT=.ci/spec-artifacts-iso
 
       - name: Property-classifier purity audit (FR-052-CON-1)
         run: bash scripts/check_property_purity.sh
@@ -141,6 +122,8 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+      - name: Checkout corpus
+        run: git submodule update --init --recursive --depth 1
       - name: Install Rust toolchain
         shell: bash
         run: rustup show active-toolchain || rustup toolchain install
@@ -150,8 +133,10 @@ jobs:
         uses: taiki-e/install-action@v2
         with:
           tool: cargo-deny@0.19.8
-      - name: cargo deny check licenses
-        run: cargo deny --locked check licenses
+      - name: cargo deny check licenses and bans
+        run: |
+          cargo deny --locked --workspace check licenses
+          cargo deny --locked --workspace --all-features check bans
 
       # PLAT-868 (found during PLAT-851's review): the step above runs under
       # default features. `python-symbols` is now default (this port), so
@@ -246,6 +231,8 @@ jobs:
       github.event_name == 'workflow_dispatch'
     steps:
       - uses: actions/checkout@v4
+      - name: Checkout corpus
+        run: git submodule update --init --recursive --depth 1
       - name: Install Rust toolchain
         shell: bash
         run: rustup show active-toolchain || rustup toolchain install
@@ -290,7 +277,7 @@ jobs:
       - name: Enforce regression band (Ubuntu CI +50% per NFR cross-runner policy)
         env:
           QUIRE_PERF_BAND: "0.50"
-        run: bash scripts/check_perf_regression.sh
+        run: cargo run --locked -p quire-bench --bin quire-perf-gate
 
   audit-static:
     name: Static Audits

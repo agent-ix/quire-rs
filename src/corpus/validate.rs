@@ -14,8 +14,8 @@
 //!   tolerated, broken references and index gaps degrade to **warnings**,
 //!   and archetype-specific body contracts are not enforced.
 //!
-//! `index.md`/`log.md` keep their archetypes and are validated like any
-//! other document; they are exempt only from *index-completeness*, which
+//! `index.md` keeps its archetype and is validated like any
+//! other document; it is exempt only from *index-completeness*, which
 //! asks an index to list its sibling artifacts.
 //!
 //! Nothing is exempt by filename at walk time (CR-044). Corpus membership
@@ -34,8 +34,7 @@ use crate::query::section;
 use crate::registry::Registry;
 
 /// Bundle-structure files that an `index.md` is not expected to list among its
-/// own siblings: the index cannot be a sibling of itself, and `log.md` is the
-/// bundle's history rather than one of its artifacts.
+/// own siblings: the index cannot be a sibling of itself.
 ///
 /// **Deliberately short** (CR-044). This was a second filename list holding
 /// four names, overlapping the walk's and disagreeing with it. `README.md` is
@@ -47,7 +46,7 @@ use crate::registry::Registry;
 /// 4 of 180 repos with a `spec/tests.md` already name it in `spec/index.md`;
 /// the other 172 now report `index-incomplete`, which is authoring debt the
 /// suppression was hiding, not a regression this list should absorb.
-const NON_ARTIFACT_FILES: &[&str] = &["index.md", "log.md"];
+const NON_ARTIFACT_FILES: &[&str] = &["index.md"];
 
 /// Which validation posture to apply to a bundle.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

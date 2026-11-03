@@ -13,16 +13,30 @@
     "totals"
   ],
   "properties": {
+    "inventory_causes": {"type": "array", "items": {"$ref": "#/$defs/InventoryCauseReport"}},
+    "record_binders": {"type": "array", "items": {"$ref": "#/$defs/RecordBinder"}},
+    "evidence_results": {
+      "type": "array",
+      "description": "Explicit retained-input outcomes; omitted on legacy no-evidence path. Low-level engine projection is not producer qualification.",
+      "items": {
+        "$ref": "#/$defs/EvidenceResult"
+      }
+    },
     "unbacked_rows": {
       "type": "array",
-      "description": "FR-050-AC-3: reference rows answerable for trace ids no symbol backs.",
+      "description": "FR-050-AC-3: live reference rows answerable for trace ids no symbol backs.",
       "items": {
         "$ref": "#/$defs/UnbackedRow"
       }
     },
+    "retired_rows": {
+      "type": "array",
+      "description": "Explicit historical declarations, retained outside live unbacked rows. Omitted when empty (FR-050-AC-53..57).",
+      "items": {"$ref": "#/$defs/RetiredRow"}
+    },
     "status_lies": {
       "type": "array",
-      "description": "FR-050-AC-4: rows whose status classes as complete while nothing backs them.",
+      "description": "FR-050-AC-4: live rows whose status classes as complete while nothing backs them.",
       "items": {
         "$ref": "#/$defs/StatusLie"
       }
@@ -57,7 +71,7 @@
     },
     "groups": {
       "type": "array",
-      "description": "FR-050-AC-6: backed/total counts per minting document and target kind.",
+      "description": "FR-050-AC-6: live backed/total counts and separate historical retired counts per minting document and target kind.",
       "items": {
         "$ref": "#/$defs/GroupCounts"
       }
@@ -161,6 +175,171 @@
     }
   },
   "$defs": {
+    "InventoryCauseReport": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "source",
+        "document",
+        "row",
+        "line",
+        "detail"
+      ],
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "source": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "document": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "row": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "line": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "detail": {
+          "type": "string"
+        }
+      }
+    },
+    "TargetLocus": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source",
+        "document",
+        "id",
+        "origin"
+      ],
+      "properties": {
+        "line": {"type": "integer", "minimum": 1},
+        "source": {
+          "type": "string"
+        },
+        "document": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "origin": {
+          "type": "string"
+        },
+        "row": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "RetainedLocator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record",
+        "run",
+        "entry"
+      ],
+      "properties": {
+        "record": {
+          "type": "string"
+        },
+        "run": {
+          "type": "string"
+        },
+        "entry": {
+          "type": "string"
+        }
+      }
+    },
+    "RecordBinder": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target",
+        "locator",
+        "method",
+        "actor",
+        "provenance"
+      ],
+      "properties": {
+        "target": {
+          "$ref": "#/$defs/TargetLocus"
+        },
+        "locator": {
+          "$ref": "#/$defs/RetainedLocator"
+        },
+        "method": {
+          "type": "string"
+        },
+        "actor": {
+          "type": "string"
+        },
+        "provenance": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "EvidenceResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "requested_target",
+        "cause",
+        "detail"
+      ],
+      "properties": {
+        "target": {
+          "$ref": "#/$defs/TargetLocus"
+        },
+        "requested_target": {
+          "type": "string"
+        },
+        "locator": {
+          "$ref": "#/$defs/RetainedLocator"
+        },
+        "cause": {
+          "type": "string",
+          "enum": [
+            "failed",
+            "errored",
+            "skipped",
+            "absent",
+            "unevaluated",
+            "wrong-revision",
+            "selection-mismatch",
+            "stale",
+            "invalid-target",
+            "ambiguous-target",
+            "record-conflict",
+            "qualification-rejected",
+            "inventory-incomplete"
+          ]
+        },
+        "detail": {
+          "type": "string"
+        }
+      }
+    },
     "EngineProvenance": {
       "type": "object",
       "additionalProperties": false,
@@ -492,6 +671,21 @@
         }
       }
     },
+    "RetiredRow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reference", "document", "row_id", "target_ids", "line", "column", "value", "cells"],
+      "properties": {
+        "reference": {"type": "string"},
+        "document": {"type": "string"},
+        "row_id": {"type": ["string", "null"]},
+        "target_ids": {"type": "array", "items": {"type": "string"}},
+        "line": {"type": "integer", "minimum": 1},
+        "column": {"type": "string"},
+        "value": {"type": "string"},
+        "cells": {"type": "object", "additionalProperties": {"type": "string"}}
+      }
+    },
     "NoSymbolRow": {
       "type": "object",
       "additionalProperties": false,
@@ -621,6 +815,11 @@
         "total": {
           "type": "integer",
           "minimum": 0
+        },
+        "retired": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Historical targets excluded from the live total; omitted when zero."
         }
       }
     },
@@ -633,7 +832,8 @@
         "target": {"type": "string", "minLength": 1},
         "document": {"type": "string", "minLength": 1},
         "line": {"type": "integer", "minimum": 1},
-        "backed": {"type": "boolean"}
+        "backed": {"type": "boolean"},
+        "retired": {"const": true, "description": "Explicit historical retirement, independent of backing; omitted for live targets."}
       }
     },
     "CriteriaCounts": {
@@ -832,8 +1032,7 @@
         "source",
         "id",
         "document",
-        "statement",
-        "statement_hash"
+        "statement"
       ],
       "properties": {
         "source": {
@@ -850,11 +1049,6 @@
         "statement": {
           "type": "string",
           "description": "The normative statement, verbatim and untruncated."
-        },
-        "statement_hash": {
-          "type": "string",
-          "pattern": "^[0-9a-f]{64}$",
-          "description": "SHA-256 of the NFC/trim/whitespace-collapsed statement. Suspect-link detection is `current != hash_at_binding` and nothing more."
         },
         "method": {
           "type": [
@@ -916,6 +1110,8 @@
         "status"
       ],
       "properties": {
+        "identity": {"$ref": "#/$defs/TargetLocus"},
+        "record_binders": {"type": "array", "items": {"$ref": "#/$defs/RecordBinder"}},
         "id": {
           "type": "string",
           "description": "The obligation's own id."
@@ -984,6 +1180,8 @@
     "CoverageMatrixStatus": {
       "type": "string",
       "enum": [
+        "qualified-record",
+        "retired",
         "tagged",
         "untagged",
         "tagged-by-ignored-test",
@@ -1035,6 +1233,11 @@
         "total": {
           "type": "integer",
           "minimum": 0
+        },
+        "retired": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Historical targets excluded from the live total; omitted when zero."
         },
         "criteria": {
           "type": [

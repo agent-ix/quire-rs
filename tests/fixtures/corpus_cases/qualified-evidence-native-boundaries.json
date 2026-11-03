@@ -1,0 +1,9 @@
+{
+  "issue_ref": "https://linear.app/agent-ix/issue/PLAT-1160",
+  "authored_rows": "| FR-900-AC-1 | First selected statement. | Test |\n| FR-900-AC-2 | Second selected statement without a TC mapping. | Test |\n",
+  "duplicate_rows": "| FR-900-AC-1 | First selected statement. | Test |\n| FR-900-AC-1 | Conflicting duplicate authored identity. | Test |\n",
+  "unselected_rows": "| missing statement | | Analysis |\n",
+  "rendered_rows": "| First measured quantity. | Analysis |\n| Second measured quantity. | Analysis |\n",
+  "reordered_rendered_rows": "| Second measured quantity. | Analysis |\n| First measured quantity. | Analysis |\n",
+  "configuration_rows": "| a | x,y | |\n| b | p,q | |\n"
+}

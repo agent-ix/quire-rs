@@ -304,7 +304,7 @@ validate/extract/query never panic on arbitrary input).
 1. A **parser** that takes raw markdown and produces a `QuireDocument` heading tree with O(1)-lookup query helpers.
 2. A **validator** that checks a parsed document against the shape its module declares — required sections, locator asserts, placeholder sentinels — and checks data against a compiled JSON Schema.
 3. An **extractor** that, given a parsed `QuireDocument` and a `body_extraction` DSL, returns typed extraction records + harvested relationship edges, and over a whole spec computes coverage and traceability.
-4. An **assurance exporter** that serializes the bounded corpus, obligations, and source-symbol bindings with pinned source and module premises, without deriving a second graph or an assurance verdict.
+4. An **assurance exporter** that serializes the bounded corpus, obligations, and source-symbol bindings with module premises, without deriving a second graph or an assurance verdict.
 
 The four share a domain (the agent-ix knowledge ecosystem) and a substrate: every one of them reads the canonical markdown, and none of them writes it. Writeback is a byte splice of caller-supplied bytes, not a fifth API that generates content.
 
@@ -389,7 +389,7 @@ Each layer has one job and a narrow interface to the next. The parser does not v
 - **`spec-analysis-*` / `spec-matrix` tooling and LLM agents auditing a spec** — load a `spec/` tree into a `Spec` corpus ([FR-025](./functional/FR-025-spec-corpus-model.md)) and run whole-spec traceability/coverage/reference queries ([FR-027](./functional/FR-027-whole-spec-query-api.md)) instead of re-walking + re-greps ([US-012](./usecase/US-012-agent-audits-whole-spec.md), [US-013](./usecase/US-013-agent-resolves-intra-spec-refs.md))
 - **`spec-objects-business` extractors** — evaluate `body_extraction` DSL via the parser's Query API
 - **CLI tools** — `quire-cli` exposes parse, validate, extract, `properties` and `coverage` over a spec tree
-- **Assurance consumers** — Quoin and compatible auditors validate the assurance export, resolve facts at its pinned source revision, and apply their own evidence-freshness and sufficiency policy
+- **Assurance consumers** — Quoin and compatible auditors validate the assurance export, resolve facts at their source locations, and apply their own evidence-freshness and sufficiency policy
 - **LLM agents** — receive the on-disk JSON Schemas (surfaced unchanged via `schema_for`) as tool-call input contracts, and emit patches the schema layer accepts and writeback splices in
 
 ---

@@ -4,6 +4,10 @@ title: "Single Generic Rust Engine for Render + Parse + Extract"
 type: StR
 ---
 
+> **CR note (STD-228, 2026-10-21):** The filesystem-only dependency
+> inspection now uses the all-feature cargo-deny bans in `deny.toml` in place
+> of a Cargo.lock grep. The banned client set is unchanged.
+
 ## Stakeholder Need
 
 Today the ecosystem fragments document-processing across three languages:
@@ -31,7 +35,7 @@ This need exists because the ecosystem today fragments document-processing acros
 | ID | Criteria | Validation |
 |----|----------|------------|
 | StR-001-VC-1 | A single `cargo add quire-rs` yields render, parse, and extract APIs with no call site shelling out to Python, Node, or any other interpreter. | Demonstration |
-| StR-001-VC-2 | A `Cargo.lock` audit finds no HTTP/RPC client crates — the engine is filesystem-only. | Inspection |
+| StR-001-VC-2 | The all-feature cargo-deny audit finds no HTTP/RPC client crates — the engine is filesystem-only. | Inspection |
 | StR-001-VC-3 | Adding a brand-new archetype kind (new JSON Schema + template) to an on-disk module and restarting the consumer is sufficient for `Registry::archetype("new-name")` to return `Some` with no source change. | Demonstration |
 | StR-001-VC-4 | A regression suite runs the engine against three different on-disk corpora (Filament-synced, hand-authored, test fixture) and behavior is identical across all three. | Test |
 
@@ -43,6 +47,6 @@ Must-Have
 
 - **StR-001-AC-1**: A single `cargo add quire-rs` is sufficient to obtain render, parse, and extract APIs in a downstream Rust crate.
 - **StR-001-AC-2**: No call site in `quire-rs` shells out to Python, Node, or any other interpreter.
-- **StR-001-AC-3**: `Cargo.lock` audit confirms no HTTP/RPC client crates (`reqwest`, `hyper`, `tonic`, `grpc-*`, etc.) — engine is filesystem-only.
+- **StR-001-AC-3**: The all-feature cargo-deny audit confirms no HTTP/RPC client crates (`reqwest`, `hyper`, `tonic`, and the declared client ban set) — engine is filesystem-only.
 - **StR-001-AC-4**: Adding a brand-new archetype kind (new JSON Schema + new template) to `~/.ix/filament/modules/<some-module>/` and restarting the consumer is sufficient for `Registry::archetype("new-name")` to return Some, with no `quire-rs` source change.
 - **StR-001-AC-5**: A regression suite runs `quire-rs` with `IX_SCHEMA_PATH` pointing at three different on-disk corpora (Filament-synced, hand-authored, test fixture) and confirms identical behavior across all three.

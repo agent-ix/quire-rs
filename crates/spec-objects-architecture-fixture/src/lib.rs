@@ -8,8 +8,9 @@
 //! authored or copied, so the tests that load this module assert against
 //! the real thing, not a stand-in built to match the tool's own output.
 //!
-//! A package fetch can fail on an unavailable registry — `build.rs` reports that
-//! it surfaces it here via [`is_available`]/[`unavailable_reason`]. A test
+//! The fetch is allowed to fail when the public npm registry is unavailable —
+//! `build.rs` doesn't panic on that, it surfaces it here via
+//! [`is_available`]/[`unavailable_reason`]. A test
 //! that needs the real module must check [`is_available`] first; calling
 //! [`module_dir`] when it's `false` returns a path with nothing fetched
 //! into it.
@@ -33,8 +34,7 @@ pub fn module_dir() -> &'static Path {
 
 /// Whether `build.rs` actually fetched the module. `false` when
 /// `@agent-ix/spec-objects-architecture@`[`VERSION`] wasn't reachable at
-/// the configured npm registry — see [`unavailable_reason`] for why, and
-/// agent-ix/quire-rs#488 for the tracked gap.
+/// the public npm registry — see [`unavailable_reason`] for why.
 pub fn is_available() -> bool {
     env!("SPEC_OBJECTS_ARCHITECTURE_AVAILABLE") == "true"
 }

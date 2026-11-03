@@ -11,6 +11,11 @@ relationships:
     cardinality: "1:1"
 ---
 
+> **CR note (STD-228, 2026-10-21):** The no-`schemars` inspection now runs
+> through the `deny.toml` cargo-deny ban over the all-feature dependency graph.
+> The prohibition and hand-authored schema contract are unchanged; the former
+> Cargo.toml grep audit is retired.
+
 ## Description
 
 `quire-rs` SHALL expose the JSON Schema document associated with any loaded archetype so that LLM tool-call definitions and downstream consumers can read the same schema the engine validates against.
@@ -33,7 +38,7 @@ For downstream Rust consumers who want typed bindings for a specific archetype, 
 | FR-003-AC-1 | `schema_for(registry, "fr")` returns the JSON Schema document loaded from `spec-artifacts-iso/spec_artifacts_iso/schemas/fr-frontmatter.schema.json` byte-identical to the source file (modulo `serde_json` normalization of key order — see [NFR-006](../non-functional/NFR-006-determinism.md)). | Test |
 | FR-003-AC-2 | `schema_for(registry, "nonexistent")` returns `Err(QuireError::UnknownArchetype)`. | Test |
 | FR-003-AC-3 | An LLM agent test fixture consumes the returned schema as a tool-call argument schema; emitting a structurally-valid patch + sending to `apply_patch` succeeds; emitting a structurally-invalid patch + sending to `apply_patch` produces a `SchemaViolation` with a field path the agent can use to retry. | Test |
-| FR-003-AC-4 | No Rust source file under `src/` derives schemas via `schemars::schema_for!` for archetype-specific types. The `schemars` crate is NOT a `quire-rs` dependency (verified by `Cargo.toml` audit). | Inspection |
+| FR-003-AC-4 | No Rust source file under `src/` derives schemas via `schemars::schema_for!` for archetype-specific types. The `schemars` crate is NOT a `quire-rs` dependency (verified by the all-feature cargo-deny ban). | Inspection |
 
 ## Dependencies
 

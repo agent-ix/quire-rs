@@ -7,7 +7,6 @@
   "required": [
     "format",
     "format_version",
-    "source",
     "modules",
     "artifacts",
     "obligations",
@@ -19,7 +18,6 @@
   "properties": {
     "format": { "const": "quire-assurance" },
     "format_version": { "const": 1 },
-    "source": { "$ref": "#/$defs/sourcePremise" },
     "modules": {
       "type": "array",
       "items": { "$ref": "#/$defs/modulePremise" }
@@ -56,19 +54,6 @@
     }
   },
   "$defs": {
-    "sha256": {
-      "type": "string",
-      "pattern": "^[0-9a-f]{64}$"
-    },
-    "sourcePremise": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["repository", "revision"],
-      "properties": {
-        "repository": { "type": "string", "minLength": 1 },
-        "revision": { "type": "string", "pattern": "^[0-9a-f]{40}$" }
-      }
-    },
     "schemaPremise": {
       "type": "object",
       "additionalProperties": false,
@@ -93,11 +78,10 @@
     "locator": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["path", "line", "digest"],
+      "required": ["path", "line"],
       "properties": {
         "path": { "type": "string", "minLength": 1, "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$" },
-        "line": { "type": "integer", "minimum": 1 },
-        "digest": { "$ref": "#/$defs/sha256" }
+        "line": { "type": "integer", "minimum": 1 }
       }
     },
     "artifact": {
@@ -114,13 +98,12 @@
     "obligation": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["source", "id", "document", "statement", "statement_hash", "target_ids", "locator"],
+      "required": ["source", "id", "document", "statement", "target_ids", "locator"],
       "properties": {
         "source": { "type": "string", "minLength": 1 },
         "id": { "type": "string", "minLength": 1 },
         "document": { "type": "string", "minLength": 1 },
         "statement": { "type": "string", "minLength": 1 },
-        "statement_hash": { "$ref": "#/$defs/sha256" },
         "method": { "type": "string", "minLength": 1 },
         "parameters": {
           "type": "object",
@@ -136,7 +119,7 @@
       "additionalProperties": false,
       "required": ["id", "language", "kind", "qualified_name", "container", "capabilities", "locator"],
       "properties": {
-        "id": { "$ref": "#/$defs/sha256" },
+        "id": { "type": "string", "minLength": 1 },
         "language": { "enum": ["rust", "python", "typescript"] },
         "kind": { "enum": ["function", "test_function", "container", "benchmark", "fuzz_target"] },
         "qualified_name": { "type": "string", "minLength": 1 },
@@ -187,7 +170,7 @@
       "required": ["kind", "source", "target", "form", "provenance", "locator", "freshness"],
       "properties": {
         "kind": { "const": "verifies" },
-        "source": { "$ref": "#/$defs/sha256" },
+        "source": { "type": "string", "minLength": 1 },
         "target": { "type": "string", "minLength": 1 },
         "form": { "type": "string", "minLength": 1 },
         "provenance": { "enum": ["canonical", "legacy"] },
@@ -201,7 +184,7 @@
       "required": ["kind", "source", "target", "form", "locator", "freshness"],
       "properties": {
         "kind": { "const": "implements" },
-        "source": { "$ref": "#/$defs/sha256" },
+        "source": { "type": "string", "minLength": 1 },
         "target": { "type": "string", "minLength": 1 },
         "form": { "type": "string", "minLength": 1 },
         "locator": { "$ref": "#/$defs/locator" },

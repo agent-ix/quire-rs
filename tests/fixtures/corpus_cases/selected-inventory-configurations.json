@@ -1,0 +1,74 @@
+{
+  "issue_ref": "https://linear.app/agent-ix/issue/PLAT-1165",
+  "cases": [
+    {
+      "name": "two-real-dimensions",
+      "rows": "| a | x,y | |\n| b | p,q | |\n",
+      "count": 1,
+      "unusable_rows": [],
+      "tuples": 4
+    },
+    {
+      "name": "valid-constant-beside-real-dimensions",
+      "rows": "| a | x,y | |\n| constant | one | |\n| b | p,q | |\n",
+      "count": 1,
+      "unusable_rows": [],
+      "tuples": 4
+    },
+    {
+      "name": "one-real-dimension",
+      "rows": "| a | x,y | |\n",
+      "count": 0,
+      "unusable_rows": [],
+      "tuples": null
+    },
+    {
+      "name": "only-constants",
+      "rows": "| a | only | |\n| b | single | |\n",
+      "count": 0,
+      "unusable_rows": [],
+      "tuples": null
+    },
+    {
+      "name": "headed-empty-table",
+      "rows": "",
+      "count": 0,
+      "unusable_rows": [],
+      "tuples": null
+    },
+    {
+      "name": "valid-exclusion-only-row",
+      "rows": "| a | x,y | |\n| b | p,q | |\n| | | a=x & b=p |\n",
+      "count": 1,
+      "unusable_rows": [],
+      "tuples": 3
+    },
+    {
+      "name": "missing-dimension",
+      "rows": "| a | x,y | |\n| b | p,q | |\n| | bad,extra | |\n",
+      "count": 1,
+      "unusable_rows": [
+        3
+      ],
+      "tuples": 4
+    },
+    {
+      "name": "missing-values",
+      "rows": "| a | x,y | |\n| b | p,q | |\n| bad | | |\n",
+      "count": 1,
+      "unusable_rows": [
+        3
+      ],
+      "tuples": 4
+    },
+    {
+      "name": "garbage-exclusion",
+      "rows": "| a | x,y | |\n| b | p,q | |\n| | | invalid-exclusion |\n",
+      "count": 1,
+      "unusable_rows": [
+        3
+      ],
+      "tuples": 4
+    }
+  ]
+}

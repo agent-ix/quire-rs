@@ -36,7 +36,7 @@ mod diagnostics;
 mod reconcile;
 
 use declarations::criteria_counts;
-use diagnostics::{catch_all_documents, hollow_denominators, uncatalogued_methods};
+use diagnostics::{catch_all_documents, hollow_denominators};
 use reconcile::reconcile;
 
 /// Why a coverage run produced no report.
@@ -70,6 +70,26 @@ pub struct UnbackedRow {
     /// a payload from an engine predating the field still deserializes.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub line: Option<usize>,
+}
+
+/// An explicitly retired declaration retained as historical identity.
+///
+/// The deciding authored value is module-classified; the complete parsed cells
+/// retain the original statement and withdrawal reason without interpreting them.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RetiredRow {
+    pub reference: String,
+    pub document: String,
+    pub row_id: Option<String>,
+    pub target_ids: Vec<String>,
+    /// 1-based authored row line.
+    pub line: usize,
+    /// Column whose value explicitly retires this row.
+    pub column: String,
+    /// Untruncated authored deciding value.
+    pub value: String,
+    /// All parsed authored cells, including the statement and retirement reason.
+    pub cells: BTreeMap<String, String>,
 }
 
 /// A row whose status classes as `complete` while nothing backs it
@@ -203,6 +223,9 @@ pub struct GroupCounts {
     pub target: String,
     pub backed: usize,
     pub total: usize,
+    /// Historical targets excluded from the live denominator.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub retired: usize,
 }
 
 /// One target row the active model minted, with the state needed to open and
@@ -214,6 +237,9 @@ pub struct MintedTargetRecord {
     pub document: String,
     pub line: usize,
     pub backed: bool,
+    /// Explicit historical retirement; never substitutes for source backing.
+    #[serde(default, skip_serializing_if = "crate::symbol_table::is_false")]
+    pub retired: bool,
 }
 
 /// Property-shape counts for one document's binding criteria (FR-050-AC-13,
@@ -297,6 +323,9 @@ pub struct CatchAllCriterion {
 pub struct CoverageTotals {
     pub backed: usize,
     pub total: usize,
+    /// Historical targets excluded from the live denominator.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub retired: usize,
     /// Binding criteria across the corpus (CR-028), or `None` when the corpus
     /// binds none.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -325,6 +354,9 @@ pub struct CoverageTotals {
 pub struct CoverageReport {
     pub unbacked_rows: Vec<UnbackedRow>,
     pub status_lies: Vec<StatusLie>,
+    /// Explicitly retired declarations retained outside live evidence gaps.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub retired_rows: Vec<RetiredRow>,
     /// Unbacked rows exempted from `status_lies` by their declared method
     /// (CR-041). Empty — and so absent from the JSON — for a module declaring
     /// no `no_source_symbol` vocabulary, which keeps FR-050-AC-7 byte-identity.
@@ -382,6 +414,15 @@ pub struct CoverageReport {
     /// empty (FR-055-CON-3): the two fields are all-or-nothing together.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub coverage_matrix: Vec<CoverageMatrixRequirement>,
+    /// Per-act retained-input outcomes, present only in explicit evidence mode.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub evidence_results: Option<Vec<crate::evidence::EvidenceResult>>,
+    /// Native typed non-completion causes and partial-row loci in evidence mode.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub inventory_causes: Option<Vec<crate::evidence::InventoryCauseReport>>,
+    /// All retained claims, including non-criterion declared targets.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub record_binders: Option<Vec<crate::evidence::RecordBinder>>,
     /// Requirement → production code (FR-062). Empty — and so absent from the
     /// JSON — for a module declaring no `implements` marker forms, which keeps
     /// FR-050-AC-7 byte-identity for every module that has not adopted them.
@@ -507,6 +548,7 @@ pub const COVERAGE_DIAGNOSTIC_REASONS: &[&str] = &[
     "model-mints-nothing",
     "no-symbol-bound",
     "obligation-row-states-nothing",
+    "partial-implements-attribute-match",
     "range-in-trace-tag",
     "section-holds-no-table",
     "section-matches-nothing",
@@ -596,6 +638,12 @@ pub struct CoverageMatrixCriterion {
     /// registration's qualified name is ignorant of its enclosing suite
     /// (FR-051-AC-21). Empty, never absent, for a criterion with no binder.
     pub binders: Vec<CoverageMatrixBinder>,
+    /// Separate retained record binders; present even when empty in evidence mode.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub record_binders: Option<Vec<crate::evidence::RecordBinder>>,
+    /// Native selected identity rendering, including unmapped criteria.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub identity: Option<crate::evidence::TargetLocus>,
     /// The computed static status (FR-050-AC-49).
     pub status: CoverageMatrixStatus,
 }
@@ -625,14 +673,18 @@ pub struct CoverageMatrixBinder {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum CoverageMatrixStatus {
+    /// Explicit retained backing for the exact selected criterion.
+    QualifiedRecord,
+    /// The criterion's own declaration is explicitly retired.
+    Retired,
     /// One or more binders, at least one not ignored.
     Tagged,
     /// Zero binders.
     Untagged,
     /// One or more binders, every one marked ignored (FR-051-AC-27).
     TaggedByIgnoredTest,
-    /// The declared `method` is in the module's declared `no_source_symbol`
-    /// vocabulary — wins over every other case, regardless of binder count.
+    /// A live criterion's declared `method` is in `no_source_symbol`;
+    /// this takes precedence over its binder count.
     MethodWithoutSymbol,
 }
 
@@ -654,10 +706,39 @@ pub fn compute(
     graph: &SymbolGraph,
     root: &Path,
 ) -> Result<CoverageReport, CoverageError> {
+    compute_inner(spec, registry, graph, root, None)
+}
+
+/// Reconcile explicit owner-neutral retained backing alongside source claims.
+///
+/// This low-level projection is not a qualification certificate. Consumers use
+/// the Quoin bridge's private qualified view after its actual audit/qualification.
+pub fn compute_with_evidence(
+    spec: &Spec,
+    registry: &Registry,
+    graph: &SymbolGraph,
+    root: &Path,
+    backing: &crate::evidence::BackingInput<'_>,
+) -> Result<CoverageReport, CoverageError> {
+    compute_inner(spec, registry, graph, root, Some(backing))
+}
+
+fn compute_inner(
+    spec: &Spec,
+    registry: &Registry,
+    graph: &SymbolGraph,
+    root: &Path,
+    backing: Option<&crate::evidence::BackingInput<'_>>,
+) -> Result<CoverageReport, CoverageError> {
     let model = registry
         .traceability()
         .ok_or(CoverageError::ModelUndeclared)?;
-    let (mut report, minting_census) = reconcile(spec, model, graph, root, registry);
+    let mut evidence = backing.map(crate::evidence::ReconciledEvidence::new);
+    if let Some(evidence) = &mut evidence {
+        evidence.check_context(spec, model, root);
+    }
+    let (mut report, minting_census) =
+        reconcile(spec, model, graph, root, registry, evidence.as_ref());
     // CR-028: the criteria counts are computed here rather than inside
     // `reconcile`, which reconciles against the declared model alone and takes
     // no `Registry`. The vocabularies the classifier reads hang off the same
@@ -672,11 +753,6 @@ pub fn compute(
         report.totals.specific_shaped =
             Some(report.criteria.iter().map(|c| c.specific_shaped).sum());
     }
-    // FR-054-AC-11: reported here rather than in `reconcile`, which takes no
-    // `Registry` and so cannot see the catalog the methods are checked against.
-    report
-        .diagnostics
-        .extend(uncatalogued_methods(&report.obligations, registry));
     // FR-059-AC-9 (CR-091): also here rather than in `reconcile`, because the
     // vocabulary lives in an archetype's frontmatter schema, which only the
     // `Registry` can read.
@@ -924,6 +1000,6 @@ fn coverage_metrics(
 }
 /// Return a stable scope-relative path using the declaration scanner's path
 /// normalization (CR-038).
-fn relative(root: &Path, path: &Path) -> String {
+pub(crate) fn relative(root: &Path, path: &Path) -> String {
     declared_tables::relative_path(root, path)
 }

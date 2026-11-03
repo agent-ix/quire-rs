@@ -43,7 +43,7 @@ impl TraceProvenance {
 /// One `verifies` relation: a test symbol verifies a spec trace id.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VerifiesRelation {
-    /// Identity digest of the verifying symbol.
+    /// Identity of the verifying symbol.
     pub symbol_id: String,
     pub symbol: String,
     pub path: String,
@@ -80,7 +80,7 @@ pub struct VerifiesRelation {
 /// from, and inventing the field would suggest one exists.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ImplementsRelation {
-    /// Identity digest of the implementing symbol.
+    /// Identity of the implementing symbol.
     pub symbol_id: String,
     pub symbol: String,
     pub path: String,
@@ -101,6 +101,21 @@ pub struct RewriteSuggestion {
     pub to_marker: String,
     /// The marker text to insert, rendered from the marker's template.
     pub suggestion: String,
+}
+
+/// A guarded form matched only part of an actual attribute candidate.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PartialAttributeMatch {
+    /// Module-declared form name.
+    pub form: String,
+    /// Repo-relative source path.
+    pub path: String,
+    /// Qualified owning production declaration.
+    pub symbol: String,
+    /// Actual 1-based start line of the attribute.
+    pub line: usize,
+    /// Complete verbatim candidate text.
+    pub attribute: String,
 }
 
 /// A duplicate binding, dropped to one relation (FR-045 edge-dedup).
@@ -331,6 +346,8 @@ pub struct SymbolGraph {
     pub contains: Vec<(String, String, String)>,
     pub rewrites: Vec<RewriteSuggestion>,
     pub diagnostics: Vec<TraceDiagnostic>,
+    /// Rejected proper-substring matches, in declaration/form/source order.
+    pub partial_attribute_matches: Vec<PartialAttributeMatch>,
     /// Per-language candidate/bound counts (FR-051-AC-19, CR-093). Ordered by
     /// language label, and present for every language the walk saw at least one
     /// evidence symbol in.
@@ -471,6 +488,54 @@ impl SymbolGraph {
     }
 }
 
+/// Regexes declared by one traceability model, compiled once for its bind pass.
+#[derive(Debug, Default)]
+struct CompiledTracePatterns {
+    markers: BTreeMap<String, Option<Regex>>,
+    legacy: BTreeMap<String, Option<Regex>>,
+    implements: BTreeMap<String, Option<Regex>>,
+}
+
+impl CompiledTracePatterns {
+    fn new(model: &TraceabilityModel) -> Self {
+        let markers = model
+            .trace_tags
+            .markers
+            .iter()
+            .map(|marker| (marker.pattern.clone(), Regex::new(&marker.pattern).ok()))
+            .collect();
+        let legacy = model
+            .trace_tags
+            .legacy
+            .iter()
+            .map(|form| (form.pattern.clone(), Regex::new(&form.pattern).ok()))
+            .collect();
+        let implements = model
+            .trace_tags
+            .implements
+            .iter()
+            .map(|marker| (marker.pattern.clone(), Regex::new(&marker.pattern).ok()))
+            .collect();
+        Self {
+            markers,
+            legacy,
+            implements,
+        }
+    }
+
+    fn marker(&self, pattern: &str) -> Option<&Regex> {
+        self.markers.get(pattern)?.as_ref()
+    }
+
+    fn legacy(&self, pattern: &str) -> Option<&Regex> {
+        self.legacy.get(pattern)?.as_ref()
+    }
+
+    fn implements(&self, pattern: &str) -> Option<&Regex> {
+        self.implements.get(pattern)?.as_ref()
+    }
+}
+
 /// Bind `extraction` to trace ids per the module-declared grammar, and mint the
 /// `verifies` / `defined_in` / `contains` relations.
 ///
@@ -484,6 +549,7 @@ impl SymbolGraph {
 /// first. Tagging harder never helps, and a shell audit mints no symbol at all
 /// — `language_of` reads Rust, Python and TypeScript.
 pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolGraph {
+    let patterns = CompiledTracePatterns::new(model);
     let mut graph = SymbolGraph {
         excluded_source_files: extraction.excluded_source_files,
         ..SymbolGraph::default()
@@ -525,7 +591,7 @@ pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolG
             // is: `bind_implements` only appends, so the delta is exactly "did
             // this production symbol carry a marker".
             let before = graph.implements.len();
-            let implements_ranges = bind_implements(symbol, source, model, &mut graph);
+            let implements_ranges = bind_implements(symbol, source, model, &patterns, &mut graph);
             production_ranges.extend(
                 implements_ranges
                     .into_iter()
@@ -569,7 +635,8 @@ pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolG
                 // all, and that is exactly what #312 is about: a human wrote a
                 // comment naming a row, next to the wrong thing. All five
                 // seeded fixtures are that shape, in three languages.
-                let (production_forms, ranges) = verifies_form_ids(symbol, source, model);
+                let (production_forms, ranges) =
+                    verifies_form_ids(symbol, source, model, &patterns);
                 // A range written here binds nothing wherever it sits
                 // (FR-051-AC-28), so it is reported like any other; a LEGACY
                 // one is also the misplaced tag this detector exists for, and
@@ -626,16 +693,14 @@ pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolG
         });
         let before = graph.verifies.len();
         let ranges_before = graph.range_diagnostics.len();
-        bind_symbol(symbol, source, model, &mut graph);
+        bind_symbol(symbol, source, model, &patterns, &mut graph);
         let self_name_bound = self_named_trace_id(symbol).map(|trace_id| {
-            declared_name_form_ids(symbol, source, model)
+            declared_name_form_ids(symbol, source, model, &patterns)
                 .iter()
                 .any(|bound| normalized_trace_id(bound) == normalized_trace_id(&trace_id))
         });
-        let bound_on_symbol: BTreeSet<String> = graph
-            .verifies
+        let bound_on_symbol: BTreeSet<String> = graph.verifies[before..]
             .iter()
-            .filter(|relation| relation.symbol_id == symbol.id)
             .map(|relation| relation.trace_id.clone())
             .collect();
         // CR-187: a range's own endpoints must not resurface as generic
@@ -668,6 +733,14 @@ pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolG
             },
         );
     }
+
+    // Appending is cheap in the symbol loop. Sort once after every symbol has
+    // been visited; sorting in `bind_symbol` would invalidate the per-symbol
+    // append range used above and, more importantly, sort the growing graph N
+    // times.
+    graph
+        .verifies
+        .sort_by(|a, b| (&a.path, &a.symbol, &a.trace_id).cmp(&(&b.path, &b.symbol, &b.trace_id)));
 
     // TWO FILTERS, and both are load-bearing — the corpus controls prove it.
     //
@@ -990,7 +1063,12 @@ fn self_named_trace_id(symbol: &Symbol) -> Option<String> {
 /// Ids a declared legacy form reads from the symbol's declaration line.
 /// Annotation/comment forms elsewhere in the attached span are intentionally
 /// excluded: they may bind the same id, but do not prove the name form works.
-fn declared_name_form_ids(symbol: &Symbol, source: &str, model: &TraceabilityModel) -> Vec<String> {
+fn declared_name_form_ids(
+    symbol: &Symbol,
+    source: &str,
+    model: &TraceabilityModel,
+    patterns: &CompiledTracePatterns,
+) -> Vec<String> {
     let Some(line) = source.lines().nth(symbol.line.saturating_sub(1)) else {
         return Vec::new();
     };
@@ -1002,7 +1080,7 @@ fn declared_name_form_ids(symbol: &Symbol, source: &str, model: &TraceabilityMod
         {
             continue;
         }
-        let Some(pattern) = compile(&legacy.pattern) else {
+        let Some(pattern) = patterns.legacy(&legacy.pattern) else {
             continue;
         };
         for captures in pattern.captures_iter(line) {
@@ -1104,6 +1182,7 @@ fn bind_implements(
     symbol: &Symbol,
     source: &str,
     model: &TraceabilityModel,
+    patterns: &CompiledTracePatterns,
     graph: &mut SymbolGraph,
 ) -> Vec<RangeInTraceTag> {
     let mut ranges = Vec::new();
@@ -1115,22 +1194,51 @@ fn bind_implements(
         if marker.language != symbol.language {
             continue;
         }
-        let Some(re) = compile(&marker.pattern) else {
+        let Some(re) = patterns.implements(&marker.pattern) else {
             continue;
         };
-        for caps in re.captures_iter(&span) {
-            let Some(args) = caps.get(1) else { continue };
-            for trace_id in marker_ids(args.as_str()) {
-                if let Some(range) = marker_range(symbol, &span, &caps, &trace_id) {
-                    ranges.push(range);
+        let candidates: Vec<(&str, usize)> = match marker.syntax {
+            Some(crate::traceability::TraceMarkerSyntax::RustAttribute) => symbol
+                .attributes
+                .iter()
+                .map(|attribute| (attribute.text.as_str(), attribute.line))
+                .collect(),
+            None => vec![(span.as_str(), symbol.leading_line)],
+        };
+        for (candidate, line) in candidates {
+            let mut partial = false;
+            for caps in re.captures_iter(candidate) {
+                if marker.syntax.is_some()
+                    && !caps.get(0).is_some_and(|matched| {
+                        matched.start() == 0 && matched.end() == candidate.len()
+                    })
+                {
+                    partial = true;
                     continue;
                 }
-                graph.implements.push(ImplementsRelation {
-                    symbol_id: symbol.id.clone(),
-                    symbol: symbol.qualified_name.clone(),
-                    path: symbol.path.clone(),
-                    trace_id,
+                let Some(args) = caps.get(1) else { continue };
+                for trace_id in marker_ids(args.as_str()) {
+                    if let Some(mut range) = marker_range(symbol, candidate, &caps, &trace_id) {
+                        range.line = line + range.line.saturating_sub(symbol.leading_line);
+                        ranges.push(range);
+                        continue;
+                    }
+                    graph.implements.push(ImplementsRelation {
+                        symbol_id: symbol.id.clone(),
+                        symbol: symbol.qualified_name.clone(),
+                        path: symbol.path.clone(),
+                        trace_id,
+                        form: marker.name.clone(),
+                    });
+                }
+            }
+            if partial {
+                graph.partial_attribute_matches.push(PartialAttributeMatch {
                     form: marker.name.clone(),
+                    path: symbol.path.clone(),
+                    symbol: symbol.qualified_name.clone(),
+                    line,
+                    attribute: candidate.to_string(),
                 });
             }
         }
@@ -1545,6 +1653,7 @@ fn verifies_form_ids(
     symbol: &Symbol,
     source: &str,
     model: &TraceabilityModel,
+    patterns: &CompiledTracePatterns,
 ) -> (Vec<(String, String, TraceProvenance)>, Vec<FormRange>) {
     let span = symbol.attached_source(source);
     let mut out = Vec::new();
@@ -1562,7 +1671,7 @@ fn verifies_form_ids(
         if marker.language != symbol.language {
             continue;
         }
-        let Some(re) = compile(&marker.pattern) else {
+        let Some(re) = patterns.marker(&marker.pattern) else {
             continue;
         };
         for caps in re.captures_iter(&span) {
@@ -1592,11 +1701,11 @@ fn verifies_form_ids(
         if legacy.language.is_some_and(|l| l != symbol.language) {
             continue;
         }
-        let Some(re) = compile(&legacy.pattern) else {
+        let Some(re) = patterns.legacy(&legacy.pattern) else {
             continue;
         };
         for caps in re.captures_iter(&legacy_span) {
-            let read = read_legacy_match(&re, &caps, legacy.id_format.as_deref(), &legacy_span);
+            let read = read_legacy_match(re, &caps, legacy.id_format.as_deref(), &legacy_span);
             let start = caps.get(0).map_or(0, |m| m.start());
             let line = symbol.leading_line + legacy_span[..start].matches('\n').count();
             ranges.extend(read.ranges.into_iter().map(|range_text| {
@@ -1753,13 +1862,19 @@ fn range_continuation_pattern() -> &'static Regex {
     })
 }
 
-fn bind_symbol(symbol: &Symbol, source: &str, model: &TraceabilityModel, graph: &mut SymbolGraph) {
+fn bind_symbol(
+    symbol: &Symbol,
+    source: &str,
+    model: &TraceabilityModel,
+    patterns: &CompiledTracePatterns,
+    graph: &mut SymbolGraph,
+) {
     let span = symbol.attached_source(source);
     // Every attachment of a trace id to this symbol, in discovery order
     // (canonical markers first, then legacy forms). The id is bound once no
     // matter how many forms attached it (FR-051-AC-6).
     let mut attachments: BTreeMap<String, Vec<VerifiesRelation>> = BTreeMap::new();
-    let (forms, ranges) = verifies_form_ids(symbol, source, model);
+    let (forms, ranges) = verifies_form_ids(symbol, source, model, patterns);
     graph
         .range_diagnostics
         .extend(ranges.into_iter().map(|found| found.range));
@@ -1791,12 +1906,12 @@ fn bind_symbol(symbol: &Symbol, source: &str, model: &TraceabilityModel, graph: 
         if legacy.language.is_some_and(|l| l != symbol.language) {
             continue;
         }
-        let Some(re) = compile(&legacy.pattern) else {
+        let Some(re) = patterns.legacy(&legacy.pattern) else {
             continue;
         };
         for caps in re.captures_iter(&legacy_span) {
             let trace_ids =
-                read_legacy_match(&re, &caps, legacy.id_format.as_deref(), &legacy_span).ids;
+                read_legacy_match(re, &caps, legacy.id_format.as_deref(), &legacy_span).ids;
             if trace_ids.is_empty() {
                 continue;
             }
@@ -1861,9 +1976,6 @@ fn bind_symbol(symbol: &Symbol, source: &str, model: &TraceabilityModel, graph: 
             graph.verifies.push(winner.clone());
         }
     }
-    graph
-        .verifies
-        .sort_by(|a, b| (&a.path, &a.symbol, &a.trace_id).cmp(&(&b.path, &b.symbol, &b.trace_id)));
 }
 
 /// The trace ids inside a marker's argument list. Quoted arguments are the
@@ -1912,13 +2024,6 @@ fn legacy_ids(caps: &regex::Captures<'_>, id_format: Option<&str>) -> Vec<String
     }
 }
 
-/// Compile a module-declared pattern. Patterns are validated at module load
-/// (FR-050-AC-2), so a failure here means the caller built a model in memory;
-/// binding skips the form rather than panicking.
-fn compile(pattern: &str) -> Option<Regex> {
-    Regex::new(pattern).ok()
-}
-
 fn re_quoted() -> &'static Regex {
     static R: OnceLock<Regex> = OnceLock::new();
     R.get_or_init(|| Regex::new(r#"'([^']*)'|"([^"]*)""#).expect("quoted-arg regex"))
@@ -1937,7 +2042,7 @@ pub struct SymbolRecordInput {
 
 /// Emit the symbol graph as FR-045 graph records: symbols as node records,
 /// relations as edge records, every `ref` normalized under the caller's
-/// org/repo. Ordering is deterministic and ids are stable digests, so repeated
+/// org/repo. Ordering is deterministic and ids are stable, so repeated
 /// emission over an identical tree is byte-identical (FR-051-AC-10).
 pub fn graph_records(
     extraction: &SymbolExtraction,
@@ -2775,6 +2880,7 @@ mod tests {
         // here rather than in a fixture a dozen other tests assert against.
         let mut model = iso_model();
         model.trace_tags.implements.push(TraceMarkerForm {
+            syntax: None,
             name: "python-implements-line".to_string(),
             language: SourceLanguage::Python,
             pattern: r"(?m)^\s*#\s*Implements:\s*(.+)$".to_string(),
@@ -3038,6 +3144,7 @@ mod tests {
         // current by hand — not attempted here.
         let mut model = iso_model();
         model.trace_tags.implements.push(TraceMarkerForm {
+            syntax: None,
             name: "rust-implements-line".to_string(),
             language: SourceLanguage::Rust,
             pattern: r"(?m)^\s*//\s*Implements:\s*(.+)$".to_string(),
@@ -3116,6 +3223,7 @@ fn fn_plain_mention() {\n\
     fn tc1936_a_range_in_an_implements_marker_binds_nothing() {
         let mut model = iso_model();
         model.trace_tags.implements.push(TraceMarkerForm {
+            syntax: None,
             name: "rust-implements-attribute".to_string(),
             language: SourceLanguage::Rust,
             pattern: r#"#\[implements\(((?:\s*"[^"]*"\s*,?)+)\)\]"#.to_string(),

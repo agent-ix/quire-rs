@@ -1,0 +1,238 @@
+{
+  "issue_ref": "agent-ix/filament-core-data#310",
+  "tags": [
+    "TC-1610",
+    "TC-1613",
+    "TC-1615",
+    "TC-1621",
+    "TC-1638"
+  ],
+  "cases": [
+    {
+      "name": "min-number",
+      "type": "Integer",
+      "source": "min: 42",
+      "expected": {
+        "kind": "MinConstraint",
+        "value": {
+          "keyword": "min",
+          "value": {
+            "kind": "number",
+            "value": 42
+          }
+        }
+      }
+    },
+    {
+      "name": "min-string",
+      "type": "Integer",
+      "source": "min: limit",
+      "expected": {
+        "kind": "MinConstraint",
+        "value": {
+          "keyword": "min",
+          "value": {
+            "kind": "string",
+            "value": "limit"
+          }
+        }
+      }
+    },
+    {
+      "name": "max-number",
+      "type": "Integer",
+      "source": "max: 42",
+      "expected": {
+        "kind": "MaxConstraint",
+        "value": {
+          "keyword": "max",
+          "value": {
+            "kind": "number",
+            "value": 42
+          }
+        }
+      }
+    },
+    {
+      "name": "max-string",
+      "type": "Integer",
+      "source": "max: limit",
+      "expected": {
+        "kind": "MaxConstraint",
+        "value": {
+          "keyword": "max",
+          "value": {
+            "kind": "string",
+            "value": "limit"
+          }
+        }
+      }
+    },
+    {
+      "name": "exclusiveMin-number",
+      "type": "Integer",
+      "source": "exclusiveMin: 42",
+      "expected": {
+        "kind": "ExclusiveMinConstraint",
+        "value": {
+          "keyword": "exclusiveMin",
+          "value": {
+            "kind": "number",
+            "value": 42
+          }
+        }
+      }
+    },
+    {
+      "name": "exclusiveMin-string",
+      "type": "Integer",
+      "source": "exclusiveMin: limit",
+      "expected": {
+        "kind": "ExclusiveMinConstraint",
+        "value": {
+          "keyword": "exclusiveMin",
+          "value": {
+            "kind": "string",
+            "value": "limit"
+          }
+        }
+      }
+    },
+    {
+      "name": "exclusiveMax-number",
+      "type": "Integer",
+      "source": "exclusiveMax: 42",
+      "expected": {
+        "kind": "ExclusiveMaxConstraint",
+        "value": {
+          "keyword": "exclusiveMax",
+          "value": {
+            "kind": "number",
+            "value": 42
+          }
+        }
+      }
+    },
+    {
+      "name": "exclusiveMax-string",
+      "type": "Integer",
+      "source": "exclusiveMax: limit",
+      "expected": {
+        "kind": "ExclusiveMaxConstraint",
+        "value": {
+          "keyword": "exclusiveMax",
+          "value": {
+            "kind": "string",
+            "value": "limit"
+          }
+        }
+      }
+    },
+    {
+      "name": "minLength",
+      "type": "String",
+      "source": "minLength: 1",
+      "expected": {
+        "kind": "MinLengthConstraint",
+        "value": {
+          "keyword": "minLength",
+          "value": 1
+        }
+      }
+    },
+    {
+      "name": "maxLength",
+      "type": "String",
+      "source": "maxLength: 64",
+      "expected": {
+        "kind": "MaxLengthConstraint",
+        "value": {
+          "keyword": "maxLength",
+          "value": 64
+        }
+      }
+    },
+    {
+      "name": "pattern",
+      "type": "String",
+      "source": "pattern: /a,b|c/",
+      "expected": {
+        "kind": "PatternConstraint",
+        "value": {
+          "keyword": "pattern",
+          "regex": "a,b|c",
+          "dialect": "ecma-262"
+        }
+      }
+    },
+    {
+      "name": "enumValues",
+      "type": "String",
+      "source": "enumValues: alpha|42",
+      "expected": {
+        "kind": "EnumValuesConstraint",
+        "value": {
+          "keyword": "enumValues",
+          "values": [
+            {
+              "kind": "string",
+              "value": "alpha"
+            },
+            {
+              "kind": "number",
+              "value": 42
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "format",
+      "type": "String",
+      "source": "format: ix:code",
+      "expected": {
+        "kind": "FormatConstraint",
+        "value": {
+          "keyword": "format",
+          "name": "ix:code"
+        }
+      }
+    },
+    {
+      "name": "nonEmpty",
+      "type": "String",
+      "source": "nonEmpty",
+      "expected": {
+        "kind": "NonEmptyConstraint",
+        "value": {
+          "keyword": "nonEmpty"
+        }
+      }
+    },
+    {
+      "name": "unique",
+      "type": "String",
+      "source": "unique",
+      "expected": {
+        "kind": "UniqueConstraint",
+        "value": {
+          "keyword": "unique"
+        }
+      }
+    }
+  ],
+  "additional_decoded_enum_values": [
+    {
+      "kind": "string",
+      "value": "alpha"
+    },
+    {
+      "kind": "number",
+      "value": 42
+    },
+    {
+      "kind": "boolean",
+      "value": true
+    }
+  ]
+}

@@ -250,7 +250,7 @@ pub fn load_repo_with(root: &Path, opts: &WalkOptions) -> RepoLoad {
 /// Per-file parse result — owned, no shared state. The document is boxed
 /// so the common `NotADocument`/`Failed` outcomes don't pay the large
 /// variant's size (clippy::large_enum_variant).
-enum Outcome {
+pub(crate) enum Outcome {
     Loaded {
         doc: Box<LoadedDocument>,
         diags: Vec<Diagnostic>,
@@ -282,6 +282,17 @@ impl Outcome {
 }
 
 pub(crate) fn discover_files(root: &Path, opts: &WalkOptions) -> Vec<PathBuf> {
+    discover_files_observed(root, opts).files
+}
+
+/// Discovery observations for callers whose result must attest exhaustion.
+/// The tolerant loader projects the successful paths and preserves its contract.
+pub(crate) struct Discovery {
+    pub files: Vec<PathBuf>,
+    pub errors: Vec<ignore::Error>,
+}
+
+pub(crate) fn discover_files_observed(root: &Path, opts: &WalkOptions) -> Discovery {
     let mut builder = WalkBuilder::new(root);
     builder
         .hidden(!opts.include_hidden)
@@ -295,7 +306,18 @@ pub(crate) fn discover_files(root: &Path, opts: &WalkOptions) -> Vec<PathBuf> {
         .follow_links(false); // never follow symlinks → no loop risk (FR-024-AC-5)
 
     let mut files = Vec::new();
-    for entry in builder.build().flatten() {
+    let mut errors = Vec::new();
+    for result in builder.build() {
+        let entry = match result {
+            Ok(entry) => entry,
+            Err(error) => {
+                errors.push(error);
+                continue;
+            }
+        };
+        if let Some(error) = entry.error() {
+            errors.push(error.clone());
+        }
         let path = entry.path();
         if !entry.file_type().is_some_and(|t| t.is_file()) {
             continue;
@@ -305,7 +327,7 @@ pub(crate) fn discover_files(root: &Path, opts: &WalkOptions) -> Vec<PathBuf> {
         }
         files.push(path.to_path_buf());
     }
-    files
+    Discovery { files, errors }
 }
 
 /// The corpus-membership rule, in one place (CR-044): a markdown file is a
@@ -331,7 +353,7 @@ fn has_allowed_extension(path: &Path, extensions: &[String]) -> bool {
     }
 }
 
-fn parse_one(path: &Path) -> Outcome {
+pub(crate) fn parse_one(path: &Path) -> Outcome {
     let text = match std::fs::read_to_string(path) {
         Ok(t) => t,
         Err(e) => {

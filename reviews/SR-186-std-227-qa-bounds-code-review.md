@@ -1,0 +1,38 @@
+---
+id: SR-186
+title: "STD-227 code review of QA bounds integration"
+type: SpecReview
+analysis: code-review
+scope: "STD-227 diff in .github/workflows/ci.yml, Cargo.toml, Cargo.lock, deny.toml, tests/corpus_cases.rs, tests/corpus_recall.rs; pinned qa-corpus src/corpus.rs, src/bounds.rs, src/verify.rs; AP-201 assurance context"
+review_set: subset
+---
+
+## Summary
+
+Reviewed the Rust integration against the repository's conventions, the rust-review checklist, the pinned QA Rust API, and the removed Python callers. The test suite now calls the QA crate through the pinned corpus submodule and keeps independent Quire grading checks.
+
+## Assurance Context
+
+AP-201 at `spec/assurance/AP-201-detection-minting.md` applies because the changed tests consume bounds and coverage evidence. The QA corpus Rust reader and Quire's Rust harness retain distinct case-loading and grading paths, while bounds calls into the QA crate share its implementation. QA #36 merged at `9b2b760042ca7d4bf123f5ada0a7914aa95e8d2d`; its owner reported a passing full `make ci` and focused all-target checks, while this PR's own full gate remains pending. No active assurance exception was identified.
+
+## Findings
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-001 | medium | The first migrated TC-1025 assertion expected the old Python diagnostic for an empty YAML file, so a correct QA Rust refusal failed the test. | tests/corpus_cases.rs:1340 |
+| FND-002 | low | The new TC-1027 mutation array used a complex inline function-pointer type and failed focused Clippy with `-D warnings`. | tests/corpus_cases.rs:1582 |
+| FND-003 | medium | The new AGPL QA dev-dependency failed `make deny` because the license policy had no named exception for that crate. | deny.toml, Cargo.toml |
+
+## Dispositions
+
+- FND-001: fixed. Empty `expect.yaml` and `expect-pending.yaml` now assert the Rust reader's mapping refusal; the separate empty-assertion mutation still checks the graded assertion rule.
+- FND-002: fixed. A local `Mutation` type alias makes the array readable and focused Clippy passes.
+- FND-003: fixed. Added a `qa-corpus`-only AGPL exception beside the existing first-party dev-tool exceptions. The global license allow-list remains permissive-only; `make deny deny-grammars` passes.
+
+## Verdict
+
+The introduced findings are fixed. The CI diff removes only the Python/PyYAML setup formerly needed by these tests; the Rust `cargo test` step still runs both changed integration targets. No foreign source, schema, or binary was copied into this repository.
+
+## Validation
+
+Focused TC-1021, TC-1025, TC-1027, TC-1028, TC-1032, and both `corpus_recall` tests passed before the final QA pin. After pinning the QA merge commit and merging current main, all 19 `corpus_cases` tests and both `corpus_recall` tests passed; focused Clippy, `cargo fmt --all -- --check`, `make deny deny-grammars`, and `git diff --check` passed. The PR-head full gate remains pending the shared host slot.

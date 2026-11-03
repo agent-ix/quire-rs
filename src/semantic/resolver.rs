@@ -13,7 +13,7 @@ use std::path::{Component, Path, PathBuf};
 use jsonschema::JSONSchema;
 use serde_json::Value;
 
-use super::contract::{DataSchemaRef, SemanticFailure, SemanticModule};
+use super::contract::{DataSchemaRef, SemanticFailure};
 use super::embedded;
 
 /// Where a module's files come from.
@@ -83,7 +83,6 @@ fn locus(object_type: &str, key: &str) -> String {
 pub fn resolve_reference(
     source: &SchemaSource,
     reference: &DataSchemaRef,
-    module: &SemanticModule,
     object_type: &str,
 ) -> Result<ResolvedSchema, SemanticFailure> {
     let rel = reference.schema.as_str();
@@ -144,11 +143,10 @@ pub fn resolve_reference(
             Err(_) => None,
         }
     };
-    let validator = compile_module_schema(&schema, &siblings, &module.semantic_core, &module_base)
-        .map_err(|mut f| {
-            f.path = locus(object_type, "schema");
-            f
-        })?;
+    let validator = compile_module_schema(&schema, &siblings, &module_base).map_err(|mut f| {
+        f.path = locus(object_type, "schema");
+        f
+    })?;
     Ok(ResolvedSchema {
         schema,
         validator,
@@ -175,22 +173,16 @@ fn collect_refs(value: &Value, out: &mut Vec<String>) {
 }
 
 /// Compile `schema` with every `$ref` resolved offline: module siblings come
-/// from `siblings(name)`, semantic-core documents from the embedded bundle at
-/// `semantic_core`. Version drift, unshipped targets, and cycles are refused
+/// from `siblings(name)`, semantic-core documents from the embedded bundle.
+/// Unshipped targets and cycles are refused
 /// with their FR-069 codes; a `$ref` to a document's own `$id` is a fragment.
 pub fn compile_module_schema(
     schema: &Value,
     siblings: &dyn Fn(&str) -> Option<Result<Value, String>>,
-    semantic_core: &str,
     module_base: &str,
 ) -> Result<JSONSchema, SemanticFailure> {
-    let bundle = embedded::semantic_core_bundle(semantic_core).ok_or_else(|| {
-        SemanticFailure::error(
-            "semantic.unsupported-semantic-core",
-            "semantic.semantic_core",
-            format!("no embedded bundle for {semantic_core}"),
-        )
-    })?;
+    let bundle = embedded::semantic_core_bundle();
+    let semantic_core = embedded::embedded_semantic_core_version();
     let core_base = format!("{}{}/", embedded::SEMANTIC_CORE_BASE, semantic_core);
     let mut documents: BTreeMap<String, Value> = BTreeMap::new();
     let mut stack: Vec<String> = Vec::new();
@@ -255,7 +247,10 @@ fn walk(
         if url.is_empty() || url == id {
             continue; // fragment within this document
         }
-        if let Some(name) = url.strip_prefix(core_base) {
+        if let Some(rest) = url.strip_prefix(embedded::SEMANTIC_CORE_BASE) {
+            // A semantic-core `$ref` resolves to the one embedded bundle by
+            // file name; the version segment of the URL is not consulted.
+            let name = rest.split_once('/').map_or("", |(_, name)| name);
             let Some((_, text)) = bundle.iter().find(|(n, _)| *n == name) else {
                 return Err(SemanticFailure::error(
                     "semantic.schema-ref-unshipped",
@@ -263,10 +258,11 @@ fn walk(
                     format!("$ref {url} names no file in the embedded semantic-core {semantic_core} bundle"),
                 ));
             };
+            let canonical = format!("{core_base}{name}");
             let child: Value = serde_json::from_str(text).expect("embedded schema is JSON");
             walk(
                 &child,
-                url,
+                &canonical,
                 siblings,
                 bundle,
                 core_base,
@@ -275,15 +271,11 @@ fn walk(
                 documents,
                 stack,
             )?;
-        } else if let Some(rest) = url.strip_prefix(embedded::SEMANTIC_CORE_BASE) {
-            let version = rest.split('/').next().unwrap_or("");
-            return Err(SemanticFailure::error(
-                "semantic.schema-ref-version",
-                "",
-                format!(
-                    "$ref {url} names semantic-core {version}, manifest records {semantic_core}"
-                ),
-            ));
+            if url != canonical {
+                if let Some(doc) = documents.get(&canonical).cloned() {
+                    documents.insert(url.to_string(), doc);
+                }
+            }
         } else if let Some(name) = url.strip_prefix(module_base) {
             match siblings(name) {
                 Some(Ok(child)) => walk(

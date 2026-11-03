@@ -1,0 +1,17 @@
+{
+  "issue_ref": "agent-ix/quire-rs#529",
+  "cases": [
+    "failed",
+    "errored",
+    "skipped",
+    "absent",
+    "unevaluated",
+    "wrong-revision",
+    "selection-mismatch",
+    "stale",
+    "invalid-target",
+    "ambiguous-target",
+    "record-conflict",
+    "qualification-rejected"
+  ]
+}

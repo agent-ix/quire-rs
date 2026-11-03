@@ -112,11 +112,7 @@ fn tc928_an_exclusion_bites_at_higher_strength() {
 
 #[trace("TC-929", "FR-061-AC-5")]
 // the statement carries every declared value, so any
-// change to the space changes its hash.
-//
-// This is the entire suspect-link mechanism, inherited rather than reinvented:
-// adding a value to a dimension really does invalidate a coverage claim made
-// before that value existed.
+// change to the space changes the statement.
 #[test]
 fn tc929_the_statement_covers_the_whole_space() {
     let before = space(vec![dim("policy", &["tolerant", "strict"])], vec![]);
@@ -213,7 +209,6 @@ fn tc931_a_declared_space_mints_one_obligation() {
         obligation.parameters.get("tuples").map(String::as_str),
         Some("15")
     );
-    assert!(!obligation.statement_hash.is_empty());
 }
 
 #[trace("TC-932", "FR-061-AC-8")]
@@ -378,14 +373,13 @@ fn tc934_the_corpus_path_mints_the_same_one_obligation() {
         Some("15")
     );
 
-    // And the same statement hash, which is what makes a binding portable
-    // between the two paths.
+    // And the single-document path mints the same obligation.
     let doc = quire_rs::parse_document(text);
     let by_document = quire_rs::obligation::for_document(&model, "FR", &doc, None);
-    let twin = by_document
-        .get("FR-001-COMB")
-        .expect("the single-document path mints the same id");
-    assert_eq!(obligation.statement_hash, twin.statement_hash);
+    assert!(
+        by_document.contains_key("FR-001-COMB"),
+        "the single-document path mints the same id"
+    );
 
     std::fs::remove_dir_all(&root).ok();
 }

@@ -1,0 +1,34 @@
+[
+  {
+    "name": "rt-inspection",
+    "issue_ref": "agent-ix/quire-rs#529",
+    "id": "FR-004-AC-11",
+    "method": "Inspection",
+    "statement": "The decoder shall validate members without an intermediate generic JSON value tree.",
+    "component_only": true
+  },
+  {
+    "name": "rt-tc198-gate",
+    "issue_ref": "agent-ix/quire-rs#138",
+    "id": "FR-275-AC-7",
+    "method": "Inspection",
+    "statement": "The selected verification act shall pass.",
+    "component_only": true
+  },
+  {
+    "name": "rt-tc199-gate",
+    "issue_ref": "agent-ix/quire-rs#138",
+    "id": "FR-275-AC-20",
+    "method": "Inspection",
+    "statement": "The selected verification act shall pass.",
+    "component_only": true
+  },
+  {
+    "name": "rt-compile-fail",
+    "issue_ref": "agent-ix/quire-rs#530",
+    "id": "FR-003-AC-2",
+    "method": "compile-time-check",
+    "statement": "The selected verification act shall pass.",
+    "component_only": true
+  }
+]

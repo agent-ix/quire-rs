@@ -5,7 +5,79 @@ All notable changes to `quire-rs` are documented here. Format follows
 numbers follow semver — pre-1.0, breaking changes may land in minor
 bumps; once 1.0 ships, semver is strict.
 
-## [Unreleased]
+## [0.51.0] — 2026-11-02
+
+### Fixed
+
+- Coverage distinguishes explicitly module-declared retired verification rows and
+  existing retired statuses from live evidence gaps. Withdrawn IDs, statements,
+  reasons and actual source backing remain available in the report.
+
+### Changed
+
+- Coverage groups and totals count live targets separately from retired targets;
+  `minted_targets` retains both populations and exposes explicit retirement.
+- Modules can declare `traceability.vocabularies.retired` verification-cell
+  values. Retired criterion matrix entries retain their binders with status
+  `retired`, and retirement markers are not treated as verification methods.
+- All-retired strict CLI evaluation requires a consumer that recognizes the
+  separate retired population; an engine release alone does not update the CLI.
+
+## [0.50.4] — 2026-11-02
+
+### Fixed
+
+- Accept current semantic module manifests and resolve semantic exports against all declared module types, including artifact types.
+- Reduce matrix trace-binding time by indexing pending targets and sorting the completed binding graph once.
+
+### Breaking
+
+- Align `assurance-v1` with the current static facts contract by removing the source repository and revision premise.
+
+### Removed
+
+- **Breaking, `assurance-v1` edited in place (no v2):** the `source` premise (`source.repository`, `source.revision`, the 40-hex revision pattern) is removed from the export schema, the `AssuranceExport.source` field, `AssuranceInput.source`, the `AssuranceSource` type, and the `EmptyRepository` / `InvalidRevision` errors. Documents still carrying `source` are rejected (`additionalProperties: false`).
+- The module `semantic.semantic_core` version gate: the `semantic.unsupported-semantic-core` refusal at module load, in the binding `extract_semantic` entry and in Filament snapshots is gone, the `semanticCore` request/snapshot input is ignored, and the one embedded bundle is always used; a semantic-core `$ref` in a module schema resolves to the embedded bundle's file whatever its version segment, so `semantic.schema-ref-version` is gone. A `semantic` block no longer needs `semantic_core` (an optional present value is still shape-checked by the upstream schema); `module-ok` no longer declares it.
+- **Breaking:** the output field `semanticCore` of the semantic-v1 record (edited in place, no v2), `SemanticModule.semantic_core`, and the `0.1.0` clause-language branch with its `clause-language-0.1.0-cases.json` fixture; `compile_module_schema` no longer takes a semantic-core version and `semantic::embedded::semantic_core_bundle()` takes none (`semantic_core_versions()` is gone).
+- quire-bench verification-stack `lockDigest`, `executableDigest` and `artifacts` digests, the built-executable digest check, and the tool's `sha2` dependency.
+- The whole quire-bench verification-stack attestation: `--verification-stack` / `VERIFICATION_STACK`, recorded source revisions, remotes and toolchain versions, the attested-revision, remote and toolchain checks (`require_clean` still refuses a dirty tree), the manifest `source_name`, and the `sourceRevision` / `verificationStack` fields of the measurement collection.
+- The corpus submodule digest note and `configDigest` reporting (qa-corpus #40) and the `sha2` crates only it needed.
+- Recorded `statement_hash`, `configDigest`, `corpusRevision`, `sourceRevision`, per-corpus source/identity/engine revisions, the revision suffix of collection ids and filenames, and `verificationStack` values in `spec/evidence/measurements/*.json`.
+- **Breaking, `assurance-v1` edited in place (no v2):** the locator `digest`
+  and the obligation `statement_hash` are removed from the export; a locator is
+  now `{path, line}`. The schema has `additionalProperties: false`, so
+  documents still carrying either member are now rejected.
+- `statement_hash` is removed from the `properties-v1` criterion obligation and
+  the `coverage-v1` obligation, and `statement_hash` / `normalize_statement`
+  are no longer exported from the crate.
+- The `unicode-normalization` dependency is removed.
+- The computed `clauseSetDigest` (clause-binding-v1) and `beforeDigest` /
+  `afterDigest` (clause-diff-v1) fields, their schema entries, and the
+  `ClauseSet::computed_digest` function.
+- The content-derived symbol identity digest: symbol and Filament graph record
+  ids are the JSON array of their identity parts (language, path, qualified
+  name, kind), no longer a SHA-256 of them.
+
+## [0.50.3] — 2026-10-16
+
+Patch release for optional module-declared coverage targets.
+
+### Fixed
+
+- Optional declared trace targets with no matching archetype documents or
+  sections no longer fail repository coverage. Required targets still report
+  missing archetypes, and present tables still report missing id columns.
+- Quire’s own TestMatrix headers now match the process module’s `Status` column contract.
+
+## [0.50.2] — 2026-10-07
+
+### Changed
+
+- Bundle validation and reference resolution use the authored index as the navigation document.
+
+### Removed
+
+- The bundle fixture's update-log archetype and the ISO corpus copy of its authoring skeleton.
 
 ## [0.50.1] — 2026-10-01
 

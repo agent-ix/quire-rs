@@ -4,9 +4,8 @@
 use std::fs;
 
 use ix_trace_rs::trace;
-use jsonschema::JSONSchema;
 use quire_rs::semantic::python_entry::extract_semantic_json;
-use quire_rs::semantic::{BundleIndex, SemanticModule, SEMANTIC_V1_SCHEMA};
+use quire_rs::semantic::{compile_module_schema, BundleIndex, SemanticModule, SEMANTIC_V1_SCHEMA};
 use quire_rs::Registry;
 use serde_json::{json, Value};
 
@@ -51,7 +50,6 @@ fn extract_with_bundle_artifacts(md: &str, body_extraction: Value, artifacts: Va
         "markdown": md,
         "module": {
             "contractVersion": "1.0.0",
-            "semanticCore": quire_rs::semantic::embedded::embedded_semantic_core_version(),
             "package": "agent-ix/spec-objects-architecture",
             "exports": ["part", "port", "connection", "allocation"],
             "imports": { "agent-ix/fleet": "*" },
@@ -67,10 +65,12 @@ fn extract_with_bundle_artifacts(md: &str, body_extraction: Value, artifacts: Va
     });
     let record = extract_semantic_json(&request).unwrap();
     let value = serde_json::to_value(&record).unwrap();
-    let schema = JSONSchema::options()
-        .with_draft(jsonschema::Draft::Draft202012)
-        .compile(&serde_json::from_str::<Value>(SEMANTIC_V1_SCHEMA).unwrap())
-        .unwrap();
+    let schema = compile_module_schema(
+        &serde_json::from_str::<Value>(SEMANTIC_V1_SCHEMA).unwrap(),
+        &|_| None,
+        "https://agent-ix.github.io/quire-rs/schemas/output/",
+    )
+    .unwrap();
     let errors: Vec<String> = match schema.validate(&value) {
         Ok(()) => Vec::new(),
         Err(errs) => errs
@@ -160,7 +160,7 @@ fn systems_tables_lower_to_record_keys_and_refuse_bad_rows() {
     assert_eq!(part["owner"], format!("{pkg}/search_service"), "{record:#}");
     assert_eq!(
         part["declaredType"],
-        json!({ "target": format!("{pkg}/type/QuantCodec") })
+        json!({ "target": { "kind": "SemanticId", "value": format!("{pkg}/type/QuantCodec") } })
     );
     assert_eq!(
         part["multiplicity"],
@@ -178,7 +178,7 @@ fn systems_tables_lower_to_record_keys_and_refuse_bad_rows() {
     assert_eq!(port["direction"], "inout");
     assert_eq!(
         port["interfaceType"],
-        json!({ "target": format!("{pkg}/type/QuantCodec") })
+        json!({ "target": { "kind": "SemanticId", "value": format!("{pkg}/type/QuantCodec") } })
     );
     assert_eq!(
         port["multiplicity"],
@@ -940,15 +940,15 @@ fn systems_table_kind_comes_from_the_match_key() {
 }
 
 /// `spec-objects-architecture-fixture`'s `build.rs` fetches the real
-/// published module via `npm pack`; that fetch can legitimately fail
-/// when the configured registry is unavailable. Report that reason rather
-/// than loading an absent fixture. Returns `true` when the caller should
-/// return immediately. An available package must pass schema validation.
+/// published module via `npm pack`; that fetch can legitimately fail when
+/// the configured npm registry is unavailable. When it does, skip cleanly
+/// with a printed reason rather than failing on an unpopulated fixture.
+/// Returns `true` when the caller should return immediately.
 fn skip_if_spec_objects_architecture_unavailable() -> bool {
     if let Some(reason) = spec_objects_architecture_fixture::unavailable_reason() {
         eprintln!(
             "SKIPPED: spec-objects-architecture-fixture unavailable, so this test can't \
-             validate against the real module: {reason}"
+             validate against the real module: {reason} (agent-ix/quire-rs#488)"
         );
         true
     } else {

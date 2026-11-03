@@ -67,7 +67,7 @@ verbatim `clauseText` and the byte-identity constraints below.
 ## Outputs
 
 - Library: `extract_semantic(document, context) -> SemanticExtraction`, a
-  `serde` value `{ formatVersion: 1, contractVersion, semanticCore, package,
+  `serde` value `{ formatVersion: 1, contractVersion, package,
   fields?, fieldsForm?, clauses?, clauseText?, operations?,
   model?, relations?, relationSources?, availability, diagnostics }`, where
   `model` and `availability.model` are the model features of
@@ -105,8 +105,7 @@ verbatim `clauseText` and the byte-identity constraints below.
   semantic diagnostic; the record is byte-identical to the pre-change
   baseline.
 - Diagnostics SHALL be ordered by `(line, column, code)` on every surface.
-- If a Filament snapshot's `semantic.contractVersion` is not `1.0.0`, or its
-  `semantic.semanticCore` has no vendored bundle, then the engine SHALL
+- If a Filament snapshot's `semantic.contractVersion` is not `1.0.0`, then the engine SHALL
   refuse the snapshot with the FR-069 code and yield no node for that object
   type.
 - The Python binding SHALL return the record through the existing
@@ -126,7 +125,7 @@ verbatim `clauseText` and the byte-identity constraints below.
 |----|------------|------|------------|
 | FR-072-CON-1 | No existing key of `CoreExtractionResult`, `dataJson`, `validate_document` findings, coverage-v1, properties-v1, or assurance-v1 SHALL change meaning, order, value set, or bytes; every addition is a new optional key. | Compatibility | Test |
 | FR-072-CON-2 | The surface SHALL render nothing, generate no code, and write no file; it returns values. | Responsibility | Test |
-| FR-072-CON-3 | Maintainers SHALL hand-author the published `semantic-v1` schema, under the existing generator audit (`scripts/audits/check_no_schemars.sh`, TC-062). | Architecture | Test |
+| FR-072-CON-3 | Maintainers SHALL hand-author the published `semantic-v1` schema; `tests/semantic_surface.rs` (TC-1650) rejects generator markers and the cargo-deny `schemars` ban (TC-062) rejects that dependency. | Architecture | Test |
 
 ## Acceptance Criteria
 
@@ -135,7 +134,7 @@ verbatim `clauseText` and the byte-identity constraints below.
 | FR-072-AC-1 | Every case in `tests/fixtures/semantic/cases.json` yields the expected `fields`, `clauses`, `operations`, `availability`, and diagnostics (code, severity, locus, order) through the library, and the record validates against `semantic-v1.schema.json`. | Test |
 | FR-072-AC-2 | Fixtures exercise `available`, `not_applicable`, `missing`, and `unavailable` for each declaration kind and both values of `lossy`; each state is a distinct JSON token and `unavailable` carries a non-empty `reason`. | Test |
 | FR-072-AC-3 | A Filament snapshot with a `semantic` context yields `dataJson.semantic` and diagnostics with `locus` and mapped severity; the same document without the context yields a result equal to the checked-in baseline byte-for-byte. | Test |
-| FR-072-AC-4 | A snapshot naming `contractVersion: 2.0.0` or `semanticCore: 0.9.0` is refused with the FR-069 code before any node is produced. | Test |
+| FR-072-AC-4 | A snapshot naming `contractVersion: 2.0.0` is refused with the FR-069 code before any node is produced. | Test |
 | FR-072-AC-5 | `validate_document` over the vendored corpus copy reports the legacy-form warning at its line, and over `both-forms.md` the both-forms error at the fence line, with the library's codes; the error fails validation. | Test |
 | FR-072-AC-6 | The Python binding's `extract_filament_core` and `extract_semantic` return JSON values equal to the Rust output for every fixture case under `make ci-python`; the WASM leg is verified by `agent-ix/quire-wasm#3` against the same fixture file. | Test |
 | FR-072-AC-7 | Two extractions over identical input serialize byte-identically; editing an unrelated section changes no declaration, span, or diagnostic. | Test |

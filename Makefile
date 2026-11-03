@@ -22,12 +22,10 @@ help:
 	@echo "  make test             - cargo test"
 	@echo "  make build            - Release build"
 	@echo "  make clean            - cargo clean"
-	@echo "  make deny             - cargo deny check licenses"
-	@echo "  make audit-unsafe     - Enforce // SAFETY: comments on unsafe blocks"
+	@echo "  make deny             - cargo deny license and all-feature dependency bans"
 	@echo "  make audit-property   - Enforce FR-052-CON-1: no GrammarFinding in the property classifier"
 	@echo "  make validate         - Validate spec/ with the locked engine + schema stack (#212 gate)"
-	@echo "  make census           - Scheduled/manual ecosystem gap disposition census"
-	@echo "  make ci               - Per-PR CI gates (fmt-check + lint + test + deny + audit-unsafe + audit-property + audit-static + validate)"
+	@echo "  make ci               - Per-PR CI gates (fmt-check + lint + test + deny + audit-property + audit-static + validate)"
 	@echo ""
 	@echo "Hardening (scheduled / pre-tag):"
 	@echo "  make cargo-audit      - cargo audit (RUSTSEC advisories)"
@@ -51,9 +49,11 @@ fmt-check:
 .PHONY: lint
 lint:
 	$(CARGO) clippy --locked --all-targets -- -D warnings
+	$(CARGO) clippy --locked --all-targets --features python -- -D warnings
+	$(CARGO) clippy --locked -p quire-bench --all-targets -- -D warnings
 
-# The `python` feature is gated off in every target above, so nothing in `ci`
-# ever compiles `src/python/`. FR-056 added a field to `GrammarVocabularies`,
+# The `python` feature was not compiled by the original default lint and test
+# targets. FR-056 added a field to `GrammarVocabularies`,
 # two PyO3 struct literals were not updated, and quire-rs shipped two
 # releases unable to build a wheel at all — discovered only when the wheel job
 # was finally dispatched. CLAUDE.md already says a `src/grammar/` change must
@@ -102,12 +102,11 @@ check-python-symbols:
 check-typescript-symbols:
 	CARGO_TARGET_DIR=target/typescript-symbols-check $(CARGO) check --locked --no-default-features --features typescript-symbols --quiet
 
-# The scripts/ tooling test suite (#217, #219). `check-python` is a cargo
-# type-check of the PyO3 binding and collects no Python tests, so the sweep
-# harness and corpus rules are verified here.
-.PHONY: check-scripts
-check-scripts:
-	python3 -m pytest scripts/tests -q
+# Auxiliary Rust tooling tests. `check-python` is a cargo type-check of the
+# PyO3 binding and collects no Python tests.
+.PHONY: check-tools
+check-tools:
+	$(CARGO) test --locked -p quire-bench
 
 .PHONY: test
 test:
@@ -127,7 +126,8 @@ clean:
 
 .PHONY: deny
 deny:
-	$(CARGO) deny --locked check licenses
+	$(CARGO) deny --locked --workspace check licenses
+	$(CARGO) deny --locked --workspace --all-features check bans
 
 # PLAT-868 (found during PLAT-851's review): `deny` above runs under default
 # features. `python-symbols` is now default (this port), so `deny` alone
@@ -158,10 +158,6 @@ deny-grammars:
 cargo-audit:
 	$(CARGO) audit
 
-.PHONY: audit-unsafe
-audit-unsafe:
-	bash scripts/check_unsafe_comments.sh
-
 .PHONY: audit-property
 audit-property:
 	bash scripts/check_property_purity.sh
@@ -172,9 +168,8 @@ audit-property:
 # This target ENUMERATED seven scripts. CR-124 asserted it "runs every
 # scripts/audits/*.sh"; it never did, so the gate answering the outside
 # review's [P1] sat in the tree unrun from the commit that added it until #353
-# added an eighth line by hand. `check_status_agreement.sh` was then silently
-# skipped the same way, in the same session that closed #353 — the eighth line
-# fixed one instance of a rule that had none.
+# added an eighth line by hand. The eighth line fixed one instance of a rule
+# that had none.
 #
 # So the list is gone. A new `scripts/audits/*.sh` now runs because it exists,
 # not because somebody remembered. An EMPTY glob is a hard failure: a loop over
@@ -241,11 +236,11 @@ perf-baseline:
 .PHONY: perf-check
 perf-check:
 	$(CARGO) bench --bench parse --bench load -- --baseline main
-	bash scripts/check_perf_regression.sh
+	$(CARGO) run --locked -p quire-bench --bin quire-perf-gate
 
 .PHONY: perf-gate
 perf-gate:
-	bash scripts/check_perf_regression.sh
+	$(CARGO) run --locked -p quire-bench --bin quire-perf-gate
 
 .PHONY: fuzz
 fuzz:
@@ -294,18 +289,17 @@ sanitize:
 BENCH_MODULE ?= ../spec-artifacts-process/spec_artifacts_process
 .PHONY: bench
 bench:
-	python3 scripts/bench.py --module "$(BENCH_MODULE)"
+	$(CARGO) run --locked -p quire-bench --bin quire-bench -- --module "$(BENCH_MODULE)"
 
 # Deliberate regeneration. The diff belongs in the pull request.
 .PHONY: bench-update
 bench-update:
-	python3 scripts/bench.py --update --module "$(BENCH_MODULE)"
+	$(CARGO) run --locked -p quire-bench --bin quire-bench -- --update --module "$(BENCH_MODULE)"
 
 .PHONY: measurement-collection
 measurement-collection:
 	test -n "$(OUTPUT)" || { echo "OUTPUT= is required"; exit 1; }
-	test -n "$(VERIFICATION_STACK)" || { echo "VERIFICATION_STACK= is required"; exit 1; }
-	python3 scripts/export_measurements.py --consumer "$(QUIRE_CLI)" --module "$(BENCH_MODULE)" --output "$(OUTPUT)" --verification-stack "$(VERIFICATION_STACK)"
+	$(CARGO) run --locked -p quire-bench --bin quire-measurements -- --consumer "$(QUIRE_CLI)" --module "$(BENCH_MODULE)" --output "$(OUTPUT)"
 
 .PHONY: coverage-baseline-update
 coverage-baseline-update:
@@ -323,29 +317,19 @@ coverage-baseline-update:
 # (cargo run --example), never an installed `quire` CLI, which lags the branch
 # under test. The two schema-provider repositories are independent executable
 # inputs: accepting their ambient installed versions made this gate change
-# meaning without a Quire commit. scripts/validate_spec.py exposes only those
-# two modules to the engine.
+# meaning without a Quire commit. The Rust validation example loads exactly
+# those two modules through the registry's closed-set API.
 # The Phase-7 assurance documents are named one-by-one in the governed
 # exclusion file; no new or renamed document can disappear from validation.
 VALIDATION_PROCESS_ROOT ?= ../spec-artifacts-process
 VALIDATION_ISO_ROOT ?= ../spec-artifacts-iso
 .PHONY: validate
 validate:
-	python3 scripts/validate_spec.py \
+	cargo run --locked --quiet --example spec_validate -- \
 		--process-root "$(VALIDATION_PROCESS_ROOT)" \
 		--iso-root "$(VALIDATION_ISO_ROOT)"
 
 QUIRE_CLI ?= ../quire-cli
-
-# FR-066 / #277: minutes-long ecosystem census, never a per-change gate.
-CENSUS_ROOT ?= $(HOME)/dev
-CENSUS_MODULE ?= $(HOME)/dev/spec-artifacts-process/spec_artifacts_process
-CENSUS_CONSUMER ?= ../quire-cli
-
-.PHONY: census
-census:
-	python3 scripts/gap_census.py --root "$(CENSUS_ROOT)" \
-		--consumer "$(CENSUS_CONSUMER)" --module "$(CENSUS_MODULE)"
 
 .PHONY: corpus-recall-update
 corpus-recall-update:
@@ -360,7 +344,7 @@ check-wasm:
 	CARGO_TARGET_DIR=target/wasm-check $(CARGO) check --locked --target wasm32-unknown-unknown --no-default-features --features wasm --quiet
 	$(CARGO) test --locked --no-default-features --features wasm --quiet --test semantic_contract --test semantic_properties --test semantic_clauses --test semantic_surface --test semantic_relations
 
-ci: fmt-check lint check-python check-python-symbols check-typescript-symbols check-wasm check-scripts test deny deny-grammars audit-unsafe audit-property audit-static validate
+ci: fmt-check lint check-python check-python-symbols check-typescript-symbols check-wasm check-tools test deny deny-grammars audit-property audit-static validate
 
 # =============================================================================
 # Python wheel / sdist + local-publish (pypi.ix)

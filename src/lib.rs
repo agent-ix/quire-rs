@@ -20,6 +20,7 @@ pub mod corpus;
 pub mod coverage;
 pub mod diagnostic;
 pub mod error;
+pub mod evidence;
 pub mod extract;
 pub mod filament;
 pub mod finding;
@@ -49,7 +50,7 @@ pub mod writeback;
 // Parser surface (FR-005..009).
 pub use assurance::{
     build_assurance_export, read_assurance_export, AcceptedAssurancePremises, AssuranceError,
-    AssuranceExport, AssuranceInput, AssuranceSource,
+    AssuranceExport, AssuranceInput,
 };
 pub use ast::{QuireDocument, QuireSection};
 pub use clauses::{
@@ -78,7 +79,7 @@ pub use semantic::{
 // Loader + registry (FR-013 + FR-014).
 pub use loader::compile::CompiledArchetype;
 pub use loader::manifest::DeclarationOrigin;
-pub use obligation::{normalize_statement, statement_hash, Obligation};
+pub use obligation::Obligation;
 pub use registry::Registry;
 // Schema validation (FR-002).
 pub use validate::{apply_patch, validate, validate_all, validate_block};

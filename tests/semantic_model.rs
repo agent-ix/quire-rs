@@ -6,16 +6,18 @@ use std::path::PathBuf;
 use ix_trace_rs::trace;
 use jsonschema::JSONSchema;
 use quire_rs::semantic::python_entry::extract_semantic_json;
-use quire_rs::semantic::SEMANTIC_V1_SCHEMA;
+use quire_rs::semantic::{compile_module_schema, SEMANTIC_V1_SCHEMA};
 use serde_json::{json, Value};
 
 const PATH: &str = "spec/functional/FR-100.md";
 
 fn schema() -> JSONSchema {
-    JSONSchema::options()
-        .with_draft(jsonschema::Draft::Draft202012)
-        .compile(&serde_json::from_str::<Value>(SEMANTIC_V1_SCHEMA).unwrap())
-        .unwrap()
+    compile_module_schema(
+        &serde_json::from_str::<Value>(SEMANTIC_V1_SCHEMA).unwrap(),
+        &|_| None,
+        "https://agent-ix.github.io/quire-rs/schemas/output/",
+    )
+    .unwrap()
 }
 
 /// Extract `md` under `mappings` and `body_extraction`; every record must
@@ -25,7 +27,6 @@ fn extract(md: &str, mappings: &[&str], body_extraction: Value) -> Value {
         "markdown": md,
         "module": {
             "contractVersion": "1.0.0",
-            "semanticCore": quire_rs::semantic::embedded::embedded_semantic_core_version(),
             "package": "agent-ix/spec-objects-fixture",
             "exports": ["entity"],
             "mappings": mappings,
@@ -422,7 +423,8 @@ fn population_members_with_extent() {
         .unwrap_or_else(|| panic!("{record:#}"));
     assert_eq!(members.len(), 2);
     assert_eq!(
-        members[0]["type"]["target"], "ix://agent-ix/shop/type/Order",
+        members[0]["type"]["target"],
+        json!({ "kind": "SemanticId", "value": "ix://agent-ix/shop/type/Order" }),
         "{record:#}"
     );
     assert_eq!(members[0]["extent"]["lower"], 0);
@@ -765,9 +767,7 @@ fn records_without_model_features_are_unchanged() {
     let schema = schema();
     for case in cases["cases"].as_array().unwrap() {
         let name = case["name"].as_str().unwrap();
-        let mut input = case["input"].clone();
-        input["module"]["semanticCore"] =
-            json!(quire_rs::semantic::embedded::embedded_semantic_core_version());
+        let input = case["input"].clone();
         let value = serde_json::to_value(extract_semantic_json(&input).unwrap()).unwrap();
         assert!(schema.is_valid(&value), "{name}");
         assert!(value.get("model").is_none(), "{name}");

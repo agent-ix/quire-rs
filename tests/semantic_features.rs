@@ -2,9 +2,10 @@
 //! ordered sequence (TC-1874, TC-1875).
 
 use ix_trace_rs::trace;
-use jsonschema::JSONSchema;
 use quire_rs::semantic::python_entry::extract_semantic_json;
-use quire_rs::semantic::{FeatureKind, SemanticExtraction, SEMANTIC_V1_SCHEMA};
+use quire_rs::semantic::{
+    compile_module_schema, FeatureKind, SemanticExtraction, SEMANTIC_V1_SCHEMA,
+};
 use quire_rs::Registry;
 use serde_json::{json, Value};
 
@@ -29,7 +30,6 @@ fn extract(md: &str) -> (SemanticExtraction, Value) {
         "markdown": md,
         "module": {
             "contractVersion": "1.0.0",
-            "semanticCore": quire_rs::semantic::embedded::embedded_semantic_core_version(),
             "package": "agent-ix/spec-objects-architecture",
             "exports": ["interface"],
         },
@@ -40,10 +40,12 @@ fn extract(md: &str) -> (SemanticExtraction, Value) {
     });
     let record = extract_semantic_json(&request).unwrap();
     let value = serde_json::to_value(&record).unwrap();
-    let schema = JSONSchema::options()
-        .with_draft(jsonschema::Draft::Draft202012)
-        .compile(&serde_json::from_str::<Value>(SEMANTIC_V1_SCHEMA).unwrap())
-        .unwrap();
+    let schema = compile_module_schema(
+        &serde_json::from_str::<Value>(SEMANTIC_V1_SCHEMA).unwrap(),
+        &|_| None,
+        "https://agent-ix.github.io/quire-rs/schemas/output/",
+    )
+    .unwrap();
     let errors: Vec<String> = match schema.validate(&value) {
         Ok(()) => Vec::new(),
         Err(errs) => errs
@@ -82,15 +84,15 @@ const ORDER: &str =
     "| prepare_ip_query | operation |\n| codec_kind | field |\n| score_ip_batch | operation |\n";
 
 /// `spec-objects-architecture-fixture`'s `build.rs` fetches the real
-/// published module via `npm pack`; that fetch can legitimately fail
-/// when the configured registry is unavailable. Report that reason rather
-/// than loading an absent fixture. Returns `true` when the caller should
-/// return immediately. An available package must pass schema validation.
+/// published module via `npm pack`; that fetch can legitimately fail when
+/// the configured npm registry is unavailable. When it does, skip cleanly
+/// with a printed reason rather than failing on an unpopulated fixture.
+/// Returns `true` when the caller should return immediately.
 fn skip_if_spec_objects_architecture_unavailable() -> bool {
     if let Some(reason) = spec_objects_architecture_fixture::unavailable_reason() {
         eprintln!(
             "SKIPPED: spec-objects-architecture-fixture unavailable, so this test can't \
-             validate against the real module: {reason}"
+             validate against the real module: {reason} (agent-ix/quire-rs#488)"
         );
         true
     } else {
@@ -137,7 +139,14 @@ fn features_table_yields_feature_order_in_row_order() {
     let validator = registry
         .archetype("interface")
         .and_then(|a| a.data_validator())
-        .unwrap();
+        .unwrap_or_else(|| {
+            panic!(
+                "the published architecture module must expose interface's Interface.json \
+                 data validator; loader failures: {:#?}; diagnostics: {:#?}",
+                registry.failures(),
+                registry.diagnostics()
+            )
+        });
     let violations: Vec<String> = match validator.validate(&declaration) {
         Ok(()) => Vec::new(),
         Err(errs) => errs
