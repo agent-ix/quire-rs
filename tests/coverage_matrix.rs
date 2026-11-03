@@ -1235,3 +1235,135 @@ fn retained_results_preserve_source_claims_all_causes_and_record_order() {
     );
     fs::remove_dir_all(root).unwrap();
 }
+
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct NativeBackingCases {
+    issue_ref: String,
+    authored_rows: String,
+    duplicate_rows: String,
+    unselected_rows: String,
+    rendered_rows: String,
+    reordered_rendered_rows: String,
+    configuration_rows: String,
+}
+
+fn native_backing_cases() -> NativeBackingCases {
+    let cases: NativeBackingCases = serde_json::from_str(include_str!(
+        "fixtures/corpus_cases/qualified-evidence-native-boundaries.json"
+    ))
+    .unwrap();
+    assert_eq!(
+        cases.issue_ref,
+        "https://linear.app/agent-ix/issue/PLAT-1160"
+    );
+    cases
+}
+
+fn native_backing_registry(
+    root: &Path,
+    model: &quire_rs::traceability::TraceabilityModel,
+) -> Registry {
+    let mut module: serde_yaml::Value = serde_yaml::from_str(
+        &fs::read_to_string(fixture_module("iso-obligations").join("manifest.yaml")).unwrap(),
+    )
+    .unwrap();
+    module["traceability"] = serde_yaml::to_value(model).unwrap();
+    write(
+        root,
+        "module/manifest.yaml",
+        &serde_yaml::to_string(&module).unwrap(),
+    );
+    Registry::load_module(&root.join("module")).unwrap()
+}
+
+fn native_backing_document(root: &Path, path: &str, rows: &str) {
+    write(root, path, &format!("---\nid: FR-900\ntype: FR\n---\n\n## Acceptance Criteria\n\n| ID | Criteria | Verification |\n|---|---|---|\n{rows}"));
+}
+
+#[trace("FR-078-AC-15", "FR-078-AC-16")]
+#[test]
+fn evidence_population_uses_only_native_selected_observations() {
+    use quire_rs::evidence::BackingInput;
+    use quire_rs::obligation::inventory::{inventory, InventoryCauseCode, InventoryOptions};
+    let cases = native_backing_cases();
+    let root = tmpdir("native-selected-only");
+    native_backing_document(&root, "spec/selected.md", &cases.authored_rows);
+    write(&root, "spec/unselected.md", &format!("---\nid: NFR-900\ntype: NFR\n---\n\n## Measurements\n\n| Metric | Statement | Method |\n|---|---|---|\n{}", cases.unselected_rows));
+    let base = Registry::load_module(&fixture_module("iso-obligations")).unwrap();
+    let mut model = base.traceability().unwrap().clone();
+    let mut unselected = model.obligations[0].clone();
+    unselected.name = "unselected-measurement".into();
+    unselected.target = None;
+    unselected.archetype = Some("NFR".into());
+    unselected.section = Some("Measurements".into());
+    unselected.id_format = Some("{document}-M-{row}".into());
+    unselected.statement_column = "Statement".into();
+    unselected.method_column = Some("Method".into());
+    model.obligations.push(unselected);
+    let registry = native_backing_registry(&root, &model);
+    let model = registry.traceability().unwrap();
+    let selected = inventory(
+        &root,
+        model,
+        &["acceptance-criterion"],
+        InventoryOptions::default(),
+    );
+    assert!(selected.causes().is_empty());
+    let spec = Spec::from_path(&root.join("spec"));
+    let graph = sym_trace::SymbolGraph::default();
+    let legacy = compute(&spec, &registry, &graph, &root).unwrap();
+    assert!(
+        legacy
+            .diagnostics
+            .iter()
+            .any(|d| d.declaration == "unselected-measurement"
+                && d.reason == "obligation-row-states-nothing"),
+        "adverse unselected legacy source really reproduces the finding"
+    );
+    let backing = BackingInput {
+        inventory: &selected,
+        claims: &[],
+        results: &[],
+    };
+    let report =
+        quire_rs::coverage::compute_with_evidence(&spec, &registry, &graph, &root, &backing)
+            .unwrap();
+    assert_eq!(report.obligations.len(), 2);
+    assert!(
+        !report
+            .diagnostics
+            .iter()
+            .any(|d| d.declaration == "unselected-measurement"
+                && d.reason == "obligation-row-states-nothing"),
+        "evidence mode must not derive skipped-row observations for unselected sources"
+    );
+    native_backing_document(&root, "spec/selected.md", "| FR-900-AC-1 | | Test |\n");
+    let selected = inventory(
+        &root,
+        model,
+        &["acceptance-criterion"],
+        InventoryOptions::default(),
+    );
+    let spec = Spec::from_path(&root.join("spec"));
+    let backing = BackingInput {
+        inventory: &selected,
+        claims: &[],
+        results: &[],
+    };
+    let report =
+        quire_rs::coverage::compute_with_evidence(&spec, &registry, &graph, &root, &backing)
+            .unwrap();
+    assert!(report.obligations.is_empty());
+    assert!(
+        report
+            .inventory_causes
+            .as_ref()
+            .unwrap()
+            .iter()
+            .any(|cause| cause.code == InventoryCauseCode::UnusableRow
+                && cause.source.as_deref() == Some("acceptance-criterion")),
+        "native selected defect causes are retained without the legacy census"
+    );
+    fs::remove_dir_all(root).unwrap();
+}
