@@ -141,7 +141,11 @@ fn obligation_reference_rows_require_their_own_evidence() {
         let registry = Registry::load_module(&module).expect("fixture model");
         let graph = trace::bind(&extract_tree(&source), registry.traceability().unwrap());
         let report = compute(&Spec::from_path(&scope), &registry, &graph, &scope).unwrap();
-        assert_eq!(report.obligations.len(), 6, "{name}: obligation population");
+        assert_eq!(
+            report.obligations.len(),
+            case["expect"]["obligations"].as_u64().unwrap() as usize,
+            "{name}: obligation population"
+        );
         let mut actual: Vec<_> = report
             .unbacked_rows
             .iter()
