@@ -203,3 +203,52 @@ dispositions:
 Narrow measured recall-population carry at QA f56b1c707c0add5256378e84dd16b29027ae1fdf, selected by engineab1b2bf. Actual Git diff changes only generated baselines/quire-rs.json: Rust attachment L1/L2/L3 each moves reached/population5/5->6/6. All three retain gap_count0 and misses[]; every other row/field is unchanged. This accounts for the newly required original QA failure/control pair rather than lowering a threshold, removing misses or claiming improvement on the old population. Preserved actual engine UPDATE_CORPUS_RECALL=1 test log has both recall controlsPASS, including externally witnessed population separation. No runtime, guard, detector, fixture or expectation source changes in this carry. No new findings; FND001/002/003 stay fixed.
 
 Code and scoped gap verdicts remainPASS for this measured amendment. Prior focused corpus21+implements13 apply at preceding QA comment-only head; recall2PASS is the fresh evidence for the generated baseline. Full remaining aggregate is running at the new snapshot and is not yet credited green; hosted checks and Luna-owned QA-first merge plus actual squash-gitlink carry remain required. Reviewer performed no Cargo/heavy/backend run and edited no source/worktree.
+
+## Explicit syntax presence amendment
+
+Narrow same-review fail-closed amendment at5f281108257d406b5ce8f4413e7157e78cab1833, originalPR566. Actual diff changes only src/traceability.rs and the new native module-load regression. The coder's explicit-null defect is grounded by the preserved public native red test and recorded as FND004, then verified fixed. Default omission still selects unguarded behavior; literal valid Rust guard retains the enum/serialization shape. The helper preserves presence rather than coercing null/other values into fallback, and legacy placement rejects all present values. No runtime source adapter/binder or declared pattern is changed, and no new issue was found in the fix.
+
+Preserved null-red log shows the actual public regression fails on previous source; null-green shows whole implements_relation14PASS/0FAIL at the fixed source. The new invalid-value test verifies named form failure and no loaded traceability model for null/bool/number/object; existing valid/omitted guard tests remain passing. Original FND001/002/003 stay fixed. Actual engine gitlink is merged QA1bc93126; preceding36corpus-dependent controls remain earlier evidence, not current full-gate credit. Prior final aggregate/hosted results are obsolete for this source amendment: corrected-head required gates and hosted checks must pass before Luna's merge handoff. Code and scoped gap method verdicts remainPASS for the reviewed amendment; overall readiness staysCONDITIONAL. Reviewer ran no Cargo/heavy/backend jobs and edited no reviewed source/worktree.
+
+### Syntax-presence finding
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-004 | medium | Explicit syntax:null was deserialized as OptionNone and silently selected unguarded text matching, although only field omission preserves that behavior. Legacy explicit-null presence was likewise lost. The actual new public module-load regression fails before the fix; record this self-found fail-closed defect in the same review rather than treating malformed presence as ordinary omission. | src/traceability.rs |
+
+### Syntax-presence disposition
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-004 | fixed | At5f281108257d406b5ce8f4413e7157e78cab1833 present_syntax returnsSome(Value) for every present value, includingnull, while defaultNone is reserved for omission. Only stringrust_attribute onRust is admitted; other values produce named-form errors. Legacy reuses the same presence helper and refuses anySome. Actual public red/green covers null/bool/number/object, named refusal and absent loaded model; focused target14PASS. |
+
+```yaml
+findings:
+- fnd: FND-004
+  severity: medium
+  confidence: high
+  check: other
+  artifact_id: FR-062-AC-12
+  related_ids:
+  - TC-1989
+  path: src/traceability.rs
+  lines: TraceMarkerForm / TraceLegacyForm deserialization before5f28110
+  excerpt: 'syntax: Option<String>,'
+  finding: Explicit syntax:null was deserialized as OptionNone and silently selected
+    unguarded text matching, although only field omission preserves that behavior.
+    Legacy explicit-null presence was likewise lost. The actual new public module-load
+    regression fails before the fix; record this self-found fail-closed defect in
+    the same review rather than treating malformed presence as ordinary omission.
+  method: code-review
+dispositions:
+- fnd: FND-004
+  outcome: fixed
+  after_excerpt: "#[serde(default, deserialize_with = \"present_syntax\")]\n     \
+    \       syntax: Option<serde_json::Value>,"
+  reason: At5f281108257d406b5ce8f4413e7157e78cab1833 present_syntax returnsSome(Value)
+    for every present value, includingnull, while defaultNone is reserved for omission.
+    Only stringrust_attribute onRust is admitted; other values produce named-form
+    errors. Legacy reuses the same presence helper and refuses anySome. Actual public
+    red/green covers null/bool/number/object, named refusal and absent loaded model;
+    focused target14PASS.
+```
