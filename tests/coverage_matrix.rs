@@ -1061,3 +1061,138 @@ fn retained_backing_uses_native_snapshot_and_preserves_partial_population() {
         fs::remove_dir_all(root).unwrap();
     }
 }
+
+#[trace("FR-078-AC-6", "FR-078-AC-10", "FR-078-AC-12")]
+#[test]
+fn retained_results_preserve_source_claims_all_causes_and_record_order() {
+    use quire_rs::evidence::{ActResult, BackingInput, CauseCode, RecordClaim, RecordLocator};
+    use quire_rs::obligation::inventory::{inventory, InventoryOptions};
+    let root = tmpdir("retained-source-causes");
+    write(&root, "spec/FR-001.md", "---\nid: FR-001\ntype: FR\n---\n\n## Acceptance Criteria\n\n| ID | Criteria | Verification |\n|---|---|---|\n| FR-001-AC-1 | Every failure shall retain its cause. | Test |\n");
+    write(
+        &root,
+        "src/lib.rs",
+        "#[cfg(test)]\nmod tests {\n#[trace(\"FR-001-AC-1\")]\n#[test]\nfn existing() {}\n}\n",
+    );
+    let registry = Registry::load_module(&fixture_module("iso-obligations")).unwrap();
+    let model = registry.traceability().unwrap();
+    let inventory = inventory(
+        &root,
+        model,
+        &["acceptance-criterion"],
+        InventoryOptions::default(),
+    );
+    let entry = inventory.entries().next().unwrap();
+    let spec = Spec::from_path(&root.join("spec"));
+    let graph = sym_trace::bind(&extract_tree(&root.join("src")), model);
+    let baseline = compute(&spec, &registry, &graph, &root).unwrap();
+    assert_eq!(baseline.coverage_matrix[0].criteria[0].binders.len(), 1);
+    let causes: Vec<CauseCode> =
+        serde_json::from_str(include_str!("fixtures/qualified_evidence/cause-cases.json")).unwrap();
+    assert_eq!(causes.len(), 12);
+    let results: Vec<_> = causes
+        .iter()
+        .map(|cause| ActResult {
+            target: Some(entry.identity().into()),
+            requested_target: "FR-001-AC-1",
+            locator: None,
+            cause: *cause,
+            detail: "original owner cause and premise",
+        })
+        .collect();
+    let backing = BackingInput {
+        inventory: &inventory,
+        claims: &[],
+        results: &results,
+    };
+    let report =
+        quire_rs::coverage::compute_with_evidence(&spec, &registry, &graph, &root, &backing)
+            .unwrap();
+    assert_eq!(
+        report.coverage_matrix[0].criteria[0].binders,
+        baseline.coverage_matrix[0].criteria[0].binders
+    );
+    assert_eq!(
+        report.coverage_matrix[0].criteria[0].status,
+        CoverageMatrixStatus::Tagged
+    );
+    assert!(report.unbacked_rows.is_empty());
+    assert_eq!(report.evidence_results.as_ref().unwrap().len(), 12);
+    let rejection = quire_rs::evidence::strict_decision(&report, &[]).unwrap_err();
+    assert_eq!(
+        rejection.evidence.len(),
+        12,
+        "source backing never erases a requested failed act"
+    );
+    assert!(rejection.inherited.is_empty());
+    let mut reversed = results.clone();
+    reversed.reverse();
+    let reordered = BackingInput {
+        inventory: &inventory,
+        claims: &[],
+        results: &reversed,
+    };
+    assert_eq!(
+        report.to_json(),
+        quire_rs::coverage::compute_with_evidence(&spec, &registry, &graph, &root, &reordered)
+            .unwrap()
+            .to_json()
+    );
+
+    let claim = RecordClaim {
+        target: entry.identity().into(),
+        locator: RecordLocator {
+            record: "record",
+            run: "run",
+            entry: "entry",
+        },
+        method: "Test",
+        actor: "actor",
+        provenance: &["component-only"],
+    };
+    let duplicate = [claim, claim];
+    let backing = BackingInput {
+        inventory: &inventory,
+        claims: &duplicate,
+        results: &[],
+    };
+    let report =
+        quire_rs::coverage::compute_with_evidence(&spec, &registry, &graph, &root, &backing)
+            .unwrap();
+    assert_eq!(report.record_binders.as_ref().unwrap().len(), 1);
+    let conflict = [
+        claim,
+        RecordClaim {
+            actor: "other-actor",
+            ..claim
+        },
+    ];
+    let backing = BackingInput {
+        inventory: &inventory,
+        claims: &conflict,
+        results: &[],
+    };
+    let report =
+        quire_rs::coverage::compute_with_evidence(&spec, &registry, &graph, &root, &backing)
+            .unwrap();
+    assert!(report.record_binders.as_ref().unwrap().is_empty());
+    assert!(report
+        .evidence_results
+        .as_ref()
+        .unwrap()
+        .iter()
+        .all(|result| result.cause == CauseCode::RecordConflict));
+    let reversed = [conflict[1], conflict[0]];
+    let backing = BackingInput {
+        inventory: &inventory,
+        claims: &reversed,
+        results: &[],
+    };
+    assert_eq!(
+        report.to_json(),
+        quire_rs::coverage::compute_with_evidence(&spec, &registry, &graph, &root, &backing)
+            .unwrap()
+            .to_json()
+    );
+    fs::remove_dir_all(root).unwrap();
+}

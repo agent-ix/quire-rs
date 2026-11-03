@@ -2,9 +2,9 @@
   {
     "name": "rt-inspection",
     "issue_ref": "agent-ix/quire-rs#529",
-    "id": "FR-057-AC-1",
+    "id": "FR-004-AC-11",
     "method": "Inspection",
-    "statement": "The selected verification act shall pass.",
+    "statement": "The decoder shall validate members without an intermediate generic JSON value tree.",
     "component_only": true
   },
   {

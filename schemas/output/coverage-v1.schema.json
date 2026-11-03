@@ -13,6 +13,7 @@
     "totals"
   ],
   "properties": {
+    "inventory_causes": {"type": "array", "items": {"$ref": "#/$defs/InventoryCauseReport"}},
     "record_binders": {"type": "array", "items": {"$ref": "#/$defs/RecordBinder"}},
     "evidence_results": {
       "type": "array",
@@ -174,6 +175,50 @@
     }
   },
   "$defs": {
+    "InventoryCauseReport": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "source",
+        "document",
+        "row",
+        "line",
+        "detail"
+      ],
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "source": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "document": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "row": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "line": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "detail": {
+          "type": "string"
+        }
+      }
+    },
     "TargetLocus": {
       "type": "object",
       "additionalProperties": false,
@@ -184,6 +229,7 @@
         "origin"
       ],
       "properties": {
+        "line": {"type": "integer", "minimum": 1},
         "source": {
           "type": "string"
         },
@@ -1064,6 +1110,7 @@
         "status"
       ],
       "properties": {
+        "identity": {"$ref": "#/$defs/TargetLocus"},
         "record_binders": {"type": "array", "items": {"$ref": "#/$defs/RecordBinder"}},
         "id": {
           "type": "string",

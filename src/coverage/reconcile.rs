@@ -617,6 +617,24 @@ pub(super) fn reconcile(
         coverage_matrix: matrix,
         evidence_results: evidence.map(|evidence| evidence.results.clone()),
         record_binders: evidence.map(|evidence| evidence.all_binders()),
+        inventory_causes: evidence.map(|evidence| {
+            evidence
+                .input
+                .inventory
+                .causes()
+                .iter()
+                .map(|cause| crate::evidence::InventoryCauseReport {
+                    code: cause.code(),
+                    source: cause.source_name().map(str::to_string),
+                    document: cause
+                        .document()
+                        .map(|path| path.to_string_lossy().into_owned()),
+                    row: cause.row(),
+                    line: cause.line(),
+                    detail: format!("{:?}", cause.detail()),
+                })
+                .collect()
+        }),
         // FR-062. Carried through to the JSON so a consumer can scope work by
         // requirement; deliberately NOT folded into `totals`, `backed` or
         // `untracked_symbols` — scope is not evidence.
@@ -753,6 +771,13 @@ fn coverage_matrix(
             method: obligation.method.clone(),
             binders,
             record_binders,
+            identity: evidence.and_then(|evidence| {
+                evidence.input.inventory.entries().nth(index).map(|entry| {
+                    let mut locus = crate::evidence::TargetLocus::from(entry.identity());
+                    locus.line = entry.line();
+                    locus
+                })
+            }),
             status,
         };
         by_document

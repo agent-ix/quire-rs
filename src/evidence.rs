@@ -217,6 +217,9 @@ pub struct TargetLocus {
     /// Native rendered-row ordinal, absent for other origins.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub row: Option<usize>,
+    /// Original document line when the owner supplied it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub line: Option<usize>,
 }
 
 impl From<CriterionIdentity<'_>> for TargetLocus {
@@ -236,6 +239,7 @@ impl From<CriterionIdentity<'_>> for TargetLocus {
             id: id.into(),
             origin: origin.into(),
             row,
+            line: None,
         }
     }
 }
@@ -250,6 +254,7 @@ impl From<EvidenceTarget<'_>> for TargetLocus {
                 id: target.id.into(),
                 origin: "declared-target".into(),
                 row: None,
+                line: Some(target.line),
             },
         }
     }
@@ -307,6 +312,24 @@ pub struct EvidenceResult {
     /// Stable consumer cause.
     pub cause: CauseCode,
     /// Original owner cause detail.
+    pub detail: String,
+}
+
+/// Original native non-completion causes rendered without inventing a new census.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct InventoryCauseReport {
+    /// Original native typed cause category.
+    pub code: crate::obligation::inventory::InventoryCauseCode,
+    /// Original selected source when available.
+    pub source: Option<String>,
+    /// Original document locus when available.
+    pub document: Option<String>,
+    /// Original row ordinal when available.
+    pub row: Option<usize>,
+    /// Original line when available.
+    pub line: Option<usize>,
+    /// Original typed cause's diagnostic representation.
     pub detail: String,
 }
 
@@ -443,8 +466,16 @@ impl<'a> ReconciledEvidence<'a> {
         });
         if context.is_err() || !declarations_match {
             self.accepted.clear();
-            self.results.push(EvidenceResult { target: None, requested_target: String::new(), locator: None,
-                cause: CauseCode::SelectionMismatch, detail: "coverage root, model or selected document snapshot differs from owner inventory".into() });
+            self.results.push(EvidenceResult {
+                target: None,
+                requested_target: String::new(),
+                locator: None,
+                cause: CauseCode::SelectionMismatch,
+                detail: context.err().map_or_else(
+                    || "declared target document snapshot differs".into(),
+                    |error| error.to_string(),
+                ),
+            });
         }
     }
 
@@ -551,13 +582,28 @@ pub struct DeclaredInputError {
     pub detail: String,
 }
 
+/// Inherited static coverage rejection causes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum StrictCause {
+    /// No live or retired target exists.
+    ZeroTargets,
+    /// At least one live reference row is unbacked.
+    UnbackedRows,
+    /// At least one complete status contradicts its backing.
+    ContradictedStatus,
+}
+
 /// Complete ordered reasons to print before mapping rejection to exit 1.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, thiserror::Error)]
+#[error("strict coverage rejected; inspect all structured reasons")]
 pub struct StrictRejection {
     /// Every non-qualified act and core evidence refusal.
     pub evidence: Vec<EvidenceResult>,
+    /// Original native inventory cause categories and loci.
+    pub inventory_causes: Vec<InventoryCauseReport>,
     /// Inherited failures in stable order.
-    pub inherited: Vec<String>,
+    pub inherited: Vec<StrictCause>,
     /// Original declared-input evaluation failures, never a healthy flag.
     pub declared_inputs: Vec<DeclaredInputError>,
 }
@@ -572,13 +618,13 @@ pub fn strict_decision(
 ) -> Result<(), StrictRejection> {
     let mut inherited = Vec::new();
     if report.totals.total == 0 && report.totals.retired == 0 {
-        inherited.push("zero-targets".into());
+        inherited.push(StrictCause::ZeroTargets);
     }
     if !report.unbacked_rows.is_empty() {
-        inherited.push("unbacked-rows".into());
+        inherited.push(StrictCause::UnbackedRows);
     }
     if !report.status_lies.is_empty() {
-        inherited.push("contradicted-status".into());
+        inherited.push(StrictCause::ContradictedStatus);
     }
     let evidence = report.evidence_results.clone().unwrap_or_default();
     if inherited.is_empty() && evidence.is_empty() && declared_inputs.is_empty() {
@@ -586,6 +632,7 @@ pub fn strict_decision(
     } else {
         Err(StrictRejection {
             evidence,
+            inventory_causes: report.inventory_causes.clone().unwrap_or_default(),
             inherited,
             declared_inputs: declared_inputs.to_vec(),
         })

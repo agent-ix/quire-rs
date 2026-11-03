@@ -417,6 +417,9 @@ pub struct CoverageReport {
     /// Per-act retained-input outcomes, present only in explicit evidence mode.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub evidence_results: Option<Vec<crate::evidence::EvidenceResult>>,
+    /// Native typed non-completion causes and partial-row loci in evidence mode.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub inventory_causes: Option<Vec<crate::evidence::InventoryCauseReport>>,
     /// All retained claims, including non-criterion declared targets.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub record_binders: Option<Vec<crate::evidence::RecordBinder>>,
@@ -638,6 +641,9 @@ pub struct CoverageMatrixCriterion {
     /// Separate retained record binders; present even when empty in evidence mode.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub record_binders: Option<Vec<crate::evidence::RecordBinder>>,
+    /// Native selected identity rendering, including unmapped criteria.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub identity: Option<crate::evidence::TargetLocus>,
     /// The computed static status (FR-050-AC-49).
     pub status: CoverageMatrixStatus,
 }

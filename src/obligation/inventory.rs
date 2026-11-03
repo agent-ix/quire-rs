@@ -25,7 +25,8 @@ pub enum InventoryTerminal {
 }
 
 /// Stable classifications of an inventory's non-completion causes.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "kebab-case")]
 #[non_exhaustive]
 pub enum InventoryCauseCode {
     /// The supplied traceability model failed its owner validation.

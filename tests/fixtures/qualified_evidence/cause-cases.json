@@ -1,0 +1,5 @@
+[
+  "failed", "errored", "skipped", "absent", "unevaluated", "wrong-revision",
+  "selection-mismatch", "stale", "invalid-target", "ambiguous-target",
+  "record-conflict", "qualification-rejected"
+]
