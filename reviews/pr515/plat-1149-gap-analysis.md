@@ -181,3 +181,29 @@ scope:
   role: context_only
   excerpt: TC-1977
 ```
+
+## Follow-up disposition: corpus grader controls
+
+This follow-up examines PR 515's change to `tc1024_unbacked_rows_and_groups_are_exact` in `tests/corpus_cases.rs`. No production coverage predicate, corpus grader, expectation file, workflow or CI gate was changed by this test repair. The original findings and review prose above remain historical.
+
+The real bank case is still executed first and its full authored contract must pass. The test then uses a cloned typed report and field-specific `CaseExpect` values through the existing `grade_with` entry point. Empty payload/empty expectation and one-row payload/matching expectation pass. Missing-row and extra-row adversaries both fail at `L2Localised`. The nonempty witness is required with `expect`, so these assertions cannot silently skip. The same unchanged production grader compares the entire row vector. There is no fake passing bank case, bank-expectation relaxation or separate grader implementation. Other fields are intentionally unasserted only in the local unit controls, while the real-case contract and `corpus_cases_hold` continue to grade the bank normally.
+
+QA-corpus PR 31 is confirmed merged. The former named QA ownership/dependency condition is resolved. Inspected existing logs show the focused TC-1024 test passing, the complete `corpus_cases` target passing 21/21 (including `corpus_cases_hold` and determinism), and clippy/formatter passing. This reviewer ran no Cargo gate. The full hosted rerun remains the lead's final gate; these results do not claim hosted aggregate green or a repository-wide assurance audit.
+
+### Current disposition
+
+No new finding. The prior bank/testing condition is resolved; changed-scope review is PASS. Historical repository-wide audit limitations remain limitations of this review and are not a newly identified PR defect. No remaining code-review blocker was found in this fix.
+
+### Additional examined unit
+
+```yaml
+scope:
+- id: FR-065-AC-28
+  path: spec/functional/FR-065-controlled-corpus-contract.md
+  role: context_only
+  excerpt: 'A case asserting `unbacked_rows` or `groups` fails on a payload carrying an extra entry, a missing entry, a changed field or a different order; a case asserting an empty list fails on a payload carrying any entry.'
+- id: tc1024_unbacked_rows_and_groups_are_exact
+  path: tests/corpus_cases.rs
+  role: examined
+  excerpt: 'let outcome = grade_with(case, &empty_report, &nonempty_expect);'
+```
