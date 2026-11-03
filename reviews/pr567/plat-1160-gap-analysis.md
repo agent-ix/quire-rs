@@ -176,3 +176,37 @@ scope:
     network/service access, evidence-store mutation, or publication; malformed retained
     inputs cannot execute commands or create passing evidence.
 ```
+
+## Disposition Review Round 1
+
+Frozen head: `137e0019d64f8549bbd8e031a330da23a2d22383`; fix commits `e2582c8`, `a2161fc`, `137e001`. Original findings and original review verdict above are preserved verbatim. All candidate-specific findings are fixed; no new defect was found in the fix diff. The bounded core stage has no remaining review finding. The historical whole-repository matrix result is not promoted to a global PASS and is not expanded into unrelated remediation. Actual Quoin FR-116 qualification, real producer acceptance, waiver policy and synchronized consumer uptake remain outside this core-stage acceptance.
+
+Inspected coder-owned review-selected-red.log (actual failed diagnostic assertion, not setup failure), review-tests.log (56 passing: 17 coverage_matrix, 2 baseline, 11 output_contract, 26 obligations) and review-clippy.log (success), under /home/peter/dev/qualification-logs/plat1160-core-137e001-review/. No Cargo or aggregate gate was run by this reviewer. Hosted checks at inspection still show only CLA checks, including cla / cla-check FAILURE; no hosted Rust results are available. Merge remains conditional on the required final aggregate/hosted gates and Luna authority.
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | Round 1: The new native-lookup test executes UnknownIdentity through an equal-selection stopped prefix, foreign-root SelectionMismatch, duplicate-authored AmbiguousTarget, and same-ID document/source negative controls with two accepted claims as the healthy control. |
+| FND-002 | fixed | Round 1: The new origin test supplies RenderedRow and CombinatorialTable identities through compute_with_evidence; preserves three unmapped population rows; checks rendered ordinal and combinatorial origin; refuses a missing-method combinatorial claim rather than inventing a method; and rejects old rendered identity after reorder before accepting the fresh identity control. |
+| FND-003 | fixed | Round 1: Exact inverse queries now distinguish two entries sharing record/run, compare each with its forward target result, and refuse independently changed record, run and entry locators. A run query still returns both entries. |
+
+### Round 1 Fixed Excerpts
+
+```yaml
+dispositions:
+- fnd: FND-001
+  outcome: fixed
+  after_excerpt: "let foreign_claims = [RecordClaim {\n        target: foreign.entries().next().unwrap().identity().into(),\n\
+    \        ..claims[0]\n    }];"
+- fnd: FND-002
+  outcome: fixed
+  after_excerpt: "assert!(matches!(\n        entries[2].identity().origin(),\n   \
+    \     CriterionOrigin::CombinatorialTable { .. }\n    ));"
+- fnd: FND-003
+  outcome: fixed
+  after_excerpt: "for claim in claims {\n        let inverse = trace(&backing, TraceQuery::Record(claim.locator));\n\
+    \        assert_eq!(inverse.len(), 1);\n        assert_eq!(inverse, trace(&backing,\
+    \ TraceQuery::Target(claim.target)));\n        assert_eq!(inverse[0].locator.entry,\
+    \ claim.locator.entry);"
+```

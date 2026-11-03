@@ -175,3 +175,36 @@ scope:
     network/service access, evidence-store mutation, or publication; malformed retained
     inputs cannot execute commands or create passing evidence.
 ```
+
+## Disposition Review Round 1
+
+Frozen head: `137e0019d64f8549bbd8e031a330da23a2d22383`; fix commits `e2582c8`, `a2161fc`, `137e001`. Original findings and original review verdict above are preserved verbatim. All candidate-specific findings are fixed; no new defect was found in the fix diff. The bounded core stage has no remaining review finding. The historical whole-repository matrix result is not promoted to a global PASS and is not expanded into unrelated remediation. Actual Quoin FR-116 qualification, real producer acceptance, waiver policy and synchronized consumer uptake remain outside this core-stage acceptance.
+
+Inspected coder-owned review-selected-red.log (actual failed diagnostic assertion, not setup failure), review-tests.log (56 passing: 17 coverage_matrix, 2 baseline, 11 output_contract, 26 obligations) and review-clippy.log (success), under /home/peter/dev/qualification-logs/plat1160-core-137e001-review/. No Cargo or aggregate gate was run by this reviewer. Hosted checks at inspection still show only CLA checks, including cla / cla-check FAILURE; no hosted Rust results are available. Merge remains conditional on the required final aggregate/hosted gates and Luna authority.
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | Round 1: The evidence arm consumes only inventory.entries() and no longer calls derive; only the None arm derives legacy obligations. The actual behavioral RED fails on the unselected-source diagnostic assertion, and its repaired test checks both absence of that leaked diagnostic and retention of native UnusableRow causes. |
+| FND-002 | fixed | Round 1: Both original component tests now carry truthful core trace attributes. The source-free test covers AC12/13/14, and the declared-target test covers core AC9/13/14/15; no full producer qualification AC1..4 tag was added. |
+
+### Round 1 Fixed Excerpts
+
+```yaml
+dispositions:
+- fnd: FND-001
+  outcome: fixed
+  after_excerpt: "let (obligations, skipped) = match evidence {\n        Some(evidence)\
+    \ => (\n            evidence\n                .input\n                .inventory\n\
+    \                .entries()\n                .map(|entry| entry.obligation().clone())\n\
+    \                .collect(),\n            Vec::new(),\n        ),\n        None\
+    \ => crate::obligation::derive(spec, root, model),"
+- fnd: FND-002
+  outcome: fixed
+  after_excerpt: '#[trace("FR-078-AC-12", "FR-078-AC-13", "FR-078-AC-14")]
+
+    #[test]
+
+    fn retained_backing_components_reconcile_named_source_free_boundaries() {'
+```
