@@ -92,7 +92,12 @@ pub(super) fn reconcile(
                 line: row.line,
                 backed: backed.contains(id)
                     || evidence.is_some_and(|evidence| {
-                        evidence.backs_row(&relative(root, &row.path), id, row.line)
+                        evidence.backs_minted(
+                            &relative(root, &row.path),
+                            id,
+                            row.line,
+                            &target.name,
+                        )
                     }),
                 retired: false,
             });

@@ -71,6 +71,13 @@ pub fn declared_target<'a>(
         .ok_or(InventoryLookupError::SelectionMismatch)?;
     let model = inventory.request().model();
     let root = inventory.request().root();
+    if model
+        .obligations
+        .iter()
+        .any(|source| source.target.as_deref() == Some(declaration_name))
+    {
+        return Err(InventoryLookupError::UnknownIdentity);
+    }
     let declaration = model
         .trace_targets
         .iter()
@@ -413,6 +420,7 @@ impl<'a> ReconciledEvidence<'a> {
                     .entries()
                     .position(|entry| EvidenceTarget::Criterion(entry.identity()) == claim.target)
                     .unwrap_or(usize::MAX),
+                TargetLocus::from(claim.target),
                 claim.locator,
             )
         });
@@ -475,6 +483,30 @@ impl<'a> ReconciledEvidence<'a> {
             .collect()
     }
 
+    pub fn backs_minted(&self, document: &str, id: &str, line: usize, target_name: &str) -> bool {
+        self.accepted.iter().any(|claim| match claim.target {
+            EvidenceTarget::Declared(target) => {
+                target.document == document
+                    && target.id == id
+                    && target.line == line
+                    && target.declaration.name == target_name
+            }
+            EvidenceTarget::Criterion(identity) => {
+                self.input.inventory.lookup(&identity).is_ok_and(|entry| {
+                    identity.document() == document
+                        && entry.obligation().id == id
+                        && entry.line() == Some(line)
+                        && self.input.inventory.selection().is_some_and(|selection| {
+                            selection.sources().iter().any(|source| {
+                                source.declaration().name == identity.source_name()
+                                    && source.declaration().target.as_deref() == Some(target_name)
+                            })
+                        })
+                })
+            }
+        })
+    }
+
     pub fn backs_row(&self, document: &str, id: &str, line: usize) -> bool {
         self.accepted.iter().any(|claim| {
             matches!(claim.target, EvidenceTarget::Declared(target)
@@ -505,28 +537,17 @@ pub enum TraceQuery<'a> {
 /// Query the same projection used by coverage; source search remains separate.
 pub fn trace(input: &BackingInput<'_>, query: TraceQuery<'_>) -> Vec<RecordBinder> {
     let evidence = ReconciledEvidence::new(input);
-    match query {
-        TraceQuery::Target(identity) => evidence.binders(identity),
-        TraceQuery::Record(locator) => evidence
-            .accepted
-            .iter()
-            .filter(|claim| claim.locator == locator)
-            .flat_map(|claim| evidence.binders(claim.target))
-            .filter(|binder| binder.locator == locator.into())
-            .collect(),
-        TraceQuery::Run(run) => {
-            let mut binders: Vec<_> = evidence
-                .accepted
-                .iter()
-                .filter(|claim| claim.locator.run == run)
-                .flat_map(|claim| evidence.binders(claim.target))
-                .filter(|binder| binder.locator.run == run)
-                .collect();
-            binders.sort();
-            binders.dedup();
-            binders
-        }
-    }
+    evidence
+        .accepted
+        .iter()
+        .zip(evidence.all_binders())
+        .filter(|(claim, _)| match query {
+            TraceQuery::Target(identity) => claim.target == identity,
+            TraceQuery::Record(locator) => claim.locator == locator,
+            TraceQuery::Run(run) => claim.locator.run == run,
+        })
+        .map(|(_, binder)| binder)
+        .collect()
 }
 
 /// A declared input that the host actually attempted but could not evaluate.
