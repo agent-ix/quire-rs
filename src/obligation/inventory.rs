@@ -548,6 +548,19 @@ pub enum InventoryLookupError {
     AmbiguousIdentity,
 }
 
+/// A supplied in-memory corpus differs from the owner's captured selection.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+pub(crate) enum SelectionContextError {
+    #[error("inventory has no validated selection")]
+    MissingSelection,
+    #[error("coverage root differs from the selected scope")]
+    RootMismatch,
+    #[error("coverage model differs from the selected model")]
+    ModelMismatch,
+    #[error("selected document membership or bytes differ: {0}")]
+    DocumentsMismatch(String),
+}
+
 /// An immutable owner-issued result, including partial rows on failure.
 ///
 /// No public constructor or deserializer can install a `Complete` state.
@@ -619,6 +632,65 @@ impl SelectedInventory {
     /// Loader advisories that do not prevent reading selected criteria.
     pub fn advisories(&self) -> &[Diagnostic] {
         &self.advisories
+    }
+
+    /// Compare supplied immutable documents with the captured selection, without
+    /// walking, reparsing rows, issuing completion or reconstructing a census.
+    /// Selection membership uses the same producer predicate as `inventory`.
+    pub(crate) fn matches_spec(
+        &self,
+        spec: &crate::Spec,
+        root: &Path,
+        model: &TraceabilityModel,
+    ) -> Result<(), SelectionContextError> {
+        let selection = self
+            .selection
+            .as_ref()
+            .ok_or(SelectionContextError::MissingSelection)?;
+        if root != self.request.root && root != selection.root {
+            return Err(SelectionContextError::RootMismatch);
+        }
+        if model != &self.request.model {
+            return Err(SelectionContextError::ModelMismatch);
+        }
+        let model_exclude = ExcludeSet::compile_validated(&model.exclude);
+        let excludes: Vec<_> = selection
+            .sources
+            .iter()
+            .map(|source| ExcludeSet::compile_validated(&source.declaration.exclude))
+            .collect();
+        let observed: BTreeMap<_, _> = spec
+            .documents()
+            .iter()
+            .filter(|document| {
+                selected_document(
+                    root,
+                    document,
+                    model,
+                    &selection.sources,
+                    &excludes,
+                    &model_exclude,
+                )
+            })
+            .map(|document| {
+                (
+                    declared_tables::relative_path(root, &document.path),
+                    document.raw(),
+                )
+            })
+            .collect();
+        let captured: BTreeMap<_, _> = selection
+            .documents()
+            .map(|(path, raw)| (path.to_string(), raw))
+            .collect();
+        if let Some(path) = observed
+            .keys()
+            .chain(captured.keys())
+            .find(|path| observed.get(*path) != captured.get(*path))
+        {
+            return Err(SelectionContextError::DocumentsMismatch(path.clone()));
+        }
+        Ok(())
     }
 
     /// Resolve a borrowed owner identity, refusing a foreign selection first.
@@ -856,12 +928,7 @@ pub fn inventory(
                     continue;
                 }
                 result.advisories.extend(diags);
-                if sources.iter().zip(&excludes).any(|(source, exclude)| {
-                    let resolved = resolve(&source.declaration, model)
-                        .expect("validated selected declaration resolves");
-                    doc.concept_type() == Some(resolved.archetype)
-                        && !exclude.excludes(&canonical, &path)
-                }) {
+                if selected_document(&canonical, &doc, model, &sources, &excludes, &model_exclude) {
                     documents.push(*doc);
                 }
             }
@@ -1292,6 +1359,23 @@ impl SelectedInventory {
         }
         self
     }
+}
+
+fn selected_document(
+    root: &Path,
+    document: &LoadedDocument,
+    model: &TraceabilityModel,
+    sources: &[SelectedSource],
+    excludes: &[ExcludeSet],
+    model_exclude: &ExcludeSet,
+) -> bool {
+    !model_exclude.excludes(root, &document.path)
+        && sources.iter().zip(excludes).any(|(source, exclude)| {
+            resolve(&source.declaration, model).is_some_and(|resolved| {
+                document.concept_type() == Some(resolved.archetype)
+                    && !exclude.excludes(root, &document.path)
+            })
+        })
 }
 
 fn excluded_from_all(root: &Path, path: &Path, model: &ExcludeSet, sources: &[ExcludeSet]) -> bool {

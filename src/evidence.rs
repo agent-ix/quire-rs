@@ -433,16 +433,7 @@ impl<'a> ReconciledEvidence<'a> {
         model: &crate::traceability::TraceabilityModel,
         root: &std::path::Path,
     ) {
-        let matches = self.input.inventory.request().root() == root
-            && self.input.inventory.request().model() == model
-            && self.input.inventory.selection().is_some_and(|selection| {
-                selection.documents().all(|(path, raw)| {
-                    spec.documents().iter().any(|document| {
-                        crate::coverage::relative(root, &document.path) == path
-                            && document.raw() == raw
-                    })
-                })
-            });
+        let context = self.input.inventory.matches_spec(spec, root, model);
         let declarations_match = self.accepted.iter().all(|claim| match claim.target {
             EvidenceTarget::Criterion(_) => true,
             EvidenceTarget::Declared(target) => spec.documents().iter().any(|document| {
@@ -450,7 +441,7 @@ impl<'a> ReconciledEvidence<'a> {
                     && document.raw() == target.raw
             }),
         });
-        if !matches || !declarations_match {
+        if context.is_err() || !declarations_match {
             self.accepted.clear();
             self.results.push(EvidenceResult { target: None, requested_target: String::new(), locator: None,
                 cause: CauseCode::SelectionMismatch, detail: "coverage root, model or selected document snapshot differs from owner inventory".into() });

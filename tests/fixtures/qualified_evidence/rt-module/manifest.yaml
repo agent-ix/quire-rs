@@ -36,4 +36,5 @@ traceability:
     method_column: Verification
   vocabularies:
     test_type_column: Type
+    test_type: [Unit, Integration, Inspection]
     no_source_symbol: [Inspection]
