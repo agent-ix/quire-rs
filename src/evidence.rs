@@ -1,0 +1,441 @@
+//! Owner-neutral retained backing projection (FR-078).
+//!
+//! These values are reconciliation inputs, not qualification certificates. The
+//! supported producer qualifier lives in Quoin; this module neither authenticates
+//! observations nor implements its audit or per-act qualification rules.
+
+use serde::{Deserialize, Serialize};
+
+use crate::coverage::CoverageReport;
+use crate::obligation::inventory::{
+    CriterionIdentity, CriterionOrigin, InventoryLookupError, InventoryTerminal, SelectedInventory,
+};
+
+/// Original owner read-boundary locators, without a source-symbol identity.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+pub struct RecordLocator<'a> {
+    /// Original retained record locator.
+    pub record: &'a str,
+    /// Original retained run locator.
+    pub run: &'a str,
+    /// Original entry locator within the run.
+    pub entry: &'a str,
+}
+
+/// A bridge's explicit backing projection. Constructing it does not qualify an act.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct RecordClaim<'a> {
+    /// Borrowed native owner identity, including its selected snapshot.
+    pub target: CriterionIdentity<'a>,
+    /// Original retained owner locators.
+    pub locator: RecordLocator<'a>,
+    /// Original declared method; no inferred Test conversion.
+    pub method: &'a str,
+    /// Actual performer or accountable attester supplied by the bridge.
+    pub actor: &'a str,
+    /// Original owner qualification/authority/observation references.
+    pub provenance: &'a [&'a str],
+}
+
+/// Stable non-qualified cause categories, retaining owner-specific detail separately.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum CauseCode {
+    /// A required act failed.
+    Failed,
+    /// A required act errored.
+    Errored,
+    /// A required act was skipped.
+    Skipped,
+    /// A required retained record or act is absent.
+    Absent,
+    /// A required premise was not evaluated.
+    Unevaluated,
+    /// The performed source revision differs.
+    WrongRevision,
+    /// The selection differs from the supplied owner inventory.
+    SelectionMismatch,
+    /// Owner freshness invalidates the evidence.
+    Stale,
+    /// The exact target is unknown.
+    InvalidTarget,
+    /// The owner identity identifies multiple rows.
+    AmbiguousTarget,
+    /// Contradictory projections share one record identity.
+    RecordConflict,
+    /// An evaluated owner premise rejected the act.
+    QualificationRejected,
+    /// The native selected inventory did not complete.
+    InventoryIncomplete,
+}
+
+/// A bridge-provided non-qualified result; an absent record has no locator.
+#[derive(Debug, Clone, Copy)]
+pub struct ActResult<'a> {
+    /// Exact native target, when the owner could resolve it.
+    pub target: Option<CriterionIdentity<'a>>,
+    /// Original requested target text, including unresolved requests.
+    pub requested_target: &'a str,
+    /// Available original owner locators.
+    pub locator: Option<RecordLocator<'a>>,
+    /// Stable consumer cause category.
+    pub cause: CauseCode,
+    /// Original owner subtype, premise and diagnostic references.
+    pub detail: &'a str,
+}
+
+/// Explicit evidence mode, including a genuinely empty request/projection.
+///
+/// Only the owner bridge's private qualified view establishes qualification.
+/// This public core projection grants no producer authority by construction.
+#[derive(Debug)]
+pub struct BackingInput<'a> {
+    /// Native population and completion witness; never a copied census.
+    pub inventory: &'a SelectedInventory,
+    /// Owner-approved accepted-claim projection.
+    pub claims: &'a [RecordClaim<'a>],
+    /// Every non-qualified requested act and every applicable owner cause.
+    pub results: &'a [ActResult<'a>],
+}
+
+/// Rendered locus for reports. Matching always uses the native borrowed identity.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct TargetLocus {
+    /// Native source declaration name.
+    pub source: String,
+    /// Native selected document path.
+    pub document: String,
+    /// Native authored or rendered ID.
+    pub id: String,
+    /// Native origin label; this report is not a reconstructible owner identity.
+    pub origin: String,
+    /// Native rendered-row ordinal, absent for other origins.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub row: Option<usize>,
+}
+
+impl From<CriterionIdentity<'_>> for TargetLocus {
+    fn from(identity: CriterionIdentity<'_>) -> Self {
+        let (id, origin, row) = match identity.origin() {
+            CriterionOrigin::AuthoredRow { authored_id } => (authored_id, "authored-row", None),
+            CriterionOrigin::RenderedRow { rendered_id, row } => {
+                (rendered_id, "rendered-row", Some(row))
+            }
+            CriterionOrigin::CombinatorialTable { rendered_id } => {
+                (rendered_id, "combinatorial-table", None)
+            }
+        };
+        Self {
+            source: identity.source_name().into(),
+            document: identity.document().into(),
+            id: id.into(),
+            origin: origin.into(),
+            row,
+        }
+    }
+}
+
+/// Original retained locators rendered in an owned report.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RetainedLocator {
+    /// Retained record locator.
+    pub record: String,
+    /// Retained run locator.
+    pub run: String,
+    /// Retained run entry locator.
+    pub entry: String,
+}
+impl From<RecordLocator<'_>> for RetainedLocator {
+    fn from(value: RecordLocator<'_>) -> Self {
+        Self {
+            record: value.record.into(),
+            run: value.run.into(),
+            entry: value.entry.into(),
+        }
+    }
+}
+
+/// A separate record binder; never a source declaration-site binder.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RecordBinder {
+    /// Rendered exact native target locus.
+    pub target: TargetLocus,
+    /// Original owner record/run/entry locators.
+    pub locator: RetainedLocator,
+    /// Preserved declared method.
+    pub method: String,
+    /// Original performer/attester.
+    pub actor: String,
+    /// Owner qualification and authority references.
+    pub provenance: Vec<String>,
+}
+
+/// A non-qualified result, including all original owner causes.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct EvidenceResult {
+    /// Resolved native target locus when available.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub target: Option<TargetLocus>,
+    /// Original request, including unresolved requests.
+    pub requested_target: String,
+    /// Original locator, absent for missing records.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub locator: Option<RetainedLocator>,
+    /// Stable consumer cause.
+    pub cause: CauseCode,
+    /// Original owner cause detail.
+    pub detail: String,
+}
+
+pub(crate) struct ReconciledEvidence<'a> {
+    pub input: &'a BackingInput<'a>,
+    pub accepted: Vec<RecordClaim<'a>>,
+    pub results: Vec<EvidenceResult>,
+}
+
+fn lookup_cause(error: InventoryLookupError) -> CauseCode {
+    match error {
+        InventoryLookupError::SelectionMismatch => CauseCode::SelectionMismatch,
+        InventoryLookupError::UnknownIdentity => CauseCode::InvalidTarget,
+        InventoryLookupError::AmbiguousIdentity => CauseCode::AmbiguousTarget,
+    }
+}
+
+impl<'a> ReconciledEvidence<'a> {
+    pub fn new(input: &'a BackingInput<'a>) -> Self {
+        let mut this = Self {
+            input,
+            accepted: Vec::new(),
+            results: input
+                .results
+                .iter()
+                .map(|r| EvidenceResult {
+                    target: r.target.map(TargetLocus::from),
+                    requested_target: r.requested_target.into(),
+                    locator: r.locator.map(RetainedLocator::from),
+                    cause: r.cause,
+                    detail: r.detail.into(),
+                })
+                .collect(),
+        };
+        if input.inventory.terminal() != InventoryTerminal::Complete {
+            for cause in input.inventory.causes() {
+                this.results.push(EvidenceResult {
+                    target: None,
+                    requested_target: String::new(),
+                    locator: None,
+                    cause: CauseCode::InventoryIncomplete,
+                    detail: format!("{:?}: {:?}", cause.code(), cause.detail()),
+                });
+            }
+        }
+        for claim in input.claims {
+            let refusal = match input.inventory.lookup(&claim.target) {
+                Err(error) => Some((lookup_cause(error), error.to_string())),
+                Ok(entry) if entry.obligation().method.as_deref() != Some(claim.method) => Some((
+                    CauseCode::QualificationRejected,
+                    "projected method differs from selected declaration".into(),
+                )),
+                Ok(_)
+                    if input.claims.iter().any(|other| {
+                        other.target == claim.target
+                            && other.locator == claim.locator
+                            && other != claim
+                    }) =>
+                {
+                    Some((
+                        CauseCode::RecordConflict,
+                        "contradictory projections for retained record/run/entry".into(),
+                    ))
+                }
+                Ok(_)
+                    if input.results.iter().any(|result| {
+                        result.target == Some(claim.target) && result.locator == Some(claim.locator)
+                    }) =>
+                {
+                    Some((
+                        CauseCode::RecordConflict,
+                        "accepted projection also has non-qualified owner results".into(),
+                    ))
+                }
+                Ok(_) => None,
+            };
+            if let Some((cause, detail)) = refusal {
+                let target = TargetLocus::from(claim.target);
+                this.results.push(EvidenceResult {
+                    requested_target: target.id.clone(),
+                    target: Some(target),
+                    locator: Some(claim.locator.into()),
+                    cause,
+                    detail,
+                });
+            } else if !this.accepted.contains(claim) {
+                this.accepted.push(*claim);
+            }
+        }
+        this.results.sort_by_key(|result| {
+            let index = input.inventory.entries().position(|entry| {
+                result.target.as_ref() == Some(&TargetLocus::from(entry.identity()))
+            });
+            (index.unwrap_or(usize::MAX), result.clone())
+        });
+        this.results.dedup();
+        this.accepted.sort_by_key(|claim| {
+            (
+                input
+                    .inventory
+                    .entries()
+                    .position(|entry| entry.identity() == claim.target)
+                    .unwrap_or(usize::MAX),
+                claim.locator,
+            )
+        });
+        this
+    }
+
+    pub fn check_context(
+        &mut self,
+        spec: &crate::Spec,
+        model: &crate::traceability::TraceabilityModel,
+        root: &std::path::Path,
+    ) {
+        let matches = self.input.inventory.request().root() == root
+            && self.input.inventory.request().model() == model
+            && self.input.inventory.selection().is_some_and(|selection| {
+                selection.documents().all(|(path, raw)| {
+                    spec.documents().iter().any(|document| {
+                        crate::coverage::relative(root, &document.path) == path
+                            && document.raw() == raw
+                    })
+                })
+            });
+        if !matches {
+            self.accepted.clear();
+            self.results.push(EvidenceResult { target: None, requested_target: String::new(), locator: None,
+                cause: CauseCode::SelectionMismatch, detail: "coverage root, model or selected document snapshot differs from owner inventory".into() });
+        }
+    }
+
+    pub fn binders(&self, identity: CriterionIdentity<'_>) -> Vec<RecordBinder> {
+        self.accepted
+            .iter()
+            .filter(|claim| claim.target == identity)
+            .map(|claim| RecordBinder {
+                target: claim.target.into(),
+                locator: claim.locator.into(),
+                method: claim.method.into(),
+                actor: claim.actor.into(),
+                provenance: claim
+                    .provenance
+                    .iter()
+                    .map(|value| (*value).into())
+                    .collect(),
+            })
+            .collect()
+    }
+
+    pub fn backs_row(&self, document: &str, id: &str, line: usize) -> bool {
+        self.input.inventory.entries().any(|entry| {
+            entry.identity().document() == document
+                && entry.obligation().id == id
+                && entry.line() == Some(line)
+                && self
+                    .accepted
+                    .iter()
+                    .any(|claim| claim.target == entry.identity())
+        })
+    }
+}
+
+/// Query retained records by exact native target or original owner locator.
+#[derive(Debug, Clone, Copy)]
+pub enum TraceQuery<'a> {
+    /// Forward lookup, without display-ID or sibling inference.
+    Target(CriterionIdentity<'a>),
+    /// Inverse lookup, without manufacturing a file/symbol identity.
+    Record(RecordLocator<'a>),
+    /// Every entry belonging to the original run locator.
+    Run(&'a str),
+}
+
+/// Query the same projection used by coverage; source search remains separate.
+pub fn trace(input: &BackingInput<'_>, query: TraceQuery<'_>) -> Vec<RecordBinder> {
+    let evidence = ReconciledEvidence::new(input);
+    match query {
+        TraceQuery::Target(identity) => evidence.binders(identity),
+        TraceQuery::Record(locator) => evidence
+            .accepted
+            .iter()
+            .filter(|claim| claim.locator == locator)
+            .flat_map(|claim| evidence.binders(claim.target))
+            .filter(|binder| binder.locator == locator.into())
+            .collect(),
+        TraceQuery::Run(run) => {
+            let mut binders: Vec<_> = evidence
+                .accepted
+                .iter()
+                .filter(|claim| claim.locator.run == run)
+                .flat_map(|claim| evidence.binders(claim.target))
+                .filter(|binder| binder.locator.run == run)
+                .collect();
+            binders.sort();
+            binders.dedup();
+            binders
+        }
+    }
+}
+
+/// A declared input that the host actually attempted but could not evaluate.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DeclaredInputError {
+    /// Original declared input locator.
+    pub locator: String,
+    /// Original evaluation error.
+    pub detail: String,
+}
+
+/// Complete ordered reasons to print before mapping rejection to exit 1.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct StrictRejection {
+    /// Every non-qualified act and core evidence refusal.
+    pub evidence: Vec<EvidenceResult>,
+    /// Inherited failures in stable order.
+    pub inherited: Vec<String>,
+    /// Original declared-input evaluation failures, never a healthy flag.
+    pub declared_inputs: Vec<DeclaredInputError>,
+}
+
+/// Decide strict coverage, retaining evidence and inherited failures together.
+///
+/// The host supplies actual declared-input evaluation errors and prints the full
+/// coverage report and reasons before mapping `Ok` to exit 0 or `Err` to exit 1.
+pub fn strict_decision(
+    report: &CoverageReport,
+    declared_inputs: &[DeclaredInputError],
+) -> Result<(), StrictRejection> {
+    let mut inherited = Vec::new();
+    if report.totals.total == 0 && report.totals.retired == 0 {
+        inherited.push("zero-targets".into());
+    }
+    if !report.unbacked_rows.is_empty() {
+        inherited.push("unbacked-rows".into());
+    }
+    if !report.status_lies.is_empty() {
+        inherited.push("contradicted-status".into());
+    }
+    let evidence = report.evidence_results.clone().unwrap_or_default();
+    if inherited.is_empty() && evidence.is_empty() && declared_inputs.is_empty() {
+        Ok(())
+    } else {
+        Err(StrictRejection {
+            evidence,
+            inherited,
+            declared_inputs: declared_inputs.to_vec(),
+        })
+    }
+}

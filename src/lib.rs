@@ -20,6 +20,7 @@ pub mod corpus;
 pub mod coverage;
 pub mod diagnostic;
 pub mod error;
+pub mod evidence;
 pub mod extract;
 pub mod filament;
 pub mod finding;

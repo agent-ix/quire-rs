@@ -414,6 +414,9 @@ pub struct CoverageReport {
     /// empty (FR-055-CON-3): the two fields are all-or-nothing together.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub coverage_matrix: Vec<CoverageMatrixRequirement>,
+    /// Per-act retained-input outcomes, present only in explicit evidence mode.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub evidence_results: Option<Vec<crate::evidence::EvidenceResult>>,
     /// Requirement → production code (FR-062). Empty — and so absent from the
     /// JSON — for a module declaring no `implements` marker forms, which keeps
     /// FR-050-AC-7 byte-identity for every module that has not adopted them.
@@ -629,6 +632,9 @@ pub struct CoverageMatrixCriterion {
     /// registration's qualified name is ignorant of its enclosing suite
     /// (FR-051-AC-21). Empty, never absent, for a criterion with no binder.
     pub binders: Vec<CoverageMatrixBinder>,
+    /// Separate retained record binders; present even when empty in evidence mode.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub record_binders: Option<Vec<crate::evidence::RecordBinder>>,
     /// The computed static status (FR-050-AC-49).
     pub status: CoverageMatrixStatus,
 }
@@ -658,6 +664,8 @@ pub struct CoverageMatrixBinder {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum CoverageMatrixStatus {
+    /// Explicit retained backing for the exact selected criterion.
+    QualifiedRecord,
     /// The criterion's own declaration is explicitly retired.
     Retired,
     /// One or more binders, at least one not ignored.
@@ -689,10 +697,39 @@ pub fn compute(
     graph: &SymbolGraph,
     root: &Path,
 ) -> Result<CoverageReport, CoverageError> {
+    compute_inner(spec, registry, graph, root, None)
+}
+
+/// Reconcile explicit owner-neutral retained backing alongside source claims.
+///
+/// This low-level projection is not a qualification certificate. Consumers use
+/// the Quoin bridge's private qualified view after its actual audit/qualification.
+pub fn compute_with_evidence(
+    spec: &Spec,
+    registry: &Registry,
+    graph: &SymbolGraph,
+    root: &Path,
+    backing: &crate::evidence::BackingInput<'_>,
+) -> Result<CoverageReport, CoverageError> {
+    compute_inner(spec, registry, graph, root, Some(backing))
+}
+
+fn compute_inner(
+    spec: &Spec,
+    registry: &Registry,
+    graph: &SymbolGraph,
+    root: &Path,
+    backing: Option<&crate::evidence::BackingInput<'_>>,
+) -> Result<CoverageReport, CoverageError> {
     let model = registry
         .traceability()
         .ok_or(CoverageError::ModelUndeclared)?;
-    let (mut report, minting_census) = reconcile(spec, model, graph, root, registry);
+    let mut evidence = backing.map(crate::evidence::ReconciledEvidence::new);
+    if let Some(evidence) = &mut evidence {
+        evidence.check_context(spec, model, root);
+    }
+    let (mut report, minting_census) =
+        reconcile(spec, model, graph, root, registry, evidence.as_ref());
     // CR-028: the criteria counts are computed here rather than inside
     // `reconcile`, which reconciles against the declared model alone and takes
     // no `Registry`. The vocabularies the classifier reads hang off the same
@@ -954,6 +991,6 @@ fn coverage_metrics(
 }
 /// Return a stable scope-relative path using the declaration scanner's path
 /// normalization (CR-038).
-fn relative(root: &Path, path: &Path) -> String {
+pub(crate) fn relative(root: &Path, path: &Path) -> String {
     declared_tables::relative_path(root, path)
 }

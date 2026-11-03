@@ -13,6 +13,13 @@
     "totals"
   ],
   "properties": {
+    "evidence_results": {
+      "type": "array",
+      "description": "Explicit retained-input outcomes; omitted on legacy no-evidence path. Low-level engine projection is not producer qualification.",
+      "items": {
+        "$ref": "#/$defs/EvidenceResult"
+      }
+    },
     "unbacked_rows": {
       "type": "array",
       "description": "FR-050-AC-3: live reference rows answerable for trace ids no symbol backs.",
@@ -166,6 +173,126 @@
     }
   },
   "$defs": {
+    "TargetLocus": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source",
+        "document",
+        "id",
+        "origin"
+      ],
+      "properties": {
+        "source": {
+          "type": "string"
+        },
+        "document": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "origin": {
+          "type": "string"
+        },
+        "row": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "RetainedLocator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record",
+        "run",
+        "entry"
+      ],
+      "properties": {
+        "record": {
+          "type": "string"
+        },
+        "run": {
+          "type": "string"
+        },
+        "entry": {
+          "type": "string"
+        }
+      }
+    },
+    "RecordBinder": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target",
+        "locator",
+        "method",
+        "actor",
+        "provenance"
+      ],
+      "properties": {
+        "target": {
+          "$ref": "#/$defs/TargetLocus"
+        },
+        "locator": {
+          "$ref": "#/$defs/RetainedLocator"
+        },
+        "method": {
+          "type": "string"
+        },
+        "actor": {
+          "type": "string"
+        },
+        "provenance": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "EvidenceResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "requested_target",
+        "cause",
+        "detail"
+      ],
+      "properties": {
+        "target": {
+          "$ref": "#/$defs/TargetLocus"
+        },
+        "requested_target": {
+          "type": "string"
+        },
+        "locator": {
+          "$ref": "#/$defs/RetainedLocator"
+        },
+        "cause": {
+          "type": "string",
+          "enum": [
+            "failed",
+            "errored",
+            "skipped",
+            "absent",
+            "unevaluated",
+            "wrong-revision",
+            "selection-mismatch",
+            "stale",
+            "invalid-target",
+            "ambiguous-target",
+            "record-conflict",
+            "qualification-rejected",
+            "inventory-incomplete"
+          ]
+        },
+        "detail": {
+          "type": "string"
+        }
+      }
+    },
     "EngineProvenance": {
       "type": "object",
       "additionalProperties": false,
@@ -936,6 +1063,7 @@
         "status"
       ],
       "properties": {
+        "record_binders": {"type": "array", "items": {"$ref": "#/$defs/RecordBinder"}},
         "id": {
           "type": "string",
           "description": "The obligation's own id."
@@ -1004,6 +1132,7 @@
     "CoverageMatrixStatus": {
       "type": "string",
       "enum": [
+        "qualified-record",
         "retired",
         "tagged",
         "untagged",

@@ -668,3 +668,150 @@ fn tc1942_an_obligation_only_id_is_not_untracked() {
 
     let _ = fs::remove_dir_all(&root);
 }
+
+/// Core projection fixtures deliberately do not assert producer qualification.
+/// The Quoin bridge must separately exercise the actual auditor and FR-116 acts.
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct BackingComponentCase {
+    name: String,
+    issue_ref: String,
+    id: String,
+    method: String,
+    statement: String,
+    component_only: bool,
+}
+
+#[test]
+fn retained_backing_components_reconcile_named_source_free_boundaries() {
+    use quire_rs::evidence::{
+        strict_decision, trace, ActResult, BackingInput, CauseCode, RecordClaim, RecordLocator,
+        TraceQuery,
+    };
+    use quire_rs::obligation::inventory::{inventory, InventoryOptions};
+
+    let cases: Vec<BackingComponentCase> =
+        serde_json::from_str(include_str!("fixtures/qualified_evidence/cases.json"))
+            .expect("attributed component fixture data");
+    assert_eq!(cases.len(), 4);
+    for case in cases {
+        assert!(case.component_only && !case.issue_ref.is_empty());
+        let root = tmpdir(&case.name);
+        write(&root, "spec/FR-001.md", &format!(
+            "---\nid: FR-001\ntype: FR\n---\n\n## Acceptance Criteria\n\n| ID | Criteria | Verification |\n|---|---|---|\n| {} | {} | {} |\n",
+            case.id, case.statement, case.method));
+        let registry = Registry::load_module(&fixture_module("iso-obligations")).unwrap();
+        let model = registry.traceability().unwrap();
+        let inventory = inventory(
+            &root,
+            model,
+            &["acceptance-criterion"],
+            InventoryOptions::default(),
+        );
+        let entry = inventory.entries().next().expect("native selected target");
+        let spec = Spec::from_path(&root.join("spec"));
+        let graph = sym_trace::SymbolGraph::default();
+        let baseline = compute(&spec, &registry, &graph, &root).unwrap();
+        assert_eq!(baseline.unbacked_rows.len(), 1, "{} before", case.name);
+        assert!(baseline.coverage_matrix[0].criteria[0].binders.is_empty());
+        let legacy_json = baseline.to_json();
+        assert!(!legacy_json.contains("record_binders"));
+        assert!(!legacy_json.contains("evidence_results"));
+
+        let absent = [ActResult {
+            target: Some(entry.identity()),
+            requested_target: &case.id,
+            locator: None,
+            cause: CauseCode::Absent,
+            detail: "required retained act absent",
+        }];
+        let empty = BackingInput {
+            inventory: &inventory,
+            claims: &[],
+            results: &absent,
+        };
+        let report =
+            quire_rs::coverage::compute_with_evidence(&spec, &registry, &graph, &root, &empty)
+                .unwrap();
+        assert_eq!(report.unbacked_rows, baseline.unbacked_rows);
+        assert_eq!(
+            report.coverage_matrix[0].criteria[0].record_binders,
+            Some(vec![])
+        );
+        let rejection = strict_decision(&report, &[]).unwrap_err();
+        assert_eq!(rejection.evidence[0].cause, CauseCode::Absent);
+        assert!(rejection.evidence[0].locator.is_none());
+
+        // This is a low-level input test, not a forged owner qualification token.
+        let claims = [RecordClaim {
+            target: entry.identity(),
+            locator: RecordLocator {
+                record: "owner/record",
+                run: "owner/run",
+                entry: "owner/entry",
+            },
+            method: &case.method,
+            actor: "component-input",
+            provenance: &["component-projection-only"],
+        }];
+        let backing = BackingInput {
+            inventory: &inventory,
+            claims: &claims,
+            results: &[],
+        };
+        let report =
+            quire_rs::coverage::compute_with_evidence(&spec, &registry, &graph, &root, &backing)
+                .unwrap();
+        let criterion = &report.coverage_matrix[0].criteria[0];
+        assert_eq!(criterion.status, CoverageMatrixStatus::QualifiedRecord);
+        assert!(
+            criterion.binders.is_empty(),
+            "records never manufacture symbols"
+        );
+        assert_eq!(criterion.record_binders.as_ref().unwrap().len(), 1);
+        assert!(report.unbacked_rows.is_empty());
+        assert!(report.no_symbol_rows.is_empty());
+        assert_eq!(report.totals.backed, baseline.totals.backed + 1);
+        assert!(strict_decision(&report, &[]).is_ok());
+        assert_eq!(
+            trace(&backing, TraceQuery::Target(entry.identity())),
+            *criterion.record_binders.as_ref().unwrap()
+        );
+        assert_eq!(
+            trace(&backing, TraceQuery::Run("owner/run")),
+            *criterion.record_binders.as_ref().unwrap()
+        );
+
+        let failed = [ActResult {
+            target: Some(entry.identity()),
+            requested_target: &case.id,
+            locator: Some(claims[0].locator),
+            cause: CauseCode::Failed,
+            detail: "original owner failure",
+        }];
+        let rejected = BackingInput {
+            inventory: &inventory,
+            claims: &claims,
+            results: &failed,
+        };
+        let report =
+            quire_rs::coverage::compute_with_evidence(&spec, &registry, &graph, &root, &rejected)
+                .unwrap();
+        assert_eq!(report.unbacked_rows, baseline.unbacked_rows);
+        assert!(report.coverage_matrix[0].criteria[0]
+            .record_binders
+            .as_ref()
+            .unwrap()
+            .is_empty());
+        assert!(strict_decision(&report, &[])
+            .unwrap_err()
+            .evidence
+            .iter()
+            .any(|r| r.cause == CauseCode::Failed));
+        assert_eq!(
+            compute(&spec, &registry, &graph, &root).unwrap().to_json(),
+            legacy_json
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+}

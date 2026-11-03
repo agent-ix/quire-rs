@@ -196,3 +196,30 @@ The Rust toolchain is declared once, in `rust-toolchain.toml` and the `Cargo.tom
 ## License
 
 AGPL-3.0-or-later
+
+## Explicit retained backing (Rust library)
+
+`coverage::compute_with_evidence` reconciles an `evidence::BackingInput` beside
+existing source claims. It borrows the native `obligation::inventory` result and
+its exact criterion identities. Record claims retain their owner record/run/entry
+locators, declared method, actor and provenance references. Reports keep source
+`binders` and `record_binders` separate; `evidence::trace` supports exact target,
+record-entry and run lookups. `evidence::strict_decision` retains every per-act
+cause alongside inherited coverage and declared-input evaluation failures.
+
+This is the engine's low-level projection API. Constructing a `RecordClaim` does
+not qualify a producer or certify a performed verification act. The supported
+qualification path is the Quoin-owned `quoin_quire::evidence::qualify` bridge,
+using its same-workspace auditor and FR-116 per-act owner premises. That bridge
+is a separate adoption dependency: core component fixtures do not demonstrate
+its implementation or discharge producer acceptance. Neither a valid Inspection
+table, a command in a Makefile, nor an unexecuted doctest grants record backing.
+The bridge must supply original admitted observations, source/tool/configuration
+context and authority, not a caller's healthy flag.
+
+Existing `coverage::compute` calls and CLI invocations retain their behavior.
+Explicit evidence mode also evaluates empty input and incomplete native inventory;
+it never creates a source symbol or hides a failed requested act behind a source
+tag. The host prints the complete report and strict reasons before mapping success
+to exit 0 and rejection to exit 1. Owner-recognized waiver policy remains pending;
+waiver-shaped input is unevaluated, never passing evidence.
