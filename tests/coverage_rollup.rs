@@ -119,12 +119,19 @@ fn obligation_reference_rows_require_their_own_evidence() {
     .expect("obligation reference fixtures");
     for case in cases.as_array().expect("cases") {
         let name = case["name"].as_str().expect("case name");
-        assert_eq!(case["issue_ref"], "https://linear.app/agent-ix/issue/PLAT-1149");
+        assert_eq!(
+            case["issue_ref"],
+            "https://linear.app/agent-ix/issue/PLAT-1149"
+        );
         let root = tempfile::tempdir().expect("temporary fixture");
         let module = root.path().join("module");
         let scope = root.path().join("spec");
         let source = root.path().join("src");
-        write(&module, "manifest.yaml", case["input"]["module"].as_str().unwrap());
+        write(
+            &module,
+            "manifest.yaml",
+            case["input"]["module"].as_str().unwrap(),
+        );
         for (path, value) in case["input"]["documents"].as_object().unwrap() {
             write(&scope, path, value.as_str().unwrap());
         }
@@ -135,14 +142,24 @@ fn obligation_reference_rows_require_their_own_evidence() {
         let graph = trace::bind(&extract_tree(&source), registry.traceability().unwrap());
         let report = compute(&Spec::from_path(&scope), &registry, &graph, &scope).unwrap();
         assert_eq!(report.obligations.len(), 6, "{name}: obligation population");
-        let mut actual: Vec<_> = report.unbacked_rows.iter()
-            .map(|row| row.row_id.as_deref().unwrap()).collect();
+        let mut actual: Vec<_> = report
+            .unbacked_rows
+            .iter()
+            .map(|row| row.row_id.as_deref().unwrap())
+            .collect();
         actual.sort_unstable();
-        let mut expected: Vec<_> = case["expect"]["unbacked"].as_array().unwrap().iter()
-            .map(|id| id.as_str().unwrap()).collect();
+        let mut expected: Vec<_> = case["expect"]["unbacked"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|id| id.as_str().unwrap())
+            .collect();
         expected.sort_unstable();
         assert_eq!(actual, expected, "{name}: sibling criteria cannot borrow TC-025 backing; aggregate TC row retains referenced evidence");
-        assert!(report.status_lies.is_empty(), "{name}: pending is not complete");
+        assert!(
+            report.status_lies.is_empty(),
+            "{name}: pending is not complete"
+        );
     }
 }
 

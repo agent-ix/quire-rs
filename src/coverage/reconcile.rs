@@ -178,9 +178,8 @@ pub(super) fn reconcile(
                 .collect();
             referenced_ids.extend(ids.iter().cloned());
 
-            // A row is answerable for its own trace id *and* the ids it
-            // references: a matrix row is backed when a test binds the row's
-            // own id, an AC row when a test binds the TC it names.
+            // Keep all referenced ids in the diagnostic, even when an
+            // obligation requires evidence for its own identity.
             let mut answerable = ids.clone();
             if let Some(id) = &row_id {
                 answerable.push(id.clone());
@@ -189,7 +188,11 @@ pub(super) fn reconcile(
             answerable.dedup();
             ids.sort();
             ids.dedup();
-            let is_backed = answerable.iter().any(|id| backed.contains(id.as_str()))
+            let source_backed = match row_id.as_deref() {
+                Some(id) if obligation_ids.contains(id) => backed.contains(id),
+                _ => answerable.iter().any(|id| backed.contains(id.as_str())),
+            };
+            let is_backed = source_backed
                 || evidence.is_some_and(|evidence| {
                     row_id.as_deref().is_some_and(|id| {
                         evidence.backs_row(&relative(root, &row.path), id, row.line)
