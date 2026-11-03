@@ -13,6 +13,7 @@
     "totals"
   ],
   "properties": {
+    "record_binders": {"type": "array", "items": {"$ref": "#/$defs/RecordBinder"}},
     "evidence_results": {
       "type": "array",
       "description": "Explicit retained-input outcomes; omitted on legacy no-evidence path. Low-level engine projection is not producer qualification.",

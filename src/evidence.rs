@@ -22,11 +22,108 @@ pub struct RecordLocator<'a> {
     pub entry: &'a str,
 }
 
+/// An exact non-criterion declaration, issued by the existing declaration scanner.
+/// It is not an obligation, inventory entry or qualification certificate.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct DeclaredTarget<'a> {
+    selection: &'a crate::obligation::inventory::SelectionIdentity,
+    declaration: &'a crate::traceability::TraceTarget,
+    document: &'a str,
+    id: &'a str,
+    line: usize,
+    raw: &'a str,
+}
+
+/// A native criterion or a validated non-criterion declared target.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum EvidenceTarget<'a> {
+    /// The inventory owner's original criterion identity.
+    Criterion(CriterionIdentity<'a>),
+    /// An exact declaration resolved by the engine's existing scanner.
+    Declared(DeclaredTarget<'a>),
+}
+
+impl<'a> From<CriterionIdentity<'a>> for EvidenceTarget<'a> {
+    fn from(value: CriterionIdentity<'a>) -> Self {
+        Self::Criterion(value)
+    }
+}
+
+impl<'a> From<DeclaredTarget<'a>> for EvidenceTarget<'a> {
+    fn from(value: DeclaredTarget<'a>) -> Self {
+        Self::Declared(value)
+    }
+}
+
+/// Resolve a non-criterion target using the existing trace-target declarations.
+/// Duplicate rows refuse lookup; no first-match or shared-TC inference is used.
+/// The document path is relative to the inventory's original scope root.
+pub fn declared_target<'a>(
+    inventory: &'a SelectedInventory,
+    spec: &'a crate::Spec,
+    declaration_name: &str,
+    document: &'a str,
+    id: &'a str,
+) -> Result<DeclaredTarget<'a>, InventoryLookupError> {
+    use crate::corpus::declared_tables::{self, DeclaredScope, ExcludeSet, ScanContext};
+    let selection = inventory
+        .selection()
+        .ok_or(InventoryLookupError::SelectionMismatch)?;
+    let model = inventory.request().model();
+    let root = inventory.request().root();
+    let declaration = model
+        .trace_targets
+        .iter()
+        .find(|target| target.name == declaration_name)
+        .ok_or(InventoryLookupError::UnknownIdentity)?;
+    let excluded = ExcludeSet::compile_validated(&declaration.exclude);
+    let model_excluded = ExcludeSet::compile_validated(&model.exclude);
+    let mut context = ScanContext::default();
+    let rows = declared_tables::scan(
+        spec,
+        root,
+        DeclaredScope {
+            name: &declaration.name,
+            archetype: &declaration.archetype,
+            exclude: &excluded,
+            model_exclude: &model_excluded,
+            mints: Some(&declaration.id_column),
+            status_column: None,
+            target_required: declaration.required,
+        },
+        &declaration.section,
+        &mut context,
+    );
+    let mut matching = rows.into_iter().filter(|row| {
+        crate::coverage::relative(root, &row.path) == document
+            && row.cell(&declaration.id_column) == Some(id)
+    });
+    let row = matching
+        .next()
+        .ok_or(InventoryLookupError::UnknownIdentity)?;
+    if matching.next().is_some() {
+        return Err(InventoryLookupError::AmbiguousIdentity);
+    }
+    let loaded = spec
+        .documents()
+        .iter()
+        .find(|loaded| crate::coverage::relative(root, &loaded.path) == document)
+        .ok_or(InventoryLookupError::UnknownIdentity)?;
+    Ok(DeclaredTarget {
+        selection,
+        declaration,
+        document,
+        id,
+        line: row.line,
+        raw: loaded.raw(),
+    })
+}
+
 /// A bridge's explicit backing projection. Constructing it does not qualify an act.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct RecordClaim<'a> {
     /// Borrowed native owner identity, including its selected snapshot.
-    pub target: CriterionIdentity<'a>,
+    pub target: EvidenceTarget<'a>,
     /// Original retained owner locators.
     pub locator: RecordLocator<'a>,
     /// Original declared method; no inferred Test conversion.
@@ -73,7 +170,7 @@ pub enum CauseCode {
 #[derive(Debug, Clone, Copy)]
 pub struct ActResult<'a> {
     /// Exact native target, when the owner could resolve it.
-    pub target: Option<CriterionIdentity<'a>>,
+    pub target: Option<EvidenceTarget<'a>>,
     /// Original requested target text, including unresolved requests.
     pub requested_target: &'a str,
     /// Available original owner locators.
@@ -132,6 +229,21 @@ impl From<CriterionIdentity<'_>> for TargetLocus {
             id: id.into(),
             origin: origin.into(),
             row,
+        }
+    }
+}
+
+impl From<EvidenceTarget<'_>> for TargetLocus {
+    fn from(target: EvidenceTarget<'_>) -> Self {
+        match target {
+            EvidenceTarget::Criterion(identity) => identity.into(),
+            EvidenceTarget::Declared(target) => Self {
+                source: target.declaration.name.clone(),
+                document: target.document.into(),
+                id: target.id.into(),
+                origin: "declared-target".into(),
+                row: None,
+            },
         }
     }
 }
@@ -234,9 +346,19 @@ impl<'a> ReconciledEvidence<'a> {
             }
         }
         for claim in input.claims {
-            let refusal = match input.inventory.lookup(&claim.target) {
+            let lookup = match claim.target {
+                EvidenceTarget::Criterion(identity) => input
+                    .inventory
+                    .lookup(&identity)
+                    .map(|entry| entry.obligation().method.as_deref()),
+                EvidenceTarget::Declared(target) => match input.inventory.selection() {
+                    Some(selection) if selection == target.selection => Ok(Some(claim.method)),
+                    _ => Err(InventoryLookupError::SelectionMismatch),
+                },
+            };
+            let refusal = match lookup {
                 Err(error) => Some((lookup_cause(error), error.to_string())),
-                Ok(entry) if entry.obligation().method.as_deref() != Some(claim.method) => Some((
+                Ok(method) if method != Some(claim.method) => Some((
                     CauseCode::QualificationRejected,
                     "projected method differs from selected declaration".into(),
                 )),
@@ -289,7 +411,7 @@ impl<'a> ReconciledEvidence<'a> {
                 input
                     .inventory
                     .entries()
-                    .position(|entry| entry.identity() == claim.target)
+                    .position(|entry| EvidenceTarget::Criterion(entry.identity()) == claim.target)
                     .unwrap_or(usize::MAX),
                 claim.locator,
             )
@@ -313,17 +435,23 @@ impl<'a> ReconciledEvidence<'a> {
                     })
                 })
             });
-        if !matches {
+        let declarations_match = self.accepted.iter().all(|claim| match claim.target {
+            EvidenceTarget::Criterion(_) => true,
+            EvidenceTarget::Declared(target) => spec.documents().iter().any(|document| {
+                crate::coverage::relative(root, &document.path) == target.document
+                    && document.raw() == target.raw
+            }),
+        });
+        if !matches || !declarations_match {
             self.accepted.clear();
             self.results.push(EvidenceResult { target: None, requested_target: String::new(), locator: None,
                 cause: CauseCode::SelectionMismatch, detail: "coverage root, model or selected document snapshot differs from owner inventory".into() });
         }
     }
 
-    pub fn binders(&self, identity: CriterionIdentity<'_>) -> Vec<RecordBinder> {
+    pub fn all_binders(&self) -> Vec<RecordBinder> {
         self.accepted
             .iter()
-            .filter(|claim| claim.target == identity)
             .map(|claim| RecordBinder {
                 target: claim.target.into(),
                 locator: claim.locator.into(),
@@ -338,15 +466,27 @@ impl<'a> ReconciledEvidence<'a> {
             .collect()
     }
 
+    pub fn binders(&self, identity: EvidenceTarget<'_>) -> Vec<RecordBinder> {
+        self.accepted
+            .iter()
+            .zip(self.all_binders())
+            .filter(|(claim, _)| claim.target == identity)
+            .map(|(_, binder)| binder)
+            .collect()
+    }
+
     pub fn backs_row(&self, document: &str, id: &str, line: usize) -> bool {
-        self.input.inventory.entries().any(|entry| {
+        self.accepted.iter().any(|claim| {
+            matches!(claim.target, EvidenceTarget::Declared(target)
+            if target.document == document && target.id == id && target.line == line)
+        }) || self.input.inventory.entries().any(|entry| {
             entry.identity().document() == document
                 && entry.obligation().id == id
                 && entry.line() == Some(line)
                 && self
                     .accepted
                     .iter()
-                    .any(|claim| claim.target == entry.identity())
+                    .any(|claim| claim.target == EvidenceTarget::Criterion(entry.identity()))
         })
     }
 }
@@ -355,7 +495,7 @@ impl<'a> ReconciledEvidence<'a> {
 #[derive(Debug, Clone, Copy)]
 pub enum TraceQuery<'a> {
     /// Forward lookup, without display-ID or sibling inference.
-    Target(CriterionIdentity<'a>),
+    Target(EvidenceTarget<'a>),
     /// Inverse lookup, without manufacturing a file/symbol identity.
     Record(RecordLocator<'a>),
     /// Every entry belonging to the original run locator.

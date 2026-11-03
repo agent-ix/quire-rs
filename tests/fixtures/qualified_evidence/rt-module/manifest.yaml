@@ -1,0 +1,39 @@
+name: retained-rt-components
+version: 0.1.0
+description: Source-free RT-shaped declared-target component fixtures
+artifact_types:
+- name: FR
+- name: TestMatrix
+traceability:
+  trace_targets:
+  - name: acceptance-criterion
+    archetype: FR
+    section: Acceptance Criteria
+    id_column: ID
+  - name: test-case
+    archetype: TestMatrix
+    section: Test Case Summary
+    id_column: Test ID
+  document_references:
+  - name: verification
+    archetype: FR
+    section: Acceptance Criteria
+    row_id_column: ID
+    column: Verification
+    targets: [test-case]
+    pattern: '\((TC-\d+)\)'
+  - name: traces-to
+    archetype: TestMatrix
+    section: Test Case Summary
+    row_id_column: Test ID
+    column: Traces To
+    targets: [acceptance-criterion]
+    pattern: '(FR-\d+-AC-\d+)'
+  obligations:
+  - name: acceptance-criterion
+    target: acceptance-criterion
+    statement_column: Criteria
+    method_column: Verification
+  vocabularies:
+    test_type_column: Type
+    no_source_symbol: [Inspection]

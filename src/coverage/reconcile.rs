@@ -611,6 +611,7 @@ pub(super) fn reconcile(
         obligations,
         coverage_matrix: matrix,
         evidence_results: evidence.map(|evidence| evidence.results.clone()),
+        record_binders: evidence.map(|evidence| evidence.all_binders()),
         // FR-062. Carried through to the JSON so a consumer can scope work by
         // requirement; deliberately NOT folded into `totals`, `backed` or
         // `untracked_symbols` — scope is not evidence.
@@ -702,7 +703,7 @@ fn coverage_matrix(
                 .inventory
                 .entries()
                 .nth(index)
-                .map(|entry| evidence.binders(entry.identity()))
+                .map(|entry| evidence.binders(entry.identity().into()))
                 .unwrap_or_default()
         });
         let mut binders: Vec<CoverageMatrixBinder> = binders_by_id

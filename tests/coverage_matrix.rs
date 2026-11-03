@@ -719,7 +719,7 @@ fn retained_backing_components_reconcile_named_source_free_boundaries() {
         assert!(!legacy_json.contains("evidence_results"));
 
         let absent = [ActResult {
-            target: Some(entry.identity()),
+            target: Some(entry.identity().into()),
             requested_target: &case.id,
             locator: None,
             cause: CauseCode::Absent,
@@ -744,7 +744,7 @@ fn retained_backing_components_reconcile_named_source_free_boundaries() {
 
         // This is a low-level input test, not a forged owner qualification token.
         let claims = [RecordClaim {
-            target: entry.identity(),
+            target: entry.identity().into(),
             locator: RecordLocator {
                 record: "owner/record",
                 run: "owner/run",
@@ -774,7 +774,7 @@ fn retained_backing_components_reconcile_named_source_free_boundaries() {
         assert_eq!(report.totals.backed, baseline.totals.backed + 1);
         assert!(strict_decision(&report, &[]).is_ok());
         assert_eq!(
-            trace(&backing, TraceQuery::Target(entry.identity())),
+            trace(&backing, TraceQuery::Target(entry.identity().into())),
             *criterion.record_binders.as_ref().unwrap()
         );
         assert_eq!(
@@ -783,7 +783,7 @@ fn retained_backing_components_reconcile_named_source_free_boundaries() {
         );
 
         let failed = [ActResult {
-            target: Some(entry.identity()),
+            target: Some(entry.identity().into()),
             requested_target: &case.id,
             locator: Some(claims[0].locator),
             cause: CauseCode::Failed,
@@ -814,4 +814,98 @@ fn retained_backing_components_reconcile_named_source_free_boundaries() {
         );
         fs::remove_dir_all(root).unwrap();
     }
+}
+
+#[test]
+fn retained_gate_targets_do_not_discharge_inspection_siblings() {
+    use quire_rs::evidence::{
+        declared_target, BackingInput, RecordClaim, RecordLocator, TraceQuery,
+    };
+    use quire_rs::obligation::inventory::{inventory, InventoryLookupError, InventoryOptions};
+    let fixture: serde_json::Value =
+        serde_json::from_str(include_str!("fixtures/qualified_evidence/rt-gates.json")).unwrap();
+    assert_eq!(fixture["component_only"], true);
+    assert!(fixture["issue_ref"].as_str().unwrap().contains("#138"));
+    let root = tmpdir("retained-rt-gates");
+    for (path, body) in fixture["documents"].as_object().unwrap() {
+        write(&root, path, body.as_str().unwrap());
+    }
+    let registry = Registry::load_module(
+        &PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures/qualified_evidence/rt-module"),
+    )
+    .unwrap();
+    let model = registry.traceability().unwrap();
+    let inventory = inventory(
+        &root,
+        model,
+        &["acceptance-criterion"],
+        InventoryOptions::default(),
+    );
+    assert_eq!(
+        inventory.len(),
+        2,
+        "TC rows are not invented criterion entries"
+    );
+    let spec = Spec::from_path(&root.join("spec"));
+    let graph = sym_trace::SymbolGraph::default();
+    let baseline = compute(&spec, &registry, &graph, &root).unwrap();
+    let targets: Vec<_> = ["TC-198", "TC-199"]
+        .iter()
+        .map(|id| {
+            declared_target(
+                &inventory,
+                &spec,
+                "test-case",
+                "spec/exact/matrix/tests.md",
+                id,
+            )
+            .unwrap()
+        })
+        .collect();
+    assert_eq!(
+        declared_target(&inventory, &spec, "test-case", "spec/foreign.md", "TC-198"),
+        Err(InventoryLookupError::UnknownIdentity)
+    );
+    let claims: Vec<_> = targets
+        .iter()
+        .map(|target| RecordClaim {
+            target: (*target).into(),
+            locator: RecordLocator {
+                record: "component-record",
+                run: "component-run",
+                entry: "per-target-observed-entry",
+            },
+            method: "Test",
+            actor: "component-projection",
+            provenance: &["not-producer-qualification"],
+        })
+        .collect();
+    let backing = BackingInput {
+        inventory: &inventory,
+        claims: &claims,
+        results: &[],
+    };
+    let report =
+        quire_rs::coverage::compute_with_evidence(&spec, &registry, &graph, &root, &backing)
+            .unwrap();
+    assert_eq!(report.totals.backed, baseline.totals.backed + 2);
+    assert_eq!(report.coverage_matrix.len(), 1);
+    assert_eq!(report.coverage_matrix[0].criteria.len(), 2);
+    for criterion in &report.coverage_matrix[0].criteria {
+        assert_eq!(criterion.status, CoverageMatrixStatus::MethodWithoutSymbol);
+        assert_eq!(
+            criterion.record_binders,
+            Some(vec![]),
+            "TC receipt cannot discharge sibling Inspection"
+        );
+    }
+    assert_eq!(report.no_symbol_rows.len(), 2);
+    assert_eq!(report.record_binders.as_ref().unwrap().len(), 2);
+    assert_eq!(
+        quire_rs::evidence::trace(&backing, TraceQuery::Run("component-run")).len(),
+        2
+    );
+    assert!(quire_rs::evidence::strict_decision(&report, &[]).is_err());
+    fs::remove_dir_all(root).unwrap();
 }

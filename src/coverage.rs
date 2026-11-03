@@ -417,6 +417,9 @@ pub struct CoverageReport {
     /// Per-act retained-input outcomes, present only in explicit evidence mode.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub evidence_results: Option<Vec<crate::evidence::EvidenceResult>>,
+    /// All retained claims, including non-criterion declared targets.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub record_binders: Option<Vec<crate::evidence::RecordBinder>>,
     /// Requirement → production code (FR-062). Empty — and so absent from the
     /// JSON — for a module declaring no `implements` marker forms, which keeps
     /// FR-050-AC-7 byte-identity for every module that has not adopted them.
