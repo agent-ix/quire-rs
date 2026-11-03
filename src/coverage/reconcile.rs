@@ -25,13 +25,27 @@ pub(super) fn reconcile(
     graph: &SymbolGraph,
     root: &Path,
     registry: &Registry,
+    evidence: Option<&crate::evidence::ReconciledEvidence<'_>>,
 ) -> (CoverageReport, declared_tables::MintingCensus) {
     let backed: BTreeSet<&str> = graph.backed_trace_ids();
     // FR-053: derived here, ahead of the untracked-symbols reconciliation
     // below, because CR-187 R2 makes an obligation's own id count as
     // declared — a tag naming one must not land in `untracked_symbols`, and
     // that filter needs the id set before it runs.
-    let (obligations, skipped) = crate::obligation::derive(spec, root, model);
+    // Evidence mode consumes only the native selected entries and cause report.
+    // Legacy derivation would scan unselected sources and leak their skipped rows.
+    let (obligations, skipped) = match evidence {
+        Some(evidence) => (
+            evidence
+                .input
+                .inventory
+                .entries()
+                .map(|entry| entry.obligation().clone())
+                .collect(),
+            Vec::new(),
+        ),
+        None => crate::obligation::derive(spec, root, model),
+    };
     let obligation_ids: BTreeSet<&str> = obligations.iter().map(|o| o.id.as_str()).collect();
     // CR-060: compiled once for the whole reconciliation — every declaration
     // is scoped by it.
@@ -81,7 +95,15 @@ pub(super) fn reconcile(
                 target: target.name.clone(),
                 document: relative(root, &row.path),
                 line: row.line,
-                backed: backed.contains(id),
+                backed: backed.contains(id)
+                    || evidence.is_some_and(|evidence| {
+                        evidence.backs_minted(
+                            &relative(root, &row.path),
+                            id,
+                            row.line,
+                            &target.name,
+                        )
+                    }),
                 retired: false,
             });
         }
@@ -167,7 +189,12 @@ pub(super) fn reconcile(
             answerable.dedup();
             ids.sort();
             ids.dedup();
-            let is_backed = answerable.iter().any(|id| backed.contains(id.as_str()));
+            let is_backed = answerable.iter().any(|id| backed.contains(id.as_str()))
+                || evidence.is_some_and(|evidence| {
+                    row_id.as_deref().is_some_and(|id| {
+                        evidence.backs_row(&relative(root, &row.path), id, row.line)
+                    })
+                });
             let document = relative(root, &row.path);
 
             // CR-083: an undeclared status is classified **above** the backed
@@ -562,7 +589,7 @@ pub(super) fn reconcile(
     // population alone (FR-050-AC-47..49) — never the trace-target set.
     let retired_obligations =
         retired_obligation_flags(spec, root, model, &obligations, &retired_loci);
-    let matrix = coverage_matrix(&obligations, graph, model, &retired_obligations);
+    let matrix = coverage_matrix(&obligations, graph, model, &retired_obligations, evidence);
     diagnostics.extend(super::diagnostics::uncatalogued_methods(
         &obligations,
         registry,
@@ -593,6 +620,26 @@ pub(super) fn reconcile(
             .collect(),
         obligations,
         coverage_matrix: matrix,
+        evidence_results: evidence.map(|evidence| evidence.results.clone()),
+        record_binders: evidence.map(|evidence| evidence.all_binders()),
+        inventory_causes: evidence.map(|evidence| {
+            evidence
+                .input
+                .inventory
+                .causes()
+                .iter()
+                .map(|cause| crate::evidence::InventoryCauseReport {
+                    code: cause.code(),
+                    source: cause.source_name().map(str::to_string),
+                    document: cause
+                        .document()
+                        .map(|path| path.to_string_lossy().into_owned()),
+                    row: cause.row(),
+                    line: cause.line(),
+                    detail: format!("{:?}", cause.detail()),
+                })
+                .collect()
+        }),
         // FR-062. Carried through to the JSON so a consumer can scope work by
         // requirement; deliberately NOT folded into `totals`, `backed` or
         // `untracked_symbols` — scope is not evidence.
@@ -640,6 +687,7 @@ fn coverage_matrix(
     graph: &SymbolGraph,
     model: &TraceabilityModel,
     retired: &[bool],
+    evidence: Option<&crate::evidence::ReconciledEvidence<'_>>,
 ) -> Vec<super::CoverageMatrixRequirement> {
     use super::{
         CoverageMatrixBinder, CoverageMatrixCriterion, CoverageMatrixRequirement,
@@ -676,7 +724,16 @@ fn coverage_matrix(
     // final `BTreeMap` sorts the groups themselves by `document`, without
     // disturbing the order criteria were pushed within each one.
     let mut by_document: BTreeMap<&str, Vec<CoverageMatrixCriterion>> = BTreeMap::new();
-    for (obligation, retired) in obligations.iter().zip(retired) {
+    for (index, (obligation, retired)) in obligations.iter().zip(retired).enumerate() {
+        let record_binders = evidence.map(|evidence| {
+            evidence
+                .input
+                .inventory
+                .entries()
+                .nth(index)
+                .map(|entry| evidence.binders(entry.identity().into()))
+                .unwrap_or_default()
+        });
         let mut binders: Vec<CoverageMatrixBinder> = binders_by_id
             .get(obligation.id.as_str())
             .map(|m| m.values().cloned().collect())
@@ -694,6 +751,11 @@ fn coverage_matrix(
         // A live criterion's method exemption takes precedence over binder count.
         let status = if *retired {
             CoverageMatrixStatus::Retired
+        } else if record_binders
+            .as_ref()
+            .is_some_and(|binders| !binders.is_empty())
+        {
+            CoverageMatrixStatus::QualifiedRecord
         } else if obligation
             .method
             .as_deref()
@@ -713,6 +775,14 @@ fn coverage_matrix(
             statement: obligation.statement.clone(),
             method: obligation.method.clone(),
             binders,
+            record_binders,
+            identity: evidence.and_then(|evidence| {
+                evidence.input.inventory.entries().nth(index).map(|entry| {
+                    let mut locus = crate::evidence::TargetLocus::from(entry.identity());
+                    locus.line = entry.line();
+                    locus
+                })
+            }),
             status,
         };
         by_document

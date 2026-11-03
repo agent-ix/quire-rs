@@ -297,6 +297,18 @@ fn tc856_payload_carrying_every_optional_key_conforms() {
             "parameters": {"threshold": "< 8ms"},
             "criticality": "P1"
         }],
+        "evidence_results": [{
+            "requested_target": "FR-001-AC-2", "cause": "absent", "detail": "requested act absent"
+        }],
+        "inventory_causes": [{
+            "code": "limit-reached", "source": null, "document": null,
+            "row": null, "line": null, "detail": "owner emitted-entry limit reached"
+        }],
+        "record_binders": [{
+            "target": {"source": "acceptance-criterion", "document": "FR-001.md", "id": "FR-001-AC-1", "origin": "authored-row", "line": 9},
+            "locator": {"record": "owner/record", "run": "owner/run", "entry": "owner/entry"},
+            "method": "Test", "actor": "owner-attester", "provenance": ["owner/qualification"]
+        }],
         // CR-187: coverage_matrix arrived additively too.
         "coverage_matrix": [{
             "document": "FR-001.md",
@@ -312,6 +324,8 @@ fn tc856_payload_carrying_every_optional_key_conforms() {
                     "kind": "test_function",
                     "ignored": false
                 }],
+                "record_binders": [],
+                "identity": {"source": "acceptance-criterion", "document": "FR-001.md", "id": "FR-001-AC-1", "origin": "authored-row"},
                 "status": "tagged"
             }]
         }],
