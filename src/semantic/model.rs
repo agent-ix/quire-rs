@@ -269,6 +269,40 @@ impl DeclaredTable {
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub(crate) struct DeclaredTables(Vec<DeclaredTable>);
 
+/// Sections whose contents the object type extracts as raw `section_body`
+/// text. These may contain prose or lists alongside a separately declared
+/// structured model table.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub(crate) struct DeclaredSections(Vec<String>);
+
+impl DeclaredSections {
+    pub(crate) fn from_dsl(dsl: &ExtractionDsl) -> Self {
+        let locators = dsl
+            .yield_pattern
+            .r#match
+            .iter()
+            .chain(dsl.yield_pattern.per_match.iter())
+            .flat_map(|map| map.values())
+            .flat_map(|locator| match locator {
+                Locator::Primitive(primitive) => std::slice::from_ref(primitive),
+                Locator::Fallback(chain) => chain.as_slice(),
+            });
+        let mut sections = Vec::new();
+        for locator in locators {
+            if let LocatorPrimitive::SectionBody { after_heading, .. } = locator {
+                if !sections.iter().any(|heading| heading == after_heading) {
+                    sections.push(after_heading.clone());
+                }
+            }
+        }
+        Self(sections)
+    }
+
+    fn contains(&self, heading: &str) -> bool {
+        self.0.iter().any(|declared| declared == heading)
+    }
+}
+
 impl DeclaredTables {
     /// Read the `table_row` locators of a typed extraction DSL. A locator
     /// declares a model table when its match key names the table, its
@@ -972,8 +1006,12 @@ fn table_features(
             }
             continue;
         };
-        out.declared |= !blocks.is_empty();
         for block in &blocks {
+            if ctx.declared_sections.contains(heading)
+                && matches!(block, Block::Fence(_) | Block::List { .. })
+            {
+                continue;
+            }
             let owner = match block {
                 Block::Table(table) => owners.iter().find(|o| o.conforms(table)),
                 Block::Fence(_) | Block::List { .. } => None,
@@ -988,6 +1026,7 @@ fn table_features(
                 failed.push(first_owner.feature);
                 continue;
             };
+            out.declared = true;
             if read.contains(&owner.feature) {
                 out.diagnostics.push(err(
                     "semantic.duplicate-section",

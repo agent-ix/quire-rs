@@ -6,7 +6,7 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 
 use super::contract::SemanticModule;
-use super::model::DeclaredTables;
+use super::model::{DeclaredSections, DeclaredTables};
 use super::relations::RelationVocabulary;
 use crate::extract::dsl::ExtractionDsl;
 
@@ -143,6 +143,8 @@ pub struct SemanticContext {
     pub bundle: BundleIndex,
     /// The object type's `table_row` locators (FR-075 table gating).
     pub(crate) declared_tables: DeclaredTables,
+    /// The object type's raw `section_body` locators.
+    pub(crate) declared_sections: DeclaredSections,
     /// The edge registry and object-type facts relationship rows are
     /// checked against (FR-076 Inputs); `None` when the surface supplies
     /// none, which extracts under `no-relation-vocabulary`.
@@ -158,6 +160,7 @@ impl SemanticContext {
             scope: None,
             bundle,
             declared_tables: DeclaredTables::default(),
+            declared_sections: DeclaredSections::default(),
             relation_vocabulary: None,
         }
     }
@@ -173,6 +176,7 @@ impl SemanticContext {
     /// (FR-075 Inputs). Without it no model table is extracted.
     pub fn with_body_extraction(mut self, dsl: &ExtractionDsl) -> Self {
         self.declared_tables = DeclaredTables::from_dsl(dsl);
+        self.declared_sections = DeclaredSections::from_dsl(dsl);
         self
     }
 

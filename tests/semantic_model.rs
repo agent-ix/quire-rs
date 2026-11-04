@@ -591,6 +591,52 @@ fn object_type_sections() {
     assert_model_unavailable(&record);
 }
 
+/// Provenance: agent-ix/quire-rs#569
+#[trace("TC-1844", "FR-075-AC-5")]
+#[test]
+fn declared_section_body_can_contain_prose_beside_a_model_table() {
+    let md = "---\nid: FR-200\ntitle: Assessment Domain\nobject: domain\n---\n# FR-200: Assessment Domain\n\n## Ubiquitous Language\n\n- **Authored** — written by a domain expert.\n\n| Term | Description |\n|---|---|\n| Derived | Produced from other declarations. |\n";
+    let body_extraction = dsl(json!({
+        "ubiquitous_language": {
+            "from": "section_body",
+            "after_heading": "Ubiquitous Language",
+            "required": false,
+        },
+        "vocabulary": row("Ubiquitous Language", &["Term", "Description"], &[]),
+    }));
+
+    let record = extract(md, &[], body_extraction);
+    assert_eq!(
+        record["availability"]["model"]["state"], "available",
+        "{record:#}"
+    );
+    assert_eq!(record["model"]["vocabulary"][0]["term"], "Derived");
+    assert!(
+        record["diagnostics"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|diagnostic| diagnostic["code"] != "semantic.feature-not-extractable"),
+        "{record:#}"
+    );
+
+    let table_only = extract(
+        md,
+        &[],
+        dsl(json!({
+            "vocabulary": row("Ubiquitous Language", &["Term", "Description"], &[]),
+        })),
+    );
+    assert!(
+        table_only["diagnostics"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|diagnostic| diagnostic["code"] == "semantic.feature-not-extractable"),
+        "without a section-body declaration, list content remains refused: {table_only:#}"
+    );
+}
+
 #[trace("TC-1845", "FR-075-AC-6")]
 #[test]
 fn undeclared_features_are_refused() {
