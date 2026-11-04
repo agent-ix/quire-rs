@@ -1139,7 +1139,7 @@ dependencies = [
 
 [[package]]
 name = "quire-rs"
-version = "0.52.0"
+version = "0.52.1"
 dependencies = [
  "agent-ix-semantic-schema",
  "criterion",
