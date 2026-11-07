@@ -70,3 +70,14 @@ Checked at 5435ed19fe0d90c084a5131e7aa0a39b7af2a257. Line numbers refer to that 
 | FND-005 | fixed | Claim field table L219-231; record_binders, trace and strict decision expose the same set to IR-499 (L233-237, L249-250). |
 | FND-006 | fixed | L158-159 now "a draft owner contract with implementation planned". |
 | FND-007 | fixed | spec/tests.md TC-1963..1966, 1969, 1981 now cite the FR-116 qualifier and bridge build; TC-1969 title widened. |
+| FND-008 | fixed | L82-97 specify the admission mechanism: a live authenticated provider read by run/attempt/job identity; a stored/cached/copied record is transcribed; an unreachable provider is unevaluated; a manual attestation is read from the named location. Fixture roles L102-111; partitions L402-403. |
+| FND-009 | fixed | The PR-history narration is removed at L143-146, L166-169 and L440-441; the Change record is kept. |
+
+## New findings (disposition pass 2)
+
+Checked at 940d147f7470a8e0e6c1b90335425162d0f1a50e. Line numbers refer to that head.
+
+| ID | Severity | Summary | Refs | Escape Cause |
+| --- | --- | --- | --- | --- |
+| FND-010 | medium | Environment-gated positive CI fixtures "report `unevaluated` and never pass" where the provider is unreachable (L106-109), and the TC-1964/TC-1965 partition row lists "provider unreachable (`unevaluated`)" as an expected outcome (L403). The spec does not say that a run without provider access leaves the positive "qualifies" partition not executed and the TC not passing. A harness that asserts the unreachable branch's `unevaluated` result goes green on every CI-less machine, so AC-2/AC-3 read as verified without the positive path ever running. | spec/functional/FR-078-qualified-evidence-binding.md:106-109,403 | correct-requirement-no-evidence |
+| FND-011 | medium | The producer-definition input (L57) now requires two members: "the CI provider whose authenticated API admits its CI observations" and "where its manual attestations are retained". FR-116's producer definition (FR-116 L71) defines neither. L47-50 says each row is a member "that Quoin FR-116 specifies", so FR-078 is extending the Quoin owner contract from quire-rs. An FR-116 implementer will not supply these members, and FR-078's admission rule (L82-97) then leaves every CI and manual premise `unevaluated`. Fix by amending FR-116, or by moving provider and retention location to the host. | spec/functional/FR-078-qualified-evidence-binding.md:47-50,57,82-97 | wrong-requirement |

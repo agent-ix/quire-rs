@@ -54,14 +54,21 @@ JSON envelope.
 | Selection and requested targets | Borrowed owner-issued `SelectedInventory` and the exact requested targets within it, each carrying its `CriterionIdentity`, origin and declared method | FR-053 owner inventory read; the host names the requested targets |
 | Source context | Actual selected source HEAD and repository/selection context for this call | The host, from the checkout it selected |
 | Original audit premises | The original Quoin `AuditInput` with its retained `RunRecord`, `Binding` observations, `MethodCatalog` and original record/run/entry locators | Quoin store read boundary (FR-030); no admission beyond the store's own |
-| Producer definition | The Quoin-owner-approved producer definition identity and version for the requested method/act-kind pair, including its required acts, result semantics, target scope, tool/configuration premises, required CI or permitted manual association, validity rule, the CI provider whose authenticated API admits its CI observations, and where its manual attestations are retained | Approved by the Quoin owner; the host supplies the definition reference |
+| Producer definition | The Quoin-owner-approved producer definition identity and version for the requested method/act-kind pair, including its required acts, result semantics, target scope, tool/configuration premises, required CI or permitted manual association, and its time validity rule | Approved by the Quoin owner; the host supplies the definition reference |
 | Bounded reliance | The original FR-093 bounded-reliance decision and its current observation for the exact intended downstream use | Owned by the FR-093 accountable owner; the host supplies the decision reference |
-| Actor authority | The performer or accountable attester identity, its owner-authorized scope for the requested obligation/method, and the host's authority-admission reference | The host, against the authority scope named in the producer definition |
-| Performed-act observation | The completed act, its original result, performed-at time, examined material/scope, required invocation identities and their results, correlated with the selected record and entry | The host: for a CI act, read live from the CI provider's authenticated API by run/attempt/job identity; for a manual act, read from the retained per-target attestation at the location the producer definition names |
+| Actor authority | The performer or accountable attester identity, its owner-authorized scope for the requested obligation/method, and the host's authority-admission reference | The host, against the owner-authorized scope for the requested obligation and method |
+| Performed-act observation | The completed act, its original result, performed-at time, examined material/scope, required invocation identities and their results, correlated with the selected record and entry | The host: for a CI act, read live from the host-configured CI provider's authenticated API by run/attempt/job identity; for a manual act, read from the retained per-target attestation at the host-configured retention location |
 | Performed source revision | The source revision the act actually examined or executed, as carried by the performed-act observation | The host, with the performed-act observation |
 | Tool and configuration context | The actual producer, exact tool version, adapter when used, and effective non-secret configuration facts (configuration reference, arguments, feature selections, relevant environment facts); for a manual act, the procedure and recording tool/version | The host, with the performed-act observation |
 | Execution association | Either the exact CI system/project/run/attempt/job and workflow/step or invocation association, or a manual association with the accountable per-target attestation and the explicit reason CI is not applicable | The host, by the admission mechanism specified below |
 | Observation time and current context | The caller-supplied observation time, the current owner decision/context and the newest selected store observations needed to detect invalidation, supersession, absence or conflicting reads | The host supplies the time; store observations come from the store read boundary |
+
+Two host inputs configure admission itself and are not members of the table
+above or of the producer definition: the **CI provider identity** whose
+authenticated API the host reads, and the **manual-attestation retention
+location** from which it reads attestations. Both are configured on the host
+that calls `qualify` and are recorded in each admission reference that uses
+them.
 
 Each host-admitted member enters the Quoin typed input as one of three
 distinguishable states: **admitted** (with its admission reference naming the
@@ -83,17 +90,19 @@ The admission mechanism is:
 
 - **CI observations.** The host admits a CI observation only by reading the CI
   provider's own record of the run, by its run/attempt/job identity, at
-  qualification time through the provider's authenticated API, for the provider
-  the producer definition names. The admission reference records the provider,
-  the run/attempt/job identity read and the read time. A stored, cached or
+  qualification time through the authenticated API of the CI provider
+  configured on the host. The admission reference records that configured
+  provider identity, the run/attempt/job identity read and the read time. A stored, cached or
   copied CI record, including one retained beside the run record or in a
   fixture, is **transcribed** and grants nothing. When the host cannot reach or
   authenticate to the provider, every CI-dependent premise is `unevaluated`; it
   never passes.
 - **Manual attestations.** The host admits a manual observation only from a
-  retained per-target attestation by an attester whom the producer definition
-  authorizes for that obligation and method, read from the retention location
-  the producer definition names. An attestation read from anywhere else, or
+  retained per-target attestation, read from the retention location configured
+  on the host; the admission reference records that location. The attester's
+  authority is evaluated as the actor-authority premise against the
+  owner-authorized scope for that obligation and method. An attestation read
+  from anywhere else, or
   without its target, is not admitted and leaves the premise `unevaluated`. An
   admitted attestation whose attester's evaluated authority excludes the target,
   method or use is `qualification-rejected`.
@@ -103,10 +112,14 @@ The roles are:
 - For the IR-1006 acceptance fixtures, the host is the IR-1006 acceptance
   harness that runs the named Rust path. Positive fixtures SHALL use observations
   of acts that were actually performed, admitted by the mechanism above. The
-  harness SHALL NOT admit observations it authored for a positive case. Positive
-  fixtures that need a CI association are **environment-gated**: they run only
-  where the host can reach and authenticate to the CI provider, and where it
-  cannot they report `unevaluated` and never pass. Refusal and negative
+  harness SHALL NOT admit observations it authored for a positive case. A
+  positive partition that needs a CI association is **executed only with a live
+  read** from the host-configured CI provider. A run without provider access
+  leaves that partition **not executed**: the test reports it as not run or
+  failed, never as passed or silently skipped, its TC does not pass, and the
+  positive criterion is not verified by that run. The `unevaluated` outcome of
+  an unreachable provider is a separate refusal partition and verifies only that
+  outcome. Refusal and negative
   fixtures supply transcribed, unobserved or mismatched members, need no
   network, and run everywhere.
 - For the RT strict-coverage consumer (IR-499), the host is the RT strict-coverage
@@ -399,8 +412,8 @@ CON-1 remains independently inspected against owner dependency use.
 | Mapped criterion | Required independent partitions |
 |------------------|---------------------------------|
 | AC-5 / TC-1967 | Citation, suite declaration, unexecuted script, bare method name, merely validated Inspections table; each paired with the same target and absent qualified performed evidence |
-| AC-7 / TC-1969 | Performed revision differs from selected HEAD (`wrong-revision`); performed revision missing (`unevaluated`); foreign selected corpus (`selection-mismatch`); missing actor authority (`unevaluated`) versus evaluated authority excluding the target/method/use (`qualification-rejected`); FR-093 bounded use not permitting the requested decision, and an accepted limitation excluding a required act (`qualification-rejected`); incompatible producer definition/version, tool/version or effective configuration (`qualification-rejected`); mismatched CI run/attempt/job/workflow/invocation association, and a manual association where the definition requires CI (`qualification-rejected`); permitted manual association missing its attestation or its CI-not-applicable reason (`unevaluated`); a transcribed member matching the expected value (`unevaluated`); a stored or copied CI record of the right run (`unevaluated`, transcribed); CI provider unreachable or unauthenticated (`unevaluated`); manual attestation read from a location the producer definition does not name (`unevaluated`); each varies one premise with its own cause and strict reason; these refusal cases need no network |
-| AC-2 / TC-1964, AC-3 / TC-1965 | Environment-gated positive CI-associated case: CI provider reachable through its authenticated API and run/attempt/job read live (qualifies); provider unreachable (`unevaluated`, never pass); a stored copy of the same run record instead of the live read (`unevaluated`) |
+| AC-7 / TC-1969 | Performed revision differs from selected HEAD (`wrong-revision`); performed revision missing (`unevaluated`); foreign selected corpus (`selection-mismatch`); missing actor authority (`unevaluated`) versus evaluated authority excluding the target/method/use (`qualification-rejected`); FR-093 bounded use not permitting the requested decision, and an accepted limitation excluding a required act (`qualification-rejected`); incompatible producer definition/version, tool/version or effective configuration (`qualification-rejected`); mismatched CI run/attempt/job/workflow/invocation association, and a manual association where the definition requires CI (`qualification-rejected`); permitted manual association missing its attestation or its CI-not-applicable reason (`unevaluated`); a transcribed member matching the expected value (`unevaluated`); a stored or copied CI record of the right run (`unevaluated`, transcribed); CI provider unreachable or unauthenticated (`unevaluated`); manual attestation read from a location other than the host-configured retention location (`unevaluated`); each varies one premise with its own cause and strict reason; these refusal cases need no network |
+| AC-2 / TC-1964, AC-3 / TC-1965 | Positive partition: run/attempt/job read live through the host-configured CI provider's authenticated API (qualifies); it is executed only with that live read, and without provider access it is reported not executed (not run or failed, never passed or skipped), the TC does not pass and AC-2/AC-3 are not verified. Separate refusal partitions, which verify only their refusal outcome: provider unreachable or unauthenticated (`unevaluated`); a stored copy of the same run record instead of the live read (`unevaluated`) |
 | AC-9 / TC-1971 | Missing target, unknown ID, same display ID in another document/source, foreign selection, duplicate authored identity; lookup must expose the owner's distinct refusal |
 | AC-15 / TC-1977 | AuthoredRow, RenderedRow and CombinatorialTable; unmapped criterion; changed captured selection; rendered-row renumbering never reuses an old binding by display ID alone |
 | AC-19 / TC-1981 | Unknown method, absent kind, absent catalog, absent provenance, unsupported owner version; evaluate refusals independently and separately assert CON-4 ordering/byte identity on reordered inputs |
