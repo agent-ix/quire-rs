@@ -72,6 +72,8 @@ Checked at 5435ed19fe0d90c084a5131e7aa0a39b7af2a257. Line numbers refer to that 
 | FND-007 | fixed | spec/tests.md TC-1963..1966, 1969, 1981 now cite the FR-116 qualifier and bridge build; TC-1969 title widened. |
 | FND-008 | fixed | L82-97 specify the admission mechanism: a live authenticated provider read by run/attempt/job identity; a stored/cached/copied record is transcribed; an unreachable provider is unevaluated; a manual attestation is read from the named location. Fixture roles L102-111; partitions L402-403. |
 | FND-009 | fixed | The PR-history narration is removed at L143-146, L166-169 and L440-441; the Change record is kept. |
+| FND-010 | fixed | At d51d47f, L115-122 and the TC-1964/1965 row (L416) say the positive CI partition runs only with a live read; without provider access it is reported not executed, the TC does not pass and AC-2/AC-3 are unverified. The unreachable and stored-copy cases are separate refusal partitions that verify only their refusal outcome. |
+| FND-011 | fixed | At d51d47f, the producer-definition row (L57) and the term paragraph (L229-234) list only FR-116 L71 members. CI provider identity and attestation retention location are host-configured inputs outside the producer definition (L66-71) and are recorded in admission references (L93-95, L100-104). Actor authority is checked against the owner-authorized scope (L59). |
 
 ## New findings (disposition pass 2)
 
