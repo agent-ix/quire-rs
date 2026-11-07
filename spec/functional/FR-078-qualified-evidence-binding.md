@@ -54,13 +54,13 @@ JSON envelope.
 | Selection and requested targets | Borrowed owner-issued `SelectedInventory` and the exact requested targets within it, each carrying its `CriterionIdentity`, origin and declared method | FR-053 owner inventory read; the host names the requested targets |
 | Source context | Actual selected source HEAD and repository/selection context for this call | The host, from the checkout it selected |
 | Original audit premises | The original Quoin `AuditInput` with its retained `RunRecord`, `Binding` observations, `MethodCatalog` and original record/run/entry locators | Quoin store read boundary (FR-030); no admission beyond the store's own |
-| Producer definition | The Quoin-owner-approved producer definition identity and version for the requested method/act-kind pair, including its required acts, result semantics, target scope, tool/configuration premises, required CI or permitted manual association, validity rule and accepted admission mechanisms | Approved by the Quoin owner; the host supplies the definition reference |
+| Producer definition | The Quoin-owner-approved producer definition identity and version for the requested method/act-kind pair, including its required acts, result semantics, target scope, tool/configuration premises, required CI or permitted manual association, validity rule, the CI provider whose authenticated API admits its CI observations, and where its manual attestations are retained | Approved by the Quoin owner; the host supplies the definition reference |
 | Bounded reliance | The original FR-093 bounded-reliance decision and its current observation for the exact intended downstream use | Owned by the FR-093 accountable owner; the host supplies the decision reference |
 | Actor authority | The performer or accountable attester identity, its owner-authorized scope for the requested obligation/method, and the host's authority-admission reference | The host, against the authority scope named in the producer definition |
-| Performed-act observation | The completed act, its original result, performed-at time, examined material/scope, required invocation identities and their results, correlated with the selected record and entry | The host: from the CI system's own record of the run for a CI act, or from the attester's retained per-target attestation for a manual act |
+| Performed-act observation | The completed act, its original result, performed-at time, examined material/scope, required invocation identities and their results, correlated with the selected record and entry | The host: for a CI act, read live from the CI provider's authenticated API by run/attempt/job identity; for a manual act, read from the retained per-target attestation at the location the producer definition names |
 | Performed source revision | The source revision the act actually examined or executed, as carried by the performed-act observation | The host, with the performed-act observation |
 | Tool and configuration context | The actual producer, exact tool version, adapter when used, and effective non-secret configuration facts (configuration reference, arguments, feature selections, relevant environment facts); for a manual act, the procedure and recording tool/version | The host, with the performed-act observation |
-| Execution association | Either the exact CI system/project/run/attempt/job and workflow/step or invocation association, or a manual association with the accountable per-target attestation and the explicit reason CI is not applicable | The host, by the mechanism the producer definition accepts |
+| Execution association | Either the exact CI system/project/run/attempt/job and workflow/step or invocation association, or a manual association with the accountable per-target attestation and the explicit reason CI is not applicable | The host, by the admission mechanism specified below |
 | Observation time and current context | The caller-supplied observation time, the current owner decision/context and the newest selected store observations needed to detect invalidation, supersession, absence or conflicting reads | The host supplies the time; store observations come from the store read boundary |
 
 Each host-admitted member enters the Quoin typed input as one of three
@@ -72,21 +72,43 @@ unobserved member yields `unevaluated` for the premise it would answer; a
 transcribed value that matches the expected value grants nothing. The admission
 reference is retained into the decision and the report.
 
-The **host** is the process that calls `qualify`. It performs admission before
-the call; `qualify`, the FR-116 qualifier and Quire coverage/trace never read a
-clock, the network, a CI service or the filesystem to admit an observation.
-Admission identifies its source but does not authenticate external truth beyond
-the mechanism the producer definition accepts; that residual reliance stays
-bounded by FR-093 and is exposed in the decision. The roles are:
+The **host** is the process that calls `qualify`. It performs admission in the
+same run, immediately before the call; `qualify`, the FR-116 qualifier and Quire
+coverage/trace never read a clock, the network, a CI service or the filesystem
+to admit an observation. Admission identifies its source but does not
+authenticate external truth beyond the mechanism below; that residual reliance
+stays bounded by FR-093 and is exposed in the decision.
+
+The admission mechanism is:
+
+- **CI observations.** The host admits a CI observation only by reading the CI
+  provider's own record of the run, by its run/attempt/job identity, at
+  qualification time through the provider's authenticated API, for the provider
+  the producer definition names. The admission reference records the provider,
+  the run/attempt/job identity read and the read time. A stored, cached or
+  copied CI record, including one retained beside the run record or in a
+  fixture, is **transcribed** and grants nothing. When the host cannot reach or
+  authenticate to the provider, every CI-dependent premise is `unevaluated`; it
+  never passes.
+- **Manual attestations.** The host admits a manual observation only from a
+  retained per-target attestation by an attester whom the producer definition
+  authorizes for that obligation and method, read from the retention location
+  the producer definition names. An attestation read from anywhere else, or
+  without its target, is not admitted and leaves the premise `unevaluated`. An
+  admitted attestation whose attester's evaluated authority excludes the target,
+  method or use is `qualification-rejected`.
+
+The roles are:
 
 - For the IR-1006 acceptance fixtures, the host is the IR-1006 acceptance
   harness that runs the named Rust path. Positive fixtures SHALL use observations
-  of acts that were actually performed: CI observations admitted from the CI
-  system's own record of the run that produced the retained record, and manual
-  Inspection or Analysis observations admitted from the accountable attester's
-  retained per-target attestation. The harness SHALL NOT admit observations it
-  authored for a positive case. Negative fixtures supply transcribed, unobserved
-  or mismatched members to exercise each cause.
+  of acts that were actually performed, admitted by the mechanism above. The
+  harness SHALL NOT admit observations it authored for a positive case. Positive
+  fixtures that need a CI association are **environment-gated**: they run only
+  where the host can reach and authenticate to the CI provider, and where it
+  cannot they report `unevaluated` and never pass. Refusal and negative
+  fixtures supply transcribed, unobserved or mismatched members, need no
+  network, and run everywhere.
 - For the RT strict-coverage consumer (IR-499), the host is the RT strict-coverage
   gate invocation. It admits the observations of RT's own CI runs and RT's
   retained manual attestations by the same rules and passes them to `qualify`;
@@ -118,10 +140,10 @@ NOT manufacture a source identity for a retained record.
 complete ordered reason list specified below. The executable acceptance host,
 which is the host that calls `qualify` under the host roles above, SHALL map success to process exit 0 and rejection to exit 1, print the full report
 before exit, and print the cause codes with selected target/record locators on
-stderr. These are planned public entry points, not APIs already delivered by
-this spec PR. The existing no-evidence Rust entry points and CLI invocations stay
-unchanged. A future CLI flag/binding needs its owning surface's specification;
-this PR does not claim installed `quire coverage` already accepts retained input.
+stderr. These are planned public entry points. The existing no-evidence Rust
+entry points and CLI invocations stay unchanged. Installed `quire coverage` does
+not accept retained input; a future CLI flag/binding needs its owning surface's
+specification.
 The producer-facing example and IR-1006 fixtures SHALL use the named Rust path,
 including its strict decision, rather than a private fixture-only adapter.
 
@@ -135,14 +157,15 @@ this reverse repository pin is not the selected design.
 
 The proposed follow-on host is Quoin's existing `quoin-quire` crate, module
 `evidence`, behind a **new optional `qualified-evidence` feature, default off**.
-That feature SHALL use `quoin-auditor` from the same Quoin workspace revision.
+That feature SHALL use `quoin-auditor` from the same Quoin workspace revision;
+the FR-116 qualifier lives in the `quoin-auditor` crate.
 Quire core SHALL own only the owner-neutral explicit backing input and its
 existing reconciliation/trace/report logic; it SHALL NOT depend on Quoin or
 re-export its auditor types. The bridge's privately constructed qualified view
 and owner-approved projection are the supported qualification path; Quire's
 low-level backing data alone is not a qualification certificate. This host and
-feature are a proposed Quoin-owner follow-on, not an existing public API or a
-capability delivered by apparatus-intake PR #689. No reverse pin, new store,
+feature are planned Quoin-owner work, not an existing public API, and the
+evidence-gate apparatus intake does not supply them. No reverse pin, new store,
 publication or release is authorized by this placement.
 
 Adoption SHALL proceed in one direction: first merge the reviewed Quire engine
@@ -199,8 +222,8 @@ fields alone do not establish those premises. A Quire-local `RunEntry.config`
 map, suite name, arbitrary key, or assertion that an audit is healthy SHALL NOT
 substitute for a Quoin qualification decision.
 
-`qualify` SHALL run the Quoin FR-116 qualifier itself, from the same Quoin
-workspace revision as the bridge and behind the same `qualified-evidence`
+`qualify` SHALL run the Quoin FR-116 qualifier itself, from the `quoin-auditor`
+crate at the same Quoin workspace revision as the bridge and behind the same `qualified-evidence`
 feature, over the original audit result and the admitted inputs above. Callers
 supply admitted premises only. `qualify` SHALL NOT accept a caller-supplied
 qualification decision, positive-decision value, per-premise verdict or
@@ -376,7 +399,8 @@ CON-1 remains independently inspected against owner dependency use.
 | Mapped criterion | Required independent partitions |
 |------------------|---------------------------------|
 | AC-5 / TC-1967 | Citation, suite declaration, unexecuted script, bare method name, merely validated Inspections table; each paired with the same target and absent qualified performed evidence |
-| AC-7 / TC-1969 | Performed revision differs from selected HEAD (`wrong-revision`); performed revision missing (`unevaluated`); foreign selected corpus (`selection-mismatch`); missing actor authority (`unevaluated`) versus evaluated authority excluding the target/method/use (`qualification-rejected`); FR-093 bounded use not permitting the requested decision, and an accepted limitation excluding a required act (`qualification-rejected`); incompatible producer definition/version, tool/version or effective configuration (`qualification-rejected`); mismatched CI run/attempt/job/workflow/invocation association, and a manual association where the definition requires CI (`qualification-rejected`); permitted manual association missing its attestation or its CI-not-applicable reason (`unevaluated`); a transcribed member matching the expected value (`unevaluated`); each varies one premise with its own cause and strict reason |
+| AC-7 / TC-1969 | Performed revision differs from selected HEAD (`wrong-revision`); performed revision missing (`unevaluated`); foreign selected corpus (`selection-mismatch`); missing actor authority (`unevaluated`) versus evaluated authority excluding the target/method/use (`qualification-rejected`); FR-093 bounded use not permitting the requested decision, and an accepted limitation excluding a required act (`qualification-rejected`); incompatible producer definition/version, tool/version or effective configuration (`qualification-rejected`); mismatched CI run/attempt/job/workflow/invocation association, and a manual association where the definition requires CI (`qualification-rejected`); permitted manual association missing its attestation or its CI-not-applicable reason (`unevaluated`); a transcribed member matching the expected value (`unevaluated`); a stored or copied CI record of the right run (`unevaluated`, transcribed); CI provider unreachable or unauthenticated (`unevaluated`); manual attestation read from a location the producer definition does not name (`unevaluated`); each varies one premise with its own cause and strict reason; these refusal cases need no network |
+| AC-2 / TC-1964, AC-3 / TC-1965 | Environment-gated positive CI-associated case: CI provider reachable through its authenticated API and run/attempt/job read live (qualifies); provider unreachable (`unevaluated`, never pass); a stored copy of the same run record instead of the live read (`unevaluated`) |
 | AC-9 / TC-1971 | Missing target, unknown ID, same display ID in another document/source, foreign selection, duplicate authored identity; lookup must expose the owner's distinct refusal |
 | AC-15 / TC-1977 | AuthoredRow, RenderedRow and CombinatorialTable; unmapped criterion; changed captured selection; rendered-row renumbering never reuses an old binding by display ID alone |
 | AC-19 / TC-1981 | Unknown method, absent kind, absent catalog, absent provenance, unsupported owner version; evaluate refusals independently and separately assert CON-4 ordering/byte identity on reordered inputs |
@@ -413,14 +437,14 @@ examples are executed against the same supported public boundary as consumers.
 
 ## Dependencies
 
-The following owner contracts and decisions remain prerequisites; publication of
-a draft API or apparatus-intake repair does not satisfy them.
+The following owner contracts and decisions remain prerequisites; a draft API
+or the evidence-gate apparatus intake does not satisfy them.
 
 ### Explicit blocked acceptance work
 
 | Owner gap | Blocked acceptance cases | Required owner decision/delivery |
 |-----------|--------------------------|----------------------------------|
-| Quoin FR-116 qualifier runtime and the `quoin-quire` `qualified-evidence` bridge (owning build: IR-1006) | AC-1/TC-1963, AC-2/TC-1964, AC-3/TC-1965, AC-4/TC-1966, AC-7/TC-1969, AC-19/TC-1981 positive qualification boundary | Build the FR-116 qualifier in the Quoin workspace and the bridge that runs it over the admitted inputs specified above, with Quoin-owner-approved producer definitions for each fixture producer; `AuditReport.healthy`, a local config map or inferred Test method cannot close them |
+| Quoin FR-116 qualifier runtime and the `quoin-quire` `qualified-evidence` bridge (owning build: IR-1006) | AC-1/TC-1963, AC-2/TC-1964, AC-3/TC-1965, AC-4/TC-1966, AC-7/TC-1969, AC-19/TC-1981 positive qualification boundary | Build the FR-116 qualifier in the `quoin-auditor` crate and the bridge that runs it over the admitted inputs specified above, with Quoin-owner-approved producer definitions for each fixture producer; `AuditReport.healthy`, a local config map or inferred Test method cannot close them |
 | Owner-recognized waiver representation and report/strict policy | AC-8/TC-1970 | Peter policy ruling through luna:IR:plan, followed by the shared Quoin owner representation; no Skip mapping or fixture-only waiver |
 | Named public retained-input implementation | AC-14/TC-1976, AC-17/TC-1979 and AC-18/TC-1980 end-to-end acceptance | Implement the named Rust boundary after spec acceptance and integrate the approved owner contracts; planned signatures are not published APIs |
 

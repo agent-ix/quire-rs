@@ -25,3 +25,10 @@ should be fixed before the bridge build starts.
 | --- | --- | --- | --- | --- |
 | FND-001 | medium | FR-116 requires FR-093 bounded reliance as a mandatory input and positive premise (FR-116 L36, L72, L150-156), but FR-078's owner-dependency list (L367-372) names only FR-030, FR-032, FR-115; the bridge must pass the FR-093 decision and its trigger is not traced. | spec/functional/FR-078-qualified-evidence-binding.md:367-372 | missing-requirement |
 | FND-002 | low | The first blocked-work row (L347) says "Implement and expose the reviewed Quoin FR-116 owner decision" with no owning ticket; the prior text named PLAT-1162 and FR-116 L32 says PLAT-1162 does not supply it. The qualifier runtime and bridge build is enablement with no named owner in the spec. | spec/functional/FR-078-qualified-evidence-binding.md:347 | missing-requirement |
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | `requires ix://agent-ix/quoin/FR-093` added (L16-17) and FR-093 dependency bullet L449-453. |
+| FND-002 | fixed | Blocked-work row L423 names owning build IR-1006 (PLAT-1160 is Done). Quoin FR-116 L258 still attributes the bridge to PLAT-1160; that is a Quoin-side text, outside this PR. |
