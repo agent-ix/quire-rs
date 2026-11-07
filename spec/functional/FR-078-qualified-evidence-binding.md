@@ -11,6 +11,8 @@ relationships:
     type: "references"
   - target: "ix://agent-ix/quire-rs/spec/stakeholder/StR-007"
     type: "traces_to"
+  - target: "ix://agent-ix/quoin/FR-116"
+    type: "requires"
 ---
 
 # FR-078: Qualified retained evidence in coverage and trace
@@ -104,14 +106,10 @@ There SHALL be no reciprocal exact-Git-SHA cycle, copied version ledger or
 assumed parity. A later engine change repeats the paired adoption/verification;
 publication, tagging or release still requires Peter's first-hand instruction.
 
-Measured baseline: Quoin main `9d0d6a3d` pins quire-rs `=0.50.2` at
-`0649f7c0a88ff81f1a75b6754d55bd8cddc937f2`, while CLI main `374d5085` pins the
-same version at `ba384acadb9d859dc3f46b247d884fad0fdc6db5`. SHA parity is **not**
-established today. The Quoin PLAT-1162 local candidate `5a03b780` adopts the
-published EA `6e8c0d978846726cb8d52ab1709a886d12b69011` (`=0.7.1`, default
-features off); that unmerged candidate supplies neither this bridge nor closed
-qualification dependencies. EA apparatus adoption and engine-pin synchronization
-are distinct owner changes.
+The reviewed [Quoin FR-116](ix://agent-ix/quoin/FR-116) specifies the positive
+owner qualification premises. Its specification does not publish the qualifier,
+the `quoin-quire` bridge, or a passing retained record. Engine adoption and
+owner qualification remain separate implementation changes.
 
 ### Owner inventory to audit obligations
 
@@ -142,23 +140,21 @@ index is a parallel inventory census or retained evidence store.
 
 ### Owner qualification premises
 
-The term **producer definition** means the Quoin-owner-qualified method contract
-that declares the verification act, its required invocations, actor, source
-revision, tool/configuration premises, and linkage between those invocations and
-a retained CI run. Its method vocabulary comes from the Quoin `MethodCatalog`;
-this is not permission for Quire to add fields to that catalog. Current
-`RunRecord` fields alone do not define required Clippy invocations or CI
-association. The owner has not yet supplied a contract/carrier for all those
-premises; the dependency table below blocks their positive acceptance until it
-does. A Quire-local `RunEntry.config` map, suite name, arbitrary key, or assertion
-that the audit is healthy SHALL NOT implement the missing owner contract.
+The term **producer definition** has the meaning specified by Quoin FR-116: an
+owner-approved method/act-kind contract with required invocations, actor and
+source authority, tool/configuration premises, and CI or permitted manual
+association. Its method vocabulary comes from the Quoin `MethodCatalog`; this
+does not authorize Quire to add fields to that catalog. Current `RunRecord`
+fields alone do not establish those premises. A Quire-local `RunEntry.config`
+map, suite name, arbitrary key, or assertion that an audit is healthy SHALL NOT
+substitute for a Quoin qualification decision.
 
-When the approved owner qualification contract becomes available, `qualify`
-SHALL consume that contract's typed premises and decisions alongside the
-original audit inputs; it SHALL NOT reproduce its checker or infer missing
-premises. Until then it SHALL report the affected premises as unevaluated and
-SHALL NOT create positive bindings for the blocked cases. The spec deliberately
-does not assign fictitious fields or a wire format to this pending owner input.
+`qualify` SHALL consume Quoin FR-116's typed premises and evaluated decision
+alongside the original audit inputs; it SHALL NOT reproduce Quoin's checker or
+infer missing premises. Until the owner implements and exposes that decision,
+the affected premises remain unevaluated and SHALL NOT create positive
+bindings. This specification does not assign fictitious fields or a wire
+format to the planned owner input.
 
 ## Outputs and reconciliation
 
@@ -278,7 +274,7 @@ equality basis and freshness rules again.
 | FR-078-AC-4 | An actually executed Rust `compile_fail` doctest can bind through the qualified channel when its producer reports the expected compiler refusal as a passing verification act; an unrun doctest, wrong compiler failure, or failed verification remains non-passing. | Test |
 | FR-078-AC-5 | Every declaration-only or citation-only control in the Verification Plan remains unbacked when no qualified performed record exists for its target. | Test |
 | FR-078-AC-6 | Each non-passing requested act retains its originating cause category from the strict-decision table in both the report and strict rejection reasons; failed, errored, skipped, absent and unevaluated are not collapsed. | Test |
-| FR-078-AC-7 | A retained record that fails a required owner qualification premise yields that premise's distinct non-qualified cause and strict rejection reason and adds no record backing; no local configuration comparison substitutes for the pending owner contract. | Test |
+| FR-078-AC-7 | A retained record that fails a required Quoin FR-116 qualification premise yields that premise's distinct non-qualified cause and strict rejection reason and adds no record backing; no local configuration comparison substitutes for the owner decision. | Test |
 | FR-078-AC-8 | An owner-recognized waiver is distinguishable from absent, failed and skipped evidence in both report and strict disposition according to Peter's pending policy ruling; it is never mislabeled as a passed verification act. The final waiver disposition/exit oracle remains blocked on that ruling. | Test |
 | FR-078-AC-9 | Exact owner target lookup refuses each missing, foreign, unknown or ambiguous identity with its corresponding cause; it never selects a sibling or the first duplicate. | Test |
 | FR-078-AC-10 | Repeated identical owner record identities contribute once; conflicting content or qualification premises for one identity produce a deterministic conflict without choosing a winner by traversal order. | Test |
@@ -348,15 +344,15 @@ a draft API or apparatus-intake repair does not satisfy them.
 
 | Owner gap | Blocked acceptance cases | Required owner decision/delivery |
 |-----------|--------------------------|----------------------------------|
-| Quoin positive kind/actor/revision/tool/configuration qualification and required invocation/CI association carrier | AC-1/TC-1963, AC-2/TC-1964, AC-3/TC-1965, AC-4/TC-1966, AC-7/TC-1969, AC-19/TC-1981 positive qualification boundary | Quoin owner follow-on (may ride PLAT-1162) must define and review the authoritative contract and typed handoff; `AuditReport.healthy`, a local config map or inferred Test method cannot close them |
+| Quoin FR-116 positive kind/actor/revision/tool/configuration qualification and required invocation/CI association implementation | AC-1/TC-1963, AC-2/TC-1964, AC-3/TC-1965, AC-4/TC-1966, AC-7/TC-1969, AC-19/TC-1981 positive qualification boundary | Implement and expose the reviewed Quoin FR-116 owner decision and typed handoff; `AuditReport.healthy`, a local config map or inferred Test method cannot close them |
 | Owner-recognized waiver representation and report/strict policy | AC-8/TC-1970 | Peter policy ruling through luna:IR:plan, followed by the shared Quoin owner representation; no Skip mapping or fixture-only waiver |
 | Named public retained-input implementation | AC-14/TC-1976, AC-17/TC-1979 and AC-18/TC-1980 end-to-end acceptance | Implement the named Rust boundary after spec acceptance and integrate the approved owner contracts; planned signatures are not published APIs |
 
 Positive end-to-end fixtures in any other TC also remain blocked wherever they
-need one of these missing premises. Negative/rejection test design is independent
-work, not a substitute for positive acceptance. None of these dependencies is
-claimed closed by this spec PR, the apparatus-intake Quoin #689 changes, or a
-schema-valid Inspections artifact. No blocked AC is dropped or downgraded.
+need one of these unavailable runtime premises. Negative/rejection test design
+is independent work, not a substitute for positive acceptance. The FR-116
+specification and a schema-valid Inspections artifact do not close the blocked
+acceptance cases. No blocked AC is dropped or downgraded.
 
 
 - [FR-050](./FR-050-declarative-coverage-computation.md), including the separate
