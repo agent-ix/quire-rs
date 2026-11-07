@@ -19,7 +19,7 @@
 
 use std::sync::OnceLock;
 
-use jsonschema::JSONSchema;
+use jsonschema::Validator;
 use serde_json::{json, Map, Value};
 
 use crate::loader::compile::compile_schema;
@@ -58,37 +58,34 @@ fn concept_shape_schema() -> Value {
 
 fn validator_for(
     schema_fn: fn() -> Value,
-    cell: &'static OnceLock<JSONSchema>,
-) -> &'static JSONSchema {
+    cell: &'static OnceLock<Validator>,
+) -> &'static Validator {
     cell.get_or_init(|| compile_schema(&schema_fn()).expect("concept schema is valid"))
 }
 
-fn base_validator() -> &'static JSONSchema {
-    static VALIDATOR: OnceLock<JSONSchema> = OnceLock::new();
+fn base_validator() -> &'static Validator {
+    static VALIDATOR: OnceLock<Validator> = OnceLock::new();
     validator_for(base_concept_schema, &VALIDATOR)
 }
 
-fn shape_validator() -> &'static JSONSchema {
-    static VALIDATOR: OnceLock<JSONSchema> = OnceLock::new();
+fn shape_validator() -> &'static Validator {
+    static VALIDATOR: OnceLock<Validator> = OnceLock::new();
     validator_for(concept_shape_schema, &VALIDATOR)
 }
 
-fn run(validator: &'static JSONSchema, frontmatter: &Map<String, Value>) -> Vec<ValidationError> {
+fn run(validator: &'static Validator, frontmatter: &Map<String, Value>) -> Vec<ValidationError> {
     let value = Value::Object(frontmatter.clone());
-    let errors: Vec<ValidationError> = match validator.validate(&value) {
-        Ok(()) => Vec::new(),
-        Err(violations) => violations
-            .map(|v| ValidationError {
-                message: format!(
-                    "frontmatter: {v} (at {})",
-                    dotted_path(&v.instance_path.to_string())
-                ),
-                line: None,
-                reason: ValidationReason::Frontmatter,
-            })
-            .collect(),
-    };
-    errors
+    validator
+        .iter_errors(&value)
+        .map(|v| ValidationError {
+            message: format!(
+                "frontmatter: {v} (at {})",
+                dotted_path(&v.instance_path().to_string())
+            ),
+            line: None,
+            reason: ValidationReason::Frontmatter,
+        })
+        .collect()
 }
 
 /// Validate frontmatter against the base concept schema (required `type`).

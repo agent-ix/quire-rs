@@ -4,7 +4,7 @@
 //! FR-071 mapping; a row error makes the whole kind `unavailable`
 //! (`row-errors`) so a consumer never receives a partial type.
 
-use jsonschema::JSONSchema;
+use jsonschema::Validator;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
@@ -1079,7 +1079,7 @@ fn validate_decls(fields: &[FieldDecl], diagnostics: &mut Vec<SemanticDiagnostic
     }
 }
 
-pub(crate) fn field_decl_validator() -> JSONSchema {
+pub(crate) fn field_decl_validator() -> Validator {
     let semantic_core = super::embedded::embedded_semantic_core_version();
     let schema = json!({
         "$schema": "https://json-schema.org/draft/2020-12/schema",

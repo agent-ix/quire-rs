@@ -38,12 +38,10 @@ pub fn apply_patch(
 /// compiled schema. Returns the *first* violation; consumers wanting
 /// the full list can use [`validate_all`].
 pub fn validate(archetype: &CompiledArchetype, data: &Value) -> Result<(), QuireError> {
-    if let Err(mut errors) = archetype.validator.validate(data) {
-        if let Some(first) = errors.next() {
-            return Err(to_schema_violation(&archetype.name, &first));
-        }
+    match archetype.validator.iter_errors(data).next() {
+        Some(first) => Err(to_schema_violation(&archetype.name, &first)),
+        None => Ok(()),
     }
-    Ok(())
 }
 
 /// Validate `data` against a block-type's schema (INPUT.md block
@@ -55,23 +53,24 @@ pub fn validate_block(block_type: &CompiledArchetype, data: &Value) -> Result<()
 /// Validate `data` and collect every violation as a `Vec<QuireError>`.
 /// Returns `Ok(())` when valid; `Err(Vec<QuireError>)` otherwise.
 pub fn validate_all(archetype: &CompiledArchetype, data: &Value) -> Result<(), Vec<QuireError>> {
-    if let Err(errors) = archetype.validator.validate(data) {
-        let v: Vec<QuireError> = errors
-            .map(|e| to_schema_violation(&archetype.name, &e))
-            .collect();
-        if !v.is_empty() {
-            return Err(v);
-        }
+    let v: Vec<QuireError> = archetype
+        .validator
+        .iter_errors(data)
+        .map(|e| to_schema_violation(&archetype.name, &e))
+        .collect();
+    if v.is_empty() {
+        Ok(())
+    } else {
+        Err(v)
     }
-    Ok(())
 }
 
 /// Map a `jsonschema::ValidationError` into the public
 /// `QuireError::SchemaViolation` shape per NFR-005.
 fn to_schema_violation(archetype: &str, err: &ValidationError<'_>) -> QuireError {
-    let field_path = json_pointer_to_dotted(&err.instance_path.to_string());
+    let field_path = json_pointer_to_dotted(&err.instance_path().to_string());
     let expected = describe_expected(err);
-    let observed = preview_value(&err.instance);
+    let observed = preview_value(err.instance());
     QuireError::SchemaViolation {
         archetype: archetype.to_string(),
         field_path,
@@ -91,8 +90,8 @@ pub fn schema_validation_detail(err: &ValidationError<'_>) -> SchemaValidationDe
 }
 
 fn validation_path(err: &ValidationError<'_>) -> String {
-    let base = json_pointer_to_dotted(&err.instance_path.to_string());
-    match &err.kind {
+    let base = json_pointer_to_dotted(&err.instance_path().to_string());
+    match err.kind() {
         ValidationErrorKind::Required { property } => {
             let Some(prop) = property.as_str() else {
                 return base;
@@ -108,11 +107,12 @@ fn validation_path(err: &ValidationError<'_>) -> String {
 }
 
 fn schema_keyword(err: &ValidationError<'_>) -> &'static str {
-    match &err.kind {
+    match err.kind() {
         ValidationErrorKind::AdditionalItems { .. } => "additionalItems",
         ValidationErrorKind::AdditionalProperties { .. } => "additionalProperties",
-        ValidationErrorKind::AnyOf => "anyOf",
+        ValidationErrorKind::AnyOf { .. } => "anyOf",
         ValidationErrorKind::BacktrackLimitExceeded { .. } => "pattern",
+        ValidationErrorKind::RegexEngineFailure { .. } => "pattern",
         ValidationErrorKind::Constant { .. } => "const",
         ValidationErrorKind::Contains => "contains",
         ValidationErrorKind::ContentEncoding { .. } => "contentEncoding",
@@ -122,13 +122,8 @@ fn schema_keyword(err: &ValidationError<'_>) -> &'static str {
         ValidationErrorKind::ExclusiveMaximum { .. } => "exclusiveMaximum",
         ValidationErrorKind::ExclusiveMinimum { .. } => "exclusiveMinimum",
         ValidationErrorKind::FalseSchema => "falseSchema",
-        ValidationErrorKind::FileNotFound { .. } => "$ref",
         ValidationErrorKind::Format { .. } => "format",
         ValidationErrorKind::FromUtf8 { .. } => "contentEncoding",
-        ValidationErrorKind::Utf8 { .. } => "$ref",
-        ValidationErrorKind::JSONParse { .. } => "$ref",
-        ValidationErrorKind::InvalidReference { .. } => "$ref",
-        ValidationErrorKind::InvalidURL { .. } => "$ref",
         ValidationErrorKind::MaxItems { .. } => "maxItems",
         ValidationErrorKind::Maximum { .. } => "maximum",
         ValidationErrorKind::MaxLength { .. } => "maxLength",
@@ -139,17 +134,16 @@ fn schema_keyword(err: &ValidationError<'_>) -> &'static str {
         ValidationErrorKind::MinProperties { .. } => "minProperties",
         ValidationErrorKind::MultipleOf { .. } => "multipleOf",
         ValidationErrorKind::Not { .. } => "not",
-        ValidationErrorKind::OneOfMultipleValid => "oneOf",
-        ValidationErrorKind::OneOfNotValid => "oneOf",
+        ValidationErrorKind::OneOfMultipleValid { .. } => "oneOf",
+        ValidationErrorKind::OneOfNotValid { .. } => "oneOf",
         ValidationErrorKind::Pattern { .. } => "pattern",
         ValidationErrorKind::PropertyNames { .. } => "propertyNames",
         ValidationErrorKind::Required { .. } => "required",
-        ValidationErrorKind::Schema => "$schema",
         ValidationErrorKind::Type { .. } => "type",
+        ValidationErrorKind::UnevaluatedItems { .. } => "unevaluatedItems",
         ValidationErrorKind::UnevaluatedProperties { .. } => "unevaluatedProperties",
+        ValidationErrorKind::Referencing(_) => "$ref",
         ValidationErrorKind::UniqueItems => "uniqueItems",
-        ValidationErrorKind::UnknownReferenceScheme { .. } => "$ref",
-        ValidationErrorKind::Resolver { .. } => "$ref",
     }
 }
 
@@ -186,7 +180,7 @@ fn json_pointer_to_dotted(ptr: &str) -> String {
 /// Build a stable, neutral "expected" description from a validator
 /// error's kind. Avoids leaking the native debug form (NFR-005-AC-2).
 fn describe_expected(err: &ValidationError<'_>) -> String {
-    match &err.kind {
+    match err.kind() {
         ValidationErrorKind::Required { property } => {
             format!("required property {property}")
         }
@@ -202,9 +196,9 @@ fn describe_expected(err: &ValidationError<'_>) -> String {
         ValidationErrorKind::AdditionalProperties { unexpected } => {
             format!("no additional properties (unexpected: {unexpected:?})")
         }
-        ValidationErrorKind::OneOfMultipleValid => "exactly one oneOf branch".to_string(),
-        ValidationErrorKind::OneOfNotValid => "exactly one oneOf branch".to_string(),
-        ValidationErrorKind::AnyOf => "any of the listed schemas".to_string(),
+        ValidationErrorKind::OneOfMultipleValid { .. } => "exactly one oneOf branch".to_string(),
+        ValidationErrorKind::OneOfNotValid { .. } => "exactly one oneOf branch".to_string(),
+        ValidationErrorKind::AnyOf { .. } => "any of the listed schemas".to_string(),
         // Catch-all — every other variant gets a stable label without
         // leaking inner debug forms.
         _ => "schema constraint".to_string(),
@@ -332,6 +326,75 @@ mod tests {
         assert!(apply_patch(&arch, &json!({}), &bad).is_err());
     }
 
+    /// Verdict and `(path, keyword)` contract across the keyword families the
+    /// archetype schemas use. Error text is not part of the contract; these
+    /// rows were taken from `jsonschema` 0.18.3 and hold under 0.56 (quire-rs#429).
+    #[test]
+    fn violation_verdicts_paths_and_keywords_match_the_recorded_contract() {
+        let schema = json!({
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
+            "required": ["id"],
+            "properties": {
+                "id": {"type": "string", "pattern": "^FR-[0-9]+$"},
+                "level": {"enum": ["a", "b"]},
+                "tags": {"type": "array", "items": {"type": "string"}, "minItems": 1, "uniqueItems": true},
+                "n": {"type": "integer", "minimum": 1, "maximum": 5},
+                "pick": {"oneOf": [{"type": "string"}, {"type": "string", "minLength": 1}]},
+                "either": {"anyOf": [{"type": "string"}, {"type": "integer"}]}
+            },
+            "additionalProperties": false
+        });
+        let validator = compile_schema(&schema).expect("compile");
+        let cases: Vec<(Value, Vec<(&str, &str)>)> = vec![
+            (json!({"id": "FR-1"}), vec![]),
+            (json!({}), vec![("id", "required")]),
+            (json!({"id": "x"}), vec![("id", "pattern")]),
+            (json!({"id": 3}), vec![("id", "type")]),
+            (json!({"id": "FR-1", "level": "c"}), vec![("level", "enum")]),
+            (
+                json!({"id": "FR-1", "tags": []}),
+                vec![("tags", "minItems")],
+            ),
+            (
+                json!({"id": "FR-1", "tags": ["a", "a"]}),
+                vec![("tags", "uniqueItems")],
+            ),
+            (
+                json!({"id": "FR-1", "tags": [1]}),
+                vec![("tags[0]", "type")],
+            ),
+            (json!({"id": "FR-1", "n": 0}), vec![("n", "minimum")]),
+            (json!({"id": "FR-1", "n": 6}), vec![("n", "maximum")]),
+            (json!({"id": "FR-1", "pick": "s"}), vec![("pick", "oneOf")]),
+            (
+                json!({"id": "FR-1", "either": true}),
+                vec![("either", "anyOf")],
+            ),
+            (
+                json!({"id": "FR-1", "extra": 1}),
+                vec![("<root>", "additionalProperties")],
+            ),
+        ];
+        for (data, want) in cases {
+            let mut got: Vec<(String, String)> = validator
+                .iter_errors(&data)
+                .map(|e| {
+                    let d = schema_validation_detail(&e);
+                    (d.path, d.schema_keyword)
+                })
+                .collect();
+            got.sort();
+            let mut want: Vec<(String, String)> = want
+                .into_iter()
+                .map(|(p, k)| (p.to_string(), k.to_string()))
+                .collect();
+            want.sort();
+            assert_eq!(got, want, "{data}");
+            assert_eq!(validator.is_valid(&data), want.is_empty(), "{data}");
+        }
+    }
+
     #[test]
     fn json_pointer_to_dotted_handles_indices_and_keys() {
         assert_eq!(
@@ -355,8 +418,7 @@ mod tests {
         let validator = compile_schema(&schema).expect("compile");
         let data = json!({"extra": true});
         let details: Vec<SchemaValidationDetail> = validator
-            .validate(&data)
-            .expect_err("violations")
+            .iter_errors(&data)
             .map(|err| schema_validation_detail(&err))
             .collect();
 

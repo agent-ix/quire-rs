@@ -862,9 +862,9 @@ mod tests {
             "../schemas/output/clause-binding-v1.schema.json"
         ))
         .unwrap();
-        let binding_validator = jsonschema::JSONSchema::options()
+        let binding_validator = jsonschema::options()
             .with_draft(jsonschema::Draft::Draft202012)
-            .compile(&binding_schema)
+            .build(&binding_schema)
             .unwrap();
         assert!(binding_validator
             .validate(&serde_json::to_value(report).unwrap())
@@ -874,9 +874,9 @@ mod tests {
         let diff_schema: Value =
             serde_json::from_str(include_str!("../schemas/output/clause-diff-v1.schema.json"))
                 .unwrap();
-        let diff_validator = jsonschema::JSONSchema::options()
+        let diff_validator = jsonschema::options()
             .with_draft(jsonschema::Draft::Draft202012)
-            .compile(&diff_schema)
+            .build(&diff_schema)
             .unwrap();
         assert!(diff_validator
             .validate(&serde_json::to_value(diff).unwrap())

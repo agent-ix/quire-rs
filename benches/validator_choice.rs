@@ -6,7 +6,6 @@
 //! we'll compare against.
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use jsonschema::JSONSchema;
 use serde_json::json;
 
 fn bench_jsonschema_validate(c: &mut Criterion) {
@@ -20,7 +19,7 @@ fn bench_jsonschema_validate(c: &mut Criterion) {
             "tags": {"type": "array", "items": {"type": "string"}}
         }
     });
-    let validator = JSONSchema::options().compile(&schema).expect("compile");
+    let validator = jsonschema::options().build(&schema).expect("compile");
     let good = json!({"id": "FR-001", "title": "Hello", "tags": ["a", "b"]});
     let mut group = c.benchmark_group("validator");
     group.bench_function("jsonschema_validate_good", |b| {

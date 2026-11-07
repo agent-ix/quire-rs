@@ -1,7 +1,6 @@
 //! Plan-003 Task-015: embedded-schema completeness (FR-069-AC-8, FR-031-AC-8).
 
 use ix_trace_rs::trace;
-use jsonschema::JSONSchema;
 use serde_json::{json, Value};
 
 #[trace("TC-1606", "FR-069-AC-8")]
@@ -43,8 +42,8 @@ fn tc1877_construct_declaration_schema_admits_immutable() {
         construct_decl.is_object(),
         "embedded schema has no $defs/ConstructDeclaration"
     );
-    let validator = JSONSchema::options()
-        .compile(&construct_decl)
+    let validator = jsonschema::options()
+        .build(&construct_decl)
         .expect("$defs/ConstructDeclaration compiles standalone (no external $ref)");
 
     let mut construct = json!({

@@ -6,7 +6,7 @@ use std::fs;
 use std::path::PathBuf;
 
 use ix_trace_rs::trace;
-use jsonschema::JSONSchema;
+use jsonschema::Validator;
 use quire_rs::semantic::python_entry::extract_semantic_json;
 use quire_rs::semantic::{compile_module_schema, AvailabilityState, SEMANTIC_V1_SCHEMA};
 use quire_rs::{extract_filament_core, FilamentExtractionInput, Registry};
@@ -20,7 +20,7 @@ fn read_json(rel: &str) -> Value {
     serde_json::from_slice(&fs::read(root().join(rel)).unwrap()).unwrap()
 }
 
-fn schema() -> JSONSchema {
+fn schema() -> Validator {
     compile_module_schema(
         &serde_json::from_str::<Value>(SEMANTIC_V1_SCHEMA).unwrap(),
         &|_| None,
@@ -66,12 +66,10 @@ fn case_suite() {
         let record =
             extract_semantic_json(&case["input"]).unwrap_or_else(|e| panic!("{name}: {e}"));
         let value = serde_json::to_value(&record).unwrap();
-        let errors: Vec<String> = match schema.validate(&value) {
-            Ok(()) => Vec::new(),
-            Err(errs) => errs
-                .map(|e| format!("{} at {}", e, e.instance_path))
-                .collect(),
-        };
+        let errors: Vec<String> = schema
+            .iter_errors(&value)
+            .map(|e| format!("{} at {}", e, e.instance_path()))
+            .collect();
         assert!(errors.is_empty(), "{name}: {errors:?}");
         let expect = &case["expect"];
         if let Some(avail) = expect["availability"].as_object() {

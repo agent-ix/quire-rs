@@ -45,7 +45,7 @@ fn context(path: &str) -> SemanticContext {
         .with_source_identity("ix://agent-ix/config-service/spec")
 }
 
-fn gate(model: &str) -> jsonschema::JSONSchema {
+fn gate(model: &str) -> jsonschema::Validator {
     let schema = json!({
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "$id": format!("https://schemas.agent-ix.org/agent-ix/quire-rs/0.1.0/{model}Gate.json"),

@@ -10,11 +10,12 @@
 use std::collections::BTreeMap;
 use std::path::{Component, Path, PathBuf};
 
-use jsonschema::JSONSchema;
+use jsonschema::Validator;
 use serde_json::Value;
 
 use super::contract::{DataSchemaRef, SemanticFailure};
 use super::embedded;
+use crate::loader::compile::schema_options;
 
 /// Where a module's files come from.
 pub enum SchemaSource<'a> {
@@ -31,7 +32,7 @@ pub enum SchemaSource<'a> {
 /// validator.
 pub struct ResolvedSchema {
     pub schema: Value,
-    pub validator: JSONSchema,
+    pub validator: Validator,
     /// The manifest-relative path of the schema file.
     pub path: String,
 }
@@ -180,7 +181,7 @@ pub fn compile_module_schema(
     schema: &Value,
     siblings: &dyn Fn(&str) -> Option<Result<Value, String>>,
     module_base: &str,
-) -> Result<JSONSchema, SemanticFailure> {
+) -> Result<Validator, SemanticFailure> {
     let bundle = embedded::semantic_core_bundle();
     let semantic_core = embedded::embedded_semantic_core_version();
     let core_base = format!("{}{}/", embedded::SEMANTIC_CORE_BASE, semantic_core);
@@ -202,17 +203,35 @@ pub fn compile_module_schema(
         &mut documents,
         &mut stack,
     )?;
-    let mut options = JSONSchema::options();
-    for (id, doc) in &documents {
-        options.with_document(id.clone(), doc.clone());
-    }
-    options.compile(schema).map_err(|e| {
+    let not_schema = |e: &dyn std::fmt::Display| {
         SemanticFailure::error(
             "semantic.data-schema-not-schema",
             "",
             format!("schema compile error: {e}"),
         )
-    })
+    };
+    // Each resolved document is registered under its own id; one that
+    // declares no `$schema` is read as draft-07, as `schema_options` does for
+    // the root.
+    let mut registry = jsonschema::Registry::new();
+    for (id, doc) in &documents {
+        // A root that declares no `$id` is walked under a placeholder name
+        // and is compiled directly below, so it has no URI to register.
+        if id == "<root>" {
+            continue;
+        }
+        let resource = if doc.get("$schema").is_some() {
+            jsonschema::Resource::from_contents(doc.clone())
+        } else {
+            jsonschema::Draft::Draft7.create_resource(doc.clone())
+        };
+        registry = registry.add(id, resource).map_err(|e| not_schema(&e))?;
+    }
+    let registry = registry.prepare().map_err(|e| not_schema(&e))?;
+    schema_options(schema)
+        .with_registry(&registry)
+        .build(schema)
+        .map_err(|e| not_schema(&e))
 }
 
 #[allow(clippy::too_many_arguments)]

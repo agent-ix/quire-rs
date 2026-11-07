@@ -5,7 +5,7 @@ use std::fs;
 use std::path::Path;
 
 use ix_trace_rs::trace;
-use jsonschema::{Draft, JSONSchema};
+use jsonschema::{Draft, Validator};
 use quire_rs::assurance::{
     AssuranceFreshness, AssuranceModulePremise, AssuranceRelation, AssuranceResolution,
     RelationAvailability, ASSURANCE_V1_SCHEMA,
@@ -158,11 +158,11 @@ impl Fixture {
     }
 }
 
-fn schema() -> JSONSchema {
+fn schema() -> Validator {
     let value: Value = serde_json::from_str(ASSURANCE_V1_SCHEMA).expect("schema JSON");
-    JSONSchema::options()
+    jsonschema::options()
         .with_draft(Draft::Draft202012)
-        .compile(&value)
+        .build(&value)
         .expect("schema compiles")
 }
 

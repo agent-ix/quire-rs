@@ -42,7 +42,7 @@ fn context(path: &str, bundle: BundleIndex) -> SemanticContext {
     SemanticContext::new(module, path, bundle)
 }
 
-fn field_decl_gate() -> jsonschema::JSONSchema {
+fn field_decl_gate() -> jsonschema::Validator {
     let schema = json!({
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "$id": "https://schemas.agent-ix.org/agent-ix/quire-rs/0.3.0/Gate.json",

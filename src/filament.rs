@@ -193,7 +193,7 @@ struct CompiledObjectType {
     schema: Value,
     /// Pre-compiled validator when the schema resolves through the vendored
     /// semantic-core bundle (FR-069); otherwise compiled on use.
-    validator: Option<std::sync::Arc<jsonschema::JSONSchema>>,
+    validator: Option<std::sync::Arc<jsonschema::Validator>>,
     body_extraction: Option<ExtractionDsl>,
 }
 
@@ -646,7 +646,7 @@ fn validate_against_schema(object_type: &CompiledObjectType, data: &Value) -> Re
     }
     let archetype = object_type.snapshot.name.as_str();
     let owned;
-    let validator: &jsonschema::JSONSchema = match &object_type.validator {
+    let validator: &jsonschema::Validator = match &object_type.validator {
         Some(v) => v,
         None => {
             owned = compile_schema(&object_type.schema)
@@ -654,16 +654,17 @@ fn validate_against_schema(object_type: &CompiledObjectType, data: &Value) -> Re
             &owned
         }
     };
-    if let Err(mut errors) = validator.validate(data) {
-        if let Some(err) = errors.next() {
-            let detail = crate::validate::schema_validation_detail(&err);
-            return Err(format!(
-                "{archetype}: schema validation failed at {}: {}",
-                detail.path, detail.message
-            ));
-        }
+    let first = validator
+        .iter_errors(data)
+        .next()
+        .map(|err| crate::validate::schema_validation_detail(&err));
+    match first {
+        Some(detail) => Err(format!(
+            "{archetype}: schema validation failed at {}: {}",
+            detail.path, detail.message
+        )),
+        None => Ok(()),
     }
-    Ok(())
 }
 
 fn frontmatter_edges(
@@ -1152,22 +1153,19 @@ fn attach_semantic(
     // The resolved data schema validates the declaration record (FR-069-AC-1).
     if let Some(validator) = &object_type.validator {
         let first: Option<String> = match record.declaration_record() {
-            Err(err @ crate::semantic::DeclarationError::MultipleSystemsRecords) => {
-                Some(format!("{object_name}: {err}; FR-075 admits at most one per artifact"))
-            }
-            Err(err @ crate::semantic::DeclarationError::Serialize(_)) => Some(format!(
-                "{object_name}: {err}"
+            Err(err @ crate::semantic::DeclarationError::MultipleSystemsRecords) => Some(format!(
+                "{object_name}: {err}; FR-075 admits at most one per artifact"
             )),
-            Ok(declaration) => match validator.validate(&declaration) {
-                Ok(()) => None,
-                Err(mut errors) => errors.next().map(|err| {
-                    let detail = crate::validate::schema_validation_detail(&err);
-                    format!(
-                        "{object_name}: declaration record fails the resolved data schema at {}: {}",
-                        detail.path, detail.message
-                    )
-                }),
-            },
+            Err(err @ crate::semantic::DeclarationError::Serialize(_)) => {
+                Some(format!("{object_name}: {err}"))
+            }
+            Ok(declaration) => validator.iter_errors(&declaration).next().map(|err| {
+                let detail = crate::validate::schema_validation_detail(&err);
+                format!(
+                    "{object_name}: declaration record fails the resolved data schema at {}: {}",
+                    detail.path, detail.message
+                )
+            }),
         };
         if let Some(message) = first {
             diagnostics.push(diagnostic(

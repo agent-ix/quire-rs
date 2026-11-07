@@ -4,7 +4,7 @@
 
 use std::collections::BTreeMap;
 
-use jsonschema::JSONSchema;
+use jsonschema::Validator;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
@@ -801,7 +801,7 @@ fn validate_decls<T: Serialize>(
     }
 }
 
-fn model_validator(model: &str) -> JSONSchema {
+fn model_validator(model: &str) -> Validator {
     let semantic_core = super::embedded::embedded_semantic_core_version();
     let schema = json!({
         "$schema": "https://json-schema.org/draft/2020-12/schema",

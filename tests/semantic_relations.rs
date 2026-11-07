@@ -7,7 +7,7 @@
 use std::collections::BTreeSet;
 
 use ix_trace_rs::trace;
-use jsonschema::JSONSchema;
+use jsonschema::Validator;
 use quire_rs::semantic::python_entry::extract_semantic_json;
 use quire_rs::semantic::{compile_module_schema, SEMANTIC_V1_SCHEMA};
 use serde_json::{json, Value};
@@ -25,7 +25,7 @@ fn declared_core() -> &'static str {
     quire_rs::semantic::embedded::embedded_semantic_core_version()
 }
 
-fn semantic_v1() -> JSONSchema {
+fn semantic_v1() -> Validator {
     compile_module_schema(
         &serde_json::from_str::<Value>(SEMANTIC_V1_SCHEMA).unwrap(),
         &|_| None,
@@ -34,7 +34,7 @@ fn semantic_v1() -> JSONSchema {
     .unwrap()
 }
 
-fn relation_decl_gate(core: &str) -> JSONSchema {
+fn relation_decl_gate(core: &str) -> Validator {
     let schema = json!({
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "$id": "https://schemas.agent-ix.org/agent-ix/quire-rs/0.1.0/RelationDeclGate.json",
@@ -117,12 +117,10 @@ fn request(fixture: &Value, markdown: &str, path: &str, case: Option<&Value>) ->
 /// against the fixture's semantic-core `RelationDecl.json`.
 fn extract(request: &Value, core: &str) -> Value {
     let record = serde_json::to_value(extract_semantic_json(request).unwrap()).unwrap();
-    let errors: Vec<String> = match semantic_v1().validate(&record) {
-        Ok(()) => Vec::new(),
-        Err(errs) => errs
-            .map(|e| format!("{e} at {}", e.instance_path))
-            .collect(),
-    };
+    let errors: Vec<String> = semantic_v1()
+        .iter_errors(&record)
+        .map(|e| format!("{e} at {}", e.instance_path()))
+        .collect();
     assert!(errors.is_empty(), "{errors:?}\n{record:#}");
     let gate = relation_decl_gate(core);
     for relation in record["relations"].as_array().into_iter().flatten() {

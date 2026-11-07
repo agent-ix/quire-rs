@@ -5,6 +5,23 @@ All notable changes to `quire-rs` are documented here. Format follows
 numbers follow semver — pre-1.0, breaking changes may land in minor
 bumps; once 1.0 ships, semver is strict.
 
+## [Unreleased]
+
+### Changed
+
+- Move `jsonschema` from `~0.18` to `=0.56.0` (quire-rs#429). 0.18.3 accepts
+  documents that draft 2020-12 rejects (`$dynamicRef`); 0.56.0 does not. Over
+  every schema and JSON or frontmatter document in this repository (33,012
+  schema/instance pairs) verdicts and `(path, keyword)` error sets are
+  unchanged apart from that correction. Error text is not part of the
+  contract and may differ.
+- Breaking for Rust callers: `CompiledArchetype::validator`,
+  `frontmatter_validator()` and `data_validator()` now expose
+  `jsonschema::Validator` instead of `jsonschema::JSONSchema`.
+- A schema without `$schema` is still compiled as draft-07, as 0.18 did;
+  0.56 would otherwise default it to 2020-12 and change verdicts.
+- `deny.toml` admits `borrow-or-share` (MIT-0), a new transitive dependency.
+
 ## [0.52.0] — 2026-11-03
 
 ### Fixed

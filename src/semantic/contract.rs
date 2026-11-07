@@ -7,11 +7,12 @@
 
 use std::collections::BTreeMap;
 
-use jsonschema::{error::ValidationErrorKind, JSONSchema};
+use jsonschema::{error::ValidationErrorKind, Validator};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use super::embedded;
+use crate::loader::compile::schema_options;
 
 /// Severity of a semantic diagnostic. `Advisory` lives inside the semantic
 /// record only (FR-072); outside it maps onto the existing `warning` level.
@@ -115,7 +116,7 @@ pub fn reference_form(value: &Value) -> DataSchemaForm {
     DataSchemaForm::Ambiguous
 }
 
-fn block_validator() -> JSONSchema {
+fn block_validator() -> Validator {
     let schema: Value = serde_json::from_str(embedded::MODULE_MANIFEST_SCHEMA)
         .expect("embedded module-manifest schema is JSON");
     let mut block = schema["properties"]["semantic"].clone();
@@ -124,8 +125,8 @@ fn block_validator() -> JSONSchema {
     if let Some(required) = block["required"].as_array_mut() {
         required.retain(|key| key != "semantic_core");
     }
-    JSONSchema::options()
-        .compile(&block)
+    schema_options(&block)
+        .build(&block)
         .expect("embedded semantic block schema compiles")
 }
 
@@ -168,13 +169,13 @@ pub fn read_semantic_block(
     if let Some(map) = validation_block.as_object_mut() {
         map.remove("semantic_core");
     }
-    if let Err(errors) = validator.validate(&validation_block) {
-        for error in errors {
+    {
+        for error in validator.iter_errors(&validation_block) {
             let at = format!(
                 "semantic{}",
-                error.instance_path.to_string().replace('/', ".")
+                error.instance_path().to_string().replace('/', ".")
             );
-            let failure = match &error.kind {
+            let failure = match error.kind() {
                 ValidationErrorKind::AdditionalProperties { unexpected } => SemanticFailure::error(
                     "semantic.unknown-key",
                     at.clone(),
@@ -186,7 +187,7 @@ pub fn read_semantic_block(
                         at.clone(),
                         format!(
                             "target {} is outside the embedded target registry",
-                            error.instance
+                            error.instance()
                         ),
                     )
                 }
@@ -194,7 +195,7 @@ pub fn read_semantic_block(
                     SemanticFailure::error(
                         "semantic.invalid-package",
                         at.clone(),
-                        format!("package {} is not <org>/<repo>", error.instance),
+                        format!("package {} is not <org>/<repo>", error.instance()),
                     )
                 }
                 ValidationErrorKind::Required { property } => SemanticFailure::error(
