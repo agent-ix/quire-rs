@@ -184,22 +184,26 @@ pub fn compile_schema(schema: &Value) -> Result<Validator, String> {
         .map_err(|e| format!("schema compile error: {e}"))
 }
 
-/// Validation options for `schema`, with the dialect fallback this crate has
-/// always applied: a schema that declares `$schema` is compiled under that
-/// draft, and one that does not is compiled as draft-07.
+/// The draft `schema` is compiled under, with the fallback this crate has
+/// always applied: a schema that declares a known `$schema` is compiled under
+/// that draft, and one that declares none (or one this validator does not
+/// know) is compiled as draft-07.
 ///
-/// `jsonschema` 0.18 defaulted to draft-07 for an undeclared dialect; 0.56
-/// defaults to 2020-12. Taking the newer default silently would change
-/// verdicts on every schema without `$schema` (draft-07 ignores
+/// `jsonschema` 0.18 defaulted to draft-07 for an undeclared or unknown
+/// dialect; 0.56 defaults an undeclared one to 2020-12 and refuses an unknown
+/// one. Taking either silently would change verdicts (draft-07 ignores
 /// `unevaluatedProperties` and `prefixItems`, 2020-12 enforces them), so the
 /// fallback is stated here instead. A schema that wants 2020-12 declares it.
-pub(crate) fn schema_options(schema: &Value) -> jsonschema::ValidationOptions<'static> {
-    let options = jsonschema::options();
-    if schema.get("$schema").is_some() {
-        options
-    } else {
-        options.with_draft(jsonschema::Draft::Draft7)
+pub(crate) fn schema_draft(schema: &Value) -> jsonschema::Draft {
+    match jsonschema::Draft::Draft7.detect(schema) {
+        jsonschema::Draft::Unknown => jsonschema::Draft::Draft7,
+        draft => draft,
     }
+}
+
+/// Validation options for `schema` under [`schema_draft`].
+pub(crate) fn schema_options(schema: &Value) -> jsonschema::ValidationOptions<'static> {
+    jsonschema::options().with_draft(schema_draft(schema))
 }
 
 /// Convert a (module, archetype, path, reason) tuple into a
@@ -292,6 +296,16 @@ mod tests {
         let declared = compile_schema(&declared).expect("compile");
         assert!(!declared.is_valid(&extra));
         assert!(declared.is_valid(&json!({"a": "x"})));
+    }
+
+    /// 0.18 compiled a schema with an unrecognised `$schema` as draft-07;
+    /// 0.56 refuses it, so the fallback is kept.
+    #[test]
+    fn compile_schema_reads_an_unknown_dialect_as_draft_07() {
+        let schema = json!({"$schema": "http://example.invalid/dialect", "type": "string"});
+        let validator = compile_schema(&schema).expect("compile");
+        assert!(validator.is_valid(&json!("a")));
+        assert!(!validator.is_valid(&json!(1)));
     }
 
     /// FR-002-AC-7: a `$ref` to a remote document is refused when the schema

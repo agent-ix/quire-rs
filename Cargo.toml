@@ -66,9 +66,9 @@ regex = "^1"
 # `default-features = false` to drop the `resolve-http`/`reqwest`/`cli` defaults
 # — quire-rs is filesystem-only (StR-001, FR-013, hard rule: no network deps).
 # The `resolve-file` activation is feature-gated (`resolve-file` feature, on
-# by default) so the `wasm` feature can opt out — `jsonschema`'s
-# resolve-file path calls `url::Url::to_file_path`, which is unavailable on
-# `wasm32-unknown-unknown`. See the `wasm` feature below + spec FR-013.
+# by default) so the `wasm` feature can opt out: the filesystem-free wasm
+# build keeps filesystem `$ref` retrieval out. See the `wasm` feature below
+# + spec FR-013.
 jsonschema = { version = "=0.56.0", default-features = false }
 # v0.3 corpus: parallel walk + parse (FR-024). Caret-pinned ecosystem helpers.
 # `ignore` = ripgrep's gitignore-aware walker; `rayon` = data-parallel parse fan-out.
@@ -198,8 +198,8 @@ remeasure = []
 # narrowed and not left gated, because a dormant feature is a rule nobody
 # measures again. A narrower variant is a new question with its own experiment.
 # Activate jsonschema's `resolve-file` cargo feature. Gated so the
-# `wasm` build can opt out (jsonschema's resolve-file path calls
-# `url::Url::to_file_path`, which doesn't exist on wasm32). See FR-013.
+# `wasm` build can opt out (filesystem `$ref` retrieval is not part of the
+# filesystem-free wasm build). See FR-013.
 resolve-file = ["jsonschema/resolve-file"]
 # Filesystem-free build target. Drops `resolve-file` so the crate
 # compiles for `wasm32-unknown-unknown`. Schemas must be passed

@@ -15,7 +15,7 @@ use serde_json::Value;
 
 use super::contract::{DataSchemaRef, SemanticFailure};
 use super::embedded;
-use crate::loader::compile::schema_options;
+use crate::loader::compile::{schema_draft, schema_options};
 
 /// Where a module's files come from.
 pub enum SchemaSource<'a> {
@@ -220,11 +220,7 @@ pub fn compile_module_schema(
         if id == "<root>" {
             continue;
         }
-        let resource = if doc.get("$schema").is_some() {
-            jsonschema::Resource::from_contents(doc.clone())
-        } else {
-            jsonschema::Draft::Draft7.create_resource(doc.clone())
-        };
+        let resource = schema_draft(doc).create_resource(doc.clone());
         registry = registry.add(id, resource).map_err(|e| not_schema(&e))?;
     }
     let registry = registry.prepare().map_err(|e| not_schema(&e))?;

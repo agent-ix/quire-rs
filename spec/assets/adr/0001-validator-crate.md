@@ -29,7 +29,7 @@ templates with complex schemas.
 
 ## Decision
 
-**Selected: `jsonschema = "=0.56.0"`** (revised from `~0.18` by quire-rs#429; see Revision below) with `default-features = false` and
+**Selected: `jsonschema`, pinned exactly in `Cargo.toml`** (revised from `~0.18` by quire-rs#429; see Revision below) with `default-features = false` and
 the `resolve-file` feature (no HTTP resolver — engine is filesystem-only
 per [StR-001](../../stakeholder/StR-001-single-rust-engine.md) / [FR-013](../../functional/FR-013-archetype-loader.md)).
 
@@ -58,7 +58,7 @@ Rationale:
 against a `$dynamicRef` schema that 0.56.0 and the specification reject
 (measured in `agent-ix/quoin` `quoin-semantic/DIVERGENCE.md` section 1). It
 also kept quoin's tree from converging on one `jsonschema`. The pin moved to
-`=0.56.0`, still with `default-features = false`; `resolve-file` stays the
+0.56.0, still with `default-features = false`; `resolve-file` stays the
 only resolver feature and the `wasm` feature still opts out of it.
 
 Parity re-validation, run before the move, over 43 schemas and 773 instances
@@ -69,10 +69,16 @@ plus the frontmatter of every Markdown file):
 - Error `(instance path, keyword)` sets: 0 differences.
 - The only verdict that changes is the `$dynamicRef` case above, which is a
   correction. It is pinned by `compile_schema_enforces_dynamic_ref_under_2020_12`.
-- A schema with no `$schema` was read as draft-07 by 0.18 and would be read as
-  2020-12 by 0.56. `loader::compile::schema_options` keeps draft-07 for that
-  case so no verdict moves silently; a schema that wants 2020-12 declares it.
-  Every schema in the corpus declares `$schema`.
+- A schema with no `$schema`, or an unrecognised one, was read as draft-07 by
+  0.18; 0.56 would read the first as 2020-12 and refuse the second.
+  `loader::compile::schema_draft` keeps draft-07 for both so no verdict moves
+  silently; a schema that wants 2020-12 declares it. Every schema in the
+  corpus declares a known `$schema`.
+- Error order is not preserved: the first violation reported by `validate`
+  and the filament/semantic record diagnostics differs from 0.18 on about half
+  of the invalid pairs (for example `/type` const before a root `required`
+  became root `required` first). Verdicts and the full error set are
+  identical. Order and text are diagnostics, not contract.
 
 `benches/validator_choice.rs` on the revised pin measures `is_valid` on the
 representative FR schema at about 37 ns (optimized bench profile, Apple
@@ -93,7 +99,7 @@ fleshing out the corpus is the Task 013 follow-up.
 
 ## Consequences
 
-- `Cargo.toml` pins `jsonschema = "=0.56.0"` per [NFR-009-AC-1](../../non-functional/NFR-009-dependency-pinning.md).
+- `Cargo.toml` pins `jsonschema` exactly per [NFR-009-AC-1](../../non-functional/NFR-009-dependency-pinning.md).
 - A future revision (a new `jsonschema` release or → `boon`) requires:
   - a CR opening the discussion,
   - a re-run of `benches/validator_choice.rs` on the canonical hardware,
