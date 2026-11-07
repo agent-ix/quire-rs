@@ -227,9 +227,11 @@ index is a parallel inventory census or retained evidence store.
 ### Owner qualification premises
 
 The term **producer definition** has the meaning specified by Quoin FR-116: an
-owner-approved method/act-kind contract with required invocations, actor and
-source authority, tool/configuration premises, and CI or permitted manual
-association. Its method vocabulary comes from the Quoin `MethodCatalog`; this
+owner-approved definition identity/version describing the allowed
+declared-method/act-kind pair, required verification acts, required result
+semantics, permitted target scope, actual tool/configuration premises and
+required CI or permitted manual association, with any owner-required time
+validity rule. Its method vocabulary comes from the Quoin `MethodCatalog`; this
 does not authorize Quire to add fields to that catalog. Current `RunRecord`
 fields alone do not establish those premises. A Quire-local `RunEntry.config`
 map, suite name, arbitrary key, or assertion that an audit is healthy SHALL NOT
