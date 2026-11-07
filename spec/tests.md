@@ -903,13 +903,13 @@ Reserved withdrawn IDs (not active test cases): TC-834, TC-842, TC-871, TC-1089,
 | TC-1951 | Dimension, terms and unit records validate against `semantic-v1.schema.json`, Rust and Python agree as JSON values, and repeated extraction is byte-identical | Integration | P0 | FR-075-AC-20 | 🚧 |
 | TC-1952 | Unit and dimension tokens resolve through `importedArtifacts`: bare tokens from own then imported artifacts, qualified `<org>/<repo>::name` tokens, cross-package ambiguity naming both packages, own-package precedence, owner-qualified identities for two `Time` dimensions in one record, the `unknown-token` and `import-unresolved` reasons, and the single `no-bundle-index` reason for every unresolved token (qualified, in `imports` or not, and bare) under an empty index | Unit | P0 | FR-070-AC-14 | 🚧 |
 | TC-1953 | A repeated `Base`, `terms` or unit table, and a `Base` table beside a unit table, each yield `semantic.duplicate-section` at the second table's header line, keep the earlier kind, and a `Base` table with a `terms` table extracts both | Unit | P0 | FR-075-AC-21 | 🚧 |
-| TC-1963 | Qualified performed Inspection binds only its exact selected obligation | Integration | P0 | FR-078-AC-1 | 🚧 Blocked — Quoin owner qualification/CI carrier; not run |
-| TC-1964 | Analysis requires both lint lanes and CI association; one-lane and wrong-method controls refuse | Integration | P0 | FR-078-AC-2 | 🚧 Blocked — Quoin owner qualification/CI carrier; not run |
-| TC-1965 | Executed shell and Makefile evidence binds with exact producer/source/tool/configuration | Integration | P0 | FR-078-AC-3 | 🚧 Blocked — Quoin owner qualification/CI carrier; not run |
-| TC-1966 | Executed compile_fail doctest expected refusal passes; unrun and wrong-error controls do not | Integration | P0 | FR-078-AC-4 | 🚧 Blocked — Quoin owner qualification/CI carrier; not run |
+| TC-1963 | Qualified performed Inspection binds only its exact selected obligation | Integration | P0 | FR-078-AC-1 | 🚧 Blocked — Quoin FR-116 qualifier and `quoin-quire` bridge build; not run |
+| TC-1964 | Analysis requires both lint lanes and CI association; one-lane and wrong-method controls refuse | Integration | P0 | FR-078-AC-2 | 🚧 Blocked — Quoin FR-116 qualifier and `quoin-quire` bridge build; not run |
+| TC-1965 | Executed shell and Makefile evidence binds with exact producer/source/tool/configuration | Integration | P0 | FR-078-AC-3 | 🚧 Blocked — Quoin FR-116 qualifier and `quoin-quire` bridge build; not run |
+| TC-1966 | Executed compile_fail doctest expected refusal passes; unrun and wrong-error controls do not | Integration | P0 | FR-078-AC-4 | 🚧 Blocked — Quoin FR-116 qualifier and `quoin-quire` bridge build; not run |
 | TC-1967 | Citations, unrun suites/scripts and validated Inspections tables remain unbacked | Unit | P0 | FR-078-AC-5 | 🚧 Planned — not run |
 | TC-1968 | Failed, errored, skipped, absent and unevaluated evidence retains distinct non-passing causes | Unit | P0 | FR-078-AC-6 | 🚧 Planned — not run |
-| TC-1969 | Wrong revision, selection and qualification premises do not bind | Unit | P0 | FR-078-AC-7 | 🚧 Blocked — Quoin owner qualification/CI carrier; not run |
+| TC-1969 | Wrong revision, selection, authority, bounded-use, tool/configuration and CI/manual association premises do not bind and keep distinct unevaluated/rejected causes | Unit | P0 | FR-078-AC-7 | 🚧 Blocked — Quoin FR-116 qualifier and `quoin-quire` bridge build; not run |
 | TC-1970 | Waiver report and strict disposition stay distinct under pending Peter policy | Unit | P0 | FR-078-AC-8 | 🚧 Blocked — Peter waiver policy + owner representation; not run |
 | TC-1971 | Missing/wrong/ambiguous declared targets refuse rather than selecting a sibling or first duplicate | Unit | P0 | FR-078-AC-9 | 🚧 Planned — not run |
 | TC-1972 | Identical records deduplicate; conflicts are deterministic in both input orders | Unit | P0 | FR-078-AC-10 | 🚧 Planned — not run |
@@ -921,7 +921,7 @@ Reserved withdrawn IDs (not active test cases): TC-834, TC-842, TC-871, TC-1089,
 | TC-1978 | Partial/invalid/non-Complete inventory cannot earn whole-selection coverage completion | Integration | P0 | FR-078-AC-16 | 🚧 Planned — not run |
 | TC-1979 | Producer-facing shared-record/audit example executes against the public consumer boundary | Integration | P0 | FR-078-AC-17 | 🚧 Planned — not run |
 | TC-1980 | RT Inspection, TC-198/199 gate and compile_fail equivalent fixtures record before/after strict outcomes | Integration | P0 | FR-078-AC-18 | 🚧 Planned — not run |
-| TC-1981 | Unknown method/catalog/kind and unsupported qualification refuse with deterministic diagnostics | Unit | P0 | FR-078-AC-19, FR-078-CON-4 | 🚧 Blocked — Quoin owner qualification/CI carrier; not run |
+| TC-1981 | Unknown method/catalog/kind and unsupported qualification refuse with deterministic diagnostics | Unit | P0 | FR-078-AC-19, FR-078-CON-4 | 🚧 Blocked — Quoin FR-116 qualifier and `quoin-quire` bridge build; not run |
 | TC-1982 | Retained-evidence queries perform no gate, code, network, store mutation or publication | Integration | P0 | FR-078-AC-20, FR-078-CON-2 | 🚧 Planned — not run |
 | TC-1641 | A static audit of `cargo metadata` and the semantic module finds none of the NFR-021 denylisted crates and no `eval`/`parse_expr`/`typecheck` symbol over clause text | Static | P0 | NFR-021-AC-1 | ✅ |
 | TC-1642 | A static audit finds no `std::net`, `std::process`, or filesystem write on the semantic path | Static | P0 | NFR-021-AC-2 | ✅ |
