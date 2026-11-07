@@ -9,7 +9,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use ix_trace_rs::trace;
-use jsonschema::JSONSchema;
+use jsonschema::Validator;
 use serde_json::{json, Value};
 
 fn repo() -> PathBuf {
@@ -24,19 +24,19 @@ fn schema_value(name: &str) -> Value {
     .expect("schema is valid JSON")
 }
 
-fn compile(name: &str) -> JSONSchema {
+fn compile(name: &str) -> Validator {
     let value = schema_value(name);
-    JSONSchema::options()
+    jsonschema::options()
         .with_draft(jsonschema::Draft::Draft202012)
-        .compile(&value)
+        .build(&value)
         .unwrap_or_else(|e| panic!("compiling {name}: {e}"))
 }
 
-fn errors(schema: &JSONSchema, instance: &Value) -> Vec<String> {
-    match schema.validate(instance) {
-        Ok(()) => Vec::new(),
-        Err(errs) => errs.map(|e| format!("{}: {e}", e.instance_path)).collect(),
-    }
+fn errors(schema: &Validator, instance: &Value) -> Vec<String> {
+    schema
+        .iter_errors(instance)
+        .map(|e| format!("{}: {e}", e.instance_path()))
+        .collect()
 }
 
 /// Keys that would let a payload assert its own contract revision
@@ -445,9 +445,9 @@ fn tc857_emitted_criteria_conform() {
     // records, while the envelope around them is assembled by `quire-cli`.
     let mut criterion_schema = schema_doc["$defs"]["Criterion"].clone();
     criterion_schema["$defs"] = schema_doc["$defs"].clone();
-    let compiled = JSONSchema::options()
+    let compiled = jsonschema::options()
         .with_draft(jsonschema::Draft::Draft202012)
-        .compile(&criterion_schema)
+        .build(&criterion_schema)
         .expect("criterion definition compiles");
 
     let module = repo()

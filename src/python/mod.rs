@@ -433,14 +433,10 @@ fn validate_manifest<'py>(
             })?;
             let validator = crate::loader::compile::compile_schema(&schema)
                 .map_err(|m| QuireSchemaError::new_err(format!("schema compile failed: {m}")))?;
-            if let Err(mut errors) = validator.validate(&value) {
-                let details = errors
-                    .by_ref()
-                    .map(|e| crate::validate::schema_validation_detail(&e))
-                    .collect();
-                return Ok(details);
-            }
-            Ok(Vec::new())
+            Ok(validator
+                .iter_errors(&value)
+                .map(|e| crate::validate::schema_validation_detail(&e))
+                .collect())
         },
     )?;
 

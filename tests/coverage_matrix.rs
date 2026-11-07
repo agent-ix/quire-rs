@@ -780,15 +780,15 @@ fn retained_backing_components_reconcile_named_source_free_boundaries() {
         let schema_value: serde_json::Value =
             serde_json::from_str(include_str!("../schemas/output/coverage-v1.schema.json"))
                 .unwrap();
-        let schema = jsonschema::JSONSchema::options()
+        let schema = jsonschema::options()
             .with_draft(jsonschema::Draft::Draft202012)
-            .compile(&schema_value)
+            .build(&schema_value)
             .unwrap();
         let payload = serde_json::to_value(&report).unwrap();
-        let errors: Vec<_> = match schema.validate(&payload) {
-            Ok(()) => vec![],
-            Err(errors) => errors.map(|error| error.to_string()).collect(),
-        };
+        let errors: Vec<_> = schema
+            .iter_errors(&payload)
+            .map(|error| error.to_string())
+            .collect();
         assert!(
             errors.is_empty(),
             "{} runtime schema: {:?}",

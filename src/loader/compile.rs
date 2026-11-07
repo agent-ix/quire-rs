@@ -13,7 +13,7 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use jsonschema::JSONSchema;
+use jsonschema::Validator;
 use serde_json::Value;
 
 use crate::error::ArchetypeLoadFailure;
@@ -81,15 +81,15 @@ pub struct CompiledArchetype {
     /// frontmatter/data validators are available via the accessors.
     pub raw_schema: Arc<Value>,
     /// Primary compiled validator paired with [`Self::raw_schema`].
-    pub validator: Arc<JSONSchema>,
+    pub validator: Arc<Validator>,
     /// Compiled frontmatter-schema validator (FR-031), `None` when the
     /// archetype declares no `frontmatter_schema_ref`.
     pub frontmatter_schema: Option<Arc<Value>>,
-    pub frontmatter_validator: Option<Arc<JSONSchema>>,
+    pub frontmatter_validator: Option<Arc<Validator>>,
     /// Compiled `data_schema` validator over the *extracted record*
     /// (FR-031-AC-4) — distinct from the frontmatter validator.
     pub data_schema: Option<Arc<Value>>,
-    pub data_validator: Option<Arc<JSONSchema>>,
+    pub data_validator: Option<Arc<Validator>>,
     /// Parsed `body_extraction` DSL (FR-011), `None` when absent.
     /// Drives both `extract()` and `validate_document()` (FR-032).
     pub body_extraction: Option<ExtractionDsl>,
@@ -114,12 +114,12 @@ impl CompiledArchetype {
     }
 
     /// Compiled frontmatter-schema validator (FR-031-AC-4), if declared.
-    pub fn frontmatter_validator(&self) -> Option<&JSONSchema> {
+    pub fn frontmatter_validator(&self) -> Option<&Validator> {
         self.frontmatter_validator.as_deref()
     }
 
     /// Compiled `data_schema` validator (FR-031-AC-4), if declared.
-    pub fn data_validator(&self) -> Option<&JSONSchema> {
+    pub fn data_validator(&self) -> Option<&Validator> {
         self.data_validator.as_deref()
     }
 
@@ -178,10 +178,32 @@ pub fn read_schema(path: &Path) -> Result<Value, String> {
 }
 
 /// Compile a parsed JSON Schema document into a runtime validator.
-pub fn compile_schema(schema: &Value) -> Result<JSONSchema, String> {
-    JSONSchema::options()
-        .compile(schema)
+pub fn compile_schema(schema: &Value) -> Result<Validator, String> {
+    schema_options(schema)
+        .build(schema)
         .map_err(|e| format!("schema compile error: {e}"))
+}
+
+/// The draft `schema` is compiled under, with the fallback this crate has
+/// always applied: a schema that declares a known `$schema` is compiled under
+/// that draft, and one that declares none (or one this validator does not
+/// know) is compiled as draft-07.
+///
+/// `jsonschema` 0.18 defaulted to draft-07 for an undeclared or unknown
+/// dialect; 0.56 defaults an undeclared one to 2020-12 and refuses an unknown
+/// one. Taking either silently would change verdicts (draft-07 ignores
+/// `unevaluatedProperties` and `prefixItems`, 2020-12 enforces them), so the
+/// fallback is stated here instead. A schema that wants 2020-12 declares it.
+pub(crate) fn schema_draft(schema: &Value) -> jsonschema::Draft {
+    match jsonschema::Draft::Draft7.detect(schema) {
+        jsonschema::Draft::Unknown => jsonschema::Draft::Draft7,
+        draft => draft,
+    }
+}
+
+/// Validation options for `schema` under [`schema_draft`].
+pub(crate) fn schema_options(schema: &Value) -> jsonschema::ValidationOptions<'static> {
+    jsonschema::options().with_draft(schema_draft(schema))
 }
 
 /// Convert a (module, archetype, path, reason) tuple into a
@@ -238,6 +260,60 @@ mod tests {
         let bad = json!({});
         assert!(validator.is_valid(&good));
         assert!(!validator.is_valid(&bad));
+    }
+
+    /// Verdict change from `jsonschema` 0.18.3, kept on purpose (quire-rs#429):
+    /// 0.18.3 accepted `[1]` against this `$dynamicRef` schema, which the
+    /// 2020-12 specification rejects. 0.56 rejects it.
+    #[test]
+    fn compile_schema_enforces_dynamic_ref_under_2020_12() {
+        let schema = json!({
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "$defs": {"item": {"$dynamicAnchor": "T", "type": "string"}},
+            "items": {"$dynamicRef": "#T"}
+        });
+        let validator = compile_schema(&schema).expect("compile");
+        assert!(validator.is_valid(&json!(["a"])));
+        assert!(!validator.is_valid(&json!([1])));
+    }
+
+    /// A schema with no `$schema` keeps the draft-07 reading it had under
+    /// 0.18, where `unevaluatedProperties` is an unknown keyword; the same
+    /// schema that declares 2020-12 enforces it.
+    #[test]
+    fn compile_schema_reads_an_undeclared_dialect_as_draft_07() {
+        let body = json!({
+            "type": "object",
+            "properties": {"a": {"type": "string"}},
+            "unevaluatedProperties": false
+        });
+        let extra = json!({"a": "x", "b": 1});
+        let undeclared = compile_schema(&body).expect("compile");
+        assert!(undeclared.is_valid(&extra));
+
+        let mut declared = body.clone();
+        declared["$schema"] = json!("https://json-schema.org/draft/2020-12/schema");
+        let declared = compile_schema(&declared).expect("compile");
+        assert!(!declared.is_valid(&extra));
+        assert!(declared.is_valid(&json!({"a": "x"})));
+    }
+
+    /// 0.18 compiled a schema with an unrecognised `$schema` as draft-07;
+    /// 0.56 refuses it, so the fallback is kept.
+    #[test]
+    fn compile_schema_reads_an_unknown_dialect_as_draft_07() {
+        let schema = json!({"$schema": "http://example.invalid/dialect", "type": "string"});
+        let validator = compile_schema(&schema).expect("compile");
+        assert!(validator.is_valid(&json!("a")));
+        assert!(!validator.is_valid(&json!(1)));
+    }
+
+    /// FR-002-AC-7: a `$ref` to a remote document is refused when the schema
+    /// is compiled, not fetched.
+    #[test]
+    fn compile_schema_refuses_a_remote_ref() {
+        let schema = json!({"$ref": "https://absent.invalid/other.json"});
+        assert!(compile_schema(&schema).is_err());
     }
 
     #[test]

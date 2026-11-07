@@ -810,7 +810,7 @@ fn read_module_semantic(
     crate::semantic::read_semantic_block(block, &names).map(Some)
 }
 
-type DataSchemaParts = (Option<Arc<Value>>, Option<Arc<jsonschema::JSONSchema>>);
+type DataSchemaParts = (Option<Arc<Value>>, Option<Arc<jsonschema::Validator>>);
 
 /// Resolve an archetype's `data_schema` (FR-069 Behavior): the reference
 /// form is compiled offline; an inline schema under a
@@ -888,9 +888,9 @@ fn finish_compiled(
     module: &str,
     a: &Archetype,
     frontmatter_schema: Option<Arc<Value>>,
-    frontmatter_validator: Option<Arc<jsonschema::JSONSchema>>,
+    frontmatter_validator: Option<Arc<jsonschema::Validator>>,
     data_schema: Option<Arc<Value>>,
-    data_validator: Option<Arc<jsonschema::JSONSchema>>,
+    data_validator: Option<Arc<jsonschema::Validator>>,
 ) -> CompiledArchetype {
     let (raw_schema, validator) = match (&frontmatter_schema, &frontmatter_validator) {
         (Some(s), Some(v)) => (Arc::clone(s), Arc::clone(v)),
@@ -915,7 +915,7 @@ fn finish_compiled(
 
 /// An empty (permissive) object schema + its compiled validator, used
 /// when an archetype declares neither a frontmatter nor a data schema.
-fn empty_schema_and_validator() -> (Arc<Value>, Arc<jsonschema::JSONSchema>) {
+fn empty_schema_and_validator() -> (Arc<Value>, Arc<jsonschema::Validator>) {
     let schema = Value::Object(serde_json::Map::new());
     let validator = compile_schema(&schema).expect("empty object schema always compiles");
     (Arc::new(schema), Arc::new(validator))

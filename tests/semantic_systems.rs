@@ -71,12 +71,10 @@ fn extract_with_bundle_artifacts(md: &str, body_extraction: Value, artifacts: Va
         "https://agent-ix.github.io/quire-rs/schemas/output/",
     )
     .unwrap();
-    let errors: Vec<String> = match schema.validate(&value) {
-        Ok(()) => Vec::new(),
-        Err(errs) => errs
-            .map(|e| format!("{e} at {}", e.instance_path))
-            .collect(),
-    };
+    let errors: Vec<String> = schema
+        .iter_errors(&value)
+        .map(|e| format!("{e} at {}", e.instance_path()))
+        .collect();
     assert!(errors.is_empty(), "{errors:?}\n{value:#}");
     value
 }

@@ -140,7 +140,7 @@ Path-safety violations raised by consumers (CLIs, services) that resolve user-co
 
 For each archetype the loader SHALL:
 
-1. Parse the JSON Schema document and compile it into a runtime validator (e.g. `jsonschema::JSONSchema::compile`).
+1. Parse the JSON Schema document and compile it into a runtime validator (e.g. `jsonschema::options().build()`).
 2. Cache the (validator, metadata, optional `body_extraction` DSL) tuple as a `CompiledArchetype` keyed by archetype name.
 
 Templates are NOT parsed or registered (render is removed). Per-validate and per-extract operations SHALL NOT re-read disk and SHALL NOT re-parse schemas. Load cost is amortized over the process lifetime (see [NFR-007](../non-functional/NFR-007-load-cost-amortized.md)).

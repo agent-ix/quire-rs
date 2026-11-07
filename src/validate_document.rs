@@ -430,16 +430,13 @@ fn semantic_findings(
             Err(err @ crate::semantic::DeclarationError::Serialize(_)) => Some(format!(
                 "semantic.record-invalid: {err}"
             )),
-            Ok(declaration) => match validator.validate(&declaration) {
-                Ok(()) => None,
-                Err(mut violations) => violations.next().map(|err| {
-                    let detail = crate::validate::schema_validation_detail(&err);
-                    format!(
-                        "semantic.record-invalid: declaration record fails the resolved data schema at {}: {}",
-                        detail.path, detail.message
-                    )
-                }),
-            },
+            Ok(declaration) => validator.iter_errors(&declaration).next().map(|err| {
+                let detail = crate::validate::schema_validation_detail(&err);
+                format!(
+                    "semantic.record-invalid: declaration record fails the resolved data schema at {}: {}",
+                    detail.path, detail.message
+                )
+            }),
         };
         if let Some(message) = first {
             errors.push(ValidationError {
@@ -650,19 +647,17 @@ fn validate_frontmatter(
     };
     let fm = doc.frontmatter.clone().unwrap_or_default();
     let value = Value::Object(fm);
-    let messages: Vec<String> = match validator.validate(&value) {
-        Ok(()) => Vec::new(),
-        Err(violations) => violations
-            .map(|v| {
-                format!(
-                    "[{}] frontmatter: {} (at {})",
-                    archetype.name,
-                    v,
-                    dotted_path(&v.instance_path.to_string())
-                )
-            })
-            .collect(),
-    };
+    let messages: Vec<String> = validator
+        .iter_errors(&value)
+        .map(|v| {
+            format!(
+                "[{}] frontmatter: {} (at {})",
+                archetype.name,
+                v,
+                dotted_path(&v.instance_path().to_string())
+            )
+        })
+        .collect();
     for message in messages {
         errors.push(ValidationError {
             message,

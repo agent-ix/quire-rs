@@ -46,12 +46,10 @@ fn extract(md: &str) -> (SemanticExtraction, Value) {
         "https://agent-ix.github.io/quire-rs/schemas/output/",
     )
     .unwrap();
-    let errors: Vec<String> = match schema.validate(&value) {
-        Ok(()) => Vec::new(),
-        Err(errs) => errs
-            .map(|e| format!("{e} at {}", e.instance_path))
-            .collect(),
-    };
+    let errors: Vec<String> = schema
+        .iter_errors(&value)
+        .map(|e| format!("{e} at {}", e.instance_path()))
+        .collect();
     assert!(errors.is_empty(), "{errors:?}\n{value:#}");
     (record, value)
 }
@@ -147,12 +145,10 @@ fn features_table_yields_feature_order_in_row_order() {
                 registry.diagnostics()
             )
         });
-    let violations: Vec<String> = match validator.validate(&declaration) {
-        Ok(()) => Vec::new(),
-        Err(errs) => errs
-            .map(|e| format!("{e} at {}", e.instance_path))
-            .collect(),
-    };
+    let violations: Vec<String> = validator
+        .iter_errors(&declaration)
+        .map(|e| format!("{e} at {}", e.instance_path()))
+        .collect();
     assert!(violations.is_empty(), "{violations:?}\n{declaration:#}");
 }
 

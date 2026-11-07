@@ -14,6 +14,10 @@ allow = [
 # WITHOUT permitting AGPL in third-party dependencies — the allow-list above
 # stays permissive-only.
 exceptions = [
+    # `jsonschema` 0.56 (quire-rs#429) brings `borrow-or-share` (via
+    # `fluent-uri`), which is MIT-0: permissive, no attribution term. Scoped to
+    # the one crate rather than added to the allow list.
+    { allow = ["MIT-0"], crate = "borrow-or-share" },
     { allow = ["AGPL-3.0-or-later"], crate = "quire-rs" },
     # Benchmark gate tool in this workspace, not a dependency of the engine.
     { allow = ["AGPL-3.0-or-later"], crate = "quire-bench" },

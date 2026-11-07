@@ -7,7 +7,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Component, Path, PathBuf};
 
-use jsonschema::{Draft, JSONSchema};
+use jsonschema::Draft;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -736,20 +736,20 @@ fn validate_v1_value(value: &Value) -> Result<(), AssuranceError> {
             reason: format!("published schema is invalid JSON: {error}"),
         }
     })?;
-    let compiled = JSONSchema::options()
+    let compiled = jsonschema::options()
         .with_draft(Draft::Draft202012)
-        .compile(&schema)
+        .build(&schema)
         .map_err(|error| AssuranceError::SchemaViolation {
             reason: format!("published schema does not compile: {error}"),
         })?;
-    if let Err(mut errors) = compiled.validate(value) {
-        if let Some(error) = errors.next() {
-            return Err(AssuranceError::SchemaViolation {
-                reason: error.to_string(),
-            });
-        }
+    let first = compiled
+        .iter_errors(value)
+        .next()
+        .map(|error| error.to_string());
+    match first {
+        Some(reason) => Err(AssuranceError::SchemaViolation { reason }),
+        None => Ok(()),
     }
-    Ok(())
 }
 
 fn validate_accepted_premises(

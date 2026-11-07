@@ -29,7 +29,7 @@ templates with complex schemas.
 
 ## Decision
 
-**Selected: `jsonschema = "~0.18"`** with `default-features = false` and
+**Selected: `jsonschema`, pinned exactly in `Cargo.toml`** (revised from `~0.18` by quire-rs#429; see Revision below) with `default-features = false` and
 the `resolve-file` feature (no HTTP resolver — engine is filesystem-only
 per [StR-001](../../stakeholder/StR-001-single-rust-engine.md) / [FR-013](../../functional/FR-013-archetype-loader.md)).
 
@@ -43,15 +43,48 @@ Rationale:
    structured error paths would need a wrapper layer.
 2. **Maturity**: Used in production by `cargo-deny` and a number of
    schema-driven tools; reduces tail-risk.
-3. **API stability**: 0.18 ships the `JSONSchema::options().compile()`
-   builder we depend on at `loader/compile.rs`; the 0.19 series
-   reshuffles the API and would require a re-validation pass — we'll
-   re-evaluate when the spec-artifacts corpus parity work picks up.
+3. **API stability**: `loader/compile.rs` builds validators with
+   `jsonschema::options().build()`. (The original 0.18 selection used
+   `JSONSchema::options().compile()`; see Revision.)
 4. **Performance baseline**: see `benches/validator_choice.rs`. On the
    baseline runner (M-class Apple Silicon, dev profile) the validator
    completes a representative `is_valid` call in single-digit µs for
    the FR schema; this comfortably fits inside [NFR-001](../../non-functional/NFR-001-render-latency.md)'s per-render
    1 ms budget once render-template work is added in.
+
+## Revision: 0.18 to 0.56 (quire-rs#429)
+
+`jsonschema` 0.18.3 is non-conformant on draft 2020-12: it accepts `[1]`
+against a `$dynamicRef` schema that 0.56.0 and the specification reject
+(measured in `agent-ix/quoin` `quoin-semantic/DIVERGENCE.md` section 1). It
+also kept quoin's tree from converging on one `jsonschema`. The pin moved to
+0.56.0, still with `default-features = false`; `resolve-file` stays the
+only resolver feature and the `wasm` feature still opts out of it.
+
+Parity re-validation, run before the move, over 43 schemas and 773 instances
+(33,012 schema/instance pairs: every schema and JSON file in this repository
+plus the frontmatter of every Markdown file):
+
+- Verdicts: 0 differences between 0.18.3 and 0.56.0.
+- Error `(instance path, keyword)` sets: 0 differences.
+- The only verdict that changes is the `$dynamicRef` case above, which is a
+  correction. It is pinned by `compile_schema_enforces_dynamic_ref_under_2020_12`.
+- A schema with no `$schema`, or an unrecognised one, was read as draft-07 by
+  0.18; 0.56 would read the first as 2020-12 and refuse the second.
+  `loader::compile::schema_draft` keeps draft-07 for both so no verdict moves
+  silently; a schema that wants 2020-12 declares it. Every schema in the
+  corpus declares a known `$schema`.
+- Error order is not preserved: the first violation reported by `validate`
+  and the filament/semantic record diagnostics differs from 0.18 on about half
+  of the invalid pairs (for example `/type` const before a root `required`
+  became root `required` first). Verdicts and the full error set are
+  identical. Order and text are diagnostics, not contract.
+
+`benches/validator_choice.rs` on the revised pin measures `is_valid` on the
+representative FR schema at about 37 ns (optimized bench profile, Apple
+Silicon). Error text is not part of the contract; the dotted path and
+keyword are, and `src/validate.rs` maps 0.56's `ValidationErrorKind` to them
+exhaustively so a variant added by a later release breaks the build.
 
 ## Bench summary
 
@@ -66,8 +99,8 @@ fleshing out the corpus is the Task 013 follow-up.
 
 ## Consequences
 
-- `Cargo.toml` pins `jsonschema = "~0.18"` per [NFR-009-AC-1](../../non-functional/NFR-009-dependency-pinning.md).
-- A future revision (0.18 → 0.19 or → `boon`) requires:
+- `Cargo.toml` pins `jsonschema` exactly per [NFR-009-AC-1](../../non-functional/NFR-009-dependency-pinning.md).
+- A future revision (a new `jsonschema` release or → `boon`) requires:
   - a CR opening the discussion,
   - a re-run of `benches/validator_choice.rs` on the canonical hardware,
   - a parity re-validation pass against the render-parity corpus (so the
@@ -78,6 +111,6 @@ fleshing out the corpus is the Task 013 follow-up.
   loader compiles schemas as standalone documents. Any `$ref` to a
   sibling schema URL fails the `compile_schema` call.
 - If a future spec-artifacts schema relies on a validator feature
-  `jsonschema 0.18` lacks (e.g. a newer `format` keyword), the gap is
+  the pinned `jsonschema` lacks (e.g. a newer `format` keyword), the gap is
   recorded as a Task 027 hardening fuzz-corpus seed and reviewed
   before bumping the pin.

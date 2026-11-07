@@ -4,14 +4,14 @@ use std::fs;
 use std::path::PathBuf;
 
 use ix_trace_rs::trace;
-use jsonschema::JSONSchema;
+use jsonschema::Validator;
 use quire_rs::semantic::python_entry::extract_semantic_json;
 use quire_rs::semantic::{compile_module_schema, SEMANTIC_V1_SCHEMA};
 use serde_json::{json, Value};
 
 const PATH: &str = "spec/functional/FR-100.md";
 
-fn schema() -> JSONSchema {
+fn schema() -> Validator {
     compile_module_schema(
         &serde_json::from_str::<Value>(SEMANTIC_V1_SCHEMA).unwrap(),
         &|_| None,
@@ -44,12 +44,10 @@ fn extract(md: &str, mappings: &[&str], body_extraction: Value) -> Value {
     });
     let record = extract_semantic_json(&request).unwrap();
     let value = serde_json::to_value(&record).unwrap();
-    let errors: Vec<String> = match schema().validate(&value) {
-        Ok(()) => Vec::new(),
-        Err(errs) => errs
-            .map(|e| format!("{} at {}", e, e.instance_path))
-            .collect(),
-    };
+    let errors: Vec<String> = schema()
+        .iter_errors(&value)
+        .map(|e| format!("{} at {}", e, e.instance_path()))
+        .collect();
     assert!(errors.is_empty(), "{errors:?}\n{value:#}");
     value
 }

@@ -3294,9 +3294,9 @@ fn retired_declarations_keep_live_gaps_and_historical_identity() {
     let schema: serde_json::Value =
         serde_json::from_str(include_str!("../schemas/output/coverage-v1.schema.json"))
             .expect("published coverage schema");
-    let schema = jsonschema::JSONSchema::options()
+    let schema = jsonschema::options()
         .with_draft(jsonschema::Draft::Draft202012)
-        .compile(&schema)
+        .build(&schema)
         .expect("compile published schema");
     for case in cases.as_array().expect("cases") {
         let name = case["name"].as_str().expect("case name");
@@ -3346,12 +3346,11 @@ fn retired_declarations_keep_live_gaps_and_historical_identity() {
         )
         .unwrap();
         let wire = serde_json::to_value(&report).unwrap();
-        let errors = schema.validate(&wire).err().map(|errors| {
-            errors
-                .map(|error| format!("{}: {error}", error.instance_path))
-                .collect::<Vec<_>>()
-        });
-        assert!(errors.is_none(), "{name}: {errors:?}");
+        let errors: Vec<String> = schema
+            .iter_errors(&wire)
+            .map(|error| format!("{}: {error}", error.instance_path()))
+            .collect();
+        assert!(errors.is_empty(), "{name}: {errors:?}");
         let count = |field: &str| case["expect"][field].as_u64().unwrap() as usize;
         assert_eq!(report.totals.total, count("total"), "{name}");
         assert_eq!(report.totals.backed, count("backed"), "{name}");
