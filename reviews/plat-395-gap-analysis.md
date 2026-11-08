@@ -32,3 +32,10 @@ finding each. FR-047-AC-15 regressed to `untagged`. Focused `grammar::ac` tests 
 | --- | --- | --- | --- |
 | FND-001 | high | FR-047-AC-15 went from tagged to `untagged` in the computed matrix, because the TC-775 test's trace was edited to name FR-047-AC-19 (see SR-16313 FND-001). The AC-15 behaviour is still tested, but the matrix no longer shows it. Restore `#[trace("TC-775", "FR-047-AC-15")]`. | src/grammar/ac.rs:1001; spec/tests.md:647 |
 | FND-002 | low | TC-2030 has no Title-Case heading among its negative cases (for example `Add Item To Cart`), so the shape SR-16313 FND-003 shows false-passing is untested. Add it once the regex rejects it. | src/grammar/ac.rs:1516-1526 |
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | Round 1 (head 155b534): `quire matrix` shows FR-047-AC-15 tagged by ac.rs:1011 and FR-047-AC-19 tagged by TC-2070 (ac.rs:1509). |
+| FND-002 | fixed | Round 1: TC-2070 negative cases include `Add Item To Cart` (one `unclassifiable` finding, `unstructured`). |
