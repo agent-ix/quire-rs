@@ -136,6 +136,16 @@ Duplicate declaration authority, per module after its data schemas resolve:
   the refused module, with `reason` starting `semantic.duplicate-authority`
   followed by a message naming the module, the object type and the locator
   key.
+- A match key is a locator's key in `yield_pattern.match` or
+  `yield_pattern.per_match`, a fallback chain included, as
+  [FR-075](./FR-075-model-feature-extraction.md) Inputs reads it.
+
+> **CR-195 note (2026-11-08, agent-ix/quire-rs#435, PLAT-55):** "match key"
+> was not defined here. It is the FR-075 term: a locator declared in either
+> `yield_pattern.match` or `yield_pattern.per_match` declares its key, so a
+> `per_match` locator keyed on a typed relation key is the same second
+> declaration site and is refused the same way. Affected criteria:
+> FR-069-AC-13.
 
 Cross-module checks, after every module of a load has been read, in sorted
 module-root order:
@@ -196,7 +206,7 @@ stricter of the two.
 | FR-069-AC-10 | Two loaded modules with one `semantic.package` fail the later sorted root with `semantic.duplicate-package` naming both; an import no loaded module provides warns `semantic.import-unresolved` and still loads; a two-module import cycle fails both with `semantic.import-cycle`. | Test |
 | FR-069-AC-11 | `Registry::from_inline_parts` with a reference-form `data_schema` resolves the file from the `schemas` map, applies the same escape and `$ref` rules, and refuses a key with a `..` segment. | Test |
 | FR-069-AC-12 | A module whose `semantic` block lists `mappings` loads with those tokens recorded on its `SemanticModule`, in order; a block without `mappings` records an empty list. | Test |
-| FR-069-AC-13 | A module naming `relationships` whose `process` type declares a `table_row` locator keyed `emits` (a typed relation key of its `data_schema`) is refused: every archetype of the module fails with a reason starting `semantic.duplicate-authority` and naming the module, `process` and `emits`; the same module with the locator removed loads; a locator keyed `emits` on a type whose schema has no `emits`, and the same locator in a module not naming `relationships`, load. | Test |
+| FR-069-AC-13 | A module naming `relationships` whose `process` type declares a `table_row` locator keyed `emits` (a typed relation key of its `data_schema`), under `yield_pattern.match` or `yield_pattern.per_match`, is refused: every archetype of the module fails with a reason starting `semantic.duplicate-authority` and naming the module, `process` and `emits`; the same module with the locator removed loads; a locator keyed `emits` on a type whose schema has no `emits`, and the same locator in a module not naming `relationships`, load. | Test |
 
 ## Dependencies
 

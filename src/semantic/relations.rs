@@ -155,17 +155,23 @@ impl RelationVocabulary {
     }
 
     /// The target tokens the extracting object type allows for `verb`.
-    fn allowed_targets(&self, verb: &str) -> Option<&[String]> {
-        let object_type = self.object_type.as_deref()?;
-        self.allowed_links
-            .get(object_type)?
-            .get(verb)
-            .map(Vec::as_slice)
+    pub(crate) fn allowed_targets(&self, verb: &str) -> Option<&[String]> {
+        self.own_allowed_links()?.get(verb).map(Vec::as_slice)
+    }
+
+    /// The extracting object type's `allowed_links`.
+    fn own_allowed_links(&self) -> Option<&AllowedLinks> {
+        self.allowed_links.get(self.object_type.as_deref()?)
+    }
+
+    /// The roles the object type `object` carries.
+    pub(crate) fn roles_of(&self, object: &str) -> &[String] {
+        self.roles.get(object).map_or(&[], Vec::as_slice)
     }
 
     /// FR-040 `target_satisfies`, except that an untyped target satisfies
     /// only `*` (FR-104 Rows).
-    fn satisfies(&self, token: &str, target_object: Option<&str>) -> bool {
+    pub(crate) fn satisfies(&self, token: &str, target_object: Option<&str>) -> bool {
         match target_object {
             None => token == "*",
             Some(object) => target_satisfies(
@@ -174,6 +180,83 @@ impl RelationVocabulary {
                 self.roles.get(object).map_or(&[], Vec::as_slice),
             ),
         }
+    }
+}
+
+/// What an object type's resolved `data_schema` declares that typed
+/// relation keys read (FR-076 Inputs): its top-level `SemanticId[]`
+/// properties, and whether it declares `relations`.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub(crate) struct RelationSchema {
+    semantic_id_arrays: Vec<String>,
+    declares_relations: bool,
+}
+
+impl RelationSchema {
+    pub(crate) fn from_data_schema(schema: &Value) -> Self {
+        let properties = schema.get("properties").and_then(Value::as_object);
+        Self {
+            semantic_id_arrays: properties
+                .into_iter()
+                .flatten()
+                .filter(|(_, property)| is_semantic_id_array(property))
+                .map(|(key, _)| key.clone())
+                .collect(),
+            declares_relations: properties.is_some_and(|p| p.contains_key("relations")),
+        }
+    }
+
+    /// The typed relation keys under `allowed_links`: each `SemanticId[]`
+    /// property whose name is one of its verbs.
+    pub(crate) fn typed_keys<'a>(
+        &'a self,
+        allowed_links: &'a AllowedLinks,
+    ) -> impl Iterator<Item = &'a str> + 'a {
+        self.semantic_id_arrays
+            .iter()
+            .map(String::as_str)
+            .filter(|key| allowed_links.contains_key(*key))
+    }
+
+    /// The typed shape rows lower into for the object type `vocabulary`
+    /// describes; `None` when it has no typed relation key, so every row
+    /// lowers into `relations`.
+    fn shape(&self, vocabulary: &RelationVocabulary) -> Option<TypedShape> {
+        let keys: Vec<String> = self
+            .typed_keys(vocabulary.own_allowed_links()?)
+            .map(str::to_string)
+            .collect();
+        (!keys.is_empty()).then_some(TypedShape {
+            keys,
+            declares_relations: self.declares_relations,
+        })
+    }
+}
+
+/// An array whose items are the semantic-core `SemanticId`.
+fn is_semantic_id_array(property: &Value) -> bool {
+    property.get("type").and_then(Value::as_str) == Some("array")
+        && property
+            .get("items")
+            .and_then(|items| items.get("$ref"))
+            .and_then(Value::as_str)
+            .is_some_and(|r| {
+                r.starts_with(super::embedded::SEMANTIC_CORE_BASE)
+                    && r.ends_with("/SemanticId.json")
+            })
+}
+
+/// The typed relation keys of the extracting object type, and whether its
+/// schema also declares `relations`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct TypedShape {
+    keys: Vec<String>,
+    declares_relations: bool,
+}
+
+impl TypedShape {
+    fn is_key(&self, verb: &str) -> bool {
+        self.keys.iter().any(|k| k == verb)
     }
 }
 
@@ -189,36 +272,93 @@ pub struct RelationDecl {
 }
 
 /// The `name` and `sourceSpan` of one `relations` element, at its index:
-/// the embedded semantic-core carrier until `RelationDecl` holds them.
+/// the embedded semantic-core carrier until `RelationDecl` holds them. On a
+/// type whose schema declares no `relations`, one entry per row, which also
+/// carries the row's `verb`, `target` and `multiplicity` cells as authored.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RelationSource {
     pub name: String,
     pub source_span: SourceLocus,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub verb: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub target: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub multiplicity: Option<String>,
 }
 
-/// One extracted row: the declaration with its name and span.
+/// One extracted row: the declaration with its name, span, and the
+/// `Target` and `Multiplicity` cells as authored.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ExtractedRelation {
     pub(crate) name: String,
     pub(crate) decl: RelationDecl,
     pub(crate) source_span: SourceLocus,
+    target_cell: String,
+    multiplicity_cell: String,
+}
+
+/// The record-boundary shape of the extracted rows.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub(crate) struct RelationRecord {
+    pub(crate) relations: Option<Vec<RelationDecl>>,
+    pub(crate) sources: Option<Vec<RelationSource>>,
+    /// Each typed relation key with its identities in row order.
+    pub(crate) typed: BTreeMap<String, Vec<String>>,
 }
 
 impl ExtractedRelation {
-    /// The record-boundary shape: parallel `relations` and `relationSources`.
-    pub(crate) fn split(rows: Vec<Self>) -> (Vec<RelationDecl>, Vec<RelationSource>) {
-        rows.into_iter()
-            .map(|row| {
-                (
-                    row.decl,
-                    RelationSource {
-                        name: row.name,
-                        source_span: row.source_span,
-                    },
-                )
-            })
-            .unzip()
+    fn source(&self) -> RelationSource {
+        RelationSource {
+            name: self.name.clone(),
+            source_span: self.source_span.clone(),
+            verb: None,
+            target: None,
+            multiplicity: None,
+        }
+    }
+
+    /// The record-boundary shape: parallel `relations` and
+    /// `relationSources`, and under `typed` each typed key's identities.
+    pub(crate) fn split(rows: Vec<Self>, typed: Option<&TypedShape>) -> RelationRecord {
+        let Some(shape) = typed else {
+            let sources = rows.iter().map(Self::source).collect();
+            return RelationRecord {
+                relations: Some(rows.into_iter().map(|row| row.decl).collect()),
+                sources: Some(sources),
+                typed: BTreeMap::new(),
+            };
+        };
+        let mut record = RelationRecord {
+            typed: shape.keys.iter().map(|k| (k.clone(), Vec::new())).collect(),
+            ..RelationRecord::default()
+        };
+        let (keyed, untyped): (Vec<Self>, Vec<Self>) = rows
+            .into_iter()
+            .partition(|row| shape.is_key(&row.decl.verb));
+        if shape.declares_relations {
+            record.sources = Some(untyped.iter().map(Self::source).collect());
+            record.relations = Some(untyped.into_iter().map(|row| row.decl).collect());
+        } else {
+            // Every row is typed here: an untyped verb is `verb-not-typed-key`.
+            let sources: Vec<RelationSource> = keyed
+                .iter()
+                .map(|row| RelationSource {
+                    verb: Some(row.decl.verb.clone()),
+                    target: Some(row.target_cell.clone()),
+                    multiplicity: Some(row.multiplicity_cell.clone()),
+                    ..row.source()
+                })
+                .collect();
+            record.sources = (!sources.is_empty()).then_some(sources);
+        }
+        for row in keyed {
+            if let Some(identities) = record.typed.get_mut(&row.decl.verb) {
+                identities.push(row.decl.target);
+            }
+        }
+        record
     }
 }
 
@@ -227,6 +367,9 @@ impl ExtractedRelation {
 pub(crate) struct RelationsOutcome {
     /// Present exactly when `availability` is `available`.
     pub(crate) relations: Option<Vec<ExtractedRelation>>,
+    /// The typed relation keys rows lower into; `None` lowers every row into
+    /// `relations`.
+    pub(crate) typed: Option<TypedShape>,
     /// Absent when the artifact neither names the token nor holds a
     /// relationship-shaped table.
     pub(crate) availability: Option<KindAvailability>,
@@ -249,6 +392,8 @@ enum Finding {
     Generalization,
     UnknownVerb,
     VerbNotAllowed,
+    /// The schema declares no `relations` and the verb is no typed key.
+    VerbNotTypedKey,
     TargetNotId,
     TargetNotAllowed {
         object: Option<String>,
@@ -257,6 +402,11 @@ enum Finding {
         why: String,
     },
     DeclaredInFrontmatter,
+    /// A typed relation key declared in frontmatter: a second declaration
+    /// site beside the `## Relationships` rows.
+    TypedKeyInFrontmatter {
+        key: String,
+    },
     /// A `## Relationships` section with no block (warning).
     NoBlock,
     /// The surface supplies no relation vocabulary (advisory).
@@ -274,11 +424,13 @@ impl Finding {
             Self::NotExtractable => "semantic.feature-not-extractable",
             Self::SecondTable | Self::SecondSection => "semantic.duplicate-section",
             Self::DuplicateName | Self::DeclaredInFrontmatter => "semantic.duplicate-model-entry",
+            Self::TypedKeyInFrontmatter { .. } => "semantic.duplicate-authority",
             Self::NameNotIdentifier
             | Self::InverseVerb { .. }
             | Self::Generalization
             | Self::UnknownVerb
             | Self::VerbNotAllowed
+            | Self::VerbNotTypedKey
             | Self::TargetNotId
             | Self::TargetNotAllowed { .. }
             | Self::Multiplicity { .. } => "semantic.invalid-model-cell",
@@ -304,10 +456,12 @@ impl Finding {
             | Self::Generalization
             | Self::UnknownVerb
             | Self::VerbNotAllowed
+            | Self::VerbNotTypedKey
             | Self::TargetNotId
             | Self::TargetNotAllowed { .. }
             | Self::Multiplicity { .. }
-            | Self::DeclaredInFrontmatter => SemanticSeverity::Error,
+            | Self::DeclaredInFrontmatter
+            | Self::TypedKeyInFrontmatter { .. } => SemanticSeverity::Error,
         }
     }
 
@@ -322,10 +476,12 @@ impl Finding {
             Self::Generalization => "generalization",
             Self::UnknownVerb => "unknown-verb",
             Self::VerbNotAllowed => "verb-not-allowed",
+            Self::VerbNotTypedKey => "verb-not-typed-key",
             Self::TargetNotId => "target-not-id",
             Self::TargetNotAllowed { .. } => "target-not-allowed",
             Self::Multiplicity { .. } => "multiplicity",
             Self::DeclaredInFrontmatter => "declared-in-frontmatter",
+            Self::TypedKeyInFrontmatter { .. } => "frontmatter-key",
             Self::NoBlock => "no-block",
             Self::NoVocabulary => NO_VOCABULARY,
             Self::NoBundlePackage => NO_BUNDLE_PACKAGE,
@@ -372,6 +528,9 @@ impl Finding {
             Self::VerbNotAllowed => {
                 format!("verb `{verb}` is not in the allowed_links of object type {object_type}")
             }
+            Self::VerbNotTypedKey => format!(
+                "verb `{verb}` is no typed relation key of object type {object_type}, whose data schema declares no `relations`"
+            ),
             Self::TargetNotId => format!(
                 "target {target:?} is not a bundle artifact id, an `ix://<org>/<repo>/<id>` identity of a bundle artifact, or an identity in an imported package"
             ),
@@ -382,6 +541,9 @@ impl Finding {
             Self::Multiplicity { why } => format!("row {name}: {why}"),
             Self::DeclaredInFrontmatter => format!(
                 "`{verb}` {target} is also declared in frontmatter `relationships`; declare it once"
+            ),
+            Self::TypedKeyInFrontmatter { key } => format!(
+                "frontmatter key `{key}` is a typed relation key of object type {object_type}; it is declared only by `## {SECTION}` rows"
             ),
             Self::NoBlock => format!(
                 "the section holds no `{}` table; nothing is extracted",
@@ -430,7 +592,7 @@ const NO_BUNDLE_PACKAGE: &str = "no-bundle-package";
 /// The `<org>/<repo>` targets qualify under: the bundle's package, else the
 /// package of an explicit `ix://<org>/<repo>/…` source identity. Never the
 /// module's package: that names the module, not the artifact's bundle.
-fn bundle_package(ctx: &SemanticContext) -> Option<&str> {
+pub(crate) fn bundle_package(ctx: &SemanticContext) -> Option<&str> {
     if !ctx.bundle.package.is_empty() {
         return Some(&ctx.bundle.package);
     }
@@ -510,6 +672,7 @@ struct RowCheck<'a> {
     own: OwnArtifact<'a>,
     names: Vec<String>,
     frontmatter: Vec<(String, String)>,
+    typed: Option<&'a TypedShape>,
 }
 
 impl RowCheck<'_> {
@@ -537,6 +700,12 @@ impl RowCheck<'_> {
         let Some(allowed) = vocabulary.allowed_targets(row.verb) else {
             return Err(Finding::VerbNotAllowed);
         };
+        if self
+            .typed
+            .is_some_and(|shape| !shape.declares_relations && !shape.is_key(row.verb))
+        {
+            return Err(Finding::VerbNotTypedKey);
+        }
         let target = resolve_target(self.ctx, self.package, &self.own, row.target, is_id_segment)
             .map_err(|_| Finding::TargetNotId)?;
         if let Target::Bundle { object, .. } = &target {
@@ -569,6 +738,8 @@ impl RowCheck<'_> {
                     multiplicity,
                 },
                 source_span: line_span(self.ctx, lines, row.line),
+                target_cell: row.target.to_string(),
+                multiplicity_cell: row.multiplicity.to_string(),
             },
             unchecked: matches!(target, Target::Unchecked { .. }),
         })
@@ -653,6 +824,28 @@ pub(crate) fn extract_relations(raw: &str, ctx: &SemanticContext) -> RelationsOu
         out.availability = (!out.diagnostics.is_empty()).then(|| entry_errors(&out.diagnostics));
         return out;
     }
+    out.typed = ctx
+        .relation_vocabulary
+        .as_ref()
+        .zip(ctx.relation_schema.as_ref())
+        .and_then(|(vocabulary, schema)| schema.shape(vocabulary));
+    if let (Some(shape), Some(frontmatter)) = (&out.typed, fm.frontmatter.as_ref()) {
+        for key in shape
+            .keys
+            .iter()
+            .filter(|k| frontmatter.contains_key(k.as_str()))
+        {
+            out.diagnostics.push(
+                Finding::TypedKeyInFrontmatter { key: key.clone() }.diagnostic(
+                    ctx,
+                    &lines,
+                    Section::Frontmatter,
+                    1,
+                    None,
+                ),
+            );
+        }
+    }
 
     let section = Section::Heading(SECTION);
     let mut sections = headings.iter().filter(|(h, _, _)| h == SECTION);
@@ -733,6 +926,7 @@ pub(crate) fn extract_relations(raw: &str, ctx: &SemanticContext) -> RelationsOu
         },
         names: Vec::new(),
         frontmatter: frontmatter_edges(frontmatter, package),
+        typed: out.typed.as_ref(),
     };
     let mut rows = Vec::new();
     // `no-bundle-index` advisories land only when no row errs (FR-104).
