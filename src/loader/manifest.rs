@@ -397,17 +397,6 @@ impl Manifest {
     /// two blocks, and is yielded once; registering it twice would report the
     /// module as a duplicate of itself. Two entries that share a name but
     /// differ are both yielded, so the collision stays visible.
-    /// The manifest section that declares `a`, for naming it in a refusal path.
-    pub fn section_of(&self, a: &Archetype) -> &'static str {
-        if self.artifact_types.contains(a) {
-            "artifact_types"
-        } else if self.object_types.contains(a) {
-            "object_types"
-        } else {
-            "archetypes"
-        }
-    }
-
     pub fn all_archetypes(&self) -> impl Iterator<Item = &Archetype> {
         let mut seen: Vec<&Archetype> = Vec::new();
         self.artifact_types
@@ -421,6 +410,17 @@ impl Manifest {
                 }
                 !repeat
             })
+    }
+
+    /// The manifest section that declares `a`, for naming it in a refusal path.
+    pub fn section_of(&self, a: &Archetype) -> &'static str {
+        if self.artifact_types.contains(a) {
+            "artifact_types"
+        } else if self.object_types.contains(a) {
+            "object_types"
+        } else {
+            "archetypes"
+        }
     }
 }
 

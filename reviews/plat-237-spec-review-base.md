@@ -35,3 +35,16 @@ AP-201 (spec/assurance/AP-201-detection-minting.md) governs coverage collection,
 ## Verdict
 
 PASS with two low findings. The prose matches loader behaviour, the CR note follows the repository's CR-note pattern, and the document validates. Neither finding blocks merge. FND-001 is a one-word revert. FND-002 is an optional test strengthening.
+
+## New findings (disposition pass 1)
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-003 | low | Fix commit 5c5c6ed inserts `Manifest::section_of` between the doc comment of `all_archetypes` and its `fn` line. Rustdoc now attaches the whole `all_archetypes` comment (iteration order, dedup of identical entries) to `section_of`, followed by its own one-line comment, and leaves `all_archetypes` undocumented. | src/loader/manifest.rs:392-411 |
+
+## Dispositions
+
+| FND | Outcome | Reason |
+| --- | --- | --- |
+| FND-001 | fixed | 5c5c6ed restores "produce no node for that object type" in the Filament extraction clause. |
+| FND-002 | fixed | 5c5c6ed adds `refused_block_fails_every_archetype_in_every_section` (TC-1600, FR-069-AC-2). It spreads the fixture across `artifact_types` and `archetypes` with two archetypes and asserts two `semantic.unsupported-contract-version` failures and neither archetype loaded. |
