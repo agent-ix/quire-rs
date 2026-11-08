@@ -395,7 +395,12 @@ fn a_criterion_tag_only_backs_its_own_matrix_row() {
             .iter()
             .filter(|diagnostic| diagnostic.reason == "criterion-tagged-outside-row")
             .collect();
-        if name == "criterion-tagged-outside-matrix-row" {
+        if matches!(
+            name,
+            "criterion-tagged-outside-matrix-row"
+                | "criterion-tag-without-matrix-row"
+                | "criterion-tag-with-unrecognized-matrix-row"
+        ) {
             assert_eq!(diagnostics.len(), 1, "{name}: {report:?}");
             assert_eq!(diagnostics[0].value.as_deref(), Some("FR-001-AC-2"));
             assert!(diagnostics[0].message.contains("TC-002"));

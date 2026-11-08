@@ -83,7 +83,10 @@ fn tc1930_tc1931_coverage_matrix_population_is_the_obligation_set() {
     assert_eq!(requirement.document, "spec/FR-001.md");
     assert_eq!(requirement.criteria.len(), 1);
     assert_eq!(requirement.criteria[0].id, "FR-001-AC-1");
-    assert_eq!(requirement.criteria[0].status, CoverageMatrixStatus::Tagged);
+    assert_eq!(
+        requirement.criteria[0].status,
+        CoverageMatrixStatus::Untagged
+    );
 
     // TC-1931: add a Test Matrix that mints a `test-case` trace target but no
     // obligation (this module declares no `obligations:` source reading it).
@@ -139,9 +142,14 @@ fn tc1932_tc1944_binders_are_keyed_on_path_line_column_not_qualified_name() {
     write(
         &root,
         "src/service.test.ts",
-        "it('a', () => { trace('FR-001-AC-1'); }); it('b', () => { trace('FR-001-AC-1'); });\n\
-         describe('SuiteA', () => {\n  it('works', () => { trace('FR-001-AC-2'); });\n});\n\
-         describe('SuiteB', () => {\n  it('works', () => { trace('FR-001-AC-2'); });\n});\n",
+        "it('a', () => { trace('TC-001', 'FR-001-AC-1'); }); it('b', () => { trace('TC-001', 'FR-001-AC-1'); });\n\
+         describe('SuiteA', () => {\n  it('works', () => { trace('TC-002', 'FR-001-AC-2'); });\n});\n\
+         describe('SuiteB', () => {\n  it('works', () => { trace('TC-002', 'FR-001-AC-2'); });\n});\n",
+    );
+    write(
+        &root,
+        "spec/tests.md",
+        "---\nid: TM-001\ntype: TestMatrix\n---\n\n## Test Cases\n\n| ID | Traces To | Status |\n|---|---|---|\n| TC-001 | FR-001-AC-1 | 🚧 |\n| TC-002 | FR-001-AC-2 | 🚧 |\n",
     );
     let report = report_over(&root, "iso-obligations");
 
@@ -227,9 +235,14 @@ fn optional_abstract_property_preserves_typescript_matrix_binding() {
         &root,
         "src/record.test.ts",
         "type TestRecord = { abstract?: boolean };\n\
-         it('keeps the module binding', () => { trace('FR-001-AC-1'); });\n",
+         it('keeps the module binding', () => { trace('TC-001', 'FR-001-AC-1'); });\n",
     );
 
+    write(
+        &root,
+        "spec/tests.md",
+        "---\nid: TM-001\ntype: TestMatrix\n---\n\n## Test Cases\n\n| ID | Traces To | Status |\n|---|---|---|\n| TC-001 | FR-001-AC-1 | 🚧 |\n",
+    );
     let report = report_over(&root, "iso-obligations");
     let criterion = report
         .coverage_matrix
@@ -332,8 +345,13 @@ fn tc1933_tc1934_computed_status_reads_the_binder_set() {
         &root,
         "src/lib.rs",
         "//! fixture\n\n#[cfg(test)]\nmod tests {\n\
-         \x20   #[trace(\"FR-001-AC-1\")]\n    #[test]\n    fn covers_1() {\n        let _ = 1;\n    }\n\n\
-         \x20   #[trace(\"FR-001-AC-3\")]\n    #[ignore]\n    #[test]\n    fn covers_3_ignored() {\n        let _ = 1;\n    }\n}\n",
+         \x20   #[trace(\"TC-001\", \"FR-001-AC-1\")]\n    #[test]\n    fn covers_1() {\n        let _ = 1;\n    }\n\n\
+         \x20   #[trace(\"TC-003\", \"FR-001-AC-3\")]\n    #[ignore]\n    #[test]\n    fn covers_3_ignored() {\n        let _ = 1;\n    }\n}\n",
+    );
+    write(
+        &root,
+        "spec/tests.md",
+        "---\nid: TM-001\ntype: TestMatrix\n---\n\n## Test Cases\n\n| ID | Traces To | Status |\n|---|---|---|\n| TC-001 | FR-001-AC-1 | 🚧 |\n| TC-003 | FR-001-AC-3 | 🚧 |\n",
     );
     let report = report_over(&root, "iso-obligations");
     let status = |id: &str| {
@@ -357,9 +375,9 @@ fn tc1933_tc1934_computed_status_reads_the_binder_set() {
         &root,
         "src/lib.rs",
         "//! fixture\n\n#[cfg(test)]\nmod tests {\n\
-         \x20   #[trace(\"FR-001-AC-1\")]\n    #[test]\n    fn covers_1() {\n        let _ = 1;\n    }\n\n\
-         \x20   #[trace(\"FR-001-AC-3\")]\n    #[ignore]\n    #[test]\n    fn covers_3_ignored() {\n        let _ = 1;\n    }\n\n\
-         \x20   #[trace(\"FR-001-AC-3\")]\n    #[test]\n    fn covers_3_running() {\n        let _ = 1;\n    }\n}\n",
+         \x20   #[trace(\"TC-001\", \"FR-001-AC-1\")]\n    #[test]\n    fn covers_1() {\n        let _ = 1;\n    }\n\n\
+         \x20   #[trace(\"TC-003\", \"FR-001-AC-3\")]\n    #[ignore]\n    #[test]\n    fn covers_3_ignored() {\n        let _ = 1;\n    }\n\n\
+         \x20   #[trace(\"TC-003\", \"FR-001-AC-3\")]\n    #[test]\n    fn covers_3_running() {\n        let _ = 1;\n    }\n}\n",
     );
     let report2 = report_over(&root, "iso-obligations");
     let status2 = |id: &str| {
@@ -1124,11 +1142,16 @@ fn retained_results_preserve_source_claims_all_causes_and_record_order() {
     use quire_rs::evidence::{ActResult, BackingInput, CauseCode, RecordClaim, RecordLocator};
     use quire_rs::obligation::inventory::{inventory, InventoryOptions};
     let root = tmpdir("retained-source-causes");
-    write(&root, "spec/FR-001.md", "---\nid: FR-001\ntype: FR\n---\n\n## Acceptance Criteria\n\n| ID | Criteria | Verification |\n|---|---|---|\n| FR-001-AC-1 | Every failure shall retain its cause. | Test |\n");
+    write(&root, "spec/FR-001.md", "---\nid: FR-001\ntype: FR\n---\n\n## Acceptance Criteria\n\n| ID | Criteria | Verification |\n|---|---|---|\n| FR-001-AC-1 | Every failure shall retain its cause. | Test (TC-001) |\n");
     write(
         &root,
         "src/lib.rs",
-        "#[cfg(test)]\nmod tests {\n#[trace(\"FR-001-AC-1\")]\n#[test]\nfn existing() {}\n}\n",
+        "#[cfg(test)]\nmod tests {\n#[trace(\"TC-001\", \"FR-001-AC-1\")]\n#[test]\nfn existing() {}\n}\n",
+    );
+    write(
+        &root,
+        "spec/tests.md",
+        "---\nid: TM-001\ntype: TestMatrix\n---\n\n## Test Cases\n\n| ID | Traces To | Status |\n|---|---|---|\n| TC-001 | FR-001-AC-1 | 🚧 |\n",
     );
     let registry = Registry::load_module(&fixture_module("iso-obligations")).unwrap();
     let model = registry.traceability().unwrap();

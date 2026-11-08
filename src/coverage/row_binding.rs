@@ -133,15 +133,15 @@ impl RowBindings {
             let has_matrix_row = symbol_ids
                 .iter()
                 .any(|id| self.matrix_row_ids.contains(*id));
+            if !self.constrained_ids.contains(&relation.trace_id) {
+                eligible.push(relation);
+                continue;
+            }
             let Some(rows) = self.rows_by_id.get(&relation.trace_id) else {
-                if !self.constrained_ids.contains(&relation.trace_id) || !has_matrix_row {
-                    eligible.push(relation);
-                    continue;
-                }
                 diagnostics.push(self.out_of_row_diagnostic(relation, &BTreeSet::new()));
                 continue;
             };
-            if !has_matrix_row || rows.iter().any(|row| symbol_ids.contains(row.as_str())) {
+            if has_matrix_row && rows.iter().any(|row| symbol_ids.contains(row.as_str())) {
                 eligible.push(relation);
             } else {
                 diagnostics.push(self.out_of_row_diagnostic(relation, rows));

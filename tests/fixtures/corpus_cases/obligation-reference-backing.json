@@ -155,6 +155,7 @@
         "FR-008-AC-10",
         "FR-008-AC-11",
         "FR-008-AC-12",
+        "FR-008-AC-7",
         "TC-025"
       ],
       "obligations": 6
@@ -171,7 +172,7 @@
         "tests.md": "---\nid: TM-001\ntype: TestMatrix\n---\n\n## Test Cases\n\n| ID | Traces To | Type | Status |\n|----|-----------|------|--------|\n| TC-025 | FR-008-AC-3, FR-008-AC-4, FR-008-AC-7, FR-008-AC-10, FR-008-AC-11, FR-008-AC-12 | Unit | \ud83d\udea7 |\n"
       },
       "sources": {
-        "test_partial.rs": "#[trace(\"FR-008-AC-3\", \"FR-008-AC-4\", \"FR-008-AC-7\", \"FR-008-AC-10\", \"FR-008-AC-11\", \"FR-008-AC-12\")]\n#[test]\nfn partial_owner() { assert_eq!(1, 1); }\n"
+        "test_partial.rs": "#[trace(\"TC-025\", \"FR-008-AC-3\", \"FR-008-AC-4\", \"FR-008-AC-7\", \"FR-008-AC-10\", \"FR-008-AC-11\", \"FR-008-AC-12\")]\n#[test]\nfn partial_owner() { assert_eq!(1, 1); }\n"
       }
     },
     "expect": {
