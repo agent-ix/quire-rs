@@ -13,6 +13,7 @@
 
 pub mod assurance;
 pub mod ast;
+pub mod audit_table;
 pub mod clauses;
 pub mod combinatorial;
 pub mod concept;

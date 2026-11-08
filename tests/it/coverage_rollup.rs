@@ -3424,7 +3424,13 @@ fn tc1878_interface_acceptance_criteria_register_as_obligations() {
     );
 }
 
-#[trace("FR-050-AC-53", "FR-050-AC-55", "FR-050-AC-56", "FR-050-AC-57")]
+#[trace(
+    "TC-2053",
+    "FR-050-AC-53",
+    "FR-050-AC-55",
+    "FR-050-AC-56",
+    "FR-050-AC-57"
+)]
 #[test]
 fn retired_declarations_keep_live_gaps_and_historical_identity() {
     let cases: serde_json::Value = serde_json::from_str(include_str!(
@@ -3607,7 +3613,7 @@ fn retired_declarations_keep_live_gaps_and_historical_identity() {
     }
 }
 
-#[trace("FR-050-AC-55")]
+#[trace("TC-2053", "FR-050-AC-55")]
 #[test]
 fn retirement_vocabularies_are_validated_after_module_selection() {
     let fixture: serde_json::Value = serde_json::from_str(include_str!(

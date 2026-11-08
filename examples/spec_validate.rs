@@ -325,6 +325,24 @@ fn main() {
         }
     }
 
+    // ── Audit-table completeness (FR-050-AC-58, CR-200) ──
+    // Per-document validation cannot see a row that is absent: a coverage row
+    // declaring `AC-1..N` over an audit table lacking one criterion's row
+    // validates cell by cell. The matrix and the requirement documents are
+    // read together.
+    match quire_rs::audit_table::audit_spec_dir(&root.join("spec")) {
+        Ok(gaps) => {
+            for gap in gaps {
+                eprintln!("error: spec/tests.md: audit table: {gap}");
+                failed_documents += 1;
+            }
+        }
+        Err(error) => {
+            eprintln!("error: audit table: {error}");
+            failed_documents += 1;
+        }
+    }
+
     for path in &skipped_untyped {
         println!("skipped (untyped, not validated): {path}");
     }
