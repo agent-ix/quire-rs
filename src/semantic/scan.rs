@@ -190,24 +190,42 @@ pub struct Table {
 
 /// Split a pipe row into trimmed cells; `\|` is a literal pipe.
 pub fn split_row(line: &str) -> Vec<String> {
-    let text = line.trim_end_matches('\r').trim();
-    let text = text.strip_prefix('|').unwrap_or(text);
-    let text = text.strip_suffix('|').unwrap_or(text);
+    split_row_spans(line)
+        .into_iter()
+        .map(|(cell, _)| cell)
+        .collect()
+}
+
+/// [`split_row`] with each cell's byte range in `line`: the trimmed cell as
+/// authored, so the range covers `\|` escapes the cell text has unescaped.
+pub(crate) fn split_row_spans(line: &str) -> Vec<(String, std::ops::Range<usize>)> {
+    let line = line.trim_end_matches('\r');
+    let lead = line.len() - line.trim_start().len();
+    let mut text = line.trim();
+    let mut base = lead;
+    if let Some(rest) = text.strip_prefix('|') {
+        text = rest;
+        base += 1;
+    }
+    text = text.strip_suffix('|').unwrap_or(text);
     let mut cells = Vec::new();
-    let mut cell = String::new();
-    let mut chars = text.chars().peekable();
-    while let Some(c) = chars.next() {
-        if c == '\\' && chars.peek() == Some(&'|') {
-            cell.push('|');
+    let mut cell_start = 0;
+    let mut chars = text.char_indices().peekable();
+    let mut push = |from: usize, to: usize| {
+        let raw = &text[from..to];
+        let trimmed = raw.trim();
+        let start = base + from + (raw.len() - raw.trim_start().len());
+        cells.push((trimmed.replace("\\|", "|"), start..start + trimmed.len()));
+    };
+    while let Some((i, c)) = chars.next() {
+        if c == '\\' && chars.peek().is_some_and(|&(_, next)| next == '|') {
             chars.next();
         } else if c == '|' {
-            cells.push(cell.trim().to_string());
-            cell.clear();
-        } else {
-            cell.push(c);
+            push(cell_start, i);
+            cell_start = i + 1;
         }
     }
-    cells.push(cell.trim().to_string());
+    push(cell_start, text.len());
     cells
 }
 

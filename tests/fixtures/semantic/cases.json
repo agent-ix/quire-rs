@@ -3663,6 +3663,1921 @@
           ]
         }
       }
+    },
+    {
+      "name": "plat57-pre-expression",
+      "issue_ref": "PLAT-57",
+      "tags": [
+        "TC-2040",
+        "expression",
+        "resolves"
+      ],
+      "input": {
+        "markdown": "---\nid: FR-901\ntitle: Operations\nobject: entity\ntype: FR\n---\n\n# FR-901: Operations\n\n## Invariants\n\n### a\n\n```quire\nself.a = 1\n```\n\n### b\n\n```quire\nself.b = 1\n```\n\n## Operations\n\n### ship\n\nPre: x > 1 and y(a, b)\nModifies: total\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "entity"
+          ],
+          "imports": {},
+          "mappings": [
+            "effect-frames"
+          ]
+        },
+        "path": "spec/functional/FR-006.md",
+        "sourceIdentity": "ix://agent-ix/config-service/spec"
+      },
+      "expect": {
+        "availability": {
+          "operations": {
+            "state": "available",
+            "lossy": true
+          },
+          "model": {
+            "state": "available"
+          }
+        },
+        "diagnosticCodes": [
+          "semantic.expression-unchecked"
+        ],
+        "diagnostics": [
+          {
+            "code": "semantic.expression-unchecked",
+            "severity": "advisory",
+            "line": 28
+          }
+        ],
+        "values": {
+          "/operationExpressions": [
+            {
+              "operation": "ship",
+              "slot": "pre",
+              "expression": {
+                "kind": "expression",
+                "text": "x > 1 and y(a, b)",
+                "sourceSpan": {
+                  "sourceIdentity": "ix://agent-ix/config-service/spec",
+                  "path": "spec/functional/FR-006.md",
+                  "startLine": 28,
+                  "startColumn": 6,
+                  "endLine": 28,
+                  "endColumn": 23
+                }
+              }
+            }
+          ],
+          "/operations/0/pre": [],
+          "/model/operationFrames/0/pre": []
+        }
+      }
+    },
+    {
+      "name": "plat57-pre-reference-control",
+      "issue_ref": "PLAT-57",
+      "tags": [
+        "TC-2040",
+        "expression",
+        "control"
+      ],
+      "input": {
+        "markdown": "---\nid: FR-901\ntitle: Operations\nobject: entity\ntype: FR\n---\n\n# FR-901: Operations\n\n## Invariants\n\n### a\n\n```quire\nself.a = 1\n```\n\n### b\n\n```quire\nself.b = 1\n```\n\n## Operations\n\n### ship\n\nPre: a, b\nModifies: total\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "entity"
+          ],
+          "imports": {},
+          "mappings": [
+            "effect-frames"
+          ]
+        },
+        "path": "spec/functional/FR-006.md",
+        "sourceIdentity": "ix://agent-ix/config-service/spec"
+      },
+      "expect": {
+        "availability": {
+          "operations": {
+            "state": "available",
+            "lossy": false
+          }
+        },
+        "diagnosticCodes": [],
+        "absentPaths": [
+          "/operationExpressions"
+        ],
+        "values": {
+          "/model/operationFrames/0/pre": [
+            "a",
+            "b"
+          ],
+          "/operations/0/pre/0/clauseId": "a",
+          "/operations/0/pre/1/clauseId": "b"
+        }
+      }
+    },
+    {
+      "name": "plat57-post-dangling-reference",
+      "issue_ref": "PLAT-57",
+      "tags": [
+        "TC-2041",
+        "expression",
+        "refusal"
+      ],
+      "input": {
+        "markdown": "---\nid: FR-901\ntitle: Operations\nobject: entity\ntype: FR\n---\n\n# FR-901: Operations\n\n## Invariants\n\n### a\n\n```quire\nself.a = 1\n```\n\n### b\n\n```quire\nself.b = 1\n```\n\n## Operations\n\n### ship\n\nPost: missing\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "entity"
+          ],
+          "imports": {}
+        },
+        "path": "spec/functional/FR-006.md",
+        "sourceIdentity": "ix://agent-ix/config-service/spec"
+      },
+      "expect": {
+        "availability": {
+          "operations": {
+            "state": "unavailable"
+          }
+        },
+        "diagnosticCodes": [
+          "semantic.dangling-clause-ref"
+        ],
+        "diagnostics": [
+          {
+            "code": "semantic.dangling-clause-ref",
+            "line": 28
+          }
+        ],
+        "absentPaths": [
+          "/operationExpressions"
+        ]
+      }
+    },
+    {
+      "name": "plat57-parenthesised-declared",
+      "issue_ref": "PLAT-57",
+      "tags": [
+        "TC-2041",
+        "expression",
+        "resolves"
+      ],
+      "input": {
+        "markdown": "---\nid: FR-901\ntitle: Operations\nobject: entity\ntype: FR\n---\n\n# FR-901: Operations\n\n## Invariants\n\n### a\n\n```quire\nself.a = 1\n```\n\n## Operations\n\n### ship\n\nPre: (a)\nPost: a\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "entity"
+          ],
+          "imports": {}
+        },
+        "path": "spec/functional/FR-006.md",
+        "sourceIdentity": "ix://agent-ix/config-service/spec"
+      },
+      "expect": {
+        "availability": {
+          "operations": {
+            "state": "available",
+            "lossy": true
+          }
+        },
+        "diagnosticCodes": [
+          "semantic.expression-unchecked"
+        ],
+        "values": {
+          "/operationExpressions": [
+            {
+              "operation": "ship",
+              "slot": "pre",
+              "expression": {
+                "kind": "expression",
+                "text": "(a)",
+                "sourceSpan": {
+                  "sourceIdentity": "ix://agent-ix/config-service/spec",
+                  "path": "spec/functional/FR-006.md",
+                  "startLine": 22,
+                  "startColumn": 6,
+                  "endLine": 22,
+                  "endColumn": 9
+                }
+              }
+            }
+          ],
+          "/operations/0/pre": [],
+          "/operations/0/post/0/clauseId": "a"
+        }
+      }
+    },
+    {
+      "name": "plat57-parenthesised-undeclared",
+      "issue_ref": "PLAT-57",
+      "tags": [
+        "TC-2041",
+        "expression",
+        "resolves"
+      ],
+      "input": {
+        "markdown": "---\nid: FR-901\ntitle: Operations\nobject: entity\ntype: FR\n---\n\n# FR-901: Operations\n\n## Operations\n\n### ship\n\nPre: (a)\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "entity"
+          ],
+          "imports": {}
+        },
+        "path": "spec/functional/FR-006.md",
+        "sourceIdentity": "ix://agent-ix/config-service/spec"
+      },
+      "expect": {
+        "availability": {
+          "operations": {
+            "state": "available",
+            "lossy": true
+          }
+        },
+        "diagnosticCodes": [
+          "semantic.expression-unchecked"
+        ],
+        "values": {
+          "/operationExpressions": [
+            {
+              "operation": "ship",
+              "slot": "pre",
+              "expression": {
+                "kind": "expression",
+                "text": "(a)",
+                "sourceSpan": {
+                  "sourceIdentity": "ix://agent-ix/config-service/spec",
+                  "path": "spec/functional/FR-006.md",
+                  "startLine": 14,
+                  "startColumn": 6,
+                  "endLine": 14,
+                  "endColumn": 9
+                }
+              }
+            }
+          ],
+          "/operations/0/pre": []
+        }
+      }
+    },
+    {
+      "name": "plat57-empty-pieces-dropped",
+      "issue_ref": "PLAT-57",
+      "tags": [
+        "TC-2041",
+        "expression",
+        "control"
+      ],
+      "input": {
+        "markdown": "---\nid: FR-901\ntitle: Operations\nobject: entity\ntype: FR\n---\n\n# FR-901: Operations\n\n## Invariants\n\n### a\n\n```quire\nself.a = 1\n```\n\n### b\n\n```quire\nself.b = 1\n```\n\n## Operations\n\n### ship\n\nPre: a,\nPost: a,,b\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "entity"
+          ],
+          "imports": {}
+        },
+        "path": "spec/functional/FR-006.md",
+        "sourceIdentity": "ix://agent-ix/config-service/spec"
+      },
+      "expect": {
+        "availability": {
+          "operations": {
+            "state": "available",
+            "lossy": false
+          }
+        },
+        "diagnosticCodes": [],
+        "absentPaths": [
+          "/operationExpressions"
+        ],
+        "values": {
+          "/operations/0/pre/0/clauseId": "a",
+          "/operations/0/post/0/clauseId": "a",
+          "/operations/0/post/1/clauseId": "b"
+        }
+      }
+    },
+    {
+      "name": "plat57-mixed-reference-and-expression",
+      "issue_ref": "PLAT-57",
+      "tags": [
+        "TC-2041",
+        "expression",
+        "resolves"
+      ],
+      "input": {
+        "markdown": "---\nid: FR-901\ntitle: Operations\nobject: entity\ntype: FR\n---\n\n# FR-901: Operations\n\n## Invariants\n\n### a\n\n```quire\nself.a = 1\n```\n\n### b\n\n```quire\nself.b = 1\n```\n\n## Operations\n\n### ship\n\nPre: a, x > 1\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "entity"
+          ],
+          "imports": {}
+        },
+        "path": "spec/functional/FR-006.md",
+        "sourceIdentity": "ix://agent-ix/config-service/spec"
+      },
+      "expect": {
+        "availability": {
+          "operations": {
+            "state": "available",
+            "lossy": true
+          }
+        },
+        "diagnosticCodes": [
+          "semantic.expression-unchecked"
+        ],
+        "values": {
+          "/operationExpressions": [
+            {
+              "operation": "ship",
+              "slot": "pre",
+              "expression": {
+                "kind": "expression",
+                "text": "a, x > 1",
+                "sourceSpan": {
+                  "sourceIdentity": "ix://agent-ix/config-service/spec",
+                  "path": "spec/functional/FR-006.md",
+                  "startLine": 28,
+                  "startColumn": 6,
+                  "endLine": 28,
+                  "endColumn": 14
+                }
+              }
+            }
+          ],
+          "/operations/0/pre": []
+        }
+      }
+    },
+    {
+      "name": "plat57-empty-pre",
+      "issue_ref": "PLAT-57",
+      "tags": [
+        "TC-2041",
+        "expression",
+        "refusal"
+      ],
+      "input": {
+        "markdown": "---\nid: FR-901\ntitle: Operations\nobject: entity\ntype: FR\n---\n\n# FR-901: Operations\n\n## Invariants\n\n### a\n\n```quire\nself.a = 1\n```\n\n### b\n\n```quire\nself.b = 1\n```\n\n## Operations\n\n### ship\n\nPre:\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "entity"
+          ],
+          "imports": {}
+        },
+        "path": "spec/functional/FR-006.md",
+        "sourceIdentity": "ix://agent-ix/config-service/spec"
+      },
+      "expect": {
+        "availability": {
+          "operations": {
+            "state": "unavailable",
+            "reason": "entry-errors: lines 28"
+          }
+        },
+        "diagnosticCodes": [
+          "semantic.empty-expression"
+        ],
+        "diagnostics": [
+          {
+            "code": "semantic.empty-expression",
+            "severity": "error",
+            "line": 28
+          }
+        ],
+        "absentPaths": [
+          "/operationExpressions"
+        ]
+      }
+    },
+    {
+      "name": "plat57-commas-pre",
+      "issue_ref": "PLAT-57",
+      "tags": [
+        "TC-2041",
+        "expression",
+        "refusal"
+      ],
+      "input": {
+        "markdown": "---\nid: FR-901\ntitle: Operations\nobject: entity\ntype: FR\n---\n\n# FR-901: Operations\n\n## Invariants\n\n### a\n\n```quire\nself.a = 1\n```\n\n### b\n\n```quire\nself.b = 1\n```\n\n## Operations\n\n### ship\n\nPre: , ,\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "entity"
+          ],
+          "imports": {}
+        },
+        "path": "spec/functional/FR-006.md",
+        "sourceIdentity": "ix://agent-ix/config-service/spec"
+      },
+      "expect": {
+        "availability": {
+          "operations": {
+            "state": "unavailable",
+            "reason": "entry-errors: lines 28"
+          }
+        },
+        "diagnosticCodes": [
+          "semantic.empty-expression"
+        ],
+        "diagnostics": [
+          {
+            "code": "semantic.empty-expression",
+            "severity": "error",
+            "line": 28
+          }
+        ],
+        "absentPaths": [
+          "/operationExpressions"
+        ]
+      }
+    },
+    {
+      "name": "plat57-expression-with-erroring-entry",
+      "issue_ref": "PLAT-57",
+      "tags": [
+        "TC-2041",
+        "expression",
+        "refusal"
+      ],
+      "input": {
+        "markdown": "---\nid: FR-901\ntitle: Operations\nobject: entity\ntype: FR\n---\n\n# FR-901: Operations\n\n## Invariants\n\n### a\n\n```quire\nself.a = 1\n```\n\n### b\n\n```quire\nself.b = 1\n```\n\n## Operations\n\n### ship\n\nPre: x > 1\n\n### cancel\n\nPost: missing\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "entity"
+          ],
+          "imports": {}
+        },
+        "path": "spec/functional/FR-006.md",
+        "sourceIdentity": "ix://agent-ix/config-service/spec"
+      },
+      "expect": {
+        "availability": {
+          "operations": {
+            "state": "unavailable"
+          }
+        },
+        "diagnosticCodes": [
+          "semantic.expression-unchecked",
+          "semantic.dangling-clause-ref"
+        ],
+        "absentPaths": [
+          "/operationExpressions",
+          "/operations"
+        ]
+      }
+    },
+    {
+      "name": "plat57-expression-of-dropped-operation",
+      "issue_ref": "PLAT-57",
+      "tags": [
+        "TC-2041",
+        "expression",
+        "refusal"
+      ],
+      "input": {
+        "markdown": "---\nid: FR-901\ntitle: Operations\nobject: entity\ntype: FR\n---\n\n# FR-901: Operations\n\n## Invariants\n\n### a\n\n```quire\nself.a = 1\n```\n\n### b\n\n```quire\nself.b = 1\n```\n\n## Operations\n\n### ship\n\nPre: x > 1\n\n### ship\n\nPost: y > 2\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "entity"
+          ],
+          "imports": {}
+        },
+        "path": "spec/functional/FR-006.md",
+        "sourceIdentity": "ix://agent-ix/config-service/spec"
+      },
+      "expect": {
+        "availability": {
+          "operations": {
+            "state": "unavailable"
+          }
+        },
+        "diagnosticCodes": [
+          "semantic.expression-unchecked",
+          "semantic.duplicate-operation"
+        ],
+        "absentPaths": [
+          "/operationExpressions",
+          "/operations"
+        ]
+      }
+    },
+    {
+      "name": "plat57-invalid-syntax-expression",
+      "issue_ref": "PLAT-57",
+      "tags": [
+        "TC-2042",
+        "expression",
+        "resolves"
+      ],
+      "input": {
+        "markdown": "---\nid: FR-901\ntitle: Operations\nobject: entity\ntype: FR\n---\n\n# FR-901: Operations\n\n## Invariants\n\n### a\n\n```quire\nself.a = 1\n```\n\n### b\n\n```quire\nself.b = 1\n```\n\n## Operations\n\n### ship\n\nPost: ))) ===\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "entity"
+          ],
+          "imports": {}
+        },
+        "path": "spec/functional/FR-006.md",
+        "sourceIdentity": "ix://agent-ix/config-service/spec"
+      },
+      "expect": {
+        "availability": {
+          "operations": {
+            "state": "available",
+            "lossy": true
+          }
+        },
+        "diagnosticCodes": [
+          "semantic.expression-unchecked"
+        ],
+        "values": {
+          "/operationExpressions": [
+            {
+              "operation": "ship",
+              "slot": "post",
+              "expression": {
+                "kind": "expression",
+                "text": "))) ===",
+                "sourceSpan": {
+                  "sourceIdentity": "ix://agent-ix/config-service/spec",
+                  "path": "spec/functional/FR-006.md",
+                  "startLine": 28,
+                  "startColumn": 7,
+                  "endLine": 28,
+                  "endColumn": 14
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "plat57-guard-expression",
+      "issue_ref": "PLAT-57",
+      "tags": [
+        "TC-2043",
+        "guard",
+        "resolves"
+      ],
+      "input": {
+        "markdown": "---\nid: SM-001\ntitle: OrderLifecycle\nobject: state_machine\n---\n# SM-001: OrderLifecycle\n\n## States\n\n| State | Description |\n|---|---|\n| open | |\n| shipped | |\n\n## Transitions\n\n| From | To | Trigger | Guard | Emits |\n|---|---|---|---|---|\n| open | shipped | ship | status != \"captured\" |  |\n\n## Operations\n\n### ship\n\nReturns: String[1]\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-business",
+          "exports": [
+            "state_machine"
+          ],
+          "imports": {}
+        },
+        "path": "spec/state-machines/SM-001.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+          "package": "agent-ix/shop",
+          "objects": [
+            {
+              "id": "EV-001",
+              "names": [
+                "EV-001",
+                "OrderPlaced"
+              ]
+            },
+            {
+              "id": "EV-002",
+              "names": [
+                "EV-002",
+                "OrderShipped"
+              ]
+            },
+            {
+              "id": "ENT-001",
+              "names": [
+                "ENT-001",
+                "Order"
+              ]
+            }
+          ],
+          "artifacts": [
+            {
+              "id": "EV-001",
+              "object": "event",
+              "operations": []
+            },
+            {
+              "id": "EV-002",
+              "object": "event",
+              "operations": []
+            },
+            {
+              "id": "ENT-001",
+              "object": "entity",
+              "operations": []
+            }
+          ]
+        },
+        "bodyExtraction": {
+          "yield_pattern": {
+            "match": {
+              "states": {
+                "from": "table_row",
+                "under_section": "States",
+                "assert": {
+                  "columns": [
+                    "State",
+                    "Description"
+                  ],
+                  "optional_columns": []
+                }
+              },
+              "transitions": {
+                "from": "table_row",
+                "under_section": "Transitions",
+                "assert": {
+                  "columns": [
+                    "From",
+                    "To",
+                    "Trigger",
+                    "Guard",
+                    "Emits"
+                  ],
+                  "optional_columns": [
+                    "Guard",
+                    "Emits"
+                  ]
+                }
+              },
+              "steps": {
+                "from": "table_row",
+                "under_section": "Steps",
+                "assert": {
+                  "columns": [
+                    "Step",
+                    "Kind",
+                    "Consumes",
+                    "Emits",
+                    "Description"
+                  ],
+                  "optional_columns": []
+                }
+              }
+            }
+          }
+        },
+        "relationVocabulary": {
+          "objectType": "state_machine",
+          "roles": {
+            "event": [
+              "event-like"
+            ],
+            "entity": [
+              "domain-object"
+            ]
+          },
+          "allowedLinks": {
+            "state_machine": {}
+          }
+        },
+        "constructReferences": {
+          "transitions": [
+            "event-like"
+          ],
+          "steps": [
+            "event-like"
+          ]
+        }
+      },
+      "expect": {
+        "availability": {
+          "model": {
+            "state": "available",
+            "lossy": true
+          }
+        },
+        "diagnosticCodes": [
+          "semantic.expression-unchecked"
+        ],
+        "diagnostics": [
+          {
+            "code": "semantic.expression-unchecked",
+            "severity": "advisory",
+            "line": 19
+          }
+        ],
+        "absentPaths": [
+          "/model/transitions/0/guard"
+        ],
+        "values": {
+          "/model/transitions/0/guardExpression": {
+            "kind": "expression",
+            "text": "status != \"captured\"",
+            "sourceSpan": {
+              "sourceIdentity": "ix://agent-ix/shop/spec",
+              "path": "spec/state-machines/SM-001.md",
+              "startLine": 19,
+              "startColumn": 27,
+              "endLine": 19,
+              "endColumn": 47
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "plat57-guard-comma-unsplit",
+      "issue_ref": "PLAT-57",
+      "tags": [
+        "TC-2043",
+        "guard",
+        "resolves"
+      ],
+      "input": {
+        "markdown": "---\nid: SM-001\ntitle: OrderLifecycle\nobject: state_machine\n---\n# SM-001: OrderLifecycle\n\n## States\n\n| State | Description |\n|---|---|\n| open | |\n| shipped | |\n\n## Transitions\n\n| From | To | Trigger | Guard | Emits |\n|---|---|---|---|---|\n| open | shipped | ship | x > 1, y |  |\n\n## Operations\n\n### ship\n\nReturns: String[1]\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-business",
+          "exports": [
+            "state_machine"
+          ],
+          "imports": {}
+        },
+        "path": "spec/state-machines/SM-001.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+          "package": "agent-ix/shop",
+          "objects": [
+            {
+              "id": "EV-001",
+              "names": [
+                "EV-001",
+                "OrderPlaced"
+              ]
+            },
+            {
+              "id": "EV-002",
+              "names": [
+                "EV-002",
+                "OrderShipped"
+              ]
+            },
+            {
+              "id": "ENT-001",
+              "names": [
+                "ENT-001",
+                "Order"
+              ]
+            }
+          ],
+          "artifacts": [
+            {
+              "id": "EV-001",
+              "object": "event",
+              "operations": []
+            },
+            {
+              "id": "EV-002",
+              "object": "event",
+              "operations": []
+            },
+            {
+              "id": "ENT-001",
+              "object": "entity",
+              "operations": []
+            }
+          ]
+        },
+        "bodyExtraction": {
+          "yield_pattern": {
+            "match": {
+              "states": {
+                "from": "table_row",
+                "under_section": "States",
+                "assert": {
+                  "columns": [
+                    "State",
+                    "Description"
+                  ],
+                  "optional_columns": []
+                }
+              },
+              "transitions": {
+                "from": "table_row",
+                "under_section": "Transitions",
+                "assert": {
+                  "columns": [
+                    "From",
+                    "To",
+                    "Trigger",
+                    "Guard",
+                    "Emits"
+                  ],
+                  "optional_columns": [
+                    "Guard",
+                    "Emits"
+                  ]
+                }
+              },
+              "steps": {
+                "from": "table_row",
+                "under_section": "Steps",
+                "assert": {
+                  "columns": [
+                    "Step",
+                    "Kind",
+                    "Consumes",
+                    "Emits",
+                    "Description"
+                  ],
+                  "optional_columns": []
+                }
+              }
+            }
+          }
+        },
+        "relationVocabulary": {
+          "objectType": "state_machine",
+          "roles": {
+            "event": [
+              "event-like"
+            ],
+            "entity": [
+              "domain-object"
+            ]
+          },
+          "allowedLinks": {
+            "state_machine": {}
+          }
+        },
+        "constructReferences": {
+          "transitions": [
+            "event-like"
+          ],
+          "steps": [
+            "event-like"
+          ]
+        }
+      },
+      "expect": {
+        "availability": {
+          "model": {
+            "state": "available",
+            "lossy": true
+          }
+        },
+        "diagnosticCodes": [
+          "semantic.expression-unchecked"
+        ],
+        "diagnostics": [
+          {
+            "code": "semantic.expression-unchecked",
+            "severity": "advisory",
+            "line": 19
+          }
+        ],
+        "absentPaths": [
+          "/model/transitions/0/guard"
+        ],
+        "values": {
+          "/model/transitions/0/guardExpression": {
+            "kind": "expression",
+            "text": "x > 1, y",
+            "sourceSpan": {
+              "sourceIdentity": "ix://agent-ix/shop/spec",
+              "path": "spec/state-machines/SM-001.md",
+              "startLine": 19,
+              "startColumn": 27,
+              "endLine": 19,
+              "endColumn": 35
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "plat57-guard-escaped-pipe",
+      "issue_ref": "PLAT-57",
+      "tags": [
+        "TC-2043",
+        "guard",
+        "resolves"
+      ],
+      "input": {
+        "markdown": "---\nid: SM-001\ntitle: OrderLifecycle\nobject: state_machine\n---\n# SM-001: OrderLifecycle\n\n## States\n\n| State | Description |\n|---|---|\n| open | |\n| shipped | |\n\n## Transitions\n\n| From | To | Trigger | Guard | Emits |\n|---|---|---|---|---|\n| open | shipped | ship | a \\| b |  |\n\n## Operations\n\n### ship\n\nReturns: String[1]\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-business",
+          "exports": [
+            "state_machine"
+          ],
+          "imports": {}
+        },
+        "path": "spec/state-machines/SM-001.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+          "package": "agent-ix/shop",
+          "objects": [
+            {
+              "id": "EV-001",
+              "names": [
+                "EV-001",
+                "OrderPlaced"
+              ]
+            },
+            {
+              "id": "EV-002",
+              "names": [
+                "EV-002",
+                "OrderShipped"
+              ]
+            },
+            {
+              "id": "ENT-001",
+              "names": [
+                "ENT-001",
+                "Order"
+              ]
+            }
+          ],
+          "artifacts": [
+            {
+              "id": "EV-001",
+              "object": "event",
+              "operations": []
+            },
+            {
+              "id": "EV-002",
+              "object": "event",
+              "operations": []
+            },
+            {
+              "id": "ENT-001",
+              "object": "entity",
+              "operations": []
+            }
+          ]
+        },
+        "bodyExtraction": {
+          "yield_pattern": {
+            "match": {
+              "states": {
+                "from": "table_row",
+                "under_section": "States",
+                "assert": {
+                  "columns": [
+                    "State",
+                    "Description"
+                  ],
+                  "optional_columns": []
+                }
+              },
+              "transitions": {
+                "from": "table_row",
+                "under_section": "Transitions",
+                "assert": {
+                  "columns": [
+                    "From",
+                    "To",
+                    "Trigger",
+                    "Guard",
+                    "Emits"
+                  ],
+                  "optional_columns": [
+                    "Guard",
+                    "Emits"
+                  ]
+                }
+              },
+              "steps": {
+                "from": "table_row",
+                "under_section": "Steps",
+                "assert": {
+                  "columns": [
+                    "Step",
+                    "Kind",
+                    "Consumes",
+                    "Emits",
+                    "Description"
+                  ],
+                  "optional_columns": []
+                }
+              }
+            }
+          }
+        },
+        "relationVocabulary": {
+          "objectType": "state_machine",
+          "roles": {
+            "event": [
+              "event-like"
+            ],
+            "entity": [
+              "domain-object"
+            ]
+          },
+          "allowedLinks": {
+            "state_machine": {}
+          }
+        },
+        "constructReferences": {
+          "transitions": [
+            "event-like"
+          ],
+          "steps": [
+            "event-like"
+          ]
+        }
+      },
+      "expect": {
+        "availability": {
+          "model": {
+            "state": "available",
+            "lossy": true
+          }
+        },
+        "diagnosticCodes": [
+          "semantic.expression-unchecked"
+        ],
+        "diagnostics": [
+          {
+            "code": "semantic.expression-unchecked",
+            "severity": "advisory",
+            "line": 19
+          }
+        ],
+        "absentPaths": [
+          "/model/transitions/0/guard"
+        ],
+        "values": {
+          "/model/transitions/0/guardExpression": {
+            "kind": "expression",
+            "text": "a | b",
+            "sourceSpan": {
+              "sourceIdentity": "ix://agent-ix/shop/spec",
+              "path": "spec/state-machines/SM-001.md",
+              "startLine": 19,
+              "startColumn": 27,
+              "endLine": 19,
+              "endColumn": 33
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "plat57-guard-backtick-pair",
+      "issue_ref": "PLAT-57",
+      "tags": [
+        "TC-2043",
+        "guard",
+        "resolves"
+      ],
+      "input": {
+        "markdown": "---\nid: SM-001\ntitle: OrderLifecycle\nobject: state_machine\n---\n# SM-001: OrderLifecycle\n\n## States\n\n| State | Description |\n|---|---|\n| open | |\n| shipped | |\n\n## Transitions\n\n| From | To | Trigger | Guard | Emits |\n|---|---|---|---|---|\n| open | shipped | ship | `x > 1` |  |\n\n## Operations\n\n### ship\n\nReturns: String[1]\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-business",
+          "exports": [
+            "state_machine"
+          ],
+          "imports": {}
+        },
+        "path": "spec/state-machines/SM-001.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+          "package": "agent-ix/shop",
+          "objects": [
+            {
+              "id": "EV-001",
+              "names": [
+                "EV-001",
+                "OrderPlaced"
+              ]
+            },
+            {
+              "id": "EV-002",
+              "names": [
+                "EV-002",
+                "OrderShipped"
+              ]
+            },
+            {
+              "id": "ENT-001",
+              "names": [
+                "ENT-001",
+                "Order"
+              ]
+            }
+          ],
+          "artifacts": [
+            {
+              "id": "EV-001",
+              "object": "event",
+              "operations": []
+            },
+            {
+              "id": "EV-002",
+              "object": "event",
+              "operations": []
+            },
+            {
+              "id": "ENT-001",
+              "object": "entity",
+              "operations": []
+            }
+          ]
+        },
+        "bodyExtraction": {
+          "yield_pattern": {
+            "match": {
+              "states": {
+                "from": "table_row",
+                "under_section": "States",
+                "assert": {
+                  "columns": [
+                    "State",
+                    "Description"
+                  ],
+                  "optional_columns": []
+                }
+              },
+              "transitions": {
+                "from": "table_row",
+                "under_section": "Transitions",
+                "assert": {
+                  "columns": [
+                    "From",
+                    "To",
+                    "Trigger",
+                    "Guard",
+                    "Emits"
+                  ],
+                  "optional_columns": [
+                    "Guard",
+                    "Emits"
+                  ]
+                }
+              },
+              "steps": {
+                "from": "table_row",
+                "under_section": "Steps",
+                "assert": {
+                  "columns": [
+                    "Step",
+                    "Kind",
+                    "Consumes",
+                    "Emits",
+                    "Description"
+                  ],
+                  "optional_columns": []
+                }
+              }
+            }
+          }
+        },
+        "relationVocabulary": {
+          "objectType": "state_machine",
+          "roles": {
+            "event": [
+              "event-like"
+            ],
+            "entity": [
+              "domain-object"
+            ]
+          },
+          "allowedLinks": {
+            "state_machine": {}
+          }
+        },
+        "constructReferences": {
+          "transitions": [
+            "event-like"
+          ],
+          "steps": [
+            "event-like"
+          ]
+        }
+      },
+      "expect": {
+        "availability": {
+          "model": {
+            "state": "available",
+            "lossy": true
+          }
+        },
+        "diagnosticCodes": [
+          "semantic.expression-unchecked"
+        ],
+        "diagnostics": [
+          {
+            "code": "semantic.expression-unchecked",
+            "severity": "advisory",
+            "line": 19
+          }
+        ],
+        "absentPaths": [
+          "/model/transitions/0/guard"
+        ],
+        "values": {
+          "/model/transitions/0/guardExpression": {
+            "kind": "expression",
+            "text": "x > 1",
+            "sourceSpan": {
+              "sourceIdentity": "ix://agent-ix/shop/spec",
+              "path": "spec/state-machines/SM-001.md",
+              "startLine": 19,
+              "startColumn": 27,
+              "endLine": 19,
+              "endColumn": 34
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "plat57-guard-dangling-identifier",
+      "issue_ref": "PLAT-57",
+      "tags": [
+        "TC-2043",
+        "guard",
+        "refusal"
+      ],
+      "input": {
+        "markdown": "---\nid: SM-001\ntitle: OrderLifecycle\nobject: state_machine\n---\n# SM-001: OrderLifecycle\n\n## States\n\n| State | Description |\n|---|---|\n| open | |\n| shipped | |\n\n## Transitions\n\n| From | To | Trigger | Guard | Emits |\n|---|---|---|---|---|\n| open | shipped | ship | captured |  |\n\n## Operations\n\n### ship\n\nReturns: String[1]\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-business",
+          "exports": [
+            "state_machine"
+          ],
+          "imports": {}
+        },
+        "path": "spec/state-machines/SM-001.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+          "package": "agent-ix/shop",
+          "objects": [
+            {
+              "id": "EV-001",
+              "names": [
+                "EV-001",
+                "OrderPlaced"
+              ]
+            },
+            {
+              "id": "EV-002",
+              "names": [
+                "EV-002",
+                "OrderShipped"
+              ]
+            },
+            {
+              "id": "ENT-001",
+              "names": [
+                "ENT-001",
+                "Order"
+              ]
+            }
+          ],
+          "artifacts": [
+            {
+              "id": "EV-001",
+              "object": "event",
+              "operations": []
+            },
+            {
+              "id": "EV-002",
+              "object": "event",
+              "operations": []
+            },
+            {
+              "id": "ENT-001",
+              "object": "entity",
+              "operations": []
+            }
+          ]
+        },
+        "bodyExtraction": {
+          "yield_pattern": {
+            "match": {
+              "states": {
+                "from": "table_row",
+                "under_section": "States",
+                "assert": {
+                  "columns": [
+                    "State",
+                    "Description"
+                  ],
+                  "optional_columns": []
+                }
+              },
+              "transitions": {
+                "from": "table_row",
+                "under_section": "Transitions",
+                "assert": {
+                  "columns": [
+                    "From",
+                    "To",
+                    "Trigger",
+                    "Guard",
+                    "Emits"
+                  ],
+                  "optional_columns": [
+                    "Guard",
+                    "Emits"
+                  ]
+                }
+              },
+              "steps": {
+                "from": "table_row",
+                "under_section": "Steps",
+                "assert": {
+                  "columns": [
+                    "Step",
+                    "Kind",
+                    "Consumes",
+                    "Emits",
+                    "Description"
+                  ],
+                  "optional_columns": []
+                }
+              }
+            }
+          }
+        },
+        "relationVocabulary": {
+          "objectType": "state_machine",
+          "roles": {
+            "event": [
+              "event-like"
+            ],
+            "entity": [
+              "domain-object"
+            ]
+          },
+          "allowedLinks": {
+            "state_machine": {}
+          }
+        },
+        "constructReferences": {
+          "transitions": [
+            "event-like"
+          ],
+          "steps": [
+            "event-like"
+          ]
+        }
+      },
+      "expect": {
+        "availability": {
+          "model": {
+            "state": "unavailable",
+            "reason": "entry-errors: lines 19"
+          }
+        },
+        "diagnosticCodes": [
+          "semantic.dangling-clause-ref"
+        ],
+        "diagnostics": [
+          {
+            "code": "semantic.dangling-clause-ref",
+            "severity": "error",
+            "line": 19
+          }
+        ],
+        "absentPaths": [
+          "/model"
+        ]
+      }
+    },
+    {
+      "name": "plat57-guard-reference-control",
+      "issue_ref": "PLAT-57",
+      "tags": [
+        "TC-2043",
+        "guard",
+        "control"
+      ],
+      "input": {
+        "markdown": "---\nid: SM-001\ntitle: OrderLifecycle\nobject: state_machine\n---\n# SM-001: OrderLifecycle\n\n## States\n\n| State | Description |\n|---|---|\n| open | |\n| shipped | |\n\n## Transitions\n\n| From | To | Trigger | Guard | Emits |\n|---|---|---|---|---|\n| open | shipped | ship | captured |  |\n\n## Invariants\n\n### captured\n\n```quire\nself.captured = true\n```\n\n## Operations\n\n### ship\n\nReturns: String[1]\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-business",
+          "exports": [
+            "state_machine"
+          ],
+          "imports": {}
+        },
+        "path": "spec/state-machines/SM-001.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+          "package": "agent-ix/shop",
+          "objects": [
+            {
+              "id": "EV-001",
+              "names": [
+                "EV-001",
+                "OrderPlaced"
+              ]
+            },
+            {
+              "id": "EV-002",
+              "names": [
+                "EV-002",
+                "OrderShipped"
+              ]
+            },
+            {
+              "id": "ENT-001",
+              "names": [
+                "ENT-001",
+                "Order"
+              ]
+            }
+          ],
+          "artifacts": [
+            {
+              "id": "EV-001",
+              "object": "event",
+              "operations": []
+            },
+            {
+              "id": "EV-002",
+              "object": "event",
+              "operations": []
+            },
+            {
+              "id": "ENT-001",
+              "object": "entity",
+              "operations": []
+            }
+          ]
+        },
+        "bodyExtraction": {
+          "yield_pattern": {
+            "match": {
+              "states": {
+                "from": "table_row",
+                "under_section": "States",
+                "assert": {
+                  "columns": [
+                    "State",
+                    "Description"
+                  ],
+                  "optional_columns": []
+                }
+              },
+              "transitions": {
+                "from": "table_row",
+                "under_section": "Transitions",
+                "assert": {
+                  "columns": [
+                    "From",
+                    "To",
+                    "Trigger",
+                    "Guard",
+                    "Emits"
+                  ],
+                  "optional_columns": [
+                    "Guard",
+                    "Emits"
+                  ]
+                }
+              },
+              "steps": {
+                "from": "table_row",
+                "under_section": "Steps",
+                "assert": {
+                  "columns": [
+                    "Step",
+                    "Kind",
+                    "Consumes",
+                    "Emits",
+                    "Description"
+                  ],
+                  "optional_columns": []
+                }
+              }
+            }
+          }
+        },
+        "relationVocabulary": {
+          "objectType": "state_machine",
+          "roles": {
+            "event": [
+              "event-like"
+            ],
+            "entity": [
+              "domain-object"
+            ]
+          },
+          "allowedLinks": {
+            "state_machine": {}
+          }
+        },
+        "constructReferences": {
+          "transitions": [
+            "event-like"
+          ],
+          "steps": [
+            "event-like"
+          ]
+        }
+      },
+      "expect": {
+        "availability": {
+          "model": {
+            "state": "available",
+            "lossy": false
+          }
+        },
+        "diagnosticCodes": [],
+        "absentPaths": [
+          "/model/transitions/0/guardExpression"
+        ],
+        "values": {
+          "/model/transitions/0/guard": "captured"
+        }
+      }
+    },
+    {
+      "name": "plat57-guard-empty",
+      "issue_ref": "PLAT-57",
+      "tags": [
+        "TC-2043",
+        "guard",
+        "control"
+      ],
+      "input": {
+        "markdown": "---\nid: SM-001\ntitle: OrderLifecycle\nobject: state_machine\n---\n# SM-001: OrderLifecycle\n\n## States\n\n| State | Description |\n|---|---|\n| open | |\n| shipped | |\n\n## Transitions\n\n| From | To | Trigger | Guard | Emits |\n|---|---|---|---|---|\n| open | shipped | ship |  |  |\n\n## Operations\n\n### ship\n\nReturns: String[1]\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-business",
+          "exports": [
+            "state_machine"
+          ],
+          "imports": {}
+        },
+        "path": "spec/state-machines/SM-001.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+          "package": "agent-ix/shop",
+          "objects": [
+            {
+              "id": "EV-001",
+              "names": [
+                "EV-001",
+                "OrderPlaced"
+              ]
+            },
+            {
+              "id": "EV-002",
+              "names": [
+                "EV-002",
+                "OrderShipped"
+              ]
+            },
+            {
+              "id": "ENT-001",
+              "names": [
+                "ENT-001",
+                "Order"
+              ]
+            }
+          ],
+          "artifacts": [
+            {
+              "id": "EV-001",
+              "object": "event",
+              "operations": []
+            },
+            {
+              "id": "EV-002",
+              "object": "event",
+              "operations": []
+            },
+            {
+              "id": "ENT-001",
+              "object": "entity",
+              "operations": []
+            }
+          ]
+        },
+        "bodyExtraction": {
+          "yield_pattern": {
+            "match": {
+              "states": {
+                "from": "table_row",
+                "under_section": "States",
+                "assert": {
+                  "columns": [
+                    "State",
+                    "Description"
+                  ],
+                  "optional_columns": []
+                }
+              },
+              "transitions": {
+                "from": "table_row",
+                "under_section": "Transitions",
+                "assert": {
+                  "columns": [
+                    "From",
+                    "To",
+                    "Trigger",
+                    "Guard",
+                    "Emits"
+                  ],
+                  "optional_columns": [
+                    "Guard",
+                    "Emits"
+                  ]
+                }
+              },
+              "steps": {
+                "from": "table_row",
+                "under_section": "Steps",
+                "assert": {
+                  "columns": [
+                    "Step",
+                    "Kind",
+                    "Consumes",
+                    "Emits",
+                    "Description"
+                  ],
+                  "optional_columns": []
+                }
+              }
+            }
+          }
+        },
+        "relationVocabulary": {
+          "objectType": "state_machine",
+          "roles": {
+            "event": [
+              "event-like"
+            ],
+            "entity": [
+              "domain-object"
+            ]
+          },
+          "allowedLinks": {
+            "state_machine": {}
+          }
+        },
+        "constructReferences": {
+          "transitions": [
+            "event-like"
+          ],
+          "steps": [
+            "event-like"
+          ]
+        }
+      },
+      "expect": {
+        "availability": {
+          "model": {
+            "state": "available",
+            "lossy": false
+          }
+        },
+        "diagnosticCodes": [],
+        "absentPaths": [
+          "/model/transitions/0/guard",
+          "/model/transitions/0/guardExpression"
+        ]
+      }
+    },
+    {
+      "name": "plat57-guard-expression-no-bundle-index",
+      "issue_ref": "PLAT-57",
+      "tags": [
+        "TC-2043",
+        "guard",
+        "refusal"
+      ],
+      "input": {
+        "markdown": "---\nid: SM-001\ntitle: OrderLifecycle\nobject: state_machine\n---\n# SM-001: OrderLifecycle\n\n## States\n\n| State | Description |\n|---|---|\n| open | |\n| shipped | |\n\n## Transitions\n\n| From | To | Trigger | Guard | Emits |\n|---|---|---|---|---|\n| open | shipped | ship | status != \"captured\" | EV-001 |\n\n## Operations\n\n### ship\n\nReturns: String[1]\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-business",
+          "exports": [
+            "state_machine"
+          ],
+          "imports": {}
+        },
+        "path": "spec/state-machines/SM-001.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+          "package": "agent-ix/shop"
+        },
+        "bodyExtraction": {
+          "yield_pattern": {
+            "match": {
+              "states": {
+                "from": "table_row",
+                "under_section": "States",
+                "assert": {
+                  "columns": [
+                    "State",
+                    "Description"
+                  ],
+                  "optional_columns": []
+                }
+              },
+              "transitions": {
+                "from": "table_row",
+                "under_section": "Transitions",
+                "assert": {
+                  "columns": [
+                    "From",
+                    "To",
+                    "Trigger",
+                    "Guard",
+                    "Emits"
+                  ],
+                  "optional_columns": [
+                    "Guard",
+                    "Emits"
+                  ]
+                }
+              },
+              "steps": {
+                "from": "table_row",
+                "under_section": "Steps",
+                "assert": {
+                  "columns": [
+                    "Step",
+                    "Kind",
+                    "Consumes",
+                    "Emits",
+                    "Description"
+                  ],
+                  "optional_columns": []
+                }
+              }
+            }
+          }
+        },
+        "relationVocabulary": {
+          "objectType": "state_machine",
+          "roles": {
+            "event": [
+              "event-like"
+            ],
+            "entity": [
+              "domain-object"
+            ]
+          },
+          "allowedLinks": {
+            "state_machine": {}
+          }
+        },
+        "constructReferences": {
+          "transitions": [
+            "event-like"
+          ],
+          "steps": [
+            "event-like"
+          ]
+        }
+      },
+      "expect": {
+        "availability": {
+          "model": {
+            "state": "unavailable",
+            "reason": "no-bundle-index"
+          }
+        },
+        "absentPaths": [
+          "/model"
+        ]
+      }
+    },
+    {
+      "name": "plat57-guard-empty-no-bundle-index",
+      "issue_ref": "PLAT-57",
+      "tags": [
+        "TC-2043",
+        "guard",
+        "control"
+      ],
+      "input": {
+        "markdown": "---\nid: SM-001\ntitle: OrderLifecycle\nobject: state_machine\n---\n# SM-001: OrderLifecycle\n\n## States\n\n| State | Description |\n|---|---|\n| open | |\n| shipped | |\n\n## Transitions\n\n| From | To | Trigger | Guard | Emits |\n|---|---|---|---|---|\n| open | shipped | ship |  | EV-001 |\n\n## Operations\n\n### ship\n\nReturns: String[1]\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-business",
+          "exports": [
+            "state_machine"
+          ],
+          "imports": {}
+        },
+        "path": "spec/state-machines/SM-001.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+          "package": "agent-ix/shop"
+        },
+        "bodyExtraction": {
+          "yield_pattern": {
+            "match": {
+              "states": {
+                "from": "table_row",
+                "under_section": "States",
+                "assert": {
+                  "columns": [
+                    "State",
+                    "Description"
+                  ],
+                  "optional_columns": []
+                }
+              },
+              "transitions": {
+                "from": "table_row",
+                "under_section": "Transitions",
+                "assert": {
+                  "columns": [
+                    "From",
+                    "To",
+                    "Trigger",
+                    "Guard",
+                    "Emits"
+                  ],
+                  "optional_columns": [
+                    "Guard",
+                    "Emits"
+                  ]
+                }
+              },
+              "steps": {
+                "from": "table_row",
+                "under_section": "Steps",
+                "assert": {
+                  "columns": [
+                    "Step",
+                    "Kind",
+                    "Consumes",
+                    "Emits",
+                    "Description"
+                  ],
+                  "optional_columns": []
+                }
+              }
+            }
+          }
+        },
+        "relationVocabulary": {
+          "objectType": "state_machine",
+          "roles": {
+            "event": [
+              "event-like"
+            ],
+            "entity": [
+              "domain-object"
+            ]
+          },
+          "allowedLinks": {
+            "state_machine": {}
+          }
+        },
+        "constructReferences": {
+          "transitions": [
+            "event-like"
+          ],
+          "steps": [
+            "event-like"
+          ]
+        }
+      },
+      "expect": {
+        "availability": {
+          "model": {
+            "state": "unavailable",
+            "reason": "no-bundle-index"
+          }
+        },
+        "absentPaths": [
+          "/model"
+        ]
+      }
     }
   ]
 }

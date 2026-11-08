@@ -11,7 +11,8 @@ use crate::extract::dsl::{EdgeTarget, ExtractionDsl};
 use crate::extract::locator::{Locator, LocatorPrimitive};
 
 use super::clauses::{
-    extract_clauses, extract_operations, ClauseRef, OperationDecl, OperationSource, SourceLocus,
+    extract_clauses, extract_operations, ClauseRef, OperationDecl, OperationExpression,
+    OperationSource, SourceLocus,
 };
 use super::context::SemanticContext;
 use super::decl::FieldDecl;
@@ -66,6 +67,10 @@ pub struct SemanticExtraction {
     pub clause_text: Option<BTreeMap<String, String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub operations: Option<Vec<OperationDecl>>,
+    /// The opaque inline `Pre:`/`Post:` expressions of FR-071, present only
+    /// when `operations` is and at least one operation carries one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub operation_expressions: Option<Vec<OperationExpression>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub model: Option<ModelDeclarations>,
     /// FR-076 `RelationDecl[]`, present exactly when `availability.relations`
@@ -313,6 +318,8 @@ pub fn extract_semantic(
             Some(clauses.clause_text)
         },
         operations: operations.operations,
+        operation_expressions: (!operations.expressions.is_empty())
+            .then_some(operations.expressions),
         model,
         relations: relation_record.relations,
         relation_sources: relation_record.sources,
