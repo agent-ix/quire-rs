@@ -47,3 +47,12 @@ The defects are three stale "rename deferred to PLAT-876" notes that the blind f
 ## Verification
 
 These commands ran on a `git archive` copy of the head, with `corpus` symlinked from another checkout, and used a scratch target that was deleted afterwards: `cargo test --locked -p quire-code-extraction`; the boundary test with an injected `tree-sitter = "0.26"` (FAILED as expected); `check_tree_sitter_boundary.sh` at base (exit 0), with an injected dependency (exit 1) and with the crate at its old path (exit 1); `cargo deny --workspace check licenses` (ok); `cargo test --locked --test it implements_relation::recovered_attribute` (ok).
+
+## Dispositions
+
+| FND | Outcome | Reason |
+| --- | --- | --- |
+| FND-001 | fixed | 3adbd3c: the self-contradictory sentence is gone; the comment now says `src/symbols/{rust,python,typescript}.rs` walk the re-exported tree and none of them names `tree-sitter` |
+| FND-002 | fixed | 3adbd3c: the deferred-rename NOTE is replaced by a three-line header stating the crate wraps all three grammars; the purity-boundary comment names all three adapters |
+| FND-003 | fixed | 3adbd3c: the lib.rs docs name all three adapters as consumers, and the "rust.rs today" lines are generalised; `git grep` confirms `use quire_code_extraction::{parse_file, Language}` in rust.rs:128, python.rs:121 and typescript.rs:168 |
+| FND-004 | deferred | Workflow edits need clearing before they are made; comment only, with no behaviour impact (the sparse checkout takes all of `crates/`) |
