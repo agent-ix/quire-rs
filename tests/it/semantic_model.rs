@@ -430,6 +430,11 @@ fn population_members_with_one_extent() {
         "{record:#}"
     );
     assert!(members[0].get("extent").is_none(), "{record:#}");
+    assert_span(
+        &json!({ "sourceSpan": record["model"]["population"]["extentSpan"] }),
+        POPULATION,
+        line_of(POPULATION, "extent:"),
+    );
     assert_span(&members[0], POPULATION, line_of(POPULATION, "| Order |"));
     assert_span(&members[1], POPULATION, line_of(POPULATION, "| Customer |"));
 }
@@ -478,6 +483,62 @@ fn population_extent_open_and_required() {
             &record,
             "semantic.invalid-model-cell",
             line_of(&bad, "extent:")
+        ),
+        "{record:#}"
+    );
+    assert_model_unavailable(&record);
+}
+
+/// FR-075-AC-4: the retired `Type | Extent` table is refused whatever the
+/// manifest declares, naming the current shape.
+#[trace("TC-1843", "FR-075-AC-4")]
+#[test]
+fn legacy_population_table_is_refused_under_either_manifest() {
+    let old = POPULATION.replace("extent: closed\n", "").replace(
+        "| Type |\n|---|\n| Order |\n| Customer |",
+        "| Type | Extent |\n|---|---|\n| Order | 0..* |\n| Customer | 1..* |",
+    );
+    let old_manifest = dsl(json!({
+        "population": row("Members", &["Type", "Extent"], &[]),
+    }));
+    for manifest in [old_manifest, tables()] {
+        let record = extract(&old, &[], manifest);
+        let d = diagnostic(&record, "semantic.feature-not-extractable", "population");
+        assert_eq!(d["line"], line_of(&old, "| Type |"), "{record:#}");
+        assert_eq!(d["section"], "Members", "{record:#}");
+        assert!(
+            d["message"]
+                .as_str()
+                .unwrap()
+                .contains("frontmatter `extent"),
+            "{record:#}"
+        );
+        assert_model_unavailable(&record);
+    }
+}
+
+/// FR-075-AC-6: `extent` is a population feature; a module that declares no
+/// population refuses it, and a population type with no `Type` table refuses
+/// an `extent` that has nothing to describe.
+#[trace("TC-1845", "FR-075-AC-6")]
+#[test]
+fn extent_without_a_declared_population_is_refused() {
+    let record = extract(POPULATION, &[], dsl(json!({})));
+    let d = diagnostic(&record, "semantic.feature-not-extractable", "population");
+    assert_eq!(d["line"], line_of(POPULATION, "extent:"), "{record:#}");
+    assert_eq!(d["section"], "frontmatter", "{record:#}");
+    assert_model_unavailable(&record);
+
+    let no_table = POPULATION.replace(
+        "| Type |\n|---|\n| Order |\n| Customer |\n",
+        "Nothing here.\n",
+    );
+    let record = extract(&no_table, &[], tables());
+    assert!(
+        has(
+            &record,
+            "semantic.invalid-model-cell",
+            line_of(&no_table, "extent:")
         ),
         "{record:#}"
     );
@@ -792,9 +853,12 @@ fn undeclared_features_are_refused() {
             .as_array()
             .unwrap()
             .iter()
-            .find(|d| d["code"] == "semantic.feature-not-extractable" && d["reason"] == feature)
+            .find(|d| {
+                d["code"] == "semantic.feature-not-extractable"
+                    && d["reason"] == feature
+                    && d["line"] == line
+            })
             .unwrap_or_else(|| panic!("{feature}: {record:#}"));
-        assert_eq!(refusal["line"], line, "{feature}");
         assert_eq!(refusal["severity"], "error", "{feature}");
         assert_eq!(refusal["section"], section, "{feature}");
         assert_span(refusal, md, line);
