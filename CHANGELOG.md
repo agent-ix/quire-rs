@@ -7,6 +7,18 @@ bumps; once 1.0 ships, semver is strict.
 
 ## [Unreleased]
 
+### Fixed
+
+- `default_module_root()` now honours `IX_HOME` (`$IX_HOME/filament/modules`),
+  matching `quoin`, and falls back to `~/.ix/filament/modules` when it is unset
+  or empty (PLAT-107).
+
+### Changed
+
+- Contract and glossary unit tests use `tempfile::TempDir` guards instead of
+  hand-rolled `std::env::temp_dir()` trees, so a failed assertion no longer
+  leaks the tree (PLAT-320).
+
 ## [0.53.0] — 2026-11-07
 
 ### Changed
