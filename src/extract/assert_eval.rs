@@ -31,6 +31,9 @@ pub enum AssertReason {
     /// A `{field}` token referenced a frontmatter key that is absent
     /// (FR-034-AC-2).
     UnresolvedField,
+    /// A `table_row` data row has more or fewer cells than the header
+    /// (FR-033-AC-17).
+    RowWidth,
 }
 
 /// One failed assert check.
@@ -181,11 +184,20 @@ fn check_level(
 /// coverage path does the same conversion at `corpus::declared_tables::rows_of`
 /// and lands on the data row; two paths disagreeing about one row's line is the
 /// defect, so this arithmetic must keep matching that one.
+/// A located table: the parsed table, the section's start line, each data
+/// row's document line, and each data row's authored cell count.
+type LocatedTable = (
+    crate::query::TableResult,
+    Option<usize>,
+    Vec<usize>,
+    Vec<usize>,
+);
+
 fn locate_table(
     doc: &QuireDocument,
     primitive: &LocatorPrimitive,
     assert: &LocatorAssert,
-) -> Option<(crate::query::TableResult, Option<usize>, Vec<usize>)> {
+) -> Option<LocatedTable> {
     // A section may hold several tables (one per locator sharing it). When the
     // assert declares `columns`, select the table whose header conforms to
     // them; with none conforming, fall back to the first table so the columns
@@ -204,8 +216,19 @@ fn locate_table(
             .unwrap_or(0);
         (idx < tables.len()).then(|| {
             let (t, rows, _) = tables.swap_remove(idx);
+            // The parser pads/truncates every row to the header width, so the
+            // authored cell count is read back from the source line.
+            let source: Vec<&str> = content.split('\n').collect();
+            let widths = rows
+                .iter()
+                .map(|&r| {
+                    source
+                        .get(r)
+                        .map_or(0, |l| crate::query::split_row_unescaped(l).len())
+                })
+                .collect();
             let rows = rows.into_iter().map(|r| r + start + 1).collect::<Vec<_>>();
-            (t, Some(start), rows)
+            (t, Some(start), rows, widths)
         })
     };
     match located_section_name(primitive) {
@@ -243,7 +266,7 @@ fn check_table(
     frontmatter: Option<&Map<String, Value>>,
     failures: &mut Vec<AssertFailure>,
 ) {
-    let Some((table, line, row_lines)) = locate_table(doc, primitive, assert) else {
+    let Some((table, line, row_lines, row_widths)) = locate_table(doc, primitive, assert) else {
         // Surface a single failure per declared table assert so the
         // missing table is reported (not silently passing).
         if assert.columns.is_some()
@@ -283,6 +306,21 @@ fn check_table(
                 line,
                 row_id: None,
             });
+        } else {
+            // Headers conform; every row must also be as wide as the header.
+            for (i, (&width, row)) in row_widths.iter().zip(&table.rows).enumerate() {
+                if width != table.headers.len() {
+                    failures.push(AssertFailure {
+                        reason: AssertReason::RowWidth,
+                        message: format!(
+                            "table row has {width} cell(s) but the header declares {}",
+                            table.headers.len()
+                        ),
+                        line: row_lines.get(i).copied().or(line),
+                        row_id: row_identity(&table, assert, row),
+                    });
+                }
+            }
         }
     }
 
@@ -679,6 +717,39 @@ mod tests {
 
     fn prim(yaml: &str) -> LocatorPrimitive {
         serde_yaml::from_str(yaml).expect("parse locator")
+    }
+
+    #[trace("TC-1991", "FR-033-AC-17")]
+    // a conforming header does not excuse a short or long row.
+    #[test]
+    fn tc1991_row_width_must_match_the_header() {
+        let ragged = parse_document(concat!(
+            "## T\n",
+            "| ID | Type |\n",
+            "| - | - |\n",
+            "| A-1 | Unit |\n",
+            "| A-2 |\n",
+            "| A-3 | Unit | extra |\n",
+        ));
+        let p = prim(concat!(
+            "from: table_row\n",
+            "under_section: T\n",
+            "assert:\n",
+            "  id_column: ID\n",
+            "  columns: [ID, Type]\n",
+        ));
+        let a = p.assert().unwrap().clone();
+        let fails = evaluate_assert(&ragged, &p, &a, None);
+        assert_eq!(fails.len(), 2, "{fails:?}");
+        assert!(fails.iter().all(|f| f.reason == AssertReason::RowWidth));
+        let ids: Vec<Option<&str>> = fails.iter().map(|f| f.row_id.as_deref()).collect();
+        assert_eq!(ids, vec![Some("A-2"), Some("A-3")]);
+        let lines: Vec<Option<usize>> = fails.iter().map(|f| f.line).collect();
+        assert_eq!(lines, vec![Some(4), Some(5)]);
+
+        // Control: a uniform table fires nothing.
+        let ok = parse_document("## T\n| ID | Type |\n| - | - |\n| A-1 | Unit |\n");
+        assert!(evaluate_assert(&ok, &p, &a, None).is_empty());
     }
 
     #[trace("TC-991", "FR-033-AC-16")]

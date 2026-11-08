@@ -49,6 +49,9 @@ pub enum ValidationReason {
     DuplicateHeading,
     /// A `{field}` token referenced an absent frontmatter key (FR-034).
     UnresolvedField,
+    /// A `table_row` data row carries a different number of cells than the
+    /// table's header (FR-033-AC-17).
+    RowWidth,
     /// The frontmatter `object:` named an archetype the registry does not
     /// know (FR-032-AC-12). This is the only **warning**-severity reason;
     /// it is advisory and never fails validation.
@@ -79,6 +82,7 @@ impl ValidationReason {
             Self::Frontmatter => "frontmatter",
             Self::DuplicateHeading => "duplicate-heading",
             Self::UnresolvedField => "unresolved-field",
+            Self::RowWidth => "row-width",
             Self::UnknownObjectType => "unknown-object-type",
             Self::DisallowedEdgeType => "disallowed-edge-type",
             Self::Grammar => "grammar",
@@ -875,6 +879,7 @@ fn validate_required_locator(
             let reason = match failure.reason {
                 AssertReason::Assert => ValidationReason::Assert,
                 AssertReason::UnresolvedField => ValidationReason::UnresolvedField,
+                AssertReason::RowWidth => ValidationReason::RowWidth,
             };
             // CR-097: a row-scoped failure leads with the row's own id, so two
             // cells failing the same check in one table are two distinguishable

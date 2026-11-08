@@ -31,6 +31,10 @@ pub struct Edge {
     pub edge_type: String,
     /// Whether the target is present in the loaded set.
     pub resolution: Resolution,
+    /// `<org>/<repo>` authority of an `ix://` target that did not resolve in
+    /// this corpus; `None` for resolved edges and for bare-id targets. Lets a
+    /// consumer tell a foreign-repo reference from a broken local one.
+    pub authority: Option<String>,
 }
 
 /// Whether an [`Edge`]'s target was found in the corpus.
@@ -68,21 +72,32 @@ pub(crate) fn resolve(
     // Harvest into a sorted, deduplicated stub set: identical
     // (source, target, type) triples from any source collapse to one
     // (FR-026-AC-8/AC-11); same-pair-different-type stay distinct.
-    let mut stubs: BTreeSet<(ArtifactId, ArtifactId, String)> = BTreeSet::new();
+    // The authority is kept only for targets absent from the corpus, so a
+    // resolved edge dedups exactly as before.
+    let mut stubs: BTreeSet<(ArtifactId, ArtifactId, String, Option<String>)> = BTreeSet::new();
+    let authority_if_unresolved = |raw: &str, target: &str| {
+        (!by_id.contains_key(target))
+            .then(|| ix_authority(raw))
+            .flatten()
+    };
     for doc in documents {
         let source = artifact_key(doc);
         for (target_raw, edge_type) in harvest_frontmatter(doc) {
+            let target = extract_target_id(&target_raw);
             stubs.insert((
                 source.clone(),
-                extract_target_id(&target_raw).to_string(),
+                target.to_string(),
                 edge_type,
+                authority_if_unresolved(&target_raw, target),
             ));
         }
         for target_raw in harvest_body_links(doc, ix_link) {
+            let target = extract_target_id(&target_raw);
             stubs.insert((
                 source.clone(),
-                extract_target_id(&target_raw).to_string(),
+                target.to_string(),
                 "references".to_string(),
+                authority_if_unresolved(&target_raw, target),
             ));
         }
         // Internal relative-path links (ADR 0007). Navigation documents
@@ -90,7 +105,7 @@ pub(crate) fn resolve(
         // flood the graph (FR-026-AC-10).
         if !is_nav_doc(&doc.path) {
             for target in harvest_body_relative_links(doc, md_link, &by_path) {
-                stubs.insert((source.clone(), target, "references".to_string()));
+                stubs.insert((source.clone(), target, "references".to_string(), None));
             }
         }
     }
@@ -100,7 +115,7 @@ pub(crate) fn resolve(
     let mut incoming: BTreeMap<ArtifactId, Vec<usize>> = BTreeMap::new();
     let mut diagnostics = Vec::new();
 
-    for (source, target, edge_type) in stubs {
+    for (source, target, edge_type, authority) in stubs {
         let resolution = if by_id.contains_key(&target) {
             Resolution::Resolved
         } else {
@@ -123,6 +138,7 @@ pub(crate) fn resolve(
             target,
             edge_type,
             resolution,
+            authority,
         });
     }
 
@@ -288,6 +304,18 @@ fn md_link_regex() -> &'static Regex {
 pub(crate) fn extract_target_id(target: &str) -> &str {
     let rest = target.strip_prefix("ix://").unwrap_or(target);
     rest.rsplit('/').next().unwrap_or(rest)
+}
+
+/// The `<org>/<repo>` authority of an `ix://` URI: its first two path
+/// segments (one when the URI names only an org). `None` for a bare id.
+fn ix_authority(target: &str) -> Option<String> {
+    let rest = target.strip_prefix("ix://")?;
+    let mut segments = rest.split('/').filter(|s| !s.is_empty());
+    let org = segments.next()?;
+    Some(match segments.next() {
+        Some(repo) => format!("{org}/{repo}"),
+        None => org.to_string(),
+    })
 }
 
 /// The `ix://` URI grammar (CR-067):

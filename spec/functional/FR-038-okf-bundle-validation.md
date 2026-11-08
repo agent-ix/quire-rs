@@ -102,6 +102,7 @@ warning under Okf.
 | FR-038-AC-6 | A bundle-root `index.md` lacking `okf_version` in frontmatter yields an `index-okf-version` error under `Strict`. | Test |
 | FR-038-AC-7 | A subdirectory `index.md` without `okf_version` does not produce an `index-okf-version` finding (only the bundle root must declare it); an otherwise-conformant nested bundle is `is_valid()` under `Strict`. | Test |
 | FR-038-AC-8 | Under `Strict`, a document with a known `type` but a mistyped optional `description` (e.g. `description: 7`) is `!is_valid()` with an error naming `description` (the base concept contract, [FR-037](./FR-037-base-concept-schema.md), runs as part of bundle validation). | Test |
+| FR-038-AC-9 | An `ix://<org>/<repo>/...` reference to an artifact absent from the bundle is NOT reported as `dangling-reference` when its `<org>/<repo>` authority differs from the bundle's declared package (or no package is declared): this corpus cannot see a foreign repository, so it cannot call the target broken. The same absent target under the bundle's own declared authority, or a bare-id target, is still `dangling-reference`. | Test (TC-1992) |
 
 ## Dependencies
 

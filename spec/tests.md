@@ -1132,6 +1132,8 @@ in this specification is not runtime or coverage evidence.
 | TC-1988 | Existing unguarded Rust and Python/TypeScript comment forms remain module-driven and unchanged | Integration | P0 | FR-062-AC-16 | 🚧 Planned |
 | TC-1989 | Unknown guard, non-Rust guarded form and use outside implements are invalid module input, never an unguarded fallback | Integration | P0 | FR-062-AC-12 | 🚧 Planned |
 | TC-1990 | Guarded forms preserve identities, range-finding locations, parse-failure isolation, deterministic outputs and the scope/evidence separation | Integration | P0 | FR-062-AC-17 | 🚧 Planned |
+| TC-1991 | A `columns` assert whose header conforms still fails with reason `row-width` for each row whose cell count differs from the header's, at the row's own line with its `row_id`; a uniformly wide table fires nothing (PLAT-217) | Unit | P0 | FR-033-AC-17 | ✅ |
+| TC-1992 | An `ix://` reference under a foreign `<org>/<repo>` authority is not `dangling-reference`, while the same absent id under the bundle's declared package, or as a bare id, still is (PLAT-1056) | Integration | P0 | FR-038-AC-9 | ✅ |
 
 Procedures use the public module-load-to-bind path, not a manually patched
 `TraceabilityModel`. Each form declares its pattern and template in the
@@ -1518,6 +1520,7 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-061-AC-8 | TC-932 |
 | FR-061-AC-9 | TC-933 |
 | FR-033-AC-16 | TC-991, TC-1005 |
+| FR-033-AC-17 | TC-1991 |
 | FR-050-AC-28 | TC-989, TC-1009 |
 | FR-050-AC-29 | TC-992, TC-993, TC-994, TC-995, TC-996 |
 | FR-050-AC-33 | TC-1033, TC-1034, TC-1035 |
@@ -1720,6 +1723,7 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-038-AC-6 | TC-605 |
 | FR-038-AC-7 | TC-606 |
 | FR-038-AC-8 | TC-607 |
+| FR-038-AC-9 | TC-1992 |
 | FR-039-AC-1 | TC-623 |
 | FR-039-AC-2 | TC-624 |
 | FR-039-AC-3 | TC-625 |

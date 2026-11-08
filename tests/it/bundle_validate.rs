@@ -42,6 +42,14 @@ fn note(id: &str, body: &str) -> String {
     format!("---\nid: {id}\ntype: note\n---\n# {id}\n{body}\n")
 }
 
+/// A note whose only fault is a bare-id relationship to an absent artifact:
+/// genuinely dangling, with no foreign authority to excuse it.
+fn note_missing_ref(id: &str) -> String {
+    format!(
+        "---\nid: {id}\ntype: note\nrelationships:\n  - target: MISSING\n    type: references\n---\n# {id}\n"
+    )
+}
+
 /// Strict: a document with no `type` is a hard error (was a non-fatal
 /// `UntypedArtifact` warning before this change).
 #[trace("TC-600", "FR-038-AC-1")]
@@ -89,7 +97,7 @@ fn okf_tolerates_unknown_type_and_broken_links() {
     write(
         &root,
         "X-1.md",
-        "---\nid: X-1\ntype: weird\n---\n# x\nsee [missing](ix://o/r/MISSING)\n",
+        "---\nid: X-1\ntype: weird\nrelationships:\n  - target: MISSING\n    type: references\n---\n# x\n",
     );
 
     let okf = validate_bundle_at(&root, &bundle_registry(), BundlePosture::Okf);
@@ -415,11 +423,7 @@ fn all(report: &BundleReport) -> impl Iterator<Item = &BundleFinding> {
 /// A bundle whose only fault is one dangling `ix://` reference.
 fn one_dangling_ref(tag: &str) -> PathBuf {
     let root = tmpdir(tag);
-    write(
-        &root,
-        "NOTE-001.md",
-        &note("NOTE-001", "see [missing](ix://o/r/MISSING)"),
-    );
+    write(&root, "NOTE-001.md", &note_missing_ref("NOTE-001"));
     root
 }
 
@@ -489,11 +493,7 @@ fn tc884_unconfigured_checks_keep_their_prior_tier() {
         "index.md",
         "---\nid: IDX\ntype: index\n---\n# Index\n\n## Contents\n",
     );
-    write(
-        &root,
-        "NOTE-001.md",
-        &note("NOTE-001", "see [missing](ix://o/r/MISSING)"),
-    );
+    write(&root, "NOTE-001.md", &note_missing_ref("NOTE-001"));
     for (posture, in_errors) in [(BundlePosture::Strict, true), (BundlePosture::Okf, false)] {
         let r = validate_bundle_at(&root, &bundle_registry(), posture);
         let (hit, miss) = if in_errors {
@@ -569,11 +569,7 @@ fn tc886_findings_carry_severity_and_a_wellformed_key() {
         "index.md",
         "---\nid: IDX\ntype: index\n---\n# Index\n\n## Contents\n",
     );
-    write(
-        &root,
-        "NOTE-001.md",
-        &note("NOTE-001", "see [missing](ix://o/r/MISSING)"),
-    );
+    write(&root, "NOTE-001.md", &note_missing_ref("NOTE-001"));
     write(&root, "loose.md", "no frontmatter at all\n");
 
     let report = validate_bundle_at(&root, &bundle_registry(), BundlePosture::Okf);
@@ -629,11 +625,7 @@ fn tc887_severity_does_not_perturb_order() {
         "---\nid: IDX\ntype: index\n---\n# Index\n\n## Contents\n",
     );
     for id in ["NOTE-003", "NOTE-001", "NOTE-002"] {
-        write(
-            &root,
-            &format!("{id}.md"),
-            &note(id, "see [missing](ix://o/r/MISSING)"),
-        );
+        write(&root, &format!("{id}.md"), &note_missing_ref(id));
     }
 
     let shape = |r: &BundleReport| -> Vec<(String, PathBuf)> {
@@ -687,4 +679,29 @@ fn tc888_bridged_document_results_are_not_registrable() {
     }
 
     fs::remove_dir_all(&root).ok();
+}
+
+/// A correct `ix://` target under another repo's authority is cross-repo, not
+/// dangling; the same absent id under the bundle's own authority still is.
+#[trace("TC-1992", "FR-038-AC-9")]
+// PLAT-1056: foreign-authority targets are not reported as dangling.
+#[test]
+fn foreign_authority_target_is_not_dangling() {
+    let root = tmpdir("cross_repo");
+    write(
+        &root,
+        "NOTE-001.md",
+        &note(
+            "NOTE-001",
+            "see [other](ix://other-org/other-repo/spec/StR-009)",
+        ),
+    );
+    let report = validate_bundle_at(&root, &bundle_registry(), BundlePosture::Okf);
+    assert_eq!(count(&report.warnings, "dangling-reference"), 0);
+    assert_eq!(count(&report.errors, "dangling-reference"), 0);
+
+    let spec = quire_rs::Spec::from_path(&root).with_bundle_package("other-org/other-repo");
+    let own =
+        quire_rs::validate_bundle(&spec, &bundle_registry(), BundlePosture::Okf, &root, &root);
+    assert_eq!(count(&own.warnings, "dangling-reference"), 1);
 }
