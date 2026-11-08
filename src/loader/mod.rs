@@ -527,6 +527,18 @@ pub fn load_inline_module(manifest_yaml: &[u8], schemas: &BTreeMap<String, Strin
         )));
     }
 
+    if let Some(reason) = duplicate_authority(&module_name, inline_semantic.as_ref(), &archetypes) {
+        for at in manifest.all_archetypes() {
+            failures.push(failure(
+                &module_name,
+                &at.name,
+                inline_root.clone(),
+                reason.clone(),
+            ));
+        }
+        archetypes.clear();
+    }
+
     if !manifest.clause_sets.is_empty() {
         failures.push(failure(
             &module_name,
@@ -756,6 +768,17 @@ fn load_one_module(
             Err(f) => failures.push(f),
         }
     }
+    if let Some(reason) = duplicate_authority(&module_name, semantic.as_ref(), &archetypes) {
+        for at in manifest.all_archetypes() {
+            failures.push(failure(
+                &module_name,
+                &at.name,
+                module_root.join("manifest.yaml"),
+                reason.clone(),
+            ));
+        }
+        archetypes.clear();
+    }
 
     let mut clause_sets = Vec::new();
     for relative in &manifest.clause_sets {
@@ -877,6 +900,53 @@ fn read_module_semantic(
     };
     let names: Vec<String> = manifest.all_archetypes().map(|a| a.name.clone()).collect();
     crate::semantic::read_semantic_block(block, &names).map(Some)
+}
+
+/// FR-069 duplicate declaration authority: under the `relationships`
+/// mapping, a typed relation key (FR-076) is declared by the `## Relationships`
+/// rows, so an object type whose `body_extraction` also keys a `table_row`
+/// locator on it declares the key twice. The refusal reason, naming the
+/// module, the object type and the locator key, for the first such locator.
+fn duplicate_authority(
+    module: &str,
+    semantic: Option<&crate::semantic::SemanticModule>,
+    archetypes: &[Arc<CompiledArchetype>],
+) -> Option<String> {
+    use crate::extract::locator::{Locator, LocatorPrimitive};
+    let names_relationships = semantic.is_some_and(|s| {
+        s.mappings
+            .iter()
+            .any(|m| m == crate::semantic::RELATIONSHIPS_TOKEN)
+    });
+    if !names_relationships {
+        return None;
+    }
+    archetypes.iter().find_map(|arch| {
+        let schema = crate::semantic::relations::RelationSchema::from_data_schema(arch.data_schema.as_deref()?);
+        let dsl = arch.body_extraction()?;
+        let table_row_keys = dsl
+            .yield_pattern
+            .r#match
+            .iter()
+            .chain(dsl.yield_pattern.per_match.iter())
+            .flat_map(|map| map.iter())
+            .filter(|(_, locator)| {
+                let chain = match locator {
+                    Locator::Primitive(p) => std::slice::from_ref(p),
+                    Locator::Fallback(chain) => chain.as_slice(),
+                };
+                chain
+                    .iter()
+                    .any(|p| matches!(p, LocatorPrimitive::TableRow { .. }))
+            })
+            .map(|(key, _)| key.as_str());
+        let typed: Vec<&str> = schema.typed_keys(arch.allowed_links()).collect();
+        let key = table_row_keys.into_iter().find(|key| typed.contains(key))?;
+        Some(format!(
+            "semantic.duplicate-authority: module {module}: object type {} declares a table_row locator keyed `{key}`, a typed relation key its `## Relationships` rows declare",
+            arch.name
+        ))
+    })
 }
 
 type DataSchemaParts = (Option<Arc<Value>>, Option<Arc<jsonschema::Validator>>);

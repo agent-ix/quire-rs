@@ -1,9 +1,14 @@
 //! Reference-cell resolution shared by the FR-076 relationship targets and
 //! the FR-075 systems-model tables: a bare artifact `id` or an
 //! `ix://<org>/<repo>/<id>` identity, resolved against the extracted
-//! artifact, the bundle's artifacts, and the module's imports.
+//! artifact, the bundle's artifacts, and the module's imports. FR-075
+//! declaration references ([`resolve_reference`]) add the name form: an item
+//! matched by `id`, `title` or `name`, filtered by the admitted object types.
+
+use std::collections::BTreeMap;
 
 use super::context::SemanticContext;
+use super::relations::RelationVocabulary;
 use crate::ix_ref::IxRef;
 
 /// An id in the semantic-core `SemanticId` id alphabet: an ASCII letter or
@@ -128,6 +133,196 @@ pub(crate) fn resolve_target<'a>(
         }),
         None if ctx.bundle.artifacts.is_empty() => Ok(Target::Unchecked { identity }),
         None => Err(Unresolved::UnknownId),
+    }
+}
+
+/// The extracted artifact's own frontmatter `id`, `title`, `name` and
+/// `object`: always a declaration of the bundle (FR-075 Declaration
+/// references).
+#[derive(Debug, Clone, Default)]
+pub(crate) struct OwnDeclaration {
+    pub(crate) id: Option<String>,
+    pub(crate) title: Option<String>,
+    pub(crate) name: Option<String>,
+    pub(crate) object: Option<String>,
+}
+
+impl OwnDeclaration {
+    /// The declaration the document's frontmatter states.
+    pub(crate) fn from_raw(raw: &str) -> Self {
+        let fm = crate::parser::frontmatter::extract_frontmatter_ref(raw);
+        let field = |key: &str| {
+            fm.frontmatter
+                .as_ref()
+                .and_then(|m| m.get(key))
+                .and_then(serde_json::Value::as_str)
+                .map(str::to_string)
+        };
+        Self {
+            id: field("id"),
+            title: field("title"),
+            name: field("name"),
+            object: field("object"),
+        }
+    }
+}
+
+/// One declaration of the bundle: its `id`, every name it is matched by
+/// (`id`, `title`, `name`), and its object type.
+struct Declaration {
+    id: String,
+    names: Vec<String>,
+    object: Option<String>,
+}
+
+/// The object types a reference cell admits, from the first module source
+/// that declares the cell (FR-075 Admission).
+#[derive(Clone, Copy)]
+pub(crate) enum Admission<'a> {
+    /// The construct `references` entry for the cell's member: role tokens.
+    Construct {
+        roles: &'a [String],
+        vocabulary: &'a RelationVocabulary,
+    },
+    /// The `allowed_links` entry for the column's verb: `*`, object type or
+    /// role tokens.
+    AllowedLinks {
+        tokens: &'a [String],
+        vocabulary: &'a RelationVocabulary,
+    },
+    /// Neither source declares the cell: every declaration is admitted.
+    Any,
+}
+
+impl Admission<'_> {
+    /// Whether a declaration of object type `object` is admitted. A
+    /// declaration with no object type satisfies only `*` or an unrestricted
+    /// cell.
+    fn admits(self, object: Option<&str>) -> bool {
+        match self {
+            Self::Construct { roles, vocabulary } => roles.iter().any(|role| {
+                role == "*" || object.is_some_and(|o| vocabulary.roles_of(o).contains(role))
+            }),
+            Self::AllowedLinks { tokens, vocabulary } => tokens
+                .iter()
+                .any(|token| vocabulary.satisfies(token, object)),
+            Self::Any => true,
+        }
+    }
+}
+
+/// Why a reference item did not resolve to exactly one declaration.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum ReferenceRefusal {
+    /// The item names no declaration at all.
+    UnknownName,
+    /// The item names declarations, none of an admitted object type.
+    KindMismatch,
+    /// The item names more than one admitted declaration: their ids.
+    Ambiguous(Vec<String>),
+}
+
+/// The bundle's declarations: the extracted artifact itself, then every
+/// `BundleIndex.artifacts` entry joined to its `BundleIndex.objects` names by
+/// `id`. One declaration authored in two forms under one `id` is one
+/// declaration with the union of its names.
+pub(crate) struct Declarations(BTreeMap<String, Declaration>);
+
+impl Declarations {
+    pub(crate) fn new(ctx: &SemanticContext, own: &OwnDeclaration) -> Self {
+        let mut names_by_id: BTreeMap<&str, Vec<&str>> = BTreeMap::new();
+        for entry in &ctx.bundle.objects {
+            names_by_id
+                .entry(entry.id.as_str())
+                .or_default()
+                .extend(entry.names.iter().map(String::as_str));
+        }
+        let mut out = Self(BTreeMap::new());
+        if let Some(id) = own.id.as_deref() {
+            let names = [own.title.as_deref(), own.name.as_deref()]
+                .into_iter()
+                .flatten();
+            out.add(id, names, own.object.as_deref());
+        }
+        for artifact in &ctx.bundle.artifacts {
+            let names = names_by_id
+                .get(artifact.id.as_str())
+                .into_iter()
+                .flatten()
+                .copied();
+            out.add(&artifact.id, names, artifact.object.as_deref());
+        }
+        out
+    }
+
+    fn add<'n>(&mut self, id: &str, names: impl Iterator<Item = &'n str>, object: Option<&str>) {
+        let entry = self.0.entry(id.to_string()).or_insert_with(|| Declaration {
+            id: id.to_string(),
+            names: vec![id.to_string()],
+            object: None,
+        });
+        for name in names {
+            if !entry.names.iter().any(|n| n == name) {
+                entry.names.push(name.to_string());
+            }
+        }
+        if entry.object.is_none() {
+            entry.object = object.map(str::to_string);
+        }
+    }
+}
+
+/// Resolve one FR-075 reference item under `package` to the `SemanticId` of
+/// the one admitted declaration it names. The caller has established that
+/// the bundle is indexed. An `ix://<org>/<repo>/<id>` item resolves as an
+/// FR-076 `Target` does, never by name; an identity in an imported package
+/// is admitted unchecked.
+pub(crate) fn resolve_reference(
+    ctx: &SemanticContext,
+    package: &str,
+    own: &OwnDeclaration,
+    declarations: &Declarations,
+    item: &str,
+    admission: Admission<'_>,
+) -> Result<String, ReferenceRefusal> {
+    if item.starts_with("ix://") {
+        let own_artifact = OwnArtifact {
+            id: own.id.as_deref(),
+            object: own.object.as_deref(),
+            operations: &[],
+        };
+        return match resolve_target(ctx, package, &own_artifact, item, is_id_segment) {
+            Ok(Target::Bundle {
+                identity, object, ..
+            }) => {
+                if admission.admits(object) {
+                    Ok(identity)
+                } else {
+                    Err(ReferenceRefusal::KindMismatch)
+                }
+            }
+            Ok(Target::Imported { identity } | Target::Unchecked { identity }) => Ok(identity),
+            Err(_) => Err(ReferenceRefusal::UnknownName),
+        };
+    }
+    let candidates: Vec<&Declaration> = declarations
+        .0
+        .values()
+        .filter(|d| d.names.iter().any(|n| n == item))
+        .collect();
+    if candidates.is_empty() {
+        return Err(ReferenceRefusal::UnknownName);
+    }
+    let admitted: Vec<&Declaration> = candidates
+        .into_iter()
+        .filter(|d| admission.admits(d.object.as_deref()))
+        .collect();
+    match admitted.as_slice() {
+        [] => Err(ReferenceRefusal::KindMismatch),
+        [one] => Ok(format!("ix://{package}/{}", one.id)),
+        many => Err(ReferenceRefusal::Ambiguous(
+            many.iter().map(|d| d.id.clone()).collect(),
+        )),
     }
 }
 
