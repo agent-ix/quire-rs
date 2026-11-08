@@ -287,6 +287,13 @@ pub fn language_of(path: &Path) -> Option<SourceLanguage> {
     }
 }
 
+/// True for a cookiecutter placeholder directory name, e.g.
+/// `{{cookiecutter.repo_name}}`.
+fn is_template_dir(name: &std::ffi::OsStr) -> bool {
+    name.to_str()
+        .is_some_and(|n| n.starts_with("{{") && n.ends_with("}}"))
+}
+
 /// Extract every symbol under `root`, walking gitignore-aware like the corpus
 /// loader. `root` is the identity base: emitted paths are relative to it.
 pub fn extract_tree(root: &Path) -> SymbolExtraction {
@@ -365,6 +372,14 @@ pub fn extract_tree_scoped(
             return true;
         }
         let path = entry.path();
+        // A cookiecutter template tree (`{{cookiecutter.repo_name}}/`) is
+        // generated-project scaffolding, not this repository's own test
+        // surface. Its placeholder FR ids collide with the repo's real ids,
+        // so tags inside it must never bind. Non-configurable, like the
+        // document-root exclusion.
+        if entry.depth() > 0 && is_template_dir(entry.file_name()) {
+            return false;
+        }
         let canonical = std::fs::canonicalize(path);
         let candidate: &Path = canonical.as_deref().unwrap_or(path);
         !excluded.iter().any(|ex| ex == candidate)
@@ -650,6 +665,30 @@ mod tests {
         let empty_exclude = extract_tree_excluding(&fixture_root(), &[]);
         assert_eq!(all.symbols, empty_exclude.symbols);
         assert_eq!(all.diagnostics, empty_exclude.diagnostics);
+    }
+
+    // Regression (PLAT-1290): a cookiecutter template tree under the root
+    // contributes no symbols, while sibling real source still does.
+    #[test]
+    fn cookiecutter_template_tree_is_never_walked() {
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path().to_path_buf();
+        let tpl = dir.join("templates/mod/{{cookiecutter.repo_name}}/tests");
+        std::fs::create_dir_all(&tpl).unwrap();
+        std::fs::create_dir_all(dir.join("tests")).unwrap();
+        let body = "def test_x():\n    pass\n";
+        std::fs::write(tpl.join("test_t.py"), body).unwrap();
+        std::fs::write(dir.join("tests/test_real.py"), body).unwrap();
+
+        let out = extract_tree(&dir);
+        assert!(out.symbols.iter().any(|s| s.path == "tests/test_real.py"));
+        // A scope that IS a template root is still walked (only descendants prune).
+        let rooted = extract_tree(&dir.join("templates/mod/{{cookiecutter.repo_name}}"));
+        assert!(rooted.symbols.iter().any(|s| s.path == "tests/test_t.py"));
+        assert!(
+            out.symbols.iter().all(|s| !s.path.contains("cookiecutter")),
+            "template tree leaked into the source walk"
+        );
     }
 
     #[trace("TC-944", "FR-050-AC-22")]
