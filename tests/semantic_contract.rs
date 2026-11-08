@@ -1146,3 +1146,53 @@ fn validate_document_qualifies_under_the_bundle_package() {
         "{warnings:?}"
     );
 }
+
+#[trace("TC-1868", "FR-076-AC-15")]
+// validate_bundle qualifies relationships under the repository identity the
+// Spec declares (PLAT-48); without one the table is unavailable with
+// `no-bundle-package`.
+#[test]
+fn validate_bundle_passes_the_declared_bundle_package() {
+    use quire_rs::corpus::{validate_bundle, BundlePosture, Spec};
+
+    let tmp = TempDir::new().unwrap();
+    let registry = related_registry(&tmp);
+    let root = tmp.path().join("bundle");
+    fs::create_dir_all(root.join("spec")).unwrap();
+    fs::write(
+        root.join("spec/FR-006.md"),
+        related_document("| overlay | holds | FR-005 | 1..1 |\n")
+            .replace("type: FR\n", "type: entity\n"),
+    )
+    .unwrap();
+    let messages = |spec: &Spec| -> Vec<String> {
+        let report = validate_bundle(spec, &registry, BundlePosture::Strict, &root, &root);
+        report
+            .errors
+            .iter()
+            .chain(report.warnings.iter())
+            .map(|f| f.message.clone())
+            .collect()
+    };
+
+    // Control: no declared identity -> one `no-bundle-package` advisory.
+    let spec = Spec::from_path(&root);
+    assert_eq!(spec.bundle_package(), None);
+    let without = messages(&spec);
+    assert!(
+        without
+            .iter()
+            .any(|m| m.contains("relationships-no-bundle-package")),
+        "{without:?}"
+    );
+
+    // Declared identity: the row is checked (`holds` is not a registered verb).
+    let spec = spec.with_bundle_package(BUNDLE_PACKAGE);
+    assert_eq!(spec.bundle_package(), Some(BUNDLE_PACKAGE));
+    let with = messages(&spec);
+    assert!(
+        !with.iter().any(|m| m.contains("no-bundle-package")),
+        "{with:?}"
+    );
+    assert!(with.iter().any(|m| m.contains("holds")), "{with:?}");
+}

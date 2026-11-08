@@ -15,6 +15,10 @@ bumps; once 1.0 ships, semver is strict.
 
 ### Fixed
 
+- `Spec::with_bundle_package` declares the repository identity `<org>/<repo>`;
+  `validate_bundle` passes it to `validate_document_in_bundle`, so
+  `## Relationships` rows are checked instead of reporting `no-bundle-package`
+  (PLAT-48, quire-rs#437). Without a declared identity behaviour is unchanged.
 - A `table_row` assert selects the table under its section whose header
   conforms to its `columns`, so several locators can share one section; with
   no matching table it still fails (PLAT-56, #434).

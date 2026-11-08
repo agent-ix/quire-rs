@@ -44,6 +44,64 @@
           "severity": "advisory"
         }
       ],
+      "fieldSources": [
+        {
+          "endColumn": 29,
+          "endLine": 18,
+          "path": "spec/functional/FR-006.md",
+          "sourceIdentity": "ix://agent-ix/config-service/spec",
+          "startColumn": 1,
+          "startLine": 18
+        },
+        {
+          "endColumn": 41,
+          "endLine": 19,
+          "path": "spec/functional/FR-006.md",
+          "sourceIdentity": "ix://agent-ix/config-service/spec",
+          "startColumn": 1,
+          "startLine": 19
+        },
+        {
+          "endColumn": 28,
+          "endLine": 20,
+          "path": "spec/functional/FR-006.md",
+          "sourceIdentity": "ix://agent-ix/config-service/spec",
+          "startColumn": 1,
+          "startLine": 20
+        },
+        {
+          "endColumn": 33,
+          "endLine": 21,
+          "path": "spec/functional/FR-006.md",
+          "sourceIdentity": "ix://agent-ix/config-service/spec",
+          "startColumn": 1,
+          "startLine": 21
+        },
+        {
+          "endColumn": 36,
+          "endLine": 22,
+          "path": "spec/functional/FR-006.md",
+          "sourceIdentity": "ix://agent-ix/config-service/spec",
+          "startColumn": 1,
+          "startLine": 22
+        },
+        {
+          "endColumn": 32,
+          "endLine": 23,
+          "path": "spec/functional/FR-006.md",
+          "sourceIdentity": "ix://agent-ix/config-service/spec",
+          "startColumn": 1,
+          "startLine": 23
+        },
+        {
+          "endColumn": 43,
+          "endLine": 24,
+          "path": "spec/functional/FR-006.md",
+          "sourceIdentity": "ix://agent-ix/config-service/spec",
+          "startColumn": 1,
+          "startLine": 24
+        }
+      ],
       "fields": [
         {
           "identity": true,
@@ -233,6 +291,16 @@
       ],
       "contractVersion": "1.0.0",
       "diagnostics": [],
+      "fieldSources": [
+        {
+          "endColumn": 29,
+          "endLine": 14,
+          "path": "spec/functional/FR-006.md",
+          "sourceIdentity": "ix://agent-ix/config-service/spec",
+          "startColumn": 1,
+          "startLine": 14
+        }
+      ],
       "fields": [
         {
           "identity": true,
@@ -253,6 +321,37 @@
       ],
       "fieldsForm": "table",
       "formatVersion": 1,
+      "operationSources": [
+        {
+          "name": "archive",
+          "params": [
+            {
+              "endColumn": 35,
+              "endLine": 36,
+              "path": "spec/functional/FR-006.md",
+              "sourceIdentity": "ix://agent-ix/config-service/spec",
+              "startColumn": 1,
+              "startLine": 36
+            },
+            {
+              "endColumn": 35,
+              "endLine": 37,
+              "path": "spec/functional/FR-006.md",
+              "sourceIdentity": "ix://agent-ix/config-service/spec",
+              "startColumn": 1,
+              "startLine": 37
+            }
+          ],
+          "returns": {
+            "endColumn": 26,
+            "endLine": 39,
+            "path": "spec/functional/FR-006.md",
+            "sourceIdentity": "ix://agent-ix/config-service/spec",
+            "startColumn": 1,
+            "startLine": 39
+          }
+        }
+      ],
       "operations": [
         {
           "name": "archive",
@@ -403,6 +502,16 @@
           "message": "type \"Mystery\" resolves to no kernel scalar, bundle declaration, or import (unknown-token)",
           "reason": "unknown-token",
           "severity": "advisory"
+        }
+      ],
+      "fieldSources": [
+        {
+          "endColumn": 26,
+          "endLine": 12,
+          "path": "spec/functional/FR-006.md",
+          "sourceIdentity": "ix://agent-ix/config-service/spec",
+          "startColumn": 1,
+          "startLine": 12
         }
       ],
       "fields": [
