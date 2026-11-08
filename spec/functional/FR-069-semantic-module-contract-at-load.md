@@ -124,8 +124,8 @@ Duplicate declaration authority, per module after its data schemas resolve:
 
 - If a module names `relationships` in `semantic.mappings` and one of its
   object types declares in `body_extraction` a `table_row` locator whose
-  match key equals a typed relation key of that object type, then the loader
-  SHALL refuse the module with `semantic.duplicate-authority`.
+  match key equals a typed relation key of that object type, then the
+  loader SHALL refuse the module with `semantic.duplicate-authority`.
   A typed relation key is a top-level `SemanticId[]` property of the type's
   resolved `data_schema` whose name is a verb in the type's `allowed_links`
   ([FR-076](./FR-076-relationships-extraction.md)). The trigger is the
