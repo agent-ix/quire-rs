@@ -1,7 +1,7 @@
 //! Python source adapter (FR-051).
 //!
 //! Parses over a tree-sitter syntax tree, through the dependency-boundary
-//! crate `quire-rust-extraction` (PLAT-843, widened to Python by PLAT-851) —
+//! crate `quire-code-extraction` (PLAT-843, widened to Python by PLAT-851) —
 //! see that crate's own module docs for why the tree-sitter dependency
 //! itself is never named here. This adapter still answers exactly the
 //! questions FR-051 needs — which declaration owns a span, what its
@@ -20,7 +20,7 @@
 //! Every Python method sits at **depth 2** — `class_definition` → `body`
 //! (a `block`) → `function_definition` — never at the root or its direct
 //! children. `quire-code-parse`'s own declaration-structure predicate
-//! ([`quire_rust_extraction::parse_file`]'s docs) checks every nesting
+//! ([`quire_code_extraction::parse_file`]'s docs) checks every nesting
 //! depth for exactly this reason: a shallower predicate would make every
 //! Python method structurally invisible, which is PLAT-14's original defect
 //! (a hand-rolled scanner desyncing mid-file and returning zero symbols for
@@ -117,8 +117,8 @@
 
 use std::collections::BTreeSet;
 
-use quire_rust_extraction::tree_sitter::Node;
-use quire_rust_extraction::{parse_file, Language};
+use quire_code_extraction::tree_sitter::Node;
+use quire_code_extraction::{parse_file, Language};
 
 use super::{leading_span, RawSymbol, SymbolKind};
 

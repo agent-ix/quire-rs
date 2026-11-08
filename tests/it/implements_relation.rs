@@ -602,7 +602,7 @@ fn recovered_attribute_is_a_real_missing_token_not_a_valid_candidate() {
         .as_str()
         .unwrap();
     let parsed =
-        quire_rust_extraction::parse_file(quire_rust_extraction::Language::Rust, "lib.rs", source)
+        quire_code_extraction::parse_file(quire_code_extraction::Language::Rust, "lib.rs", source)
             .unwrap();
     assert!(
         parsed.diagnostic().is_none(),
