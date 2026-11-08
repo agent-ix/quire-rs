@@ -215,6 +215,29 @@ pub struct UnboundSymbol {
     pub symbol: String,
 }
 
+/// One evidence symbol the binding census counted as `tagged` but not `bound`:
+/// it carries an id-shaped token and no declared form bound anything on it
+/// (PLAT-875).
+///
+/// The census reports counts and one example per language; this is the whole
+/// population, so a differential can report `tagged_not_bound` deltas. It is
+/// distinct from [`UnmatchedTag`]: a symbol that bound through some other tag
+/// leaves the census before its stray tokens are considered, so those tokens
+/// appear in `unmatched_tags` but never here.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TaggedNotBound {
+    /// Stable machine label — `rust`, `python`, `typescript`.
+    pub language: String,
+    /// Repo-relative, `/`-separated.
+    pub path: String,
+    /// 1-based line of the first id-shaped token, the line to open.
+    pub line: usize,
+    /// Qualified evidence-symbol name.
+    pub symbol: String,
+    /// The first id-shaped token found in the symbol's annotation block.
+    pub trace_id: String,
+}
+
 /// One id-shaped token authored on an evidence symbol that no declared form
 /// bound on that symbol (FR-050-AC-39, #362).
 ///
@@ -355,6 +378,10 @@ pub struct SymbolGraph {
     /// Generic id-shaped tokens on evidence-symbol annotation blocks that no
     /// declared form bound on that same symbol (FR-050-AC-39, #362).
     pub unmatched_tags: Vec<UnmatchedTag>,
+    /// Every evidence symbol the census counted as tagged but not bound,
+    /// sorted by `(language, path, line, symbol)` (PLAT-875). Read-only
+    /// enumeration of the census population; it changes nothing that binds.
+    pub tagged_not_bound: Vec<TaggedNotBound>,
     /// Production symbols examined for an `implements` marker — the complement
     /// of [`BindingCensus::candidates`] (FR-063-AC-4, CR-094).
     ///
@@ -691,6 +718,13 @@ pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolG
             line: tag.line,
             symbol: tag.symbol.clone(),
         });
+        let first_generic = generic_tags.first().map(|tag| TaggedNotBound {
+            language: tag.language.clone(),
+            path: tag.path.clone(),
+            line: tag.line,
+            symbol: tag.symbol.clone(),
+            trace_id: tag.trace_id.clone(),
+        });
         let before = graph.verifies.len();
         let ranges_before = graph.range_diagnostics.len();
         bind_symbol(symbol, source, model, &patterns, &mut graph);
@@ -716,6 +750,9 @@ pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolG
                 !bound_on_symbol.contains(tag.trace_id.as_str())
                     && !range_tokens.contains(&tag.trace_id)
             }));
+        if graph.verifies.len() == before {
+            graph.tagged_not_bound.extend(first_generic);
+        }
         let entry = census.entry(symbol.language.as_str()).or_default();
         entry.observe(
             graph.verifies.len() > before,
@@ -811,6 +848,9 @@ pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolG
         (&a.path, &a.symbol, &a.trace_id, &a.form).cmp(&(&b.path, &b.symbol, &b.trace_id, &b.form))
     });
     graph.implements.dedup();
+    graph.tagged_not_bound.sort_by(|a, b| {
+        (&a.language, &a.path, a.line, &a.symbol).cmp(&(&b.language, &b.path, b.line, &b.symbol))
+    });
     graph.defined_in.sort();
     graph.contains.sort();
     graph.rewrites.sort_by(|a, b| {
@@ -1090,12 +1130,24 @@ fn declared_name_form_ids(
     ids
 }
 
-pub(crate) fn normalized_trace_id(value: &str) -> String {
+/// The segment-preserving form of the engine's trace-id fold: the maximal runs
+/// of ASCII alphanumerics in `value`, uppercased, in order (PLAT-898).
+///
+/// This is the one implementation of the fold. [`normalized_trace_id`] is
+/// `trace_id_segments(value).concat()`, so the two cannot disagree. A consumer
+/// that needs boundary-aware prefix matching (`FR-047` matches `FR-047-AC-9`
+/// but not `FR-0470`) compares segments rather than the concatenation, which
+/// discards exactly the boundaries that comparison needs.
+pub fn trace_id_segments(value: &str) -> Vec<String> {
     value
-        .chars()
-        .filter(|ch| ch.is_ascii_alphanumeric())
-        .flat_map(char::to_uppercase)
+        .split(|ch: char| !ch.is_ascii_alphanumeric())
+        .filter(|segment| !segment.is_empty())
+        .map(str::to_uppercase)
         .collect()
+}
+
+pub(crate) fn normalized_trace_id(value: &str) -> String {
+    trace_id_segments(value).concat()
 }
 
 /// The generic, form-agnostic id-shaped pattern: `AB-123` or
@@ -1269,8 +1321,12 @@ fn mask_rust_string_contents(span: &str) -> String {
     let mut raw_hashes: Option<usize> = None;
     let mut in_string = false;
 
+    // PLAT-181: each line is walked by byte index and decoded in place, so no
+    // a char buffer is built per line. Every lookahead below is for an ASCII
+    // character, so a byte comparison is exact and a multi-byte character is
+    // stepped over whole (`len_utf8`), which keeps byte offsets unshifted.
     for line in span.split_inclusive('\n') {
-        let chars: Vec<char> = line.chars().collect();
+        let bytes = line.as_bytes();
         let mut i = 0;
         // A masked char becomes a space, but only when it is ASCII — a
         // multi-byte char is replaced by itself so byte offsets never shift.
@@ -1282,31 +1338,36 @@ fn mask_rust_string_contents(span: &str) -> String {
             }
         };
 
-        while i < chars.len() {
-            let c = chars[i];
+        while i < line.len() {
+            let Some(c) = line[i..].chars().next() else {
+                break;
+            };
+            let width = c.len_utf8();
 
             if let Some(hashes) = raw_hashes {
-                if c == '"' && chars[i + 1..].iter().take(hashes).all(|h| *h == '#') {
+                if c == '"' && bytes[i + 1..].iter().take(hashes).all(|h| *h == b'#') {
                     raw_hashes = None;
                     out.push(c);
-                    for h in chars[i + 1..].iter().take(hashes) {
-                        out.push(*h);
+                    let present = hashes.min(bytes.len() - i - 1);
+                    for _ in 0..present {
+                        out.push('#');
                     }
                     i += 1 + hashes;
                     continue;
                 }
                 blank(c, &mut out);
-                i += 1;
+                i += width;
                 continue;
             }
 
             if in_string {
                 if c == '\\' {
                     blank(c, &mut out);
-                    if let Some(n) = chars.get(i + 1) {
-                        blank(*n, &mut out);
+                    let next = line[i + 1..].chars().next();
+                    if let Some(n) = next {
+                        blank(n, &mut out);
                     }
-                    i += 2;
+                    i += 1 + next.map_or(1, char::len_utf8);
                     continue;
                 }
                 if c == '"' {
@@ -1315,56 +1376,52 @@ fn mask_rust_string_contents(span: &str) -> String {
                 } else {
                     blank(c, &mut out);
                 }
-                i += 1;
+                i += width;
                 continue;
             }
 
             if block_depth > 0 {
-                if c == '/' && chars.get(i + 1) == Some(&'*') {
+                if c == '/' && bytes.get(i + 1) == Some(&b'*') {
                     block_depth += 1;
                     out.push_str("/*");
                     i += 2;
                     continue;
                 }
-                if c == '*' && chars.get(i + 1) == Some(&'/') {
+                if c == '*' && bytes.get(i + 1) == Some(&b'/') {
                     block_depth -= 1;
                     out.push_str("*/");
                     i += 2;
                     continue;
                 }
                 out.push(c);
-                i += 1;
+                i += width;
                 continue;
             }
 
             // A line comment runs to end of line and is kept verbatim: legacy
             // tags live here.
-            if c == '/' && chars.get(i + 1) == Some(&'/') {
-                for rest in &chars[i..] {
-                    out.push(*rest);
-                }
+            if c == '/' && bytes.get(i + 1) == Some(&b'/') {
+                out.push_str(&line[i..]);
                 break;
             }
-            if c == '/' && chars.get(i + 1) == Some(&'*') {
+            if c == '/' && bytes.get(i + 1) == Some(&b'*') {
                 block_depth = 1;
                 out.push_str("/*");
                 i += 2;
                 continue;
             }
             // `r"…"` / `r#"…"#` / `br#"…"#`
-            if (c == 'r' || c == 'b') && !prev_is_ident(&chars, i) {
+            if (c == 'r' || c == 'b') && !prev_is_ident(line, i) {
                 let mut j = i;
-                if chars[j] == 'b' {
+                if bytes[j] == b'b' {
                     j += 1;
                 }
-                if chars.get(j) == Some(&'r') {
+                if bytes.get(j) == Some(&b'r') {
                     let start = j + 1;
-                    let hashes = chars[start..].iter().take_while(|h| **h == '#').count();
-                    if chars.get(start + hashes) == Some(&'"') {
+                    let hashes = bytes[start..].iter().take_while(|h| **h == b'#').count();
+                    if bytes.get(start + hashes) == Some(&b'"') {
                         raw_hashes = Some(hashes);
-                        for k in &chars[i..=start + hashes] {
-                            out.push(*k);
-                        }
+                        out.push_str(&line[i..=start + hashes]);
                         i = start + hashes + 1;
                         continue;
                     }
@@ -1377,7 +1434,7 @@ fn mask_rust_string_contents(span: &str) -> String {
                 continue;
             }
             out.push(c);
-            i += 1;
+            i += width;
         }
     }
     out
@@ -1385,8 +1442,11 @@ fn mask_rust_string_contents(span: &str) -> String {
 
 /// True when the char before `i` could continue an identifier, so an `r` there
 /// is part of a name (`str"` never opens a raw string) rather than a prefix.
-fn prev_is_ident(chars: &[char], i: usize) -> bool {
-    i > 0 && (chars[i - 1].is_alphanumeric() || chars[i - 1] == '_')
+fn prev_is_ident(line: &str, i: usize) -> bool {
+    line[..i]
+        .chars()
+        .next_back()
+        .is_some_and(|prev| prev.is_alphanumeric() || prev == '_')
 }
 
 /// Blank the *contents* of TypeScript and Python string literals, preserving
@@ -1424,14 +1484,23 @@ fn mask_script_string_contents(
     // The delimiter that opened the string we are inside, if any. A triple
     // quote is held as all three characters so a lone quote inside it does not
     // close it — the shape #274 was about, one layer down.
-    let mut open: Option<Vec<char>> = None;
+    let mut open: Option<&'static str> = None;
     let mut block_comment = false;
     // Whether the literal currently open is a DOCSTRING — Python's doc channel,
     // preserved like a comment. See the opener below for why.
     let mut doc_string = false;
 
     for line in span.split_inclusive('\n') {
-        let chars: Vec<char> = line.chars().collect();
+        // PLAT-181: walked by byte index and decoded in place; no per-line
+        // char buffer. Every lookahead is for an ASCII character, so byte
+        // comparison is exact and a multi-byte char is stepped over whole.
+        let bytes = line.as_bytes();
+        // Everything before byte `i` is whitespace exactly while `i` has not
+        // passed the first non-whitespace byte. Computed once per line rather
+        // than rescanned at every character (quadratic on a long indented line).
+        let first_non_ws = line
+            .find(|x: char| !x.is_whitespace())
+            .unwrap_or(line.len());
         let mut i = 0;
         let blank = |c: char, out: &mut String| {
             if c == '\n' || c == '\r' || !c.is_ascii() {
@@ -1441,40 +1510,42 @@ fn mask_script_string_contents(
             }
         };
 
-        while i < chars.len() {
-            let c = chars[i];
+        while i < line.len() {
+            let Some(c) = line[i..].chars().next() else {
+                break;
+            };
+            let width = c.len_utf8();
             // Whether everything before this position on the line is
             // whitespace — the declaration's own `^\s*` anchor for the
             // docstring form.
-            let opens_line = chars[..i].iter().all(|x| x.is_whitespace());
+            let opens_line = i <= first_non_ws;
 
             if block_comment {
-                if c == '*' && chars.get(i + 1) == Some(&'/') {
+                if c == '*' && bytes.get(i + 1) == Some(&b'/') {
                     block_comment = false;
                     out.push_str("*/");
                     i += 2;
                     continue;
                 }
                 out.push(c);
-                i += 1;
+                i += width;
                 continue;
             }
 
-            if let Some(delim) = open.clone() {
+            if let Some(delim) = open {
                 // An escape consumes the next character, so an escaped quote
                 // never closes the literal.
                 if c == '\\' && !doc_string {
                     blank(c, &mut out);
-                    if let Some(n) = chars.get(i + 1) {
-                        blank(*n, &mut out);
+                    let next = line[i + 1..].chars().next();
+                    if let Some(n) = next {
+                        blank(n, &mut out);
                     }
-                    i += 2;
+                    i += 1 + next.map_or(1, char::len_utf8);
                     continue;
                 }
-                if chars[i..].starts_with(&delim) {
-                    for k in &delim {
-                        out.push(*k);
-                    }
+                if line[i..].starts_with(delim) {
+                    out.push_str(delim);
                     i += delim.len();
                     open = None;
                     doc_string = false;
@@ -1485,18 +1556,16 @@ fn mask_script_string_contents(
                 } else {
                     blank(c, &mut out);
                 }
-                i += 1;
+                i += width;
                 continue;
             }
 
             // Line comments run to end of line and are kept verbatim.
-            if (python && c == '#') || (!python && c == '/' && chars.get(i + 1) == Some(&'/')) {
-                for rest in &chars[i..] {
-                    out.push(*rest);
-                }
+            if (python && c == '#') || (!python && c == '/' && bytes.get(i + 1) == Some(&b'/')) {
+                out.push_str(&line[i..]);
                 break;
             }
-            if !python && c == '/' && chars.get(i + 1) == Some(&'*') {
+            if !python && c == '/' && bytes.get(i + 1) == Some(&b'*') {
                 block_comment = true;
                 out.push_str("/*");
                 i += 2;
@@ -1505,14 +1574,15 @@ fn mask_script_string_contents(
 
             // TRIPLE QUOTES FIRST, or the single form opens and immediately
             // closes on its own second character and the body stays unmasked.
-            if python
-                && (chars[i..].starts_with(&['"', '"', '"'])
-                    || chars[i..].starts_with(&['\'', '\'', '\'']))
-            {
-                let delim: Vec<char> = chars[i..i + 3].to_vec();
-                for k in &delim {
-                    out.push(*k);
-                }
+            let triple = if python {
+                ["\"\"\"", "'''"]
+                    .into_iter()
+                    .find(|delim| line[i..].starts_with(delim))
+            } else {
+                None
+            };
+            if let Some(delim) = triple {
+                out.push_str(delim);
                 // A DOCSTRING IS PYTHON'S COMMENT, and masking it suppresses a
                 // form the declaration deliberately declares.
                 //
@@ -1560,15 +1630,19 @@ fn mask_script_string_contents(
                 // The test is the declared pattern's OWN anchor: `^\s*(await
                 // )?(it|test|describe|suite)`. A string opened anywhere else on
                 // the line is an ordinary value and is masked.
-                if preserve_tag_channels && !python && opens_registration(&chars[..i]) {
+                if preserve_tag_channels && !python && opens_registration(&line[..i]) {
                     doc_string = true;
                 }
-                open = Some(vec![c]);
+                open = Some(match c {
+                    '"' => "\"",
+                    '\'' => "'",
+                    _ => "`",
+                });
                 i += 1;
                 continue;
             }
             out.push(c);
-            i += 1;
+            i += width;
         }
     }
     out
@@ -1582,9 +1656,8 @@ fn mask_script_string_contents(
 /// \s+)?(?:it|test)(?:\.…)*\s*\(` anchor rather than generalised: this
 /// exists to preserve exactly the channel the declaration reads from, and a
 /// looser rule would start preserving ordinary strings again.
-fn opens_registration(before: &[char]) -> bool {
-    let text: String = before.iter().collect();
-    let text = text.trim_start();
+fn opens_registration(before: &str) -> bool {
+    let text = before.trim_start();
     let text = text.strip_prefix("await ").unwrap_or(text).trim_start();
     for name in ["describe", "suite", "test", "it"] {
         let Some(rest) = text.strip_prefix(name) else {
@@ -3117,6 +3190,124 @@ mod tests {
                 &records[1].trace_id,
             )
         }));
+    }
+
+    #[test]
+    fn plat875_tagged_not_bound_enumerates_the_census_population() {
+        let graph = bind(
+            &py(concat!(
+                "# malformed marker names TC-404\n",
+                "def test_tagged_only():\n",
+                "    pass\n",
+                "\n",
+                "@pytest.mark.trace(\"TC-741\")\n",
+                "# stray prose naming TC-405\n",
+                "def test_bound_with_stray():\n",
+                "    pass\n",
+                "\n",
+                "def test_untagged():\n",
+                "    pass\n",
+            )),
+            &iso_model(),
+        );
+        assert_eq!(
+            graph.tagged_not_bound,
+            vec![TaggedNotBound {
+                language: "python".to_string(),
+                path: "src/m.py".to_string(),
+                line: 1,
+                symbol: "test_tagged_only".to_string(),
+                trace_id: "TC-404".to_string(),
+            }],
+            "bound-with-stray and untagged symbols are not in the population"
+        );
+        // The enumeration and the census count agree.
+        let census = graph
+            .binding_census
+            .iter()
+            .find(|entry| entry.language == "python")
+            .expect("python census");
+        assert_eq!(
+            census.tagged - census.bound,
+            graph.tagged_not_bound.len(),
+            "accessor must enumerate exactly the census's tagged-but-unbound count"
+        );
+        // The stray token on the bound symbol stays in the other bucket.
+        assert!(graph.unmatched_tags.iter().any(|t| t.trace_id == "TC-405"));
+    }
+
+    #[test]
+    fn plat898_segments_concat_is_the_normalized_fold() {
+        assert_eq!(trace_id_segments("fr_047-ac-1"), ["FR", "047", "AC", "1"]);
+        assert_eq!(trace_id_segments("FR-047-"), ["FR", "047"]);
+        assert_eq!(trace_id_segments("FR047"), ["FR047"]);
+        assert_eq!(trace_id_segments("FR-0\u{e9}47"), ["FR", "0", "47"]);
+        assert!(trace_id_segments("--").is_empty());
+        for id in [
+            "FR-047",
+            "fr_047",
+            "FR047",
+            "FR-047-AC-9",
+            "FR-0470",
+            "FR-0\u{e9}47",
+            "",
+            "..",
+        ] {
+            assert_eq!(
+                trace_id_segments(id).concat(),
+                normalized_trace_id(id),
+                "fold disagreement on {id:?}"
+            );
+        }
+        // Segment-aware prefix: the decoy the concatenation cannot reject.
+        let prefix = trace_id_segments("FR-047");
+        assert!(trace_id_segments("FR-047-AC-9").starts_with(&prefix));
+        assert!(!trace_id_segments("FR-0470").starts_with(&prefix));
+    }
+
+    /// PLAT-181: masked output is byte-identical for multi-byte characters in
+    /// strings, comments and docstrings; ASCII is blanked, multi-byte kept.
+    #[test]
+    fn plat181_masks_preserve_multibyte_and_byte_offsets() {
+        let rust =
+            "let s = \"h\u{e9}llo \u{2192} x\"; // \u{fc}ber TC-1\nlet r = r#\"a\u{e9}\"b\"#;\n";
+        let masked = mask_rust_string_contents(rust);
+        assert_eq!(
+            masked,
+            "let s = \" \u{e9}    \u{2192}  \"; // \u{fc}ber TC-1\nlet r = r#\" \u{e9}  \"#;\n"
+        );
+        assert_eq!(masked.len(), rust.len());
+
+        let ts = "const a = \"x\u{e9}y\"; // \u{e9} \"q\"\nconst b = `m\u{2192}n`; /* \u{e9}\n\"z\" */\n";
+        let masked = mask_script_string_contents(ts, SourceLanguage::Typescript, false);
+        assert_eq!(
+            masked,
+            "const a = \" \u{e9} \"; // \u{e9} \"q\"\nconst b = ` \u{2192} `; /* \u{e9}\n\"z\" */\n"
+        );
+        assert_eq!(masked.len(), ts.len());
+
+        let py = "x = \"\"\"a\u{e9}b\"\"\"\n    \"\"\"doc \u{e9} TC-2\"\"\"\ny = 'k\u{2192}'  # \u{e9}\n";
+        let masked = mask_script_string_contents(py, SourceLanguage::Python, true);
+        assert_eq!(
+            masked,
+            "x = \"\"\" \u{e9} \"\"\"\n    \"\"\"doc \u{e9} TC-2\"\"\"\ny = ' \u{2192}'  # \u{e9}\n"
+        );
+        assert_eq!(masked.len(), py.len());
+    }
+
+    /// PLAT-181 / PLAT-1248: masking is linear. A long whitespace-led line used
+    /// to re-scan its whole prefix at every character.
+    #[test]
+    fn plat181_masking_a_long_whitespace_line_is_linear() {
+        let line = format!("{}\"x\" y\n", " ".repeat(300_000));
+        let start = std::time::Instant::now();
+        let masked = mask_script_string_contents(&line, SourceLanguage::Python, true);
+        let elapsed = start.elapsed();
+        assert_eq!(masked.len(), line.len());
+        assert!(
+            elapsed < std::time::Duration::from_secs(2),
+            "masking 300k chars took {elapsed:?}; it is quadratic"
+        );
     }
 
     /// A one-file Rust extraction, mirroring [`py`] above.
