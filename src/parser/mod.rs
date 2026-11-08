@@ -8,6 +8,8 @@
 //! - [`slice::slice_section_content`] (FR-008)
 //! - [`slug::slug`] / [`slug::slug_line_id`] (FR-009)
 
+#![deny(clippy::disallowed_types)]
+
 pub mod frontmatter;
 pub mod slice;
 pub mod slug;

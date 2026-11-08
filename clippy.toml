@@ -1,2 +1,16 @@
 cognitive-complexity-threshold = 30
 too-many-arguments-threshold = 8
+
+# NFR-006-AC-3: iteration order is observable, so the deterministic code paths
+# (src/parser, src/extract, src/merge.rs, src/validate_document.rs) use
+# IndexMap/BTreeMap. Those modules opt in with
+# `#![deny(clippy::disallowed_types)]`; other modules may use HashMap.
+disallowed-types = [
+    { path = "std::collections::HashMap", reason = "NFR-006-AC-3: HashMap iteration order is non-deterministic; use IndexMap or BTreeMap" },
+]
+
+# StR-001-AC-2: the engine is a pure library and never shells out. The library
+# crate opts in with `#![deny(clippy::disallowed_methods)]` in src/lib.rs.
+disallowed-methods = [
+    { path = "std::process::Command::new", reason = "StR-001-AC-2: the engine must not shell out; child-process orchestration belongs to consumers" },
+]

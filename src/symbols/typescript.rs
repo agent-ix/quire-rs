@@ -894,7 +894,7 @@ fn callee_chain(function: Node, source: &str) -> Option<(String, Vec<String>)> {
 /// single physical line, so a title spanning lines was already out of its
 /// reach, and that exclusion is deliberate, not an accident of its
 /// implementation — carrying it forward matters because `qualified_name`
-/// feeds `Symbol::compute_id` and `plat843_audit_list` emits one row per
+/// feeds `Symbol::compute_id` and the PLAT-843 audit differential emitted one row per
 /// source line, so a literal newline in a qualified name would silently
 /// split one symbol across two rows of a differential (PLAT-882 review
 /// finding F1).
@@ -1752,8 +1752,8 @@ mod tests {
 
     /// TC-1920, FR-051-AC-18 (CR-084, PLAT-882 review finding F1): a title
     /// held in a **multi-line** template literal registers nothing.
-    /// `qualified_name` feeds `Symbol::compute_id`, and `plat843_audit_list`
-    /// emits one row per source line, so an embedded newline would silently
+    /// `qualified_name` feeds `Symbol::compute_id`, and the PLAT-843 audit differential
+    /// emitted one row per source line, so an embedded newline would silently
     /// split one symbol across two rows of a differential — the pre-port
     /// scanner could never have produced one either, since it read a title
     /// from a single physical line.

@@ -126,7 +126,7 @@ authoritative references rather than guessing.
 
 **Performant.** Latency/throughput are normative (NFR-001/002/007/015/016), CI-gated by
 the Rust `quire-perf-gate` tool (10% band over a stored criterion baseline). Determinism
-(NFR-006) is enforced by `scripts/audits/check_hashmap_audit.sh`, which **bans `HashMap`** in
+(NFR-006) is enforced by the clippy `disallowed-types` rule in `clippy.toml` (opt-in `#![deny]` per module), which **bans `HashMap`** in
 `src/parser`, `src/merge.rs`, `src/extract`, `src/validate_document.rs` — use `BTreeMap`/`IndexMap`
 anywhere iteration order is observable. Prefer borrowed slices over clones on hot paths; do work
 once at load time (compile-once, parse/validate-fast). The render/templating feature is removed.
