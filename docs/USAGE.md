@@ -304,6 +304,7 @@ optional and only some apply per locator kind (unknown keys are rejected at load
 | `id_pattern`     | most kinds                  | IDs in the content must match.           |
 | `columns`        | `table_row`                 | Table must have these columns.           |
 | `min_rows`       | `table_row`                 | Minimum row count.                       |
+| `max_rows`       | `table_row`                 | Maximum row count.                       |
 | `min_items`      | `list_item`                 | Minimum item count.                      |
 | `id_column`      | `table_row`                 | Which column holds the id.               |
 

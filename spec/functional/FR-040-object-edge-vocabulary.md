@@ -37,7 +37,7 @@ form and silently drops the map.
 
 `quire-rs` SHALL close these gaps. It SHALL load two new **mergeable** manifest
 registries — `edge_types` (the controlled verb vocabulary, each verb carrying a
-category, description, optional inverse, and optional composition marker) and
+category, description, optional inverse, optional composition marker, and optional `symmetric` marker for a verb that holds in both directions, such as `peer`) and
 `roles` (capability tags object types opt into) —
 accept `allowed_links` on **both** axes in array or map form, **resolve** the
 union of artifact-axis and object-axis vocabulary for a document, and **validate**
@@ -56,6 +56,7 @@ pub struct EdgeType {
     pub description: String,
     pub inverse: Option<String>,   // optional; need not itself be declared
     pub composite: bool,           // optional; defaults to false
+    pub symmetric: bool,           // optional; defaults to false
 }
 
 pub enum EdgeCategory {

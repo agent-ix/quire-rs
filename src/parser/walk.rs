@@ -36,7 +36,15 @@ pub struct Heading {
 pub fn walk_headings(lines: &[&str]) -> Vec<Heading> {
     let mut out: Vec<Heading> = Vec::new();
     let mut fence: Option<FenceKind> = None;
+    let mut in_comment = false;
     for (i, line) in lines.iter().enumerate() {
+        // A line inside a multi-line `<!-- ... -->` block is comment text, not
+        // a heading: a skeleton that quotes `## Heading` in its instructions
+        // must not satisfy a contract that requires the real one.
+        if in_comment {
+            in_comment = !line.contains("-->");
+            continue;
+        }
         if let Some(kind) = fence_kind(line) {
             match fence {
                 None => fence = Some(kind),
@@ -60,8 +68,16 @@ pub fn walk_headings(lines: &[&str]) -> Vec<Heading> {
                 block_id,
             });
         }
+        in_comment = opens_comment(line);
     }
     out
+}
+
+/// Whether `line` opens an HTML comment that stays open past the line's end:
+/// its last `<!--` has no `-->` after it.
+fn opens_comment(line: &str) -> bool {
+    line.rfind("<!--")
+        .is_some_and(|open| !line[open + 4..].contains("-->"))
 }
 
 /// Strip a trailing Pandoc-style block attribute `{#id}` from
@@ -283,6 +299,15 @@ mod tests {
         let hs = walk_headings(&lines("## A   {#blk-x}   "));
         assert_eq!(hs[0].text, "A");
         assert_eq!(hs[0].block_id.as_deref(), Some("blk-x"));
+    }
+
+    #[test]
+    fn headings_inside_a_multi_line_html_comment_are_not_headings() {
+        let hs = walk_headings(&lines(
+            "## A\n<!--\n## Quoted\n-->\n## B\n<!-- one line ## X -->\n## C\n<!-- open ## Y\n## Z\n-->\n## D",
+        ));
+        let texts: Vec<&str> = hs.iter().map(|h| h.text.as_str()).collect();
+        assert_eq!(texts, ["A", "B", "C", "D"]);
     }
 
     #[trace("TC-443", "FR-019-AC-3")]

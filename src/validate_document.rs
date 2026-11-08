@@ -40,6 +40,9 @@ pub enum ValidationReason {
     Placeholder,
     /// A locator `assert:` facet did not hold.
     Assert,
+    /// A `required` locator found a value that its `regex` rejects: the
+    /// value is present, so it is neither `Missing` nor `Empty`.
+    Regex,
     /// The frontmatter violated `frontmatter_schema_ref`.
     Frontmatter,
     /// Two headings share text at the same level (FR-035).
@@ -72,6 +75,7 @@ impl ValidationReason {
             Self::Empty => "empty",
             Self::Placeholder => "placeholder",
             Self::Assert => "assert",
+            Self::Regex => "regex",
             Self::Frontmatter => "frontmatter",
             Self::DuplicateHeading => "duplicate-heading",
             Self::UnresolvedField => "unresolved-field",
@@ -423,29 +427,85 @@ fn semantic_findings(
         }
     }
     if let Some(validator) = arch.data_validator() {
-        let first: Option<String> = match record.declaration_record() {
-            Err(err @ crate::semantic::DeclarationError::MultipleSystemsRecords) => Some(format!(
-                "semantic.record-invalid: {err}; FR-075 admits at most one per artifact"
+        // Record validation is for a record that was read. A kind whose
+        // availability is `unavailable` (legacy form, both forms, row errors,
+        // duplicate section) carries its own diagnostic, and its key is absent
+        // from the record because it could not be read, not because nothing was
+        // declared (FR-072).
+        if record.any_kind_unavailable() {
+            return;
+        }
+        let first: Option<(String, usize)> = match record.declaration_record() {
+            Err(err @ crate::semantic::DeclarationError::MultipleSystemsRecords) => Some((
+                format!("semantic.record-invalid: {err}; FR-075 admits at most one per artifact"),
+                FRONTMATTER_LINE,
             )),
-            Err(err @ crate::semantic::DeclarationError::Serialize(_)) => Some(format!(
-                "semantic.record-invalid: {err}"
+            Err(err @ crate::semantic::DeclarationError::Serialize(_)) => Some((
+                format!("semantic.record-invalid: {err}"),
+                FRONTMATTER_LINE,
             )),
             Ok(declaration) => validator.iter_errors(&declaration).next().map(|err| {
                 let detail = crate::validate::schema_validation_detail(&err);
-                format!(
-                    "semantic.record-invalid: declaration record fails the resolved data schema at {}: {}",
-                    detail.path, detail.message
+                (
+                    format!(
+                        "semantic.record-invalid: declaration record fails the resolved data schema at {}: {}",
+                        detail.path, detail.message
+                    ),
+                    record_key_line(&record, doc_text, &detail.path),
                 )
             }),
         };
-        if let Some(message) = first {
+        if let Some((message, line)) = first {
             errors.push(ValidationError {
                 message,
-                line: None,
+                line: Some(line),
                 reason: ValidationReason::Semantic,
             });
         }
     }
+}
+
+/// The line a record finding falls back to when its key has no source block:
+/// the first line of the document, where the frontmatter opens.
+const FRONTMATTER_LINE: usize = 1;
+
+/// The 1-based document line of the source block that produced the record key
+/// a `semantic.record-invalid` finding names (FR-072 gives every diagnostic a
+/// locus): the `Relationships` row for `relations`, the section heading for
+/// `fields`, `clauses`, `operations` and `featureOrder`, and the frontmatter
+/// line for a key with no source (a missing required key, or the whole record).
+fn record_key_line(
+    record: &crate::semantic::SemanticExtraction,
+    doc_text: &str,
+    path: &str,
+) -> usize {
+    let mut segments = path.split(['.', '/', '[']);
+    let key = segments.next().unwrap_or_default();
+    let index = segments
+        .next()
+        .and_then(|s| s.trim_end_matches(']').parse::<usize>().ok());
+    if key == "relations" {
+        if let Some(sources) = &record.relation_sources {
+            let source = index
+                .and_then(|i| sources.get(i))
+                .or_else(|| sources.first());
+            if let Some(source) = source {
+                return source.source_span.start_line;
+            }
+        }
+    }
+    let heading = match key {
+        "fields" => "Properties",
+        "clauses" => "Invariants",
+        "operations" => "Operations",
+        "relations" => "Relationships",
+        "featureOrder" => "Features",
+        _ => return FRONTMATTER_LINE,
+    };
+    let lines = crate::semantic::scan::lines(doc_text);
+    crate::semantic::scan::level2_sections(&lines, heading)
+        .first()
+        .map_or(FRONTMATTER_LINE, |&(start, _)| start)
 }
 
 /// Shared body of the registry-backed validation entry points: they differ
@@ -483,7 +543,11 @@ fn validate_in_registry_core(
             // archetype; the object layer only asserts body structure.
             Some(arch) => {
                 object_archetype = Some(arch);
-                if let Some(dsl) = arch.body_extraction() {
+                // When `object:` names the document's own `type` archetype the
+                // body was just validated: running its locators again would
+                // report every failure twice.
+                let same_as_type = arch.name == archetype.name && arch.module == archetype.module;
+                if let (false, Some(dsl)) = (same_as_type, arch.body_extraction()) {
                     validate_body(arch, &doc, dsl, line_offset, &mut errors);
                 }
             }
@@ -744,6 +808,23 @@ fn validate_required_locator(
     // absent section leaked a spurious 'section not found' failure.)
     if !locator.required() && matches!(status, ContentStatus::Missing) {
         return;
+    }
+
+    // A present value that the locator's `regex` rejects is neither missing
+    // nor empty: name the value and the pattern instead.
+    if locator.required() && matches!(status, ContentStatus::Missing | ContentStatus::Empty) {
+        if let Some((found, pattern)) = crate::extract::locator::regex_mismatch(doc, canonical) {
+            errors.push(ValidationError {
+                message: format!(
+                    "[{}] required '{key}' ({}) value {found:?} does not match pattern /{pattern}/",
+                    archetype.name,
+                    canonical.describe()
+                ),
+                line: locator_line(doc, canonical, line_offset),
+                reason: ValidationReason::Regex,
+            });
+            return;
+        }
     }
 
     if locator.required() {
@@ -1957,5 +2038,36 @@ edge_types:
         assert!(r.is_valid, "expected valid, got errors {:?}", r.errors);
         assert!(r.errors.is_empty(), "{:?}", r.errors);
         assert!(r.warnings.is_empty(), "{:?}", r.warnings);
+    }
+
+    #[test]
+    fn record_key_line_points_at_the_source_block_of_the_key() {
+        let record: crate::semantic::SemanticExtraction =
+            serde_json::from_value(serde_json::json!({
+                "formatVersion": 1,
+                "contractVersion": "1.0.0",
+                "package": "p/q",
+                "relationSources": [{
+                    "name": "a",
+                    "sourceSpan": {
+                        "sourceIdentity": "i", "path": "p", "startLine": 17, "startColumn": 1
+                    }
+                }],
+                "availability": {
+                    "fields": {"state": "available", "lossy": false},
+                    "clauses": {"state": "available", "lossy": false},
+                    "operations": {"state": "available", "lossy": false}
+                },
+                "diagnostics": []
+            }))
+            .expect("record");
+        let doc = "---\nid: x\n---\n# X\n\n## Properties\n\n## Operations\n\n## Relationships\n";
+        assert_eq!(record_key_line(&record, doc, "fields"), 6);
+        assert_eq!(record_key_line(&record, doc, "fields.0.type"), 6);
+        assert_eq!(record_key_line(&record, doc, "operations"), 8);
+        assert_eq!(record_key_line(&record, doc, "relations"), 17);
+        assert_eq!(record_key_line(&record, doc, "relations.0"), 17);
+        assert_eq!(record_key_line(&record, doc, "clauses"), FRONTMATTER_LINE);
+        assert_eq!(record_key_line(&record, doc, "<root>"), FRONTMATTER_LINE);
     }
 }

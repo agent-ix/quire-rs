@@ -9,9 +9,39 @@ bumps; once 1.0 ships, semver is strict.
 
 ### Fixed
 
+- A required locator whose value is present but rejected by its `regex` now
+  reports reason `regex`, naming the value and the pattern, instead of
+  `missing` or `empty` (PLAT-25, PLAT-29; quire-rs#451, #453).
+- `validate_document` no longer reports a locator `assert` failure twice when
+  the document's `object:` names its own `type` archetype (PLAT-46, #441).
+- `semantic.record-invalid` carries a line: the `Relationships` row for
+  `relations`, the section heading for `fields`, `clauses` and `operations`,
+  and the first line when the key has no source block (PLAT-47, #440).
+- A `## Heading` inside a multi-line HTML comment is no longer a heading, so a
+  skeleton's own instructions cannot satisfy a required `section_body` locator
+  (PLAT-205, #399).
+- The bundle index built from documents merges entries sharing an `id`, and
+  `semantic.ambiguous-type` fires only for distinct ids (PLAT-208, #398).
+- A bare `pattern: <regex>` constraint now reports
+  `semantic.invalid-constraint-value` naming the `pattern: /<regex>/` form,
+  not `semantic.unknown-constraint-keyword` (PLAT-209, #397).
+- Declaration-record validation is skipped while any declaration kind is
+  `unavailable`, so a legacy-form artifact no longer fails the data schema as
+  an empty record (PLAT-241, #391).
+- An archetype declared identically in more than one manifest block registers
+  once, ending the `DuplicateArchetype` warning that named a module twice
+  (PLAT-322, #222).
 - `default_module_root()` now honours `IX_HOME` (`$IX_HOME/filament/modules`),
   matching `quoin`, and falls back to `~/.ix/filament/modules` when it is unset
   or empty (PLAT-107).
+
+### Added
+
+- `assert: {max_rows: N}` for `table_row` locators, evaluated like `min_rows`
+  (PLAT-27, #452).
+- `symmetric: bool` on `edge_types` entries, default false (PLAT-3, #466). The
+  engine only carries the marker; the verb registries that mark `peer` and its
+  kin live in the modules.
 
 ### Changed
 

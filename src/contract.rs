@@ -43,6 +43,9 @@ pub struct ContractSection {
     /// Minimum table rows the assert requires.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub min_rows: Option<usize>,
+    /// Maximum table rows the assert allows.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_rows: Option<usize>,
     /// Minimum list items the assert requires.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub min_items: Option<usize>,
@@ -322,6 +325,7 @@ fn contract_section(
         required,
         columns: assert.and_then(|a: &LocatorAssert| a.columns.clone()),
         min_rows: assert.and_then(|a| a.min_rows),
+        max_rows: assert.and_then(|a| a.max_rows),
         min_items: assert.and_then(|a| a.min_items),
         id_pattern: assert.and_then(|a| a.id_pattern.clone()),
         matches: assert.and_then(|a| a.matches.clone()),
