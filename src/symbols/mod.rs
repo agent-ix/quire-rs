@@ -671,8 +671,8 @@ mod tests {
     // contributes no symbols, while sibling real source still does.
     #[test]
     fn cookiecutter_template_tree_is_never_walked() {
-        let dir = std::env::temp_dir().join(format!("quire-tpl-walk-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path().to_path_buf();
         let tpl = dir.join("templates/mod/{{cookiecutter.repo_name}}/tests");
         std::fs::create_dir_all(&tpl).unwrap();
         std::fs::create_dir_all(dir.join("tests")).unwrap();
@@ -681,7 +681,6 @@ mod tests {
         std::fs::write(dir.join("tests/test_real.py"), body).unwrap();
 
         let out = extract_tree(&dir);
-        let _ = std::fs::remove_dir_all(&dir);
         assert!(out.symbols.iter().any(|s| s.path == "tests/test_real.py"));
         assert!(
             out.symbols.iter().all(|s| !s.path.contains("cookiecutter")),
