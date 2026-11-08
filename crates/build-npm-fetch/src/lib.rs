@@ -97,71 +97,6 @@ impl fmt::Display for FetchError {
 
 impl std::error::Error for FetchError {}
 
-#[cfg(test)]
-mod tests {
-    use super::{cache_marker_matches, clear_npm_package_cache};
-    use std::fs;
-    use std::path::PathBuf;
-    use std::time::{SystemTime, UNIX_EPOCH};
-
-    #[test]
-    fn cache_marker_requires_matching_identity_and_ignores_legacy_markers() {
-        let nonce = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .expect("clock after epoch")
-            .as_nanos();
-        let dir = std::env::temp_dir().join(format!("build-npm-fetch-{nonce}"));
-        fs::create_dir_all(&dir).expect("create temp dir");
-        let marker = PathBuf::from(&dir).join(".module-fetched");
-
-        fs::write(&marker, b"").expect("write legacy marker");
-        assert!(!cache_marker_matches(
-            &marker,
-            "version=0.10.1\nregistry=https://registry.npmjs.org\n"
-        ));
-
-        let old_identity = "version=0.7.0\nregistry=https://registry.npmjs.org\n";
-        fs::write(&marker, old_identity).expect("write old marker");
-        assert!(!cache_marker_matches(
-            &marker,
-            "version=0.10.1\nregistry=https://registry.npmjs.org\n"
-        ));
-
-        let identity = "version=0.10.1\nregistry=https://registry.npmjs.org\n";
-        fs::write(&marker, identity).expect("write current marker");
-        assert!(cache_marker_matches(&marker, identity));
-
-        fs::remove_dir_all(dir).expect("remove temp dir");
-    }
-
-    #[test]
-    fn package_cache_invalidation_removes_the_scoped_npm_cache() {
-        let nonce = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .expect("clock after epoch")
-            .as_nanos();
-        let dir = std::env::temp_dir().join(format!("build-npm-fetch-cache-{nonce}"));
-        let package_cache =
-            dir.join("npm-packages/agent-ix__spec-objects-architecture/0.10.1/package");
-        let pack_cache = dir.join("npm-pack-tmp/agent-ix__spec-objects-architecture/0.10.1");
-        fs::create_dir_all(&package_cache).expect("create package cache");
-        fs::write(package_cache.join("manifest.yaml"), "old package")
-            .expect("write cached package");
-        fs::create_dir_all(&pack_cache).expect("create pack cache");
-        fs::write(pack_cache.join("package.tgz"), "old tarball").expect("write cached tarball");
-
-        clear_npm_package_cache("@agent-ix/spec-objects-architecture", "0.10.1", &dir)
-            .expect("clear package cache");
-
-        assert!(
-            !package_cache.exists(),
-            "unpacked package cache was retained"
-        );
-        assert!(!pack_cache.exists(), "npm pack scratch cache was retained");
-        fs::remove_dir_all(dir).expect("remove temp dir");
-    }
-}
-
 /// Fetch `<package>@<version>` via `npm pack` (network access, verified by
 /// npm's own registry integrity check) into `<out_dir>/npm-packages/<slug>/
 /// <version>`, unpack it, and return the path to its unpacked `package/`
@@ -293,4 +228,69 @@ fn try_fetch_npm_package_inner(
     }
 
     Ok(unpacked)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{cache_marker_matches, clear_npm_package_cache};
+    use std::fs;
+    use std::path::PathBuf;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    #[test]
+    fn cache_marker_requires_matching_identity_and_ignores_legacy_markers() {
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("clock after epoch")
+            .as_nanos();
+        let dir = std::env::temp_dir().join(format!("build-npm-fetch-{nonce}"));
+        fs::create_dir_all(&dir).expect("create temp dir");
+        let marker = PathBuf::from(&dir).join(".module-fetched");
+
+        fs::write(&marker, b"").expect("write legacy marker");
+        assert!(!cache_marker_matches(
+            &marker,
+            "version=0.10.1\nregistry=https://registry.npmjs.org\n"
+        ));
+
+        let old_identity = "version=0.7.0\nregistry=https://registry.npmjs.org\n";
+        fs::write(&marker, old_identity).expect("write old marker");
+        assert!(!cache_marker_matches(
+            &marker,
+            "version=0.10.1\nregistry=https://registry.npmjs.org\n"
+        ));
+
+        let identity = "version=0.10.1\nregistry=https://registry.npmjs.org\n";
+        fs::write(&marker, identity).expect("write current marker");
+        assert!(cache_marker_matches(&marker, identity));
+
+        fs::remove_dir_all(dir).expect("remove temp dir");
+    }
+
+    #[test]
+    fn package_cache_invalidation_removes_the_scoped_npm_cache() {
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("clock after epoch")
+            .as_nanos();
+        let dir = std::env::temp_dir().join(format!("build-npm-fetch-cache-{nonce}"));
+        let package_cache =
+            dir.join("npm-packages/agent-ix__spec-objects-architecture/0.10.1/package");
+        let pack_cache = dir.join("npm-pack-tmp/agent-ix__spec-objects-architecture/0.10.1");
+        fs::create_dir_all(&package_cache).expect("create package cache");
+        fs::write(package_cache.join("manifest.yaml"), "old package")
+            .expect("write cached package");
+        fs::create_dir_all(&pack_cache).expect("create pack cache");
+        fs::write(pack_cache.join("package.tgz"), "old tarball").expect("write cached tarball");
+
+        clear_npm_package_cache("@agent-ix/spec-objects-architecture", "0.10.1", &dir)
+            .expect("clear package cache");
+
+        assert!(
+            !package_cache.exists(),
+            "unpacked package cache was retained"
+        );
+        assert!(!pack_cache.exists(), "npm pack scratch cache was retained");
+        fs::remove_dir_all(dir).expect("remove temp dir");
+    }
 }
