@@ -1205,6 +1205,2464 @@
           }
         ]
       }
+    },
+    {
+      "name": "plat35-transition-emits-resolves",
+      "issue_ref": "PLAT-35",
+      "tags": [
+        "TC-1998",
+        "transition-emits",
+        "resolves"
+      ],
+      "input": {
+        "markdown": "---\nid: SM-001\ntitle: OrderLifecycle\nobject: state_machine\n---\n# SM-001: OrderLifecycle\n\n## States\n\n| State | Description |\n|---|---|\n| open | |\n| shipped | |\n\n## Transitions\n\n| From | To | Trigger | Guard | Emits |\n|---|---|---|---|---|\n| open | shipped | ship | | OrderPlaced |\n\n## Steps\n\n| Step | Kind | Consumes | Emits | Description |\n|---|---|---|---|---|\n| pick | command |  |  | |\n\n## Operations\n\n### ship\n\nReturns: String[1]\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-business",
+          "exports": [
+            "state_machine"
+          ],
+          "imports": {}
+        },
+        "path": "spec/state-machines/SM-001.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+          "package": "agent-ix/shop",
+          "objects": [
+            {
+              "id": "EV-001",
+              "names": [
+                "EV-001",
+                "OrderPlaced"
+              ]
+            },
+            {
+              "id": "EV-002",
+              "names": [
+                "EV-002",
+                "OrderShipped"
+              ]
+            },
+            {
+              "id": "ENT-001",
+              "names": [
+                "ENT-001",
+                "Order"
+              ]
+            }
+          ],
+          "artifacts": [
+            {
+              "id": "EV-001",
+              "object": "event",
+              "operations": []
+            },
+            {
+              "id": "EV-002",
+              "object": "event",
+              "operations": []
+            },
+            {
+              "id": "ENT-001",
+              "object": "entity",
+              "operations": []
+            }
+          ]
+        },
+        "bodyExtraction": {
+          "yield_pattern": {
+            "match": {
+              "states": {
+                "from": "table_row",
+                "under_section": "States",
+                "assert": {
+                  "columns": [
+                    "State",
+                    "Description"
+                  ],
+                  "optional_columns": []
+                }
+              },
+              "transitions": {
+                "from": "table_row",
+                "under_section": "Transitions",
+                "assert": {
+                  "columns": [
+                    "From",
+                    "To",
+                    "Trigger",
+                    "Guard",
+                    "Emits"
+                  ],
+                  "optional_columns": [
+                    "Guard",
+                    "Emits"
+                  ]
+                }
+              },
+              "steps": {
+                "from": "table_row",
+                "under_section": "Steps",
+                "assert": {
+                  "columns": [
+                    "Step",
+                    "Kind",
+                    "Consumes",
+                    "Emits",
+                    "Description"
+                  ],
+                  "optional_columns": []
+                }
+              }
+            }
+          }
+        },
+        "relationVocabulary": {
+          "objectType": "state_machine",
+          "roles": {
+            "event": [
+              "event-like"
+            ],
+            "entity": [
+              "domain-object"
+            ]
+          },
+          "allowedLinks": {
+            "state_machine": {}
+          }
+        },
+        "constructReferences": {
+          "transitions": [
+            "event-like"
+          ],
+          "steps": [
+            "event-like"
+          ]
+        }
+      },
+      "expect": {
+        "availability": {
+          "model": {
+            "state": "available"
+          }
+        },
+        "values": {
+          "/model/transitions/0/emits": "ix://agent-ix/shop/EV-001"
+        }
+      }
+    },
+    {
+      "name": "plat35-transition-emits-refused",
+      "issue_ref": "PLAT-35",
+      "tags": [
+        "TC-1998",
+        "transition-emits",
+        "refusal"
+      ],
+      "input": {
+        "markdown": "---\nid: SM-001\ntitle: OrderLifecycle\nobject: state_machine\n---\n# SM-001: OrderLifecycle\n\n## States\n\n| State | Description |\n|---|---|\n| open | |\n| shipped | |\n\n## Transitions\n\n| From | To | Trigger | Guard | Emits |\n|---|---|---|---|---|\n| open | shipped | ship | | Order |\n\n## Steps\n\n| Step | Kind | Consumes | Emits | Description |\n|---|---|---|---|---|\n| pick | command |  |  | |\n\n## Operations\n\n### ship\n\nReturns: String[1]\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-business",
+          "exports": [
+            "state_machine"
+          ],
+          "imports": {}
+        },
+        "path": "spec/state-machines/SM-001.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+          "package": "agent-ix/shop",
+          "objects": [
+            {
+              "id": "EV-001",
+              "names": [
+                "EV-001",
+                "OrderPlaced"
+              ]
+            },
+            {
+              "id": "EV-002",
+              "names": [
+                "EV-002",
+                "OrderShipped"
+              ]
+            },
+            {
+              "id": "ENT-001",
+              "names": [
+                "ENT-001",
+                "Order"
+              ]
+            }
+          ],
+          "artifacts": [
+            {
+              "id": "EV-001",
+              "object": "event",
+              "operations": []
+            },
+            {
+              "id": "EV-002",
+              "object": "event",
+              "operations": []
+            },
+            {
+              "id": "ENT-001",
+              "object": "entity",
+              "operations": []
+            }
+          ]
+        },
+        "bodyExtraction": {
+          "yield_pattern": {
+            "match": {
+              "states": {
+                "from": "table_row",
+                "under_section": "States",
+                "assert": {
+                  "columns": [
+                    "State",
+                    "Description"
+                  ],
+                  "optional_columns": []
+                }
+              },
+              "transitions": {
+                "from": "table_row",
+                "under_section": "Transitions",
+                "assert": {
+                  "columns": [
+                    "From",
+                    "To",
+                    "Trigger",
+                    "Guard",
+                    "Emits"
+                  ],
+                  "optional_columns": [
+                    "Guard",
+                    "Emits"
+                  ]
+                }
+              },
+              "steps": {
+                "from": "table_row",
+                "under_section": "Steps",
+                "assert": {
+                  "columns": [
+                    "Step",
+                    "Kind",
+                    "Consumes",
+                    "Emits",
+                    "Description"
+                  ],
+                  "optional_columns": []
+                }
+              }
+            }
+          }
+        },
+        "relationVocabulary": {
+          "objectType": "state_machine",
+          "roles": {
+            "event": [
+              "event-like"
+            ],
+            "entity": [
+              "domain-object"
+            ]
+          },
+          "allowedLinks": {
+            "state_machine": {}
+          }
+        },
+        "constructReferences": {
+          "transitions": [
+            "event-like"
+          ],
+          "steps": [
+            "event-like"
+          ]
+        }
+      },
+      "expect": {
+        "availability": {
+          "model": {
+            "state": "unavailable",
+            "reason": "entry-errors: lines 19"
+          }
+        },
+        "diagnostics": [
+          {
+            "code": "semantic.reference-kind-mismatch",
+            "line": 19,
+            "section": "Transitions"
+          }
+        ],
+        "absentPaths": [
+          "/model"
+        ]
+      }
+    },
+    {
+      "name": "plat35-transition-emits-control",
+      "issue_ref": "PLAT-35",
+      "tags": [
+        "TC-1998",
+        "transition-emits",
+        "control"
+      ],
+      "input": {
+        "markdown": "---\nid: SM-001\ntitle: OrderLifecycle\nobject: state_machine\n---\n# SM-001: OrderLifecycle\n\n## States\n\n| State | Description |\n|---|---|\n| open | |\n| shipped | |\n\n## Transitions\n\n| From | To | Trigger | Guard | Emits |\n|---|---|---|---|---|\n| open | shipped | ship | | `EV-002` |\n\n## Steps\n\n| Step | Kind | Consumes | Emits | Description |\n|---|---|---|---|---|\n| pick | command |  |  | |\n\n## Operations\n\n### ship\n\nReturns: String[1]\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-business",
+          "exports": [
+            "state_machine"
+          ],
+          "imports": {}
+        },
+        "path": "spec/state-machines/SM-001.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+          "package": "agent-ix/shop",
+          "objects": [
+            {
+              "id": "EV-001",
+              "names": [
+                "EV-001",
+                "OrderPlaced"
+              ]
+            },
+            {
+              "id": "EV-002",
+              "names": [
+                "EV-002",
+                "OrderShipped"
+              ]
+            },
+            {
+              "id": "ENT-001",
+              "names": [
+                "ENT-001",
+                "Order"
+              ]
+            }
+          ],
+          "artifacts": [
+            {
+              "id": "EV-001",
+              "object": "event",
+              "operations": []
+            },
+            {
+              "id": "EV-002",
+              "object": "event",
+              "operations": []
+            },
+            {
+              "id": "ENT-001",
+              "object": "entity",
+              "operations": []
+            }
+          ]
+        },
+        "bodyExtraction": {
+          "yield_pattern": {
+            "match": {
+              "states": {
+                "from": "table_row",
+                "under_section": "States",
+                "assert": {
+                  "columns": [
+                    "State",
+                    "Description"
+                  ],
+                  "optional_columns": []
+                }
+              },
+              "transitions": {
+                "from": "table_row",
+                "under_section": "Transitions",
+                "assert": {
+                  "columns": [
+                    "From",
+                    "To",
+                    "Trigger",
+                    "Guard",
+                    "Emits"
+                  ],
+                  "optional_columns": [
+                    "Guard",
+                    "Emits"
+                  ]
+                }
+              },
+              "steps": {
+                "from": "table_row",
+                "under_section": "Steps",
+                "assert": {
+                  "columns": [
+                    "Step",
+                    "Kind",
+                    "Consumes",
+                    "Emits",
+                    "Description"
+                  ],
+                  "optional_columns": []
+                }
+              }
+            }
+          }
+        },
+        "relationVocabulary": {
+          "objectType": "state_machine",
+          "roles": {
+            "event": [
+              "event-like"
+            ],
+            "entity": [
+              "domain-object"
+            ]
+          },
+          "allowedLinks": {
+            "state_machine": {}
+          }
+        },
+        "constructReferences": {
+          "transitions": [
+            "event-like"
+          ],
+          "steps": [
+            "event-like"
+          ]
+        }
+      },
+      "expect": {
+        "availability": {
+          "model": {
+            "state": "available"
+          }
+        },
+        "diagnosticCodes": [],
+        "absent_diagnostic_reasons": [
+          "unknown-name",
+          "empty-item",
+          "too-many-references",
+          "repeated-reference",
+          "no-bundle-index",
+          "no-bundle-package"
+        ],
+        "values": {
+          "/model/transitions/0/emits": "ix://agent-ix/shop/EV-002"
+        }
+      }
+    },
+    {
+      "name": "plat35-step-consumes-resolves",
+      "issue_ref": "PLAT-35",
+      "tags": [
+        "TC-1998",
+        "step-consumes",
+        "resolves"
+      ],
+      "input": {
+        "markdown": "---\nid: SM-001\ntitle: OrderLifecycle\nobject: state_machine\n---\n# SM-001: OrderLifecycle\n\n## States\n\n| State | Description |\n|---|---|\n| open | |\n| shipped | |\n\n## Transitions\n\n| From | To | Trigger | Guard | Emits |\n|---|---|---|---|---|\n| open | shipped | ship | |  |\n\n## Steps\n\n| Step | Kind | Consumes | Emits | Description |\n|---|---|---|---|---|\n| pick | command | OrderPlaced, EV-002 |  | |\n\n## Operations\n\n### ship\n\nReturns: String[1]\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-business",
+          "exports": [
+            "state_machine"
+          ],
+          "imports": {}
+        },
+        "path": "spec/state-machines/SM-001.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+          "package": "agent-ix/shop",
+          "objects": [
+            {
+              "id": "EV-001",
+              "names": [
+                "EV-001",
+                "OrderPlaced"
+              ]
+            },
+            {
+              "id": "EV-002",
+              "names": [
+                "EV-002",
+                "OrderShipped"
+              ]
+            },
+            {
+              "id": "ENT-001",
+              "names": [
+                "ENT-001",
+                "Order"
+              ]
+            }
+          ],
+          "artifacts": [
+            {
+              "id": "EV-001",
+              "object": "event",
+              "operations": []
+            },
+            {
+              "id": "EV-002",
+              "object": "event",
+              "operations": []
+            },
+            {
+              "id": "ENT-001",
+              "object": "entity",
+              "operations": []
+            }
+          ]
+        },
+        "bodyExtraction": {
+          "yield_pattern": {
+            "match": {
+              "states": {
+                "from": "table_row",
+                "under_section": "States",
+                "assert": {
+                  "columns": [
+                    "State",
+                    "Description"
+                  ],
+                  "optional_columns": []
+                }
+              },
+              "transitions": {
+                "from": "table_row",
+                "under_section": "Transitions",
+                "assert": {
+                  "columns": [
+                    "From",
+                    "To",
+                    "Trigger",
+                    "Guard",
+                    "Emits"
+                  ],
+                  "optional_columns": [
+                    "Guard",
+                    "Emits"
+                  ]
+                }
+              },
+              "steps": {
+                "from": "table_row",
+                "under_section": "Steps",
+                "assert": {
+                  "columns": [
+                    "Step",
+                    "Kind",
+                    "Consumes",
+                    "Emits",
+                    "Description"
+                  ],
+                  "optional_columns": []
+                }
+              }
+            }
+          }
+        },
+        "relationVocabulary": {
+          "objectType": "state_machine",
+          "roles": {
+            "event": [
+              "event-like"
+            ],
+            "entity": [
+              "domain-object"
+            ]
+          },
+          "allowedLinks": {
+            "state_machine": {}
+          }
+        },
+        "constructReferences": {
+          "transitions": [
+            "event-like"
+          ],
+          "steps": [
+            "event-like"
+          ]
+        }
+      },
+      "expect": {
+        "availability": {
+          "model": {
+            "state": "available"
+          }
+        },
+        "values": {
+          "/model/steps/0/consumes": [
+            "ix://agent-ix/shop/EV-001",
+            "ix://agent-ix/shop/EV-002"
+          ]
+        }
+      }
+    },
+    {
+      "name": "plat35-step-consumes-refused",
+      "issue_ref": "PLAT-35",
+      "tags": [
+        "TC-1998",
+        "step-consumes",
+        "refusal"
+      ],
+      "input": {
+        "markdown": "---\nid: SM-001\ntitle: OrderLifecycle\nobject: state_machine\n---\n# SM-001: OrderLifecycle\n\n## States\n\n| State | Description |\n|---|---|\n| open | |\n| shipped | |\n\n## Transitions\n\n| From | To | Trigger | Guard | Emits |\n|---|---|---|---|---|\n| open | shipped | ship | |  |\n\n## Steps\n\n| Step | Kind | Consumes | Emits | Description |\n|---|---|---|---|---|\n| pick | command | OrderLost |  | |\n\n## Operations\n\n### ship\n\nReturns: String[1]\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-business",
+          "exports": [
+            "state_machine"
+          ],
+          "imports": {}
+        },
+        "path": "spec/state-machines/SM-001.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+          "package": "agent-ix/shop",
+          "objects": [
+            {
+              "id": "EV-001",
+              "names": [
+                "EV-001",
+                "OrderPlaced"
+              ]
+            },
+            {
+              "id": "EV-002",
+              "names": [
+                "EV-002",
+                "OrderShipped"
+              ]
+            },
+            {
+              "id": "ENT-001",
+              "names": [
+                "ENT-001",
+                "Order"
+              ]
+            }
+          ],
+          "artifacts": [
+            {
+              "id": "EV-001",
+              "object": "event",
+              "operations": []
+            },
+            {
+              "id": "EV-002",
+              "object": "event",
+              "operations": []
+            },
+            {
+              "id": "ENT-001",
+              "object": "entity",
+              "operations": []
+            }
+          ]
+        },
+        "bodyExtraction": {
+          "yield_pattern": {
+            "match": {
+              "states": {
+                "from": "table_row",
+                "under_section": "States",
+                "assert": {
+                  "columns": [
+                    "State",
+                    "Description"
+                  ],
+                  "optional_columns": []
+                }
+              },
+              "transitions": {
+                "from": "table_row",
+                "under_section": "Transitions",
+                "assert": {
+                  "columns": [
+                    "From",
+                    "To",
+                    "Trigger",
+                    "Guard",
+                    "Emits"
+                  ],
+                  "optional_columns": [
+                    "Guard",
+                    "Emits"
+                  ]
+                }
+              },
+              "steps": {
+                "from": "table_row",
+                "under_section": "Steps",
+                "assert": {
+                  "columns": [
+                    "Step",
+                    "Kind",
+                    "Consumes",
+                    "Emits",
+                    "Description"
+                  ],
+                  "optional_columns": []
+                }
+              }
+            }
+          }
+        },
+        "relationVocabulary": {
+          "objectType": "state_machine",
+          "roles": {
+            "event": [
+              "event-like"
+            ],
+            "entity": [
+              "domain-object"
+            ]
+          },
+          "allowedLinks": {
+            "state_machine": {}
+          }
+        },
+        "constructReferences": {
+          "transitions": [
+            "event-like"
+          ],
+          "steps": [
+            "event-like"
+          ]
+        }
+      },
+      "expect": {
+        "availability": {
+          "model": {
+            "state": "unavailable",
+            "reason": "entry-errors: lines 25"
+          }
+        },
+        "diagnostics": [
+          {
+            "code": "semantic.unknown-reference",
+            "reason": "unknown-name",
+            "line": 25,
+            "section": "Steps"
+          }
+        ],
+        "absentPaths": [
+          "/model"
+        ]
+      }
+    },
+    {
+      "name": "plat35-step-consumes-control",
+      "issue_ref": "PLAT-35",
+      "tags": [
+        "TC-1998",
+        "step-consumes",
+        "control"
+      ],
+      "input": {
+        "markdown": "---\nid: SM-001\ntitle: OrderLifecycle\nobject: state_machine\n---\n# SM-001: OrderLifecycle\n\n## States\n\n| State | Description |\n|---|---|\n| open | |\n| shipped | |\n\n## Transitions\n\n| From | To | Trigger | Guard | Emits |\n|---|---|---|---|---|\n| open | shipped | ship | |  |\n\n## Steps\n\n| Step | Kind | Consumes | Emits | Description |\n|---|---|---|---|---|\n| pick | command | OrderShipped |  | |\n\n## Operations\n\n### ship\n\nReturns: String[1]\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-business",
+          "exports": [
+            "state_machine"
+          ],
+          "imports": {}
+        },
+        "path": "spec/state-machines/SM-001.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+          "package": "agent-ix/shop",
+          "objects": [
+            {
+              "id": "EV-001",
+              "names": [
+                "EV-001",
+                "OrderPlaced"
+              ]
+            },
+            {
+              "id": "EV-002",
+              "names": [
+                "EV-002",
+                "OrderShipped"
+              ]
+            },
+            {
+              "id": "ENT-001",
+              "names": [
+                "ENT-001",
+                "Order"
+              ]
+            }
+          ],
+          "artifacts": [
+            {
+              "id": "EV-001",
+              "object": "event",
+              "operations": []
+            },
+            {
+              "id": "EV-002",
+              "object": "event",
+              "operations": []
+            },
+            {
+              "id": "ENT-001",
+              "object": "entity",
+              "operations": []
+            }
+          ]
+        },
+        "bodyExtraction": {
+          "yield_pattern": {
+            "match": {
+              "states": {
+                "from": "table_row",
+                "under_section": "States",
+                "assert": {
+                  "columns": [
+                    "State",
+                    "Description"
+                  ],
+                  "optional_columns": []
+                }
+              },
+              "transitions": {
+                "from": "table_row",
+                "under_section": "Transitions",
+                "assert": {
+                  "columns": [
+                    "From",
+                    "To",
+                    "Trigger",
+                    "Guard",
+                    "Emits"
+                  ],
+                  "optional_columns": [
+                    "Guard",
+                    "Emits"
+                  ]
+                }
+              },
+              "steps": {
+                "from": "table_row",
+                "under_section": "Steps",
+                "assert": {
+                  "columns": [
+                    "Step",
+                    "Kind",
+                    "Consumes",
+                    "Emits",
+                    "Description"
+                  ],
+                  "optional_columns": []
+                }
+              }
+            }
+          }
+        },
+        "relationVocabulary": {
+          "objectType": "state_machine",
+          "roles": {
+            "event": [
+              "event-like"
+            ],
+            "entity": [
+              "domain-object"
+            ]
+          },
+          "allowedLinks": {
+            "state_machine": {}
+          }
+        },
+        "constructReferences": {
+          "transitions": [
+            "event-like"
+          ],
+          "steps": [
+            "event-like"
+          ]
+        }
+      },
+      "expect": {
+        "availability": {
+          "model": {
+            "state": "available"
+          }
+        },
+        "diagnosticCodes": [],
+        "absent_diagnostic_reasons": [
+          "unknown-name",
+          "empty-item",
+          "too-many-references",
+          "repeated-reference",
+          "no-bundle-index",
+          "no-bundle-package"
+        ],
+        "values": {
+          "/model/steps/0/consumes": [
+            "ix://agent-ix/shop/EV-002"
+          ]
+        }
+      }
+    },
+    {
+      "name": "plat35-step-emits-resolves",
+      "issue_ref": "PLAT-35",
+      "tags": [
+        "TC-1998",
+        "step-emits",
+        "resolves"
+      ],
+      "input": {
+        "markdown": "---\nid: SM-001\ntitle: OrderLifecycle\nobject: state_machine\n---\n# SM-001: OrderLifecycle\n\n## States\n\n| State | Description |\n|---|---|\n| open | |\n| shipped | |\n\n## Transitions\n\n| From | To | Trigger | Guard | Emits |\n|---|---|---|---|---|\n| open | shipped | ship | |  |\n\n## Steps\n\n| Step | Kind | Consumes | Emits | Description |\n|---|---|---|---|---|\n| pick | command |  | OrderShipped | |\n\n## Operations\n\n### ship\n\nReturns: String[1]\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-business",
+          "exports": [
+            "state_machine"
+          ],
+          "imports": {}
+        },
+        "path": "spec/state-machines/SM-001.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+          "package": "agent-ix/shop",
+          "objects": [
+            {
+              "id": "EV-001",
+              "names": [
+                "EV-001",
+                "OrderPlaced"
+              ]
+            },
+            {
+              "id": "EV-002",
+              "names": [
+                "EV-002",
+                "OrderShipped"
+              ]
+            },
+            {
+              "id": "ENT-001",
+              "names": [
+                "ENT-001",
+                "Order"
+              ]
+            }
+          ],
+          "artifacts": [
+            {
+              "id": "EV-001",
+              "object": "event",
+              "operations": []
+            },
+            {
+              "id": "EV-002",
+              "object": "event",
+              "operations": []
+            },
+            {
+              "id": "ENT-001",
+              "object": "entity",
+              "operations": []
+            }
+          ]
+        },
+        "bodyExtraction": {
+          "yield_pattern": {
+            "match": {
+              "states": {
+                "from": "table_row",
+                "under_section": "States",
+                "assert": {
+                  "columns": [
+                    "State",
+                    "Description"
+                  ],
+                  "optional_columns": []
+                }
+              },
+              "transitions": {
+                "from": "table_row",
+                "under_section": "Transitions",
+                "assert": {
+                  "columns": [
+                    "From",
+                    "To",
+                    "Trigger",
+                    "Guard",
+                    "Emits"
+                  ],
+                  "optional_columns": [
+                    "Guard",
+                    "Emits"
+                  ]
+                }
+              },
+              "steps": {
+                "from": "table_row",
+                "under_section": "Steps",
+                "assert": {
+                  "columns": [
+                    "Step",
+                    "Kind",
+                    "Consumes",
+                    "Emits",
+                    "Description"
+                  ],
+                  "optional_columns": []
+                }
+              }
+            }
+          }
+        },
+        "relationVocabulary": {
+          "objectType": "state_machine",
+          "roles": {
+            "event": [
+              "event-like"
+            ],
+            "entity": [
+              "domain-object"
+            ]
+          },
+          "allowedLinks": {
+            "state_machine": {}
+          }
+        },
+        "constructReferences": {
+          "transitions": [
+            "event-like"
+          ],
+          "steps": [
+            "event-like"
+          ]
+        }
+      },
+      "expect": {
+        "availability": {
+          "model": {
+            "state": "available"
+          }
+        },
+        "values": {
+          "/model/steps/0/emits": [
+            "ix://agent-ix/shop/EV-002"
+          ]
+        }
+      }
+    },
+    {
+      "name": "plat35-step-emits-refused",
+      "issue_ref": "PLAT-35",
+      "tags": [
+        "TC-1998",
+        "step-emits",
+        "refusal"
+      ],
+      "input": {
+        "markdown": "---\nid: SM-001\ntitle: OrderLifecycle\nobject: state_machine\n---\n# SM-001: OrderLifecycle\n\n## States\n\n| State | Description |\n|---|---|\n| open | |\n| shipped | |\n\n## Transitions\n\n| From | To | Trigger | Guard | Emits |\n|---|---|---|---|---|\n| open | shipped | ship | |  |\n\n## Steps\n\n| Step | Kind | Consumes | Emits | Description |\n|---|---|---|---|---|\n| pick | command |  | OrderPlaced, EV-001 | |\n\n## Operations\n\n### ship\n\nReturns: String[1]\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-business",
+          "exports": [
+            "state_machine"
+          ],
+          "imports": {}
+        },
+        "path": "spec/state-machines/SM-001.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+          "package": "agent-ix/shop",
+          "objects": [
+            {
+              "id": "EV-001",
+              "names": [
+                "EV-001",
+                "OrderPlaced"
+              ]
+            },
+            {
+              "id": "EV-002",
+              "names": [
+                "EV-002",
+                "OrderShipped"
+              ]
+            },
+            {
+              "id": "ENT-001",
+              "names": [
+                "ENT-001",
+                "Order"
+              ]
+            }
+          ],
+          "artifacts": [
+            {
+              "id": "EV-001",
+              "object": "event",
+              "operations": []
+            },
+            {
+              "id": "EV-002",
+              "object": "event",
+              "operations": []
+            },
+            {
+              "id": "ENT-001",
+              "object": "entity",
+              "operations": []
+            }
+          ]
+        },
+        "bodyExtraction": {
+          "yield_pattern": {
+            "match": {
+              "states": {
+                "from": "table_row",
+                "under_section": "States",
+                "assert": {
+                  "columns": [
+                    "State",
+                    "Description"
+                  ],
+                  "optional_columns": []
+                }
+              },
+              "transitions": {
+                "from": "table_row",
+                "under_section": "Transitions",
+                "assert": {
+                  "columns": [
+                    "From",
+                    "To",
+                    "Trigger",
+                    "Guard",
+                    "Emits"
+                  ],
+                  "optional_columns": [
+                    "Guard",
+                    "Emits"
+                  ]
+                }
+              },
+              "steps": {
+                "from": "table_row",
+                "under_section": "Steps",
+                "assert": {
+                  "columns": [
+                    "Step",
+                    "Kind",
+                    "Consumes",
+                    "Emits",
+                    "Description"
+                  ],
+                  "optional_columns": []
+                }
+              }
+            }
+          }
+        },
+        "relationVocabulary": {
+          "objectType": "state_machine",
+          "roles": {
+            "event": [
+              "event-like"
+            ],
+            "entity": [
+              "domain-object"
+            ]
+          },
+          "allowedLinks": {
+            "state_machine": {}
+          }
+        },
+        "constructReferences": {
+          "transitions": [
+            "event-like"
+          ],
+          "steps": [
+            "event-like"
+          ]
+        }
+      },
+      "expect": {
+        "availability": {
+          "model": {
+            "state": "unavailable",
+            "reason": "entry-errors: lines 25"
+          }
+        },
+        "diagnostics": [
+          {
+            "code": "semantic.duplicate-model-entry",
+            "reason": "repeated-reference",
+            "line": 25,
+            "section": "Steps"
+          }
+        ],
+        "absentPaths": [
+          "/model"
+        ]
+      }
+    },
+    {
+      "name": "plat35-step-emits-control",
+      "issue_ref": "PLAT-35",
+      "tags": [
+        "TC-1998",
+        "step-emits",
+        "control"
+      ],
+      "input": {
+        "markdown": "---\nid: SM-001\ntitle: OrderLifecycle\nobject: state_machine\n---\n# SM-001: OrderLifecycle\n\n## States\n\n| State | Description |\n|---|---|\n| open | |\n| shipped | |\n\n## Transitions\n\n| From | To | Trigger | Guard | Emits |\n|---|---|---|---|---|\n| open | shipped | ship | |  |\n\n## Steps\n\n| Step | Kind | Consumes | Emits | Description |\n|---|---|---|---|---|\n| pick | command |  | OrderPlaced, OrderShipped | |\n\n## Operations\n\n### ship\n\nReturns: String[1]\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-business",
+          "exports": [
+            "state_machine"
+          ],
+          "imports": {}
+        },
+        "path": "spec/state-machines/SM-001.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+          "package": "agent-ix/shop",
+          "objects": [
+            {
+              "id": "EV-001",
+              "names": [
+                "EV-001",
+                "OrderPlaced"
+              ]
+            },
+            {
+              "id": "EV-002",
+              "names": [
+                "EV-002",
+                "OrderShipped"
+              ]
+            },
+            {
+              "id": "ENT-001",
+              "names": [
+                "ENT-001",
+                "Order"
+              ]
+            }
+          ],
+          "artifacts": [
+            {
+              "id": "EV-001",
+              "object": "event",
+              "operations": []
+            },
+            {
+              "id": "EV-002",
+              "object": "event",
+              "operations": []
+            },
+            {
+              "id": "ENT-001",
+              "object": "entity",
+              "operations": []
+            }
+          ]
+        },
+        "bodyExtraction": {
+          "yield_pattern": {
+            "match": {
+              "states": {
+                "from": "table_row",
+                "under_section": "States",
+                "assert": {
+                  "columns": [
+                    "State",
+                    "Description"
+                  ],
+                  "optional_columns": []
+                }
+              },
+              "transitions": {
+                "from": "table_row",
+                "under_section": "Transitions",
+                "assert": {
+                  "columns": [
+                    "From",
+                    "To",
+                    "Trigger",
+                    "Guard",
+                    "Emits"
+                  ],
+                  "optional_columns": [
+                    "Guard",
+                    "Emits"
+                  ]
+                }
+              },
+              "steps": {
+                "from": "table_row",
+                "under_section": "Steps",
+                "assert": {
+                  "columns": [
+                    "Step",
+                    "Kind",
+                    "Consumes",
+                    "Emits",
+                    "Description"
+                  ],
+                  "optional_columns": []
+                }
+              }
+            }
+          }
+        },
+        "relationVocabulary": {
+          "objectType": "state_machine",
+          "roles": {
+            "event": [
+              "event-like"
+            ],
+            "entity": [
+              "domain-object"
+            ]
+          },
+          "allowedLinks": {
+            "state_machine": {}
+          }
+        },
+        "constructReferences": {
+          "transitions": [
+            "event-like"
+          ],
+          "steps": [
+            "event-like"
+          ]
+        }
+      },
+      "expect": {
+        "availability": {
+          "model": {
+            "state": "available"
+          }
+        },
+        "diagnosticCodes": [],
+        "absent_diagnostic_reasons": [
+          "unknown-name",
+          "empty-item",
+          "too-many-references",
+          "repeated-reference",
+          "no-bundle-index",
+          "no-bundle-package"
+        ],
+        "values": {
+          "/model/steps/0/emits": [
+            "ix://agent-ix/shop/EV-001",
+            "ix://agent-ix/shop/EV-002"
+          ]
+        }
+      }
+    },
+    {
+      "name": "plat55-aggregate-root-emits-resolves",
+      "issue_ref": "PLAT-55",
+      "tags": [
+        "TC-2004",
+        "aggregate-root-emits",
+        "resolves"
+      ],
+      "input": {
+        "markdown": "---\nid: AGG-001\ntitle: Example\nobject: aggregate_root\n---\n# AGG-001: Example\n\n## Relationships\n\n| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| placed | emits | event-001 | 0..* |\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-business",
+          "exports": [
+            "aggregate_root"
+          ],
+          "imports": {},
+          "mappings": [
+            "relationships"
+          ]
+        },
+        "path": "spec/objects/AGG-001.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+          "package": "agent-ix/shop",
+          "artifacts": [
+            {
+              "id": "event-001",
+              "object": "event",
+              "operations": []
+            },
+            {
+              "id": "aggregate-root-001",
+              "object": "aggregate_root",
+              "operations": []
+            },
+            {
+              "id": "entity-001",
+              "object": "entity",
+              "operations": []
+            }
+          ]
+        },
+        "relationVocabulary": {
+          "objectType": "aggregate_root",
+          "edgeTypes": {
+            "emits": {
+              "category": "dataflow",
+              "inverse": "emitted_by"
+            },
+            "persists": {
+              "category": "dependency"
+            },
+            "references": {
+              "category": "traceability"
+            },
+            "triggers": {
+              "category": "behavioral"
+            }
+          },
+          "roles": {},
+          "allowedLinks": {
+            "aggregate_root": {
+              "emits": [
+                "event"
+              ],
+              "references": [
+                "aggregate_root"
+              ]
+            },
+            "process": {
+              "emits": [
+                "event"
+              ],
+              "triggers": [
+                "process"
+              ]
+            },
+            "repository": {
+              "persists": [
+                "aggregate_root",
+                "entity"
+              ]
+            },
+            "event": {},
+            "entity": {}
+          }
+        },
+        "dataSchema": {
+          "type": "object",
+          "properties": {
+            "relations": {
+              "type": "array",
+              "items": {
+                "$ref": "https://schemas.agent-ix.org/semantic-core/0.3.3/RelationDecl.json"
+              }
+            },
+            "emits": {
+              "type": "array",
+              "items": {
+                "$ref": "https://schemas.agent-ix.org/semantic-core/0.3.3/SemanticId.json"
+              }
+            }
+          }
+        }
+      },
+      "expect": {
+        "availability": {
+          "relations": {
+            "state": "available"
+          }
+        },
+        "values": {
+          "/emits": [
+            "ix://agent-ix/shop/event-001"
+          ],
+          "/relations": []
+        }
+      }
+    },
+    {
+      "name": "plat55-aggregate-root-emits-refused",
+      "issue_ref": "PLAT-55",
+      "tags": [
+        "TC-2004",
+        "aggregate-root-emits",
+        "refusal"
+      ],
+      "input": {
+        "markdown": "---\nid: AGG-001\ntitle: Example\nobject: aggregate_root\n---\n# AGG-001: Example\n\n## Relationships\n\n| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| placed | emits | entity-001 | 0..* |\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-business",
+          "exports": [
+            "aggregate_root"
+          ],
+          "imports": {},
+          "mappings": [
+            "relationships"
+          ]
+        },
+        "path": "spec/objects/AGG-001.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+          "package": "agent-ix/shop",
+          "artifacts": [
+            {
+              "id": "event-001",
+              "object": "event",
+              "operations": []
+            },
+            {
+              "id": "aggregate-root-001",
+              "object": "aggregate_root",
+              "operations": []
+            },
+            {
+              "id": "entity-001",
+              "object": "entity",
+              "operations": []
+            }
+          ]
+        },
+        "relationVocabulary": {
+          "objectType": "aggregate_root",
+          "edgeTypes": {
+            "emits": {
+              "category": "dataflow",
+              "inverse": "emitted_by"
+            },
+            "persists": {
+              "category": "dependency"
+            },
+            "references": {
+              "category": "traceability"
+            },
+            "triggers": {
+              "category": "behavioral"
+            }
+          },
+          "roles": {},
+          "allowedLinks": {
+            "aggregate_root": {
+              "emits": [
+                "event"
+              ],
+              "references": [
+                "aggregate_root"
+              ]
+            },
+            "process": {
+              "emits": [
+                "event"
+              ],
+              "triggers": [
+                "process"
+              ]
+            },
+            "repository": {
+              "persists": [
+                "aggregate_root",
+                "entity"
+              ]
+            },
+            "event": {},
+            "entity": {}
+          }
+        },
+        "dataSchema": {
+          "type": "object",
+          "properties": {
+            "relations": {
+              "type": "array",
+              "items": {
+                "$ref": "https://schemas.agent-ix.org/semantic-core/0.3.3/RelationDecl.json"
+              }
+            },
+            "emits": {
+              "type": "array",
+              "items": {
+                "$ref": "https://schemas.agent-ix.org/semantic-core/0.3.3/SemanticId.json"
+              }
+            }
+          }
+        }
+      },
+      "expect": {
+        "availability": {
+          "relations": {
+            "state": "unavailable"
+          }
+        },
+        "diagnostics": [
+          {
+            "code": "semantic.invalid-model-cell",
+            "reason": "target-not-allowed",
+            "line": 12
+          }
+        ],
+        "absentPaths": [
+          "/emits",
+          "/relations"
+        ]
+      }
+    },
+    {
+      "name": "plat55-aggregate-root-emits-control",
+      "issue_ref": "PLAT-55",
+      "tags": [
+        "TC-2004",
+        "aggregate-root-emits",
+        "control"
+      ],
+      "input": {
+        "markdown": "---\nid: AGG-001\ntitle: Example\nobject: aggregate_root\n---\n# AGG-001: Example\n\n## Relationships\n\n| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| placed | emits | event-001 | 0..* |\n| parent | references | aggregate-root-001 | 0..1 |\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-business",
+          "exports": [
+            "aggregate_root"
+          ],
+          "imports": {},
+          "mappings": [
+            "relationships"
+          ]
+        },
+        "path": "spec/objects/AGG-001.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+          "package": "agent-ix/shop",
+          "artifacts": [
+            {
+              "id": "event-001",
+              "object": "event",
+              "operations": []
+            },
+            {
+              "id": "aggregate-root-001",
+              "object": "aggregate_root",
+              "operations": []
+            },
+            {
+              "id": "entity-001",
+              "object": "entity",
+              "operations": []
+            }
+          ]
+        },
+        "relationVocabulary": {
+          "objectType": "aggregate_root",
+          "edgeTypes": {
+            "emits": {
+              "category": "dataflow",
+              "inverse": "emitted_by"
+            },
+            "persists": {
+              "category": "dependency"
+            },
+            "references": {
+              "category": "traceability"
+            },
+            "triggers": {
+              "category": "behavioral"
+            }
+          },
+          "roles": {},
+          "allowedLinks": {
+            "aggregate_root": {
+              "emits": [
+                "event"
+              ],
+              "references": [
+                "aggregate_root"
+              ]
+            },
+            "process": {
+              "emits": [
+                "event"
+              ],
+              "triggers": [
+                "process"
+              ]
+            },
+            "repository": {
+              "persists": [
+                "aggregate_root",
+                "entity"
+              ]
+            },
+            "event": {},
+            "entity": {}
+          }
+        },
+        "dataSchema": {
+          "type": "object",
+          "properties": {
+            "relations": {
+              "type": "array",
+              "items": {
+                "$ref": "https://schemas.agent-ix.org/semantic-core/0.3.3/RelationDecl.json"
+              }
+            },
+            "emits": {
+              "type": "array",
+              "items": {
+                "$ref": "https://schemas.agent-ix.org/semantic-core/0.3.3/SemanticId.json"
+              }
+            }
+          }
+        }
+      },
+      "expect": {
+        "availability": {
+          "relations": {
+            "state": "available"
+          }
+        },
+        "diagnosticCodes": [],
+        "absent_diagnostic_reasons": [
+          "target-not-id",
+          "target-not-allowed",
+          "verb-not-typed-key",
+          "frontmatter-key",
+          "no-bundle-index"
+        ],
+        "values": {
+          "/emits": [
+            "ix://agent-ix/shop/event-001"
+          ],
+          "/relationSources/0/name": "parent"
+        }
+      }
+    },
+    {
+      "name": "plat55-process-emits-resolves",
+      "issue_ref": "PLAT-55",
+      "tags": [
+        "TC-2004",
+        "process-emits",
+        "resolves"
+      ],
+      "input": {
+        "markdown": "---\nid: PRC-001\ntitle: Example\nobject: process\n---\n# PRC-001: Example\n\n## Relationships\n\n| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| done | emits | event-001 | 0..1 |\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-business",
+          "exports": [
+            "process"
+          ],
+          "imports": {},
+          "mappings": [
+            "relationships"
+          ]
+        },
+        "path": "spec/objects/PRC-001.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+          "package": "agent-ix/shop",
+          "artifacts": [
+            {
+              "id": "event-001",
+              "object": "event",
+              "operations": []
+            },
+            {
+              "id": "aggregate-root-001",
+              "object": "aggregate_root",
+              "operations": []
+            },
+            {
+              "id": "entity-001",
+              "object": "entity",
+              "operations": []
+            }
+          ]
+        },
+        "relationVocabulary": {
+          "objectType": "process",
+          "edgeTypes": {
+            "emits": {
+              "category": "dataflow",
+              "inverse": "emitted_by"
+            },
+            "persists": {
+              "category": "dependency"
+            },
+            "references": {
+              "category": "traceability"
+            },
+            "triggers": {
+              "category": "behavioral"
+            }
+          },
+          "roles": {},
+          "allowedLinks": {
+            "aggregate_root": {
+              "emits": [
+                "event"
+              ],
+              "references": [
+                "aggregate_root"
+              ]
+            },
+            "process": {
+              "emits": [
+                "event"
+              ],
+              "triggers": [
+                "process"
+              ]
+            },
+            "repository": {
+              "persists": [
+                "aggregate_root",
+                "entity"
+              ]
+            },
+            "event": {},
+            "entity": {}
+          }
+        },
+        "dataSchema": {
+          "type": "object",
+          "properties": {
+            "emits": {
+              "type": "array",
+              "items": {
+                "$ref": "https://schemas.agent-ix.org/semantic-core/0.3.3/SemanticId.json"
+              }
+            }
+          }
+        }
+      },
+      "expect": {
+        "availability": {
+          "relations": {
+            "state": "available"
+          }
+        },
+        "values": {
+          "/emits": [
+            "ix://agent-ix/shop/event-001"
+          ],
+          "/relationSources/0/verb": "emits",
+          "/relationSources/0/target": "event-001",
+          "/relationSources/0/multiplicity": "0..1"
+        },
+        "absentPaths": [
+          "/relations"
+        ]
+      }
+    },
+    {
+      "name": "plat55-process-emits-refused",
+      "issue_ref": "PLAT-55",
+      "tags": [
+        "TC-2004",
+        "process-emits",
+        "refusal"
+      ],
+      "input": {
+        "markdown": "---\nid: PRC-001\ntitle: Example\nobject: process\n---\n# PRC-001: Example\n\n## Relationships\n\n| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| go | triggers | event-001 | 1 |\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-business",
+          "exports": [
+            "process"
+          ],
+          "imports": {},
+          "mappings": [
+            "relationships"
+          ]
+        },
+        "path": "spec/objects/PRC-001.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+          "package": "agent-ix/shop",
+          "artifacts": [
+            {
+              "id": "event-001",
+              "object": "event",
+              "operations": []
+            },
+            {
+              "id": "aggregate-root-001",
+              "object": "aggregate_root",
+              "operations": []
+            },
+            {
+              "id": "entity-001",
+              "object": "entity",
+              "operations": []
+            }
+          ]
+        },
+        "relationVocabulary": {
+          "objectType": "process",
+          "edgeTypes": {
+            "emits": {
+              "category": "dataflow",
+              "inverse": "emitted_by"
+            },
+            "persists": {
+              "category": "dependency"
+            },
+            "references": {
+              "category": "traceability"
+            },
+            "triggers": {
+              "category": "behavioral"
+            }
+          },
+          "roles": {},
+          "allowedLinks": {
+            "aggregate_root": {
+              "emits": [
+                "event"
+              ],
+              "references": [
+                "aggregate_root"
+              ]
+            },
+            "process": {
+              "emits": [
+                "event"
+              ],
+              "triggers": [
+                "process"
+              ]
+            },
+            "repository": {
+              "persists": [
+                "aggregate_root",
+                "entity"
+              ]
+            },
+            "event": {},
+            "entity": {}
+          }
+        },
+        "dataSchema": {
+          "type": "object",
+          "properties": {
+            "emits": {
+              "type": "array",
+              "items": {
+                "$ref": "https://schemas.agent-ix.org/semantic-core/0.3.3/SemanticId.json"
+              }
+            }
+          }
+        }
+      },
+      "expect": {
+        "availability": {
+          "relations": {
+            "state": "unavailable"
+          }
+        },
+        "diagnostics": [
+          {
+            "code": "semantic.invalid-model-cell",
+            "reason": "verb-not-typed-key",
+            "line": 12
+          }
+        ],
+        "absentPaths": [
+          "/emits",
+          "/relations",
+          "/relationSources"
+        ]
+      }
+    },
+    {
+      "name": "plat55-process-emits-control",
+      "issue_ref": "PLAT-55",
+      "tags": [
+        "TC-2004",
+        "process-emits",
+        "control"
+      ],
+      "input": {
+        "markdown": "---\nid: PRC-001\ntitle: Example\nobject: process\n---\n# PRC-001: Example\n\n## Relationships\n\n| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| done | emits | event-001 | 0..1 |\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-business",
+          "exports": [
+            "process"
+          ],
+          "imports": {},
+          "mappings": [
+            "relationships"
+          ]
+        },
+        "path": "spec/objects/PRC-001.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+          "package": "agent-ix/shop",
+          "artifacts": [
+            {
+              "id": "event-001",
+              "object": "event",
+              "operations": []
+            },
+            {
+              "id": "aggregate-root-001",
+              "object": "aggregate_root",
+              "operations": []
+            },
+            {
+              "id": "entity-001",
+              "object": "entity",
+              "operations": []
+            }
+          ]
+        },
+        "relationVocabulary": {
+          "objectType": "process",
+          "edgeTypes": {
+            "emits": {
+              "category": "dataflow",
+              "inverse": "emitted_by"
+            },
+            "persists": {
+              "category": "dependency"
+            },
+            "references": {
+              "category": "traceability"
+            },
+            "triggers": {
+              "category": "behavioral"
+            }
+          },
+          "roles": {},
+          "allowedLinks": {
+            "aggregate_root": {
+              "emits": [
+                "event"
+              ],
+              "references": [
+                "aggregate_root"
+              ]
+            },
+            "process": {
+              "emits": [
+                "event"
+              ],
+              "triggers": [
+                "process"
+              ]
+            },
+            "repository": {
+              "persists": [
+                "aggregate_root",
+                "entity"
+              ]
+            },
+            "event": {},
+            "entity": {}
+          }
+        },
+        "dataSchema": {
+          "type": "object",
+          "properties": {
+            "emits": {
+              "type": "array",
+              "items": {
+                "$ref": "https://schemas.agent-ix.org/semantic-core/0.3.3/SemanticId.json"
+              }
+            }
+          }
+        }
+      },
+      "expect": {
+        "availability": {
+          "relations": {
+            "state": "available"
+          }
+        },
+        "diagnosticCodes": [],
+        "absent_diagnostic_reasons": [
+          "target-not-id",
+          "target-not-allowed",
+          "verb-not-typed-key",
+          "frontmatter-key",
+          "no-bundle-index"
+        ],
+        "values": {
+          "/emits": [
+            "ix://agent-ix/shop/event-001"
+          ]
+        }
+      }
+    },
+    {
+      "name": "plat55-repository-persists-resolves",
+      "issue_ref": "PLAT-55",
+      "tags": [
+        "TC-2004",
+        "repository-persists",
+        "resolves"
+      ],
+      "input": {
+        "markdown": "---\nid: REP-001\ntitle: Example\nobject: repository\n---\n# REP-001: Example\n\n## Relationships\n\n| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| orders | persists | aggregate-root-001 | 0..* |\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-business",
+          "exports": [
+            "repository"
+          ],
+          "imports": {},
+          "mappings": [
+            "relationships"
+          ]
+        },
+        "path": "spec/objects/REP-001.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+          "package": "agent-ix/shop",
+          "artifacts": [
+            {
+              "id": "event-001",
+              "object": "event",
+              "operations": []
+            },
+            {
+              "id": "aggregate-root-001",
+              "object": "aggregate_root",
+              "operations": []
+            },
+            {
+              "id": "entity-001",
+              "object": "entity",
+              "operations": []
+            }
+          ]
+        },
+        "relationVocabulary": {
+          "objectType": "repository",
+          "edgeTypes": {
+            "emits": {
+              "category": "dataflow",
+              "inverse": "emitted_by"
+            },
+            "persists": {
+              "category": "dependency"
+            },
+            "references": {
+              "category": "traceability"
+            },
+            "triggers": {
+              "category": "behavioral"
+            }
+          },
+          "roles": {},
+          "allowedLinks": {
+            "aggregate_root": {
+              "emits": [
+                "event"
+              ],
+              "references": [
+                "aggregate_root"
+              ]
+            },
+            "process": {
+              "emits": [
+                "event"
+              ],
+              "triggers": [
+                "process"
+              ]
+            },
+            "repository": {
+              "persists": [
+                "aggregate_root",
+                "entity"
+              ]
+            },
+            "event": {},
+            "entity": {}
+          }
+        },
+        "dataSchema": {
+          "type": "object",
+          "properties": {
+            "persists": {
+              "type": "array",
+              "items": {
+                "$ref": "https://schemas.agent-ix.org/semantic-core/0.3.3/SemanticId.json"
+              }
+            }
+          }
+        }
+      },
+      "expect": {
+        "availability": {
+          "relations": {
+            "state": "available"
+          }
+        },
+        "values": {
+          "/persists": [
+            "ix://agent-ix/shop/aggregate-root-001"
+          ]
+        },
+        "absentPaths": [
+          "/relations"
+        ]
+      }
+    },
+    {
+      "name": "plat55-repository-persists-refused",
+      "issue_ref": "PLAT-55",
+      "tags": [
+        "TC-2004",
+        "repository-persists",
+        "refusal"
+      ],
+      "input": {
+        "markdown": "---\nid: REP-001\ntitle: Example\nobject: repository\n---\n# REP-001: Example\n\n## Relationships\n\n| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| orders | persists | Order | 0..* |\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-business",
+          "exports": [
+            "repository"
+          ],
+          "imports": {},
+          "mappings": [
+            "relationships"
+          ]
+        },
+        "path": "spec/objects/REP-001.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+          "package": "agent-ix/shop",
+          "artifacts": [
+            {
+              "id": "event-001",
+              "object": "event",
+              "operations": []
+            },
+            {
+              "id": "aggregate-root-001",
+              "object": "aggregate_root",
+              "operations": []
+            },
+            {
+              "id": "entity-001",
+              "object": "entity",
+              "operations": []
+            }
+          ]
+        },
+        "relationVocabulary": {
+          "objectType": "repository",
+          "edgeTypes": {
+            "emits": {
+              "category": "dataflow",
+              "inverse": "emitted_by"
+            },
+            "persists": {
+              "category": "dependency"
+            },
+            "references": {
+              "category": "traceability"
+            },
+            "triggers": {
+              "category": "behavioral"
+            }
+          },
+          "roles": {},
+          "allowedLinks": {
+            "aggregate_root": {
+              "emits": [
+                "event"
+              ],
+              "references": [
+                "aggregate_root"
+              ]
+            },
+            "process": {
+              "emits": [
+                "event"
+              ],
+              "triggers": [
+                "process"
+              ]
+            },
+            "repository": {
+              "persists": [
+                "aggregate_root",
+                "entity"
+              ]
+            },
+            "event": {},
+            "entity": {}
+          }
+        },
+        "dataSchema": {
+          "type": "object",
+          "properties": {
+            "persists": {
+              "type": "array",
+              "items": {
+                "$ref": "https://schemas.agent-ix.org/semantic-core/0.3.3/SemanticId.json"
+              }
+            }
+          }
+        }
+      },
+      "expect": {
+        "availability": {
+          "relations": {
+            "state": "unavailable"
+          }
+        },
+        "diagnostics": [
+          {
+            "code": "semantic.invalid-model-cell",
+            "reason": "target-not-id",
+            "line": 12
+          }
+        ],
+        "absentPaths": [
+          "/persists",
+          "/relations",
+          "/relationSources"
+        ]
+      }
+    },
+    {
+      "name": "plat55-repository-persists-control",
+      "issue_ref": "PLAT-55",
+      "tags": [
+        "TC-2004",
+        "repository-persists",
+        "control"
+      ],
+      "input": {
+        "markdown": "---\nid: REP-001\ntitle: Example\nobject: repository\n---\n# REP-001: Example\n\n## Relationships\n\n| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| orders | persists | entity-001 | 0..* |\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-business",
+          "exports": [
+            "repository"
+          ],
+          "imports": {},
+          "mappings": [
+            "relationships"
+          ]
+        },
+        "path": "spec/objects/REP-001.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+          "package": "agent-ix/shop",
+          "artifacts": [
+            {
+              "id": "event-001",
+              "object": "event",
+              "operations": []
+            },
+            {
+              "id": "aggregate-root-001",
+              "object": "aggregate_root",
+              "operations": []
+            },
+            {
+              "id": "entity-001",
+              "object": "entity",
+              "operations": []
+            }
+          ]
+        },
+        "relationVocabulary": {
+          "objectType": "repository",
+          "edgeTypes": {
+            "emits": {
+              "category": "dataflow",
+              "inverse": "emitted_by"
+            },
+            "persists": {
+              "category": "dependency"
+            },
+            "references": {
+              "category": "traceability"
+            },
+            "triggers": {
+              "category": "behavioral"
+            }
+          },
+          "roles": {},
+          "allowedLinks": {
+            "aggregate_root": {
+              "emits": [
+                "event"
+              ],
+              "references": [
+                "aggregate_root"
+              ]
+            },
+            "process": {
+              "emits": [
+                "event"
+              ],
+              "triggers": [
+                "process"
+              ]
+            },
+            "repository": {
+              "persists": [
+                "aggregate_root",
+                "entity"
+              ]
+            },
+            "event": {},
+            "entity": {}
+          }
+        },
+        "dataSchema": {
+          "type": "object",
+          "properties": {
+            "persists": {
+              "type": "array",
+              "items": {
+                "$ref": "https://schemas.agent-ix.org/semantic-core/0.3.3/SemanticId.json"
+              }
+            }
+          }
+        }
+      },
+      "expect": {
+        "availability": {
+          "relations": {
+            "state": "available"
+          }
+        },
+        "diagnosticCodes": [],
+        "absent_diagnostic_reasons": [
+          "target-not-id",
+          "target-not-allowed",
+          "verb-not-typed-key",
+          "frontmatter-key",
+          "no-bundle-index"
+        ],
+        "values": {
+          "/persists": [
+            "ix://agent-ix/shop/entity-001"
+          ]
+        }
+      }
     }
   ]
 }

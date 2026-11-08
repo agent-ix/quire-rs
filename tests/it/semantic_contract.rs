@@ -1250,3 +1250,120 @@ fn validate_bundle_passes_the_declared_bundle_package() {
     );
     assert!(with.iter().any(|m| m.contains("holds")), "{with:?}");
 }
+
+/// The fixture module plus a `process` type whose `data_schema` declares the
+/// typed relation key `emits` when `typed` is set, whose `allowed_links`
+/// name `emits`, and whose `body_extraction` keys a `table_row` locator
+/// `emits` when `locator` is set; the module names `relationships` when
+/// `relationships` is set.
+fn process_module(
+    tmp: &TempDir,
+    name: &str,
+    relationships: bool,
+    typed: bool,
+    locator: bool,
+) -> PathBuf {
+    module(tmp, name, |m, root| {
+        let core = format!(
+            "https://schemas.agent-ix.org/semantic-core/{}/",
+            embedded::embedded_semantic_core_version()
+        );
+        let mut properties = json!({
+            "fields": { "type": "array", "items": { "$ref": format!("{core}FieldDecl.json") } }
+        });
+        if typed {
+            properties["emits"] =
+                json!({ "type": "array", "items": { "$ref": format!("{core}SemanticId.json") } });
+        }
+        let schema = json!({
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "$id": "https://schemas.agent-ix.org/agent-ix/spec-objects-fixture/0.1.0/Process.json",
+            "type": "object",
+            "properties": properties,
+        });
+        fs::write(
+            root.join("schemas/Process.json"),
+            serde_json::to_vec(&schema).unwrap(),
+        )
+        .unwrap();
+        if relationships {
+            semantic(m).insert("mappings".into(), vec!["relationships"].into());
+        }
+        let mut matches = serde_yaml::Mapping::new();
+        matches.insert(
+            "id".into(),
+            serde_yaml::from_str("{ from: frontmatter_field, path: [id], required: true }")
+                .unwrap(),
+        );
+        if locator {
+            matches.insert(
+                "emits".into(),
+                serde_yaml::from_str(
+                    "{ from: table_row, under_section: Emits, assert: { columns: [Event] } }",
+                )
+                .unwrap(),
+            );
+        }
+        let mut process = serde_yaml::Mapping::new();
+        process.insert("name".into(), "process".into());
+        process.insert(
+            "data_schema".into(),
+            serde_yaml::from_str("{ schema: schemas/Process.json }").unwrap(),
+        );
+        process.insert(
+            "allowed_links".into(),
+            serde_yaml::from_str("{ emits: [event] }").unwrap(),
+        );
+        let mut pattern = serde_yaml::Mapping::new();
+        pattern.insert("match".into(), serde_yaml::Value::Mapping(matches));
+        let mut body = serde_yaml::Mapping::new();
+        body.insert("yield_pattern".into(), serde_yaml::Value::Mapping(pattern));
+        process.insert("body_extraction".into(), serde_yaml::Value::Mapping(body));
+        m["object_types"]
+            .as_sequence_mut()
+            .unwrap()
+            .push(serde_yaml::Value::Mapping(process));
+    })
+}
+
+#[trace("TC-2005", "FR-069-AC-13")]
+// A `table_row` locator keyed on a typed relation key under the
+// `relationships` mapping refuses every archetype of the module.
+#[test]
+fn locator_on_a_typed_relation_key_is_duplicate_authority() {
+    let tmp = TempDir::new().unwrap();
+    let registry = load(&process_module(&tmp, "dup", true, true, true));
+    let failures = registry.failures();
+    let archetypes: Vec<&str> = failures.iter().map(|f| f.archetype.as_str()).collect();
+    assert_eq!(
+        archetypes,
+        ["entity", "enumeration", "process"],
+        "{failures:?}"
+    );
+    for f in failures {
+        assert!(
+            f.reason.starts_with("semantic.duplicate-authority"),
+            "{}",
+            f.reason
+        );
+        for needle in ["dup", "process", "emits"] {
+            assert!(f.reason.contains(needle), "{needle}: {}", f.reason);
+        }
+    }
+    assert!(registry.archetype("process").is_none());
+    assert!(registry.archetype("entity").is_none());
+
+    for (name, relationships, typed, locator) in [
+        ("no-locator", true, true, false),
+        ("untyped", true, false, true),
+        ("no-mapping", false, true, true),
+    ] {
+        let registry = load(&process_module(&tmp, name, relationships, typed, locator));
+        assert!(
+            registry.failures().is_empty(),
+            "{name}: {:?}",
+            reasons(&registry)
+        );
+        assert!(registry.archetype("process").is_some(), "{name}");
+    }
+}

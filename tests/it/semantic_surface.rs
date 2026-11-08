@@ -54,6 +54,135 @@ fn write_or_compare(rel: &str, actual: &str) {
     );
 }
 
+/// Assert every field a case's `expect` records against its record.
+fn assert_case(name: &str, expect: &Value, value: &Value) {
+    if let Some(avail) = expect["availability"].as_object() {
+        for (kind, want) in avail {
+            let got = &value["availability"][kind];
+            for (k, v) in want.as_object().unwrap() {
+                assert_eq!(&got[k], v, "{name}: availability.{kind}.{k}");
+            }
+        }
+    }
+    if let Some(form) = expect["fieldsForm"].as_str() {
+        assert_eq!(value["fieldsForm"], form, "{name}");
+    }
+    if let Some(n) = expect["fieldCount"].as_u64() {
+        assert_eq!(
+            value["fields"].as_array().map(Vec::len),
+            Some(n as usize),
+            "{name}"
+        );
+    }
+    if let Some(ids) = expect["clauseIds"].as_array() {
+        let got: Vec<&str> = value["clauses"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|c| c["clauseId"].as_str().unwrap())
+            .collect();
+        assert_eq!(
+            got,
+            ids.iter().map(|v| v.as_str().unwrap()).collect::<Vec<_>>(),
+            "{name}"
+        );
+    }
+    if let Some(names) = expect["operationNames"].as_array() {
+        let got: Vec<&str> = value["operations"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|c| c["name"].as_str().unwrap())
+            .collect();
+        assert_eq!(
+            got,
+            names
+                .iter()
+                .map(|v| v.as_str().unwrap())
+                .collect::<Vec<_>>(),
+            "{name}"
+        );
+    }
+    if let Some(codes) = expect["diagnosticCodes"].as_array() {
+        let got: Vec<&str> = value["diagnostics"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|d| d["code"].as_str().unwrap())
+            .collect();
+        assert_eq!(
+            got,
+            codes
+                .iter()
+                .map(|v| v.as_str().unwrap())
+                .collect::<Vec<_>>(),
+            "{name}"
+        );
+    }
+    if let Some(diags) = expect["diagnostics"].as_array() {
+        for want in diags {
+            let hit = value["diagnostics"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|d| want.as_object().unwrap().iter().all(|(k, v)| &d[k] == v));
+            assert!(hit, "{name}: expected {want}, got {}", value["diagnostics"]);
+        }
+    }
+    if let Some(identity) = expect["sourceIdentity"].as_str() {
+        assert_eq!(
+            value["clauses"][0]["sourceSpan"]["sourceIdentity"], identity,
+            "{name}"
+        );
+    }
+    // Diagnostics are ordered by (line, column, code).
+    let keys: Vec<(u64, u64, String)> = value["diagnostics"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|d| {
+            (
+                d["line"].as_u64().unwrap_or(0),
+                d["column"].as_u64().unwrap_or(0),
+                d["code"].as_str().unwrap().to_string(),
+            )
+        })
+        .collect();
+    let mut sorted = keys.clone();
+    sorted.sort();
+    assert_eq!(keys, sorted, "{name}: diagnostic order");
+    if let Some(values) = expect["values"].as_object() {
+        for (pointer, want) in values {
+            assert_eq!(
+                value.pointer(pointer),
+                Some(want),
+                "{name}: {pointer}\n{value:#}"
+            );
+        }
+    }
+    for pointer in expect["absentPaths"].as_array().into_iter().flatten() {
+        let pointer = pointer.as_str().unwrap();
+        assert!(
+            value.pointer(pointer).is_none(),
+            "{name}: {pointer} is present\n{value:#}"
+        );
+    }
+    for reason in expect["absent_diagnostic_reasons"]
+        .as_array()
+        .into_iter()
+        .flatten()
+    {
+        assert!(
+            !value["diagnostics"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|d| &d["reason"] == reason),
+            "{name}: a diagnostic carries {reason}\n{value:#}"
+        );
+    }
+}
+
 #[trace("TC-1630", "FR-072-AC-1")]
 // every case yields its expected declarations, availability, and ordered
 // diagnostics; every record validates against semantic-v1.
@@ -71,108 +200,84 @@ fn case_suite() {
             .map(|e| format!("{} at {}", e, e.instance_path()))
             .collect();
         assert!(errors.is_empty(), "{name}: {errors:?}");
-        let expect = &case["expect"];
-        if let Some(avail) = expect["availability"].as_object() {
-            for (kind, want) in avail {
-                let got = &value["availability"][kind];
-                for (k, v) in want.as_object().unwrap() {
-                    assert_eq!(&got[k], v, "{name}: availability.{kind}.{k}");
-                }
-            }
-        }
-        if let Some(form) = expect["fieldsForm"].as_str() {
-            assert_eq!(value["fieldsForm"], form, "{name}");
-        }
-        if let Some(n) = expect["fieldCount"].as_u64() {
-            assert_eq!(
-                value["fields"].as_array().map(Vec::len),
-                Some(n as usize),
-                "{name}"
-            );
-        }
-        if let Some(ids) = expect["clauseIds"].as_array() {
-            let got: Vec<&str> = value["clauses"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .map(|c| c["clauseId"].as_str().unwrap())
-                .collect();
-            assert_eq!(
-                got,
-                ids.iter().map(|v| v.as_str().unwrap()).collect::<Vec<_>>(),
-                "{name}"
-            );
-        }
-        if let Some(names) = expect["operationNames"].as_array() {
-            let got: Vec<&str> = value["operations"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .map(|c| c["name"].as_str().unwrap())
-                .collect();
-            assert_eq!(
-                got,
-                names
-                    .iter()
-                    .map(|v| v.as_str().unwrap())
-                    .collect::<Vec<_>>(),
-                "{name}"
-            );
-        }
-        if let Some(codes) = expect["diagnosticCodes"].as_array() {
-            let got: Vec<&str> = value["diagnostics"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .map(|d| d["code"].as_str().unwrap())
-                .collect();
-            assert_eq!(
-                got,
-                codes
-                    .iter()
-                    .map(|v| v.as_str().unwrap())
-                    .collect::<Vec<_>>(),
-                "{name}"
-            );
-        }
-        if let Some(diags) = expect["diagnostics"].as_array() {
-            for want in diags {
-                let hit = value["diagnostics"]
-                    .as_array()
-                    .unwrap()
-                    .iter()
-                    .any(|d| want.as_object().unwrap().iter().all(|(k, v)| &d[k] == v));
-                assert!(hit, "{name}: expected {want}, got {}", value["diagnostics"]);
-            }
-        }
-        if let Some(identity) = expect["sourceIdentity"].as_str() {
-            assert_eq!(
-                value["clauses"][0]["sourceSpan"]["sourceIdentity"], identity,
-                "{name}"
-            );
-        }
-        // Diagnostics are ordered by (line, column, code).
-        let keys: Vec<(u64, u64, String)> = value["diagnostics"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .map(|d| {
-                (
-                    d["line"].as_u64().unwrap_or(0),
-                    d["column"].as_u64().unwrap_or(0),
-                    d["code"].as_str().unwrap().to_string(),
-                )
-            })
-            .collect();
-        let mut sorted = keys.clone();
-        sorted.sort();
-        assert_eq!(keys, sorted, "{name}: diagnostic order");
+        assert_case(name, &case["expect"], &value);
         records.insert(name.to_string(), value);
     }
     // The Rust outputs are the parity oracle for the Python and WASM legs.
     write_or_compare(
         "tests/fixtures/semantic/cases.expected.json",
         &format!("{}\n", serde_json::to_string_pretty(&records).unwrap()),
+    );
+}
+
+/// Run the cases filed under `issue_ref`: each `key` has a case that
+/// resolves, a refusal, and a control asserting absent diagnostic reasons;
+/// every record is schema-valid and equals its `cases.expected.json` record,
+/// the oracle the Python binding is checked against.
+fn assert_filed_cases(issue_ref: &str, keys: &[&str]) {
+    let schema = schema();
+    let expected = expected_records();
+    let filed: Vec<Value> = cases()
+        .into_iter()
+        .filter(|c| c["issue_ref"] == issue_ref)
+        .collect();
+    let tagged = |key: &str, outcome: &str| {
+        filed
+            .iter()
+            .filter(|c| {
+                let tags = c["tags"].as_array().unwrap();
+                tags.contains(&json!(key)) && tags.contains(&json!(outcome))
+            })
+            .count()
+    };
+    for key in keys {
+        for outcome in ["resolves", "refusal", "control"] {
+            assert_eq!(tagged(key, outcome), 1, "{issue_ref} {key} {outcome}");
+        }
+    }
+    for case in &filed {
+        let name = case["name"].as_str().unwrap();
+        if case["tags"].as_array().unwrap().contains(&json!("control")) {
+            assert!(
+                case["expect"]["absent_diagnostic_reasons"]
+                    .as_array()
+                    .is_some_and(|r| !r.is_empty()),
+                "{name}: a control asserts absent diagnostic reasons"
+            );
+        }
+        let value = serde_json::to_value(extract_semantic_json(&case["input"]).unwrap()).unwrap();
+        assert!(schema.is_valid(&value), "{name}: {value:#}");
+        assert_case(name, &case["expect"], &value);
+        assert_eq!(
+            value, expected[name],
+            "{name}: differs from cases.expected.json"
+        );
+    }
+}
+
+#[trace("TC-1998", "FR-075-AC-27")]
+// PLAT-35 cases per reference column: the resolved SemanticId, a refusal and
+// a control.
+#[test]
+fn declaration_reference_cases() {
+    assert_filed_cases(
+        "PLAT-35",
+        &["transition-emits", "step-consumes", "step-emits"],
+    );
+}
+
+#[trace("TC-2004", "FR-076-AC-21")]
+// PLAT-55 cases per typed relation key: the lowered identity, a refusal and a
+// control.
+#[test]
+fn typed_relation_key_cases() {
+    assert_filed_cases(
+        "PLAT-55",
+        &[
+            "aggregate-root-emits",
+            "process-emits",
+            "repository-persists",
+        ],
     );
 }
 

@@ -42,7 +42,12 @@ fn extract(md: &str, mappings: &[&str], body_extraction: Value) -> Value {
         },
         "bodyExtraction": body_extraction,
     });
-    let record = extract_semantic_json(&request).unwrap();
+    extract_request(&request)
+}
+
+/// Extract `request`; the record must validate against semantic-v1.
+fn extract_request(request: &Value) -> Value {
+    let record = extract_semantic_json(request).unwrap();
     let value = serde_json::to_value(&record).unwrap();
     let errors: Vec<String> = schema()
         .iter_errors(&value)
@@ -435,6 +440,7 @@ fn population_members_with_extent() {
 #[test]
 fn object_type_sections() {
     let md = OBJECT_SECTIONS;
+    let extract = |md: &str, _: &[&str], body: Value| extract_request(&shop_request(md, body));
     let record = extract(md, &[], tables());
     assert_eq!(
         record["availability"]["model"]["state"], "available",
@@ -460,12 +466,15 @@ fn object_type_sections() {
             &json!("shipped"),
             &json!("ship"),
             &json!("ready"),
-            &json!(["OrderShipped"])
+            &json!("ix://agent-ix/shop/EV-002")
         )
     );
     assert_span(t, md, line_of(md, "| open | shipped |"));
     assert_eq!(model["steps"][0]["kind"], "command");
-    assert_eq!(model["steps"][0]["emits"], json!(["Picked", "Packed"]));
+    assert_eq!(
+        model["steps"][0]["emits"],
+        json!(["ix://agent-ix/shop/EV-003", "ix://agent-ix/shop/EV-004"])
+    );
     assert_eq!(model["steps"][1]["kind"], "wait");
     assert_eq!(model["members"][0]["target"], "OrderLine");
     assert_eq!(model["members"][0]["multiplicity"]["lower"], 1);
@@ -809,7 +818,14 @@ fn records_without_model_features_are_unchanged() {
         serde_json::from_slice(&fs::read(root.join("tests/fixtures/semantic/cases.json")).unwrap())
             .unwrap();
     let schema = schema();
-    for case in cases["cases"].as_array().unwrap() {
+    // A case whose object type declares model tables (`bodyExtraction`) is a
+    // model case, not one of the records without model features.
+    for case in cases["cases"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|c| c["input"].get("bodyExtraction").is_none())
+    {
         let name = case["name"].as_str().unwrap();
         let input = case["input"].clone();
         let value = serde_json::to_value(extract_semantic_json(&input).unwrap()).unwrap();
@@ -830,4 +846,572 @@ fn records_without_model_features_are_unchanged() {
     );
     assert!(record.get("model").is_none());
     assert!(record["availability"].get("model").is_none());
+}
+
+/// The bundle `entries` declare: each `(id, object, names)` is a
+/// `BundleIndex.artifacts` entry and a `BundleIndex.objects` entry.
+fn bundle_of(entries: &[(&str, Option<&str>, &[&str])]) -> Value {
+    let artifacts: Vec<Value> = entries
+        .iter()
+        .map(|(id, object, _)| json!({ "id": id, "object": object, "operations": [] }))
+        .collect();
+    let objects: Vec<Value> = entries
+        .iter()
+        .map(|(id, _, names)| json!({ "id": id, "names": names }))
+        .collect();
+    json!({ "package": "agent-ix/shop", "objects": objects, "artifacts": artifacts })
+}
+
+/// Events EV-001 `OrderPlaced`, EV-002 `OrderShipped`, EV-003 `Picked`,
+/// EV-004 `Packed`, and the entity ENT-001 `Order`.
+fn shop_bundle() -> Value {
+    bundle_of(&[
+        ("EV-001", Some("event"), &["OrderPlaced"]),
+        ("EV-002", Some("event"), &["OrderShipped"]),
+        ("EV-003", Some("event"), &["Picked"]),
+        ("EV-004", Some("event"), &["Packed"]),
+        ("ENT-001", Some("entity"), &["Order"]),
+    ])
+}
+
+/// The request for `md` under `body_extraction` and the shop bundle.
+fn shop_request(md: &str, body_extraction: Value) -> Value {
+    json!({
+        "markdown": md,
+        "module": {
+            "contractVersion": "1.0.0",
+            "package": "agent-ix/spec-objects-fixture",
+            "exports": ["state_machine"],
+        },
+        "path": PATH,
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": shop_bundle(),
+        "bodyExtraction": body_extraction,
+    })
+}
+
+/// A state machine whose transition `Emits` is `emits` and whose one step
+/// consumes `consumes` and emits `step_emits`; the transition row is line 19
+/// and the step row line 25.
+fn machine(emits: &str, consumes: &str, step_emits: &str) -> String {
+    format!(
+        "---\nid: SM-001\ntitle: OrderLifecycle\nobject: state_machine\n---\n# SM-001: OrderLifecycle\n\n## States\n\n| State | Description |\n|---|---|\n| open | |\n| shipped | |\n\n## Transitions\n\n| From | To | Trigger | Guard | Emits |\n|---|---|---|---|---|\n| open | shipped | ship | | {emits} |\n\n## Steps\n\n| Step | Kind | Consumes | Emits | Description |\n|---|---|---|---|---|\n| pick | command | {consumes} | {step_emits} | |\n\n## Operations\n\n### ship\n\nReturns: String[1]\n"
+    )
+}
+
+const TRANSITION_LINE: u64 = 19;
+const STEP_LINE: u64 = 25;
+
+fn machine_tables() -> Value {
+    dsl(json!({
+        "states": row("States", &["State", "Description"], &[]),
+        "transitions": row(
+            "Transitions",
+            &["From", "To", "Trigger", "Guard", "Emits"],
+            &["Guard", "Emits"],
+        ),
+        "steps": row("Steps", &["Step", "Kind", "Consumes", "Emits", "Description"], &[]),
+    }))
+}
+
+fn machine_request(emits: &str, consumes: &str, step_emits: &str) -> Value {
+    shop_request(&machine(emits, consumes, step_emits), machine_tables())
+}
+
+/// A relation vocabulary for `object_type` with `allowed` links; events
+/// carry the `event-like` role.
+fn vocabulary(object_type: &str, allowed: Value) -> Value {
+    json!({
+        "objectType": object_type,
+        "roles": { "event": ["event-like"], "entity": ["domain-object"] },
+        "allowedLinks": { object_type: allowed },
+    })
+}
+
+/// `request` with `key` set to `value`.
+fn with(mut request: Value, key: &str, value: Value) -> Value {
+    request[key] = value;
+    request
+}
+
+/// `request` under a state-machine construct admitting `event-like` for
+/// transitions and steps.
+fn under_construct(request: Value) -> Value {
+    let request = with(
+        request,
+        "relationVocabulary",
+        vocabulary("state_machine", json!({})),
+    );
+    with(
+        request,
+        "constructReferences",
+        json!({ "transitions": ["event-like"], "steps": ["event-like"] }),
+    )
+}
+
+/// The declaration-reference diagnostics of `record`: code, reason, line.
+fn reference_findings(record: &Value) -> Vec<(String, Option<String>, u64)> {
+    record["diagnostics"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|d| {
+            [
+                "semantic.unknown-reference",
+                "semantic.reference-kind-mismatch",
+                "semantic.ambiguous-reference",
+                "semantic.duplicate-model-entry",
+                "semantic.invalid-model-cell",
+                "semantic.unresolved-target",
+            ]
+            .contains(&d["code"].as_str().unwrap())
+        })
+        .map(|d| {
+            (
+                d["code"].as_str().unwrap().to_string(),
+                d["reason"].as_str().map(str::to_string),
+                d["line"].as_u64().unwrap(),
+            )
+        })
+        .collect()
+}
+
+fn finding(code: &str, reason: Option<&str>, line: u64) -> (String, Option<String>, u64) {
+    (code.to_string(), reason.map(str::to_string), line)
+}
+
+const EV1: &str = "ix://agent-ix/shop/EV-001";
+const EV2: &str = "ix://agent-ix/shop/EV-002";
+
+#[trace("TC-1993", "FR-075-AC-22", "FR-075-CON-2")]
+// `Emits` and `Consumes` items resolve by title or id to SemanticIds of the
+// bundle, never to the cell text.
+#[test]
+fn declaration_references_resolve_to_semantic_ids() {
+    let record = extract_request(&machine_request(
+        "OrderPlaced",
+        "OrderPlaced, EV-002",
+        "OrderShipped",
+    ));
+    assert_eq!(
+        record["availability"]["model"]["state"], "available",
+        "{record:#}"
+    );
+    let model = &record["model"];
+    assert_eq!(model["transitions"][0]["emits"], EV1);
+    assert_eq!(model["steps"][0]["consumes"], json!([EV1, EV2]));
+    assert_eq!(model["steps"][0]["emits"], json!([EV2]));
+    for (value, cell) in [
+        (&model["transitions"][0]["emits"], "OrderPlaced"),
+        (&model["steps"][0]["consumes"][0], "OrderPlaced"),
+        (&model["steps"][0]["consumes"][1], "EV-002"),
+        (&model["steps"][0]["emits"][0], "OrderShipped"),
+    ] {
+        let value = value.as_str().unwrap();
+        assert!(value.starts_with("ix://"), "{value}");
+        assert_ne!(value, cell);
+    }
+    assert!(reference_findings(&record).is_empty(), "{record:#}");
+
+    let record = extract_request(&machine_request("", "OrderPlaced", ""));
+    assert!(
+        record["model"]["transitions"][0].get("emits").is_none(),
+        "{record:#}"
+    );
+    assert!(record["model"]["steps"][0].get("emits").is_none());
+}
+
+#[trace("TC-1994", "FR-075-AC-23")]
+// An unknown name and a declaration of a type no module source admits are
+// refused; admission reads the construct references, then allowed_links,
+// then admits any.
+#[test]
+fn unknown_and_unadmitted_references_are_refused() {
+    let record = extract_request(&machine_request("OrderLost", "", ""));
+    assert_eq!(
+        reference_findings(&record),
+        [finding(
+            "semantic.unknown-reference",
+            Some("unknown-name"),
+            TRANSITION_LINE
+        )]
+    );
+    let d = diagnostic(&record, "semantic.unknown-reference", "unknown-name");
+    assert_eq!(d["severity"], "error");
+    assert_eq!(d["section"], "Transitions");
+    assert_eq!(d["sourceSpan"]["startLine"], TRANSITION_LINE);
+    for needle in [PATH, "Transitions", "transitions", "OrderLost"] {
+        assert!(d["message"].as_str().unwrap().contains(needle), "{d:#}");
+    }
+    assert_model_unavailable(&record);
+    assert_eq!(
+        record["availability"]["model"]["reason"],
+        format!("entry-errors: lines {TRANSITION_LINE}")
+    );
+
+    // The construct entry `transitions: [event-like]` refuses an entity.
+    let record = extract_request(&under_construct(machine_request("Order", "", "")));
+    assert_eq!(
+        reference_findings(&record),
+        [finding(
+            "semantic.reference-kind-mismatch",
+            None,
+            TRANSITION_LINE
+        )]
+    );
+    assert_model_unavailable(&record);
+
+    // A process with `allowed_links.emits: [event]` and no construct entry
+    // for `steps` refuses it too.
+    let process = with(
+        with(
+            machine_request("", "", "Order"),
+            "relationVocabulary",
+            vocabulary("process", json!({ "emits": ["event"] })),
+        ),
+        "constructReferences",
+        json!({ "transitions": ["event-like"] }),
+    );
+    let record = extract_request(&process);
+    assert_eq!(
+        reference_findings(&record),
+        [finding("semantic.reference-kind-mismatch", None, STEP_LINE)]
+    );
+    assert_model_unavailable(&record);
+
+    // A module declaring neither source admits the entity.
+    let neither = with(
+        machine_request("Order", "", "Order"),
+        "relationVocabulary",
+        vocabulary("process", json!({})),
+    );
+    let record = extract_request(&neither);
+    assert!(reference_findings(&record).is_empty(), "{record:#}");
+    assert_eq!(
+        record["model"]["transitions"][0]["emits"],
+        "ix://agent-ix/shop/ENT-001"
+    );
+
+    // The control: every item resolves under the construct.
+    let record = extract_request(&under_construct(machine_request(
+        "OrderPlaced",
+        "OrderShipped",
+        "EV-001",
+    )));
+    assert!(reference_findings(&record).is_empty(), "{record:#}");
+    assert_eq!(record["availability"]["model"]["state"], "available");
+}
+
+#[trace("TC-1995", "FR-075-AC-24")]
+// Candidates are every distinct declaration matched by id, title or name;
+// the admitted ones decide; `ix://` items are never matched by name.
+#[test]
+fn reference_candidates_and_ambiguity() {
+    let in_bundle = |request: Value, bundle: Value| with(request, "bundle", bundle);
+
+    // Two events titled `OrderPlaced`.
+    let record = extract_request(&in_bundle(
+        machine_request("OrderPlaced", "", ""),
+        bundle_of(&[
+            ("EV-001", Some("event"), &["OrderPlaced"]),
+            ("EV-005", Some("event"), &["OrderPlaced"]),
+        ]),
+    ));
+    assert_eq!(
+        reference_findings(&record),
+        [finding(
+            "semantic.ambiguous-reference",
+            None,
+            TRANSITION_LINE
+        )]
+    );
+    let message = record["diagnostics"][0]["message"].as_str().unwrap();
+    assert!(
+        message.contains("EV-001") && message.contains("EV-005"),
+        "{message}"
+    );
+
+    // An event and an entity both titled `OrderPlaced`: the admitted event.
+    let record = extract_request(&in_bundle(
+        under_construct(machine_request("OrderPlaced", "", "")),
+        bundle_of(&[
+            ("EV-001", Some("event"), &["OrderPlaced"]),
+            ("ENT-001", Some("entity"), &["OrderPlaced"]),
+        ]),
+    ));
+    assert!(reference_findings(&record).is_empty(), "{record:#}");
+    assert_eq!(record["model"]["transitions"][0]["emits"], EV1);
+
+    // One event authored in two forms under one id.
+    let mut two_forms = bundle_of(&[
+        ("EV-001", Some("event"), &["OrderPlaced"]),
+        ("EV-001", Some("event"), &["OrderPlaced", "Order Placed"]),
+    ]);
+    two_forms["package"] = json!("agent-ix/shop");
+    let record = extract_request(&in_bundle(
+        machine_request("OrderPlaced", "", ""),
+        two_forms,
+    ));
+    assert!(reference_findings(&record).is_empty(), "{record:#}");
+    assert_eq!(record["model"]["transitions"][0]["emits"], EV1);
+
+    // An event with id `OrderPlaced` and another titled `OrderPlaced`.
+    let record = extract_request(&in_bundle(
+        machine_request("OrderPlaced", "", ""),
+        bundle_of(&[
+            ("OrderPlaced", Some("event"), &[]),
+            ("EV-001", Some("event"), &["OrderPlaced"]),
+        ]),
+    ));
+    assert_eq!(
+        reference_findings(&record),
+        [finding(
+            "semantic.ambiguous-reference",
+            None,
+            TRANSITION_LINE
+        )]
+    );
+
+    // The id of an entity and the title of an event: the admitted event.
+    let record = extract_request(&in_bundle(
+        under_construct(machine_request("Shipment", "", "")),
+        bundle_of(&[
+            ("Shipment", Some("entity"), &[]),
+            ("EV-007", Some("event"), &["Shipment"]),
+        ]),
+    ));
+    assert!(reference_findings(&record).is_empty(), "{record:#}");
+    assert_eq!(
+        record["model"]["transitions"][0]["emits"],
+        "ix://agent-ix/shop/EV-007"
+    );
+
+    // `ix://` resolves as an FR-076 Target does, never by name.
+    let record = extract_request(&machine_request("ix://agent-ix/shop/EV-001", "", ""));
+    assert!(reference_findings(&record).is_empty(), "{record:#}");
+    assert_eq!(record["model"]["transitions"][0]["emits"], EV1);
+    let record = extract_request(&machine_request("ix://agent-ix/shop/OrderPlaced", "", ""));
+    assert_eq!(
+        reference_findings(&record),
+        [finding(
+            "semantic.unknown-reference",
+            Some("unknown-name"),
+            TRANSITION_LINE
+        )]
+    );
+
+    // The extracted artifact by its own title: resolved when admitted.
+    let record = extract_request(&machine_request("OrderLifecycle", "", ""));
+    assert!(reference_findings(&record).is_empty(), "{record:#}");
+    assert_eq!(
+        record["model"]["transitions"][0]["emits"],
+        "ix://agent-ix/shop/SM-001"
+    );
+    let record = extract_request(&under_construct(machine_request("OrderLifecycle", "", "")));
+    assert_eq!(
+        reference_findings(&record),
+        [finding(
+            "semantic.reference-kind-mismatch",
+            None,
+            TRANSITION_LINE
+        )]
+    );
+}
+
+#[trace("TC-1996", "FR-075-AC-25")]
+// Cell-shape refusals, imported identities, untyped declarations, and the
+// construct entry deciding over allowed_links.
+#[test]
+fn reference_cell_rules() {
+    let record = extract_request(&machine_request("", "OrderPlaced, EV-001", ""));
+    assert_eq!(
+        reference_findings(&record),
+        [finding(
+            "semantic.duplicate-model-entry",
+            Some("repeated-reference"),
+            STEP_LINE
+        )]
+    );
+    assert_model_unavailable(&record);
+
+    for cell in ["OrderPlaced,,EV-002", "OrderPlaced,"] {
+        let record = extract_request(&machine_request("", cell, ""));
+        assert_eq!(
+            reference_findings(&record),
+            [finding(
+                "semantic.invalid-model-cell",
+                Some("empty-item"),
+                STEP_LINE
+            )],
+            "{cell}"
+        );
+        assert_model_unavailable(&record);
+    }
+
+    let record = extract_request(&machine_request("OrderPlaced, OrderShipped", "", ""));
+    assert_eq!(
+        reference_findings(&record),
+        [finding(
+            "semantic.invalid-model-cell",
+            Some("too-many-references"),
+            TRANSITION_LINE
+        )]
+    );
+    assert_model_unavailable(&record);
+
+    // An identity in an imported package resolves unchecked.
+    let mut imported = under_construct(machine_request("ix://agent-ix/billing/INV-1", "", ""));
+    imported["module"]["imports"] = json!({ "agent-ix/billing": "*" });
+    let record = extract_request(&imported);
+    assert!(reference_findings(&record).is_empty(), "{record:#}");
+    assert_eq!(
+        record["model"]["transitions"][0]["emits"],
+        "ix://agent-ix/billing/INV-1"
+    );
+
+    // A declaration with no object type: admitted by an unrestricted cell,
+    // refused under `allowed_links.emits: [event]`.
+    let untyped = bundle_of(&[("LOOSE-1", None, &["Loose"])]);
+    let record = extract_request(&with(
+        machine_request("", "", "Loose"),
+        "bundle",
+        untyped.clone(),
+    ));
+    assert!(reference_findings(&record).is_empty(), "{record:#}");
+    assert_eq!(
+        record["model"]["steps"][0]["emits"],
+        json!(["ix://agent-ix/shop/LOOSE-1"])
+    );
+    let record = extract_request(&with(
+        with(machine_request("", "", "Loose"), "bundle", untyped),
+        "relationVocabulary",
+        vocabulary("process", json!({ "emits": ["event"] })),
+    ));
+    assert_eq!(
+        reference_findings(&record),
+        [finding("semantic.reference-kind-mismatch", None, STEP_LINE)]
+    );
+
+    // A construct entry and an allowed_links entry: the construct decides.
+    let both = |emits: &str| {
+        with(
+            with(
+                machine_request(emits, "", ""),
+                "relationVocabulary",
+                vocabulary("state_machine", json!({ "emits": ["entity"] })),
+            ),
+            "constructReferences",
+            json!({ "transitions": ["event-like"] }),
+        )
+    };
+    let record = extract_request(&both("OrderPlaced"));
+    assert!(reference_findings(&record).is_empty(), "{record:#}");
+    let record = extract_request(&both("Order"));
+    assert_eq!(
+        reference_findings(&record),
+        [finding(
+            "semantic.reference-kind-mismatch",
+            None,
+            TRANSITION_LINE
+        )]
+    );
+}
+
+const MACHINE_MODULE: &str = "manifest_version: 1.0.0\nname: machines\nobject_types:\n- name: state_machine\n  data_schema:\n    type: object\n  body_extraction:\n    yield_pattern:\n      match:\n        states: { from: table_row, under_section: States, assert: { columns: [State, Description] } }\n        transitions: { from: table_row, under_section: Transitions, assert: { columns: [From, To, Trigger, Guard, Emits], optional_columns: [Guard, Emits] } }\n        steps: { from: table_row, under_section: Steps, assert: { columns: [Step, Kind, Consumes, Emits, Description] } }\nsemantic:\n  contract_version: 1.0.0\n  package: agent-ix/machines\n  exports: [state_machine]\n  targets: [json-schema, markdown]\n";
+
+#[trace("TC-1997", "FR-075-AC-26")]
+// With no bundle index or no bundle package the rows advise, the model is
+// unavailable with that reason and no error, and validate_document passes.
+#[test]
+fn unresolvable_bundle_advises_and_keeps_validating() {
+    let unindexed = with(
+        machine_request("OrderPlaced", "OrderPlaced", ""),
+        "bundle",
+        json!({
+            "package": "agent-ix/shop",
+            "objects": [{ "id": "EV-001", "names": ["OrderPlaced"] }],
+            "artifacts": []
+        }),
+    );
+    let record = extract_request(&unindexed);
+    assert_eq!(
+        reference_findings(&record),
+        [
+            finding(
+                "semantic.unresolved-target",
+                Some("no-bundle-index"),
+                TRANSITION_LINE
+            ),
+            finding(
+                "semantic.unresolved-target",
+                Some("no-bundle-index"),
+                STEP_LINE
+            ),
+        ]
+    );
+    assert!(record["diagnostics"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .all(|d| d["severity"] != "error"));
+    assert_eq!(
+        record["availability"]["model"],
+        json!({ "state": "unavailable", "reason": "no-bundle-index", "lossy": false })
+    );
+    assert!(record.get("model").is_none(), "{record:#}");
+
+    let registry =
+        quire_rs::Registry::from_inline_parts(MACHINE_MODULE.as_bytes(), &Default::default())
+            .unwrap();
+    assert!(registry.failures().is_empty(), "{:?}", registry.failures());
+    let machine_type = registry.archetype("state_machine").unwrap();
+    let doc = machine("OrderPlaced", "OrderPlaced", "");
+    for result in [
+        quire_rs::validate_document_in_bundle(&registry, machine_type, &doc, "agent-ix/shop", None),
+        quire_rs::validate_document_in_registry(&registry, machine_type, &doc),
+    ] {
+        assert!(result.is_valid, "{:?}", result.errors);
+        assert!(
+            result
+                .warnings
+                .iter()
+                .any(|w| w.message.starts_with("semantic.unresolved-target")),
+            "{:?}",
+            result.warnings
+        );
+    }
+
+    // A bundle with no package and no source identity.
+    let mut unpackaged = machine_request("OrderPlaced", "", "");
+    unpackaged["bundle"]["package"] = json!("");
+    unpackaged.as_object_mut().unwrap().remove("sourceIdentity");
+    let record = extract_request(&unpackaged);
+    assert_eq!(
+        reference_findings(&record),
+        [finding(
+            "semantic.unresolved-target",
+            Some("no-bundle-package"),
+            TRANSITION_LINE
+        )]
+    );
+    assert_eq!(
+        record["availability"]["model"],
+        json!({ "state": "unavailable", "reason": "no-bundle-package", "lossy": false })
+    );
+    assert!(record.get("model").is_none(), "{record:#}");
+
+    // A bundle listing only the extracted artifact is indexed.
+    let record = extract_request(&with(
+        machine_request("OrderPlaced", "", ""),
+        "bundle",
+        bundle_of(&[("SM-001", Some("state_machine"), &["OrderLifecycle"])]),
+    ));
+    assert_eq!(
+        reference_findings(&record),
+        [finding(
+            "semantic.unknown-reference",
+            Some("unknown-name"),
+            TRANSITION_LINE
+        )]
+    );
 }

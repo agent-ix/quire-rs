@@ -523,3 +523,327 @@ fn record_compatibility_and_registry_authority() {
     want[1]["verb"] = json!("holds");
     assert_eq!(record["relations"], want);
 }
+
+/// A data schema whose top-level `keys` are `SemanticId[]`, with `relations`
+/// when `relations` is set.
+fn typed_schema(keys: &[&str], relations: bool) -> Value {
+    let core = format!(
+        "https://schemas.agent-ix.org/semantic-core/{}/",
+        declared_core()
+    );
+    let mut properties = serde_json::Map::new();
+    for key in keys {
+        properties.insert(
+            key.to_string(),
+            json!({ "type": "array", "items": { "$ref": format!("{core}SemanticId.json") } }),
+        );
+    }
+    if relations {
+        properties.insert(
+            "relations".to_string(),
+            json!({ "type": "array", "items": { "$ref": format!("{core}RelationDecl.json") } }),
+        );
+    }
+    json!({ "type": "object", "properties": properties })
+}
+
+/// The schema of each typed object type: `process` and `repository` are
+/// typed-only, `aggregate_root` declares `relations` and `emits`.
+fn schema_of(object_type: &str) -> Value {
+    match object_type {
+        "process" => typed_schema(&["emits"], false),
+        "repository" => typed_schema(&["persists"], false),
+        "aggregate_root" => typed_schema(&["emits"], true),
+        other => panic!("no schema for {other}"),
+    }
+}
+
+const TYPED_PACKAGE: &str = "agent-ix/shop";
+
+/// The FR-076 request for an artifact of `object_type` with `rows` under
+/// `## Relationships` (the first row is line 12) and `frontmatter` lines
+/// appended to its frontmatter, against an indexed shop bundle.
+fn typed_request(object_type: &str, frontmatter: &str, rows: &str) -> Value {
+    let md = format!(
+        "---\nid: X-001\ntitle: Example\nobject: {object_type}\n{frontmatter}---\n# X-001: Example\n\n## Relationships\n\n| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n{rows}"
+    );
+    json!({
+        "markdown": md,
+        "module": {
+            "contractVersion": "1.0.0",
+            "package": "agent-ix/spec-objects-business",
+            "exports": [object_type],
+            "mappings": ["relationships"],
+        },
+        "path": "x.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+            "package": TYPED_PACKAGE,
+            "objects": [{ "id": "event-001", "names": ["event-001", "OrderPlaced"] }],
+            "artifacts": [
+                { "id": "event-001", "object": "event", "operations": [] },
+                { "id": "aggregate-root-001", "object": "aggregate_root", "operations": [] },
+                { "id": "entity-001", "object": "entity", "operations": [] },
+            ],
+        },
+        "relationVocabulary": {
+            "objectType": object_type,
+            "edgeTypes": {
+                "emits": { "category": "dataflow", "inverse": "emitted_by" },
+                "persists": { "category": "dependency" },
+                "references": { "category": "traceability" },
+                "triggers": { "category": "behavioral" },
+            },
+            "roles": {},
+            "allowedLinks": {
+                "aggregate_root": { "emits": ["event"], "references": ["aggregate_root"] },
+                "process": { "emits": ["event"], "triggers": ["process"] },
+                "repository": { "persists": ["aggregate_root", "entity"] },
+            },
+        },
+        "dataSchema": schema_of(object_type),
+    })
+}
+
+/// Extract an FR-076 request, schema-checked against semantic-v1.
+fn typed_extract(request: &Value) -> Value {
+    extract(request, declared_core())
+}
+
+fn identity(id: &str) -> String {
+    format!("ix://{TYPED_PACKAGE}/{id}")
+}
+
+/// The `code`/`reason` of every diagnostic of `record`.
+fn findings(record: &Value) -> Vec<(String, String)> {
+    record["diagnostics"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|d| {
+            (
+                d["code"].as_str().unwrap().to_string(),
+                d["reason"].as_str().unwrap_or_default().to_string(),
+            )
+        })
+        .collect()
+}
+
+#[trace("TC-1999", "FR-076-AC-16", "FR-076-CON-3")]
+// Rows whose verb is a typed relation key of the data schema lower into that
+// key as SemanticIds; a typed-only type carries no `relations`.
+#[test]
+fn typed_relation_keys_lower_from_rows() {
+    let record = typed_extract(&typed_request(
+        "process",
+        "",
+        "| done | emits | event-001 | 0..1 |\n",
+    ));
+    assert_eq!(
+        record["emits"],
+        json!([identity("event-001")]),
+        "{record:#}"
+    );
+    assert!(record.get("relations").is_none(), "{record:#}");
+    assert_eq!(record["availability"]["relations"]["state"], "available");
+    let sources = record["relationSources"].as_array().unwrap();
+    assert_eq!(sources.len(), 1);
+    assert_eq!(sources[0]["name"], "done");
+    assert_eq!(sources[0]["verb"], "emits");
+    assert_eq!(sources[0]["target"], "event-001");
+    assert_eq!(sources[0]["multiplicity"], "0..1");
+    assert_eq!(sources[0]["sourceSpan"]["startLine"], 12);
+
+    let record = typed_extract(&typed_request(
+        "repository",
+        "",
+        "| orders | persists | aggregate-root-001 | 0..* |\n",
+    ));
+    assert_eq!(
+        record["persists"],
+        json!([identity("aggregate-root-001")]),
+        "{record:#}"
+    );
+    assert!(record.get("relations").is_none());
+
+    let record = typed_extract(&typed_request(
+        "aggregate_root",
+        "",
+        "| placed | emits | event-001 | 0..* |\n| shipped | emits | ix://agent-ix/shop/event-001 | 0..* |\n",
+    ));
+    assert_eq!(
+        record["emits"],
+        json!([identity("event-001"), identity("event-001")]),
+        "{record:#}"
+    );
+    for value in record["emits"].as_array().unwrap() {
+        assert!(value.as_str().unwrap().starts_with("ix://"), "{value}");
+    }
+}
+
+#[trace("TC-2000", "FR-076-AC-17")]
+// A typed row is refused for exactly the FR-076 reasons, plus a verb that is
+// no typed key on a typed-only type; an error leaves no typed key.
+#[test]
+fn typed_rows_keep_the_relationship_refusals() {
+    for (row, reason) in [
+        ("| x | emits | nope | 1 |\n", "target-not-id"),
+        ("| x | emits | OrderPlaced | 1 |\n", "target-not-id"),
+        ("| x | emits | entity-001 | 1 |\n", "target-not-allowed"),
+        ("| x | triggers | event-001 | 1 |\n", "verb-not-typed-key"),
+        ("| x | emitted_by | event-001 | 1 |\n", "inverse-verb"),
+    ] {
+        let record = typed_extract(&typed_request("process", "", row));
+        assert_eq!(
+            findings(&record),
+            [(
+                "semantic.invalid-model-cell".to_string(),
+                reason.to_string()
+            )],
+            "{row}"
+        );
+        assert_eq!(record["availability"]["relations"]["state"], "unavailable");
+        for key in ["emits", "relations", "relationSources"] {
+            assert!(record.get(key).is_none(), "{row}: {key}\n{record:#}");
+        }
+    }
+    let record = typed_extract(&typed_request(
+        "process",
+        "",
+        "| x | emits | event-001 | 1 |\n",
+    ));
+    assert!(findings(&record).is_empty(), "{record:#}");
+}
+
+#[trace("TC-2001", "FR-076-AC-18")]
+// A header-only table on a typed-only type yields the empty typed key; a type
+// declaring `relations` and a typed key keeps `relationSources` aligned with
+// `relations`.
+#[test]
+fn typed_keys_beside_relations() {
+    let record = typed_extract(&typed_request("process", "", ""));
+    assert_eq!(record["availability"]["relations"]["state"], "available");
+    assert_eq!(record["emits"], json!([]), "{record:#}");
+    assert!(record.get("relations").is_none());
+    assert!(record.get("relationSources").is_none());
+
+    let record = typed_extract(&typed_request(
+        "aggregate_root",
+        "",
+        "| placed | emits | event-001 | 0..* |\n| parent | references | aggregate-root-001 | 0..1 |\n",
+    ));
+    assert_eq!(
+        record["emits"],
+        json!([identity("event-001")]),
+        "{record:#}"
+    );
+    let relations = record["relations"].as_array().unwrap();
+    assert_eq!(relations.len(), 1);
+    assert_eq!(relations[0]["verb"], "references");
+    let sources = record["relationSources"].as_array().unwrap();
+    assert_eq!(sources.len(), 1);
+    assert_eq!(sources[0]["name"], "parent");
+    assert!(sources[0].get("verb").is_none(), "{record:#}");
+}
+
+#[trace("TC-2002", "FR-076-AC-19", "FR-076-CON-4")]
+// A typed key in frontmatter is a second declaration site: refused at line 1,
+// and never read into the key.
+#[test]
+fn frontmatter_typed_key_is_duplicate_authority() {
+    let record = typed_extract(&typed_request(
+        "repository",
+        "persists: [aggregate-root-001]\n",
+        "| orders | persists | entity-001 | 0..* |\n",
+    ));
+    let duplicate: Vec<&Value> = record["diagnostics"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|d| d["code"] == "semantic.duplicate-authority")
+        .collect();
+    assert_eq!(duplicate.len(), 1, "{record:#}");
+    assert_eq!(duplicate[0]["reason"], "frontmatter-key");
+    assert_eq!(duplicate[0]["line"], 1);
+    assert_eq!(duplicate[0]["severity"], "error");
+    assert!(record.get("persists").is_none(), "{record:#}");
+    assert!(!record.to_string().contains(&identity("aggregate-root-001")));
+
+    let record = typed_extract(&typed_request(
+        "repository",
+        "",
+        "| orders | persists | entity-001 | 0..* |\n",
+    ));
+    assert!(findings(&record).is_empty(), "{record:#}");
+    assert_eq!(record["persists"], json!([identity("entity-001")]));
+}
+
+#[trace("TC-2003", "FR-076-AC-20")]
+// No bundle index lowers a typed row unchecked with the advisory; one
+// declaration has one identity across a model reference item and a typed
+// row; a title stays `target-not-id`; a type without typed keys is unchanged.
+#[test]
+fn typed_rows_share_identity_and_index_states() {
+    let mut unindexed = typed_request("process", "", "| done | emits | event-001 | 1 |\n");
+    unindexed["bundle"]
+        .as_object_mut()
+        .unwrap()
+        .remove("artifacts");
+    let record = typed_extract(&unindexed);
+    assert_eq!(
+        record["emits"],
+        json!([identity("event-001")]),
+        "{record:#}"
+    );
+    assert_eq!(
+        findings(&record),
+        [(
+            "semantic.unresolved-target".to_string(),
+            "no-bundle-index".to_string()
+        )]
+    );
+    assert_eq!(record["availability"]["relations"]["state"], "available");
+
+    // One declaration, one identity: a step `Emits` item by title and a
+    // typed row by id.
+    let mut both = typed_request("process", "", "| done | emits | event-001 | 1 |\n");
+    let md = both["markdown"].as_str().unwrap().to_string()
+        + "\n## Steps\n\n| Step | Kind | Consumes | Emits | Description |\n|---|---|---|---|---|\n| place | command | | OrderPlaced | |\n";
+    both["markdown"] = json!(md);
+    both["bodyExtraction"] = json!({ "yield_pattern": { "match": { "steps": {
+        "from": "table_row", "under_section": "Steps",
+        "assert": { "columns": ["Step", "Kind", "Consumes", "Emits", "Description"] }
+    } } } });
+    let record = typed_extract(&both);
+    assert_eq!(
+        record["model"]["steps"][0]["emits"][0], record["emits"][0],
+        "{record:#}"
+    );
+    assert_eq!(record["emits"][0], identity("event-001"));
+
+    let record = typed_extract(&typed_request(
+        "process",
+        "",
+        "| x | emits | OrderPlaced | 1 |\n",
+    ));
+    assert_eq!(
+        findings(&record),
+        [(
+            "semantic.invalid-model-cell".to_string(),
+            "target-not-id".to_string()
+        )]
+    );
+
+    // A schema with no typed key reads every row as before.
+    let mut untyped = typed_request(
+        "aggregate_root",
+        "",
+        "| placed | emits | event-001 | 0..* |\n",
+    );
+    untyped["dataSchema"] = typed_schema(&[], true);
+    let with_schema = serde_json::to_string(&extract_semantic_json(&untyped).unwrap()).unwrap();
+    untyped.as_object_mut().unwrap().remove("dataSchema");
+    let without = serde_json::to_string(&extract_semantic_json(&untyped).unwrap()).unwrap();
+    assert_eq!(with_schema, without);
+    assert!(with_schema.contains("\"relations\""), "{with_schema}");
+}

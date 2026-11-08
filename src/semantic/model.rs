@@ -18,10 +18,11 @@ use super::decl::{is_identifier, Multiplicity, TypeRef};
 use super::properties::{
     feature_columns, is_typed_prefix, map_multiplicity, map_type, strip_ticks, RowInput,
 };
-use super::scan::{blocks_in, comma_list, level2_headings, lines, Block, Table};
+use super::scan::{blocks_in, level2_headings, lines, Block, Table};
 use super::systems::{
     self, AllocationRecord, ConnectionRecord, PartRecord, PortRecord, SystemsDecl,
 };
+use super::target::{resolve_reference, Admission, Declarations, OwnDeclaration, ReferenceRefusal};
 use super::{AvailabilityState, KindAvailability, SemanticDiagnostic};
 use crate::extract::assert_eval::headers_conform;
 use crate::extract::dsl::ExtractionDsl;
@@ -541,8 +542,9 @@ pub struct TransitionDecl {
     pub trigger: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub guard: Option<String>,
+    /// The `SemanticId` of the declaration the `Emits` cell names.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub emits: Option<Vec<String>>,
+    pub emits: Option<String>,
     pub source_span: SourceLocus,
 }
 
@@ -582,8 +584,10 @@ impl std::str::FromStr for StepKind {
 pub struct StepDecl {
     pub name: String,
     pub kind: StepKind,
+    /// The `SemanticId`s the `Consumes` cell names, in cell order.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub consumes: Option<Vec<String>>,
+    /// The `SemanticId`s the `Emits` cell names, in cell order.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub emits: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -726,6 +730,10 @@ pub(crate) struct ModelOutcome {
     /// The header line of the `Features` table read into `feature_order`.
     pub(crate) features_line: Option<usize>,
     pub(crate) lossy: bool,
+    /// Why a declaration reference could not be resolved at all
+    /// (`no-bundle-index`, `no-bundle-package`): the model is unavailable
+    /// with no error.
+    pub(crate) unresolved: Option<&'static str>,
     pub(crate) diagnostics: Vec<SemanticDiagnostic>,
 }
 
@@ -750,8 +758,173 @@ pub(crate) fn extract_model(raw: &str, ctx: &SemanticContext, refs: ModelRefs<'_
     // `refs.operation_names` (from `extract_operations`, gated on the whole
     // section parsing clean) `None`.
     let own_operations = super::clauses::declared_operation_names(raw);
-    table_features(&lines, body_start, ctx, refs, &own_operations, &mut out);
+    let scope = ReferenceScope::new(raw, ctx);
+    table_features(
+        &lines,
+        body_start,
+        ctx,
+        refs,
+        &own_operations,
+        &scope,
+        &mut out,
+    );
     out
+}
+
+/// What FR-075 declaration references resolve against: the extracted
+/// artifact's own declaration, the bundle's state, and its declarations,
+/// built on the first reference cell read.
+pub(super) struct ReferenceScope {
+    own: OwnDeclaration,
+    state: ScopeState,
+    declarations: std::cell::OnceCell<Declarations>,
+}
+
+/// Whether reference items can be resolved.
+enum ScopeState {
+    /// Identities are minted under the package, against an indexed bundle.
+    Indexed { package: String },
+    /// No bundle package or no bundle index, reported once per row as an
+    /// advisory.
+    Unresolvable(UnresolvedBundle),
+}
+
+/// Why the bundle cannot resolve reference items.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum UnresolvedBundle {
+    NoPackage,
+    NoIndex,
+}
+
+impl UnresolvedBundle {
+    fn reason(self) -> &'static str {
+        match self {
+            Self::NoPackage => "no-bundle-package",
+            Self::NoIndex => "no-bundle-index",
+        }
+    }
+
+    fn supplies_no(self) -> &'static str {
+        match self {
+            Self::NoPackage => "bundle package",
+            Self::NoIndex => "bundle index",
+        }
+    }
+}
+
+impl ReferenceScope {
+    fn new(raw: &str, ctx: &SemanticContext) -> Self {
+        let state = match super::relations::bundle_package(ctx) {
+            None => ScopeState::Unresolvable(UnresolvedBundle::NoPackage),
+            Some(_) if ctx.bundle.artifacts.is_empty() => {
+                ScopeState::Unresolvable(UnresolvedBundle::NoIndex)
+            }
+            Some(package) => ScopeState::Indexed {
+                package: package.to_string(),
+            },
+        };
+        Self {
+            own: OwnDeclaration::from_raw(raw),
+            state,
+            declarations: std::cell::OnceCell::new(),
+        }
+    }
+
+    fn declarations(&self, ctx: &SemanticContext) -> &Declarations {
+        self.declarations
+            .get_or_init(|| Declarations::new(ctx, &self.own))
+    }
+}
+
+/// A model column whose items are declaration references.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ReferenceColumn {
+    TransitionEmits,
+    StepConsumes,
+    StepEmits,
+}
+
+impl ReferenceColumn {
+    fn header(self) -> &'static str {
+        match self {
+            Self::TransitionEmits | Self::StepEmits => "Emits",
+            Self::StepConsumes => "Consumes",
+        }
+    }
+
+    /// The model member whose construct `references` entry admits the cell.
+    fn member(self) -> &'static str {
+        match self {
+            Self::TransitionEmits => "transitions",
+            Self::StepConsumes | Self::StepEmits => "steps",
+        }
+    }
+
+    /// The verb whose `allowed_links` entry admits the cell.
+    fn verb(self) -> &'static str {
+        match self {
+            Self::TransitionEmits | Self::StepEmits => "emits",
+            Self::StepConsumes => "consumes",
+        }
+    }
+
+    /// A transition's `Emits` holds at most one reference.
+    fn single(self) -> bool {
+        match self {
+            Self::TransitionEmits => true,
+            Self::StepConsumes | Self::StepEmits => false,
+        }
+    }
+
+    /// The first admission source the module declares for the cell: the
+    /// construct `references` entry, then the `allowed_links` entry, then
+    /// none. Both are read through the relation vocabulary, which holds the
+    /// roles; a context without one admits every declaration.
+    fn admission(self, ctx: &SemanticContext) -> Admission<'_> {
+        let Some(vocabulary) = ctx.relation_vocabulary.as_ref() else {
+            return Admission::Any;
+        };
+        if let Some(roles) = ctx
+            .construct_references
+            .as_ref()
+            .and_then(|c| c.roles(self.member()))
+        {
+            return Admission::Construct { roles, vocabulary };
+        }
+        match vocabulary.allowed_targets(self.verb()) {
+            Some(tokens) => Admission::AllowedLinks { tokens, vocabulary },
+            None => Admission::Any,
+        }
+    }
+}
+
+/// One reference cell as read.
+enum ReferenceCell {
+    /// An empty cell.
+    Absent,
+    /// Every item resolved, in cell order.
+    Resolved(Vec<String>),
+    /// The cell holds items and the bundle cannot resolve them.
+    Unresolvable,
+    /// An item failed; its error is recorded.
+    Failed,
+}
+
+impl ReferenceCell {
+    fn failed(&self) -> bool {
+        matches!(self, Self::Failed)
+    }
+
+    fn unresolvable(&self) -> bool {
+        matches!(self, Self::Unresolvable)
+    }
+
+    fn into_ids(self) -> Option<Vec<String>> {
+        match self {
+            Self::Resolved(ids) => Some(ids),
+            Self::Absent | Self::Unresolvable | Self::Failed => None,
+        }
+    }
 }
 
 /// One model feature source for [`model_availability`].
@@ -761,18 +934,24 @@ pub(crate) struct ModelSource<'a> {
     /// The source failed: its declarations are not carried.
     pub(crate) failed: bool,
     pub(crate) lossy: bool,
+    /// The source could not resolve its declaration references at all.
+    pub(crate) unresolved: Option<&'static str>,
     pub(crate) diagnostics: &'a [SemanticDiagnostic],
 }
 
 /// `availability.model` (FR-075 General): absent when no source declares a
 /// feature; `unavailable` with the error loci when any declaring source
-/// failed; otherwise `available`.
+/// failed; `unavailable` with the reason when a source could not resolve its
+/// declaration references; otherwise `available`.
 pub(crate) fn model_availability(sources: &[ModelSource<'_>]) -> Option<KindAvailability> {
     let declaring: Vec<&ModelSource<'_>> = sources.iter().filter(|s| s.declared).collect();
     if declaring.is_empty() {
         return None;
     }
     if !declaring.iter().any(|s| s.failed) {
+        if let Some(reason) = declaring.iter().find_map(|s| s.unresolved) {
+            return Some(KindAvailability::unavailable(reason));
+        }
         return Some(KindAvailability::available(
             declaring.iter().any(|s| s.lossy),
         ));
@@ -806,6 +985,7 @@ impl ModelOutcome {
             declared: self.declared,
             failed: self.diagnostics.iter().any(SemanticDiagnostic::is_error),
             lossy: self.lossy,
+            unresolved: self.unresolved,
             diagnostics: &self.diagnostics,
         }
     }
@@ -966,6 +1146,7 @@ fn table_features(
     ctx: &SemanticContext,
     refs: ModelRefs<'_>,
     own_operations: &[String],
+    scope: &ReferenceScope,
     out: &mut ModelOutcome,
 ) {
     let headings = level2_headings(lines);
@@ -1062,11 +1243,13 @@ fn table_features(
             (spec.read)(&mut TableRead {
                 feature: spec.feature,
                 table,
+                section: heading,
                 lines,
                 ctx,
                 out,
                 keys: Vec::new(),
                 own_operations,
+                scope,
             });
             if out.diagnostics[before..].iter().any(|d| d.is_error()) {
                 failed.push(spec.feature);
@@ -1083,6 +1266,8 @@ fn table_features(
 pub(super) struct TableRead<'a> {
     pub(super) feature: ModelFeature,
     pub(super) table: &'a Table,
+    /// The `##` heading the table sits under.
+    section: &'a str,
     lines: &'a [&'a str],
     pub(super) ctx: &'a SemanticContext,
     pub(super) out: &'a mut ModelOutcome,
@@ -1098,6 +1283,8 @@ pub(super) struct TableRead<'a> {
     /// allocation `Source` self-reference `<own-id>/<member>` checks
     /// `<member>` against (FR-075 Inputs).
     own_operations: &'a [String],
+    /// What declaration references resolve against.
+    scope: &'a ReferenceScope,
 }
 
 impl<'a> TableRead<'a> {
@@ -1116,6 +1303,188 @@ impl<'a> TableRead<'a> {
             .position(|h| strip_ticks(h) == column)
             .and_then(|i| cells.get(i))
             .map_or("", |c| strip_ticks(c))
+    }
+
+    /// The cell under `column` as authored, trimmed, with no backticks
+    /// stripped: a reference cell strips them per item.
+    fn raw_cell<'c>(&self, cells: &'c [String], column: &str) -> &'c str {
+        self.table
+            .headers
+            .iter()
+            .position(|h| strip_ticks(h) == column)
+            .and_then(|i| cells.get(i))
+            .map_or("", |c| c.trim())
+    }
+
+    /// A declaration-reference diagnostic at the row: its span, section and
+    /// a message naming the artifact path, section, feature and item.
+    fn reference_diagnostic(
+        &self,
+        code: &str,
+        severity: SemanticSeverity,
+        reason: Option<&str>,
+        line: usize,
+        detail: impl std::fmt::Display,
+    ) -> SemanticDiagnostic {
+        let section = Section::Heading(self.section);
+        let mut d = SemanticDiagnostic::new(
+            code,
+            severity,
+            line,
+            format!(
+                "artifact {} declares {} in {} at line {line}: {detail}",
+                self.ctx.path,
+                self.feature.name(),
+                section.display(),
+            ),
+        );
+        d.reason = reason.map(str::to_string);
+        d.source_span = Some(self.span(line));
+        d.section = Some(section.label());
+        d
+    }
+
+    fn reference_error(
+        &mut self,
+        code: &str,
+        reason: Option<&str>,
+        line: usize,
+        detail: impl std::fmt::Display,
+    ) {
+        let d = self.reference_diagnostic(code, SemanticSeverity::Error, reason, line, detail);
+        self.out.diagnostics.push(d);
+    }
+
+    /// Read one reference cell (FR-075 Declaration references).
+    fn references(
+        &mut self,
+        cells: &[String],
+        column: ReferenceColumn,
+        line: usize,
+    ) -> ReferenceCell {
+        let raw = self.raw_cell(cells, column.header());
+        if raw.is_empty() {
+            return ReferenceCell::Absent;
+        }
+        let header = column.header();
+        let items: Vec<&str> = raw.split(',').map(strip_ticks).collect();
+        if items.iter().any(|item| item.is_empty()) {
+            self.reference_error(
+                "semantic.invalid-model-cell",
+                Some("empty-item"),
+                line,
+                format_args!("the {header} cell {raw:?} holds an empty item"),
+            );
+            return ReferenceCell::Failed;
+        }
+        if column.single() && items.len() > 1 {
+            self.reference_error(
+                "semantic.invalid-model-cell",
+                Some("too-many-references"),
+                line,
+                format_args!(
+                    "the {header} cell {raw:?} names {} declarations; a transition emits at most one",
+                    items.len()
+                ),
+            );
+            return ReferenceCell::Failed;
+        }
+        let (scope, ctx) = (self.scope, self.ctx);
+        let package = match &scope.state {
+            ScopeState::Unresolvable(_) => return ReferenceCell::Unresolvable,
+            ScopeState::Indexed { package } => package,
+        };
+        let admission = column.admission(ctx);
+        let mut resolved: Vec<String> = Vec::new();
+        let mut failed = false;
+        for item in items {
+            match resolve_reference(
+                ctx,
+                package,
+                &scope.own,
+                scope.declarations(ctx),
+                item,
+                admission,
+            ) {
+                Ok(identity) if resolved.contains(&identity) => {
+                    failed = true;
+                    self.reference_error(
+                        "semantic.duplicate-model-entry",
+                        Some("repeated-reference"),
+                        line,
+                        format_args!(
+                            "{header} item {item:?} names {identity}, which the cell already names"
+                        ),
+                    );
+                }
+                Ok(identity) => resolved.push(identity),
+                Err(ReferenceRefusal::UnknownName) => {
+                    failed = true;
+                    self.reference_error(
+                        "semantic.unknown-reference",
+                        Some("unknown-name"),
+                        line,
+                        format_args!("{header} item {item:?} names no declaration of the bundle"),
+                    );
+                }
+                Err(ReferenceRefusal::KindMismatch) => {
+                    failed = true;
+                    self.reference_error(
+                        "semantic.reference-kind-mismatch",
+                        None,
+                        line,
+                        format_args!(
+                            "{header} item {item:?} names no declaration of an object type the {} {} admits",
+                            column.member(),
+                            column.verb()
+                        ),
+                    );
+                }
+                Err(ReferenceRefusal::Ambiguous(ids)) => {
+                    failed = true;
+                    self.reference_error(
+                        "semantic.ambiguous-reference",
+                        None,
+                        line,
+                        format_args!(
+                            "{header} item {item:?} names more than one declaration: {}",
+                            ids.join(", ")
+                        ),
+                    );
+                }
+            }
+        }
+        if failed {
+            ReferenceCell::Failed
+        } else {
+            ReferenceCell::Resolved(resolved)
+        }
+    }
+
+    /// Settle a row's reference cells: `false` when one failed. A row whose
+    /// items the bundle cannot resolve gets one advisory and makes the model
+    /// unavailable with its reason.
+    fn settle_references(&mut self, line: usize, cells: &[&ReferenceCell]) -> bool {
+        if cells.iter().any(|c| c.failed()) {
+            return false;
+        }
+        if let (true, ScopeState::Unresolvable(why)) =
+            (cells.iter().any(|c| c.unresolvable()), &self.scope.state)
+        {
+            let d = self.reference_diagnostic(
+                "semantic.unresolved-target",
+                SemanticSeverity::Advisory,
+                Some(why.reason()),
+                line,
+                format_args!(
+                    "its declaration references are not resolved: this surface supplies no {}",
+                    why.supplies_no()
+                ),
+            );
+            self.out.diagnostics.push(d);
+            self.out.unresolved = Some(why.reason());
+        }
+        true
     }
 
     pub(super) fn span(&self, line: usize) -> SourceLocus {
@@ -1166,11 +1535,6 @@ fn optional(text: &str) -> Option<String> {
     (!text.is_empty()).then(|| text.to_string())
 }
 
-fn name_list(text: &str) -> Option<Vec<String>> {
-    let items: Vec<String> = comma_list(text).map(str::to_string).collect();
-    (!items.is_empty()).then_some(items)
-}
-
 fn read_enum(r: &mut TableRead<'_>, key: &str) -> Vec<EnumValueDecl> {
     let table = r.table;
     let what = key.to_ascii_lowercase();
@@ -1214,12 +1578,16 @@ fn read_transitions(r: &mut TableRead<'_>) {
         if !ok {
             continue;
         }
+        let emits = r.references(cells, ReferenceColumn::TransitionEmits, *line);
+        if !r.settle_references(*line, &[&emits]) {
+            continue;
+        }
         entries.push(TransitionDecl {
             from: from.to_string(),
             to: to.to_string(),
             trigger: trigger.to_string(),
             guard: optional(r.cell(cells, "Guard")),
-            emits: name_list(r.cell(cells, "Emits")),
+            emits: emits.into_ids().and_then(|ids| ids.into_iter().next()),
             source_span: r.span(*line),
         });
     }
@@ -1245,11 +1613,16 @@ fn read_steps(r: &mut TableRead<'_>) {
         if !r.fresh(name, *line) {
             continue;
         }
+        let consumes = r.references(cells, ReferenceColumn::StepConsumes, *line);
+        let emits = r.references(cells, ReferenceColumn::StepEmits, *line);
+        if !r.settle_references(*line, &[&consumes, &emits]) {
+            continue;
+        }
         entries.push(StepDecl {
             name: name.to_string(),
             kind,
-            consumes: name_list(r.cell(cells, "Consumes")),
-            emits: name_list(r.cell(cells, "Emits")),
+            consumes: consumes.into_ids(),
+            emits: emits.into_ids(),
             doc: optional(r.cell(cells, "Description")),
             source_span: r.span(*line),
         });

@@ -30,7 +30,7 @@ pub use clauses::{
     extract_clauses, extract_operations, ClauseRef, ClausesOutcome, OperationDecl, OperationSource,
     OperationsOutcome, SourceLocus,
 };
-pub use context::{BundleArtifact, BundleEntry, BundleIndex, SemanticContext};
+pub use context::{BundleArtifact, BundleEntry, BundleIndex, ConstructReferences, SemanticContext};
 pub use contract::{
     read_semantic_block, reference_form, DataSchemaRef, SemanticFailure, SemanticModule,
     SemanticSeverity,
