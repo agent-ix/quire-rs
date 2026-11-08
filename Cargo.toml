@@ -92,12 +92,8 @@ getrandom = { version = "^0.3", features = ["wasm_js"], optional = true }
 # PLAT-851): the one place in this workspace that names
 # `quire-code-parse`/`tree-sitter` — see
 # `crates/quire-code-extraction/src/lib.rs` and its
-# `tests/dependency_boundary.rs`. `src/symbols/rust.rs` walks the tree this
-# re-exports; it never names `tree-sitter` itself. Still named
-# `quire-code-extraction` even though it now also wraps the `python` and
-# `typescript` grammars — the rename is tracked as PLAT-876, deliberately
-# deferred so this slice makes zero edits to `rust.rs` (see the crate's own
-# `Cargo.toml` for why).
+# `tests/dependency_boundary.rs`. `src/symbols/{rust,python,typescript}.rs`
+# walk the tree this re-exports; none of them names `tree-sitter` itself.
 #
 # `optional = true`, gated per grammar by the `rust-symbols`/`python-symbols`/
 # `typescript-symbols` features below: `quire-code-parse` pulls in a
