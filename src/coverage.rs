@@ -34,6 +34,7 @@ mod binding_diagnostics;
 mod declarations;
 mod diagnostics;
 mod reconcile;
+mod row_binding;
 
 use declarations::criteria_counts;
 use diagnostics::{catch_all_documents, hollow_denominators};
@@ -541,6 +542,7 @@ pub struct CoverageDiagnostic {
 pub const COVERAGE_DIAGNOSTIC_REASONS: &[&str] = &[
     "archetype-matches-nothing",
     "catch-all-universal",
+    "criterion-tagged-outside-row",
     "hollow-denominator",
     "id-column-matches-nothing",
     "low-symbol-binding",

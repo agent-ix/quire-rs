@@ -3,6 +3,16 @@
     {
       "reference": "traces-to",
       "document": "spec/tests.md",
+      "row_id": "TC-001",
+      "target_ids": [
+        "FR-001-AC-1",
+        "TC-001"
+      ],
+      "line": 13
+    },
+    {
+      "reference": "traces-to",
+      "document": "spec/tests.md",
       "row_id": "TC-002",
       "target_ids": [
         "FR-001-AC-2",
@@ -83,11 +93,29 @@
     {
       "reference": "verification",
       "document": "spec/FR-003.md",
+      "row_id": "FR-003-AC-1",
+      "target_ids": [
+        "FR-003-AC-1"
+      ],
+      "line": 16
+    },
+    {
+      "reference": "verification",
+      "document": "spec/FR-003.md",
       "row_id": "FR-003-AC-2",
       "target_ids": [
         "FR-003-AC-2"
       ],
       "line": 17
+    },
+    {
+      "reference": "verification",
+      "document": "spec/FR-003.md",
+      "row_id": "FR-003-AC-3",
+      "target_ids": [
+        "FR-003-AC-3"
+      ],
+      "line": 18
     },
     {
       "reference": "verification",
@@ -100,6 +128,17 @@
     }
   ],
   "status_lies": [
+    {
+      "reference": "traces-to",
+      "document": "spec/tests.md",
+      "row_id": "TC-001",
+      "status": "✅",
+      "target_ids": [
+        "FR-001-AC-1",
+        "TC-001"
+      ],
+      "line": 13
+    },
     {
       "reference": "traces-to",
       "document": "spec/tests.md",
@@ -168,7 +207,7 @@
     {
       "document": "spec/FR-003.md",
       "target": "acceptance-criterion",
-      "backed": 2,
+      "backed": 0,
       "total": 4
     },
     {
@@ -205,7 +244,7 @@
       "target": "acceptance-criterion",
       "document": "spec/FR-003.md",
       "line": 16,
-      "backed": true
+      "backed": false
     },
     {
       "id": "FR-003-AC-2",
@@ -219,7 +258,7 @@
       "target": "acceptance-criterion",
       "document": "spec/FR-003.md",
       "line": 18,
-      "backed": true
+      "backed": false
     },
     {
       "id": "FR-003-AC-4",
@@ -345,6 +384,28 @@
   ],
   "diagnostics": [
     {
+      "declaration": "traces-to",
+      "reason": "criterion-tagged-outside-row",
+      "message": "criterion `FR-003-AC-1` is tagged on `tests::covers_ac1` at src/lib.rs:28 but no matrix row cited by that test references it; expected a same-test tag for one of no declared matrix row. This tag does not provide backing",
+      "path": "src/lib.rs",
+      "line": 28,
+      "value": "FR-003-AC-1",
+      "subject": "criterion `FR-003-AC-1`",
+      "change_target": "src/lib.rs:28",
+      "remedy": "correct the matrix reference or tag a test whose declared row references this criterion"
+    },
+    {
+      "declaration": "traces-to",
+      "reason": "criterion-tagged-outside-row",
+      "message": "criterion `FR-003-AC-3` is tagged on `tests::covers_ac3_ignored` at src/lib.rs:35 but no matrix row cited by that test references it; expected a same-test tag for one of no declared matrix row. This tag does not provide backing",
+      "path": "src/lib.rs",
+      "line": 35,
+      "value": "FR-003-AC-3",
+      "subject": "criterion `FR-003-AC-3`",
+      "change_target": "src/lib.rs:35",
+      "remedy": "correct the matrix reference or tag a test whose declared row references this criterion"
+    },
+    {
       "declaration": "tests::covers_range",
       "reason": "range-in-trace-tag",
       "message": "`FR-003-AC-1..FR-003-AC-2` in src/lib.rs:39 names a range, which binds no id — including its own endpoints; write one trace tag naming each id explicitly",
@@ -370,6 +431,7 @@
   "diagnostic_reason_registry": [
     "archetype-matches-nothing",
     "catch-all-universal",
+    "criterion-tagged-outside-row",
     "hollow-denominator",
     "id-column-matches-nothing",
     "low-symbol-binding",
@@ -487,16 +549,8 @@
           "id": "FR-003-AC-1",
           "statement": "Tagged by a running test.",
           "method": "Test",
-          "binders": [
-            {
-              "path": "src/lib.rs",
-              "line": 28,
-              "column": 5,
-              "qualified_name": "tests::covers_ac1",
-              "kind": "test_function"
-            }
-          ],
-          "status": "tagged"
+          "binders": [],
+          "status": "untagged"
         },
         {
           "id": "FR-003-AC-2",
@@ -509,17 +563,8 @@
           "id": "FR-003-AC-3",
           "statement": "Tagged only by an ignored test.",
           "method": "Test",
-          "binders": [
-            {
-              "path": "src/lib.rs",
-              "line": 35,
-              "column": 5,
-              "qualified_name": "tests::covers_ac3_ignored",
-              "kind": "test_function",
-              "ignored": true
-            }
-          ],
-          "status": "tagged-by-ignored-test"
+          "binders": [],
+          "status": "untagged"
         },
         {
           "id": "FR-003-AC-4",
@@ -568,7 +613,7 @@
       "method": "rows of the declared reference tables whose trace target is bound by at least one source symbol; `matched` counts the evidence symbols that bound a trace id out of the `examined` evidence symbols walked, so matched 0 of a non-zero examined is a ratio computed over a corpus the binder could not read",
       "shape": "ratio",
       "state": "measured",
-      "value": 3,
+      "value": 1,
       "population": 13,
       "examined": 5,
       "matched": 4
@@ -638,7 +683,7 @@
     }
   ],
   "totals": {
-    "backed": 3,
+    "backed": 1,
     "total": 13,
     "criteria": 7,
     "property_shaped": 2,

@@ -6,7 +6,7 @@ use std::path::Path;
 use crate::corpus::declared_tables;
 use crate::corpus::spec::Spec;
 use crate::registry::Registry;
-use crate::symbols::trace::SymbolGraph;
+use crate::symbols::trace::{SymbolGraph, VerifiesRelation};
 use crate::traceability::{StatusClass, TraceTargetEvidence, TraceabilityModel};
 
 use super::binding_diagnostics::{
@@ -27,7 +27,6 @@ pub(super) fn reconcile(
     registry: &Registry,
     evidence: Option<&crate::evidence::ReconciledEvidence<'_>>,
 ) -> (CoverageReport, declared_tables::MintingCensus) {
-    let backed: BTreeSet<&str> = graph.backed_trace_ids();
     // FR-053: derived here, ahead of the untracked-symbols reconciliation
     // below, because CR-187 R2 makes an obligation's own id count as
     // declared — a tag naming one must not land in `untracked_symbols`, and
@@ -54,6 +53,7 @@ pub(super) fn reconcile(
     // ── Minted targets, grouped by their minting document ──
     let mut ctx = declared_tables::ScanContext::default();
     let mut minted: Vec<MintedTargetRecord> = Vec::new();
+    let mut minted_by_target: BTreeMap<&str, BTreeSet<String>> = BTreeMap::new();
     // Reference integrity and source-evidence coverage deliberately have
     // different populations. Every declared target id resolves references,
     // while only source targets enter the coverage denominator (#363).
@@ -87,6 +87,10 @@ pub(super) fn reconcile(
                 continue;
             };
             declared_ids.insert(id.to_string());
+            minted_by_target
+                .entry(target.name.as_str())
+                .or_default()
+                .insert(id.to_string());
             if target.evidence == TraceTargetEvidence::ReferenceOnly {
                 continue;
             }
@@ -95,18 +99,29 @@ pub(super) fn reconcile(
                 target: target.name.clone(),
                 document: relative(root, &row.path),
                 line: row.line,
-                backed: backed.contains(id)
-                    || evidence.is_some_and(|evidence| {
-                        evidence.backs_minted(
-                            &relative(root, &row.path),
-                            id,
-                            row.line,
-                            &target.name,
-                        )
-                    }),
+                backed: false,
                 retired: false,
             });
         }
+    }
+    // Cache reference rows once so row-aware backing and the ordinary
+    // reconciliation below use the same parsed rows.
+    let reference_rows = scan_reference_rows(spec, root, model, &model_exclude, &mut ctx);
+    let row_bindings = super::row_binding::RowBindings::from_scanned_rows(
+        model,
+        &reference_rows,
+        &minted_by_target,
+    );
+    let (verifies, mut row_diagnostics) = row_bindings.eligible_relations(graph);
+    let backed: BTreeSet<&str> = verifies
+        .iter()
+        .map(|relation| relation.trace_id.as_str())
+        .collect();
+    for record in &mut minted {
+        record.backed = backed.contains(record.id.as_str())
+            || evidence.is_some_and(|evidence| {
+                evidence.backs_minted(&record.document, &record.id, record.line, &record.target)
+            });
     }
     minted.sort_by(|a, b| {
         (&a.target, &a.document, &a.id, a.line).cmp(&(&b.target, &b.document, &b.id, b.line))
@@ -128,31 +143,15 @@ pub(super) fn reconcile(
     // verified by several tests) is legitimately N:1 and never reported.
     let mut status_row_ids: BTreeSet<String> = BTreeSet::new();
 
-    for declaration in &model.document_references {
+    for (declaration, scanned_rows) in model.document_references.iter().zip(&reference_rows) {
+        let Some(scanned_rows) = scanned_rows else {
+            continue;
+        };
         let selected_status = declaration.selected_status_column(model.status.as_ref());
         let Ok(pattern) = regex::Regex::new(&declaration.pattern) else {
             continue; // patterns are validated at module load
         };
-        let exclude = declared_tables::ExcludeSet::compile_validated(&declaration.exclude);
-        for row in declared_tables::scan(
-            spec,
-            root,
-            declared_tables::DeclaredScope {
-                name: &declaration.name,
-                archetype: &declaration.archetype,
-                exclude: &exclude,
-                model_exclude: &model_exclude,
-                // A reference declaration mints nothing, and its section is
-                // legitimately optional — `functional-coverage` reads a heading
-                // the matrix template emits only when it has content, so
-                // diagnosing its absence would fire on every healthy matrix.
-                mints: None,
-                status_column: selected_status,
-                target_required: false,
-            },
-            &declaration.section,
-            &mut ctx,
-        ) {
+        for row in scanned_rows {
             let Some(raw_cell) = row.cell(&declaration.column) else {
                 continue;
             };
@@ -188,8 +187,15 @@ pub(super) fn reconcile(
             answerable.dedup();
             ids.sort();
             ids.dedup();
+            let obligation_references: Vec<_> = answerable
+                .iter()
+                .filter(|id| obligation_ids.contains(id.as_str()))
+                .collect();
             let source_backed = match row_id.as_deref() {
                 Some(id) if obligation_ids.contains(id) => backed.contains(id),
+                _ if !obligation_references.is_empty() => obligation_references
+                    .iter()
+                    .all(|id| backed.contains(id.as_str())),
                 _ => answerable.iter().any(|id| backed.contains(id.as_str())),
             };
             let is_backed = source_backed
@@ -489,6 +495,10 @@ pub(super) fn reconcile(
     // all on the wrong symbols reports a flawless 100% and says nothing.
     diagnostics.extend(non_binding_tag_diagnostics(&graph.non_binding_tags));
 
+    // PLAT-2: a criterion tag on a test whose declared matrix row does not
+    // reference that criterion is visible, but is not evidence for it.
+    diagnostics.append(&mut row_diagnostics);
+
     // #307: the two halves of one mistake, already in the payload, joined at
     // last. Ordered after the census diagnostics for the same reason as #312 —
     // this is the case they cannot see, because from their vantage point the
@@ -564,7 +574,7 @@ pub(super) fn reconcile(
     // same symbol binding one id through two declared forms (or a duplicated
     // in-symbol id, FR-051's dedup) is one binder, not a shared id.
     let mut binders: BTreeMap<&str, BTreeSet<(&str, &str)>> = BTreeMap::new();
-    for relation in &graph.verifies {
+    for relation in &verifies {
         if !status_row_ids.contains(&relation.trace_id) {
             continue;
         }
@@ -592,7 +602,13 @@ pub(super) fn reconcile(
     // population alone (FR-050-AC-47..49) — never the trace-target set.
     let retired_obligations =
         retired_obligation_flags(spec, root, model, &obligations, &retired_loci);
-    let matrix = coverage_matrix(&obligations, graph, model, &retired_obligations, evidence);
+    let matrix = coverage_matrix(
+        &obligations,
+        &verifies,
+        model,
+        &retired_obligations,
+        evidence,
+    );
     diagnostics.extend(super::diagnostics::uncatalogued_methods(
         &obligations,
         registry,
@@ -677,6 +693,39 @@ pub(super) fn reconcile(
     (report, minting_census)
 }
 
+fn scan_reference_rows(
+    spec: &Spec,
+    root: &Path,
+    model: &TraceabilityModel,
+    model_exclude: &declared_tables::ExcludeSet,
+    ctx: &mut declared_tables::ScanContext,
+) -> Vec<Option<Vec<declared_tables::ScannedRow>>> {
+    model
+        .document_references
+        .iter()
+        .map(|declaration| {
+            regex::Regex::new(&declaration.pattern).ok()?;
+            let exclude = declared_tables::ExcludeSet::compile_validated(&declaration.exclude);
+            let selected_status = declaration.selected_status_column(model.status.as_ref());
+            Some(declared_tables::scan(
+                spec,
+                root,
+                declared_tables::DeclaredScope {
+                    name: &declaration.name,
+                    archetype: &declaration.archetype,
+                    exclude: &exclude,
+                    model_exclude,
+                    mints: None,
+                    status_column: selected_status,
+                    target_required: false,
+                },
+                &declaration.section,
+                ctx,
+            ))
+        })
+        .collect()
+}
+
 /// Build `coverage_matrix` (CR-187, FR-050-AC-47..49): the derived obligation
 /// population, grouped by its own `document` field, each criterion carrying
 /// its binding test symbols and a computed static status.
@@ -687,7 +736,7 @@ pub(super) fn reconcile(
 /// what counts.
 fn coverage_matrix(
     obligations: &[crate::obligation::Obligation],
-    graph: &SymbolGraph,
+    verifies: &[&VerifiesRelation],
     model: &TraceabilityModel,
     retired: &[bool],
     evidence: Option<&crate::evidence::ReconciledEvidence<'_>>,
@@ -705,7 +754,7 @@ fn coverage_matrix(
     // collapse into one binder.
     let mut binders_by_id: BTreeMap<&str, BTreeMap<(&str, usize, usize), CoverageMatrixBinder>> =
         BTreeMap::new();
-    for relation in &graph.verifies {
+    for relation in verifies {
         binders_by_id
             .entry(relation.trace_id.as_str())
             .or_default()
