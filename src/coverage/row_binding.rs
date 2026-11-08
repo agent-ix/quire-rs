@@ -39,7 +39,9 @@ impl RowBindings {
                 .filter(|target| {
                     target.archetype == declaration.archetype
                         && target.section == declaration.section
-                        && target.id_column.eq_ignore_ascii_case(row_id_column)
+                        && target
+                            .id_column()
+                            .is_some_and(|column| column.eq_ignore_ascii_case(row_id_column))
                 })
                 .collect();
             if row_targets.is_empty() {

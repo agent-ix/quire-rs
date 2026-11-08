@@ -5,12 +5,12 @@
 //! that one scan, so the two consumers cannot drift apart on which rows they
 //! see.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
 use super::spec::Spec;
 use crate::ast::QuireDocument;
-use crate::traceability::SectionNames;
+use crate::traceability::{SectionNames, TraceTarget, TraceTargetSource};
 
 /// One scanned table row: the document it lives in, its cells keyed by the
 /// table's own column headers (trimmed, as authored), and the 1-based document
@@ -222,8 +222,9 @@ pub(crate) enum ScanDiagnostic {
         sections: Vec<String>,
         /// The headings the document actually has, in document order.
         headings: Vec<String>,
-        /// The id column this scan could not reach.
-        id_column: String,
+        /// The id column this scan could not reach; `None` for a target that
+        /// mints from list items or headings and so has no column.
+        id_column: Option<String>,
     },
 
     /// The section was found and the declared **id column** is not among the
@@ -463,7 +464,7 @@ pub(crate) fn scan(
                         archetype: scope.archetype.to_string(),
                         sections: sections.names().to_vec(),
                         headings: document_headings(doc.body()),
-                        id_column: id_column.to_string(),
+                        id_column: Some(id_column.to_string()),
                     },
                 );
             }
@@ -563,6 +564,192 @@ pub(crate) fn scan(
         );
     }
     out
+}
+
+/// One id a trace target minted from a section of a corpus document.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct MintedId {
+    pub id: String,
+    pub path: PathBuf,
+    /// 1-based document line of the row, list item or heading.
+    pub line: usize,
+}
+
+/// Every id `target` mints from its declared sections, in corpus order, by
+/// whichever source its `from:` selects (FR-050-AC-60). Frontmatter-minted
+/// ids are not included; see `trace_refs::target_documents`.
+pub(crate) fn mint(
+    spec: &Spec,
+    root: &Path,
+    target: &TraceTarget,
+    model_exclude: &ExcludeSet,
+    ctx: &mut ScanContext,
+) -> Vec<MintedId> {
+    let exclude = ExcludeSet::compile_validated(&target.exclude);
+    let scope = DeclaredScope {
+        name: &target.name,
+        archetype: &target.archetype,
+        exclude: &exclude,
+        model_exclude,
+        mints: target.id_column(),
+        status_column: None,
+        target_required: target.required,
+    };
+    match &target.source {
+        TraceTargetSource::TableRow { id_column } => scan(spec, root, scope, &target.section, ctx)
+            .into_iter()
+            .filter_map(|row| {
+                let id = row.cell(id_column)?.to_string();
+                Some(MintedId {
+                    id,
+                    path: row.path,
+                    line: row.line,
+                })
+            })
+            .collect(),
+        TraceTargetSource::ListItem { pattern } => scan_text(
+            spec,
+            root,
+            scope,
+            &target.section,
+            TextSource::ListItem,
+            pattern,
+            ctx,
+        ),
+        TraceTargetSource::Heading { pattern } => scan_text(
+            spec,
+            root,
+            scope,
+            &target.section,
+            TextSource::Heading,
+            pattern,
+            ctx,
+        ),
+    }
+}
+
+/// The non-table sources [`scan_text`] reads.
+#[derive(Debug, Clone, Copy)]
+enum TextSource {
+    ListItem,
+    Heading,
+}
+
+/// The `list_item` / `heading` half of [`mint`]: capture group 1 of `pattern`
+/// over each list item in a declared section's own content, or over each
+/// heading nested under a declared section.
+fn scan_text(
+    spec: &Spec,
+    root: &Path,
+    scope: DeclaredScope<'_>,
+    sections: &SectionNames,
+    source: TextSource,
+    pattern: &str,
+    ctx: &mut ScanContext,
+) -> Vec<MintedId> {
+    let Ok(pattern) = regex::Regex::new(pattern) else {
+        return Vec::new(); // patterns are validated at module load
+    };
+    let id_of = |text: &str| {
+        pattern
+            .captures(text)
+            .and_then(|caps| caps.get(1))
+            .map(|m| m.as_str().trim().to_string())
+            .filter(|id| !id.is_empty())
+    };
+    let mut out = Vec::new();
+    let mut of_archetype = 0usize;
+    for doc in &spec.inner.documents {
+        if doc.concept_type() != Some(scope.archetype) {
+            continue;
+        }
+        of_archetype += 1;
+        if scope.excludes(root, &doc.path) {
+            continue;
+        }
+        let body = doc.body();
+        let matched: Vec<&crate::ast::QuireSection> = crate::query::sections(body, None)
+            .into_iter()
+            .filter(|sec| sections.matches(&sec.heading))
+            .collect();
+        if scope.target_required || !matched.is_empty() {
+            ctx.census.selected += 1;
+            if !matched.is_empty() {
+                ctx.census.section_found += 1;
+            }
+        }
+        if matched.is_empty() {
+            if scope.target_required {
+                ctx.note(
+                    scope.name,
+                    ScanDiagnostic::SectionMatchesNothing {
+                        document: relative_path(root, &doc.path),
+                        archetype: scope.archetype.to_string(),
+                        sections: sections.names().to_vec(),
+                        headings: document_headings(body),
+                        id_column: None,
+                    },
+                );
+            }
+            continue;
+        }
+        let line_offset = crate::validate_document::body_line_offset(&body.raw);
+        let mut minted_headings = BTreeSet::new();
+        for sec in matched {
+            match source {
+                TextSource::ListItem => {
+                    for (rel, text) in crate::query::list_item_lines(&sec.content) {
+                        if let Some(id) = id_of(text) {
+                            out.push(MintedId {
+                                id,
+                                path: doc.path.clone(),
+                                // Same arithmetic as a table row in `table_in`.
+                                line: line_offset + sec.start_line + rel + 2,
+                            });
+                        }
+                    }
+                }
+                TextSource::Heading => {
+                    let mut nested = Vec::new();
+                    collect_nested(&sec.children, &mut nested);
+                    for child in nested {
+                        // A matched section nested in another matched section
+                        // is walked twice; each heading still mints once.
+                        if !minted_headings.insert(child.start_line) {
+                            continue;
+                        }
+                        if let Some(id) = id_of(&child.heading) {
+                            out.push(MintedId {
+                                id,
+                                path: doc.path.clone(),
+                                line: line_offset + child.start_line + 1,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if of_archetype == 0 && scope.target_required {
+        ctx.note(
+            scope.name,
+            ScanDiagnostic::ArchetypeMatchesNothing {
+                archetype: scope.archetype.to_string(),
+            },
+        );
+    }
+    out
+}
+
+/// Every section below `sections`, depth first in document order.
+fn collect_nested<'d>(
+    sections: &'d [crate::ast::QuireSection],
+    out: &mut Vec<&'d crate::ast::QuireSection>,
+) {
+    for sec in sections {
+        out.push(sec);
+        collect_nested(&sec.children, out);
+    }
 }
 
 /// A path relative to the scope root, `/`-separated so declarations and reports
@@ -875,20 +1062,30 @@ pub(crate) fn scan_finding(
             id_column,
         } => (
             root.join(document),
-            format!(
-                "declaration '{declaration}' selected {document} by archetype \
-                 '{archetype}' and found no section matching {} in it — the headings the \
-                 document has are {}. The declared table is never reached, so every id \
-                 under it is stranded and the document mints nothing. The declared id \
-                 column '{id_column}' could NOT be checked either: fix the heading first, \
-                 then confirm that column exists, or the same rows come back unminted \
-                 for the second reason",
-                // EVERY declared name (CR-118). A declaration naming three
-                // headings and a message naming one leaves its reader to guess
-                // which of the three to spell like the document.
-                quoted_list(sections),
-                quoted_list(headings)
-            ),
+            match id_column {
+                Some(id_column) => format!(
+                    "declaration '{declaration}' selected {document} by archetype \
+                     '{archetype}' and found no section matching {} in it — the headings the \
+                     document has are {}. The declared table is never reached, so every id \
+                     under it is stranded and the document mints nothing. The declared id \
+                     column '{id_column}' could NOT be checked either: fix the heading first, \
+                     then confirm that column exists, or the same rows come back unminted \
+                     for the second reason",
+                    // EVERY declared name (CR-118). A declaration naming three
+                    // headings and a message naming one leaves its reader to guess
+                    // which of the three to spell like the document.
+                    quoted_list(sections),
+                    quoted_list(headings)
+                ),
+                None => format!(
+                    "declaration '{declaration}' selected {document} by archetype \
+                     '{archetype}' and found no section matching {} in it — the headings the \
+                     document has are {}. Every id under the declared section is stranded \
+                     and the document mints nothing",
+                    quoted_list(sections),
+                    quoted_list(headings)
+                ),
+            },
         ),
         ScanDiagnostic::SectionHoldsNoTable {
             document,

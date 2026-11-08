@@ -52,6 +52,7 @@ mod semantic_systems;
 mod spec_dogfood;
 mod trace_dogfood;
 mod trace_references;
+mod trace_target_sources;
 mod verification_catalog;
 mod vocabulary_coverage;
 mod vocabulary_refs;

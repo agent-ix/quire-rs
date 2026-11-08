@@ -393,6 +393,48 @@ pub fn parse_bullet_list(content: &str, pattern: Option<ListPattern>) -> Vec<Lis
     items
 }
 
+fn re_list_item() -> &'static Regex {
+    static R: OnceLock<Regex> = OnceLock::new();
+    R.get_or_init(|| Regex::new(r"^(?:[-*+]|\d+[.)])\s+(.+)$").expect("list-item regex"))
+}
+
+/// The text of every bullet or ordered list item in `content`, at any
+/// nesting depth, with its 0-based line index. Lines inside fenced code
+/// blocks are not list items. A fence closes only on a run of its own
+/// character at least as long as the opening run, with nothing after it
+/// (CommonMark), so a shorter fence inside a longer one stays content.
+pub(crate) fn list_item_lines(content: &str) -> Vec<(usize, &str)> {
+    let mut fence: Option<(char, usize)> = None;
+    let mut out = Vec::new();
+    for (index, line) in content.split('\n').enumerate() {
+        let trimmed = line.trim();
+        match fence {
+            Some((open, len)) => {
+                if fence_run(trimmed)
+                    .is_some_and(|(ch, run, rest)| ch == open && run >= len && rest.is_empty())
+                {
+                    fence = None;
+                }
+            }
+            None => {
+                if let Some((ch, run, _)) = fence_run(trimmed) {
+                    fence = Some((ch, run));
+                } else if let Some(item) = re_list_item().captures(trimmed).and_then(|c| c.get(1)) {
+                    out.push((index, item.as_str()));
+                }
+            }
+        }
+    }
+    out
+}
+
+/// A fence line's character, run length (at least 3) and trimmed remainder.
+fn fence_run(line: &str) -> Option<(char, usize, &str)> {
+    let ch = line.chars().next().filter(|c| matches!(c, '`' | '~'))?;
+    let run = line.len() - line.trim_start_matches(ch).len();
+    (run >= 3).then(|| (ch, run, line[run..].trim()))
+}
+
 fn classify_bullet(raw: &str, pattern: ListPattern) -> ListItem {
     let plain = |raw: &str| ListItem {
         raw: raw.to_string(),
