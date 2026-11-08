@@ -633,7 +633,13 @@ fn selected_inventory_declarative_controls() {
         for cause in inventory.causes() {
             assert_eq!(
                 cause.document(),
-                Some(root.path().join("FR-001.md").as_path()),
+                Some(
+                    root.path()
+                        .canonicalize()
+                        .unwrap()
+                        .join("FR-001.md")
+                        .as_path()
+                ),
                 "{} cause locus",
                 case.name
             );
@@ -983,9 +989,10 @@ fn selected_inventory_filesystem_failures_retain_original_causes_and_rows() {
     );
     let cause = &partial.causes()[0];
     assert_eq!(cause.code(), InventoryCauseCode::DocumentUnreadable);
-    assert_eq!(cause.document(), Some(scope.join("FR-002.md").as_path()));
+    let unreadable = scope.canonicalize().unwrap().join("FR-002.md");
+    assert_eq!(cause.document(), Some(unreadable.as_path()));
     assert!(
-        matches!(cause.detail(),InventoryCauseDetail::Diagnostic(quire_rs::Diagnostic::DocumentUnreadable { path, reason }) if path == &scope.join("FR-002.md") && reason == &fs::read_to_string(path).unwrap_err().to_string())
+        matches!(cause.detail(),InventoryCauseDetail::Diagnostic(quire_rs::Diagnostic::DocumentUnreadable { path, reason }) if path == &unreadable && reason == &fs::read_to_string(path).unwrap_err().to_string())
     );
     fs::remove_file(scope.join("FR-002.md")).unwrap();
     assert_eq!(selected_at(&scope).terminal(), InventoryTerminal::Complete);
@@ -1025,7 +1032,10 @@ fn selected_inventory_real_permission_and_walk_failures_have_healthy_controls() 
         .iter()
         .find(|cause| cause.code() == InventoryCauseCode::WalkFailed)
         .unwrap();
-    assert_eq!(cause.document(), Some(hidden.as_path()));
+    assert_eq!(
+        cause.document(),
+        Some(hidden.canonicalize().unwrap().as_path())
+    );
     let original = cause
         .source()
         .unwrap()
@@ -1057,7 +1067,8 @@ fn selected_inventory_real_permission_and_walk_failures_have_healthy_controls() 
         unreadable.causes()[0].code(),
         InventoryCauseCode::DocumentUnreadable
     );
-    assert_eq!(unreadable.causes()[0].document(), Some(path.as_path()));
+    let expected = path.canonicalize().unwrap();
+    assert_eq!(unreadable.causes()[0].document(), Some(expected.as_path()));
     drop(restore);
     assert_eq!(
         selected_at(root.path()).terminal(),
@@ -1337,7 +1348,13 @@ fn selected_inventory_configuration_rows_follow_the_real_minter() {
                 );
                 assert_eq!(
                     cause.document(),
-                    Some(root.path().join("FR-001.md").as_path())
+                    Some(
+                        root.path()
+                            .canonicalize()
+                            .unwrap()
+                            .join("FR-001.md")
+                            .as_path()
+                    )
                 );
                 assert!(cause.line().is_some());
                 cause.row().unwrap()
