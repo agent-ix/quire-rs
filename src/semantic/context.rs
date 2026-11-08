@@ -110,14 +110,13 @@ impl BundleIndex {
                     }
                 }
             }
-            let entry = BundleEntry {
-                id: id.to_string(),
-                names,
-            };
+            // The same declaration authored in two forms (an artifact and its
+            // alternate-form counterpart) shares one `id`: one entry, with the
+            // union of the names.
             if object == "enumeration" {
-                index.enumerations.push(entry.clone());
+                merge_entry(&mut index.enumerations, id, names.clone());
             }
-            index.objects.push(entry);
+            merge_entry(&mut index.objects, id, names);
         }
         for module in modules {
             index
@@ -125,6 +124,23 @@ impl BundleIndex {
                 .insert(module.package.clone(), module.exports.clone());
         }
         index
+    }
+}
+
+/// Add `names` to the entry for `id`, creating it when absent.
+fn merge_entry(entries: &mut Vec<BundleEntry>, id: &str, names: Vec<String>) {
+    match entries.iter_mut().find(|e| e.id == id) {
+        Some(entry) => {
+            for name in names {
+                if !entry.names.contains(&name) {
+                    entry.names.push(name);
+                }
+            }
+        }
+        None => entries.push(BundleEntry {
+            id: id.to_string(),
+            names,
+        }),
     }
 }
 

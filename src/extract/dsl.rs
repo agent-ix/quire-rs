@@ -191,6 +191,9 @@ pub fn validate_assert_for_kind(
     if assert.min_rows.is_some() && !table_only {
         return reject("min_rows");
     }
+    if assert.max_rows.is_some() && !table_only {
+        return reject("max_rows");
+    }
     if assert.id_column.is_some() && !table_only {
         return reject("id_column");
     }
@@ -433,6 +436,7 @@ yield_pattern:
                 "level" => a.level = Some(2),
                 "columns" => a.columns = Some(vec!["ID".to_string()]),
                 "min_rows" => a.min_rows = Some(1),
+                "max_rows" => a.max_rows = Some(1),
                 "min_items" => a.min_items = Some(1),
                 "id_column" => a.id_column = Some("ID".to_string()),
                 "id_pattern" => a.id_pattern = Some("^X-".to_string()),
@@ -476,6 +480,7 @@ yield_pattern:
             "level",
             "columns",
             "min_rows",
+            "max_rows",
             "min_items",
             "id_column",
             "id_pattern",
@@ -490,7 +495,7 @@ yield_pattern:
         fn legal(kind: LocatorKind, key: &str) -> bool {
             match key {
                 "level" => matches!(kind, SectionBody | Heading),
-                "columns" | "min_rows" | "id_column" => matches!(kind, TableRow),
+                "columns" | "min_rows" | "max_rows" | "id_column" => matches!(kind, TableRow),
                 "min_items" => matches!(kind, ListItem),
                 "id_pattern" => matches!(
                     kind,

@@ -423,6 +423,18 @@ impl SemanticExtraction {
         Ok(value)
     }
 
+    /// Whether any declaration kind could not be read (`unavailable`). The
+    /// declaration record omits such a kind's key, which is the shape of "nothing
+    /// was declared"; a consumer must not validate that omission as a record.
+    pub fn any_kind_unavailable(&self) -> bool {
+        let a = &self.availability;
+        [Some(&a.fields), Some(&a.clauses), Some(&a.operations)]
+            .into_iter()
+            .chain([a.model.as_ref(), a.relations.as_ref()])
+            .flatten()
+            .any(|k| k.state == AvailabilityState::Unavailable)
+    }
+
     pub fn has_errors(&self) -> bool {
         self.diagnostics.iter().any(SemanticDiagnostic::is_error)
     }

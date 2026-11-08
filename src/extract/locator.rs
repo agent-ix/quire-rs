@@ -232,6 +232,9 @@ pub struct LocatorAssert {
     /// Minimum number of data rows in the located table.
     #[serde(default)]
     pub min_rows: Option<usize>,
+    /// Maximum number of data rows in the located table. `table_row` only.
+    #[serde(default)]
+    pub max_rows: Option<usize>,
     /// Minimum number of items in the located list.
     #[serde(default)]
     pub min_items: Option<usize>,
@@ -289,6 +292,7 @@ impl LocatorAssert {
         self.level.is_none()
             && self.columns.is_none()
             && self.min_rows.is_none()
+            && self.max_rows.is_none()
             && self.min_items.is_none()
             && self.id_column.is_none()
             && self.id_pattern.is_none()
@@ -439,7 +443,46 @@ pub fn eval_locator(doc: &QuireDocument, locator: &Locator) -> (Vec<Value>, usiz
 /// list of values; the caller picks first-or-all depending on its
 /// yield pattern.
 pub fn eval(doc: &QuireDocument, loc: &LocatorPrimitive) -> Vec<Value> {
-    let (values, regex) = match loc {
+    let (values, regex) = eval_unfiltered(doc, loc);
+    apply_regex(values, regex)
+}
+
+/// The text of the first value `loc` locates **before** its `regex` filter,
+/// when that filter is what leaves the locator with nothing: the value is
+/// present and does not match. `None` when the locator has no `regex`, when
+/// the regex keeps a value, or when there is no located text.
+///
+/// Lets `validate_document` tell "the value is absent" from "the value is
+/// there and does not match the pattern". Only `frontmatter_field` and
+/// `table_row` locators answer: for a heading or a section, a different text
+/// is the named heading or section being absent, which is what `missing`
+/// says.
+pub fn regex_mismatch<'a>(
+    doc: &QuireDocument,
+    loc: &'a LocatorPrimitive,
+) -> Option<(String, &'a str)> {
+    if !matches!(
+        loc,
+        LocatorPrimitive::FrontmatterField { .. } | LocatorPrimitive::TableRow { .. }
+    ) {
+        return None;
+    }
+    let (values, regex) = eval_unfiltered(doc, loc);
+    let pattern = regex?;
+    let located = values.iter().find_map(|v| match v {
+        Value::String(s) if !s.trim().is_empty() => Some(s.trim().to_string()),
+        _ => None,
+    })?;
+    apply_regex(values, Some(pattern))
+        .is_empty()
+        .then_some((located, pattern))
+}
+
+fn eval_unfiltered<'a>(
+    doc: &QuireDocument,
+    loc: &'a LocatorPrimitive,
+) -> (Vec<Value>, Option<&'a str>) {
+    match loc {
         LocatorPrimitive::FrontmatterField { path, regex, .. } => {
             (eval_frontmatter_field(doc, path), regex.as_deref())
         }
@@ -480,8 +523,7 @@ pub fn eval(doc: &QuireDocument, loc: &LocatorPrimitive) -> Vec<Value> {
         LocatorPrimitive::Heading {
             level, path, regex, ..
         } => (eval_heading(doc, *level, path.as_deref()), regex.as_deref()),
-    };
-    apply_regex(values, regex)
+    }
 }
 
 /// FR-011-AC-17 / FR-032: a resolved value whose trimmed content is a

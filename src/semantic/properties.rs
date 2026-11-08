@@ -709,12 +709,16 @@ pub(crate) fn map_type(
         );
     }
     // 3. object by name; two matches are ambiguous
-    let by_name: Vec<&str> = bundle
+    // One declaration authored in two forms is listed twice under one id; it
+    // is one object, not an ambiguity.
+    let mut by_name: Vec<&str> = bundle
         .objects
         .iter()
         .filter(|o| o.names.iter().any(|n| n == &token))
         .map(|o| o.id.as_str())
         .collect();
+    let mut seen = std::collections::BTreeSet::new();
+    by_name.retain(|id| seen.insert(*id));
     if by_name.len() > 1 {
         diagnostics.push(err(
             "semantic.ambiguous-type",
@@ -995,7 +999,16 @@ fn map_constraints(
                         regex: v[1..last].to_string(),
                         dialect: "ecma-262".to_string(),
                     }),
-                    _ => unknown(diagnostics),
+                    // `pattern` is in the closed set; it is the value that is not
+                    // in the form the cell reads: the regex between slashes.
+                    _ => diagnostics.push(err(
+                        "semantic.invalid-constraint-value",
+                        line,
+                        format!(
+                            "constraint {item:?} has no usable value: write the regex between \
+                             slashes, as `pattern: /<regex>/`"
+                        ),
+                    )),
                 }
             }
             ("enumValues", Some(v)) => {

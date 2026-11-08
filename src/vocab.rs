@@ -68,6 +68,11 @@ pub struct EdgeTypeDef {
     /// Whether this verb carries composition semantics during extraction.
     #[serde(default, skip_serializing_if = "is_false")]
     pub composite: bool,
+    /// Whether the verb is symmetric: `A verb B` holds exactly when
+    /// `B verb A` does, so the relationship has no direction (`peer`).
+    /// Symmetry belongs to the verb and holds wherever it is used.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub symmetric: bool,
 }
 
 /// Whether a boolean field has its default false value.
@@ -335,5 +340,25 @@ mod tests {
             serde_json::from_value(json!({"description": "x", "category": "realization"})).unwrap();
         assert_eq!(d.category, EdgeCategory::Realization);
         assert!(d.inverse.is_none());
+    }
+
+    #[test]
+    fn edge_type_symmetric_defaults_to_false_and_round_trips() {
+        let plain: EdgeTypeDef =
+            serde_json::from_value(json!({"description": "x", "category": "structural"})).unwrap();
+        assert!(!plain.symmetric);
+        let peer: EdgeTypeDef = serde_json::from_value(
+            json!({"description": "x", "category": "structural", "symmetric": true}),
+        )
+        .unwrap();
+        assert!(peer.symmetric);
+        assert_eq!(
+            serde_json::to_value(&peer).unwrap()["symmetric"],
+            json!(true)
+        );
+        assert!(serde_json::to_value(&plain)
+            .unwrap()
+            .get("symmetric")
+            .is_none());
     }
 }

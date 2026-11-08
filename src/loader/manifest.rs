@@ -392,11 +392,24 @@ impl Manifest {
     /// Iterate every declared archetype across all manifest sections in
     /// declaration order (`artifact_types`, then `object_types`, then
     /// `archetypes`). After FR-031 they compile through one path.
+    ///
+    /// An entry identical to an earlier one is the same archetype declared in
+    /// two blocks, and is yielded once; registering it twice would report the
+    /// module as a duplicate of itself. Two entries that share a name but
+    /// differ are both yielded, so the collision stays visible.
     pub fn all_archetypes(&self) -> impl Iterator<Item = &Archetype> {
+        let mut seen: Vec<&Archetype> = Vec::new();
         self.artifact_types
             .iter()
             .chain(self.object_types.iter())
             .chain(self.archetypes.iter())
+            .filter(move |a| {
+                let repeat = seen.contains(a);
+                if !repeat {
+                    seen.push(a);
+                }
+                !repeat
+            })
     }
 }
 

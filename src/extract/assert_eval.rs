@@ -27,7 +27,7 @@ use crate::query::{
 /// for a missing `{field}` interpolation.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AssertReason {
-    /// A structural assertion (`level`, `columns`, `min_rows`,
+    /// A structural assertion (`level`, `columns`, `min_rows`, `max_rows`,
     /// `min_items`, `id_pattern`, `matches`) did not hold.
     Assert,
     /// A `{field}` token referenced a frontmatter key that is absent
@@ -233,6 +233,7 @@ fn check_table(
         // missing table is reported (not silently passing).
         if assert.columns.is_some()
             || assert.min_rows.is_some()
+            || assert.max_rows.is_some()
             || assert.id_pattern.is_some()
             || assert.column_choices.is_some()
             || assert.column_patterns.is_some()
@@ -276,6 +277,20 @@ fn check_table(
                 reason: AssertReason::Assert,
                 message: format!(
                     "table has {} data row(s) but assert requires at least {min_rows}",
+                    table.rows.len()
+                ),
+                line,
+                row_id: None,
+            });
+        }
+    }
+
+    if let Some(max_rows) = assert.max_rows {
+        if table.rows.len() > max_rows {
+            failures.push(AssertFailure {
+                reason: AssertReason::Assert,
+                message: format!(
+                    "table has {} data row(s) but assert allows at most {max_rows}",
                     table.rows.len()
                 ),
                 line,
