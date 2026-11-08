@@ -49,7 +49,7 @@ fn semantic_cases_are_attributed_and_uniquely_named() {
     assert_eq!(before, names.len(), "duplicate case name: {names:?}");
     for case in &file.cases {
         assert!(
-            case.issue_ref.contains('#'),
+            names_a_filing(&case.issue_ref),
             "{}: issue_ref must name a filing, got {:?}",
             case.name,
             case.issue_ref
@@ -60,6 +60,17 @@ fn semantic_cases_are_attributed_and_uniquely_named() {
             case.name
         );
     }
+}
+
+/// A GitHub `<org>/<repo>#<n>` reference or a tracker key such as `PLAT-35`.
+fn names_a_filing(issue_ref: &str) -> bool {
+    let tracker_key = issue_ref.split_once('-').is_some_and(|(team, number)| {
+        !team.is_empty()
+            && team.chars().all(|c| c.is_ascii_uppercase())
+            && !number.is_empty()
+            && number.chars().all(|c| c.is_ascii_digit())
+    });
+    issue_ref.contains('#') || tracker_key
 }
 
 #[test]

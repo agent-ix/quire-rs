@@ -1381,6 +1381,1446 @@
     ],
     "package": "agent-ix/spec-objects-fixture"
   },
+  "plat35-step-consumes-control": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "model": {
+        "lossy": false,
+        "state": "available"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "available"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [],
+    "formatVersion": 1,
+    "model": {
+      "displayName": {
+        "sourceSpan": {
+          "endColumn": 22,
+          "endLine": 3,
+          "path": "spec/state-machines/SM-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 3
+        },
+        "value": "OrderLifecycle"
+      },
+      "identity": {
+        "sourceSpan": {
+          "endColumn": 11,
+          "endLine": 2,
+          "path": "spec/state-machines/SM-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 2
+        },
+        "value": "SM-001"
+      },
+      "states": [
+        {
+          "sourceSpan": {
+            "endColumn": 11,
+            "endLine": 12,
+            "path": "spec/state-machines/SM-001.md",
+            "sourceIdentity": "ix://agent-ix/shop/spec",
+            "startColumn": 1,
+            "startLine": 12
+          },
+          "value": "open"
+        },
+        {
+          "sourceSpan": {
+            "endColumn": 14,
+            "endLine": 13,
+            "path": "spec/state-machines/SM-001.md",
+            "sourceIdentity": "ix://agent-ix/shop/spec",
+            "startColumn": 1,
+            "startLine": 13
+          },
+          "value": "shipped"
+        }
+      ],
+      "steps": [
+        {
+          "consumes": [
+            "ix://agent-ix/shop/EV-002"
+          ],
+          "kind": "command",
+          "name": "pick",
+          "sourceSpan": {
+            "endColumn": 39,
+            "endLine": 25,
+            "path": "spec/state-machines/SM-001.md",
+            "sourceIdentity": "ix://agent-ix/shop/spec",
+            "startColumn": 1,
+            "startLine": 25
+          }
+        }
+      ],
+      "transitions": [
+        {
+          "from": "open",
+          "sourceSpan": {
+            "endColumn": 31,
+            "endLine": 19,
+            "path": "spec/state-machines/SM-001.md",
+            "sourceIdentity": "ix://agent-ix/shop/spec",
+            "startColumn": 1,
+            "startLine": 19
+          },
+          "to": "shipped",
+          "trigger": "ship"
+        }
+      ]
+    },
+    "operationSources": [
+      {
+        "name": "ship",
+        "params": [],
+        "returns": {
+          "endColumn": 19,
+          "endLine": 31,
+          "path": "spec/state-machines/SM-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 31
+        }
+      }
+    ],
+    "operations": [
+      {
+        "name": "ship",
+        "params": [],
+        "post": [],
+        "pre": [],
+        "returns": {
+          "multiplicity": {
+            "lower": 1,
+            "ordered": false,
+            "unique": false,
+            "upper": 1
+          },
+          "target": {
+            "kind": "KernelScalar",
+            "value": "String"
+          }
+        }
+      }
+    ],
+    "package": "agent-ix/spec-objects-business"
+  },
+  "plat35-step-consumes-refused": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "model": {
+        "lossy": false,
+        "reason": "entry-errors: lines 25",
+        "state": "unavailable"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "available"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [
+      {
+        "code": "semantic.unknown-reference",
+        "column": 1,
+        "line": 25,
+        "message": "artifact spec/state-machines/SM-001.md declares steps in `## Steps` at line 25: Consumes item \"OrderLost\" names no declaration of the bundle",
+        "reason": "unknown-name",
+        "section": "Steps",
+        "severity": "error",
+        "sourceSpan": {
+          "endColumn": 36,
+          "endLine": 25,
+          "path": "spec/state-machines/SM-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 25
+        }
+      }
+    ],
+    "formatVersion": 1,
+    "operationSources": [
+      {
+        "name": "ship",
+        "params": [],
+        "returns": {
+          "endColumn": 19,
+          "endLine": 31,
+          "path": "spec/state-machines/SM-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 31
+        }
+      }
+    ],
+    "operations": [
+      {
+        "name": "ship",
+        "params": [],
+        "post": [],
+        "pre": [],
+        "returns": {
+          "multiplicity": {
+            "lower": 1,
+            "ordered": false,
+            "unique": false,
+            "upper": 1
+          },
+          "target": {
+            "kind": "KernelScalar",
+            "value": "String"
+          }
+        }
+      }
+    ],
+    "package": "agent-ix/spec-objects-business"
+  },
+  "plat35-step-consumes-resolves": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "model": {
+        "lossy": false,
+        "state": "available"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "available"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [],
+    "formatVersion": 1,
+    "model": {
+      "displayName": {
+        "sourceSpan": {
+          "endColumn": 22,
+          "endLine": 3,
+          "path": "spec/state-machines/SM-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 3
+        },
+        "value": "OrderLifecycle"
+      },
+      "identity": {
+        "sourceSpan": {
+          "endColumn": 11,
+          "endLine": 2,
+          "path": "spec/state-machines/SM-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 2
+        },
+        "value": "SM-001"
+      },
+      "states": [
+        {
+          "sourceSpan": {
+            "endColumn": 11,
+            "endLine": 12,
+            "path": "spec/state-machines/SM-001.md",
+            "sourceIdentity": "ix://agent-ix/shop/spec",
+            "startColumn": 1,
+            "startLine": 12
+          },
+          "value": "open"
+        },
+        {
+          "sourceSpan": {
+            "endColumn": 14,
+            "endLine": 13,
+            "path": "spec/state-machines/SM-001.md",
+            "sourceIdentity": "ix://agent-ix/shop/spec",
+            "startColumn": 1,
+            "startLine": 13
+          },
+          "value": "shipped"
+        }
+      ],
+      "steps": [
+        {
+          "consumes": [
+            "ix://agent-ix/shop/EV-001",
+            "ix://agent-ix/shop/EV-002"
+          ],
+          "kind": "command",
+          "name": "pick",
+          "sourceSpan": {
+            "endColumn": 46,
+            "endLine": 25,
+            "path": "spec/state-machines/SM-001.md",
+            "sourceIdentity": "ix://agent-ix/shop/spec",
+            "startColumn": 1,
+            "startLine": 25
+          }
+        }
+      ],
+      "transitions": [
+        {
+          "from": "open",
+          "sourceSpan": {
+            "endColumn": 31,
+            "endLine": 19,
+            "path": "spec/state-machines/SM-001.md",
+            "sourceIdentity": "ix://agent-ix/shop/spec",
+            "startColumn": 1,
+            "startLine": 19
+          },
+          "to": "shipped",
+          "trigger": "ship"
+        }
+      ]
+    },
+    "operationSources": [
+      {
+        "name": "ship",
+        "params": [],
+        "returns": {
+          "endColumn": 19,
+          "endLine": 31,
+          "path": "spec/state-machines/SM-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 31
+        }
+      }
+    ],
+    "operations": [
+      {
+        "name": "ship",
+        "params": [],
+        "post": [],
+        "pre": [],
+        "returns": {
+          "multiplicity": {
+            "lower": 1,
+            "ordered": false,
+            "unique": false,
+            "upper": 1
+          },
+          "target": {
+            "kind": "KernelScalar",
+            "value": "String"
+          }
+        }
+      }
+    ],
+    "package": "agent-ix/spec-objects-business"
+  },
+  "plat35-step-emits-control": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "model": {
+        "lossy": false,
+        "state": "available"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "available"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [],
+    "formatVersion": 1,
+    "model": {
+      "displayName": {
+        "sourceSpan": {
+          "endColumn": 22,
+          "endLine": 3,
+          "path": "spec/state-machines/SM-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 3
+        },
+        "value": "OrderLifecycle"
+      },
+      "identity": {
+        "sourceSpan": {
+          "endColumn": 11,
+          "endLine": 2,
+          "path": "spec/state-machines/SM-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 2
+        },
+        "value": "SM-001"
+      },
+      "states": [
+        {
+          "sourceSpan": {
+            "endColumn": 11,
+            "endLine": 12,
+            "path": "spec/state-machines/SM-001.md",
+            "sourceIdentity": "ix://agent-ix/shop/spec",
+            "startColumn": 1,
+            "startLine": 12
+          },
+          "value": "open"
+        },
+        {
+          "sourceSpan": {
+            "endColumn": 14,
+            "endLine": 13,
+            "path": "spec/state-machines/SM-001.md",
+            "sourceIdentity": "ix://agent-ix/shop/spec",
+            "startColumn": 1,
+            "startLine": 13
+          },
+          "value": "shipped"
+        }
+      ],
+      "steps": [
+        {
+          "emits": [
+            "ix://agent-ix/shop/EV-001",
+            "ix://agent-ix/shop/EV-002"
+          ],
+          "kind": "command",
+          "name": "pick",
+          "sourceSpan": {
+            "endColumn": 52,
+            "endLine": 25,
+            "path": "spec/state-machines/SM-001.md",
+            "sourceIdentity": "ix://agent-ix/shop/spec",
+            "startColumn": 1,
+            "startLine": 25
+          }
+        }
+      ],
+      "transitions": [
+        {
+          "from": "open",
+          "sourceSpan": {
+            "endColumn": 31,
+            "endLine": 19,
+            "path": "spec/state-machines/SM-001.md",
+            "sourceIdentity": "ix://agent-ix/shop/spec",
+            "startColumn": 1,
+            "startLine": 19
+          },
+          "to": "shipped",
+          "trigger": "ship"
+        }
+      ]
+    },
+    "operationSources": [
+      {
+        "name": "ship",
+        "params": [],
+        "returns": {
+          "endColumn": 19,
+          "endLine": 31,
+          "path": "spec/state-machines/SM-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 31
+        }
+      }
+    ],
+    "operations": [
+      {
+        "name": "ship",
+        "params": [],
+        "post": [],
+        "pre": [],
+        "returns": {
+          "multiplicity": {
+            "lower": 1,
+            "ordered": false,
+            "unique": false,
+            "upper": 1
+          },
+          "target": {
+            "kind": "KernelScalar",
+            "value": "String"
+          }
+        }
+      }
+    ],
+    "package": "agent-ix/spec-objects-business"
+  },
+  "plat35-step-emits-refused": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "model": {
+        "lossy": false,
+        "reason": "entry-errors: lines 25",
+        "state": "unavailable"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "available"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [
+      {
+        "code": "semantic.duplicate-model-entry",
+        "column": 1,
+        "line": 25,
+        "message": "artifact spec/state-machines/SM-001.md declares steps in `## Steps` at line 25: Emits item \"EV-001\" names ix://agent-ix/shop/EV-001, which the cell already names",
+        "reason": "repeated-reference",
+        "section": "Steps",
+        "severity": "error",
+        "sourceSpan": {
+          "endColumn": 46,
+          "endLine": 25,
+          "path": "spec/state-machines/SM-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 25
+        }
+      }
+    ],
+    "formatVersion": 1,
+    "operationSources": [
+      {
+        "name": "ship",
+        "params": [],
+        "returns": {
+          "endColumn": 19,
+          "endLine": 31,
+          "path": "spec/state-machines/SM-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 31
+        }
+      }
+    ],
+    "operations": [
+      {
+        "name": "ship",
+        "params": [],
+        "post": [],
+        "pre": [],
+        "returns": {
+          "multiplicity": {
+            "lower": 1,
+            "ordered": false,
+            "unique": false,
+            "upper": 1
+          },
+          "target": {
+            "kind": "KernelScalar",
+            "value": "String"
+          }
+        }
+      }
+    ],
+    "package": "agent-ix/spec-objects-business"
+  },
+  "plat35-step-emits-resolves": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "model": {
+        "lossy": false,
+        "state": "available"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "available"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [],
+    "formatVersion": 1,
+    "model": {
+      "displayName": {
+        "sourceSpan": {
+          "endColumn": 22,
+          "endLine": 3,
+          "path": "spec/state-machines/SM-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 3
+        },
+        "value": "OrderLifecycle"
+      },
+      "identity": {
+        "sourceSpan": {
+          "endColumn": 11,
+          "endLine": 2,
+          "path": "spec/state-machines/SM-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 2
+        },
+        "value": "SM-001"
+      },
+      "states": [
+        {
+          "sourceSpan": {
+            "endColumn": 11,
+            "endLine": 12,
+            "path": "spec/state-machines/SM-001.md",
+            "sourceIdentity": "ix://agent-ix/shop/spec",
+            "startColumn": 1,
+            "startLine": 12
+          },
+          "value": "open"
+        },
+        {
+          "sourceSpan": {
+            "endColumn": 14,
+            "endLine": 13,
+            "path": "spec/state-machines/SM-001.md",
+            "sourceIdentity": "ix://agent-ix/shop/spec",
+            "startColumn": 1,
+            "startLine": 13
+          },
+          "value": "shipped"
+        }
+      ],
+      "steps": [
+        {
+          "emits": [
+            "ix://agent-ix/shop/EV-002"
+          ],
+          "kind": "command",
+          "name": "pick",
+          "sourceSpan": {
+            "endColumn": 39,
+            "endLine": 25,
+            "path": "spec/state-machines/SM-001.md",
+            "sourceIdentity": "ix://agent-ix/shop/spec",
+            "startColumn": 1,
+            "startLine": 25
+          }
+        }
+      ],
+      "transitions": [
+        {
+          "from": "open",
+          "sourceSpan": {
+            "endColumn": 31,
+            "endLine": 19,
+            "path": "spec/state-machines/SM-001.md",
+            "sourceIdentity": "ix://agent-ix/shop/spec",
+            "startColumn": 1,
+            "startLine": 19
+          },
+          "to": "shipped",
+          "trigger": "ship"
+        }
+      ]
+    },
+    "operationSources": [
+      {
+        "name": "ship",
+        "params": [],
+        "returns": {
+          "endColumn": 19,
+          "endLine": 31,
+          "path": "spec/state-machines/SM-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 31
+        }
+      }
+    ],
+    "operations": [
+      {
+        "name": "ship",
+        "params": [],
+        "post": [],
+        "pre": [],
+        "returns": {
+          "multiplicity": {
+            "lower": 1,
+            "ordered": false,
+            "unique": false,
+            "upper": 1
+          },
+          "target": {
+            "kind": "KernelScalar",
+            "value": "String"
+          }
+        }
+      }
+    ],
+    "package": "agent-ix/spec-objects-business"
+  },
+  "plat35-transition-emits-control": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "model": {
+        "lossy": false,
+        "state": "available"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "available"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [],
+    "formatVersion": 1,
+    "model": {
+      "displayName": {
+        "sourceSpan": {
+          "endColumn": 22,
+          "endLine": 3,
+          "path": "spec/state-machines/SM-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 3
+        },
+        "value": "OrderLifecycle"
+      },
+      "identity": {
+        "sourceSpan": {
+          "endColumn": 11,
+          "endLine": 2,
+          "path": "spec/state-machines/SM-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 2
+        },
+        "value": "SM-001"
+      },
+      "states": [
+        {
+          "sourceSpan": {
+            "endColumn": 11,
+            "endLine": 12,
+            "path": "spec/state-machines/SM-001.md",
+            "sourceIdentity": "ix://agent-ix/shop/spec",
+            "startColumn": 1,
+            "startLine": 12
+          },
+          "value": "open"
+        },
+        {
+          "sourceSpan": {
+            "endColumn": 14,
+            "endLine": 13,
+            "path": "spec/state-machines/SM-001.md",
+            "sourceIdentity": "ix://agent-ix/shop/spec",
+            "startColumn": 1,
+            "startLine": 13
+          },
+          "value": "shipped"
+        }
+      ],
+      "steps": [
+        {
+          "kind": "command",
+          "name": "pick",
+          "sourceSpan": {
+            "endColumn": 27,
+            "endLine": 25,
+            "path": "spec/state-machines/SM-001.md",
+            "sourceIdentity": "ix://agent-ix/shop/spec",
+            "startColumn": 1,
+            "startLine": 25
+          }
+        }
+      ],
+      "transitions": [
+        {
+          "emits": "ix://agent-ix/shop/EV-002",
+          "from": "open",
+          "sourceSpan": {
+            "endColumn": 39,
+            "endLine": 19,
+            "path": "spec/state-machines/SM-001.md",
+            "sourceIdentity": "ix://agent-ix/shop/spec",
+            "startColumn": 1,
+            "startLine": 19
+          },
+          "to": "shipped",
+          "trigger": "ship"
+        }
+      ]
+    },
+    "operationSources": [
+      {
+        "name": "ship",
+        "params": [],
+        "returns": {
+          "endColumn": 19,
+          "endLine": 31,
+          "path": "spec/state-machines/SM-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 31
+        }
+      }
+    ],
+    "operations": [
+      {
+        "name": "ship",
+        "params": [],
+        "post": [],
+        "pre": [],
+        "returns": {
+          "multiplicity": {
+            "lower": 1,
+            "ordered": false,
+            "unique": false,
+            "upper": 1
+          },
+          "target": {
+            "kind": "KernelScalar",
+            "value": "String"
+          }
+        }
+      }
+    ],
+    "package": "agent-ix/spec-objects-business"
+  },
+  "plat35-transition-emits-refused": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "model": {
+        "lossy": false,
+        "reason": "entry-errors: lines 19",
+        "state": "unavailable"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "available"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [
+      {
+        "code": "semantic.reference-kind-mismatch",
+        "column": 1,
+        "line": 19,
+        "message": "artifact spec/state-machines/SM-001.md declares transitions in `## Transitions` at line 19: Emits item \"Order\" names no declaration of an object type the transitions emits admits",
+        "section": "Transitions",
+        "severity": "error",
+        "sourceSpan": {
+          "endColumn": 36,
+          "endLine": 19,
+          "path": "spec/state-machines/SM-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 19
+        }
+      }
+    ],
+    "formatVersion": 1,
+    "operationSources": [
+      {
+        "name": "ship",
+        "params": [],
+        "returns": {
+          "endColumn": 19,
+          "endLine": 31,
+          "path": "spec/state-machines/SM-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 31
+        }
+      }
+    ],
+    "operations": [
+      {
+        "name": "ship",
+        "params": [],
+        "post": [],
+        "pre": [],
+        "returns": {
+          "multiplicity": {
+            "lower": 1,
+            "ordered": false,
+            "unique": false,
+            "upper": 1
+          },
+          "target": {
+            "kind": "KernelScalar",
+            "value": "String"
+          }
+        }
+      }
+    ],
+    "package": "agent-ix/spec-objects-business"
+  },
+  "plat35-transition-emits-resolves": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "model": {
+        "lossy": false,
+        "state": "available"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "available"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [],
+    "formatVersion": 1,
+    "model": {
+      "displayName": {
+        "sourceSpan": {
+          "endColumn": 22,
+          "endLine": 3,
+          "path": "spec/state-machines/SM-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 3
+        },
+        "value": "OrderLifecycle"
+      },
+      "identity": {
+        "sourceSpan": {
+          "endColumn": 11,
+          "endLine": 2,
+          "path": "spec/state-machines/SM-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 2
+        },
+        "value": "SM-001"
+      },
+      "states": [
+        {
+          "sourceSpan": {
+            "endColumn": 11,
+            "endLine": 12,
+            "path": "spec/state-machines/SM-001.md",
+            "sourceIdentity": "ix://agent-ix/shop/spec",
+            "startColumn": 1,
+            "startLine": 12
+          },
+          "value": "open"
+        },
+        {
+          "sourceSpan": {
+            "endColumn": 14,
+            "endLine": 13,
+            "path": "spec/state-machines/SM-001.md",
+            "sourceIdentity": "ix://agent-ix/shop/spec",
+            "startColumn": 1,
+            "startLine": 13
+          },
+          "value": "shipped"
+        }
+      ],
+      "steps": [
+        {
+          "kind": "command",
+          "name": "pick",
+          "sourceSpan": {
+            "endColumn": 27,
+            "endLine": 25,
+            "path": "spec/state-machines/SM-001.md",
+            "sourceIdentity": "ix://agent-ix/shop/spec",
+            "startColumn": 1,
+            "startLine": 25
+          }
+        }
+      ],
+      "transitions": [
+        {
+          "emits": "ix://agent-ix/shop/EV-001",
+          "from": "open",
+          "sourceSpan": {
+            "endColumn": 42,
+            "endLine": 19,
+            "path": "spec/state-machines/SM-001.md",
+            "sourceIdentity": "ix://agent-ix/shop/spec",
+            "startColumn": 1,
+            "startLine": 19
+          },
+          "to": "shipped",
+          "trigger": "ship"
+        }
+      ]
+    },
+    "operationSources": [
+      {
+        "name": "ship",
+        "params": [],
+        "returns": {
+          "endColumn": 19,
+          "endLine": 31,
+          "path": "spec/state-machines/SM-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 31
+        }
+      }
+    ],
+    "operations": [
+      {
+        "name": "ship",
+        "params": [],
+        "post": [],
+        "pre": [],
+        "returns": {
+          "multiplicity": {
+            "lower": 1,
+            "ordered": false,
+            "unique": false,
+            "upper": 1
+          },
+          "target": {
+            "kind": "KernelScalar",
+            "value": "String"
+          }
+        }
+      }
+    ],
+    "package": "agent-ix/spec-objects-business"
+  },
+  "plat55-aggregate-root-emits-control": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "relations": {
+        "lossy": false,
+        "state": "available"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [],
+    "emits": [
+      "ix://agent-ix/shop/event-001"
+    ],
+    "formatVersion": 1,
+    "package": "agent-ix/spec-objects-business",
+    "relationSources": [
+      {
+        "name": "parent",
+        "sourceSpan": {
+          "endColumn": 52,
+          "endLine": 13,
+          "path": "spec/objects/AGG-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 13
+        }
+      }
+    ],
+    "relations": [
+      {
+        "category": "traceability",
+        "composite": false,
+        "multiplicity": {
+          "lower": 0,
+          "ordered": false,
+          "unique": false,
+          "upper": 1
+        },
+        "target": "ix://agent-ix/shop/aggregate-root-001",
+        "verb": "references"
+      }
+    ]
+  },
+  "plat55-aggregate-root-emits-refused": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "relations": {
+        "lossy": false,
+        "reason": "entry-errors: lines 12",
+        "state": "unavailable"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [
+      {
+        "code": "semantic.invalid-model-cell",
+        "column": 1,
+        "line": 12,
+        "message": "artifact spec/objects/AGG-001.md declares relationships in `## Relationships` at line 12: target entity-001 (object type entity) satisfies no allowed_links token of `emits` for object type aggregate_root",
+        "reason": "target-not-allowed",
+        "section": "Relationships",
+        "severity": "error",
+        "sourceSpan": {
+          "endColumn": 39,
+          "endLine": 12,
+          "path": "spec/objects/AGG-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 12
+        }
+      }
+    ],
+    "formatVersion": 1,
+    "package": "agent-ix/spec-objects-business"
+  },
+  "plat55-aggregate-root-emits-resolves": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "relations": {
+        "lossy": false,
+        "state": "available"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [],
+    "emits": [
+      "ix://agent-ix/shop/event-001"
+    ],
+    "formatVersion": 1,
+    "package": "agent-ix/spec-objects-business",
+    "relationSources": [],
+    "relations": []
+  },
+  "plat55-process-emits-control": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "relations": {
+        "lossy": false,
+        "state": "available"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [],
+    "emits": [
+      "ix://agent-ix/shop/event-001"
+    ],
+    "formatVersion": 1,
+    "package": "agent-ix/spec-objects-business",
+    "relationSources": [
+      {
+        "multiplicity": "0..1",
+        "name": "done",
+        "sourceSpan": {
+          "endColumn": 36,
+          "endLine": 12,
+          "path": "spec/objects/PRC-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 12
+        },
+        "target": "event-001",
+        "verb": "emits"
+      }
+    ]
+  },
+  "plat55-process-emits-refused": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "relations": {
+        "lossy": false,
+        "reason": "entry-errors: lines 12",
+        "state": "unavailable"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [
+      {
+        "code": "semantic.invalid-model-cell",
+        "column": 1,
+        "line": 12,
+        "message": "artifact spec/objects/PRC-001.md declares relationships in `## Relationships` at line 12: verb `triggers` is no typed relation key of object type process, whose data schema declares no `relations`",
+        "reason": "verb-not-typed-key",
+        "section": "Relationships",
+        "severity": "error",
+        "sourceSpan": {
+          "endColumn": 34,
+          "endLine": 12,
+          "path": "spec/objects/PRC-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 12
+        }
+      }
+    ],
+    "formatVersion": 1,
+    "package": "agent-ix/spec-objects-business"
+  },
+  "plat55-process-emits-resolves": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "relations": {
+        "lossy": false,
+        "state": "available"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [],
+    "emits": [
+      "ix://agent-ix/shop/event-001"
+    ],
+    "formatVersion": 1,
+    "package": "agent-ix/spec-objects-business",
+    "relationSources": [
+      {
+        "multiplicity": "0..1",
+        "name": "done",
+        "sourceSpan": {
+          "endColumn": 36,
+          "endLine": 12,
+          "path": "spec/objects/PRC-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 12
+        },
+        "target": "event-001",
+        "verb": "emits"
+      }
+    ]
+  },
+  "plat55-repository-persists-control": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "relations": {
+        "lossy": false,
+        "state": "available"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [],
+    "formatVersion": 1,
+    "package": "agent-ix/spec-objects-business",
+    "persists": [
+      "ix://agent-ix/shop/entity-001"
+    ],
+    "relationSources": [
+      {
+        "multiplicity": "0..*",
+        "name": "orders",
+        "sourceSpan": {
+          "endColumn": 42,
+          "endLine": 12,
+          "path": "spec/objects/REP-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 12
+        },
+        "target": "entity-001",
+        "verb": "persists"
+      }
+    ]
+  },
+  "plat55-repository-persists-refused": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "relations": {
+        "lossy": false,
+        "reason": "entry-errors: lines 12",
+        "state": "unavailable"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [
+      {
+        "code": "semantic.invalid-model-cell",
+        "column": 1,
+        "line": 12,
+        "message": "artifact spec/objects/REP-001.md declares relationships in `## Relationships` at line 12: target \"Order\" is not a bundle artifact id, an `ix://<org>/<repo>/<id>` identity of a bundle artifact, or an identity in an imported package",
+        "reason": "target-not-id",
+        "section": "Relationships",
+        "severity": "error",
+        "sourceSpan": {
+          "endColumn": 37,
+          "endLine": 12,
+          "path": "spec/objects/REP-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 12
+        }
+      }
+    ],
+    "formatVersion": 1,
+    "package": "agent-ix/spec-objects-business"
+  },
+  "plat55-repository-persists-resolves": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "relations": {
+        "lossy": false,
+        "state": "available"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [],
+    "formatVersion": 1,
+    "package": "agent-ix/spec-objects-business",
+    "persists": [
+      "ix://agent-ix/shop/aggregate-root-001"
+    ],
+    "relationSources": [
+      {
+        "multiplicity": "0..*",
+        "name": "orders",
+        "sourceSpan": {
+          "endColumn": 50,
+          "endLine": 12,
+          "path": "spec/objects/REP-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 12
+        },
+        "target": "aggregate-root-001",
+        "verb": "persists"
+      }
+    ]
+  },
   "required-invariants-missing": {
     "availability": {
       "clauses": {

@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use super::contract::SemanticModule;
 use super::model::{DeclaredSections, DeclaredTables};
-use super::relations::RelationVocabulary;
+use super::relations::{RelationSchema, RelationVocabulary};
 use crate::extract::dsl::ExtractionDsl;
 
 /// One resolvable declaration in the bundle: its artifact `id` and every
@@ -144,6 +144,32 @@ fn merge_entry(entries: &mut Vec<BundleEntry>, id: &str, names: Vec<String>) {
     }
 }
 
+/// The object type's construct `references` (FR-075 Inputs): each model
+/// member (`transitions`, `steps`, ...) mapped to the role tokens a
+/// declaration it names must carry.
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct ConstructReferences(BTreeMap<String, Vec<String>>);
+
+impl ConstructReferences {
+    pub fn new(references: BTreeMap<String, Vec<String>>) -> Self {
+        Self(references)
+    }
+
+    /// The `references` of a raw `construct` declaration. `None` when the
+    /// construct declares no `references`, or declares one that is not a map
+    /// of member to role list: its shape is owned by filament-core-data, and
+    /// a construct that does not state one admits through the next tier.
+    pub fn from_construct(construct: &serde_json::Value) -> Option<Self> {
+        serde_json::from_value(construct.get("references")?.clone()).ok()
+    }
+
+    /// The role tokens the construct declares for `member`.
+    pub(crate) fn roles(&self, member: &str) -> Option<&[String]> {
+        self.0.get(member).map(Vec::as_slice)
+    }
+}
+
 /// Everything extraction needs besides the document (FR-070/FR-071 Inputs).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SemanticContext {
@@ -165,6 +191,12 @@ pub struct SemanticContext {
     /// checked against (FR-076 Inputs); `None` when the surface supplies
     /// none, which extracts under `no-relation-vocabulary`.
     pub relation_vocabulary: Option<RelationVocabulary>,
+    /// The object type's construct `references`, read by the FR-075
+    /// declaration-reference admission; `None` skips the construct tier.
+    pub construct_references: Option<ConstructReferences>,
+    /// What the object type's resolved `data_schema` declares that FR-076
+    /// typed relation keys read; `None` reads every row into `relations`.
+    pub(crate) relation_schema: Option<RelationSchema>,
 }
 
 impl SemanticContext {
@@ -178,7 +210,22 @@ impl SemanticContext {
             declared_tables: DeclaredTables::default(),
             declared_sections: DeclaredSections::default(),
             relation_vocabulary: None,
+            construct_references: None,
+            relation_schema: None,
         }
+    }
+
+    /// Admit FR-075 declaration references through the object type's
+    /// construct `references`.
+    pub fn with_construct_references(mut self, references: ConstructReferences) -> Self {
+        self.construct_references = Some(references);
+        self
+    }
+
+    /// Lower FR-076 rows into the typed relation keys `data_schema` declares.
+    pub fn with_data_schema(mut self, data_schema: &serde_json::Value) -> Self {
+        self.relation_schema = Some(RelationSchema::from_data_schema(data_schema));
+        self
     }
 
     /// Check relationship rows against `vocabulary` (FR-076).

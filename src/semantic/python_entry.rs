@@ -4,7 +4,7 @@
 use serde::Deserialize;
 use serde_json::Value;
 
-use super::context::{BundleIndex, SemanticContext};
+use super::context::{BundleIndex, ConstructReferences, SemanticContext};
 use super::contract::SemanticModule;
 use super::relations::RelationVocabulary;
 use super::surface::{extract_semantic, RequiredSections, SemanticExtraction};
@@ -59,6 +59,13 @@ struct Request {
     /// checked against (FR-076).
     #[serde(default)]
     relation_vocabulary: Option<RelationVocabulary>,
+    /// The object type's construct `references` (FR-075 admission).
+    #[serde(default)]
+    construct_references: Option<ConstructReferences>,
+    /// The object type's resolved `data_schema`, whose `SemanticId[]`
+    /// properties are the FR-076 typed relation keys.
+    #[serde(default)]
+    data_schema: Option<Value>,
 }
 
 /// Run FR-072 for a JSON request; the error is a deserialization message.
@@ -94,6 +101,10 @@ pub fn extract_semantic_json(request: &Value) -> Result<SemanticExtraction, Stri
         ctx = ctx.with_body_extraction(&dsl);
     }
     ctx.relation_vocabulary = req.relation_vocabulary;
+    ctx.construct_references = req.construct_references;
+    if let Some(schema) = &req.data_schema {
+        ctx = ctx.with_data_schema(schema);
+    }
     let required = req
         .required
         .map(|v| RequiredSections {
