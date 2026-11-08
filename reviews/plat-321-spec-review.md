@@ -46,3 +46,20 @@ withdrawn criteria. FR-011's row lists only defined ids, though unlike FR-074 it
 does not annotate the gaps. The TC-970..981 re-trace to FR-074 is correct and
 matches the existing tags. TC-2010 and TC-2011 are honestly 🚧. FND-001 and
 FND-003 should be fixed before merge.
+
+## New findings (disposition pass 1)
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-005 | low | [ambiguous] FR-050-AC-58 says a criterion is not live and needs no row when its coverage row is struck through or its status cell begins `RETIRED`. The code does something narrower: such a row only loses its range declaration, and a live document definition still requires a row (constructed `\| FR-001 \| AC-1 \| TC-1 \| ⛔ RETIRED \|` with a live `**FR-001-AC-1**` gives one Missing finding). Make the text match the code: the row declares nothing. The same AC also has a stray `]` after "FR-050-AC-55". | spec/functional/FR-050-declarative-coverage-computation.md:292 |
+
+## Dispositions
+
+Round 1, at head 8806d52.
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | Fixed. After: `\| NFR-006-AC-1 \| RETIRED (render removal) \|` and `\| FR-071-AC-9 \| RETIRED (removed; the id is not reused) \|`. Both ACs are tombstones, so deleting either row stays green, which is correct. |
+| FND-002 | fixed | Fixed. After: `\| FR-070-AC-6 \| TC-1615, TC-1621 \|`. |
+| FND-003 | fixed | AC-58 now says its tombstone marker is the document's own statement that an id is not a criterion, separate from AC-55's module-declared verification retirement. A bare `Withdrawn.` is a tombstone and a leading word is not. The CR-200 note explains why the vocabulary is fixed in the engine. |
+| FND-004 | fixed | The SHA and the measurement history are gone from the CR-200 note. The integrity paragraph now has no `Count: 316 ... = 447` chain and no SR-118 provenance tag. |

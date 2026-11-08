@@ -43,3 +43,13 @@ honestly 🚧: no test is tagged with either AC. TC-2006..2009 describe real tes
 (env-root order, unknown-manifest-key refusal, require_clean, retirement), but
 they claim ✅ without their own tag, and they sit in a table that coverage does
 not read.
+
+## Dispositions
+
+Round 1, at head 8806d52.
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | `AuditFinding::Phantom` now reports a coverage-range id or an audit-row id that no document defines. Constructed `FR-001-AC-99` is now reported. The PR tree reports none. |
+| FND-002 | fixed | The new test cases are renumbered TC-2050..2056 and sit in the main Test Case Summary table (spec/tests.md:1117-1123), above the PLAT-1181 planned table. Every backing test now carries its TC id: src/loader/paths.rs:266, src/registry.rs:1689 and 1745, tools/quire-bench/tests/clean_checkout.rs, tests/it/coverage_rollup.rs, tests/it/corpus_cases.rs:2231, tests/it/audit_table.rs. TC-2054 and TC-2055 stay 🚧. |
+| FND-003 | fixed | tests/it/audit_table.rs now covers StR deletions, table-cell definitions, `(RETIRED`, `Removed:` and bold tombstones, a live `Withdrawn` sentence, phantom ids and unreadable cells, all tagged TC-2056. |

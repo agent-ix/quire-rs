@@ -55,3 +55,21 @@ the declared population, where the gate stays green. Clean parts: list
 continuations (`AC-1..2, 4`), parenthetical stripping, `CON-` exclusion, audit
 range rows, two ACs in one audit cell, struck-through and `RETIRED` status rows,
 and the example's error routing all behave as AC-58 states.
+
+## Dispositions
+
+Round 1, at head 8806d52. The reviewer checked each fix in the code at that head
+and re-ran it with a scratch example over the same 16 constructed cases and new
+ones. `cargo test --test it`: 548 passed. `examples/spec_validate` on the PR
+tree: 0 audit-table findings.
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | The id patterns are now `[A-Za-z]+-\d+` and anchored at a token boundary. Deleting the StR-003-AC-1 or StR-005-AC-2 audit row now fails, naming the stakeholder document. |
+| FND-002 | fixed | Only a struck-through first cell or a status cell beginning `RETIRED` drops a coverage row. `TC-1 (⛔ RETIRED)` in a Test Cases cell no longer drops the range. |
+| FND-003 | fixed | `AC-1..AC-3` and `AC-1–3` now expand in full. `ac-1..3`, `AC-5..2`, `AC-1...3` and `AC-1-3` are `Unreadable` errors. |
+| FND-004 | fixed | `is_tombstone` now takes `**RETIRED`, `(RETIRED`, `Removed:`, `~~` and a bare `Withdrawn.`, and it applies on the bold path too. A live statement that begins "Withdrawn tokens ..." needs a row. |
+| FND-005 | fixed | Each missing criterion is now one `Missing` finding listing every source. |
+| FND-006 | fixed | `MAX_RANGE_SPAN` is 1000. `AC-1..4000000` is one `Unreadable` finding in under 1 ms, both in a coverage row and in an audit row. |
+| FND-007 | fixed | Only tables headed `AC` count, and fenced lines are skipped. A `###` gaps table maps nothing. |
+| FND-008 | fixed | The shared `audit_spec_dir` propagates directory-entry errors, and both the example and the repo test use it. |
