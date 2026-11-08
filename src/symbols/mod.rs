@@ -377,7 +377,7 @@ pub fn extract_tree_scoped(
         // surface. Its placeholder FR ids collide with the repo's real ids,
         // so tags inside it must never bind. Non-configurable, like the
         // document-root exclusion.
-        if is_template_dir(entry.file_name()) {
+        if entry.depth() > 0 && is_template_dir(entry.file_name()) {
             return false;
         }
         let canonical = std::fs::canonicalize(path);
@@ -682,6 +682,9 @@ mod tests {
 
         let out = extract_tree(&dir);
         assert!(out.symbols.iter().any(|s| s.path == "tests/test_real.py"));
+        // A scope that IS a template root is still walked (only descendants prune).
+        let rooted = extract_tree(&dir.join("templates/mod/{{cookiecutter.repo_name}}"));
+        assert!(rooted.symbols.iter().any(|s| s.path == "tests/test_t.py"));
         assert!(
             out.symbols.iter().all(|s| !s.path.contains("cookiecutter")),
             "template tree leaked into the source walk"
