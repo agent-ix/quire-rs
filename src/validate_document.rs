@@ -17,6 +17,8 @@
 //! Diagnostics are line-numbered (1-based document line) and carry a
 //! [`ValidationReason`].
 
+#![deny(clippy::disallowed_types)]
+
 use std::collections::BTreeMap;
 
 use serde_json::{Map, Value};

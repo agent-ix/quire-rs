@@ -47,10 +47,13 @@ fmt-check:
 	$(CARGO) fmt --all -- --check
 
 .PHONY: lint
+# clippy.toml bans (disallowed-types/methods) are opt-in: allowed everywhere here,
+# re-enabled by `#![deny(...)]` in the quire-rs library modules they police.
+CLIPPY_OPT_IN_BANS = -A clippy::disallowed-types -A clippy::disallowed-methods
 lint:
-	$(CARGO) clippy --locked --all-targets -- -D warnings
-	$(CARGO) clippy --locked --all-targets --features python -- -D warnings
-	$(CARGO) clippy --locked -p quire-bench --all-targets -- -D warnings
+	$(CARGO) clippy --locked --all-targets -- -D warnings $(CLIPPY_OPT_IN_BANS)
+	$(CARGO) clippy --locked --all-targets --features python -- -D warnings $(CLIPPY_OPT_IN_BANS)
+	$(CARGO) clippy --locked -p quire-bench --all-targets -- -D warnings $(CLIPPY_OPT_IN_BANS)
 
 # The `python` feature was not compiled by the original default lint and test
 # targets. FR-056 added a field to `GrammarVocabularies`,

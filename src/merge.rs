@@ -5,6 +5,8 @@
 //! semantics would surprise authors who use arrays for "the full set
 //! after edit"). Pure function over `serde_json::Value`.
 
+#![deny(clippy::disallowed_types)]
+
 use serde_json::Value;
 
 /// Merge `patch` onto `current`, returning a new value.

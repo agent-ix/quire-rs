@@ -9,6 +9,7 @@
 // PyO3 macros that expand to `unsafe` in-crate, so the forbid is scoped to the
 // non-python build; first-party `src/python` is itself `unsafe`-free (NFR-003).
 #![cfg_attr(not(feature = "python"), forbid(unsafe_code))]
+#![deny(clippy::disallowed_methods)]
 
 pub mod assurance;
 pub mod ast;
