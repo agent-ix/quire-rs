@@ -936,7 +936,7 @@ fn records_without_model_features_are_unchanged() {
             .unwrap();
     let schema = schema();
     // A case whose object type declares model tables (`bodyExtraction`) or
-    // whose module declares `mappings` is a model case, not one of the records
+    // whose module maps `effect-frames` is a model case, not one of the records
     // without model features.
     for case in cases["cases"].as_array().unwrap().iter().filter(|c| {
         c["input"].get("bodyExtraction").is_none()

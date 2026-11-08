@@ -3793,10 +3793,7 @@
           "exports": [
             "entity"
           ],
-          "imports": {},
-          "mappings": [
-            "effect-frames"
-          ]
+          "imports": {}
         },
         "path": "spec/functional/FR-006.md",
         "sourceIdentity": "ix://agent-ix/config-service/spec"
@@ -3837,10 +3834,7 @@
           "exports": [
             "entity"
           ],
-          "imports": {},
-          "mappings": [
-            "effect-frames"
-          ]
+          "imports": {}
         },
         "path": "spec/functional/FR-006.md",
         "sourceIdentity": "ix://agent-ix/config-service/spec"
@@ -3895,10 +3889,7 @@
           "exports": [
             "entity"
           ],
-          "imports": {},
-          "mappings": [
-            "effect-frames"
-          ]
+          "imports": {}
         },
         "path": "spec/functional/FR-006.md",
         "sourceIdentity": "ix://agent-ix/config-service/spec"
@@ -3952,10 +3943,7 @@
           "exports": [
             "entity"
           ],
-          "imports": {},
-          "mappings": [
-            "effect-frames"
-          ]
+          "imports": {}
         },
         "path": "spec/functional/FR-006.md",
         "sourceIdentity": "ix://agent-ix/config-service/spec"
@@ -3994,10 +3982,7 @@
           "exports": [
             "entity"
           ],
-          "imports": {},
-          "mappings": [
-            "effect-frames"
-          ]
+          "imports": {}
         },
         "path": "spec/functional/FR-006.md",
         "sourceIdentity": "ix://agent-ix/config-service/spec"
@@ -4051,10 +4036,7 @@
           "exports": [
             "entity"
           ],
-          "imports": {},
-          "mappings": [
-            "effect-frames"
-          ]
+          "imports": {}
         },
         "path": "spec/functional/FR-006.md",
         "sourceIdentity": "ix://agent-ix/config-service/spec"
@@ -4097,10 +4079,7 @@
           "exports": [
             "entity"
           ],
-          "imports": {},
-          "mappings": [
-            "effect-frames"
-          ]
+          "imports": {}
         },
         "path": "spec/functional/FR-006.md",
         "sourceIdentity": "ix://agent-ix/config-service/spec"
@@ -4143,10 +4122,7 @@
           "exports": [
             "entity"
           ],
-          "imports": {},
-          "mappings": [
-            "effect-frames"
-          ]
+          "imports": {}
         },
         "path": "spec/functional/FR-006.md",
         "sourceIdentity": "ix://agent-ix/config-service/spec"
@@ -4183,10 +4159,7 @@
           "exports": [
             "entity"
           ],
-          "imports": {},
-          "mappings": [
-            "effect-frames"
-          ]
+          "imports": {}
         },
         "path": "spec/functional/FR-006.md",
         "sourceIdentity": "ix://agent-ix/config-service/spec"
@@ -4223,10 +4196,7 @@
           "exports": [
             "entity"
           ],
-          "imports": {},
-          "mappings": [
-            "effect-frames"
-          ]
+          "imports": {}
         },
         "path": "spec/functional/FR-006.md",
         "sourceIdentity": "ix://agent-ix/config-service/spec"

@@ -1444,13 +1444,18 @@ impl<'a> TableRead<'a> {
         self.own_operations
     }
 
-    /// The cell under `column`, empty when the column is absent (declared
-    /// optional) or the row is short.
-    pub(super) fn cell<'c>(&self, cells: &'c [String], column: &str) -> &'c str {
+    /// The index of the header `column`, `None` when the table omits it.
+    fn column(&self, column: &str) -> Option<usize> {
         self.table
             .headers
             .iter()
             .position(|h| strip_ticks(h) == column)
+    }
+
+    /// The cell under `column`, empty when the column is absent (declared
+    /// optional) or the row is short.
+    pub(super) fn cell<'c>(&self, cells: &'c [String], column: &str) -> &'c str {
+        self.column(column)
             .and_then(|i| cells.get(i))
             .map_or("", |c| strip_ticks(c))
     }
@@ -1466,26 +1471,22 @@ impl<'a> TableRead<'a> {
         if is_identifier(text) {
             return Guard::Reference(text.to_string());
         }
-        let columns = self
-            .table
-            .headers
-            .iter()
-            .position(|h| strip_ticks(h) == "Guard")
-            .and_then(|i| {
-                let row = self.lines.get(line - 1)?;
-                split_row_spans(row).into_iter().nth(i).map(|(_, r)| r)
-            })
-            .unwrap_or(0..0);
+        // A non-empty Guard cell came from this column of this row's source
+        // line, so both lookups succeed.
+        let index = self
+            .column("Guard")
+            .expect("a non-empty Guard cell has a column");
+        let (_, columns) = split_row_spans(self.lines[line - 1])
+            .into_iter()
+            .nth(index)
+            .expect("the Guard cell was split from this source line");
         Guard::Expression(Expression::new(text, text_span(self.ctx, line, columns)))
     }
 
     /// The cell under `column` as authored, trimmed, with no backticks
     /// stripped: a reference cell strips them per item.
     fn raw_cell<'c>(&self, cells: &'c [String], column: &str) -> &'c str {
-        self.table
-            .headers
-            .iter()
-            .position(|h| strip_ticks(h) == column)
+        self.column(column)
             .and_then(|i| cells.get(i))
             .map_or("", |c| c.trim())
     }

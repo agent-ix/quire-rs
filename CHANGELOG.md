@@ -12,6 +12,13 @@ bumps; once 1.0 ships, semver is strict.
 - `extract_semantic` carries `fieldSources` (the source span of each field's
   row or fence line) and `operationSources` (each operation's parameter rows
   and `Returns:` line), beside `fields` and `operations` (PLAT-175, #420).
+- Inline expressions (PLAT-57, FR-071, FR-075): a `Pre:`/`Post:` line or a
+  transition `Guard` cell that is not a clause-id reference is carried opaquely
+  as `{ kind: "expression", text, sourceSpan }`, in the new top-level
+  `operationExpressions` and the new `model.transitions[].guardExpression`, with
+  the advisory `semantic.expression-unchecked` (the owning kind is lossy) and
+  the error `semantic.empty-expression` for an empty `Pre:`/`Post:` line.
+  quire-rs does not parse expressions.
 
 ### Changed
 
