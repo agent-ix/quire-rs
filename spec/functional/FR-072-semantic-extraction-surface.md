@@ -68,12 +68,17 @@ verbatim `clauseText` and the byte-identity constraints below.
 
 - Library: `extract_semantic(document, context) -> SemanticExtraction`, a
   `serde` value `{ formatVersion: 1, contractVersion, package,
-  fields?, fieldsForm?, clauses?, clauseText?, operations?,
+  fields?, fieldsForm?, fieldSources?, operationSources?, clauses?, clauseText?, operations?,
   model?, relations?, relationSources?, availability, diagnostics }`, where
   `model` and `availability.model` are the model features of
   [FR-075](./FR-075-model-feature-extraction.md), and `relations`,
   `relationSources`, and `availability.relations` the relationships of
   [FR-076](./FR-076-relationships-extraction.md).
+  `fieldSources` holds the `sourceSpan` of each `fields` element (its table row
+  or fence line) at the same index, and `operationSources` the `sourceSpan` of
+  each operation's parameter rows and `Returns:` line, so a consumer need not
+  re-scan the source; `FieldDecl` and `OperationDecl` keep the semantic-core
+  shape.
   Each diagnostic is `{ code, severity, line, column?, message, reason?,
   sourceSpan?, section? }`; an FR-075 refusal carries `sourceSpan` and
   `section`.

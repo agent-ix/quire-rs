@@ -17,6 +17,8 @@
     "operations": { "type": "array", "items": { "$ref": "#/$defs/operationDecl" } },
     "model": { "$ref": "#/$defs/model" },
     "relations": { "type": "array", "items": { "$ref": "#/$defs/relationDecl" } },
+    "fieldSources": { "type": "array", "items": { "$ref": "#/$defs/sourceLocus" } },
+    "operationSources": { "type": "array", "items": { "$ref": "#/$defs/operationSource" } },
     "relationSources": { "type": "array", "items": { "$ref": "#/$defs/relationSource" } },
     "availability": {
       "type": "object",
@@ -351,6 +353,16 @@
       "properties": {
         "name": { "$ref": "#/$defs/identifier" },
         "sourceSpan": { "$ref": "#/$defs/sourceLocus" }
+      }
+    },
+    "operationSource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "params"],
+      "properties": {
+        "name": { "$ref": "#/$defs/identifier" },
+        "params": { "type": "array", "items": { "$ref": "#/$defs/sourceLocus" } },
+        "returns": { "$ref": "#/$defs/sourceLocus" }
       }
     },
     "operationDecl": {

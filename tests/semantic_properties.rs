@@ -669,3 +669,21 @@ proptest! {
         }
     }
 }
+
+// PLAT-175: each field carries the source locus of the row it was read from.
+#[test]
+fn each_field_carries_its_row_locus() {
+    let raw = mapping("config-version.table.md");
+    let outcome = extract_fields(&raw, &context("config-version.table.md", bundle()));
+    let fields = outcome.fields.as_ref().expect("fields available");
+    assert_eq!(outcome.field_sources.len(), fields.len());
+    let lines: Vec<&str> = raw.split('\n').collect();
+    for (field, locus) in fields.iter().zip(&outcome.field_sources) {
+        let text = lines[locus.start_line - 1];
+        assert!(
+            text.starts_with('|') && text.contains(&field.name),
+            "{text}"
+        );
+        assert_eq!(locus.path, "config-version.table.md");
+    }
+}

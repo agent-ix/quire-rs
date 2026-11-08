@@ -44,6 +44,9 @@ pub struct FieldsOutcome {
     pub field_features: Vec<FieldFeatureDecl>,
     /// Whether the typed table carries any FR-075 feature column.
     pub model_declared: bool,
+    /// Source locus of each `fields` element (its table row or fence line), at
+    /// the same index (PLAT-175); empty unless `fields` is available.
+    pub field_sources: Vec<SourceLocus>,
     pub diagnostics: Vec<SemanticDiagnostic>,
 }
 
@@ -56,6 +59,7 @@ impl FieldsOutcome {
             block_line: None,
             field_features: Vec::new(),
             model_declared: false,
+            field_sources: Vec::new(),
             diagnostics,
         }
     }
@@ -85,6 +89,7 @@ pub fn extract_fields(raw: &str, ctx: &SemanticContext) -> FieldsOutcome {
             block_line: None,
             field_features: Vec::new(),
             model_declared: false,
+            field_sources: Vec::new(),
             diagnostics: Vec::new(),
         };
     };
@@ -238,6 +243,10 @@ pub fn extract_fields(raw: &str, ctx: &SemanticContext) -> FieldsOutcome {
         }
     }
     reader_rules(&fields, &field_lines, &mut diagnostics);
+    let field_sources: Vec<SourceLocus> = field_lines
+        .iter()
+        .map(|l| line_span(ctx, lines_ref, *l))
+        .collect();
     validate_decls(&fields, &mut diagnostics);
     if diagnostics.iter().any(SemanticDiagnostic::is_error) {
         let loci: Vec<String> = diagnostics
@@ -255,6 +264,7 @@ pub fn extract_fields(raw: &str, ctx: &SemanticContext) -> FieldsOutcome {
             block_line,
             field_features: Vec::new(),
             model_declared,
+            field_sources: Vec::new(),
             diagnostics,
         };
     }
@@ -265,6 +275,7 @@ pub fn extract_fields(raw: &str, ctx: &SemanticContext) -> FieldsOutcome {
         block_line,
         field_features,
         model_declared,
+        field_sources,
         diagnostics,
     }
 }
@@ -918,6 +929,27 @@ fn number_or_string(text: &str) -> Option<NumericConstraintValue> {
     Some(NumericConstraintValue::String(text.to_owned()))
 }
 
+const CONSTRAINT_KEYWORDS: [&str; 13] = [
+    "identity",
+    "nullable",
+    "nonEmpty",
+    "unique",
+    "min",
+    "max",
+    "exclusiveMin",
+    "exclusiveMax",
+    "minLength",
+    "maxLength",
+    "pattern",
+    "enumValues",
+    "format",
+];
+
+/// The keyword part of one constraint item (`min: 3` -> `min`).
+fn constraint_keyword(item: &str) -> &str {
+    item.split_once(':').map_or(item, |(k, _)| k).trim()
+}
+
 fn map_constraints(
     cell: &str,
     line: usize,
@@ -926,7 +958,35 @@ fn map_constraints(
     let mut out = Vec::new();
     let mut identity = false;
     let mut nullable = false;
-    for item in split_constraints(cell) {
+    let mut items = split_constraints(cell).into_iter().peekable();
+    while let Some(mut item) = items.next() {
+        // `enumValues` members are separated by `|`. A comma (or a bracketed
+        // list) would have split the cell into per-member "keywords"; fold
+        // those fragments back so the cell is refused once, as the one
+        // constraint it is, naming the supported spelling (PLAT-202).
+        if item.trim_start().starts_with("enumValues") {
+            let mut folded = false;
+            while let Some(next) = items.peek() {
+                if CONSTRAINT_KEYWORDS.contains(&constraint_keyword(next)) {
+                    break;
+                }
+                item.push_str(", ");
+                item.push_str(next);
+                items.next();
+                folded = true;
+            }
+            if folded || item.contains('[') || item.contains(']') {
+                diagnostics.push(err(
+                    "semantic.invalid-constraint-value",
+                    line,
+                    format!(
+                        "constraint {item:?} has no usable value: separate `enumValues` \
+                         members with `|`, as `enumValues: a|b|c`"
+                    ),
+                ));
+                continue;
+            }
+        }
         let (keyword, value) = match item.split_once(':') {
             Some((k, v)) if !k.trim().is_empty() => (k.trim(), Some(v.trim())),
             _ => (item.trim(), None),
@@ -1105,4 +1165,47 @@ pub(crate) fn field_decl_validator() -> Validator {
         "https://schemas.agent-ix.org/agent-ix/quire-rs/",
     )
     .expect("the embedded FieldDecl.json compiles")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // PLAT-202: a multi-valued enumValues is never silently shortened or split
+    // into per-member "keywords".
+    #[test]
+    fn plat202_pipe_form_keeps_every_member_in_order() {
+        let mut d = Vec::new();
+        let (c, _, _) = map_constraints("enumValues: low|medium|high|unknown, nonEmpty", 1, &mut d);
+        assert!(d.is_empty(), "{d:?}");
+        assert_eq!(c.len(), 2);
+        match &c[0] {
+            Constraint::EnumValues { values, .. } => assert_eq!(values.len(), 4),
+            other => panic!("{other:?}"),
+        }
+    }
+
+    #[test]
+    fn plat202_comma_and_bracket_forms_are_refused_once() {
+        for cell in [
+            "enumValues: low, medium, high",
+            "enumValues: [low, medium, high]",
+            "enumValues: [low]",
+        ] {
+            let mut d = Vec::new();
+            let (c, _, _) = map_constraints(cell, 7, &mut d);
+            assert!(c.is_empty(), "{cell}: {c:?}");
+            assert_eq!(d.len(), 1, "{cell}: {d:?}");
+            assert_eq!(d[0].code, "semantic.invalid-constraint-value");
+            assert!(d[0].message.contains("`|`"), "{}", d[0].message);
+        }
+    }
+
+    #[test]
+    fn plat202_following_constraint_after_a_refused_enum_still_reads() {
+        let mut d = Vec::new();
+        let (c, _, _) = map_constraints("enumValues: a, b, nonEmpty", 1, &mut d);
+        assert_eq!(d.len(), 1, "{d:?}");
+        assert_eq!(c.len(), 1);
+    }
 }
