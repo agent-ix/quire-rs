@@ -7,6 +7,8 @@ bumps; once 1.0 ships, semver is strict.
 
 ## [Unreleased]
 
+## [0.53.0] — 2026-11-07
+
 ### Changed
 
 - Move `jsonschema` from `~0.18` to 0.56.0 (quire-rs#429). 0.18.3 accepts
@@ -23,6 +25,13 @@ bumps; once 1.0 ships, semver is strict.
 - A schema with no or an unrecognised `$schema` is still compiled as draft-07,
   as 0.18 did; 0.56 would otherwise default or refuse it and change verdicts.
 - `deny.toml` admits `borrow-or-share` (MIT-0), a new transitive dependency.
+
+## [0.52.1] — 2026-11-03
+
+### Fixed
+
+- Allow declared section prose beside model tables in semantic validation
+  (#570).
 
 ## [0.52.0] — 2026-11-03
 
