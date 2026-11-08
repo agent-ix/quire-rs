@@ -12,6 +12,24 @@ bumps; once 1.0 ships, semver is strict.
 - `default_module_root()` now honours `IX_HOME` (`$IX_HOME/filament/modules`),
   matching `quoin`, and falls back to `~/.ix/filament/modules` when it is unset
   or empty (PLAT-107).
+- `A..B` ranges in a `Traces To` cell now expand over multi-segment ids, in
+  the long form (`IT-002-SC-01..IT-002-SC-06`) and the short form
+  (`FR-012-AC-1..3`), so range-interior ids resolve to a declared row
+  (PLAT-199).
+- The string/comment masks and `strip_source_comments` walk each line in place
+  instead of building a char buffer per line, and no longer rescan the line
+  prefix at every character: masking a long whitespace-led line was quadratic
+  (PLAT-181, PLAT-1248). Masked output is byte-identical.
+
+### Added
+
+- `symbols::trace::trace_id_segments`: the segment-preserving trace-id fold.
+  `normalized_trace_id` is now `trace_id_segments(..).concat()`, so a consumer
+  needing boundary-aware prefix matching shares the engine's single fold
+  (PLAT-898).
+- `SymbolGraph::tagged_not_bound`: the enumerable population behind the
+  binding census's `tagged - bound` count, with path, line, symbol and the
+  first id-shaped token. Read-only; binding is unchanged (PLAT-875).
 
 ### Changed
 

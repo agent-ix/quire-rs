@@ -696,40 +696,48 @@ fn oracle_candidate(span: &str, language: SourceLanguage) -> Option<OracleCandid
 /// Remove comments after strings have been masked, preserving line structure
 /// so a candidate's offset still maps to its source line.
 fn strip_source_comments(span: &str, language: SourceLanguage) -> String {
-    let chars: Vec<char> = span.chars().collect();
+    // PLAT-181: walked by byte index and decoded in place; no per-char buffer for
+    // the whole span. Every lookahead is an ASCII byte, and a multi-byte char
+    // is stepped over whole, so the output bytes are unchanged.
+    let bytes = span.as_bytes();
     let mut out = String::with_capacity(span.len());
     let mut i = 0usize;
     let mut block = false;
-    while i < chars.len() {
-        let c = chars[i];
+    while let Some(c) = span.get(i..).and_then(|rest| rest.chars().next()) {
+        let width = c.len_utf8();
         if block {
-            if c == '*' && chars.get(i + 1) == Some(&'/') {
+            if c == '*' && bytes.get(i + 1) == Some(&b'/') {
                 out.push_str("  ");
                 i += 2;
                 block = false;
             } else {
                 out.push(if c == '\n' { '\n' } else { ' ' });
-                i += 1;
+                i += width;
             }
             continue;
         }
-        if language != SourceLanguage::Python && c == '/' && chars.get(i + 1) == Some(&'*') {
+        if language != SourceLanguage::Python && c == '/' && bytes.get(i + 1) == Some(&b'*') {
             out.push_str("  ");
             i += 2;
             block = true;
             continue;
         }
         let line_comment = (language == SourceLanguage::Python && c == '#')
-            || (language != SourceLanguage::Python && c == '/' && chars.get(i + 1) == Some(&'/'));
+            || (language != SourceLanguage::Python && c == '/' && bytes.get(i + 1) == Some(&b'/'));
         if line_comment {
-            while i < chars.len() && chars[i] != '\n' {
+            // One space per char, as before, so a multi-byte char in a comment
+            // still blanks to one column.
+            while let Some(ch) = span.get(i..).and_then(|rest| rest.chars().next()) {
+                if ch == '\n' {
+                    break;
+                }
                 out.push(' ');
-                i += 1;
+                i += ch.len_utf8();
             }
             continue;
         }
         out.push(c);
-        i += 1;
+        i += width;
     }
     out
 }
@@ -823,6 +831,21 @@ fn suspicion(symbol: &Symbol, kind: SuspicionKind, message: &str, evidence: Stri
 
 #[cfg(test)]
 mod tests {
+    /// PLAT-181: comment stripping keeps line structure and blanks one column
+    /// per character, multi-byte included.
+    #[test]
+    fn plat181_strip_source_comments_handles_multibyte() {
+        let src = "a\u{e9} // \u{fc}x\nb /* \u{2192}\n*/ c # not\n";
+        assert_eq!(
+            strip_source_comments(src, SourceLanguage::Rust),
+            "a\u{e9}      \nb     \n   c # not\n"
+        );
+        assert_eq!(
+            strip_source_comments("a # \u{e9}\nb // k\n", SourceLanguage::Python),
+            "a    \nb // k\n"
+        );
+    }
+
     use super::*;
     use crate::symbols::extract_file;
     use crate::traceability::SourceLanguage;

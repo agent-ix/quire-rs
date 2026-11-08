@@ -763,11 +763,16 @@ pub(crate) fn normalize_reference_cell(
 }
 
 /// Expand one matched range, or return it unchanged when it is not a coherent
-/// same-prefix ascending range.
+/// same-stem ascending range.
+///
+/// A stem is everything before the final number, so `IT-002-SC-01` has stem
+/// `IT-002-SC` and number `01`. The end of a range is either a full id with the
+/// same stem or a bare number (the short form, `FR-012-AC-1..3`).
 fn expand(caps: &regex::Captures<'_>) -> String {
     let whole = caps.get(0).map_or("", |m| m.as_str()).to_string();
-    let (prefix, from, to) = (&caps[1], &caps[2], &caps[4]);
-    if prefix != &caps[3] {
+    let (stem, from) = (&caps[1], &caps[2]);
+    let (end_stem, to) = (caps.get(3).map(|m| m.as_str()), &caps[4]);
+    if end_stem.is_some_and(|end| end != stem) {
         return whole; // `FR-001..NFR-003` is not a range
     }
     let width = from.len();
@@ -778,7 +783,7 @@ fn expand(caps: &regex::Captures<'_>) -> String {
         return whole;
     }
     (start..=end)
-        .map(|n| format!("{prefix}-{n:0width$}"))
+        .map(|n| format!("{stem}-{n:0width$}"))
         .collect::<Vec<_>>()
         .join(", ")
 }
@@ -795,7 +800,10 @@ fn re_parenthetical() -> &'static regex::Regex {
 fn re_range() -> &'static regex::Regex {
     static R: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
     R.get_or_init(|| {
-        regex::Regex::new(r"([A-Za-z]+)-(\d+)\s*\.\.\s*([A-Za-z]+)-(\d+)").expect("range regex")
+        regex::Regex::new(
+            r"([A-Za-z]+(?:-\d+-[A-Za-z]+)*)-(\d+)\s*\.\.\s*(?:([A-Za-z]+(?:-\d+-[A-Za-z]+)*)-)?(\d+)",
+        )
+        .expect("range regex")
     })
 }
 
@@ -1397,5 +1405,30 @@ mod cr135_archetype_matches_nothing {
             diagnostics[0].1,
             ScanDiagnostic::IdColumnMatchesNothing { .. }
         ));
+    }
+}
+
+#[cfg(test)]
+mod plat199_multi_segment_ranges {
+    /// PLAT-199: ranges over multi-segment ids expand, in the long form and in
+    /// the documented short form, so range-interior ids resolve to a row.
+    #[test]
+    fn multi_segment_ranges_expand() {
+        let n = |cell: &str| super::normalize_reference_cell(cell, false, true);
+        assert_eq!(
+            n("IT-002-SC-01..IT-002-SC-06, FR-003-AC-5"),
+            "IT-002-SC-01, IT-002-SC-02, IT-002-SC-03, IT-002-SC-04, IT-002-SC-05, IT-002-SC-06, FR-003-AC-5"
+        );
+        assert_eq!(
+            n("IT-002-SC-01..06"),
+            "IT-002-SC-01, IT-002-SC-02, IT-002-SC-03, IT-002-SC-04, IT-002-SC-05, IT-002-SC-06"
+        );
+        assert_eq!(n("FR-012-AC-1..3"), "FR-012-AC-1, FR-012-AC-2, FR-012-AC-3");
+        assert_eq!(n("FR-001..FR-003"), "FR-001, FR-002, FR-003");
+        assert_eq!(n("FR-001..3"), "FR-001, FR-002, FR-003");
+        // Not coherent ranges: left for the pattern to reject.
+        assert_eq!(n("FR-012-AC-1..NFR-012-AC-3"), "FR-012-AC-1..NFR-012-AC-3");
+        assert_eq!(n("FR-012-AC-1..FR-013-AC-3"), "FR-012-AC-1..FR-013-AC-3");
+        assert_eq!(n("FR-003..FR-001"), "FR-003..FR-001");
     }
 }
