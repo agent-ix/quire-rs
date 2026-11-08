@@ -287,11 +287,14 @@ pub fn language_of(path: &Path) -> Option<SourceLanguage> {
     }
 }
 
-/// True for a cookiecutter placeholder directory name, e.g.
-/// `{{cookiecutter.repo_name}}`.
-fn is_template_dir(name: &std::ffi::OsStr) -> bool {
-    name.to_str()
-        .is_some_and(|n| n.starts_with("{{") && n.ends_with("}}"))
+/// Count the source files (by [`language_of`]) under a pruned directory, so
+/// the prune is visible in `excluded_source_files`.
+fn count_source_files(dir: &Path) -> usize {
+    ignore::WalkBuilder::new(dir)
+        .build()
+        .flatten()
+        .filter(|e| e.path().is_file() && language_of(e.path()).is_some())
+        .count()
 }
 
 /// Extract every symbol under `root`, walking gitignore-aware like the corpus
@@ -351,6 +354,11 @@ pub fn extract_tree_scoped(
         }
     };
     let mut excluded_source_files = 0usize;
+    // Source files inside pruned template trees. The prune happens in
+    // `filter_entry`, which cannot reach `excluded_source_files`, so it
+    // tallies here and the total is folded in after the walk.
+    let pruned_template_files = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let pruned_counter = std::sync::Arc::clone(&pruned_template_files);
     // Canonicalized, because an exclusion stated as a path must hold wherever
     // the caller's `is_dir()` check held (CR-056). On a case-insensitive
     // filesystem — macOS/APFS, the canonical perf runner — `<scope>/Spec`
@@ -377,7 +385,10 @@ pub fn extract_tree_scoped(
         // surface. Its placeholder FR ids collide with the repo's real ids,
         // so tags inside it must never bind. Non-configurable, like the
         // document-root exclusion.
-        if entry.depth() > 0 && is_template_dir(entry.file_name()) {
+        if entry.depth() > 0 && crate::corpus::walk::is_template_dir(entry.file_name()) {
+            // Pruned files still count as excluded so reports stay honest.
+            let n = count_source_files(path);
+            pruned_counter.fetch_add(n, std::sync::atomic::Ordering::Relaxed);
             return false;
         }
         let canonical = std::fs::canonicalize(path);
@@ -400,6 +411,7 @@ pub fn extract_tree_scoped(
         }
         files.push((relative, language, path.to_path_buf()));
     }
+    excluded_source_files += pruned_template_files.load(std::sync::atomic::Ordering::Relaxed);
     // Sort before reading so the output order never depends on walk order.
     files.sort();
 
@@ -689,6 +701,11 @@ mod tests {
             out.symbols.iter().all(|s| !s.path.contains("cookiecutter")),
             "template tree leaked into the source walk"
         );
+        assert_eq!(
+            out.excluded_source_files, 1,
+            "the pruned template file is counted"
+        );
+        assert_eq!(rooted.excluded_source_files, 0);
     }
 
     #[trace("TC-944", "FR-050-AC-22")]
