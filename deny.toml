@@ -75,6 +75,15 @@ deny = [
 
 [advisories]
 version = 2
+ignore = [
+    # RUSTSEC-2024-0449: `unsafe-libyaml` is unmaintained (no known
+    # vulnerability). Its only path is `serde_yaml` 0.9.34+deprecated, pulled
+    # by `qa-corpus` (the `corpus` submodule), a dev-dependency used only by
+    # tests; it is not in any shipped binary or consumer graph. Replacing
+    # serde_yaml needs a change in the corpus repo, not here.
+    # Remove when the corpus submodule drops `serde_yaml` (PLAT-1289).
+    { id = "RUSTSEC-2024-0449", reason = "unmaintained only; dev-dependency via qa-corpus serde_yaml; remove when corpus drops serde_yaml (PLAT-1289)" },
+]
 
 [sources]
 unknown-registry = "deny"
