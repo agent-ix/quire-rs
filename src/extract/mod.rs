@@ -9,6 +9,8 @@
 //! - Fallback Locator chains: first non-empty primitive wins,
 //!   `FallbackLocatorUsed` diagnostic on non-canonical hits.
 
+#![deny(clippy::disallowed_types)]
+
 pub mod assert_eval;
 pub mod dsl;
 pub mod interpolate;
