@@ -173,6 +173,60 @@ fn unsupported_versions_are_refused_first() {
     );
 }
 
+/// Move the fixture's `entity` into `artifact_types` and add a second
+/// archetype `entity2` under `archetypes`.
+fn spread_across_sections(m: &mut serde_yaml::Value) {
+    let entity = m["object_types"][0].clone();
+    let mut second = entity.clone();
+    second["name"] = "entity2".into();
+    m["artifact_types"] = serde_yaml::Value::Sequence(vec![entity]);
+    m["archetypes"] = serde_yaml::Value::Sequence(vec![second]);
+    m["object_types"] = serde_yaml::Value::Sequence(Vec::new());
+}
+
+#[trace("TC-1600", "FR-069-AC-2")]
+#[test]
+fn refused_block_fails_every_archetype_in_every_section() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = module(&tmp, "spread", |m, _| {
+        spread_across_sections(m);
+        semantic(m).insert("contract_version".into(), "2.0.0".into());
+    });
+    let registry = load(&root);
+    assert_eq!(codes(&registry).len(), 2, "{:?}", reasons(&registry));
+    assert!(codes(&registry)
+        .iter()
+        .all(|c| c == "semantic.unsupported-contract-version"));
+    assert!(registry.archetype("entity").is_none());
+    assert!(registry.archetype("entity2").is_none());
+}
+
+#[trace("FR-069-AC-6")]
+#[test]
+fn inline_schema_warning_names_the_declaring_section() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = module(&tmp, "inline-section", |m, _| {
+        let mut inline = m["object_types"][0].clone();
+        inline["data_schema"] = serde_yaml::from_str("type: object").unwrap();
+        m["artifact_types"] = serde_yaml::Value::Sequence(vec![inline]);
+        m["object_types"] = serde_yaml::Value::Sequence(Vec::new());
+    });
+    let registry = load(&root);
+    let paths: Vec<&str> = registry
+        .diagnostics()
+        .iter()
+        .filter_map(|d| match d {
+            quire_rs::Diagnostic::Semantic { code, path, .. }
+                if code == "semantic.inline-data-schema" =>
+            {
+                Some(path.as_str())
+            }
+            _ => None,
+        })
+        .collect();
+    assert_eq!(paths, ["artifact_types[entity].data_schema"]);
+}
+
 #[trace("FR-069-AC-3")]
 #[test]
 fn exported_artifact_type_is_a_declared_module_type() {

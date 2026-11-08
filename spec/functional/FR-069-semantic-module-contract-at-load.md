@@ -25,16 +25,18 @@ relationships:
 ## Description
 
 When the loader reads a module manifest that carries a `semantic` block, or an
-object type whose `data_schema` uses the `{ schema }` reference form,
+archetype (any of `artifact_types`, `object_types`, `archetypes`) whose `data_schema` uses the `{ schema }` reference form,
 the loader SHALL apply the semantic module contract (`agent-ix/quoin` FR-070
 and FR-073; `agent-ix/filament-core-service` FR-035-AC-13..15).
 
 When a manifest is outside that contract, the loader SHALL fail the module's
-object types with a `semantic.*` reason instead of loading an empty or
+archetypes with a `semantic.*` reason instead of loading an empty or
 partial model.
 
 When a manifest carries no `semantic` block, the loader SHALL load it exactly
 as it does today.
+
+> **CR note (PLAT-237):** The prose previously said "object type" throughout. The loader has always resolved `semantic.exports` against every archetype (`manifest.all_archetypes()`), as FR-069-AC-3 states, so the wording was corrected to "archetype" to match the code. Behavior is unchanged.
 
 ## Inputs
 
@@ -71,9 +73,9 @@ as it does today.
   [FR-075](./FR-075-model-feature-extraction.md) extraction). The admitted key
   `sweep_report` is a Quoin install-time key; the loader accepts and ignores
   it.
-- Per object type: the resolved data schema and a compiled validator over the
+- Per archetype: the resolved data schema and a compiled validator over the
   extracted record.
-- One `ArchetypeLoadFailure` per object type of a refused module whose
+- One `ArchetypeLoadFailure` per archetype of a refused module whose
   `reason` starts with the `semantic.*` code below, followed by the message.
 - Warning diagnostics for the advisory cases.
 
@@ -134,7 +136,7 @@ module-root order:
 Advisory cases:
 
 - If a module with a `semantic` block declares an inline `data_schema` on an
-  object type, then the loader SHALL emit the warning
+  archetype, then the loader SHALL emit the warning
   `semantic.inline-data-schema`; without the block the loader SHALL emit
   nothing.
 
@@ -150,7 +152,7 @@ Filament extraction API:
 
 Allocation note: `agent-ix/quoin` FR-070 says Quire "applies the same
 vendored schema at artifact-validation time". This requirement applies it at
-module load, so a broken block fails every object type of the module rather
+module load, so a broken block fails every archetype of the module rather
 than every artifact; Quoin's install guard makes that unreachable for
 installed modules, and hand-authored or inline modules fail loudly. The
 divergence is recorded for Quoin to reconcile in wording; behavior is the
@@ -167,7 +169,7 @@ stricter of the two.
 | ID | Criteria | Verification |
 |----|----------|--------------|
 | FR-069-AC-1 | A module with a valid `semantic` block and a reference-form `data_schema` loads with a `SemanticModule` record and a resolved schema, and `validate_document` over an artifact of that type validates the extracted record against the resolved schema. | Test |
-| FR-069-AC-2 | `contract_version: 2.0.0` fails every object type of the module with a reason starting `semantic.unsupported-contract-version` and no other `semantic.*` reason. (The former `semantic_core` clause of this criterion is removed: a module declares no semantic-core version.) | Test |
+| FR-069-AC-2 | `contract_version: 2.0.0` fails every archetype of the module with a reason starting `semantic.unsupported-contract-version` and no other `semantic.*` reason. (The former `semantic_core` clause of this criterion is removed: a module declares no semantic-core version.) | Test |
 | FR-069-AC-3 | An unknown block key, an export of a type undeclared across `artifact_types`, `object_types`, and `archetypes`, `package: ix://agent-ix/x`, and `targets: [go]` each fail with their named code and value; an export declared under `artifact_types` loads. | Test |
 | FR-069-AC-4 | A missing file, a non-JSON file, a file without `$schema`, a `..` escape, and a symlink escape each fail with their named code, path, and reason; `{ schema, type }` fails with `semantic.data-schema-ambiguous`. | Test |
 | FR-069-AC-5 | A `$ref` to semantic-core `0.2.0` resolves to the embedded bundle's file with no version refusal; a `$ref` to an unshipped sibling, an `https://` `$ref` outside both bundles, and a two-file `$ref` cycle each fail naming the `$ref`; a `$ref` to the schema's own `$id` fragment loads cleanly; the same cases pass under `--no-default-features --features wasm`. | Test |
