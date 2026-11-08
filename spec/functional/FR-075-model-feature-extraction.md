@@ -281,14 +281,23 @@ for declaration references only, and the FR-070 `Type` cell identity
   resolver as an FR-076 `Target` is and is never matched by name. An
   identity in an imported package has no object type and is admitted
   unchecked, as FR-076 admits it.
-- Admission: the admitted object types of a cell are the tokens of the object
-  type's `allowed_links` entry for the verb named by the column
-  (`emits` for `Emits`, `consumes` for `Consumes`), each token `*`, an object
-  type or a role, as FR-076 applies them, read from the `RelationVocabulary`.
-  Where the module declares no such entry, or the context carries no
-  `RelationVocabulary`, the cell admits every declaration. The engine names
-  no object type of its own. A bundle declaration with no object type
-  satisfies only `*` or an unrestricted cell.
+- Admission: the admitted declarations of a cell are read from module data,
+  in this precedence. First, the object type's construct `references` entry
+  for the model member holding the cell (`transitions` for a `Transitions`
+  `Emits` cell, `steps` for a `Steps` `Consumes` or `Emits` cell), whose
+  tokens are roles, so a declaration is admitted when its object type
+  carries one of them (spec-objects-business: `state_machine` declares
+  `transitions: [event-like]`, `process` declares `steps: [event-like]`, and
+  `event` carries `event-like`). Second, when the construct declares no
+  entry for the member, the object type's `allowed_links` entry for the verb
+  named by the column (`emits` for `Emits`, `consumes` for `Consumes`), each
+  token `*`, an object type or a role, as FR-076 applies them. Third, when
+  the module declares neither, every declaration is admitted. The first
+  declaration found wins and the later sources are not consulted. The engine
+  names no object type or role of its own. Both sources are read from the
+  context's `RelationVocabulary` (roles, `allowed_links`) and construct
+  references; a context without them admits every declaration. A bundle
+  declaration with no object type satisfies only `*` or an unrestricted cell.
 - Outcome, per item, after the candidates not admitted are removed: exactly
   one declaration resolves; none, where the item named no candidate at all,
   is `semantic.unknown-reference` at the row with `reason` `unknown-name`;
@@ -304,8 +313,11 @@ for declaration references only, and the FR-070 `Type` cell identity
   `transitions` `Emits` cell with a second item is
   `semantic.invalid-model-cell` at the row with `reason`
   `too-many-references`.
-- No bundle index: when `BundleIndex.artifacts` and `BundleIndex.objects` are
-  both empty, the engine SHALL emit the advisory
+- No bundle index: this is one state with one definition, shared with
+  [FR-076](./FR-076-relationships-extraction.md) Inputs: `BundleIndex.artifacts`
+  is absent or empty, whatever `objects` holds, and the extracted artifact's
+  own entry does not make it non-empty. A bundle that lists only the
+  extracted artifact is indexed. When the state holds, the engine SHALL emit the advisory
   `semantic.unresolved-target` at the row with `reason` `no-bundle-index`,
   once per row holding a reference item. It SHALL set `availability.model`
   `unavailable` with reason `no-bundle-index` and omit `model`, with no raw
@@ -515,10 +527,10 @@ General:
 | FR-075-AC-20 | Every record of AC-16..AC-19 validates against `semantic-v1.schema.json`, which lists `dimension`, `terms` and `unit` with `additionalProperties: false`; the Python binding and the Rust library return equal JSON values for each case; extraction of the same input twice is byte-identical. | Test |
 | FR-075-AC-21 | Two `Base` tables, two `Dimension \| Exponent` tables, and two `Dimension \| Target \| Scale \| Offset` tables in one artifact each yield `semantic.duplicate-section` at the second table's header line; an artifact declaring a `Base` table and then a unit table yields `semantic.duplicate-section` at the unit table's header line and extracts `model.dimension` only, and a unit table then a `Base` table yields it at the `Base` table's header line and extracts `model.unit` only; a `Base` table with a `terms` table is accepted and extracts both. | Test |
 | FR-075-AC-22 | Under a bundle with event artifacts `EV-001` titled `OrderPlaced` and `EV-002` titled `OrderShipped`, a `Transitions` row with `Emits` `OrderPlaced` yields `emits` `ix://<org>/<repo>/EV-001`; a `Steps` row with `Consumes` `OrderPlaced, EV-002` and `Emits` `OrderShipped` yields `consumes` `[…/EV-001, …/EV-002]` and `emits` `[…/EV-002]` in cell order; an empty `Emits` cell yields no `emits`; every `emits` and `consumes` value is an `ix://` identity and none equals its cell text; the record validates against `semantic-v1.schema.json`. | Test |
-| FR-075-AC-23 | An `Emits` item `OrderLost` naming no declaration yields `semantic.unknown-reference` with `reason` `unknown-name` at the row; with `allowed_links.emits: [event]`, an item `Order` naming only an `entity` artifact yields `semantic.reference-kind-mismatch`; each sets `availability.model` `unavailable` listing the row's line and omits `model`; the control (every item resolves) yields neither. | Test |
+| FR-075-AC-23 | An `Emits` item `OrderLost` naming no declaration yields `semantic.unknown-reference` with `reason` `unknown-name` at the row; under a `state_machine` whose construct declares `transitions: [event-like]`, a `Transitions` `Emits` item `Order` naming only an `entity` artifact yields `semantic.reference-kind-mismatch`, and the same item under a `process` with only `allowed_links.emits: [event]` and no construct entry for `steps` yields it too; under a module declaring neither source the item resolves to the entity; each sets `availability.model` `unavailable` listing the row's line and omits `model`; the control (every item resolves) yields neither. | Test |
 | FR-075-AC-24 | Two event artifacts titled `OrderPlaced` make an item `OrderPlaced` `semantic.ambiguous-reference` naming both ids; an event and an entity both titled `OrderPlaced` resolve the item to the event; one event authored in two forms under one `id` resolves with no diagnostic; an event with `id` `OrderPlaced` and another event titled `OrderPlaced` is `semantic.ambiguous-reference`; an item that is the `id` of an entity and the title of an event resolves to the event; an item in the form `ix://<org>/<repo>/EV-001` is resolved as FR-076 resolves a `Target` and never by name; an item naming the extracted artifact by its own title resolves to it when admitted, and is `semantic.reference-kind-mismatch` otherwise. | Test |
-| FR-075-AC-25 | A cell `OrderPlaced, EV-001` naming one event twice yields `semantic.duplicate-model-entry` with `reason` `repeated-reference`; `OrderPlaced,,EV-002` and a trailing comma yield `semantic.invalid-model-cell` with `reason` `empty-item`; a `Transitions` `Emits` cell `OrderPlaced, OrderShipped` yields `reason` `too-many-references`; an imported-package `ix://` item resolves unchecked with no diagnostic; a declaration with no `object` satisfies an unrestricted cell and is `semantic.reference-kind-mismatch` under `allowed_links.emits: [event]`; with no `allowed_links` entry for the column every declaration is admitted. | Test |
-| FR-075-AC-26 | With a bundle whose `artifacts` and `objects` are empty, a valid `Emits` cell yields one `semantic.unresolved-target` advisory with `reason` `no-bundle-index` per such row, `availability.model` `unavailable` with reason `no-bundle-index`, no `model`, no error, and `validate_document` of the artifact reports valid; with a bundle but no package and no source identity the same holds with `no-bundle-package`. | Test |
+| FR-075-AC-25 | A cell `OrderPlaced, EV-001` naming one event twice yields `semantic.duplicate-model-entry` with `reason` `repeated-reference`; `OrderPlaced,,EV-002` and a trailing comma yield `semantic.invalid-model-cell` with `reason` `empty-item`; a `Transitions` `Emits` cell `OrderPlaced, OrderShipped` yields `reason` `too-many-references`; an imported-package `ix://` item resolves unchecked with no diagnostic; a declaration with no `object` satisfies an unrestricted cell and is `semantic.reference-kind-mismatch` under `allowed_links.emits: [event]`; where a construct entry and an `allowed_links` entry both exist, the construct entry decides. | Test |
+| FR-075-AC-26 | With a bundle whose `artifacts` is empty (whatever `objects` holds), a valid `Emits` cell yields one `semantic.unresolved-target` advisory with `reason` `no-bundle-index` per such row, `availability.model` `unavailable` with reason `no-bundle-index`, no `model`, no error, and `validate_document` of the artifact reports valid; with a bundle but no package and no source identity the same holds with `no-bundle-package`; a bundle listing only the extracted artifact is indexed, and an item naming another declaration is `semantic.unknown-reference` `unknown-name`. | Test |
 | FR-075-AC-27 | `tests/fixtures/semantic/cases.json` carries, for each of transition `emits`, step `consumes` and step `emits`, a case with `issue_ref` `PLAT-35` asserting the resolved `SemanticId`, a case asserting the refusal, and a control asserting its `absent_diagnostic_reasons`; the Python binding and the Rust library return equal JSON for each. | Test |
 
 ## Dependencies

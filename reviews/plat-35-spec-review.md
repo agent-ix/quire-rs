@@ -34,3 +34,25 @@ Changes requested. The ids are new and unique, and every AC has one TC row and o
 | FND-008 | medium | 'One declaration has one identity on every surface' does not hold across the engine. FR-070 `Type` cells resolve the same bundle declaration to `ix://<org>/<repo>/type/<token>`, minted from the cell token, which is the title when matched by name (src/semantic/properties.rs:706-747). FR-075 and FR-076 cells give `ix://<package>/<id>`. A process that names `OrderPlaced` in a property `Type` cell and in an `Emits` cell gets two identities. Fix: limit the claim to FR-075 and FR-076, or reconcile with FR-070 in this CR. | spec/functional/FR-076-relationships-extraction.md:199-208 | wrong-requirement |
 | FND-009 | low | PLAT-55 (untrusted ticket text) asks for each key to be extracted 'from a manifest-declared locator (FR-075 style)'. This PR does the opposite: it derives `emits`/`persists` from `## Relationships` rows and refuses a locator keyed by them (`duplicate-authority`). spec-objects-business FR-007-AC-9 (TC-097) supports the rows design, but neither CR note records that the PR departs from the ticket. The refusal is also a module-level defect reported on every document at line 1, though FR-069 module load is the place for it. A `table_row` locator keyed `emits` already declares no model table under FR-075 Inputs. Fix: record the change of direction in the CR-435 note, and move the locator check to module load. | spec/functional/FR-076-relationships-extraction.md:209-215 | wrong-requirement |
 | FND-010 | low | 'the cell text appears nowhere in the record' is a brittle oracle. `OrderPlaced` can legitimately appear elsewhere in a record, for example in prose `doc` or a field. Fix: assert that no `emits`/`consumes` element equals the cell text and that every element is an `ix://` identity. | spec/functional/FR-075-model-feature-extraction.md:489 | wrong-requirement |
+
+## New findings (disposition pass 1)
+
+| ID | Severity | Summary | Refs | Escape Cause |
+| --- | --- | --- | --- | --- |
+| FND-011 | medium | Admission is keyed to `allowed_links.<column verb>`, so the main PLAT-35 case gets no type check. spec-objects-business state_machine declares no `emits` in `allowed_links` (it has `raises: [event]`), so a transition `Emits` cell admits every declaration, an entity included. The module constrains that member through `construct.references.transitions: [event-like]` (and process through `references.steps: [event-like]`), which the FCD frontend reads today. AC-23 exercises kind-mismatch only with a synthetic `allowed_links.emits: [event]`. This follows the lead's 'admission from allowed_links' ruling, so either the ruling accepts unconstrained transitions, or admission should read the construct `references` role for the member first and fall back to `allowed_links`. | spec/functional/FR-075-model-feature-extraction.md:284-291 | wrong-requirement |
+| FND-012 | medium | The module-load `duplicate-authority` refusal is a loader requirement written into FR-076 with an '(FR-069)' tag, but FR-069 is not edited. It has no refusal bullet, no `ArchetypeLoadFailure` shape and no AC, and FR-076's Upstream line lists FR-069 twice. The check is grounded: the loader already refuses modules (FR-069 Behavior) and compiles `data_schema` at load (src/loader/compile.rs). Against spec-objects-business it refuses nothing, because the derived typed keys are aggregate_root `emits`, repository `persists` and process `emits`, and none of them has a `table_row` locator. The trigger condition 'an object type that names the `relationships` mapping' mixes the module-level `semantic.mappings` token with a per-type locator. Fix: move the refusal into FR-069 with its failure shape and AC, state the trigger as 'the module's `semantic.mappings` names `relationships` and the object type declares a `table_row` locator keyed by its typed key', and drop the duplicate Upstream entry. | spec/functional/FR-076-relationships-extraction.md:224-227 | wrong-requirement |
+
+## Dispositions
+
+| FND | Outcome | Reason |
+| --- | --- | --- |
+| FND-001 | fixed | Verified in f04fa2c. |
+| FND-002 | fixed | Verified in f04fa2c. |
+| FND-003 | fixed | Verified in f04fa2c. |
+| FND-004 | fixed | Verified in f04fa2c. |
+| FND-005 | fixed | Verified in f04fa2c. |
+| FND-006 | fixed | Verified in f04fa2c. |
+| FND-007 | fixed | Verified in f04fa2c. |
+| FND-008 | fixed | Verified in f04fa2c. |
+| FND-009 | fixed | Verified in f04fa2c. |
+| FND-010 | fixed | Verified in f04fa2c. |

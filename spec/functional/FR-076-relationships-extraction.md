@@ -221,10 +221,9 @@ Typed relation keys:
   `SemanticId` in an FR-075 reference item and in an FR-076 `Target`; that
   sameness is claimed for these two only.
 - The engine SHALL derive a typed key from the `## Relationships` rows only.
-- The module loader SHALL refuse a module (FR-069) with the error `semantic.duplicate-authority`,
-  naming the module and the object type, when the module declares a
-  `table_row` locator whose match key is a typed relation key of an object
-  type that names the `relationships` mapping.
+- The module loader SHALL refuse a locator that duplicates a typed key, as
+  [FR-069](./FR-069-semantic-module-contract-at-load.md) specifies; the typed
+  keys are the ones this section derives.
 - The engine SHALL emit `semantic.duplicate-authority` at the first line of a
   document, with `reason` `frontmatter-key`, when its frontmatter carries a
   typed key.
@@ -315,11 +314,11 @@ Availability:
 | FR-076-AC-16 | For a `process` schema declaring `emits` and no `relations`, the row `done \| emits \| event-001 \| 0..1` yields `emits` `["ix://<org>/<repo>/event-001"]`, no `relations`, one `relationSources` entry with `name` `done`, `verb` `emits`, `target` `event-001`, `multiplicity` `0..1` and the row's span, and `availability.relations` `available`; a `repository` schema declaring `persists` with `orders \| persists \| aggregate-root-001 \| 0..*` yields `persists` the same way; an `aggregate_root` with two `emits` rows yields two elements in row order; each record validates against `semantic-v1.schema.json`. | Test |
 | FR-076-AC-17 | On a typed-only type, the rows `x \| emits \| nope \| 1`, `x \| emits \| <title of an event> \| 1`, a target whose object type `allowed_links` refuses, `x \| triggers \| event-001 \| 1`, and a registry inverse label yield the refusals `target-not-id`, `target-not-id`, `target-not-allowed`, `verb-not-typed-key` and `inverse-verb`, one diagnostic per row, with `availability.relations` `unavailable` and no typed key, `relations` or `relationSources`; the control row with a resolving event id yields none. | Test |
 | FR-076-AC-18 | A header-only `## Relationships` table on a typed-only type yields `available`, the typed key `[]`, no `relations` and no `relationSources`; on a type whose schema declares `relations` and `emits`, a table with one `emits` row and one `references` row yields `emits` of one element, `relations` of one element and `relationSources` of one entry paired with that `relations` element. | Test |
-| FR-076-AC-19 | A module declaring a `table_row` locator keyed `emits` next to the `relationships` mapping, on an object type whose schema has a typed key `emits`, is refused at module load with `semantic.duplicate-authority` naming the module and type; an artifact whose frontmatter carries `persists:` on a `repository` yields the same code with `reason` `frontmatter-key` at line 1; the control (neither site) yields neither. | Test |
+| FR-076-AC-19 | The FR-069 module-load refusal (FR-069-AC-13) fires for a `table_row` locator keyed `emits` on an object type whose schema has a typed key `emits`; an artifact whose frontmatter carries `persists:` on a `repository` yields the same code with `reason` `frontmatter-key` at line 1; the control (neither site) yields neither. | Test |
 | FR-076-AC-20 | With no bundle index, a typed row `done \| emits \| event-001 \| 1` lowers `emits` `["ix://<package>/event-001"]` with one `semantic.unresolved-target` advisory (`no-bundle-index`) and `availability.relations` `available`; the same declaration in a model reference item and in a typed row resolves to one `SemanticId` under a bundle; a row `x \| emits \| OrderPlaced \| 1` is `target-not-id`; a type whose schema has no typed key yields a record byte-identical to AC-1 (CON-1). | Test |
 | FR-076-AC-21 | `tests/fixtures/semantic/cases.json` carries, for each of `emits` on `aggregate_root`, `emits` on `process` and `persists` on `repository`, a case with `issue_ref` `PLAT-55` asserting the lowered identity, a refusal case and a control asserting its `absent_diagnostic_reasons`. | Test |
 
 ## Dependencies
 
-- **Upstream**: [FR-069](./FR-069-semantic-module-contract-at-load.md) (module-load duplicate-authority check), [FR-040](./FR-040-object-edge-vocabulary.md), [FR-041](./FR-041-authorable-inverse-edges.md), [FR-069](./FR-069-semantic-module-contract-at-load.md), [FR-070](./FR-070-typed-properties-extraction.md), [FR-072](./FR-072-semantic-extraction-surface.md), [FR-075](./FR-075-model-feature-extraction.md); `agent-ix/quoin` FR-104 and its mapping fixtures
+- **Upstream**: [FR-069](./FR-069-semantic-module-contract-at-load.md) [FR-040](./FR-040-object-edge-vocabulary.md), [FR-041](./FR-041-authorable-inverse-edges.md), [FR-069](./FR-069-semantic-module-contract-at-load.md), [FR-070](./FR-070-typed-properties-extraction.md), [FR-072](./FR-072-semantic-extraction-surface.md), [FR-075](./FR-075-model-feature-extraction.md); `agent-ix/quoin` FR-104 and its mapping fixtures
 - **Downstream**: `agent-ix/spec-objects-business` (Process, Repository and AggregateRoot schemas; TC-097 and TC-098), `agent-ix/filament-core-data#155` (`RelationDecl` `name` and `sourceSpan`), `agent-ix/filament-core-data#156` (`RelationDecl` lowering from extraction), `agent-ix/filament-core-service#32` (`edge_types` and `roles` in the registry snapshot), `agent-ix/quire-cli#91`, `agent-ix/quoin#557`, and `agent-ix/quire-rs#437` (callers pass the bundle package to `validate_document_in_bundle`)
