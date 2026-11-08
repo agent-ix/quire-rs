@@ -774,16 +774,8 @@ fn present_invalid_syntax_values_never_become_an_unguarded_form() {
             serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
         manifest["traceability"]["trace_tags"]["implements"][0]["syntax"] = value.clone();
         std::fs::write(&path, serde_json::to_string(&manifest).unwrap()).unwrap();
-        let loaded = quire_rs::Registry::load_module(&dir.path().join("module")).unwrap();
-        assert!(
-            !loaded.failures().is_empty(),
-            "present syntax {value} must not silently become unguarded"
-        );
-        assert!(
-            loaded.failures()[0].reason.contains("declared-attribute"),
-            "{}",
-            loaded.failures()[0].reason
-        );
-        assert!(loaded.traceability().is_none());
+        let error = quire_rs::Registry::load_module(&dir.path().join("module"))
+            .expect_err("present syntax must not silently become unguarded");
+        assert!(error.to_string().contains("declared-attribute"), "{error}");
     }
 }

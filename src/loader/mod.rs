@@ -81,6 +81,40 @@ pub struct LoadOutcome {
     pub failures: Vec<ArchetypeLoadFailure>,
     pub diagnostics: Vec<Diagnostic>,
     pub path_diagnostics: Vec<PathDiagnostic>,
+    /// One fatal error per module whose `manifest.yaml` exists but does not
+    /// parse (for example a key from a newer engine). Every `Registry`
+    /// constructor refuses to build while this is non-empty, so a
+    /// version-skewed module can never degrade into an empty model.
+    pub manifest_errors: Vec<ManifestFailure>,
+}
+
+/// A module whose `manifest.yaml` could not be loaded, in caller-facing form:
+/// the message names the module, its declared version and the parse error.
+#[derive(Debug)]
+pub struct ManifestFailure {
+    pub path: PathBuf,
+    pub message: String,
+}
+
+/// A manifest that could not be loaded: the per-module failure record plus
+/// the `version` read from the same bytes, so the error can name it.
+pub(crate) struct ManifestLoadFailure {
+    failure: ArchetypeLoadFailure,
+    version: Option<String>,
+}
+
+impl ManifestLoadFailure {
+    fn into_error(self) -> (ArchetypeLoadFailure, ManifestFailure) {
+        let version = self.version.as_deref().unwrap_or("<undeclared>");
+        let error = ManifestFailure {
+            path: self.failure.path.clone(),
+            message: format!(
+                "module `{}` version {version}: {}",
+                self.failure.module, self.failure.reason
+            ),
+        };
+        (self.failure, error)
+    }
 }
 
 /// Caller-facing reason for a retired manifest field (no
@@ -111,6 +145,7 @@ pub fn load_modules(explicit: &[&Path]) -> LoadOutcome {
     let mut failures: Vec<ArchetypeLoadFailure> = Vec::new();
     let mut diagnostics: Vec<Diagnostic> = Vec::new();
     let mut visited: Vec<PathBuf> = Vec::new();
+    let mut manifest_errors: Vec<ManifestFailure> = Vec::new();
 
     // Surface path-resolution problems as diagnostics too (they were
     // previously only accessible via Registry::path_diagnostics; both
@@ -141,6 +176,7 @@ pub fn load_modules(explicit: &[&Path]) -> LoadOutcome {
                 &mut failures,
                 &mut diagnostics,
                 &mut visited,
+                &mut manifest_errors,
             );
         }
     }
@@ -150,6 +186,7 @@ pub fn load_modules(explicit: &[&Path]) -> LoadOutcome {
         failures,
         diagnostics,
         path_diagnostics,
+        manifest_errors,
     }
 }
 
@@ -166,6 +203,7 @@ pub fn load_single_module(module_root: &Path) -> LoadOutcome {
     let mut modules: Vec<LoadedModule> = Vec::new();
     let mut failures: Vec<ArchetypeLoadFailure> = Vec::new();
     let mut diagnostics: Vec<Diagnostic> = Vec::new();
+    let mut manifest_errors: Vec<ManifestFailure> = Vec::new();
 
     let canonical = match std::fs::canonicalize(module_root) {
         Ok(p) => p,
@@ -185,6 +223,7 @@ pub fn load_single_module(module_root: &Path) -> LoadOutcome {
                 failures,
                 diagnostics,
                 path_diagnostics: Vec::new(),
+                manifest_errors: Vec::new(),
             };
         }
     };
@@ -205,6 +244,7 @@ pub fn load_single_module(module_root: &Path) -> LoadOutcome {
             failures,
             diagnostics,
             path_diagnostics: Vec::new(),
+            manifest_errors: Vec::new(),
         };
     }
 
@@ -215,7 +255,11 @@ pub fn load_single_module(module_root: &Path) -> LoadOutcome {
             }
             modules.push(module);
         }
-        Err(fail) => failures.push(fail),
+        Err(fail) => {
+            let (failure, error) = fail.into_error();
+            failures.push(failure);
+            manifest_errors.push(error);
+        }
     }
 
     LoadOutcome {
@@ -223,6 +267,7 @@ pub fn load_single_module(module_root: &Path) -> LoadOutcome {
         failures,
         diagnostics,
         path_diagnostics: Vec::new(),
+        manifest_errors,
     }
 }
 
@@ -251,6 +296,7 @@ pub fn load_single_module(module_root: &Path) -> LoadOutcome {
 /// Two DIFFERENT directories declaring the same module name still collide and
 /// still diagnose: that is a real ambiguity in the declared set.
 pub fn load_module_set(module_roots: &[&Path]) -> LoadOutcome {
+    let mut manifest_errors: Vec<ManifestFailure> = Vec::new();
     let mut modules: Vec<LoadedModule> = Vec::new();
     let mut failures: Vec<ArchetypeLoadFailure> = Vec::new();
     let mut diagnostics: Vec<Diagnostic> = Vec::new();
@@ -267,6 +313,7 @@ pub fn load_module_set(module_roots: &[&Path]) -> LoadOutcome {
         modules.append(&mut outcome.modules);
         failures.append(&mut outcome.failures);
         diagnostics.append(&mut outcome.diagnostics);
+        manifest_errors.append(&mut outcome.manifest_errors);
     }
 
     LoadOutcome {
@@ -274,6 +321,7 @@ pub fn load_module_set(module_roots: &[&Path]) -> LoadOutcome {
         failures,
         diagnostics,
         path_diagnostics: Vec::new(),
+        manifest_errors,
     }
 }
 
@@ -303,17 +351,23 @@ pub fn load_inline_module(manifest_yaml: &[u8], schemas: &BTreeMap<String, Strin
     let manifest = match parse_manifest(manifest_yaml) {
         Ok(m) => m,
         Err(reason) => {
-            failures.push(ArchetypeLoadFailure {
-                module: "<inline>".to_string(),
-                archetype: "<manifest>".to_string(),
-                path: inline_root.clone(),
-                reason,
-            });
+            let (failure, error) = ManifestLoadFailure {
+                failure: ArchetypeLoadFailure {
+                    module: "<inline>".to_string(),
+                    archetype: "<manifest>".to_string(),
+                    path: inline_root.clone(),
+                    reason,
+                },
+                version: crate::loader::manifest::declared_version(manifest_yaml),
+            }
+            .into_error();
+            failures.push(failure);
             return LoadOutcome {
                 modules,
                 failures,
                 diagnostics,
                 path_diagnostics: Vec::new(),
+                manifest_errors: vec![error],
             };
         }
     };
@@ -370,6 +424,7 @@ pub fn load_inline_module(manifest_yaml: &[u8], schemas: &BTreeMap<String, Strin
                 failures,
                 diagnostics,
                 path_diagnostics: Vec::new(),
+                manifest_errors: Vec::new(),
             };
         }
     };
@@ -507,6 +562,7 @@ pub fn load_inline_module(manifest_yaml: &[u8], schemas: &BTreeMap<String, Strin
         failures,
         diagnostics,
         path_diagnostics: Vec::new(),
+        manifest_errors: Vec::new(),
     }
 }
 
@@ -528,6 +584,7 @@ pub fn load_from_default() -> LoadOutcome {
             failures: Vec::new(),
             diagnostics: Vec::new(),
             path_diagnostics: Vec::new(),
+            manifest_errors: Vec::new(),
         },
     }
 }
@@ -540,6 +597,7 @@ fn walk_search_root(
     failures: &mut Vec<ArchetypeLoadFailure>,
     diagnostics: &mut Vec<Diagnostic>,
     visited: &mut Vec<PathBuf>,
+    manifest_errors: &mut Vec<ManifestFailure>,
 ) {
     let canonical = match std::fs::canonicalize(root) {
         Ok(p) => p,
@@ -588,7 +646,11 @@ fn walk_search_root(
                 }
                 modules.push(module);
             }
-            Err(fail) => failures.push(fail),
+            Err(fail) => {
+                let (failure, error) = fail.into_error();
+                failures.push(failure);
+                manifest_errors.push(error);
+            }
         }
     }
 }
@@ -604,17 +666,20 @@ fn canonical_has_manifest(path: &Path) -> bool {
 fn load_one_module(
     module_root: &Path,
     diagnostics: &mut Vec<Diagnostic>,
-) -> Result<(LoadedModule, Vec<ArchetypeLoadFailure>), ArchetypeLoadFailure> {
+) -> Result<(LoadedModule, Vec<ArchetypeLoadFailure>), ManifestLoadFailure> {
     let (manifest, origins): (Manifest, ManifestOrigins) = load_manifest_with_origins(module_root)
-        .map_err(|reason| ArchetypeLoadFailure {
-            module: module_root
-                .file_name()
-                .and_then(|n| n.to_str())
-                .unwrap_or("<unknown>")
-                .to_string(),
-            archetype: "<manifest>".to_string(),
-            path: module_root.join("manifest.yaml"),
-            reason,
+        .map_err(|e| ManifestLoadFailure {
+            failure: ArchetypeLoadFailure {
+                module: module_root
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or("<unknown>")
+                    .to_string(),
+                archetype: "<manifest>".to_string(),
+                path: module_root.join("manifest.yaml"),
+                reason: e.reason,
+            },
+            version: e.version,
         })?;
 
     let module_name: String = manifest.name.clone().unwrap_or_else(|| {

@@ -3317,19 +3317,8 @@ fn retired_declarations_keep_live_gaps_and_historical_identity() {
         );
         let loaded = Registry::load_module(&module);
         if let Some(error) = case["expect"]["module_error"].as_str() {
-            let rejected = loaded.expect("tolerant registry reports invalid module failures");
-            assert!(
-                rejected.traceability().is_none(),
-                "{name}: invalid model exposed"
-            );
-            assert!(
-                rejected
-                    .failures()
-                    .iter()
-                    .any(|failure| failure.reason.contains(error)),
-                "{name}: {:?}",
-                rejected.failures()
-            );
+            let rejected = loaded.expect_err("invalid module must fail the load");
+            assert!(rejected.to_string().contains(error), "{name}: {rejected}");
             continue;
         }
         let registry = loaded.unwrap_or_else(|error| panic!("{name}: {error}"));

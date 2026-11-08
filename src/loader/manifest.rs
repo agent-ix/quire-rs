@@ -291,8 +291,38 @@ fn named_origins<'a>(
 /// `name` is optional at the YAML layer — when absent, the loader
 /// derives one from the parent directory and emits a
 /// `Diagnostic::ManifestMissingName` (FR-014-AC-7).
+///
+/// Unknown top-level keys are refused (`deny_unknown_fields`): a key from a
+/// newer engine must fail the module load, naming the key, rather than load
+/// as if it were absent. Keys owned by other tools are declared below as
+/// opaque values so they keep loading.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Manifest {
+    /// Manifest schema version; owned by the Filament module tooling
+    /// (`filament-core-data`), opaque to this engine.
+    #[serde(default)]
+    pub manifest_version: Option<serde_yaml::Value>,
+    /// Grammar declarations; owned by the Filament module tooling
+    /// (`filament-core-data`), opaque to this engine.
+    #[serde(default)]
+    pub grammars: Option<serde_yaml::Value>,
+    /// Document-kind declarations; owned by the Filament module tooling
+    /// (`filament-core-data`), opaque to this engine.
+    #[serde(default)]
+    pub doc_kinds: Option<serde_yaml::Value>,
+    /// Navigation declarations; owned by the Filament UI tooling, opaque to
+    /// this engine.
+    #[serde(default)]
+    pub nav: Option<serde_yaml::Value>,
+    /// Module dependency declarations; owned by the Filament semantic module
+    /// manifest schema (`filament-core-data`), opaque to this engine.
+    #[serde(default)]
+    pub depends_on: Option<serde_yaml::Value>,
+    /// State-schema declarations; owned by the Filament semantic module
+    /// manifest schema (`filament-core-data`), opaque to this engine.
+    #[serde(default)]
+    pub state_schemas: Option<serde_yaml::Value>,
     #[serde(default)]
     pub name: Option<String>,
     #[serde(default)]
@@ -551,18 +581,39 @@ fn check_grammar_severity_keys(manifest: &Manifest) -> Result<(), String> {
 
 /// Read + parse `manifest.yaml` from `module_root`.
 pub fn load_manifest(module_root: &Path) -> Result<Manifest, String> {
-    load_manifest_with_origins(module_root).map(|(manifest, _)| manifest)
+    load_manifest_with_origins(module_root)
+        .map(|(manifest, _)| manifest)
+        .map_err(|e| e.reason)
+}
+
+/// Why a `manifest.yaml` could not be loaded, with the `version` it declares
+/// (when it parses as YAML at all) so the error can name the module version.
+pub(crate) struct ManifestReadError {
+    pub reason: String,
+    pub version: Option<String>,
+}
+
+/// The `version` a manifest's bytes declare, read without the typed shape so
+/// it is available even when the typed parse fails.
+pub(crate) fn declared_version(bytes: &[u8]) -> Option<String> {
+    let doc = serde_yaml::from_slice::<Value>(bytes).ok()?;
+    doc.get("version")?.as_str().map(str::to_owned)
 }
 
 /// Read a manifest together with the authored declaration origins used by
 /// configuration diagnostics.
 pub(crate) fn load_manifest_with_origins(
     module_root: &Path,
-) -> Result<(Manifest, ManifestOrigins), String> {
+) -> Result<(Manifest, ManifestOrigins), ManifestReadError> {
     let manifest_path = module_root.join("manifest.yaml");
-    let bytes = std::fs::read(&manifest_path)
-        .map_err(|e| format!("could not read {}: {e}", manifest_path.display()))?;
-    let manifest = parse_manifest(&bytes)?;
+    let bytes = std::fs::read(&manifest_path).map_err(|e| ManifestReadError {
+        reason: format!("could not read {}: {e}", manifest_path.display()),
+        version: None,
+    })?;
+    let manifest = parse_manifest(&bytes).map_err(|reason| ManifestReadError {
+        reason,
+        version: declared_version(&bytes),
+    })?;
     let origins = ManifestOrigins::from_source(&manifest, manifest_path, &bytes);
     Ok((manifest, origins))
 }
