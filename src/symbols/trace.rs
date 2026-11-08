@@ -2126,7 +2126,8 @@ pub fn graph_records(
     extraction: &SymbolExtraction,
     graph: &SymbolGraph,
     input: &SymbolRecordInput,
-) -> (Vec<CoreGraphNodeRef>, Vec<CoreGraphEdgeRef>) {
+) -> Result<(Vec<CoreGraphNodeRef>, Vec<CoreGraphEdgeRef>), super::ExtractionUnavailable> {
+    extraction.require_available()?;
     let mut nodes: Vec<CoreGraphNodeRef> = Vec::new();
     for symbol in &extraction.symbols {
         let name = symbol_ref_name(symbol);
@@ -2209,7 +2210,7 @@ pub fn graph_records(
             Map::new(),
         );
     }
-    (nodes, edges)
+    Ok((nodes, edges))
 }
 
 /// The `ref` name of a symbol: `<path>#<qualified name>`, which is unique per
@@ -2801,7 +2802,7 @@ mod tests {
     fn tc747_records_match_fr045_shapes() {
         let extraction = symbols();
         let graph = bind(&extraction, &iso_model());
-        let (nodes, edges) = graph_records(&extraction, &graph, &record_input());
+        let (nodes, edges) = graph_records(&extraction, &graph, &record_input()).unwrap();
 
         assert!(!nodes.is_empty() && !edges.is_empty());
         let node = nodes
@@ -2866,7 +2867,7 @@ mod tests {
         let render = || {
             let extraction = symbols();
             let graph = bind(&extraction, &model);
-            let (nodes, edges) = graph_records(&extraction, &graph, &record_input());
+            let (nodes, edges) = graph_records(&extraction, &graph, &record_input()).unwrap();
             serde_json::to_string(&(nodes, edges)).expect("serialize")
         };
         let first = render();

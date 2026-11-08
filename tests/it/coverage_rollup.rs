@@ -1111,10 +1111,10 @@ fn tc739_non_iso_model_rolls_up() {
 // `wasm` (no `rust-symbols`) arm that sets this field is covered natively by
 // driving the refusal with the field set directly, plus the cfg-gated unit
 // test in `src/symbols/mod.rs`.
-#[trace("TC-2010", "FR-051-AC-29")]
+#[trace("TC-2061", "FR-050-AC-58")]
 #[test]
-fn tc2010_unextractable_language_refuses_coverage() {
-    let bundle = iso_bundle("2010", &[("TC-001", "FR-001-AC-1", "✅")], &["TC-001"]);
+fn tc2061_unextractable_language_refuses_coverage() {
+    let bundle = iso_bundle("2061", &[("TC-001", "FR-001-AC-1", "✅")], &["TC-001"]);
     let registry = Registry::load_module(&fixture_module("iso")).expect("load module");
     let spec = Spec::from_path(&bundle.scope);
     let model = registry.traceability().cloned().unwrap_or_default();

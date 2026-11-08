@@ -85,6 +85,7 @@ a Python hit with the same evidentiary weight as a Rust one.
 | FR-077-AC-4 | An inverse query names a symbol either by its exact `path#qualified_name` ref (returning exactly that symbol's claims and citations) or by a bare unqualified name; a bare name matching more than one symbol returns every match under `ambiguous_matches` rather than selecting one. | Test (TC-1890, TC-1891) |
 | FR-077-AC-5 | `Mention` carries the `language` it was extracted from directly; `VerifiesRelation`/`ImplementsRelation` carry none, and `symbol_language()` joins one back from `extraction` by `symbol_id`. Either way, one documented function (`language_confidence`) maps `language` to a confidence label (`structural` for Rust — AST-grounded, PLAT-843 — `line_heuristic` for Python/TypeScript, pre-PLAT-851), so a caller never presents a result set as uniformly grounded across languages. | Test (TC-1892) |
 | FR-077-AC-6 | Trace-id matching is exact after `normalized_trace_id()` normalization; the engine performs no implicit FR/AC/TC hierarchy expansion. | Test (TC-1893) |
+| FR-077-AC-7 | A query over a graph and extraction that record an unavailable language ([FR-051](./FR-051-source-symbol-extraction.md)-AC-29) is refused with an error naming the language, not answered as unresolved: "nothing backs this id" must not be reachable when the evidence is in a language the build cannot read (CR-201, PLAT-874). | Test (TC-2062) |
 
 ## Constraints
 
