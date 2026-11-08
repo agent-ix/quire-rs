@@ -136,7 +136,7 @@ past that line's byte length.
 | `population` | table `Type` (required) and frontmatter `extent: closed\|open` | `{ extent, extentSpan, members: [{ type, sourceSpan }] }` |
 | `values` | table `Value \| Description` (`Value` required) | `{ value, doc?, sourceSpan }` |
 | `states` | table `State \| Description` (`State` required) | `{ value, doc?, sourceSpan }` |
-| `transitions` | table `From \| To \| Trigger \| Guard \| Emits` (`From`, `To`, `Trigger` required) | `{ from, to, trigger, guard?, emits?, sourceSpan }`, `emits` one `SemanticId` (the module types a transition's `emits` as a single `SemanticId`) |
+| `transitions` | table `From \| To \| Trigger \| Guard \| Emits` (`From`, `To`, `Trigger` required) | `{ from, to, trigger, guard?, guardExpression?, emits?, sourceSpan }`, `guard` a clause id and `guardExpression` an opaque inline `Expression` ([FR-071](./FR-071-clause-and-operation-extraction.md), "Inline expressions"), never both; `emits` one `SemanticId` (the module types a transition's `emits` as a single `SemanticId`) |
 | `steps` | table `Step \| Kind \| Consumes \| Emits \| Description` (`Step`, `Kind` required) | `{ name, kind, consumes?, emits?, doc?, sourceSpan }`, `consumes` and `emits` each a `SemanticId[]`, in cell order |
 | `members` | table `Member \| Multiplicity` (both required) | `{ target, multiplicity, sourceSpan }` |
 | `vocabulary` | table `Term \| Description` (`Term` required) | `{ term, doc, sourceSpan }` |
@@ -240,7 +240,10 @@ Operation lines:
 - An operation carrying at least one `Modifies:`, `Creates:`, or `Deletes:`
   line SHALL yield one `operationFrames` entry spanning its heading line,
   whose `pre` and `post` list the ids of its FR-071 `Pre:` and
-  `Post:` lines.
+  `Post:` lines. Frames carry clause-id references only: for a `Pre:` or
+  `Post:` line that FR-071 classifies as an inline expression, the frame's
+  `pre` or `post` is EMPTY, and the engine SHALL NOT comma-split the
+  expression line into ids (CR-199).
 
 Tables:
 
@@ -256,8 +259,18 @@ Tables:
 - A transition `From` or `To` that names no `states` entry of the artifact
   is `semantic.unknown-state`, checked only when the `states` table carries
   no error or refusal; a `Trigger` that names no operation of the
-  artifact is `semantic.unknown-trigger`; a `Guard` that names no invariant
-  clause is `semantic.dangling-clause-ref`.
+  artifact is `semantic.unknown-trigger`; a `Guard` cell that is one
+  `Identifier` is a clause-id reference and, naming no invariant clause, is
+  `semantic.dangling-clause-ref`. Any other non-empty `Guard` cell is one
+  inline expression under the FR-071 rules (CR-199): carried as
+  `guardExpression` with its text, span and `kind: "expression"`, with the
+  advisory `semantic.expression-unchecked` and the `model` kind lossy,
+  and with no syntax check, no name resolution and no declaration-reference
+  resolution. The cell's `text` and span follow FR-071 (unescaped `\|`, one
+  outer backtick pair stripped, span over the source bytes). A `Guard` is not a "Declaration references" item: it needs no
+  bundle index, and its presence neither adds nor removes the
+  `no-bundle-index` outcome of the same table's `Emits` cells. An expression
+  of a row whose table is refused is omitted with the whole `model`.
 - A `Multiplicity` cell SHALL map as the FR-070 multiplicity cell; a `Type`
   cell SHALL resolve as the FR-070 type cell.
 - A population has one `extent`, `closed` or `open`, authored as frontmatter
@@ -575,6 +588,9 @@ General:
 | FR-075-AC-25 | A cell `OrderPlaced, EV-001` naming one event twice yields `semantic.duplicate-model-entry` with `reason` `repeated-reference`; `OrderPlaced,,EV-002` and a trailing comma yield `semantic.invalid-model-cell` with `reason` `empty-item`; a `Transitions` `Emits` cell `OrderPlaced, OrderShipped` yields `reason` `too-many-references`; an imported-package `ix://` item resolves unchecked with no diagnostic; a declaration with no `object` satisfies an unrestricted cell and is `semantic.reference-kind-mismatch` under `allowed_links.emits: [event]`; where a construct entry and an `allowed_links` entry both exist, the construct entry decides. | Test |
 | FR-075-AC-26 | With a bundle whose `artifacts` is empty (whatever `objects` holds), a valid `Emits` cell yields one `semantic.unresolved-target` advisory with `reason` `no-bundle-index` per such row, `availability.model` `unavailable` with reason `no-bundle-index`, no `model`, no error, and `validate_document` of the artifact reports valid; with a bundle but no package and no source identity the same holds with `no-bundle-package`; a bundle listing only the extracted artifact is indexed, and an item naming another declaration is `semantic.unknown-reference` `unknown-name`. | Test |
 | FR-075-AC-27 | `tests/fixtures/semantic/cases.json` carries, for each of transition `emits`, step `consumes` and step `emits`, a case with `issue_ref` `PLAT-35` asserting the resolved `SemanticId`, a case asserting the refusal, and a control asserting its `absent_diagnostic_reasons`; the Python binding and the Rust library return equal JSON for each. | Test |
+| FR-075-AC-28 | A `Transitions` row whose `Guard` cell is `status != "captured"` yields `guardExpression` `{ kind: "expression", text, sourceSpan }` with the text byte-for-byte, no `guard`, the advisory `semantic.expression-unchecked`, `availability.model` `available` and lossy, and no `semantic.dangling-clause-ref`; a `Guard` cell that is an expression containing a comma is not split; a cell with an escaped pipe, `a \| b`, yields a `text` holding `a`, the pipe, and `b` (pipe unescaped) with a span over the source bytes (so the span is one byte longer than the text); an empty `Guard` cell yields neither key. | Test |
+| FR-075-AC-29 | A `Guard` cell `captured` declared by no invariant yields `semantic.dangling-clause-ref` and no `guardExpression`; the same cell naming a declared clause yields `guard` and no expression; with no bundle index, a row with an expression `Guard` and a valid `Emits` yields the AC-26 outcome for `Emits` unchanged. | Test |
+| FR-075-AC-30 | Under `mappings: [effect-frames]`, an operation with `Pre: x > 1 and y(a, b)` and a `Modifies:` line yields an `operationFrames` entry whose `pre` is empty (the expression is not comma-split into ids), while the same operation with `Pre: a, b` over declared clauses yields `pre` `[a, b]`. | Test |
 
 ## Dependencies
 
