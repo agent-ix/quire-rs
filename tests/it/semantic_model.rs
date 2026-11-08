@@ -935,14 +935,15 @@ fn records_without_model_features_are_unchanged() {
         serde_json::from_slice(&fs::read(root.join("tests/fixtures/semantic/cases.json")).unwrap())
             .unwrap();
     let schema = schema();
-    // A case whose object type declares model tables (`bodyExtraction`) is a
-    // model case, not one of the records without model features.
-    for case in cases["cases"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .filter(|c| c["input"].get("bodyExtraction").is_none())
-    {
+    // A case whose object type declares model tables (`bodyExtraction`) or
+    // whose module declares `mappings` is a model case, not one of the records
+    // without model features.
+    for case in cases["cases"].as_array().unwrap().iter().filter(|c| {
+        c["input"].get("bodyExtraction").is_none()
+            && c["input"]["module"]["mappings"]
+                .as_array()
+                .is_none_or(Vec::is_empty)
+    }) {
         let name = case["name"].as_str().unwrap();
         let input = case["input"].clone();
         let value = serde_json::to_value(extract_semantic_json(&input).unwrap()).unwrap();

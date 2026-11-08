@@ -11,14 +11,14 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use super::clauses::SourceLocus;
+use super::clauses::{Expression, SourceLocus};
 use super::context::SemanticContext;
 use super::contract::SemanticSeverity;
 use super::decl::{is_identifier, Multiplicity, TypeRef};
 use super::properties::{
     feature_columns, is_typed_prefix, map_multiplicity, map_type, strip_ticks, RowInput,
 };
-use super::scan::{blocks_in, level2_headings, lines, Block, Table};
+use super::scan::{blocks_in, level2_headings, lines, split_row_spans, Block, Table};
 use super::systems::{
     self, AllocationRecord, ConnectionRecord, PartRecord, PortRecord, SystemsDecl,
 };
@@ -489,6 +489,24 @@ pub(crate) fn line_span(ctx: &SemanticContext, lines: &[&str], line: usize) -> S
     }
 }
 
+/// The span of bytes `columns` (0-based, end exclusive) of `line`: an
+/// inline expression's source bytes (FR-071 "Inline expressions").
+pub(crate) fn text_span(
+    ctx: &SemanticContext,
+    line: usize,
+    columns: std::ops::Range<usize>,
+) -> SourceLocus {
+    let (identity, _) = ctx.resolved_source_identity();
+    SourceLocus {
+        source_identity: identity,
+        path: ctx.path.clone(),
+        start_line: line,
+        start_column: columns.start + 1,
+        end_line: Some(line),
+        end_column: Some(columns.end + 1),
+    }
+}
+
 /// Authored presence of a field.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -604,8 +622,13 @@ pub struct TransitionDecl {
     pub from: String,
     pub to: String,
     pub trigger: String,
+    /// A `Guard` cell that is one `Identifier`: an invariant clause id.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub guard: Option<String>,
+    /// Any other non-empty `Guard` cell, carried opaquely (FR-071 "Inline
+    /// expressions").
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub guard_expression: Option<Expression>,
     /// The `SemanticId` of the declaration the `Emits` cell names.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub emits: Option<String>,
@@ -1382,6 +1405,13 @@ fn table_features(
     }
 }
 
+/// A transition `Guard` cell as classified by its text.
+enum Guard {
+    Absent,
+    Reference(String),
+    Expression(Expression),
+}
+
 /// The reader state for one declared model table.
 pub(super) struct TableRead<'a> {
     pub(super) feature: ModelFeature,
@@ -1423,6 +1453,30 @@ impl<'a> TableRead<'a> {
             .position(|h| strip_ticks(h) == column)
             .and_then(|i| cells.get(i))
             .map_or("", |c| strip_ticks(c))
+    }
+
+    /// The `Guard` cell of the row at `line`: absent when empty, a clause-id
+    /// reference when one `Identifier`, otherwise one opaque expression whose
+    /// span covers the cell's source bytes (FR-071 "Inline expressions").
+    fn guard(&self, cells: &[String], line: usize) -> Guard {
+        let text = self.cell(cells, "Guard");
+        if text.is_empty() {
+            return Guard::Absent;
+        }
+        if is_identifier(text) {
+            return Guard::Reference(text.to_string());
+        }
+        let columns = self
+            .table
+            .headers
+            .iter()
+            .position(|h| strip_ticks(h) == "Guard")
+            .and_then(|i| {
+                let row = self.lines.get(line - 1)?;
+                split_row_spans(row).into_iter().nth(i).map(|(_, r)| r)
+            })
+            .unwrap_or(0..0);
+        Guard::Expression(Expression::new(text, text_span(self.ctx, line, columns)))
     }
 
     /// The cell under `column` as authored, trimmed, with no backticks
@@ -1702,11 +1756,26 @@ fn read_transitions(r: &mut TableRead<'_>) {
         if !r.settle_references(*line, &[&emits]) {
             continue;
         }
+        let (guard, guard_expression) = match r.guard(cells, *line) {
+            Guard::Absent => (None, None),
+            Guard::Reference(id) => (Some(id), None),
+            Guard::Expression(expression) => {
+                r.out.diagnostics.push(SemanticDiagnostic::new(
+                    "semantic.expression-unchecked",
+                    SemanticSeverity::Advisory,
+                    *line,
+                    "the transition `Guard` expression is carried unchecked",
+                ));
+                r.out.lossy = true;
+                (None, Some(expression))
+            }
+        };
         entries.push(TransitionDecl {
             from: from.to_string(),
             to: to.to_string(),
             trigger: trigger.to_string(),
-            guard: optional(r.cell(cells, "Guard")),
+            guard,
+            guard_expression,
             emits: emits.into_ids().and_then(|ids| ids.into_iter().next()),
             source_span: r.span(*line),
         });

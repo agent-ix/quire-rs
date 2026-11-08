@@ -2821,6 +2821,2029 @@
       }
     ]
   },
+  "plat57-commas-pre": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "available"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "operations": {
+        "lossy": false,
+        "reason": "entry-errors: lines 28",
+        "state": "unavailable"
+      }
+    },
+    "clauseText": {
+      "a": "self.a = 1",
+      "b": "self.b = 1"
+    },
+    "clauses": [
+      {
+        "clauseId": "a",
+        "language": "quire",
+        "sourceSpan": {
+          "endColumn": 4,
+          "endLine": 16,
+          "path": "spec/functional/FR-006.md",
+          "sourceIdentity": "ix://agent-ix/config-service/spec",
+          "startColumn": 1,
+          "startLine": 14
+        }
+      },
+      {
+        "clauseId": "b",
+        "language": "quire",
+        "sourceSpan": {
+          "endColumn": 4,
+          "endLine": 22,
+          "path": "spec/functional/FR-006.md",
+          "sourceIdentity": "ix://agent-ix/config-service/spec",
+          "startColumn": 1,
+          "startLine": 20
+        }
+      }
+    ],
+    "contractVersion": "1.0.0",
+    "diagnostics": [
+      {
+        "code": "semantic.empty-expression",
+        "column": 1,
+        "line": 28,
+        "message": "operation ship: `Pre:` holds no clause id or expression",
+        "severity": "error"
+      }
+    ],
+    "formatVersion": 1,
+    "package": "agent-ix/spec-objects-fixture"
+  },
+  "plat57-empty-pieces-dropped": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "available"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "available"
+      }
+    },
+    "clauseText": {
+      "a": "self.a = 1",
+      "b": "self.b = 1"
+    },
+    "clauses": [
+      {
+        "clauseId": "a",
+        "language": "quire",
+        "sourceSpan": {
+          "endColumn": 4,
+          "endLine": 16,
+          "path": "spec/functional/FR-006.md",
+          "sourceIdentity": "ix://agent-ix/config-service/spec",
+          "startColumn": 1,
+          "startLine": 14
+        }
+      },
+      {
+        "clauseId": "b",
+        "language": "quire",
+        "sourceSpan": {
+          "endColumn": 4,
+          "endLine": 22,
+          "path": "spec/functional/FR-006.md",
+          "sourceIdentity": "ix://agent-ix/config-service/spec",
+          "startColumn": 1,
+          "startLine": 20
+        }
+      }
+    ],
+    "contractVersion": "1.0.0",
+    "diagnostics": [],
+    "formatVersion": 1,
+    "operationSources": [
+      {
+        "name": "ship",
+        "params": []
+      }
+    ],
+    "operations": [
+      {
+        "name": "ship",
+        "params": [],
+        "post": [
+          {
+            "clauseId": "a",
+            "language": "quire"
+          },
+          {
+            "clauseId": "b",
+            "language": "quire"
+          }
+        ],
+        "pre": [
+          {
+            "clauseId": "a",
+            "language": "quire"
+          }
+        ]
+      }
+    ],
+    "package": "agent-ix/spec-objects-fixture"
+  },
+  "plat57-empty-pre": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "available"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "operations": {
+        "lossy": false,
+        "reason": "entry-errors: lines 28",
+        "state": "unavailable"
+      }
+    },
+    "clauseText": {
+      "a": "self.a = 1",
+      "b": "self.b = 1"
+    },
+    "clauses": [
+      {
+        "clauseId": "a",
+        "language": "quire",
+        "sourceSpan": {
+          "endColumn": 4,
+          "endLine": 16,
+          "path": "spec/functional/FR-006.md",
+          "sourceIdentity": "ix://agent-ix/config-service/spec",
+          "startColumn": 1,
+          "startLine": 14
+        }
+      },
+      {
+        "clauseId": "b",
+        "language": "quire",
+        "sourceSpan": {
+          "endColumn": 4,
+          "endLine": 22,
+          "path": "spec/functional/FR-006.md",
+          "sourceIdentity": "ix://agent-ix/config-service/spec",
+          "startColumn": 1,
+          "startLine": 20
+        }
+      }
+    ],
+    "contractVersion": "1.0.0",
+    "diagnostics": [
+      {
+        "code": "semantic.empty-expression",
+        "column": 1,
+        "line": 28,
+        "message": "operation ship: `Pre:` holds no clause id or expression",
+        "severity": "error"
+      }
+    ],
+    "formatVersion": 1,
+    "package": "agent-ix/spec-objects-fixture"
+  },
+  "plat57-expression-of-dropped-operation": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "available"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "operations": {
+        "lossy": false,
+        "reason": "entry-errors: lines 30",
+        "state": "unavailable"
+      }
+    },
+    "clauseText": {
+      "a": "self.a = 1",
+      "b": "self.b = 1"
+    },
+    "clauses": [
+      {
+        "clauseId": "a",
+        "language": "quire",
+        "sourceSpan": {
+          "endColumn": 4,
+          "endLine": 16,
+          "path": "spec/functional/FR-006.md",
+          "sourceIdentity": "ix://agent-ix/config-service/spec",
+          "startColumn": 1,
+          "startLine": 14
+        }
+      },
+      {
+        "clauseId": "b",
+        "language": "quire",
+        "sourceSpan": {
+          "endColumn": 4,
+          "endLine": 22,
+          "path": "spec/functional/FR-006.md",
+          "sourceIdentity": "ix://agent-ix/config-service/spec",
+          "startColumn": 1,
+          "startLine": 20
+        }
+      }
+    ],
+    "contractVersion": "1.0.0",
+    "diagnostics": [
+      {
+        "code": "semantic.expression-unchecked",
+        "column": 1,
+        "line": 28,
+        "message": "operation ship: the `Pre:` expression is carried unchecked",
+        "severity": "advisory"
+      },
+      {
+        "code": "semantic.duplicate-operation",
+        "column": 1,
+        "line": 30,
+        "message": "operation ship is declared twice",
+        "severity": "error"
+      }
+    ],
+    "formatVersion": 1,
+    "package": "agent-ix/spec-objects-fixture"
+  },
+  "plat57-expression-with-erroring-entry": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "available"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "operations": {
+        "lossy": false,
+        "reason": "entry-errors: lines 32",
+        "state": "unavailable"
+      }
+    },
+    "clauseText": {
+      "a": "self.a = 1",
+      "b": "self.b = 1"
+    },
+    "clauses": [
+      {
+        "clauseId": "a",
+        "language": "quire",
+        "sourceSpan": {
+          "endColumn": 4,
+          "endLine": 16,
+          "path": "spec/functional/FR-006.md",
+          "sourceIdentity": "ix://agent-ix/config-service/spec",
+          "startColumn": 1,
+          "startLine": 14
+        }
+      },
+      {
+        "clauseId": "b",
+        "language": "quire",
+        "sourceSpan": {
+          "endColumn": 4,
+          "endLine": 22,
+          "path": "spec/functional/FR-006.md",
+          "sourceIdentity": "ix://agent-ix/config-service/spec",
+          "startColumn": 1,
+          "startLine": 20
+        }
+      }
+    ],
+    "contractVersion": "1.0.0",
+    "diagnostics": [
+      {
+        "code": "semantic.expression-unchecked",
+        "column": 1,
+        "line": 28,
+        "message": "operation ship: the `Pre:` expression is carried unchecked",
+        "severity": "advisory"
+      },
+      {
+        "code": "semantic.dangling-clause-ref",
+        "column": 1,
+        "line": 32,
+        "message": "clause missing is declared by no invariant of this artifact",
+        "severity": "error"
+      }
+    ],
+    "formatVersion": 1,
+    "package": "agent-ix/spec-objects-fixture"
+  },
+  "plat57-guard-backtick-pair": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "model": {
+        "lossy": true,
+        "state": "available"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "available"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [
+      {
+        "code": "semantic.expression-unchecked",
+        "column": 1,
+        "line": 19,
+        "message": "the transition `Guard` expression is carried unchecked",
+        "severity": "advisory"
+      }
+    ],
+    "formatVersion": 1,
+    "model": {
+      "displayName": {
+        "sourceSpan": {
+          "endColumn": 22,
+          "endLine": 3,
+          "path": "spec/state-machines/SM-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 3
+        },
+        "value": "OrderLifecycle"
+      },
+      "identity": {
+        "sourceSpan": {
+          "endColumn": 11,
+          "endLine": 2,
+          "path": "spec/state-machines/SM-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 2
+        },
+        "value": "SM-001"
+      },
+      "states": [
+        {
+          "sourceSpan": {
+            "endColumn": 11,
+            "endLine": 12,
+            "path": "spec/state-machines/SM-001.md",
+            "sourceIdentity": "ix://agent-ix/shop/spec",
+            "startColumn": 1,
+            "startLine": 12
+          },
+          "value": "open"
+        },
+        {
+          "sourceSpan": {
+            "endColumn": 14,
+            "endLine": 13,
+            "path": "spec/state-machines/SM-001.md",
+            "sourceIdentity": "ix://agent-ix/shop/spec",
+            "startColumn": 1,
+            "startLine": 13
+          },
+          "value": "shipped"
+        }
+      ],
+      "transitions": [
+        {
+          "from": "open",
+          "guardExpression": {
+            "kind": "expression",
+            "sourceSpan": {
+              "endColumn": 34,
+              "endLine": 19,
+              "path": "spec/state-machines/SM-001.md",
+              "sourceIdentity": "ix://agent-ix/shop/spec",
+              "startColumn": 27,
+              "startLine": 19
+            },
+            "text": "x > 1"
+          },
+          "sourceSpan": {
+            "endColumn": 39,
+            "endLine": 19,
+            "path": "spec/state-machines/SM-001.md",
+            "sourceIdentity": "ix://agent-ix/shop/spec",
+            "startColumn": 1,
+            "startLine": 19
+          },
+          "to": "shipped",
+          "trigger": "ship"
+        }
+      ]
+    },
+    "operationSources": [
+      {
+        "name": "ship",
+        "params": [],
+        "returns": {
+          "endColumn": 19,
+          "endLine": 25,
+          "path": "spec/state-machines/SM-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 25
+        }
+      }
+    ],
+    "operations": [
+      {
+        "name": "ship",
+        "params": [],
+        "post": [],
+        "pre": [],
+        "returns": {
+          "multiplicity": {
+            "lower": 1,
+            "ordered": false,
+            "unique": false,
+            "upper": 1
+          },
+          "target": {
+            "kind": "KernelScalar",
+            "value": "String"
+          }
+        }
+      }
+    ],
+    "package": "agent-ix/spec-objects-business"
+  },
+  "plat57-guard-comma-unsplit": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "model": {
+        "lossy": true,
+        "state": "available"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "available"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [
+      {
+        "code": "semantic.expression-unchecked",
+        "column": 1,
+        "line": 19,
+        "message": "the transition `Guard` expression is carried unchecked",
+        "severity": "advisory"
+      }
+    ],
+    "formatVersion": 1,
+    "model": {
+      "displayName": {
+        "sourceSpan": {
+          "endColumn": 22,
+          "endLine": 3,
+          "path": "spec/state-machines/SM-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 3
+        },
+        "value": "OrderLifecycle"
+      },
+      "identity": {
+        "sourceSpan": {
+          "endColumn": 11,
+          "endLine": 2,
+          "path": "spec/state-machines/SM-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 2
+        },
+        "value": "SM-001"
+      },
+      "states": [
+        {
+          "sourceSpan": {
+            "endColumn": 11,
+            "endLine": 12,
+            "path": "spec/state-machines/SM-001.md",
+            "sourceIdentity": "ix://agent-ix/shop/spec",
+            "startColumn": 1,
+            "startLine": 12
+          },
+          "value": "open"
+        },
+        {
+          "sourceSpan": {
+            "endColumn": 14,
+            "endLine": 13,
+            "path": "spec/state-machines/SM-001.md",
+            "sourceIdentity": "ix://agent-ix/shop/spec",
+            "startColumn": 1,
+            "startLine": 13
+          },
+          "value": "shipped"
+        }
+      ],
+      "transitions": [
+        {
+          "from": "open",
+          "guardExpression": {
+            "kind": "expression",
+            "sourceSpan": {
+              "endColumn": 35,
+              "endLine": 19,
+              "path": "spec/state-machines/SM-001.md",
+              "sourceIdentity": "ix://agent-ix/shop/spec",
+              "startColumn": 27,
+              "startLine": 19
+            },
+            "text": "x > 1, y"
+          },
+          "sourceSpan": {
+            "endColumn": 40,
+            "endLine": 19,
+            "path": "spec/state-machines/SM-001.md",
+            "sourceIdentity": "ix://agent-ix/shop/spec",
+            "startColumn": 1,
+            "startLine": 19
+          },
+          "to": "shipped",
+          "trigger": "ship"
+        }
+      ]
+    },
+    "operationSources": [
+      {
+        "name": "ship",
+        "params": [],
+        "returns": {
+          "endColumn": 19,
+          "endLine": 25,
+          "path": "spec/state-machines/SM-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 25
+        }
+      }
+    ],
+    "operations": [
+      {
+        "name": "ship",
+        "params": [],
+        "post": [],
+        "pre": [],
+        "returns": {
+          "multiplicity": {
+            "lower": 1,
+            "ordered": false,
+            "unique": false,
+            "upper": 1
+          },
+          "target": {
+            "kind": "KernelScalar",
+            "value": "String"
+          }
+        }
+      }
+    ],
+    "package": "agent-ix/spec-objects-business"
+  },
+  "plat57-guard-dangling-identifier": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "model": {
+        "lossy": false,
+        "reason": "entry-errors: lines 19",
+        "state": "unavailable"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "available"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [
+      {
+        "code": "semantic.dangling-clause-ref",
+        "column": 1,
+        "line": 19,
+        "message": "guard captured is declared by no invariant of this artifact",
+        "severity": "error"
+      }
+    ],
+    "formatVersion": 1,
+    "operationSources": [
+      {
+        "name": "ship",
+        "params": [],
+        "returns": {
+          "endColumn": 19,
+          "endLine": 25,
+          "path": "spec/state-machines/SM-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 25
+        }
+      }
+    ],
+    "operations": [
+      {
+        "name": "ship",
+        "params": [],
+        "post": [],
+        "pre": [],
+        "returns": {
+          "multiplicity": {
+            "lower": 1,
+            "ordered": false,
+            "unique": false,
+            "upper": 1
+          },
+          "target": {
+            "kind": "KernelScalar",
+            "value": "String"
+          }
+        }
+      }
+    ],
+    "package": "agent-ix/spec-objects-business"
+  },
+  "plat57-guard-empty": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "model": {
+        "lossy": false,
+        "state": "available"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "available"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [],
+    "formatVersion": 1,
+    "model": {
+      "displayName": {
+        "sourceSpan": {
+          "endColumn": 22,
+          "endLine": 3,
+          "path": "spec/state-machines/SM-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 3
+        },
+        "value": "OrderLifecycle"
+      },
+      "identity": {
+        "sourceSpan": {
+          "endColumn": 11,
+          "endLine": 2,
+          "path": "spec/state-machines/SM-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 2
+        },
+        "value": "SM-001"
+      },
+      "states": [
+        {
+          "sourceSpan": {
+            "endColumn": 11,
+            "endLine": 12,
+            "path": "spec/state-machines/SM-001.md",
+            "sourceIdentity": "ix://agent-ix/shop/spec",
+            "startColumn": 1,
+            "startLine": 12
+          },
+          "value": "open"
+        },
+        {
+          "sourceSpan": {
+            "endColumn": 14,
+            "endLine": 13,
+            "path": "spec/state-machines/SM-001.md",
+            "sourceIdentity": "ix://agent-ix/shop/spec",
+            "startColumn": 1,
+            "startLine": 13
+          },
+          "value": "shipped"
+        }
+      ],
+      "transitions": [
+        {
+          "from": "open",
+          "sourceSpan": {
+            "endColumn": 32,
+            "endLine": 19,
+            "path": "spec/state-machines/SM-001.md",
+            "sourceIdentity": "ix://agent-ix/shop/spec",
+            "startColumn": 1,
+            "startLine": 19
+          },
+          "to": "shipped",
+          "trigger": "ship"
+        }
+      ]
+    },
+    "operationSources": [
+      {
+        "name": "ship",
+        "params": [],
+        "returns": {
+          "endColumn": 19,
+          "endLine": 25,
+          "path": "spec/state-machines/SM-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 25
+        }
+      }
+    ],
+    "operations": [
+      {
+        "name": "ship",
+        "params": [],
+        "post": [],
+        "pre": [],
+        "returns": {
+          "multiplicity": {
+            "lower": 1,
+            "ordered": false,
+            "unique": false,
+            "upper": 1
+          },
+          "target": {
+            "kind": "KernelScalar",
+            "value": "String"
+          }
+        }
+      }
+    ],
+    "package": "agent-ix/spec-objects-business"
+  },
+  "plat57-guard-empty-no-bundle-index": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "model": {
+        "lossy": false,
+        "reason": "no-bundle-index",
+        "state": "unavailable"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "available"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [
+      {
+        "code": "semantic.unresolved-target",
+        "column": 1,
+        "line": 19,
+        "message": "artifact spec/state-machines/SM-001.md declares transitions in `## Transitions` at line 19: its declaration references are not resolved: this surface supplies no bundle index",
+        "reason": "no-bundle-index",
+        "section": "Transitions",
+        "severity": "advisory",
+        "sourceSpan": {
+          "endColumn": 38,
+          "endLine": 19,
+          "path": "spec/state-machines/SM-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 19
+        }
+      }
+    ],
+    "formatVersion": 1,
+    "operationSources": [
+      {
+        "name": "ship",
+        "params": [],
+        "returns": {
+          "endColumn": 19,
+          "endLine": 25,
+          "path": "spec/state-machines/SM-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 25
+        }
+      }
+    ],
+    "operations": [
+      {
+        "name": "ship",
+        "params": [],
+        "post": [],
+        "pre": [],
+        "returns": {
+          "multiplicity": {
+            "lower": 1,
+            "ordered": false,
+            "unique": false,
+            "upper": 1
+          },
+          "target": {
+            "kind": "KernelScalar",
+            "value": "String"
+          }
+        }
+      }
+    ],
+    "package": "agent-ix/spec-objects-business"
+  },
+  "plat57-guard-escaped-pipe": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "model": {
+        "lossy": true,
+        "state": "available"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "available"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [
+      {
+        "code": "semantic.expression-unchecked",
+        "column": 1,
+        "line": 19,
+        "message": "the transition `Guard` expression is carried unchecked",
+        "severity": "advisory"
+      }
+    ],
+    "formatVersion": 1,
+    "model": {
+      "displayName": {
+        "sourceSpan": {
+          "endColumn": 22,
+          "endLine": 3,
+          "path": "spec/state-machines/SM-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 3
+        },
+        "value": "OrderLifecycle"
+      },
+      "identity": {
+        "sourceSpan": {
+          "endColumn": 11,
+          "endLine": 2,
+          "path": "spec/state-machines/SM-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 2
+        },
+        "value": "SM-001"
+      },
+      "states": [
+        {
+          "sourceSpan": {
+            "endColumn": 11,
+            "endLine": 12,
+            "path": "spec/state-machines/SM-001.md",
+            "sourceIdentity": "ix://agent-ix/shop/spec",
+            "startColumn": 1,
+            "startLine": 12
+          },
+          "value": "open"
+        },
+        {
+          "sourceSpan": {
+            "endColumn": 14,
+            "endLine": 13,
+            "path": "spec/state-machines/SM-001.md",
+            "sourceIdentity": "ix://agent-ix/shop/spec",
+            "startColumn": 1,
+            "startLine": 13
+          },
+          "value": "shipped"
+        }
+      ],
+      "transitions": [
+        {
+          "from": "open",
+          "guardExpression": {
+            "kind": "expression",
+            "sourceSpan": {
+              "endColumn": 33,
+              "endLine": 19,
+              "path": "spec/state-machines/SM-001.md",
+              "sourceIdentity": "ix://agent-ix/shop/spec",
+              "startColumn": 27,
+              "startLine": 19
+            },
+            "text": "a | b"
+          },
+          "sourceSpan": {
+            "endColumn": 38,
+            "endLine": 19,
+            "path": "spec/state-machines/SM-001.md",
+            "sourceIdentity": "ix://agent-ix/shop/spec",
+            "startColumn": 1,
+            "startLine": 19
+          },
+          "to": "shipped",
+          "trigger": "ship"
+        }
+      ]
+    },
+    "operationSources": [
+      {
+        "name": "ship",
+        "params": [],
+        "returns": {
+          "endColumn": 19,
+          "endLine": 25,
+          "path": "spec/state-machines/SM-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 25
+        }
+      }
+    ],
+    "operations": [
+      {
+        "name": "ship",
+        "params": [],
+        "post": [],
+        "pre": [],
+        "returns": {
+          "multiplicity": {
+            "lower": 1,
+            "ordered": false,
+            "unique": false,
+            "upper": 1
+          },
+          "target": {
+            "kind": "KernelScalar",
+            "value": "String"
+          }
+        }
+      }
+    ],
+    "package": "agent-ix/spec-objects-business"
+  },
+  "plat57-guard-expression": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "model": {
+        "lossy": true,
+        "state": "available"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "available"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [
+      {
+        "code": "semantic.expression-unchecked",
+        "column": 1,
+        "line": 19,
+        "message": "the transition `Guard` expression is carried unchecked",
+        "severity": "advisory"
+      }
+    ],
+    "formatVersion": 1,
+    "model": {
+      "displayName": {
+        "sourceSpan": {
+          "endColumn": 22,
+          "endLine": 3,
+          "path": "spec/state-machines/SM-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 3
+        },
+        "value": "OrderLifecycle"
+      },
+      "identity": {
+        "sourceSpan": {
+          "endColumn": 11,
+          "endLine": 2,
+          "path": "spec/state-machines/SM-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 2
+        },
+        "value": "SM-001"
+      },
+      "states": [
+        {
+          "sourceSpan": {
+            "endColumn": 11,
+            "endLine": 12,
+            "path": "spec/state-machines/SM-001.md",
+            "sourceIdentity": "ix://agent-ix/shop/spec",
+            "startColumn": 1,
+            "startLine": 12
+          },
+          "value": "open"
+        },
+        {
+          "sourceSpan": {
+            "endColumn": 14,
+            "endLine": 13,
+            "path": "spec/state-machines/SM-001.md",
+            "sourceIdentity": "ix://agent-ix/shop/spec",
+            "startColumn": 1,
+            "startLine": 13
+          },
+          "value": "shipped"
+        }
+      ],
+      "transitions": [
+        {
+          "from": "open",
+          "guardExpression": {
+            "kind": "expression",
+            "sourceSpan": {
+              "endColumn": 47,
+              "endLine": 19,
+              "path": "spec/state-machines/SM-001.md",
+              "sourceIdentity": "ix://agent-ix/shop/spec",
+              "startColumn": 27,
+              "startLine": 19
+            },
+            "text": "status != \"captured\""
+          },
+          "sourceSpan": {
+            "endColumn": 52,
+            "endLine": 19,
+            "path": "spec/state-machines/SM-001.md",
+            "sourceIdentity": "ix://agent-ix/shop/spec",
+            "startColumn": 1,
+            "startLine": 19
+          },
+          "to": "shipped",
+          "trigger": "ship"
+        }
+      ]
+    },
+    "operationSources": [
+      {
+        "name": "ship",
+        "params": [],
+        "returns": {
+          "endColumn": 19,
+          "endLine": 25,
+          "path": "spec/state-machines/SM-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 25
+        }
+      }
+    ],
+    "operations": [
+      {
+        "name": "ship",
+        "params": [],
+        "post": [],
+        "pre": [],
+        "returns": {
+          "multiplicity": {
+            "lower": 1,
+            "ordered": false,
+            "unique": false,
+            "upper": 1
+          },
+          "target": {
+            "kind": "KernelScalar",
+            "value": "String"
+          }
+        }
+      }
+    ],
+    "package": "agent-ix/spec-objects-business"
+  },
+  "plat57-guard-expression-no-bundle-index": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "model": {
+        "lossy": false,
+        "reason": "no-bundle-index",
+        "state": "unavailable"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "available"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [
+      {
+        "code": "semantic.expression-unchecked",
+        "column": 1,
+        "line": 19,
+        "message": "the transition `Guard` expression is carried unchecked",
+        "severity": "advisory"
+      },
+      {
+        "code": "semantic.unresolved-target",
+        "column": 1,
+        "line": 19,
+        "message": "artifact spec/state-machines/SM-001.md declares transitions in `## Transitions` at line 19: its declaration references are not resolved: this surface supplies no bundle index",
+        "reason": "no-bundle-index",
+        "section": "Transitions",
+        "severity": "advisory",
+        "sourceSpan": {
+          "endColumn": 58,
+          "endLine": 19,
+          "path": "spec/state-machines/SM-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 19
+        }
+      }
+    ],
+    "formatVersion": 1,
+    "operationSources": [
+      {
+        "name": "ship",
+        "params": [],
+        "returns": {
+          "endColumn": 19,
+          "endLine": 25,
+          "path": "spec/state-machines/SM-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 25
+        }
+      }
+    ],
+    "operations": [
+      {
+        "name": "ship",
+        "params": [],
+        "post": [],
+        "pre": [],
+        "returns": {
+          "multiplicity": {
+            "lower": 1,
+            "ordered": false,
+            "unique": false,
+            "upper": 1
+          },
+          "target": {
+            "kind": "KernelScalar",
+            "value": "String"
+          }
+        }
+      }
+    ],
+    "package": "agent-ix/spec-objects-business"
+  },
+  "plat57-guard-reference-control": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "available"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "model": {
+        "lossy": false,
+        "state": "available"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "available"
+      }
+    },
+    "clauseText": {
+      "captured": "self.captured = true"
+    },
+    "clauses": [
+      {
+        "clauseId": "captured",
+        "language": "quire",
+        "sourceSpan": {
+          "endColumn": 4,
+          "endLine": 27,
+          "path": "spec/state-machines/SM-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 25
+        }
+      }
+    ],
+    "contractVersion": "1.0.0",
+    "diagnostics": [],
+    "formatVersion": 1,
+    "model": {
+      "displayName": {
+        "sourceSpan": {
+          "endColumn": 22,
+          "endLine": 3,
+          "path": "spec/state-machines/SM-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 3
+        },
+        "value": "OrderLifecycle"
+      },
+      "identity": {
+        "sourceSpan": {
+          "endColumn": 11,
+          "endLine": 2,
+          "path": "spec/state-machines/SM-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 2
+        },
+        "value": "SM-001"
+      },
+      "states": [
+        {
+          "sourceSpan": {
+            "endColumn": 11,
+            "endLine": 12,
+            "path": "spec/state-machines/SM-001.md",
+            "sourceIdentity": "ix://agent-ix/shop/spec",
+            "startColumn": 1,
+            "startLine": 12
+          },
+          "value": "open"
+        },
+        {
+          "sourceSpan": {
+            "endColumn": 14,
+            "endLine": 13,
+            "path": "spec/state-machines/SM-001.md",
+            "sourceIdentity": "ix://agent-ix/shop/spec",
+            "startColumn": 1,
+            "startLine": 13
+          },
+          "value": "shipped"
+        }
+      ],
+      "transitions": [
+        {
+          "from": "open",
+          "guard": "captured",
+          "sourceSpan": {
+            "endColumn": 40,
+            "endLine": 19,
+            "path": "spec/state-machines/SM-001.md",
+            "sourceIdentity": "ix://agent-ix/shop/spec",
+            "startColumn": 1,
+            "startLine": 19
+          },
+          "to": "shipped",
+          "trigger": "ship"
+        }
+      ]
+    },
+    "operationSources": [
+      {
+        "name": "ship",
+        "params": [],
+        "returns": {
+          "endColumn": 19,
+          "endLine": 33,
+          "path": "spec/state-machines/SM-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 33
+        }
+      }
+    ],
+    "operations": [
+      {
+        "name": "ship",
+        "params": [],
+        "post": [],
+        "pre": [],
+        "returns": {
+          "multiplicity": {
+            "lower": 1,
+            "ordered": false,
+            "unique": false,
+            "upper": 1
+          },
+          "target": {
+            "kind": "KernelScalar",
+            "value": "String"
+          }
+        }
+      }
+    ],
+    "package": "agent-ix/spec-objects-business"
+  },
+  "plat57-invalid-syntax-expression": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "available"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "operations": {
+        "lossy": true,
+        "state": "available"
+      }
+    },
+    "clauseText": {
+      "a": "self.a = 1",
+      "b": "self.b = 1"
+    },
+    "clauses": [
+      {
+        "clauseId": "a",
+        "language": "quire",
+        "sourceSpan": {
+          "endColumn": 4,
+          "endLine": 16,
+          "path": "spec/functional/FR-006.md",
+          "sourceIdentity": "ix://agent-ix/config-service/spec",
+          "startColumn": 1,
+          "startLine": 14
+        }
+      },
+      {
+        "clauseId": "b",
+        "language": "quire",
+        "sourceSpan": {
+          "endColumn": 4,
+          "endLine": 22,
+          "path": "spec/functional/FR-006.md",
+          "sourceIdentity": "ix://agent-ix/config-service/spec",
+          "startColumn": 1,
+          "startLine": 20
+        }
+      }
+    ],
+    "contractVersion": "1.0.0",
+    "diagnostics": [
+      {
+        "code": "semantic.expression-unchecked",
+        "column": 1,
+        "line": 28,
+        "message": "operation ship: the `Post:` expression is carried unchecked",
+        "severity": "advisory"
+      }
+    ],
+    "formatVersion": 1,
+    "operationExpressions": [
+      {
+        "expression": {
+          "kind": "expression",
+          "sourceSpan": {
+            "endColumn": 14,
+            "endLine": 28,
+            "path": "spec/functional/FR-006.md",
+            "sourceIdentity": "ix://agent-ix/config-service/spec",
+            "startColumn": 7,
+            "startLine": 28
+          },
+          "text": "))) ==="
+        },
+        "operation": "ship",
+        "slot": "post"
+      }
+    ],
+    "operationSources": [
+      {
+        "name": "ship",
+        "params": []
+      }
+    ],
+    "operations": [
+      {
+        "name": "ship",
+        "params": [],
+        "post": [],
+        "pre": []
+      }
+    ],
+    "package": "agent-ix/spec-objects-fixture"
+  },
+  "plat57-mixed-reference-and-expression": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "available"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "operations": {
+        "lossy": true,
+        "state": "available"
+      }
+    },
+    "clauseText": {
+      "a": "self.a = 1",
+      "b": "self.b = 1"
+    },
+    "clauses": [
+      {
+        "clauseId": "a",
+        "language": "quire",
+        "sourceSpan": {
+          "endColumn": 4,
+          "endLine": 16,
+          "path": "spec/functional/FR-006.md",
+          "sourceIdentity": "ix://agent-ix/config-service/spec",
+          "startColumn": 1,
+          "startLine": 14
+        }
+      },
+      {
+        "clauseId": "b",
+        "language": "quire",
+        "sourceSpan": {
+          "endColumn": 4,
+          "endLine": 22,
+          "path": "spec/functional/FR-006.md",
+          "sourceIdentity": "ix://agent-ix/config-service/spec",
+          "startColumn": 1,
+          "startLine": 20
+        }
+      }
+    ],
+    "contractVersion": "1.0.0",
+    "diagnostics": [
+      {
+        "code": "semantic.expression-unchecked",
+        "column": 1,
+        "line": 28,
+        "message": "operation ship: the `Pre:` expression is carried unchecked",
+        "severity": "advisory"
+      }
+    ],
+    "formatVersion": 1,
+    "operationExpressions": [
+      {
+        "expression": {
+          "kind": "expression",
+          "sourceSpan": {
+            "endColumn": 14,
+            "endLine": 28,
+            "path": "spec/functional/FR-006.md",
+            "sourceIdentity": "ix://agent-ix/config-service/spec",
+            "startColumn": 6,
+            "startLine": 28
+          },
+          "text": "a, x > 1"
+        },
+        "operation": "ship",
+        "slot": "pre"
+      }
+    ],
+    "operationSources": [
+      {
+        "name": "ship",
+        "params": []
+      }
+    ],
+    "operations": [
+      {
+        "name": "ship",
+        "params": [],
+        "post": [],
+        "pre": []
+      }
+    ],
+    "package": "agent-ix/spec-objects-fixture"
+  },
+  "plat57-parenthesised-declared": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "available"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "operations": {
+        "lossy": true,
+        "state": "available"
+      }
+    },
+    "clauseText": {
+      "a": "self.a = 1"
+    },
+    "clauses": [
+      {
+        "clauseId": "a",
+        "language": "quire",
+        "sourceSpan": {
+          "endColumn": 4,
+          "endLine": 16,
+          "path": "spec/functional/FR-006.md",
+          "sourceIdentity": "ix://agent-ix/config-service/spec",
+          "startColumn": 1,
+          "startLine": 14
+        }
+      }
+    ],
+    "contractVersion": "1.0.0",
+    "diagnostics": [
+      {
+        "code": "semantic.expression-unchecked",
+        "column": 1,
+        "line": 22,
+        "message": "operation ship: the `Pre:` expression is carried unchecked",
+        "severity": "advisory"
+      }
+    ],
+    "formatVersion": 1,
+    "operationExpressions": [
+      {
+        "expression": {
+          "kind": "expression",
+          "sourceSpan": {
+            "endColumn": 9,
+            "endLine": 22,
+            "path": "spec/functional/FR-006.md",
+            "sourceIdentity": "ix://agent-ix/config-service/spec",
+            "startColumn": 6,
+            "startLine": 22
+          },
+          "text": "(a)"
+        },
+        "operation": "ship",
+        "slot": "pre"
+      }
+    ],
+    "operationSources": [
+      {
+        "name": "ship",
+        "params": []
+      }
+    ],
+    "operations": [
+      {
+        "name": "ship",
+        "params": [],
+        "post": [
+          {
+            "clauseId": "a",
+            "language": "quire"
+          }
+        ],
+        "pre": []
+      }
+    ],
+    "package": "agent-ix/spec-objects-fixture"
+  },
+  "plat57-parenthesised-undeclared": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "operations": {
+        "lossy": true,
+        "state": "available"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [
+      {
+        "code": "semantic.expression-unchecked",
+        "column": 1,
+        "line": 14,
+        "message": "operation ship: the `Pre:` expression is carried unchecked",
+        "severity": "advisory"
+      }
+    ],
+    "formatVersion": 1,
+    "operationExpressions": [
+      {
+        "expression": {
+          "kind": "expression",
+          "sourceSpan": {
+            "endColumn": 9,
+            "endLine": 14,
+            "path": "spec/functional/FR-006.md",
+            "sourceIdentity": "ix://agent-ix/config-service/spec",
+            "startColumn": 6,
+            "startLine": 14
+          },
+          "text": "(a)"
+        },
+        "operation": "ship",
+        "slot": "pre"
+      }
+    ],
+    "operationSources": [
+      {
+        "name": "ship",
+        "params": []
+      }
+    ],
+    "operations": [
+      {
+        "name": "ship",
+        "params": [],
+        "post": [],
+        "pre": []
+      }
+    ],
+    "package": "agent-ix/spec-objects-fixture"
+  },
+  "plat57-post-dangling-reference": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "available"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "operations": {
+        "lossy": false,
+        "reason": "entry-errors: lines 28",
+        "state": "unavailable"
+      }
+    },
+    "clauseText": {
+      "a": "self.a = 1",
+      "b": "self.b = 1"
+    },
+    "clauses": [
+      {
+        "clauseId": "a",
+        "language": "quire",
+        "sourceSpan": {
+          "endColumn": 4,
+          "endLine": 16,
+          "path": "spec/functional/FR-006.md",
+          "sourceIdentity": "ix://agent-ix/config-service/spec",
+          "startColumn": 1,
+          "startLine": 14
+        }
+      },
+      {
+        "clauseId": "b",
+        "language": "quire",
+        "sourceSpan": {
+          "endColumn": 4,
+          "endLine": 22,
+          "path": "spec/functional/FR-006.md",
+          "sourceIdentity": "ix://agent-ix/config-service/spec",
+          "startColumn": 1,
+          "startLine": 20
+        }
+      }
+    ],
+    "contractVersion": "1.0.0",
+    "diagnostics": [
+      {
+        "code": "semantic.dangling-clause-ref",
+        "column": 1,
+        "line": 28,
+        "message": "clause missing is declared by no invariant of this artifact",
+        "severity": "error"
+      }
+    ],
+    "formatVersion": 1,
+    "package": "agent-ix/spec-objects-fixture"
+  },
+  "plat57-pre-expression": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "available"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "model": {
+        "lossy": false,
+        "state": "available"
+      },
+      "operations": {
+        "lossy": true,
+        "state": "available"
+      }
+    },
+    "clauseText": {
+      "a": "self.a = 1",
+      "b": "self.b = 1"
+    },
+    "clauses": [
+      {
+        "clauseId": "a",
+        "language": "quire",
+        "sourceSpan": {
+          "endColumn": 4,
+          "endLine": 16,
+          "path": "spec/functional/FR-006.md",
+          "sourceIdentity": "ix://agent-ix/config-service/spec",
+          "startColumn": 1,
+          "startLine": 14
+        }
+      },
+      {
+        "clauseId": "b",
+        "language": "quire",
+        "sourceSpan": {
+          "endColumn": 4,
+          "endLine": 22,
+          "path": "spec/functional/FR-006.md",
+          "sourceIdentity": "ix://agent-ix/config-service/spec",
+          "startColumn": 1,
+          "startLine": 20
+        }
+      }
+    ],
+    "contractVersion": "1.0.0",
+    "diagnostics": [
+      {
+        "code": "semantic.expression-unchecked",
+        "column": 1,
+        "line": 28,
+        "message": "operation ship: the `Pre:` expression is carried unchecked",
+        "severity": "advisory"
+      }
+    ],
+    "formatVersion": 1,
+    "model": {
+      "displayName": {
+        "sourceSpan": {
+          "endColumn": 18,
+          "endLine": 3,
+          "path": "spec/functional/FR-006.md",
+          "sourceIdentity": "ix://agent-ix/config-service/spec",
+          "startColumn": 1,
+          "startLine": 3
+        },
+        "value": "Operations"
+      },
+      "identity": {
+        "sourceSpan": {
+          "endColumn": 11,
+          "endLine": 2,
+          "path": "spec/functional/FR-006.md",
+          "sourceIdentity": "ix://agent-ix/config-service/spec",
+          "startColumn": 1,
+          "startLine": 2
+        },
+        "value": "FR-901"
+      },
+      "operationFrames": [
+        {
+          "creates": [],
+          "deletes": [],
+          "modifies": [
+            "total"
+          ],
+          "operation": "ship",
+          "post": [],
+          "pre": [],
+          "sourceSpan": {
+            "endColumn": 9,
+            "endLine": 26,
+            "path": "spec/functional/FR-006.md",
+            "sourceIdentity": "ix://agent-ix/config-service/spec",
+            "startColumn": 1,
+            "startLine": 26
+          }
+        }
+      ]
+    },
+    "operationExpressions": [
+      {
+        "expression": {
+          "kind": "expression",
+          "sourceSpan": {
+            "endColumn": 23,
+            "endLine": 28,
+            "path": "spec/functional/FR-006.md",
+            "sourceIdentity": "ix://agent-ix/config-service/spec",
+            "startColumn": 6,
+            "startLine": 28
+          },
+          "text": "x > 1 and y(a, b)"
+        },
+        "operation": "ship",
+        "slot": "pre"
+      }
+    ],
+    "operationSources": [
+      {
+        "name": "ship",
+        "params": []
+      }
+    ],
+    "operations": [
+      {
+        "name": "ship",
+        "params": [],
+        "post": [],
+        "pre": []
+      }
+    ],
+    "package": "agent-ix/spec-objects-fixture"
+  },
+  "plat57-pre-reference-control": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "available"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "model": {
+        "lossy": false,
+        "state": "available"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "available"
+      }
+    },
+    "clauseText": {
+      "a": "self.a = 1",
+      "b": "self.b = 1"
+    },
+    "clauses": [
+      {
+        "clauseId": "a",
+        "language": "quire",
+        "sourceSpan": {
+          "endColumn": 4,
+          "endLine": 16,
+          "path": "spec/functional/FR-006.md",
+          "sourceIdentity": "ix://agent-ix/config-service/spec",
+          "startColumn": 1,
+          "startLine": 14
+        }
+      },
+      {
+        "clauseId": "b",
+        "language": "quire",
+        "sourceSpan": {
+          "endColumn": 4,
+          "endLine": 22,
+          "path": "spec/functional/FR-006.md",
+          "sourceIdentity": "ix://agent-ix/config-service/spec",
+          "startColumn": 1,
+          "startLine": 20
+        }
+      }
+    ],
+    "contractVersion": "1.0.0",
+    "diagnostics": [],
+    "formatVersion": 1,
+    "model": {
+      "displayName": {
+        "sourceSpan": {
+          "endColumn": 18,
+          "endLine": 3,
+          "path": "spec/functional/FR-006.md",
+          "sourceIdentity": "ix://agent-ix/config-service/spec",
+          "startColumn": 1,
+          "startLine": 3
+        },
+        "value": "Operations"
+      },
+      "identity": {
+        "sourceSpan": {
+          "endColumn": 11,
+          "endLine": 2,
+          "path": "spec/functional/FR-006.md",
+          "sourceIdentity": "ix://agent-ix/config-service/spec",
+          "startColumn": 1,
+          "startLine": 2
+        },
+        "value": "FR-901"
+      },
+      "operationFrames": [
+        {
+          "creates": [],
+          "deletes": [],
+          "modifies": [
+            "total"
+          ],
+          "operation": "ship",
+          "post": [],
+          "pre": [
+            "a",
+            "b"
+          ],
+          "sourceSpan": {
+            "endColumn": 9,
+            "endLine": 26,
+            "path": "spec/functional/FR-006.md",
+            "sourceIdentity": "ix://agent-ix/config-service/spec",
+            "startColumn": 1,
+            "startLine": 26
+          }
+        }
+      ]
+    },
+    "operationSources": [
+      {
+        "name": "ship",
+        "params": []
+      }
+    ],
+    "operations": [
+      {
+        "name": "ship",
+        "params": [],
+        "post": [],
+        "pre": [
+          {
+            "clauseId": "a",
+            "language": "quire"
+          },
+          {
+            "clauseId": "b",
+            "language": "quire"
+          }
+        ]
+      }
+    ],
+    "package": "agent-ix/spec-objects-fixture"
+  },
   "required-invariants-missing": {
     "availability": {
       "clauses": {

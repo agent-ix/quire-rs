@@ -76,6 +76,38 @@ fn no_clause_parser_or_template_dependency() {
     assert!(status.success());
 }
 
+#[trace("TC-2042", "FR-071-CON-3")]
+// no expression parser crate in the graph and no expression tokenizer or
+// parser symbol on the semantic path: expression text is only classified,
+// spanned, and copied.
+#[test]
+fn no_expression_parser() {
+    let lock = fs::read_to_string(root().join("Cargo.lock")).unwrap();
+    for dep in [
+        "evalexpr",
+        "meval",
+        "fasteval",
+        "exmex",
+        "rhai",
+        "cel-interpreter",
+        "pest",
+        "lalrpop",
+        "chumsky",
+    ] {
+        assert!(
+            !lock.contains(&format!("name = \"{dep}\"")),
+            "denylisted crate {dep}"
+        );
+    }
+    for (name, source) in semantic_sources() {
+        for line in code_lines(&source) {
+            for sym in ["parse_expression", "tokenize", "Lexer", "evalexpr"] {
+                assert!(!line.contains(sym), "{name}: {sym} in `{line}`");
+            }
+        }
+    }
+}
+
 #[trace("TC-1642", "NFR-021-AC-2")]
 // no network, process, or filesystem write on the semantic path; the only
 // filesystem read is the module-file reader of the resolver.

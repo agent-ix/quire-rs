@@ -11,7 +11,9 @@ use serde_json::{json, Value};
 use super::context::SemanticContext;
 use super::contract::SemanticSeverity;
 use super::decl::{is_identifier, FieldDecl, TypeRef};
-use super::model::{line_span, not_extractable, ModelFeature, OperationFrameDecl, Section};
+use super::model::{
+    line_span, not_extractable, text_span, ModelFeature, OperationFrameDecl, Section,
+};
 use super::properties::{
     is_param_header, map_multiplicity, map_row, map_type, table_rows, RowInput,
 };
@@ -53,6 +55,73 @@ pub struct OperationDecl {
     pub post: Vec<ClauseRef>,
 }
 
+/// The constant `kind` of an [`Expression`]: what tells an inline expression
+/// from a clause-id reference (FR-071 "Inline expressions").
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ExpressionKind {
+    Expression,
+}
+
+/// An inline Quire expression carried opaquely: its text and where it was
+/// read. quire-rs never parses it (FR-071-CON-3).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Expression {
+    pub kind: ExpressionKind,
+    pub text: String,
+    pub source_span: SourceLocus,
+}
+
+impl Expression {
+    pub(crate) fn new(text: &str, source_span: SourceLocus) -> Self {
+        Self {
+            kind: ExpressionKind::Expression,
+            text: text.to_string(),
+            source_span,
+        }
+    }
+}
+
+/// The `Pre:` or `Post:` line an operation expression came from.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ExpressionSlot {
+    Pre,
+    Post,
+}
+
+/// One inline `Pre:`/`Post:` expression of an operation, beside
+/// `OperationDecl` whose `pre`/`post` stay closed `ClauseRef[]`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OperationExpression {
+    pub operation: String,
+    pub slot: ExpressionSlot,
+    pub expression: Expression,
+}
+
+/// How a `Pre:`/`Post:` line reads, by its text alone (FR-071 "Inline
+/// expressions"): empty pieces are dropped before the test.
+enum Condition<'a> {
+    /// Nothing but whitespace and commas.
+    Empty,
+    /// Each remaining comma piece is an `Identifier`.
+    References(Vec<&'a str>),
+    /// Anything else: the whole trimmed text, never split.
+    Expression(&'a str),
+}
+
+fn classify_condition(text: &str) -> Condition<'_> {
+    let ids: Vec<&str> = comma_list(text).collect();
+    if ids.is_empty() {
+        Condition::Empty
+    } else if ids.iter().all(|id| is_identifier(id)) {
+        Condition::References(ids)
+    } else {
+        Condition::Expression(text.trim())
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct ClausesOutcome {
     pub availability: KindAvailability,
@@ -68,6 +137,9 @@ pub struct OperationsOutcome {
     /// FR-075 `operationFrames` entries; empty unless `operations` is
     /// available.
     pub frames: Vec<OperationFrameDecl>,
+    /// Inline `Pre:`/`Post:` expressions in authored order; empty unless
+    /// `operations` is available.
+    pub expressions: Vec<OperationExpression>,
     /// Whether any operation carries an FR-075 contract or frame line.
     pub model_declared: bool,
     /// Source loci of each operation's parameters and `Returns:` line, at the
@@ -476,6 +548,7 @@ pub fn extract_operations(
                 availability: KindAvailability::not_applicable(),
                 operations: None,
                 frames: Vec::new(),
+                expressions: Vec::new(),
                 model_declared: false,
                 sources: Vec::new(),
                 diagnostics: Vec::new(),
@@ -486,6 +559,7 @@ pub fn extract_operations(
                 availability: KindAvailability::unavailable("duplicate-section"),
                 operations: None,
                 frames: Vec::new(),
+                expressions: Vec::new(),
                 model_declared: false,
                 sources: Vec::new(),
                 diagnostics: vec![err(
@@ -501,6 +575,7 @@ pub fn extract_operations(
     let mut operations: Vec<OperationDecl> = Vec::new();
     let mut sources: Vec<OperationSource> = Vec::new();
     let mut frames: Vec<OperationFrameDecl> = Vec::new();
+    let mut expressions: Vec<OperationExpression> = Vec::new();
     let mut model_declared = false;
     let mut lossy = false;
     for heading in operation_headings(&lines, start + 1, end) {
@@ -559,6 +634,7 @@ pub fn extract_operations(
         let mut pre = Vec::new();
         let mut post = Vec::new();
         let mut frame = FrameLines::default();
+        let mut op_expressions: Vec<OperationExpression> = Vec::new();
         let mut seen_slots: Vec<OpSlot> = Vec::new();
         for l in lines_outside_fences(&lines, heading.heading_line + 1, heading.end) {
             let text = lines[l - 1].trim_end_matches('\r').trim();
@@ -588,19 +664,62 @@ pub fn extract_operations(
                 continue;
             }
             seen_slots.push(slot);
-            let ids = || -> Vec<String> { comma_list(rest).map(str::to_string).collect() };
             match (slot, feature) {
                 (OpSlot::Returns, _) => {
                     returns = parse_returns(rest.trim(), l, &name, ctx, &mut diagnostics);
                     returns_locus = Some(line_span(ctx, &lines, l));
                 }
-                (OpSlot::Pre, _) => {
-                    pre = resolve_refs(rest, l, clauses, &mut diagnostics);
-                    frame.pre = ids();
-                }
-                (OpSlot::Post, _) => {
-                    post = resolve_refs(rest, l, clauses, &mut diagnostics);
-                    frame.post = ids();
+                (OpSlot::Pre | OpSlot::Post, _) => {
+                    let (refs, ids) = match classify_condition(rest) {
+                        Condition::Empty => {
+                            diagnostics.push(err(
+                                "semantic.empty-expression",
+                                l,
+                                format!(
+                                    "operation {name}: `{key}` holds no clause id or expression"
+                                ),
+                            ));
+                            (Vec::new(), Vec::new())
+                        }
+                        Condition::References(ids) => (
+                            resolve_refs(&ids, l, clauses, &mut diagnostics),
+                            ids.into_iter().map(str::to_string).collect(),
+                        ),
+                        Condition::Expression(expr) => {
+                            diagnostics.push(advisory(
+                                "semantic.expression-unchecked",
+                                l,
+                                format!(
+                                    "operation {name}: the `{key}` expression is carried unchecked"
+                                ),
+                            ));
+                            lossy = true;
+                            let line_text = lines[l - 1].trim_end_matches('\r');
+                            let start = line_text.len() - line_text.trim_start().len()
+                                + key.len()
+                                + (rest.len() - rest.trim_start().len());
+                            op_expressions.push(OperationExpression {
+                                operation: name.clone(),
+                                slot: if slot == OpSlot::Pre {
+                                    ExpressionSlot::Pre
+                                } else {
+                                    ExpressionSlot::Post
+                                },
+                                expression: Expression::new(
+                                    expr,
+                                    text_span(ctx, l, start..start + expr.len()),
+                                ),
+                            });
+                            (Vec::new(), Vec::new())
+                        }
+                    };
+                    if slot == OpSlot::Pre {
+                        pre = refs;
+                        frame.pre = ids;
+                    } else {
+                        post = refs;
+                        frame.post = ids;
+                    }
                 }
                 (OpSlot::Modifies | OpSlot::Creates | OpSlot::Deletes, _) => {
                     let names = frame_names(rest, l, &name, key, &mut diagnostics);
@@ -630,6 +749,7 @@ pub fn extract_operations(
                 source_span: line_span(ctx, &lines, heading.heading_line),
             });
         }
+        expressions.extend(op_expressions);
         sources.push(OperationSource {
             name: name.clone(),
             params: param_loci,
@@ -657,6 +777,7 @@ pub fn extract_operations(
             )),
             operations: None,
             frames: Vec::new(),
+            expressions: Vec::new(),
             model_declared,
             sources: Vec::new(),
             diagnostics,
@@ -666,6 +787,7 @@ pub fn extract_operations(
         availability: KindAvailability::available(lossy),
         operations: Some(operations),
         frames,
+        expressions,
         model_declared,
         sources,
         diagnostics,
@@ -787,13 +909,13 @@ fn parse_returns(
 }
 
 fn resolve_refs(
-    text: &str,
+    ids: &[&str],
     line: usize,
     clauses: &[ClauseRef],
     diagnostics: &mut Vec<SemanticDiagnostic>,
 ) -> Vec<ClauseRef> {
     let mut out = Vec::new();
-    for id in comma_list(text) {
+    for &id in ids {
         match clauses.iter().find(|c| c.clause_id == id) {
             Some(c) => out.push(ClauseRef {
                 language: c.language.clone(),
