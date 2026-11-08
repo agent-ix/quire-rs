@@ -115,7 +115,7 @@ past that line's byte length.
 | `abstract` | frontmatter `abstract: <bool>` | `{ value, sourceSpan }` |
 | `fieldFeatures` | `## Properties` typed table columns `Presence`, `Subsets`, `Redefines` | `{ field, presence?, subsets?, redefines?, sourceSpan }` |
 | `operationFrames` | `Modifies:`, `Creates:`, `Deletes:` lines under an operation, with its `Pre:` and `Post:` ids | `{ operation, pre, post, modifies, creates, deletes, sourceSpan }` |
-| `population` | table `Type \| Extent` (both required) | `{ members: [{ type, extent, sourceSpan }] }` |
+| `population` | table `Type` (required) and frontmatter `extent: closed\|open` | `{ extent, extentSpan, members: [{ type, sourceSpan }] }` |
 | `values` | table `Value \| Description` (`Value` required) | `{ value, doc?, sourceSpan }` |
 | `states` | table `State \| Description` (`State` required) | `{ value, doc?, sourceSpan }` |
 | `transitions` | table `From \| To \| Trigger \| Guard \| Emits` (`From`, `To`, `Trigger` required) | `{ from, to, trigger, guard?, emits?, sourceSpan }`, `emits` a name list |
@@ -239,8 +239,18 @@ Tables:
   no error or refusal; a `Trigger` that names no operation of the
   artifact is `semantic.unknown-trigger`; a `Guard` that names no invariant
   clause is `semantic.dangling-clause-ref`.
-- A `Multiplicity` or `Extent` cell SHALL map as the FR-070 multiplicity
-  cell; a `Type` cell SHALL resolve as the FR-070 type cell.
+- A `Multiplicity` cell SHALL map as the FR-070 multiplicity cell; a `Type`
+  cell SHALL resolve as the FR-070 type cell.
+- A population has one `extent`, `closed` or `open`, read from frontmatter;
+  its members carry no multiplicity. An absent `extent`, or a value other
+  than `closed` or `open`, is `semantic.invalid-model-cell` and the
+  population is not extracted. A `Type | Extent` table is not a population
+  table.
+
+> **CR note (PLAT-8):** This replaces the original per-member `Type | Extent`
+> multiplicity table with QSpec's population shape (QSpec FR-153, FR-208;
+> filament-core-data#196): one population-level `extent` and member types that
+> carry no multiplicity.
 - A second entry with the same `Value`, `State`, `Step`, `Term`, `Member`,
   or `Type` in one table is `semantic.duplicate-model-entry`.
 - Any other cell error is `semantic.invalid-model-cell` at the row.
@@ -407,7 +417,7 @@ General:
 | FR-075-AC-1 | Under `mappings: [generalization, abstract-types]`, an artifact with two `specializes` relationships and `abstract: true` yields two `supertypes` entries with verbatim targets and entry-line spans, `abstract` `{ value: true }` at its line, and `availability.model` `available`; a non-boolean `abstract`, a repeated `specializes` target (`semantic.duplicate-model-entry`), and a non-string target (`semantic.invalid-model-cell`) each set `availability.model` `unavailable` and omit `model`; clean frontmatter features beside a refused operation line also omit `model`. | Test |
 | FR-075-AC-2 | Under `mappings: [presence, subsetting, redefinition]`, a typed table with `Presence`, `Subsets`, `Redefines` columns yields the FR-070 `fields` plus one `fieldFeatures` entry per row declaring a feature, with row spans; `availability.model` is `available`; a `Presence` of `maybe` yields `semantic.invalid-model-cell`, `fields` `unavailable`, and no `model`; an unknown or repeated feature column yields only `semantic.invalid-model-cell` at the header with `section` `Properties`; a typed feature table before the first `##` heading is refused with `section` `preamble`. | Test |
 | FR-075-AC-3 | Under `mappings: [effect-frames]`, an operation with `Pre:`, `Post:`, `Modifies:`, `Creates:`, and `Deletes:` lines yields `pre`/`post` and one `operationFrames` entry at its heading; a second `Pre:` yields `semantic.duplicate-operation-line`; a dangling `Pre:` id yields `semantic.dangling-clause-ref`; a second `Modifies:` line yields `semantic.duplicate-operation-line`; a frame name that is not an `Identifier` path yields `semantic.invalid-model-cell`; each error sets `availability.model` `unavailable` and omits `model`. | Test |
-| FR-075-AC-4 | A `population` artifact whose object type declares a `Type \| Extent` table extracts each member with its resolved `TypeRef`, its `extent` multiplicity, and its row span. | Test |
+| FR-075-AC-4 | A `population` artifact with frontmatter `extent: closed` or `open` whose object type declares a `Type` table extracts each member with its resolved `TypeRef` and row span and the population's single `extent`; a missing or invalid `extent` is `semantic.invalid-model-cell`. | Test |
 | FR-075-AC-5 | Under declared table locators, `Values`, `States`, `Transitions`, `Steps`, `Members`, and `Ubiquitous Language` tables extract to their typed entries with row spans; a transition to an undeclared state yields `semantic.unknown-state`, an unknown trigger `semantic.unknown-trigger`, an unknown guard `semantic.dangling-clause-ref`, a repeated value `semantic.duplicate-model-entry`, an unknown step kind `semantic.invalid-model-cell`, and a second table under a declared section `semantic.duplicate-section`; `emits` is a name list; a failed `states` table suppresses `semantic.unknown-state`; a transitions table omitting its optional columns extracts, and one omitting a required column is refused; a mermaid fence and a bullet list under declared sections are refused with their section and line. | Test |
 | FR-075-AC-6 | Each feature of AC-1..AC-5 authored under a manifest that does not declare it yields the error `semantic.feature-not-extractable` at the declaring line, with the feature as `reason`, `sourceSpan` of that line, `section`, and a message naming the artifact path and section, and the owning kind `unavailable` with no entry; a model table under an unowned section or before the first `##` heading is refused the same way. | Test |
 | FR-075-AC-7 | An artifact declaring no model feature yields no `model` and no `availability.model`, every existing semantic case record is unchanged, and every record of AC-1..AC-6 validates against `semantic-v1.schema.json`. | Test |

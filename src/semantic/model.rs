@@ -138,8 +138,8 @@ struct TableSpec {
 const TABLE_SPECS: [TableSpec; 12] = [
     TableSpec {
         feature: ModelFeature::Population,
-        columns: &["Type", "Extent"],
-        required: &["Type", "Extent"],
+        columns: &["Type"],
+        required: &["Type"],
         read: read_population,
     },
     TableSpec {
@@ -506,19 +506,41 @@ pub struct OperationFrameDecl {
     pub source_span: SourceLocus,
 }
 
-/// One `Type | Extent` row.
+/// One `Type` row of a population.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PopulationMemberDecl {
     #[serde(rename = "type")]
     pub type_ref: TypeRef,
-    pub extent: Multiplicity,
     pub source_span: SourceLocus,
 }
 
-/// A population's member types and extents.
+/// Whether a population holds exactly its declared instances (`closed`) or
+/// may hold others (`open`); one per population (QSpec FR-153).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum PopulationExtent {
+    Closed,
+    Open,
+}
+
+impl PopulationExtent {
+    fn parse(text: &str) -> Option<Self> {
+        match text {
+            "closed" => Some(Self::Closed),
+            "open" => Some(Self::Open),
+            _ => None,
+        }
+    }
+}
+
+/// A population's member types and its single extent (frontmatter
+/// `extent: closed|open`).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PopulationDecl {
+    pub extent: PopulationExtent,
+    pub extent_span: SourceLocus,
     pub members: Vec<PopulationMemberDecl>,
 }
 
@@ -725,6 +747,8 @@ pub(crate) struct ModelOutcome {
     pub(crate) object: Option<String>,
     /// The header line of the `Features` table read into `feature_order`.
     pub(crate) features_line: Option<usize>,
+    /// The frontmatter `extent` and its line, read by the population table.
+    pub(crate) population_extent: Option<(PopulationExtent, usize)>,
     pub(crate) lossy: bool,
     pub(crate) diagnostics: Vec<SemanticDiagnostic>,
 }
@@ -818,6 +842,7 @@ struct FrontmatterLines {
     id: Option<usize>,
     title: Option<usize>,
     abstract_type: Option<usize>,
+    extent: Option<usize>,
     relationships: Option<usize>,
     items: Vec<usize>,
 }
@@ -836,6 +861,7 @@ fn frontmatter_lines(lines: &[&str], header_lines: usize) -> FrontmatterLines {
                 "id" => &mut out.id,
                 "title" => &mut out.title,
                 "abstract" => &mut out.abstract_type,
+                "extent" => &mut out.extent,
                 "relationships" => &mut out.relationships,
                 _ => continue,
             };
@@ -900,6 +926,18 @@ fn frontmatter_features(
                 line,
                 format!("abstract {value} is not a boolean"),
             ));
+        }
+    }
+
+    if let Some(value) = map.get("extent") {
+        let line = at.extent.unwrap_or(1);
+        match value.as_str().and_then(PopulationExtent::parse) {
+            Some(extent) => out.population_extent = Some((extent, line)),
+            None => out.diagnostics.push(err(
+                "semantic.invalid-model-cell",
+                line,
+                format!("extent {value} is neither closed nor open"),
+            )),
         }
     }
 
@@ -1330,6 +1368,14 @@ fn read_features(r: &mut TableRead<'_>) {
 
 fn read_population(r: &mut TableRead<'_>) {
     let table = r.table;
+    let Some((extent, extent_line)) = r.out.population_extent else {
+        r.out.diagnostics.push(err(
+            "semantic.invalid-model-cell",
+            table.line,
+            "a population declares one frontmatter `extent`, closed or open",
+        ));
+        return;
+    };
     let mut members = Vec::new();
     for (line, cells) in &table.rows {
         let type_cell = r.cell(cells, "Type");
@@ -1337,13 +1383,12 @@ fn read_population(r: &mut TableRead<'_>) {
             line: *line,
             name: type_cell.to_string(),
             type_cell: type_cell.to_string(),
-            mult_cell: r.cell(cells, "Extent").to_string(),
+            mult_cell: String::new(),
             constraints_cell: String::new(),
             reference_only: false,
         };
         let (type_ref, lossy) = map_type(type_cell, &row, r.ctx, &mut r.out.diagnostics);
-        let extent = map_multiplicity(&row.mult_cell, *line, &mut r.out.diagnostics);
-        let (Some(type_ref), Some(extent)) = (type_ref, extent) else {
+        let Some(type_ref) = type_ref else {
             continue;
         };
         if !r.fresh(type_cell, *line) {
@@ -1352,11 +1397,14 @@ fn read_population(r: &mut TableRead<'_>) {
         r.out.lossy |= lossy;
         members.push(PopulationMemberDecl {
             type_ref,
-            extent,
             source_span: r.span(*line),
         });
     }
-    r.out.model.population = Some(PopulationDecl { members });
+    r.out.model.population = Some(PopulationDecl {
+        extent,
+        extent_span: r.span(extent_line),
+        members,
+    });
 }
 
 /// Transition reader rules: `from`/`to` name a state, `trigger` an

@@ -137,7 +137,7 @@ fn dsl(locators: Value) -> Value {
 
 fn tables() -> Value {
     dsl(json!({
-        "population": row("Members", &["Type", "Extent"], &[]),
+        "population": row("Members", &["Type"], &[]),
         "values": row("Values", &["Value", "Description"], &["Description"]),
         "states": row("States", &["State", "Description"], &[]),
         "transitions": row(
@@ -159,7 +159,7 @@ fn operations(pre: &str) -> String {
     format!("---\nid: FR-102\ntitle: PriorityOrder\nobject: entity\n---\n# FR-102: PriorityOrder\n\n## Invariants\n\n### placed\n\n```quire\nx\n```\n\n### shipped\n\n```quire\ny\n```\n\n## Operations\n\n### ship\n\n{pre}\nPost: shipped\nModifies: self.status, total\nCreates: Shipment\nDeletes: cart.items\n")
 }
 
-const POPULATION: &str = "---\nid: POP-001\ntitle: Shop Population\nobject: population\n---\n# POP-001: Shop Population\n\n## Members\n\n| Type | Extent |\n|---|---|\n| Order | 0..* |\n| Customer | 1..* |\n";
+const POPULATION: &str = "---\nid: POP-001\ntitle: Shop Population\nobject: population\nextent: closed\n---\n# POP-001: Shop Population\n\n## Members\n\n| Type |\n|---|\n| Order |\n| Customer |\n";
 
 const OBJECT_SECTIONS: &str = "---\nid: FR-104\ntitle: Fulfilment\nobject: process\n---\n# FR-104: Fulfilment\n\n## Values\n\n| Value | Description |\n|---|---|\n| express | Next day |\n| standard | |\n\n## States\n\n| State | Description |\n|---|---|\n| open | Accepting lines |\n| shipped | Left the warehouse |\n\n## Transitions\n\n| From | To | Trigger | Guard | Emits |\n|---|---|---|---|---|\n| open | shipped | ship | ready | OrderShipped |\n\n## Steps\n\n| Step | Kind | Consumes | Emits | Description |\n|---|---|---|---|---|\n| pick | command | OrderPlaced | Picked, Packed | Pick the lines |\n| await | wait | | | |\n\n## Aggregate Members\n\n| Member | Multiplicity |\n|---|---|\n| OrderLine | 1..* |\n\n## Ubiquitous Language\n\n| Term | Description |\n|---|---|\n| Backorder | A line awaiting stock |\n\n## Invariants\n\n### ready\n\n```quire\nx\n```\n\n## Operations\n\n### ship\n\nReturns: String[1]\n";
 
@@ -414,8 +414,12 @@ fn operation_contract_and_frame_lines() {
 
 #[trace("TC-1843", "FR-075-AC-4")]
 #[test]
-fn population_members_with_extent() {
+fn population_members_with_one_extent() {
     let record = extract(POPULATION, &[], tables());
+    assert_eq!(
+        record["model"]["population"]["extent"], "closed",
+        "{record:#}"
+    );
     let members = record["model"]["population"]["members"]
         .as_array()
         .unwrap_or_else(|| panic!("{record:#}"));
@@ -425,10 +429,59 @@ fn population_members_with_extent() {
         json!({ "kind": "SemanticId", "value": "ix://agent-ix/shop/type/Order" }),
         "{record:#}"
     );
-    assert_eq!(members[0]["extent"]["lower"], 0);
-    assert_eq!(members[1]["extent"]["lower"], 1);
+    assert!(members[0].get("extent").is_none(), "{record:#}");
     assert_span(&members[0], POPULATION, line_of(POPULATION, "| Order |"));
     assert_span(&members[1], POPULATION, line_of(POPULATION, "| Customer |"));
+}
+
+#[trace("TC-1843", "FR-075-AC-4")]
+#[test]
+fn population_extent_open_and_required() {
+    let open = POPULATION.replace("extent: closed", "extent: open");
+    let record = extract(&open, &[], tables());
+    assert_eq!(
+        record["model"]["population"]["extent"], "open",
+        "{record:#}"
+    );
+
+    let missing = POPULATION.replace("extent: closed\n", "");
+    let record = extract(&missing, &[], tables());
+    assert!(
+        has(
+            &record,
+            "semantic.invalid-model-cell",
+            line_of(&missing, "| Type |")
+        ),
+        "{record:#}"
+    );
+    assert_model_unavailable(&record);
+
+    let old = POPULATION.replace(
+        "| Type |\n|---|\n| Order |\n| Customer |",
+        "| Type | Extent |\n|---|---|\n| Order | 0..* |\n| Customer | 1..* |",
+    );
+    let record = extract(&old, &[], tables());
+    assert!(
+        has(
+            &record,
+            "semantic.feature-not-extractable",
+            line_of(&old, "| Type |")
+        ),
+        "{record:#}"
+    );
+    assert_model_unavailable(&record);
+
+    let bad = POPULATION.replace("closed", "bounded");
+    let record = extract(&bad, &[], tables());
+    assert!(
+        has(
+            &record,
+            "semantic.invalid-model-cell",
+            line_of(&bad, "extent:")
+        ),
+        "{record:#}"
+    );
+    assert_model_unavailable(&record);
 }
 
 #[trace("TC-1844", "FR-075-AC-5")]
