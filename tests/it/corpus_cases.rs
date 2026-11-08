@@ -2228,7 +2228,7 @@ fn tc1032_a_regression_case_pins_a_landed_fix() {
     }
 }
 
-#[trace("FR-050-AC-53")]
+#[trace("TC-2053", "FR-050-AC-53")]
 #[test]
 fn withdrawn_verification_corpus_cases() {
     let cases: Vec<_> = load_cases()

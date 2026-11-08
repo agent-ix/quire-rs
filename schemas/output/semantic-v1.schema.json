@@ -19,6 +19,7 @@
     "relations": { "type": "array", "items": { "$ref": "#/$defs/relationDecl" } },
     "fieldSources": { "type": "array", "items": { "$ref": "#/$defs/sourceLocus" } },
     "operationSources": { "type": "array", "items": { "$ref": "#/$defs/operationSource" } },
+    "operationExpressions": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/operationExpression" } },
     "relationSources": { "type": "array", "items": { "$ref": "#/$defs/relationSource" } },
     "availability": {
       "type": "object",
@@ -220,6 +221,7 @@
               "to": { "$ref": "#/$defs/identifier" },
               "trigger": { "$ref": "#/$defs/identifier" },
               "guard": { "type": "string", "minLength": 1 },
+              "guardExpression": { "$ref": "#/$defs/expression" },
               "emits": { "$ref": "#/$defs/semanticId" },
               "sourceSpan": { "$ref": "#/$defs/sourceLocus" }
             }
@@ -357,6 +359,26 @@
         "verb": { "type": "string", "minLength": 1 },
         "target": { "type": "string", "minLength": 1 },
         "multiplicity": { "type": "string", "minLength": 1 }
+      }
+    },
+    "expression": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "text", "sourceSpan"],
+      "properties": {
+        "kind": { "const": "expression" },
+        "text": { "type": "string", "minLength": 1 },
+        "sourceSpan": { "$ref": "#/$defs/sourceLocus" }
+      }
+    },
+    "operationExpression": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["operation", "slot", "expression"],
+      "properties": {
+        "operation": { "$ref": "#/$defs/identifier" },
+        "slot": { "enum": ["pre", "post"] },
+        "expression": { "$ref": "#/$defs/expression" }
       }
     },
     "operationSource": {

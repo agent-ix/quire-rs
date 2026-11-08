@@ -237,6 +237,17 @@ fn tc1085_construction_refuses_incomplete_premises_atomically() {
     ));
 }
 
+#[trace("TC-2063", "FR-067-AC-8")]
+#[test]
+fn tc2063_export_refuses_an_unavailable_language() {
+    let mut fixture = Fixture::new();
+    fixture.export().expect("capable build exports");
+    fixture.symbols.unavailable_languages = vec![quire_rs::traceability::SourceLanguage::Rust];
+    let err = fixture.export().expect_err("must refuse");
+    assert!(matches!(err, AssuranceError::ExtractionUnavailable(_)));
+    assert!(err.to_string().contains("rust"));
+}
+
 #[trace("TC-1086", "FR-067-AC-3")]
 #[trace("TC-1088", "FR-067-AC-5")]
 #[test]

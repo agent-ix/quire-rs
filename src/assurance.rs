@@ -254,6 +254,10 @@ pub enum AssuranceError {
     DuplicateModulePremise { module: String },
     #[error("assurance module '{module}' contains duplicate archetype '{archetype}'")]
     DuplicateSchemaPremise { module: String, archetype: String },
+    /// The build cannot read a language the tree holds (FR-051-AC-29): the
+    /// export would carry a schema-valid record that omits that evidence.
+    #[error(transparent)]
+    ExtractionUnavailable(#[from] crate::symbols::ExtractionUnavailable),
     #[error("assurance serialization failed: {reason}")]
     Serialization { reason: String },
 }
@@ -262,6 +266,7 @@ pub enum AssuranceError {
 pub fn build_assurance_export(
     input: AssuranceInput<'_>,
 ) -> Result<AssuranceExport, AssuranceError> {
+    input.symbols.require_available()?;
     validate_registry(input.registry)?;
 
     let modules = module_premises(input.registry)?;

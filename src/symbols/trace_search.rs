@@ -136,8 +136,17 @@ pub fn symbol_language<'a>(extraction: &'a SymbolExtraction, symbol_id: &str) ->
 /// `extraction` is needed only for [`Query::SymbolName`]'s ambiguity check —
 /// `graph`'s own relations/mentions already carry `path`/`symbol` for every
 /// other query shape.
-pub fn search(graph: &SymbolGraph, extraction: &SymbolExtraction, query: &Query) -> SearchResult {
-    match query {
+///
+/// Refuses when the build could not read a language in the tree (FR-077-AC-7):
+/// "nothing backs this id" would otherwise be indistinguishable from "the
+/// evidence is in a language this build cannot read".
+pub fn search(
+    graph: &SymbolGraph,
+    extraction: &SymbolExtraction,
+    query: &Query,
+) -> Result<SearchResult, super::ExtractionUnavailable> {
+    extraction.require_available()?;
+    Ok(match query {
         Query::Id(id) => search_id(graph, id.clone()),
         Query::Symbol {
             path,
@@ -145,7 +154,7 @@ pub fn search(graph: &SymbolGraph, extraction: &SymbolExtraction, query: &Query)
         } => search_symbol(graph, query.clone(), path, qualified_name),
         Query::File(path) => search_file(graph, query.clone(), path),
         Query::SymbolName(name) => search_symbol_name(graph, extraction, name.clone()),
-    }
+    })
 }
 
 fn finish(
@@ -354,7 +363,8 @@ fn citing_helper() {\n\
     fn tc1887_forward_id_query_separates_claims_from_citations() {
         // ACs: FR-077-AC-1
         let (extraction, graph) = forward_graph();
-        let result = search(&graph, &extraction, &Query::Id("FR-900".to_string()));
+        let result =
+            search(&graph, &extraction, &Query::Id("FR-900".to_string())).expect("capable build");
         assert!(result.resolved);
 
         // The claim: exactly one `verifies` relation, and it is the tagged
@@ -422,7 +432,8 @@ fn citing_helper() {\n\
             &graph,
             &extraction,
             &Query::Id("FR-999-NOWHERE".to_string()),
-        );
+        )
+        .expect("capable build");
         assert!(!result.resolved);
         assert!(result.verifies.is_empty());
         assert!(result.implements.is_empty());
@@ -456,7 +467,8 @@ fn tc_child() {\n\
         let extraction = extract_file("src/lib.rs", SourceLanguage::Rust, source);
         let graph = bind(&extraction, &model_with_implements());
 
-        let result = search(&graph, &extraction, &Query::Id("FR-900".to_string()));
+        let result =
+            search(&graph, &extraction, &Query::Id("FR-900".to_string())).expect("capable build");
         assert_eq!(result.verifies.len(), 1, "{:?}", result.verifies);
         assert_eq!(result.verifies[0].symbol, "tc_parent");
         assert!(
@@ -466,7 +478,8 @@ fn tc_child() {\n\
             result.verifies
         );
 
-        let child_result = search(&graph, &extraction, &Query::Id("FR-900-AC-1".to_string()));
+        let child_result = search(&graph, &extraction, &Query::Id("FR-900-AC-1".to_string()))
+            .expect("capable build");
         assert_eq!(
             child_result.verifies.len(),
             1,
@@ -530,7 +543,8 @@ mod tests {\n\
             &graph,
             &extraction,
             &Query::SymbolName("helper".to_string()),
-        );
+        )
+        .expect("capable build");
         assert!(result.resolved);
         let mut matches = result.ambiguous_matches.clone();
         matches.sort();
@@ -561,7 +575,8 @@ mod tests {\n\
                 path: "src/a.rs".to_string(),
                 qualified_name: "tests::outer::helper".to_string(),
             },
-        );
+        )
+        .expect("capable build");
         assert!(result.ambiguous_matches.is_empty());
         // a.rs's OWN claim, and not b.rs's same-named symbol's claim — this
         // is the property the exact-ref form exists to guarantee, and
@@ -607,8 +622,10 @@ mod tests {\n\
         combined.files.extend(python.files);
         let graph = bind(&combined, &model_with_implements());
 
-        let rust_result = search(&graph, &combined, &Query::Id("FR-930".to_string()));
-        let python_result = search(&graph, &combined, &Query::Id("FR-931".to_string()));
+        let rust_result =
+            search(&graph, &combined, &Query::Id("FR-930".to_string())).expect("capable build");
+        let python_result =
+            search(&graph, &combined, &Query::Id("FR-931".to_string())).expect("capable build");
 
         // Non-emptiness asserted FIRST and separately: `.all()` over an empty
         // iterator is vacuously true, so if `find_mentions`/`bind` stopped
