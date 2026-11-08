@@ -1,7 +1,7 @@
 //! TypeScript source adapter (FR-051).
 //!
 //! Parses over a tree-sitter syntax tree, through the dependency-boundary
-//! crate `quire-rust-extraction` (PLAT-843 for Rust; the crate's TypeScript
+//! crate `quire-code-extraction` (PLAT-843 for Rust; the crate's TypeScript
 //! feature wired by PLAT-851; this file is the adapter that finally uses
 //! it, PLAT-882) — see that crate's own module docs for why the
 //! tree-sitter dependency itself is never named here. This adapter still
@@ -164,8 +164,8 @@
 //! `RESERVED` keyword-shape denylist they needed) is deleted outright as a
 //! consequence of parsing correctly, not as a deliberate optimisation.
 
-use quire_rust_extraction::tree_sitter::Node;
-use quire_rust_extraction::{parse_file, Language};
+use quire_code_extraction::tree_sitter::Node;
+use quire_code_extraction::{parse_file, Language};
 
 use super::{leading_span, RawSymbol, SymbolKind};
 

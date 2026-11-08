@@ -52,7 +52,7 @@ PLAT-842 time the dependency this ADR names did not exist yet.
 
 Phase 1 (`PLAT-843`) was Rust only. Phase 2 (`PLAT-851`'s shared enabling
 slice) ports Python next (`PLAT-868`), onto this same decision and the same
-`quire-rust-extraction` crate — the same class of defect (`#274`) that
+`quire-code-extraction` crate — the same class of defect (`#274`) that
 motivated Phase 1 was found in `src/symbols/python.rs`'s own hand-written
 `Quoting` string-tracking state machine, and this ADR's decision is not
 revisited for it, only applied. TypeScript keeps its current
@@ -71,7 +71,7 @@ line/indentation-structural adapter until its own port (`PLAT-869`).
 
 **Selected: `tree-sitter`, reached through the shared `quire-code-parse`
 crate** (`agent-ix/quire-code-rs`, workspace member), via a new local dependency-boundary crate,
-`crates/quire-rust-extraction`.
+`crates/quire-code-extraction`.
 
 Rationale:
 
@@ -97,13 +97,13 @@ Rationale:
    `quire-code-parse`'s own crate docs state that boundary as their reason to
    exist (PLAT-841 finding 5). Depending on `quire-code-rs` directly would
    compile all four of those for a consumer that reads none of them.
-4. **`quire-rust-extraction` copies `filament-ide-rs`'s own boundary
+4. **`quire-code-extraction` copies `filament-ide-rs`'s own boundary
    pattern.** `filament-ide-rs` already answered the same question — how does
    a workspace admit tree-sitter through one pin without a second copy
    reappearing — with a thin integration crate plus a `cargo metadata`-based
    test (`crates/filament-code-extraction`,
    `fr_072_ac_5_tree_sitter_is_reachable_only_through_the_quire_code_rs_pin`).
-   `crates/quire-rust-extraction/tests/dependency_boundary.rs` is the same
+   `crates/quire-code-extraction/tests/dependency_boundary.rs` is the same
    mechanism, adapted to this workspace's own two-package shape (this repo
    was not previously a Cargo workspace; it is now, purely to hold this one
    boundary crate — `default-members = ["."]` keeps every existing `cargo

@@ -1,16 +1,11 @@
 [package]
-name = "quire-rust-extraction"
+name = "quire-code-extraction"
 version = "0.1.0"
 edition = "2021"
 rust-version = "1.98.1"
-# NOTE (PLAT-851): this crate now wraps all three `quire-code-parse` grammars
-# (rust/python/typescript), not just Rust — the name is stale. Renaming it is
-# deliberately deferred, tracked as PLAT-876: `src/symbols/rust.rs` names this
-# crate directly (`use quire_rust_extraction::...`), and that file was
-# plat845's live editing surface at the time, mid-flight proving that every
-# symbol-identity change it made was a nested-function case. A concurrent
-# rename touching the same file would have muddied exactly the evidence that
-# PR needed. Rename once rust.rs is quiet (PLAT-876's own condition).
+# This crate wraps all three `quire-code-parse` grammars (rust/python/typescript)
+# behind per-grammar features (PLAT-851); it was renamed from
+# `quire-rust-extraction` by PLAT-876.
 description = "Dependency-boundary crate: the only place in the quire-rs workspace that names quire-code-parse/tree-sitter (PLAT-843, widened PLAT-851), enforced by scripts/audits/check_tree_sitter_boundary.sh (PLAT-911)."
 authors = ["Peter Krenesky <kreneskyp@gmail.com>"]
 license = "AGPL-3.0-or-later"
@@ -18,15 +13,15 @@ repository = "https://github.com/agent-ix/quire-rs"
 publish = false
 
 [lib]
-name = "quire_rust_extraction"
+name = "quire_code_extraction"
 path = "src/lib.rs"
 
 # Purity boundary, copied from filament-ide-rs's `crates/filament-code-extraction`
 # (FR-072-AC-5 there): this crate names exactly one dependency, so it is the
 # only place in this workspace `cargo tree` shows a tree-sitter dependency
-# outside the `quire-code-parse` pin. `src/symbols/rust.rs`
-# (`quire-rs`, the root package) reaches tree-sitter's `Node`/`TreeCursor`
-# solely through this crate's re-export — see `src/lib.rs` — and never names
+# outside the `quire-code-parse` pin. `src/symbols/{rust,python,typescript}.rs`
+# (`quire-rs`, the root package) reach tree-sitter's `Node`/`TreeCursor`
+# solely through this crate's re-export — see `src/lib.rs` — and never name
 # `tree-sitter` or `quire-code-parse` itself. Enforced, not just asserted:
 # `scripts/audits/check_tree_sitter_boundary.sh` (run by `make audit-static`,
 # PLAT-911) fails, naming file and line, if any other Cargo.toml in this
