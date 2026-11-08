@@ -60,3 +60,5 @@ Default features: `cargo clippy --locked --all-targets -- -D warnings` clean, `c
 | FND-002 | fixed | `build_assurance_export` calls `input.symbols.require_available()?`; `AssuranceError::ExtractionUnavailable`; TC-2063 |
 | FND-003 | fixed | `graph_records` returns `Result` and refuses first; TC-2064 |
 | FND-004 | fixed | `is_compiled_in` early return and dead `Ok(Vec::new())` arms removed; unavailability recorded only in the `cfg(not(feature))` arms via `record_unavailable` |
+| FND-005 | fixed | `CoverageError::ExtractionUnavailable(#[from] crate::symbols::ExtractionUnavailable)` with `#[error(transparent)]`; duplicate message removed (c2f8e92) |
+| FND-006 | fixed | `SourceLanguage::is_compiled_in` deleted; tc2060 branches on `cfg!(feature = "rust-symbols")` (c2f8e92) |

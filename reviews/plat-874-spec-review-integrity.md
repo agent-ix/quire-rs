@@ -48,3 +48,4 @@ Ticket: PLAT-874. Frozen PR head: `5b129915de90eb833c198b86d87ce9288243c1cc`. Sp
 | --- | --- | --- |
 | FND-001 | fixed | FR-051 statement now states the per-feature adapters and the SHALL record/refuse clause; refusal owned by FR-050-AC-58, FR-077-AC-7, FR-067-AC-8 |
 | FND-002 | fixed | ADR-0013 carries a PLAT-874 / CR-201 supersession note |
+| FND-003 | fixed | Stray row removed from the Test Case Summary; `FR-077-AC-7 → TC-2062` now sits in the AC → TC Coverage Audit table (spec/tests.md:2172); `quire validate spec/tests.md` reports no errors (c2f8e92) |
