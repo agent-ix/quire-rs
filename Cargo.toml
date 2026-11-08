@@ -124,8 +124,9 @@ qa-corpus = { path = "corpus" }
 # The canonical Rust trace marker (FR-051). Zero runtime dependencies and a
 # pass-through expansion, so it adds one crate to the dev graph and nothing
 # to a consumer's: dev-dependencies are not transitive. Pinned to an exact
-# tag, which satisfies NFR-009-AC-3 more strictly than a caret range.
-ix-trace-rs = { git = "https://github.com/agent-ix/ix-trace-rs", tag = "v0.1.1" }
+# rev (the commit v0.1.1 names; one cargo source), which satisfies NFR-009-AC-3
+# more strictly than a caret range.
+ix-trace-rs = { git = "https://github.com/agent-ix/ix-trace-rs", rev = "2ce4ebf47f726b9d76388220545cd0abda8a5cfb" }
 # The Markdown -> semantic-core mapping fixture set quire-rs's own semantic
 # tests exercise (PLAT-901). A workspace path dependency here; quoin (its
 # other consumer, step 2 of PLAT-901) resolves the same crate as a git
