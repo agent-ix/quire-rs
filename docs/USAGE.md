@@ -302,7 +302,7 @@ optional and only some apply per locator kind (unknown keys are rejected at load
 | `level`          | `heading`, `section_body`   | Heading must be at this ATX level.       |
 | `matches`        | most kinds                  | Content must match this regex.           |
 | `id_pattern`     | most kinds                  | IDs in the content must match.           |
-| `columns`        | `table_row`                 | Table must have these columns.           |
+| `columns`        | `table_row`                 | Table must have these columns (the table under the section whose header matches is asserted). |
 | `min_rows`       | `table_row`                 | Minimum row count.                       |
 | `max_rows`       | `table_row`                 | Maximum row count.                       |
 | `min_items`      | `list_item`                 | Minimum item count.                      |

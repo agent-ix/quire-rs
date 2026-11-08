@@ -609,3 +609,36 @@ proptest! {
         }
     }
 }
+
+// PLAT-175: each operation parameter and `Returns:` line carries its source
+// locus, beside the byte-identical OperationDecl.
+#[test]
+fn operation_params_and_returns_carry_source_loci() {
+    let raw = mapping("operations.md");
+    let ctx = context("operations.md");
+    let clauses = extract_clauses(&raw, &ctx);
+    let ops = extract_operations(&raw, &ctx, clauses.clauses.as_ref().unwrap());
+    let decls = ops.operations.as_ref().unwrap();
+    assert_eq!(ops.sources.len(), decls.len());
+    let lines: Vec<&str> = raw.split('\n').collect();
+    let mut seen_param = false;
+    let mut seen_returns = false;
+    for (decl, src) in decls.iter().zip(&ops.sources) {
+        assert_eq!(src.name, decl.name);
+        assert_eq!(src.params.len(), decl.params.len());
+        for (param, locus) in decl.params.iter().zip(&src.params) {
+            let text = lines[locus.start_line - 1];
+            assert!(
+                text.starts_with('|') && text.contains(&param.name),
+                "{text}"
+            );
+            seen_param = true;
+        }
+        assert_eq!(src.returns.is_some(), decl.returns.is_some());
+        if let Some(locus) = &src.returns {
+            assert!(lines[locus.start_line - 1].trim().starts_with("Returns:"));
+            seen_returns = true;
+        }
+    }
+    assert!(seen_param && seen_returns);
+}

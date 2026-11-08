@@ -10,7 +10,9 @@ use serde_json::Value;
 use crate::extract::dsl::{EdgeTarget, ExtractionDsl};
 use crate::extract::locator::{Locator, LocatorPrimitive};
 
-use super::clauses::{extract_clauses, extract_operations, ClauseRef, OperationDecl};
+use super::clauses::{
+    extract_clauses, extract_operations, ClauseRef, OperationDecl, OperationSource, SourceLocus,
+};
 use super::context::SemanticContext;
 use super::decl::FieldDecl;
 use super::model::{
@@ -50,6 +52,14 @@ pub struct SemanticExtraction {
     pub fields: Option<Vec<FieldDecl>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub fields_form: Option<FieldsForm>,
+    /// The source locus of each `fields` element (table row or fence line), at
+    /// its index. Beside `fields` so `FieldDecl` stays the semantic-core shape.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub field_sources: Option<Vec<SourceLocus>>,
+    /// The source loci of each operation's parameters and `Returns:` line, at
+    /// the index of the matching `operations` element.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub operation_sources: Option<Vec<OperationSource>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub clauses: Option<Vec<ClauseRef>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -278,6 +288,11 @@ pub fn extract_semantic(
         format_version: SEMANTIC_FORMAT_VERSION,
         contract_version: ctx.module.contract_version.clone(),
         package: ctx.module.package.clone(),
+        field_sources: fields.fields.is_some().then_some(fields.field_sources),
+        operation_sources: operations
+            .operations
+            .is_some()
+            .then_some(operations.sources),
         fields: fields.fields,
         fields_form: fields.form,
         clauses: clauses.clauses,

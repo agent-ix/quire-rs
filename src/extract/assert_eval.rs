@@ -18,9 +18,7 @@ use serde_json::{Map, Value};
 use crate::ast::QuireDocument;
 use crate::extract::interpolate::interpolate;
 use crate::extract::locator::{ColumnRef, LocatorAssert, LocatorKind, LocatorPrimitive};
-use crate::query::{
-    parse_bullet_list, parse_table_with_lines, section as q_section, sections as q_sections,
-};
+use crate::query::{parse_bullet_list, section as q_section, sections as q_sections};
 
 /// Why an assert check failed. Maps onto `validate_document`'s reason
 /// vocabulary: `assert` for a structural mismatch, `unresolved-field`
@@ -186,9 +184,26 @@ fn check_level(
 fn locate_table(
     doc: &QuireDocument,
     primitive: &LocatorPrimitive,
+    assert: &LocatorAssert,
 ) -> Option<(crate::query::TableResult, Option<usize>, Vec<usize>)> {
-    let with_lines = |content: &str, start: usize| {
-        parse_table_with_lines(content).map(|(t, rows, _)| {
+    // A section may hold several tables (one per locator sharing it). When the
+    // assert declares `columns`, select the table whose header conforms to
+    // them; with none conforming, fall back to the first table so the columns
+    // assert refuses with its usual message.
+    let pick = |content: &str, start: usize| {
+        let mut tables = crate::query::parse_tables_with_lines(content);
+        let idx = assert
+            .columns
+            .as_ref()
+            .and_then(|columns| {
+                let optional = assert.optional_columns.as_deref().unwrap_or(&[]);
+                tables
+                    .iter()
+                    .position(|(t, _, _)| headers_conform(&t.headers, columns, optional))
+            })
+            .unwrap_or(0);
+        (idx < tables.len()).then(|| {
+            let (t, rows, _) = tables.swap_remove(idx);
             let rows = rows.into_iter().map(|r| r + start + 1).collect::<Vec<_>>();
             (t, Some(start), rows)
         })
@@ -196,12 +211,12 @@ fn locate_table(
     match located_section_name(primitive) {
         Some(name) => {
             let s = q_section(doc, &name)?;
-            with_lines(&s.content, s.start_line)
+            pick(&s.content, s.start_line)
         }
         None => doc
             .sections
             .iter()
-            .find_map(|s| with_lines(&s.content, s.start_line)),
+            .find_map(|s| pick(&s.content, s.start_line)),
     }
 }
 
@@ -228,7 +243,7 @@ fn check_table(
     frontmatter: Option<&Map<String, Value>>,
     failures: &mut Vec<AssertFailure>,
 ) {
-    let Some((table, line, row_lines)) = locate_table(doc, primitive) else {
+    let Some((table, line, row_lines)) = locate_table(doc, primitive, assert) else {
         // Surface a single failure per declared table assert so the
         // missing table is reported (not silently passing).
         if assert.columns.is_some()
@@ -1224,5 +1239,36 @@ mod tests {
         let ufails = evaluate_assert(&nofield, &interp, &ainterp, nofield.frontmatter.as_ref());
         assert_eq!(ufails.len(), 1);
         assert_eq!(ufails[0].reason, AssertReason::UnresolvedField);
+    }
+
+    // PLAT-56: two table_row locators sharing one section each assert the
+    // table whose header matches their own `columns`.
+    #[test]
+    fn plat56_table_assert_selects_the_table_matching_its_columns() {
+        let doc = parse_document(concat!(
+            "## Lifecycle\n\n",
+            "| State | Doc |\n| - | - |\n| Open | o |\n\n",
+            "| From | To | Guard |\n| - | - | - |\n| Open | Closed | g |\n| Closed | Open | h |\n",
+        ));
+        let states = prim("from: table_row\nunder_section: Lifecycle\nassert:\n  columns: [State, Doc]\n  max_rows: 1\n");
+        let transitions = prim("from: table_row\nunder_section: Lifecycle\nassert:\n  columns: [From, To, Guard]\n  min_rows: 2\n");
+        for p in [&states, &transitions] {
+            let a = p.assert().unwrap().clone();
+            let fails = evaluate_assert(&doc, p, &a, None);
+            assert!(fails.is_empty(), "{fails:?}");
+        }
+    }
+
+    #[test]
+    fn plat56_no_table_matching_the_columns_still_refuses() {
+        let doc = parse_document(concat!(
+            "## Lifecycle\n\n",
+            "| State | Doc |\n| - | - |\n| Open | o |\n",
+        ));
+        let p = prim("from: table_row\nunder_section: Lifecycle\nassert:\n  columns: [From, To]\n");
+        let a = p.assert().unwrap().clone();
+        let fails = evaluate_assert(&doc, &p, &a, None);
+        assert_eq!(fails.len(), 1, "{fails:?}");
+        assert!(fails[0].message.contains("do not match asserted columns"));
     }
 }
