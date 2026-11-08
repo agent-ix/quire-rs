@@ -2,7 +2,7 @@
 //!
 //! Each `#[test]` corresponds to one `it(...)` block in the TS suite.
 //!
-//! Divergences (see `tests/parser_parity/divergences.md`):
+//! Divergences (see `tests/it/parser_parity/divergences.md`):
 //! - "FR-027-AC-5: null input throws TypeError" — Rust takes `&str`,
 //!   the null-input case is unrepresentable. Skipped.
 //! - "handles empty frontmatter" — TS returns `null` for the empty

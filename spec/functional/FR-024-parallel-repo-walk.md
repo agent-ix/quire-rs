@@ -112,7 +112,7 @@ impl RepoLoad {
 > canonical instance of a document type its own module registers. Downstream,
 > `spec-artifacts-process` was forced into path binding — three near-identical
 > `document:` targets, one per filename the ecosystem happens to invent — and
-> `tests/spec_dogfood.rs` hand-rolled a `read_dir` recursion precisely so
+> `tests/it/spec_dogfood.rs` hand-rolled a `read_dir` recursion precisely so
 > TC-794 could reach `spec/tests.md`. That was the type-driven rule, already
 > implemented, in a test, as a workaround for the engine not implementing it.
 >

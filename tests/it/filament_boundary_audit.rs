@@ -6,7 +6,7 @@
 //! or embeddings. This asserts that statically over the module source so the
 //! constraint cannot silently regress.
 
-const FILAMENT_SRC: &str = include_str!("../src/filament.rs");
+const FILAMENT_SRC: &str = include_str!("../../src/filament.rs");
 
 /// Tokens that would indicate the extraction boundary reaching into a runtime
 /// service surface it must stay free of.

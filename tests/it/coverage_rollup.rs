@@ -114,7 +114,7 @@ fn report_for(bundle: &Bundle, module: &str) -> Result<CoverageReport, CoverageE
 #[test]
 fn obligation_reference_rows_require_their_own_evidence() {
     let cases: serde_json::Value = serde_json::from_str(include_str!(
-        "fixtures/corpus_cases/obligation-reference-backing.json"
+        "../fixtures/corpus_cases/obligation-reference-backing.json"
     ))
     .expect("obligation reference fixtures");
     for case in cases.as_array().expect("cases") {
@@ -171,7 +171,7 @@ fn obligation_reference_rows_require_their_own_evidence() {
 #[test]
 fn kani_proof_functions_bind_legacy_and_attribute_trace_tags() {
     let fixtures: serde_json::Value =
-        serde_json::from_str(include_str!("fixtures/corpus_cases/coverage.json"))
+        serde_json::from_str(include_str!("../fixtures/corpus_cases/coverage.json"))
             .expect("coverage corpus fixture JSON");
     let case = fixtures
         .as_array()
@@ -1254,31 +1254,34 @@ fn tc788_no_criteria_corpus_is_unchanged() {
 #[test]
 fn tc756_coverage_and_symbol_modules_have_no_forbidden_surface() {
     const SOURCES: &[(&str, &str)] = &[
-        ("src/coverage.rs", include_str!("../src/coverage.rs")),
-        ("src/symbols/mod.rs", include_str!("../src/symbols/mod.rs")),
+        ("src/coverage.rs", include_str!("../../src/coverage.rs")),
+        (
+            "src/symbols/mod.rs",
+            include_str!("../../src/symbols/mod.rs"),
+        ),
         (
             "src/symbols/rust.rs",
-            include_str!("../src/symbols/rust.rs"),
+            include_str!("../../src/symbols/rust.rs"),
         ),
         (
             "src/symbols/python.rs",
-            include_str!("../src/symbols/python.rs"),
+            include_str!("../../src/symbols/python.rs"),
         ),
         (
             "src/symbols/typescript.rs",
-            include_str!("../src/symbols/typescript.rs"),
+            include_str!("../../src/symbols/typescript.rs"),
         ),
         (
             "src/symbols/trace.rs",
-            include_str!("../src/symbols/trace.rs"),
+            include_str!("../../src/symbols/trace.rs"),
         ),
         (
             "src/corpus/declared_tables.rs",
-            include_str!("../src/corpus/declared_tables.rs"),
+            include_str!("../../src/corpus/declared_tables.rs"),
         ),
         (
             "src/corpus/trace_refs.rs",
-            include_str!("../src/corpus/trace_refs.rs"),
+            include_str!("../../src/corpus/trace_refs.rs"),
         ),
     ];
     // Reading local files is explicitly in scope ("inputs are the corpus, the
@@ -2614,7 +2617,7 @@ fn explicit_reference_status_selection_drives_all_classification_channels() {
     // or unknown-status channel. Keep these additional scenarios declarative,
     // and exercise the same real module as its three language-matched pairs.
     let fixture: serde_json::Value =
-        serde_json::from_str(include_str!("fixtures/reference_status_selection.json")).unwrap();
+        serde_json::from_str(include_str!("../fixtures/reference_status_selection.json")).unwrap();
     assert_eq!(fixture["issue_ref"], "agent-ix/quire-rs#409");
     let module = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("tests/fixtures/modules/reference-status-selection");
@@ -3288,11 +3291,12 @@ fn tc1878_interface_acceptance_criteria_register_as_obligations() {
 #[trace("FR-050-AC-53", "FR-050-AC-55", "FR-050-AC-56", "FR-050-AC-57")]
 #[test]
 fn retired_declarations_keep_live_gaps_and_historical_identity() {
-    let cases: serde_json::Value =
-        serde_json::from_str(include_str!("fixtures/corpus_cases/retired-coverage.json"))
-            .expect("retirement fixture");
+    let cases: serde_json::Value = serde_json::from_str(include_str!(
+        "../fixtures/corpus_cases/retired-coverage.json"
+    ))
+    .expect("retirement fixture");
     let schema: serde_json::Value =
-        serde_json::from_str(include_str!("../schemas/output/coverage-v1.schema.json"))
+        serde_json::from_str(include_str!("../../schemas/output/coverage-v1.schema.json"))
             .expect("published coverage schema");
     let schema = jsonschema::options()
         .with_draft(jsonschema::Draft::Draft202012)
@@ -3482,7 +3486,7 @@ fn retired_declarations_keep_live_gaps_and_historical_identity() {
 #[test]
 fn retirement_vocabularies_are_validated_after_module_selection() {
     let fixture: serde_json::Value = serde_json::from_str(include_str!(
-        "fixtures/corpus_cases/retired-vocabulary-merge.json"
+        "../fixtures/corpus_cases/retired-vocabulary-merge.json"
     ))
     .expect("multi-module retirement fixture");
     assert_eq!(

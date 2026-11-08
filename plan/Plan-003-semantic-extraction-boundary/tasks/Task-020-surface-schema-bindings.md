@@ -42,11 +42,11 @@ Publish one `SemanticExtraction` record with availability and `lossy`, attach it
 - [x] Filament API: `dataJson.semantic`, mirrored diagnostics with `locus` and mapped severity; no-context path byte-identical to baseline.
 - [x] `validate_document`: semantic findings with locus; error fails validation.
 - [x] Python: `extract_semantic` + additive payload in `extract_filament_core`; parity test over `cases.json` under `make ci-python`.
-- [x] Fill `cases.json` for every state token and both `lossy` values; run the harness in `tests/semantic_surface.rs`.
+- [x] Fill `cases.json` for every state token and both `lossy` values; run the harness in `tests/it/semantic_surface.rs`.
 
 ## Deliverables
 
-- `src/semantic/surface.rs`, `schemas/output/semantic-v1.schema.json`, `tests/semantic_surface.rs`, `tests/python/test_semantic.py`
+- `src/semantic/surface.rs`, `schemas/output/semantic-v1.schema.json`, `tests/it/semantic_surface.rs`, `tests/python/test_semantic.py`
 
 ## Notes
 

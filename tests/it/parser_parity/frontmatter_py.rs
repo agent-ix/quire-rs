@@ -1,6 +1,6 @@
 //! Port of `~/dev/quire-py/tests/test_frontmatter.py` (FR-006).
 //!
-//! Divergences (see `tests/parser_parity/divergences.md`):
+//! Divergences (see `tests/it/parser_parity/divergences.md`):
 //! - `test_non_string_input_raises_typeerror` — Rust signature is
 //!   `extract_frontmatter(&str)`; the null case is unrepresentable.
 //!   Skipped.

@@ -70,7 +70,7 @@ fn tc1877_construct_declaration_schema_admits_immutable() {
 
 fn adjacent_fixture() -> Value {
     serde_json::from_str(include_str!(
-        "fixtures/semantic/ir994-adjacent-emission.json"
+        "../fixtures/semantic/ir994-adjacent-emission.json"
     ))
     .unwrap()
 }

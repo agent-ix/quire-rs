@@ -289,7 +289,7 @@ fn guarded_registry(
 
 fn syntax_cases() -> serde_json::Value {
     serde_json::from_str(include_str!(
-        "fixtures/corpus_cases/rust-implements-syntax.json"
+        "../fixtures/corpus_cases/rust-implements-syntax.json"
     ))
     .unwrap()
 }

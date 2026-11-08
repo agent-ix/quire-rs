@@ -5,13 +5,13 @@ type: FR
 verification_method: test
 evidence:
   - kind: test_case
-    ref: tests/semantic_model.rs
+    ref: tests/it/semantic_model.rs
   - kind: test_case
-    ref: tests/semantic_contract.rs
+    ref: tests/it/semantic_contract.rs
   - kind: test_case
-    ref: tests/semantic_systems.rs
+    ref: tests/it/semantic_systems.rs
   - kind: test_case
-    ref: tests/semantic_features.rs
+    ref: tests/it/semantic_features.rs
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/usecase/US-019"
     type: "implements"

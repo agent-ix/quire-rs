@@ -198,7 +198,7 @@ byte-identical JSON ordering and stable record ids.
 > grammar-driven parser library produces — and keeps every exclusion it
 > already held, adding three the parse makes worth stating. It stays one row
 > so TC-756 and the `FR-051-CON-1` tags in `src/coverage.rs`,
-> `src/symbols/trace.rs` and `tests/coverage_rollup.rs` keep binding what they
+> `src/symbols/trace.rs` and `tests/it/coverage_rollup.rs` keep binding what they
 > already bind; splitting the boundary onto its own id would have renamed a
 > constraint four live tags name. AC-25 and AC-26 are new. `PLAT-842`; the
 > implementation change is `PLAT-843`.

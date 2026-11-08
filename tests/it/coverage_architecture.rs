@@ -6,10 +6,10 @@ use ix_trace_rs::trace;
 #[trace("TC-1059", "FR-050-CON-2")]
 #[test]
 fn tc1059_coverage_and_corpus_modules_keep_one_responsibility() {
-    let declarations = include_str!("../src/coverage/declarations.rs");
-    let diagnostics = include_str!("../src/coverage/diagnostics.rs");
-    let binding = include_str!("../src/coverage/binding_diagnostics.rs");
-    let reconcile = include_str!("../src/coverage/reconcile.rs");
+    let declarations = include_str!("../../src/coverage/declarations.rs");
+    let diagnostics = include_str!("../../src/coverage/diagnostics.rs");
+    let binding = include_str!("../../src/coverage/binding_diagnostics.rs");
+    let reconcile = include_str!("../../src/coverage/reconcile.rs");
 
     assert!(!declarations.contains("CoverageDiagnostic"));
     assert!(!diagnostics.contains("SymbolGraph"));

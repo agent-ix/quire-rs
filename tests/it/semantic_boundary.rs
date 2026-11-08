@@ -226,7 +226,7 @@ fn spans_agree_with_the_code_block_scanner() {
             assert_eq!(block.language, clause.language);
         }
     }
-    // Parser output is unaffected: the golden suite in tests/parser_golden.rs
+    // Parser output is unaffected: the golden suite in tests/it/parser_golden.rs
     // compares parse_document byte for byte; here, only that it still parses
     // the fixtures without a semantic-specific path.
     let raw = quire_fixtures::mapping_fixture("operations.md");

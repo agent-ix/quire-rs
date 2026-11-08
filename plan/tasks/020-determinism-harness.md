@@ -27,7 +27,7 @@ Determinism verification across the codebase as FRs land.
 
 ## Deliverables
 
-- `tests/determinism.rs`
+- `tests/it/determinism.rs`
 - `scripts/audit_hashmap.sh` (or equivalent)
 - `Cargo.toml` updates for `proptest`, possibly `indexmap`
 

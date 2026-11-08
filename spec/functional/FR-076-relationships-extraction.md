@@ -5,7 +5,7 @@ type: FR
 verification_method: test
 evidence:
   - kind: test_case
-    ref: tests/semantic_relations.rs
+    ref: tests/it/semantic_relations.rs
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/usecase/US-019"
     type: "implements"

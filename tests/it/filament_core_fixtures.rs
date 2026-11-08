@@ -3,7 +3,7 @@ use quire_rs::{extract_filament_core, CoreExtractionResult, FilamentExtractionIn
 use serde::Deserialize;
 use serde_json::Value;
 
-const FIXTURES: &str = include_str!("fixtures/filament_core/graph_cases.json");
+const FIXTURES: &str = include_str!("../fixtures/filament_core/graph_cases.json");
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]

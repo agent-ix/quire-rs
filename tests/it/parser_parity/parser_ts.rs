@@ -2,7 +2,7 @@
 //!
 //! Each `#[test]` corresponds to one `it(...)` block in the TS suite.
 //!
-//! Divergences (see `tests/parser_parity/divergences.md`):
+//! Divergences (see `tests/it/parser_parity/divergences.md`):
 //! - **Section content is byte-exact (FR-008).** The TS reference calls
 //!   `.strip()` on `section.content`; Rust does not. Where the TS test
 //!   asserts a stripped value, the Rust port asserts the byte-exact

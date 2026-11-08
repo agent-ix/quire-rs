@@ -211,6 +211,23 @@ resolve-file = ["jsonschema/resolve-file"]
 # `--target web`).
 wasm = ["uuid/js", "dep:getrandom"]
 
+# Every other integration test is a module of the single `tests/it` target
+# (PLAT-940). These two stay separate targets, each for a process-level reason:
+#
+# `concurrency` is gated by `#![cfg(loom)]` and only builds under
+# `RUSTFLAGS="--cfg loom"` (`make loom`); folding it into `it` would make that
+# cfg rebuild every other suite against loom's model-checked primitives.
+[[test]]
+name = "concurrency"
+path = "tests/concurrency.rs"
+
+# `corpus_concurrency` runs under ThreadSanitizer / AddressSanitizer with
+# `-Z build-std` on nightly (`make sanitize`, `sanitize.yml`), where the
+# sanitized binary must contain only the race under test.
+[[test]]
+name = "corpus_concurrency"
+path = "tests/corpus_concurrency.rs"
+
 [[bench]]
 name = "parse"
 harness = false

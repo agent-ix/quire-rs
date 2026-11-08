@@ -692,7 +692,7 @@ fn retained_backing_components_reconcile_named_source_free_boundaries() {
     use quire_rs::obligation::inventory::{inventory, InventoryOptions};
 
     let cases: Vec<BackingComponentCase> = serde_json::from_str(include_str!(
-        "fixtures/corpus_cases/qualified-evidence-cases.json"
+        "../fixtures/corpus_cases/qualified-evidence-cases.json"
     ))
     .expect("attributed component fixture data");
     assert_eq!(cases.len(), 4);
@@ -778,7 +778,7 @@ fn retained_backing_components_reconcile_named_source_free_boundaries() {
             quire_rs::coverage::compute_with_evidence(&spec, &registry, &graph, &root, &backing)
                 .unwrap();
         let schema_value: serde_json::Value =
-            serde_json::from_str(include_str!("../schemas/output/coverage-v1.schema.json"))
+            serde_json::from_str(include_str!("../../schemas/output/coverage-v1.schema.json"))
                 .unwrap();
         let schema = jsonschema::options()
             .with_draft(jsonschema::Draft::Draft202012)
@@ -863,7 +863,7 @@ fn retained_gate_targets_do_not_discharge_inspection_siblings() {
     };
     use quire_rs::obligation::inventory::{inventory, InventoryLookupError, InventoryOptions};
     let fixture: serde_json::Value = serde_json::from_str(include_str!(
-        "fixtures/corpus_cases/qualified-evidence-rt-gates.json"
+        "../fixtures/corpus_cases/qualified-evidence-rt-gates.json"
     ))
     .unwrap();
     assert_eq!(fixture["component_only"], true);
@@ -980,7 +980,7 @@ fn retained_backing_uses_native_snapshot_and_preserves_partial_population() {
     use quire_rs::evidence::{BackingInput, CauseCode};
     use quire_rs::obligation::inventory::{inventory, InventoryOptions};
     let cases: Vec<BackingContextCase> = serde_json::from_str(include_str!(
-        "fixtures/corpus_cases/qualified-evidence-context-cases.json"
+        "../fixtures/corpus_cases/qualified-evidence-context-cases.json"
     ))
     .unwrap();
     for case in cases {
@@ -1144,7 +1144,7 @@ fn retained_results_preserve_source_claims_all_causes_and_record_order() {
     let baseline = compute(&spec, &registry, &graph, &root).unwrap();
     assert_eq!(baseline.coverage_matrix[0].criteria[0].binders.len(), 1);
     let cause_data: serde_json::Value = serde_json::from_str(include_str!(
-        "fixtures/corpus_cases/qualified-evidence-cause-cases.json"
+        "../fixtures/corpus_cases/qualified-evidence-cause-cases.json"
     ))
     .unwrap();
     assert!(!cause_data["issue_ref"].as_str().unwrap().is_empty());
@@ -1271,7 +1271,7 @@ struct NativeBackingCases {
 
 fn native_backing_cases() -> NativeBackingCases {
     let cases: NativeBackingCases = serde_json::from_str(include_str!(
-        "fixtures/corpus_cases/qualified-evidence-native-boundaries.json"
+        "../fixtures/corpus_cases/qualified-evidence-native-boundaries.json"
     ))
     .unwrap();
     assert_eq!(

@@ -589,7 +589,7 @@ fn selected_at(scope: &Path) -> quire_rs::obligation::inventory::SelectedInvento
 fn selected_inventory_declarative_controls() {
     use quire_rs::obligation::inventory::InventoryTerminal;
     let fixtures: InventoryCases = serde_json::from_str(include_str!(
-        "fixtures/corpus_cases/selected-inventory.json"
+        "../fixtures/corpus_cases/selected-inventory.json"
     ))
     .expect("inventory case data");
     assert_eq!(
@@ -1306,7 +1306,7 @@ fn selected_inventory_configuration_rows_follow_the_real_minter() {
         ..Default::default()
     };
     let cases: ConfigurationInventoryCases = serde_json::from_str(include_str!(
-        "fixtures/corpus_cases/selected-inventory-configurations.json"
+        "../fixtures/corpus_cases/selected-inventory-configurations.json"
     ))
     .unwrap();
     assert_eq!(

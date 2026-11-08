@@ -13,7 +13,7 @@ All scripts SHALL exit 0 on success and non-zero on violation, with descriptive 
 Unsafe blocks are checked by the workspace Clippy `undocumented_unsafe_blocks` lint.
 HTTP/RPC client crates and `schemars` are denied by `deny.toml` through
 `make deny` and `make deny-grammars`. The semantic schema's generator markers
-are checked by `tests/semantic_surface.rs`.
+are checked by `tests/it/semantic_surface.rs`.
 
 ## Implementation note
 

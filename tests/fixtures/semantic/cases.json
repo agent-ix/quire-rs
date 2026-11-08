@@ -1,5 +1,5 @@
 {
-  "$comment": "Declarative semantic extraction cases (FR-072-AC-1/AC-2). Every case carries issue_ref; tests/semantic_fixtures.rs enforces attribution and unique names; tests/semantic_surface.rs runs them and tests/python/test_semantic.py checks binding parity against cases.expected.json.",
+  "$comment": "Declarative semantic extraction cases (FR-072-AC-1/AC-2). Every case carries issue_ref; tests/it/semantic_fixtures.rs enforces attribution and unique names; tests/it/semantic_surface.rs runs them and tests/python/test_semantic.py checks binding parity against cases.expected.json.",
   "cases": [
     {
       "name": "golden-table-available",

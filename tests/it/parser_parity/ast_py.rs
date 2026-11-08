@@ -1,6 +1,6 @@
 //! Port of relevant cases from `~/dev/quire-py/tests/test_ast.py`.
 //!
-//! Divergences (see `tests/parser_parity/divergences.md`):
+//! Divergences (see `tests/it/parser_parity/divergences.md`):
 //! - The Py `QuireAst` wrapper that hides frontmatter/raw is not part
 //!   of the Rust API surface — Rust exposes `QuireDocument` directly.
 //!   Tests that assert `not hasattr(ast, "frontmatter")` are skipped.

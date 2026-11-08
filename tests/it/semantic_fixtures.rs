@@ -35,7 +35,7 @@ struct Case {
 }
 
 // Attribution and unique names, as corpus_cases enforces for its own suite;
-// TC-1630's per-case expectations run in tests/semantic_surface.rs.
+// TC-1630's per-case expectations run in tests/it/semantic_surface.rs.
 #[test]
 fn semantic_cases_are_attributed_and_uniquely_named() {
     let file: CaseFile = serde_json::from_slice(
