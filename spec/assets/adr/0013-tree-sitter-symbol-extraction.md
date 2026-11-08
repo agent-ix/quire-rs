@@ -142,6 +142,12 @@ Rationale:
   feature is off. Python and TypeScript extraction are unaffected either
   way, and no existing consumer of the default feature set observes any
   change.
+  **(PLAT-874 update, `CR-201`):** superseded — the per-file build-configuration
+  diagnostic described above (and its Python and TypeScript twins) is removed.
+  A build without an adapter now records the language as unavailable, and
+  coverage, trace search, the assurance export and graph-record emission
+  refuse instead of reporting a tree they only partly read (FR-051-AC-29,
+  AC-30).
   **(PLAT-868 update, `CR-179`):** the Python adapter gets the identical
   `python-symbols` feature and per-file fallback diagnostic, one language
   over — and is promoted to `default` alongside `rust-symbols`, since Python

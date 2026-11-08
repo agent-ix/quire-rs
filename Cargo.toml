@@ -158,15 +158,15 @@ default = ["resolve-file", "rust-symbols", "python-symbols", "typescript-symbols
 python = ["dep:pyo3"]
 # The Rust symbol adapter (FR-051, PLAT-843), gated so the `wasm` build can
 # opt out — see `quire-rust-extraction`'s own dependency comment above for
-# why. `src/symbols/mod.rs` falls back to a per-file diagnostic for
-# `SourceLanguage::Rust` when this feature is off, rather than failing to
-# compile; Python and TypeScript extraction are unaffected either way.
+# why. `src/symbols/mod.rs` records Rust as an unavailable language when this
+# feature is off and coverage refuses to run (FR-051-AC-29), rather than
+# failing to compile or reporting zero symbols.
 rust-symbols = ["dep:quire-rust-extraction", "quire-rust-extraction/rust"]
 # The Python symbol adapter (FR-051, PLAT-868), same shape as `rust-symbols`
 # one language over: gated so the `wasm` build can opt out (tree-sitter-python
 # carries the identical C-toolchain cross-compilation problem `rust-symbols`'s
-# own comment describes), and `src/symbols/mod.rs` falls back to a per-file
-# diagnostic for `SourceLanguage::Python` when this feature is off, rather
+# own comment describes), and `src/symbols/mod.rs` records the language as unavailable (coverage then refuses, FR-051-AC-29)
+# for `SourceLanguage::Python` when this feature is off, rather
 # than failing to compile. Default: `python.rs` uses it unconditionally now
 # that PLAT-868 has landed, so a default build must keep extracting Python
 # the way the pre-port line-structural scanner always did. Named
@@ -177,8 +177,8 @@ python-symbols = ["dep:quire-rust-extraction", "quire-rust-extraction/python"]
 # The TypeScript symbol adapter (FR-051, PLAT-882), gated exactly like
 # `rust-symbols` so the `wasm` build can opt out — `tree-sitter-typescript`'s
 # `cc`-crate build script cannot cross-compile to `wasm32-unknown-unknown`
-# here either. `src/symbols/mod.rs` falls back to a per-file diagnostic for
-# `SourceLanguage::Typescript` when this feature is off, rather than failing
+# here either. `src/symbols/mod.rs` records
+# `SourceLanguage::Typescript` as unavailable (coverage refuses) when off, rather than failing
 # to compile. Default: `typescript.rs` uses it unconditionally now that
 # PLAT-882 has landed, so a default build must keep extracting TypeScript
 # the way it always did.

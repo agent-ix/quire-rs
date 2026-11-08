@@ -52,6 +52,11 @@ pub enum CoverageError {
          in the module manifest)"
     )]
     ModelUndeclared,
+    /// The tree holds source in a language this build has no symbol adapter
+    /// for (FR-050-AC-59). Every count would omit those files and read as
+    /// "unbacked", so the run refuses rather than report them.
+    #[error(transparent)]
+    ExtractionUnavailable(#[from] crate::symbols::ExtractionUnavailable),
 }
 
 /// A declared reference row whose trace target has no backing `verifies`
@@ -732,6 +737,12 @@ fn compute_inner(
     root: &Path,
     backing: Option<&crate::evidence::BackingInput<'_>>,
 ) -> Result<CoverageReport, CoverageError> {
+    if !graph.unavailable_languages.is_empty() {
+        return Err(crate::symbols::ExtractionUnavailable {
+            languages: graph.unavailable_languages.clone(),
+        }
+        .into());
+    }
     let model = registry
         .traceability()
         .ok_or(CoverageError::ModelUndeclared)?;

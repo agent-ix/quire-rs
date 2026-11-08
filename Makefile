@@ -98,6 +98,14 @@ check-python-symbols:
 # features. Its own CARGO_TARGET_DIR for the same reason `check-python` has
 # one: a different feature set must not link against artifacts built for
 # another and surface as a bogus trait-not-implemented error.
+# PLAT-874: the only configuration in which the "this build has no adapter"
+# arm of symbol extraction executes is one with every adapter feature off (the
+# `wasm` shape). Nothing else gates it, so run the `tc206` tests there. Scoped
+# to those tests on purpose: the rest of the lib suite expects Rust symbols.
+.PHONY: check-no-adapters
+check-no-adapters:
+	CARGO_TARGET_DIR=target/no-adapters-check $(CARGO) test --locked --lib --no-default-features --features resolve-file --quiet -- tc206
+
 .PHONY: check-typescript-symbols
 check-typescript-symbols:
 	CARGO_TARGET_DIR=target/typescript-symbols-check $(CARGO) check --locked --no-default-features --features typescript-symbols --quiet
@@ -350,7 +358,7 @@ check-wasm:
 	CARGO_TARGET_DIR=target/wasm-check $(CARGO) check --locked --target wasm32-unknown-unknown --no-default-features --features wasm --quiet
 	$(CARGO) test --locked --no-default-features --features wasm --quiet --test it -- semantic_contract:: semantic_properties:: semantic_clauses:: semantic_surface:: semantic_relations::
 
-ci: fmt-check lint check-python check-python-symbols check-typescript-symbols check-wasm check-tools test deny deny-grammars audit-property audit-static validate
+ci: fmt-check lint check-python check-python-symbols check-typescript-symbols check-no-adapters check-wasm check-tools test deny deny-grammars audit-property audit-static validate
 
 # =============================================================================
 # Python wheel / sdist + local-publish (pypi.ix)

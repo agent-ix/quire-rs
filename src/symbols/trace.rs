@@ -405,6 +405,10 @@ pub struct SymbolGraph {
     /// rollup — which sees only this graph — can report it (FR-050-AC-24,
     /// #215).
     pub excluded_source_files: usize,
+    /// Languages the walk found source for but this build cannot extract,
+    /// copied from [`SymbolExtraction::unavailable_languages`] so the coverage
+    /// rollup — which sees only this graph — can refuse (FR-051-AC-29).
+    pub unavailable_languages: Vec<crate::traceability::SourceLanguage>,
     /// Trace tags written on a symbol whose kind cannot bind them (#312).
     ///
     /// The tag reaches NO channel: [`crate::symbols::SymbolKind::binds_trace_ids`] refuses it,
@@ -579,6 +583,7 @@ pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolG
     let patterns = CompiledTracePatterns::new(model);
     let mut graph = SymbolGraph {
         excluded_source_files: extraction.excluded_source_files,
+        unavailable_languages: extraction.unavailable_languages.clone(),
         ..SymbolGraph::default()
     };
     // FR-051-AC-19: what was looked at, per language, and what bound. Keyed by
@@ -2121,7 +2126,8 @@ pub fn graph_records(
     extraction: &SymbolExtraction,
     graph: &SymbolGraph,
     input: &SymbolRecordInput,
-) -> (Vec<CoreGraphNodeRef>, Vec<CoreGraphEdgeRef>) {
+) -> Result<(Vec<CoreGraphNodeRef>, Vec<CoreGraphEdgeRef>), super::ExtractionUnavailable> {
+    extraction.require_available()?;
     let mut nodes: Vec<CoreGraphNodeRef> = Vec::new();
     for symbol in &extraction.symbols {
         let name = symbol_ref_name(symbol);
@@ -2204,7 +2210,7 @@ pub fn graph_records(
             Map::new(),
         );
     }
-    (nodes, edges)
+    Ok((nodes, edges))
 }
 
 /// The `ref` name of a symbol: `<path>#<qualified name>`, which is unique per
@@ -2796,7 +2802,7 @@ mod tests {
     fn tc747_records_match_fr045_shapes() {
         let extraction = symbols();
         let graph = bind(&extraction, &iso_model());
-        let (nodes, edges) = graph_records(&extraction, &graph, &record_input());
+        let (nodes, edges) = graph_records(&extraction, &graph, &record_input()).unwrap();
 
         assert!(!nodes.is_empty() && !edges.is_empty());
         let node = nodes
@@ -2861,7 +2867,7 @@ mod tests {
         let render = || {
             let extraction = symbols();
             let graph = bind(&extraction, &model);
-            let (nodes, edges) = graph_records(&extraction, &graph, &record_input());
+            let (nodes, edges) = graph_records(&extraction, &graph, &record_input()).unwrap();
             serde_json::to_string(&(nodes, edges)).expect("serialize")
         };
         let first = render();
