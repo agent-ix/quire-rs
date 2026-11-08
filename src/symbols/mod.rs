@@ -249,6 +249,11 @@ pub struct SymbolExtraction {
     /// is to notice that an over-broad glob subtracted real backing — which
     /// otherwise reads exactly like tests that were never written.
     pub excluded_source_files: usize,
+    /// Languages with source in the tree that this build has no adapter for
+    /// (FR-051-AC-29), sorted. Not a diagnostic and not a zero: a consumer
+    /// that reads counts must refuse to when this is non-empty, because every
+    /// number it would report omits those files.
+    pub unavailable_languages: Vec<SourceLanguage>,
 }
 
 impl SymbolExtraction {
@@ -444,63 +449,34 @@ pub fn extract_file(path: &str, language: SourceLanguage, source: &str) -> Symbo
 
 impl SymbolExtraction {
     fn extend_with_file(&mut self, path: &str, language: SourceLanguage, source: String) {
-        // Explicit type (PLAT-882): under `--features wasm`, every adapter's
-        // `Ok`-returning branch below is `#[cfg]`d out — `rust-symbols`,
-        // `python-symbols`, and `typescript-symbols` are all off, gated the
-        // same way for the identical C-toolchain cross-compilation reason —
-        // so nothing left in the match constrains `Vec<RawSymbol>`'s type.
-        // Before this port, `typescript::parse` ran unconditionally and gave
-        // the compiler a concrete `Ok(...)` arm to infer from even under
-        // `wasm`; gating TypeScript the same way removed that last
-        // unconditional arm, so the annotation is now load-bearing rather
-        // than redundant.
+        // FR-051-AC-29: a build without the language's adapter cannot measure
+        // the file. That is a fact about the binary, not about this file, so
+        // it is recorded once per language — never as a per-file diagnostic
+        // (AC-9's channel) and never as a silent zero.
+        if !language.is_compiled_in() {
+            if !self.unavailable_languages.contains(&language) {
+                self.unavailable_languages.push(language);
+                self.unavailable_languages.sort();
+            }
+            return;
+        }
+        // Explicit type (PLAT-882): under `--features wasm` every adapter's
+        // `Ok`-returning arm below is `#[cfg]`d out, so nothing left in the
+        // match constrains `Vec<RawSymbol>`'s type.
         let parsed: Result<Vec<RawSymbol>, String> = match language {
             #[cfg(feature = "rust-symbols")]
             SourceLanguage::Rust => rust::parse(&source),
-            // This reason string is deliberately not diagnostic-shaped (no
-            // "line N: ..." form): it must never be mistaken for a per-file
-            // parse failure this file's own content caused (FR-051-AC-9's
-            // channel). It names a whole-binary *build configuration* fact —
-            // every Rust file in the tree gets this same reason, regardless
-            // of content, because the feature that would parse any of them
-            // was never compiled in (review F4).
-            #[cfg(not(feature = "rust-symbols"))]
-            SourceLanguage::Rust => Err(
-                "BUILD CONFIGURATION (not a parse error): this binary was built without the \
-                 `rust-symbols` Cargo feature (on by default; off for `wasm`), so it contains no \
-                 Rust parser at all — every Rust file in this tree is skipped for that reason, \
-                 not because of anything in this file. Rebuild with `--features rust-symbols` to \
-                 extract Rust symbols."
-                    .to_string(),
-            ),
             #[cfg(feature = "python-symbols")]
             SourceLanguage::Python => python::parse(path, &source),
-            // Mirrors the `rust-symbols` reason string above, one language
-            // over (PLAT-868): a whole-binary build-configuration fact, not
-            // a per-file parse failure this file's own content caused.
-            #[cfg(not(feature = "python-symbols"))]
-            SourceLanguage::Python => Err(
-                "BUILD CONFIGURATION (not a parse error): this binary was built without the \
-                 `python-symbols` Cargo feature (on by default; off for `wasm`), so it contains \
-                 no Python parser at all — every Python file in this tree is skipped for that \
-                 reason, not because of anything in this file. Rebuild with `--features \
-                 python-symbols` to extract Python symbols."
-                    .to_string(),
-            ),
             #[cfg(feature = "typescript-symbols")]
             SourceLanguage::Typescript => typescript::parse(path, &source),
-            // Same shape as the `rust-symbols` fallback above, and for the
-            // same reason: a whole-binary build-configuration fact, never
-            // mistaken for a per-file parse failure (FR-051-AC-9's channel).
+            // Unreachable: `is_compiled_in` returned early for these.
+            #[cfg(not(feature = "rust-symbols"))]
+            SourceLanguage::Rust => Ok(Vec::new()),
+            #[cfg(not(feature = "python-symbols"))]
+            SourceLanguage::Python => Ok(Vec::new()),
             #[cfg(not(feature = "typescript-symbols"))]
-            SourceLanguage::Typescript => Err(
-                "BUILD CONFIGURATION (not a parse error): this binary was built without the \
-                 `typescript-symbols` Cargo feature (on by default; off for `wasm`), so it \
-                 contains no TypeScript parser at all — every TypeScript file in this tree is \
-                 skipped for that reason, not because of anything in this file. Rebuild with \
-                 `--features typescript-symbols` to extract TypeScript symbols."
-                    .to_string(),
-            ),
+            SourceLanguage::Typescript => Ok(Vec::new()),
         };
         let raw = match parsed {
             Ok(raw) => raw,
@@ -677,6 +653,22 @@ mod tests {
         let empty_exclude = extract_tree_excluding(&fixture_root(), &[]);
         assert_eq!(all.symbols, empty_exclude.symbols);
         assert_eq!(all.diagnostics, empty_exclude.diagnostics);
+    }
+
+    // FR-051-AC-29: an adapter this build lacks is recorded as an unavailable
+    // language — no symbols, no per-file diagnostic. Under the default
+    // features every adapter is present, so the converse is asserted.
+    #[trace("TC-2010", "FR-051-AC-29")]
+    #[test]
+    fn missing_adapter_is_unavailable_not_a_diagnostic() {
+        let out = extract_file("src/lib.rs", SourceLanguage::Rust, "fn a() {}\n");
+        if SourceLanguage::Rust.is_compiled_in() {
+            assert!(out.unavailable_languages.is_empty());
+            assert!(!out.symbols.is_empty());
+        } else {
+            assert_eq!(out.unavailable_languages, vec![SourceLanguage::Rust]);
+            assert!(out.symbols.is_empty() && out.diagnostics.is_empty());
+        }
     }
 
     // Regression (PLAT-1290): a cookiecutter template tree under the root

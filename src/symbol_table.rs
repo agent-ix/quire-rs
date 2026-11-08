@@ -138,6 +138,12 @@ pub struct SymbolTableReport {
     /// subtracted real backing — which otherwise reads exactly like tests that
     /// were never written (FR-050-AC-24).
     pub excluded_source_files: usize,
+    /// Labels of languages with source in the tree that this build cannot
+    /// extract (FR-051-AC-29). Absent from the JSON when empty; when present
+    /// the symbol list omits those files and says so rather than reading as a
+    /// tree that has none.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub unavailable_languages: Vec<String>,
     pub files: usize,
 }
 
@@ -236,6 +242,11 @@ pub fn build(extraction: &SymbolExtraction, graph: Option<&SymbolGraph>) -> Symb
             })
             .collect(),
         excluded_source_files: extraction.excluded_source_files,
+        unavailable_languages: extraction
+            .unavailable_languages
+            .iter()
+            .map(|l| l.as_str().to_string())
+            .collect(),
         files: extraction.files.len(),
     }
 }

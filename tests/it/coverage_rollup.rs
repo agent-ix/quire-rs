@@ -1106,6 +1106,39 @@ fn tc739_non_iso_model_rolls_up() {
     assert_eq!(report.status_lies[0].status, "done");
 }
 
+// A build with no adapter for a language present in the tree refuses to
+// measure; it never reports a successful zero-symbol coverage report. The
+// `wasm` (no `rust-symbols`) arm that sets this field is covered natively by
+// driving the refusal with the field set directly, plus the cfg-gated unit
+// test in `src/symbols/mod.rs`.
+#[trace("TC-2010", "FR-051-AC-29")]
+#[test]
+fn tc2010_unextractable_language_refuses_coverage() {
+    let bundle = iso_bundle("2010", &[("TC-001", "FR-001-AC-1", "✅")], &["TC-001"]);
+    let registry = Registry::load_module(&fixture_module("iso")).expect("load module");
+    let spec = Spec::from_path(&bundle.scope);
+    let model = registry.traceability().cloned().unwrap_or_default();
+
+    let mut extraction = extract_tree(&bundle.source);
+    assert!(
+        extraction.unavailable_languages.is_empty(),
+        "a build with every adapter reports nothing unavailable"
+    );
+    let ok = trace::bind(&extraction, &model);
+    compute(&spec, &registry, &ok, &bundle.scope).expect("capable build still measures");
+
+    extraction.unavailable_languages = vec![quire_rs::traceability::SourceLanguage::Rust];
+    let graph = trace::bind(&extraction, &model);
+    let err = compute(&spec, &registry, &graph, &bundle.scope).expect_err("must refuse");
+    assert_eq!(
+        err,
+        CoverageError::ExtractionUnavailable {
+            languages: vec!["rust".to_string()]
+        }
+    );
+    assert!(err.to_string().contains("rust"));
+}
+
 #[trace("TC-740", "FR-050-AC-9")]
 // with no declared model, coverage fails with a distinct
 // diagnostic naming the missing declaration — never an empty report.
