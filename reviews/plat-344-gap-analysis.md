@@ -41,3 +41,10 @@ TC rows and plan notes that describe the enforcement now describe the deleted sc
 | --- | --- | --- | --- |
 | FND-001 | low | `spec/tests.md` still describes the deleted scripts. TC-058 reads "Static audit: no HashMap in render/parse code paths", although the render path is gone and the scope is four parse, extract and validate paths. TC-201 reads "Static grep: no `std::process::Command` invocations targeting python/node/npm/pip in src/". Both checks are now clippy `disallowed-*` lints run by `make lint`, and TC-201's check is now every `Command::new`. Update both rows to match. | spec/tests.md:223; spec/tests.md:270 |
 | FND-002 | low | Plan task notes name the deleted scripts as the enforcement: `025-static-audits.md` subtasks and Owns list, and the README's task 020 row ("tests/it/determinism.rs + check_hashmap_audit.sh"). Change them to the clippy bans. | plan/tasks/025-static-audits.md:13,15,36,38; plan/tasks/README.md:38 |
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | Round 1 (fix bfbed72, head 95db5a4): TC-058 and TC-201 rows now describe the clippy `disallowed-types` / `disallowed-methods` checks with the current scope. |
+| FND-002 | fixed | Round 1: `plan/tasks/025-static-audits.md` subtasks and Owns list, and the `plan/tasks/README.md` task 020 row, now name the clippy bans. |
