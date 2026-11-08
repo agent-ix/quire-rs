@@ -102,6 +102,13 @@ warning under Okf.
 | FR-038-AC-6 | A bundle-root `index.md` lacking `okf_version` in frontmatter yields an `index-okf-version` error under `Strict`. | Test |
 | FR-038-AC-7 | A subdirectory `index.md` without `okf_version` does not produce an `index-okf-version` finding (only the bundle root must declare it); an otherwise-conformant nested bundle is `is_valid()` under `Strict`. | Test |
 | FR-038-AC-8 | Under `Strict`, a document with a known `type` but a mistyped optional `description` (e.g. `description: 7`) is `!is_valid()` with an error naming `description` (the base concept contract, [FR-037](./FR-037-base-concept-schema.md), runs as part of bundle validation). | Test |
+| FR-038-AC-9 | An `ix://<org>/<repo>/<...>/<id>` reference (at least three path segments) to an artifact absent from the bundle is NOT reported as `dangling-reference` when the bundle declares its package (`<org>/<repo>`) and the reference's authority — its first two path segments joined with `/` — differs from that package by exact string comparison. The same absent target under the declared package's own authority, any absent target when no package is declared, a two-segment `ix://<org>/<id>` reference (which names no repo, so has no authority), and a bare-id target are still `dangling-reference`. A target spelled both as a bare id and as a foreign `ix://` link is one edge and stays dangling. | Test (TC-1992) |
+
+> **PLAT-1056 note:** AC-9 is new. `quire validate --okf` reported every correct
+> cross-repo `ix://` target as dangling, because this corpus cannot see a
+> foreign repository. Skipping needs the bundle's own package declared; with
+> none, nothing separates a foreign target from a broken local one, so it stays
+> dangling.
 
 ## Dependencies
 

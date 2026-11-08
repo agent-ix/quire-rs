@@ -688,3 +688,42 @@ fn tc888_bridged_document_results_are_not_registrable() {
 
     fs::remove_dir_all(&root).ok();
 }
+
+/// A correct `ix://` target under another repo's authority is cross-repo, not
+/// dangling, once the bundle declares its own package; without a declared
+/// package, or under the declared package, an absent target stays dangling.
+#[trace("TC-1992", "FR-038-AC-9")]
+// PLAT-1056: foreign-authority targets are not reported as dangling.
+#[test]
+fn foreign_authority_target_is_not_dangling() {
+    let root = tmpdir("cross_repo");
+    write(
+        &root,
+        "NOTE-001.md",
+        &note(
+            "NOTE-001",
+            "see [other](ix://other-org/other-repo/spec/StR-009)",
+        ),
+    );
+    let run = |package: Option<&str>, posture| {
+        let mut spec = quire_rs::Spec::from_path(&root);
+        if let Some(p) = package {
+            spec = spec.with_bundle_package(p);
+        }
+        quire_rs::validate_bundle(&spec, &bundle_registry(), posture, &root, &root)
+    };
+
+    // Declared package differs: cross-repo, in both postures.
+    let okf = run(Some("me/mine"), BundlePosture::Okf);
+    assert_eq!(count(&okf.warnings, "dangling-reference"), 0);
+    let strict = run(Some("me/mine"), BundlePosture::Strict);
+    assert_eq!(count(&strict.errors, "dangling-reference"), 0);
+
+    // Declared package equals the authority: genuinely dangling.
+    let own = run(Some("other-org/other-repo"), BundlePosture::Okf);
+    assert_eq!(count(&own.warnings, "dangling-reference"), 1);
+
+    // No package declared: nothing to compare against, still dangling.
+    let undeclared = run(None, BundlePosture::Okf);
+    assert_eq!(count(&undeclared.warnings, "dangling-reference"), 1);
+}

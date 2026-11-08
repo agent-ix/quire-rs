@@ -367,7 +367,7 @@ pub struct ValidationResult {
 ```
 
 `ValidationReason` is a machine-readable enum: `Missing`, `Empty`, `Placeholder`, `Assert`,
-`Frontmatter`, `DuplicateHeading`, `UnresolvedField`, `UnknownObjectType` (warnings only).
+`Frontmatter`, `DuplicateHeading`, `UnresolvedField`, `RowWidth`, `UnknownObjectType` (warnings only).
 
 ---
 
