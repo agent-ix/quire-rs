@@ -27,3 +27,20 @@ Changes requested. The row-width half is sound. The foreign-authority half treat
 | FND-002 | medium | The stub dedup key became `(source, target, type, authority)`. An absent target declared once as a bare id (frontmatter) and once as an `ix://` link (body), or under two authorities, now yields two `Edge`s with the same `(source, target, type)` and two `DanglingReference` diagnostics, breaking FR-026-AC-8/AC-11 ("exactly one edge"). Fix: keep the set keyed on the triple and carry the authority beside it (for example a map keyed by the triple, where a bare id or own authority wins). | src/corpus/resolve.rs:75-110 | implementation-bug-despite-evidence |
 | FND-003 | low | `ix_authority` takes the first two segments, so the two-segment form `ix://<org>/<ID>` (accepted by `extract_target_id`, e.g. `ix://x/StR-001`) yields authority `<org>/<ID>`. Once a package is declared, such an own-org link is always "foreign" and never dangling. The doc's "one when the URI names only an org" branch is unreachable for regex-harvested links. Fix: return an authority only for three or more segments, or document the two-segment case as repo-level. | src/corpus/resolve.rs:309-319 | missing-requirement |
 | FND-004 | low | The `LocatedTable` alias was inserted between `locate_table`'s doc comment and the function, so rustdoc attaches the #254/CR-097 line-arithmetic explanation to the alias and `locate_table` loses it. Fix: move the alias and its doc above the existing doc block. | src/extract/assert_eval.rs:174-196 | implementation-bug-despite-evidence |
+
+## New findings (disposition pass 1)
+
+Re-checked at head 257a744b (fix commit `fix: address PR review findings`). `cargo test --test it` 521 passed; `--lib -- corpus:: assert_eval` 94 passed. A scratch-only probe (deleted, never on the branch) compared 677dbd60 and 257a744b.
+
+| ID | Severity | Summary | Refs | Escape Cause |
+| --- | --- | --- | --- | --- |
+| FND-005 | high | The new `add` closure runs every stub, including relative-path link targets, through `extract_target_id`, which keeps only the last `/` segment. A relative link to a loaded document with no `id` and no `uuid` (keyed by its path, `artifact_key`) is truncated to the file name and no longer resolves. Probe: `[b](sub/b.md)` to an id-less `sub/b.md` was `Resolved` at 677dbd60 and is `Dangling` (`b.md`) at 257a744b, so it gives a false `dangling-reference` (a Strict error). An unresolved relative destination `sub/gone/missing.md` is also reported as `missing.md`. This breaks FR-026-AC-9; TC-620 only uses documents with ids. Fix: insert relative-link targets into the map as-is with authority `None`, without `extract_target_id`, and add an id-less target to TC-620. | src/corpus/resolve.rs:79-113 | implementation-bug-despite-evidence |
+
+## Dispositions
+
+| FND | Outcome | Reason |
+| --- | --- | --- |
+| FND-001 | fixed | Skip now requires `(Some(authority), Some(package)) if authority != package`; package-less misses stay dangling (TC-1992 undeclared case). The quire-cli `run_okf` wiring is tracked separately in quire-cli by the coordinator. |
+| FND-002 | fixed | Stubs are a `BTreeMap` keyed on `(source, target, type)` with authority as the value; a bare spelling wins. New unit test `spellings_of_one_absent_target_dedup_without_splitting_on_authority`. |
+| FND-003 | fixed | `ix_authority` returns `None` unless a third segment exists; unit test `ix_authority_needs_org_repo_and_a_target_segment`. |
+| FND-004 | fixed | `LocatedTable` alias moved above `locate_table`'s doc block. |

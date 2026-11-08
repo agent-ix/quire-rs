@@ -22,3 +22,11 @@ Gaps found. TC-1991 covers too-few and too-many rows, row lines, row ids and a u
 | FND-001 | medium | TC-1991 has no row with an escaped `\|` inside a cell and no row with an empty trailing cell (`\| A-4 \| \|`). These are the main false-positive risks of re-reading widths from the source line, and PLAT-217 requires that `\|` count as one cell (the process module's `Verdict` column authors `Pass\|Fail\|Waived`). Fix: add both rows to the fixture and assert that neither raises `row-width`. | src/extract/assert_eval.rs:722-753 | correct-requirement-no-evidence |
 | FND-002 | medium | TC-1992 never runs FR-038-AC-9's main clause. The first half declares no package, and the second half declares a package equal to the link's authority. The case "package declared, authority different" is untested, and so is Strict, where a dangling ref is an error. Fix: declare package `agent-ix/own`, link `ix://other-org/other-repo/X`, and assert no `dangling-reference` under Strict and Okf, plus an own-authority miss under Strict reported as an error. | tests/it/bundle_validate.rs:684-707 | correct-requirement-no-evidence |
 | FND-003 | medium | TC-602 (`okf_tolerates_unknown_type_and_broken_links`, tagged FR-038-AC-3) keeps its doc "a dangling `ix://` reference", but its fixture was changed from `ix://o/r/MISSING` to a bare-id relationship. It no longer tests what FR-038-AC-3 states. The rebind (and the same switch in TC-884/886/887/889) hides that a package-less `ix://` miss is no longer reported. Fix: once the code-review FND-001 fix lands, restore an `ix://` dangling fixture in TC-602. | tests/it/bundle_validate.rs:90-101 | correct-requirement-no-evidence |
+
+## Dispositions
+
+| FND | Outcome | Reason |
+| --- | --- | --- |
+| FND-001 | fixed | TC-1991 adds `\| A-1 \| Unit \\\| Int \|` and `\| A-2 \| \|` and asserts no failure. |
+| FND-002 | fixed | TC-1992 now runs package `me/mine` (differs) under Okf and Strict with no dangling, package equal to the authority (dangling), and no package (dangling). |
+| FND-003 | fixed | TC-602 and TC-884/886/887/889 fixtures restored to `ix://o/r/MISSING`, matching FR-038-AC-3. |

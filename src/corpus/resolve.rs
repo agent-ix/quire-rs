@@ -76,40 +76,48 @@ pub(crate) fn resolve(
     // is the foreign authority of an unresolved target; it never takes part in
     // the key, so one absent target written several ways is still one edge.
     let mut stubs: BTreeMap<(ArtifactId, ArtifactId, String), Option<String>> = BTreeMap::new();
-    let mut add = |source: &ArtifactId, raw: &str, edge_type: String| {
+    let mut add_target =
+        |source: &ArtifactId, target: &str, authority: Option<String>, edge_type: String| {
+            match stubs.entry((source.clone(), target.to_string(), edge_type)) {
+                Entry::Vacant(v) => {
+                    v.insert(authority);
+                }
+                // A bare-id spelling claims the target is local, so it wins; two
+                // different foreign authorities settle on the smaller, stably.
+                Entry::Occupied(mut o) => {
+                    let merged = match (o.get().as_ref(), authority) {
+                        (Some(a), Some(b)) => Some(a.min(&b).to_string()),
+                        _ => None,
+                    };
+                    o.insert(merged);
+                }
+            }
+        };
+    // A frontmatter or `ix://` reference: reduce to its artifact id and keep the
+    // foreign authority when the id is absent from the corpus.
+    let mut add_ref = |source: &ArtifactId, raw: &str, edge_type: String| {
         let target = extract_target_id(raw);
         let authority = (!by_id.contains_key(target))
             .then(|| ix_authority(raw))
             .flatten();
-        match stubs.entry((source.clone(), target.to_string(), edge_type)) {
-            Entry::Vacant(v) => {
-                v.insert(authority);
-            }
-            // A bare-id spelling claims the target is local, so it wins; two
-            // different foreign authorities settle on the smaller, stably.
-            Entry::Occupied(mut o) => {
-                let merged = match (o.get().as_ref(), authority) {
-                    (Some(a), Some(b)) => Some(a.min(&b).to_string()),
-                    _ => None,
-                };
-                o.insert(merged);
-            }
-        }
+        add_target(source, target, authority, edge_type);
     };
     for doc in documents {
         let source = artifact_key(doc);
         for (target_raw, edge_type) in harvest_frontmatter(doc) {
-            add(&source, &target_raw, edge_type);
+            add_ref(&source, &target_raw, edge_type);
         }
         for target_raw in harvest_body_links(doc, ix_link) {
-            add(&source, &target_raw, "references".to_string());
+            add_ref(&source, &target_raw, "references".to_string());
         }
         // Internal relative-path links (ADR 0007). Navigation documents
         // (`index.md`) is excluded as a source so its contents links do not
         // flood the graph (FR-026-AC-10).
         if !is_nav_doc(&doc.path) {
             for target in harvest_body_relative_links(doc, md_link, &by_path) {
-                add(&source, &target, "references".to_string());
+                // Already an artifact key or a full relative path: no
+                // reduction to a last segment, no authority.
+                add_target(&source, &target, None, "references".to_string());
             }
         }
     }
@@ -611,6 +619,40 @@ mod tests {
         let out2 = resolve(&docs2, &index(&docs2));
         assert_eq!(out2.edges.len(), 1);
         assert_eq!(out2.edges[0].resolution, Resolution::Dangling);
+    }
+
+    // TC-620, FR-026-AC-9: a relative link to an id-less (path-keyed) document
+    // resolves to its path key, and an unresolved nested path is reported whole.
+    #[test]
+    fn relative_link_to_id_less_doc_resolves_and_nested_miss_keeps_full_path() {
+        let idless = LoadedDocument::from_parsed(
+            PathBuf::from("spec/sub/b.md"),
+            String::new(),
+            None,
+            parse_document("# b\n"),
+        );
+        let docs = vec![
+            loaded_at(
+                "spec/a.md",
+                "A-1",
+                "see [b](sub/b.md) and [gone](sub/gone.md)\n",
+            ),
+            idless,
+        ];
+        let out = resolve(&docs, &index(&docs));
+        let hit = out
+            .edges
+            .iter()
+            .find(|e| e.target == "spec/sub/b.md")
+            .unwrap();
+        assert_eq!(hit.resolution, Resolution::Resolved);
+        let miss = out
+            .edges
+            .iter()
+            .find(|e| e.target == "sub/gone.md")
+            .unwrap();
+        assert_eq!(miss.resolution, Resolution::Dangling);
+        assert_eq!(out.edges.len(), 2);
     }
 
     // TC-621, FR-026-AC-10: relative links in index.md are not harvested;
