@@ -95,20 +95,22 @@ pub(crate) fn resolve(
         };
     // A frontmatter or `ix://` reference: reduce to its artifact id and keep the
     // foreign authority when the id is absent from the corpus.
-    let mut add_ref = |source: &ArtifactId, raw: &str, edge_type: String| {
+    let ref_parts = |raw: &str| {
         let target = extract_target_id(raw);
         let authority = (!by_id.contains_key(target))
             .then(|| ix_authority(raw))
             .flatten();
-        add_target(source, target, authority, edge_type);
+        (target.to_string(), authority)
     };
     for doc in documents {
         let source = artifact_key(doc);
         for (target_raw, edge_type) in harvest_frontmatter(doc) {
-            add_ref(&source, &target_raw, edge_type);
+            let (target, authority) = ref_parts(&target_raw);
+            add_target(&source, &target, authority, edge_type);
         }
         for target_raw in harvest_body_links(doc, ix_link) {
-            add_ref(&source, &target_raw, "references".to_string());
+            let (target, authority) = ref_parts(&target_raw);
+            add_target(&source, &target, authority, "references".to_string());
         }
         // Internal relative-path links (ADR 0007). Navigation documents
         // (`index.md`) is excluded as a source so its contents links do not
