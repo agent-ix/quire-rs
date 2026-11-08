@@ -26,7 +26,7 @@ defect found is cross-referenced to its ticket (#210–#219), and none is fixed 
 **Release exposure.** The `v0.41.0` tag is commit `7278e98` (#207's merge), so it
 contains #202–#207 and **not** #208/#209. Verified at the tag: `spec/tests.md:330`
 ships TC-827's summary row with `Traces To` = `FR-051-AC-18` and `Status` =
-`TC-943`, plus a spurious `| FR-051-AC-17 | ✅ |` fragment on line 331, and the
+`TC-943`, plus a spurious `\| FR-051-AC-17 \| ✅ \|` fragment on line 331, and the
 AC→TC audit table has **no** `FR-051-AC-18` row at all although FR-051's coverage
 row declares `AC-1..18`. **Published v0.41.0 carries this corrupted Test Matrix.**
 The corruption is repaired on `main` by #209 (`954b315`); tags are never deleted,
@@ -55,7 +55,7 @@ effective. Every finding below is ticketed; the verdict clears when #212–#219 
 | ID | Severity | Summary | Refs |
 | --- | --- | --- | --- |
 | FND-001 | high | `make ci` never runs `quire validate` against this repo's own `spec/tests.md`. #204 corrupted the matrix, every local gate stayed green, and the corruption shipped in v0.41.0; #209 names the gap and adds no gate. Ticket agent-ix/quire-rs#212 (NR-1) | ix://agent-ix/quire-rs/spec/tests |
-| FND-002 | high | v0.41.0 ships the TC-827 corruption: `Traces To` overwritten `FR-051-AC-17` → `FR-051-AC-18`, `Status` overwritten `✅` → `TC-943`, a stray `| FR-051-AC-17 | ✅ |` row fragment, and the intended `FR-051-AC-18` audit-table row never written. Cause verified from the diffs: #204 inserted its audit row by single-shot string replace on `| FR-051-AC-17 |`, which occurs twice in the file, and the replace hit the summary row. Repaired on main by #209; remedy is the v0.42.0 tag | ix://agent-ix/quire-rs/spec/tests |
+| FND-002 | high | v0.41.0 ships the TC-827 corruption: `Traces To` overwritten `FR-051-AC-17` → `FR-051-AC-18`, `Status` overwritten `✅` → `TC-943`, a stray `\| FR-051-AC-17 \| ✅ \|` row fragment, and the intended `FR-051-AC-18` audit-table row never written. Cause verified from the diffs: #204 inserted its audit row by single-shot string replace on `| FR-051-AC-17 |`, which occurs twice in the file, and the replace hit the summary row. Repaired on main by #209; remedy is the v0.42.0 tag | ix://agent-ix/quire-rs/spec/tests |
 | FND-003 | medium | #203: `undeclared_statuses` is sorted (`src/coverage.rs:685`) but never deduplicated — `untracked_symbols` gets `.dedup()` ten lines later and this list does not — so duplicate matching rows yield duplicate records, and no test pins either outcome. Ticket #213 (NR-2) | ix://agent-ix/quire-rs/spec/functional/FR-050 |
 | FND-004 | medium | #203 folds an unrelated engine-contract fix into CR-083: `implements` added to tc859's optional-key list in `tests/output_contract.rs` (it has carried `skip_serializing_if` since CR-080). Real fix, zero matrix presence — no TC row, no CR note names it. Ticket #213 (NR-2) | ix://agent-ix/quire-rs/spec/tests |
 | FND-005 | medium | #204: the widened TS registration grammar (curried modifier chains, `TITLE_LOOKAHEAD_LINES = 3` forward scan) is exercised only through crate-private `parse()` unit tests inside `src/symbols/typescript.rs`; no fixture-tree or integration coverage, so the extractor's walk-to-binder path for these shapes is untested. Ticket #214 (NR-3) | ix://agent-ix/quire-rs/spec/functional/FR-051 |

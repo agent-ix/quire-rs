@@ -43,4 +43,4 @@ Reviewed the `agent-ix/quire-rs#388` chain (US-019 → FR-069..FR-072, NFR-021, 
 | FND-283 | Fixed — statements rewritten with a named subject and one SHALL each; re-measured below. |
 | FND-284 | Fixed — `*`, `0..*`, `0..0`, `2..2 unique`, `a..b` added to AC-5/TC-1614; TC-1621 domain named. |
 | FND-285 | Fixed — Options and a Priority line added to US-019. |
-| FND-286 | Fixed — `advisory` stays inside the semantic record; `CoreExtractionResult` severities stay `info|warning|error` (FR-072 Outputs, AC-9). |
+| FND-286 | Fixed — `advisory` stays inside the semantic record; `CoreExtractionResult` severities stay `info\|warning\|error` (FR-072 Outputs, AC-9). |
