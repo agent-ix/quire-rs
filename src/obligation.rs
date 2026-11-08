@@ -431,7 +431,8 @@ fn resolve<'a>(source: &'a ObligationSource, model: &'a TraceabilityModel) -> Op
             Some(Resolved {
                 archetype: &target.archetype,
                 section: &target.section,
-                id_column: Some(&target.id_column),
+                // Load validation admits only table-row targets here.
+                id_column: Some(target.id_column()?),
                 id_format: None,
             })
         }

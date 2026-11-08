@@ -1115,7 +1115,7 @@ Reserved withdrawn IDs (not active test cases): TC-834, TC-842, TC-871, TC-1089,
 | TC-1960 | Compare canonical-root/resolved-declaration/selected-path-and-byte identity across equal captures and selected-document edits (including unrelated sections), membership changes, valid still-unselected edits, wholly excluded edits and outside-root edits; reject wrong selections and caller-created Complete (PLAT-1165) | Integration | P0 | FR-053-AC-21 | 🚧 |
 | TC-1961 | Repeat real enumeration and compare origin-aware records/identities/count/terminal ordering; check exact declared exclusions, healthy unexcluded rows and changed selection/exclusion identity even for equal emitted records (PLAT-1165) | Integration | P1 | FR-053-AC-22 | 🚧 |
 | TC-1962 | Compare legacy derive/classification/coverage healthy, skipped and tolerant bad-root outputs; execute public-boundary regression tests for no evidence/freshness verdict, GrammarFinding, copied IR schema or caller-authored revision/hash ledger (PLAT-1165) | Integration | P0 | FR-053-AC-23 | 🚧 |
-| TC-2080 | Module-loaded `table_row` targets with omitted `from` preserve existing ids; `list_item` and `heading` targets mint ids from capture group 1 only within their selected section; invalid patterns and patterns without capture group 1 are rejected without partial ids (CR-203) | Integration | P0 | FR-050-AC-60 | 🚧 Planned |
+| TC-2080 | Module-loaded `table_row` targets with omitted `from` preserve existing ids; `list_item` and `heading` targets mint ids from capture group 1 only within their selected section; invalid patterns and patterns without capture group 1 are rejected without partial ids (CR-203) | Integration | P0 | FR-050-AC-60 | ✅ |
 
 ---
 

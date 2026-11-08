@@ -155,35 +155,23 @@ fn minted_ids(
     model_exclude: &declared_tables::ExcludeSet,
     ctx: &mut declared_tables::ScanContext,
 ) -> BTreeSet<String> {
-    let exclude = declared_tables::ExcludeSet::compile_validated(&target.exclude);
-    let scope = declared_tables::DeclaredScope {
-        name: &target.name,
-        archetype: &target.archetype,
-        exclude: &exclude,
-        model_exclude,
-        // A trace target: the CR-117 minting diagnostics apply, and `validate`
-        // reports them under the same machine tokens `coverage` does — one
-        // vocabulary, two surfaces (CR-054).
-        mints: Some(&target.id_column),
-        status_column: None,
-        target_required: target.required,
-    };
-    let mut ids: BTreeSet<String> = BTreeSet::new();
     // A document of the target archetype mints its own id, too — an authored
     // `TC-900.md` is as much a target as a matrix row. An excluded document
     // mints neither (CR-038): a fixture is test data whether its ids come from
     // its frontmatter or from its rows.
     //
-    // This is an axis `scan()` does not cover: it reads table rows, this reads
-    // frontmatter `id`.
-    for doc in target_documents(spec, root, target, model_exclude) {
-        ids.insert(doc.id.clone());
-    }
-    for row in declared_tables::scan(spec, root, scope, &target.section, ctx) {
-        if let Some(id) = row.cell(&target.id_column) {
-            ids.insert(id.to_string());
-        }
-    }
+    // This is an axis `mint()` does not cover: it reads the declared
+    // sections, this reads frontmatter `id`. The CR-117 minting diagnostics
+    // `mint()` notes are reported under the same machine tokens `coverage`
+    // uses — one vocabulary, two surfaces (CR-054).
+    let mut ids: BTreeSet<String> = target_documents(spec, root, target, model_exclude)
+        .map(|doc| doc.id.clone())
+        .collect();
+    ids.extend(
+        declared_tables::mint(spec, root, target, model_exclude, ctx)
+            .into_iter()
+            .map(|minted| minted.id),
+    );
     ids
 }
 

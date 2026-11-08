@@ -1641,7 +1641,7 @@ roles:
             .expect("acceptance-criterion target");
         assert_eq!(target.archetype, "FR");
         assert_eq!(target.section.names(), ["Acceptance Criteria"]);
-        assert_eq!(target.id_column, "ID");
+        assert_eq!(target.id_column(), Some("ID"));
         // CR-062: every target is archetype-bound, the Test Matrix included.
         assert_eq!(model.target("test-case").unwrap().archetype, "TestMatrix");
 

@@ -1,0 +1,148 @@
+[
+  {
+    "name": "list-items-and-headings-mint-within-their-section",
+    "issue_ref": "https://linear.app/agent-ix/issue/PLAT-316",
+    "input": {
+      "module": "name: trace-target-sources\nversion: 0.1.0\nartifact_types:\n- name: FR\n- name: IT\n- name: US\ntraceability:\n  trace_targets:\n  - name: criterion\n    archetype: FR\n    section: Acceptance Criteria\n    id_column: ID\n  - name: scenario\n    archetype: IT\n    section: Test Procedure\n    from: list_item\n    pattern: '^(IT-\\d+-SC-\\d+):'\n  - name: example\n    archetype: US\n    section: Acceptance Examples (Illustrative)\n    from: heading\n    pattern: '^\\[(US-\\d+-EX-\\d+)\\]'\n  document_references:\n  - name: verification\n    archetype: FR\n    section: Acceptance Criteria\n    column: Verification\n    row_id_column: ID\n    pattern: '\\b((?:IT-\\d+-SC|US-\\d+-EX)-\\d+)\\b'\n    targets: [scenario, example]\n  trace_tags:\n    markers:\n    - name: rust-trace\n      language: rust\n      pattern: '#\\[trace\\(([^)]*)\\)\\]'\n",
+      "documents": {
+        "IT-002.md": "---\nid: IT-002\ntype: IT\n---\n\n## Test Procedure\n\n1. Run the search.\n   - IT-002-SC-01: lexical results are returned with no remote call.\n   - IT-002-SC-02: chunks are batched.\n\n```text\n- IT-002-SC-98: inside a fence\n```\n\n## Notes\n\n- IT-002-SC-03: outside the declared section.\n",
+        "US-033.md": "---\nid: US-033\ntype: US\n---\n\n## Acceptance Examples (Illustrative)\n\n### [US-033-EX-1] Toggling the code layer\n\nThe layer toggles.\n\n### Background\n\n#### [US-033-EX-2] Following a call edge\n\n## Other\n\n### [US-033-EX-9] Outside the declared section\n",
+        "FR-001.md": "---\nid: FR-001\ntype: FR\n---\n\n## Acceptance Criteria\n\n| ID | Criteria | Verification |\n|---|---|---|\n| FR-001-AC-1 | Scenarios run. | Test (IT-002-SC-02) |\n| FR-001-AC-2 | Examples hold. | Test (US-033-EX-1) |\n| FR-001-AC-3 | Out of section. | Test (IT-002-SC-03) |\n\n## Test Procedure\n\n- IT-002-SC-77: another archetype mints nothing.\n"
+      },
+      "sources": {
+        "lib.rs": "#[cfg(test)]\nmod tests {\n    #[trace(\"IT-002-SC-01\")]\n    #[test]\n    fn scenario_one() {}\n\n    #[trace(\"US-033-EX-2\")]\n    #[test]\n    fn example_two() {}\n\n    #[trace(\"US-033-EX-9\")]\n    #[test]\n    fn outside_section() {}\n}\n"
+      }
+    },
+    "expect": {
+      "minted": [
+        [
+          "criterion",
+          "FR-001-AC-1",
+          "FR-001.md",
+          10,
+          false
+        ],
+        [
+          "criterion",
+          "FR-001-AC-2",
+          "FR-001.md",
+          11,
+          false
+        ],
+        [
+          "criterion",
+          "FR-001-AC-3",
+          "FR-001.md",
+          12,
+          false
+        ],
+        [
+          "example",
+          "US-033-EX-1",
+          "US-033.md",
+          8,
+          false
+        ],
+        [
+          "example",
+          "US-033-EX-2",
+          "US-033.md",
+          14,
+          true
+        ],
+        [
+          "scenario",
+          "IT-002-SC-01",
+          "IT-002.md",
+          9,
+          true
+        ],
+        [
+          "scenario",
+          "IT-002-SC-02",
+          "IT-002.md",
+          10,
+          false
+        ]
+      ],
+      "untracked_tags": [
+        "US-033-EX-9"
+      ],
+      "dangling_references": [
+        "IT-002-SC-03"
+      ]
+    }
+  },
+  {
+    "name": "list-item-pattern-does-not-compile",
+    "issue_ref": "https://linear.app/agent-ix/issue/PLAT-316",
+    "input": {
+      "module": "name: trace-target-sources\nversion: 0.1.0\nartifact_types:\n- name: FR\n- name: IT\n- name: US\ntraceability:\n  trace_targets:\n  - name: criterion\n    archetype: FR\n    section: Acceptance Criteria\n    id_column: ID\n  - name: scenario\n    archetype: IT\n    section: Test Procedure\n    from: list_item\n    pattern: '^(IT-\\d+-SC-\\d+:'\n  - name: example\n    archetype: US\n    section: Acceptance Examples (Illustrative)\n    from: heading\n    pattern: '^\\[(US-\\d+-EX-\\d+)\\]'\n  document_references:\n  - name: verification\n    archetype: FR\n    section: Acceptance Criteria\n    column: Verification\n    row_id_column: ID\n    pattern: '\\b((?:IT-\\d+-SC|US-\\d+-EX)-\\d+)\\b'\n    targets: [scenario, example]\n  trace_tags:\n    markers:\n    - name: rust-trace\n      language: rust\n      pattern: '#\\[trace\\(([^)]*)\\)\\]'\n",
+      "documents": {},
+      "sources": {}
+    },
+    "expect": {
+      "module_error": "trace_targets entry 'scenario' has an invalid pattern"
+    }
+  },
+  {
+    "name": "heading-pattern-without-capture-group",
+    "issue_ref": "https://linear.app/agent-ix/issue/PLAT-316",
+    "input": {
+      "module": "name: trace-target-sources\nversion: 0.1.0\nartifact_types:\n- name: FR\n- name: IT\n- name: US\ntraceability:\n  trace_targets:\n  - name: criterion\n    archetype: FR\n    section: Acceptance Criteria\n    id_column: ID\n  - name: scenario\n    archetype: IT\n    section: Test Procedure\n    from: list_item\n    pattern: '^(IT-\\d+-SC-\\d+):'\n  - name: example\n    archetype: US\n    section: Acceptance Examples (Illustrative)\n    from: heading\n    pattern: '^\\[US-\\d+-EX-\\d+\\]'\n  document_references:\n  - name: verification\n    archetype: FR\n    section: Acceptance Criteria\n    column: Verification\n    row_id_column: ID\n    pattern: '\\b((?:IT-\\d+-SC|US-\\d+-EX)-\\d+)\\b'\n    targets: [scenario, example]\n  trace_tags:\n    markers:\n    - name: rust-trace\n      language: rust\n      pattern: '#\\[trace\\(([^)]*)\\)\\]'\n",
+      "documents": {},
+      "sources": {}
+    },
+    "expect": {
+      "module_error": "trace_targets entry 'example' pattern captures nothing"
+    }
+  },
+  {
+    "name": "list-item-with-id-column",
+    "issue_ref": "https://linear.app/agent-ix/issue/PLAT-316",
+    "input": {
+      "module": "name: trace-target-sources\nversion: 0.1.0\nartifact_types:\n- name: FR\n- name: IT\n- name: US\ntraceability:\n  trace_targets:\n  - name: criterion\n    archetype: FR\n    section: Acceptance Criteria\n    id_column: ID\n  - name: scenario\n    archetype: IT\n    section: Test Procedure\n    from: list_item\n    id_column: ID\n  - name: example\n    archetype: US\n    section: Acceptance Examples (Illustrative)\n    from: heading\n    pattern: '^\\[(US-\\d+-EX-\\d+)\\]'\n  document_references:\n  - name: verification\n    archetype: FR\n    section: Acceptance Criteria\n    column: Verification\n    row_id_column: ID\n    pattern: '\\b((?:IT-\\d+-SC|US-\\d+-EX)-\\d+)\\b'\n    targets: [scenario, example]\n  trace_tags:\n    markers:\n    - name: rust-trace\n      language: rust\n      pattern: '#\\[trace\\(([^)]*)\\)\\]'\n",
+      "documents": {},
+      "sources": {}
+    },
+    "expect": {
+      "module_error": "declare `pattern` instead of `id_column`"
+    }
+  },
+  {
+    "name": "heading-without-pattern",
+    "issue_ref": "https://linear.app/agent-ix/issue/PLAT-316",
+    "input": {
+      "module": "name: trace-target-sources\nversion: 0.1.0\nartifact_types:\n- name: FR\n- name: IT\n- name: US\ntraceability:\n  trace_targets:\n  - name: criterion\n    archetype: FR\n    section: Acceptance Criteria\n    id_column: ID\n  - name: scenario\n    archetype: IT\n    section: Test Procedure\n    from: list_item\n    pattern: '^(IT-\\d+-SC-\\d+):'\n  - name: example\n    archetype: US\n    section: Acceptance Examples (Illustrative)\n    from: heading\n  document_references:\n  - name: verification\n    archetype: FR\n    section: Acceptance Criteria\n    column: Verification\n    row_id_column: ID\n    pattern: '\\b((?:IT-\\d+-SC|US-\\d+-EX)-\\d+)\\b'\n    targets: [scenario, example]\n  trace_tags:\n    markers:\n    - name: rust-trace\n      language: rust\n      pattern: '#\\[trace\\(([^)]*)\\)\\]'\n",
+      "documents": {},
+      "sources": {}
+    },
+    "expect": {
+      "module_error": "reads `from: heading` and declares no `pattern`"
+    }
+  },
+  {
+    "name": "table-row-with-pattern",
+    "issue_ref": "https://linear.app/agent-ix/issue/PLAT-316",
+    "input": {
+      "module": "name: trace-target-sources\nversion: 0.1.0\nartifact_types:\n- name: FR\n- name: IT\n- name: US\ntraceability:\n  trace_targets:\n  - name: criterion\n    archetype: FR\n    section: Acceptance Criteria\n    id_column: ID\n    pattern: '(x)'\n  - name: scenario\n    archetype: IT\n    section: Test Procedure\n    from: list_item\n    pattern: '^(IT-\\d+-SC-\\d+):'\n  - name: example\n    archetype: US\n    section: Acceptance Examples (Illustrative)\n    from: heading\n    pattern: '^\\[(US-\\d+-EX-\\d+)\\]'\n  document_references:\n  - name: verification\n    archetype: FR\n    section: Acceptance Criteria\n    column: Verification\n    row_id_column: ID\n    pattern: '\\b((?:IT-\\d+-SC|US-\\d+-EX)-\\d+)\\b'\n    targets: [scenario, example]\n  trace_tags:\n    markers:\n    - name: rust-trace\n      language: rust\n      pattern: '#\\[trace\\(([^)]*)\\)\\]'\n",
+      "documents": {},
+      "sources": {}
+    },
+    "expect": {
+      "module_error": "`pattern` applies only to `from: list_item` or `from: heading`"
+    }
+  },
+  {
+    "name": "obligation-over-list-item-target",
+    "issue_ref": "https://linear.app/agent-ix/issue/PLAT-316",
+    "input": {
+      "module": "name: trace-target-sources\nversion: 0.1.0\nartifact_types:\n- name: FR\n- name: IT\n- name: US\ntraceability:\n  trace_targets:\n  - name: criterion\n    archetype: FR\n    section: Acceptance Criteria\n    id_column: ID\n  - name: scenario\n    archetype: IT\n    section: Test Procedure\n    from: list_item\n    pattern: '^(IT-\\d+-SC-\\d+):'\n  - name: example\n    archetype: US\n    section: Acceptance Examples (Illustrative)\n    from: heading\n    pattern: '^\\[(US-\\d+-EX-\\d+)\\]'\n  document_references:\n  - name: verification\n    archetype: FR\n    section: Acceptance Criteria\n    column: Verification\n    row_id_column: ID\n    pattern: '\\b((?:IT-\\d+-SC|US-\\d+-EX)-\\d+)\\b'\n    targets: [scenario, example]\n  obligations:\n  - name: scenarios\n    target: scenario\n    statement_column: Criteria\n  trace_tags:\n    markers:\n    - name: rust-trace\n      language: rust\n      pattern: '#\\[trace\\(([^)]*)\\)\\]'\n",
+      "documents": {},
+      "sources": {}
+    },
+    "expect": {
+      "module_error": "references target 'scenario', which does not mint from table rows"
+    }
+  }
+]

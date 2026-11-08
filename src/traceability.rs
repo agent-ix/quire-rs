@@ -630,8 +630,144 @@ fn is_true(value: &bool) -> bool {
     *value
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+/// Which authored shape inside a target's section mints its ids.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TraceTargetSource {
+    /// One id per table row, read from `id_column`.
+    TableRow { id_column: String },
+    /// One id per list item: capture group 1 of `pattern` over the item text.
+    ListItem { pattern: String },
+    /// One id per heading nested in the section: capture group 1 of `pattern`
+    /// over the heading text.
+    Heading { pattern: String },
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum TraceTargetFrom {
+    #[default]
+    TableRow,
+    ListItem,
+    Heading,
+}
+
+impl TraceTargetFrom {
+    fn is_table_row(&self) -> bool {
+        *self == Self::TableRow
+    }
+
+    fn spelling(self) -> &'static str {
+        match self {
+            Self::TableRow => "table_row",
+            Self::ListItem => "list_item",
+            Self::Heading => "heading",
+        }
+    }
+}
+
+/// The authored manifest shape of a [`TraceTarget`]. `from` decides which of
+/// `id_column` and `pattern` the entry must carry.
+#[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
+struct TraceTargetWire {
+    name: String,
+    archetype: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    exclude: Vec<String>,
+    section: SectionNames,
+    #[serde(default, skip_serializing_if = "TraceTargetFrom::is_table_row")]
+    from: TraceTargetFrom,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    id_column: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pattern: Option<String>,
+    #[serde(default = "default_true", skip_serializing_if = "is_true")]
+    required: bool,
+    #[serde(default, skip_serializing_if = "TraceTargetEvidence::is_source")]
+    evidence: TraceTargetEvidence,
+}
+
+impl TryFrom<TraceTargetWire> for TraceTarget {
+    type Error = String;
+
+    fn try_from(wire: TraceTargetWire) -> Result<Self, Self::Error> {
+        let name = &wire.name;
+        let source = match (wire.from, wire.id_column, wire.pattern) {
+            (TraceTargetFrom::TableRow, Some(id_column), None) => {
+                TraceTargetSource::TableRow { id_column }
+            }
+            (TraceTargetFrom::TableRow, None, _) => {
+                return Err(format!(
+                    "trace_targets entry '{name}' reads table rows and declares no `id_column`"
+                ))
+            }
+            (TraceTargetFrom::TableRow, Some(_), Some(_)) => {
+                return Err(format!(
+                    "trace_targets entry '{name}' reads table rows by `id_column`; `pattern` \
+                     applies only to `from: list_item` or `from: heading`"
+                ))
+            }
+            (TraceTargetFrom::ListItem, None, Some(pattern)) => {
+                TraceTargetSource::ListItem { pattern }
+            }
+            (TraceTargetFrom::Heading, None, Some(pattern)) => {
+                TraceTargetSource::Heading { pattern }
+            }
+            (from, Some(_), _) => {
+                return Err(format!(
+                    "trace_targets entry '{name}' reads `from: {}`, which has no columns; \
+                     declare `pattern` instead of `id_column`",
+                    from.spelling()
+                ))
+            }
+            (from, None, None) => {
+                return Err(format!(
+                    "trace_targets entry '{name}' reads `from: {}` and declares no `pattern`",
+                    from.spelling()
+                ))
+            }
+        };
+        Ok(Self {
+            name: wire.name,
+            archetype: wire.archetype,
+            exclude: wire.exclude,
+            section: wire.section,
+            source,
+            required: wire.required,
+            evidence: wire.evidence,
+        })
+    }
+}
+
+impl From<TraceTarget> for TraceTargetWire {
+    fn from(target: TraceTarget) -> Self {
+        let (from, id_column, pattern) = match target.source {
+            TraceTargetSource::TableRow { id_column } => {
+                (TraceTargetFrom::TableRow, Some(id_column), None)
+            }
+            TraceTargetSource::ListItem { pattern } => {
+                (TraceTargetFrom::ListItem, None, Some(pattern))
+            }
+            TraceTargetSource::Heading { pattern } => {
+                (TraceTargetFrom::Heading, None, Some(pattern))
+            }
+        };
+        Self {
+            name: target.name,
+            archetype: target.archetype,
+            exclude: target.exclude,
+            section: target.section,
+            from,
+            id_column,
+            pattern,
+            required: target.required,
+            evidence: target.evidence,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(try_from = "TraceTargetWire", into = "TraceTargetWire")]
 pub struct TraceTarget {
     /// Kind name, referenced by [`DocumentReference::targets`].
     pub name: String,
@@ -643,27 +779,34 @@ pub struct TraceTarget {
     /// **More** load-bearing since CR-062, not less: archetype binding is what
     /// lets a fixture matrix mint phantom ids, and a fixture that exercises the
     /// `TestMatrix` contract legitimately *is* `type: TestMatrix`.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub exclude: Vec<String>,
-    /// Heading of the section carrying the minting table, or several headings
-    /// (CR-118): a matrix whose rows are grouped under `Test Case Summary
-    /// (plugin scope)` and `Test Case Summary (discovery scope)` mints from
-    /// both, and one heading name minted from neither.
+    /// Heading of the section carrying the minting table, list or headings,
+    /// or several headings (CR-118): a matrix whose rows are grouped under
+    /// `Test Case Summary (plugin scope)` and `Test Case Summary (discovery
+    /// scope)` mints from both, and one heading name minted from neither.
     pub section: SectionNames,
-    /// Table column holding the minted id.
-    pub id_column: String,
+    /// What inside the section mints the ids (`from:`, FR-050-AC-60).
+    pub source: TraceTargetSource,
     /// Whether this target must be represented in the corpus. Omitted
     /// preserves the historical required posture. An optional target may have
     /// no documents of its archetype, or its selected documents may omit the
     /// section; when the section is present it is still scanned and validated
     /// (FR-050-AC-41, #327).
-    #[serde(default = "default_true", skip_serializing_if = "is_true")]
     pub required: bool,
     /// Whether rows require source-symbol evidence. Omitted is the historical
     /// `source` posture; reference-only targets register identifiers without
     /// entering coverage (FR-050-AC-40, #363).
-    #[serde(default, skip_serializing_if = "TraceTargetEvidence::is_source")]
     pub evidence: TraceTargetEvidence,
+}
+
+impl TraceTarget {
+    /// The table column holding the minted id, for a `table_row` target.
+    pub fn id_column(&self) -> Option<&str> {
+        match &self.source {
+            TraceTargetSource::TableRow { id_column } => Some(id_column),
+            TraceTargetSource::ListItem { .. } | TraceTargetSource::Heading { .. } => None,
+        }
+    }
 }
 
 /// One kind of reference from a document cell to minted trace ids. `pattern`
@@ -1079,13 +1222,22 @@ impl TraceabilityModel {
                 &target.exclude,
             )?;
             check_sections("trace_targets", &target.name, &target.section)?;
-            check_field(
-                "trace_targets",
-                &target.name,
-                "id_column",
-                &target.id_column,
-            )?;
+            match &target.source {
+                TraceTargetSource::TableRow { id_column } => {
+                    check_field("trace_targets", &target.name, "id_column", id_column)?;
+                }
+                TraceTargetSource::ListItem { pattern }
+                | TraceTargetSource::Heading { pattern } => {
+                    check_capturing_pattern("trace_targets", &target.name, pattern)?;
+                }
+            }
         }
+        let table_targets: BTreeSet<&str> = self
+            .trace_targets
+            .iter()
+            .filter(|target| target.id_column().is_some())
+            .map(|target| target.name.as_str())
+            .collect();
 
         let mut reference_names: BTreeSet<&str> = BTreeSet::new();
         for reference in &self.document_references {
@@ -1181,6 +1333,16 @@ impl TraceabilityModel {
                         return Err(format!(
                             "traceability: obligations entry '{}' references undeclared target \
                              '{target}'",
+                            source.name
+                        ));
+                    }
+                    // A target-bound obligation reads its statement from a
+                    // column of the row that minted its id.
+                    if !table_targets.contains(target.as_str()) {
+                        return Err(format!(
+                            "traceability: obligations entry '{}' references target '{target}', \
+                             which does not mint from table rows; a target-bound obligation \
+                             reads its statement column from the minting row",
                             source.name
                         ));
                     }
@@ -1946,6 +2108,38 @@ document_references:
         let empty = model("exclude: ['  ']\n");
         let err = empty.validate().expect_err("must not validate");
         assert!(err.contains("empty `exclude` pattern"), "{err}");
+    }
+
+    #[trace("TC-2080", "FR-050-AC-60")]
+    #[test]
+    fn trace_target_source_round_trips_its_authored_shape() {
+        let yaml = "trace_targets:\n- name: rows\n  archetype: FR\n  section: S\n  id_column: ID\n\
+                    - name: items\n  archetype: IT\n  section: S\n  from: list_item\n  pattern: '^(IT-\\d+):'\n\
+                    - name: headings\n  archetype: US\n  section: S\n  from: heading\n  pattern: '^\\[(US-\\d+)\\]'\n";
+        let m = model(yaml);
+        assert_eq!(
+            m.trace_targets
+                .iter()
+                .map(|target| target.source.clone())
+                .collect::<Vec<_>>(),
+            vec![
+                TraceTargetSource::TableRow {
+                    id_column: "ID".into()
+                },
+                TraceTargetSource::ListItem {
+                    pattern: r"^(IT-\d+):".into()
+                },
+                TraceTargetSource::Heading {
+                    pattern: r"^\[(US-\d+)\]".into()
+                },
+            ]
+        );
+        let wire = serde_json::to_value(&m.trace_targets).expect("serialize");
+        assert!(wire[0].get("from").is_none(), "{wire}");
+        assert_eq!(wire[1]["from"], "list_item");
+        assert!(wire[1].get("id_column").is_none(), "{wire}");
+        let back: Vec<TraceTarget> = serde_json::from_value(wire).expect("deserialize");
+        assert_eq!(back, m.trace_targets);
     }
 
     #[test]

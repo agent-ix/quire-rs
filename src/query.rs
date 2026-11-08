@@ -393,6 +393,36 @@ pub fn parse_bullet_list(content: &str, pattern: Option<ListPattern>) -> Vec<Lis
     items
 }
 
+fn re_list_item() -> &'static Regex {
+    static R: OnceLock<Regex> = OnceLock::new();
+    R.get_or_init(|| Regex::new(r"^(?:[-*+]|\d+[.)])\s+(.+)$").expect("list-item regex"))
+}
+
+/// The text of every bullet or ordered list item in `content`, at any
+/// nesting depth, with its 0-based line index. Lines inside fenced code
+/// blocks are not list items.
+pub(crate) fn list_item_lines(content: &str) -> Vec<(usize, &str)> {
+    let mut fence: Option<&str> = None;
+    let mut out = Vec::new();
+    for (index, line) in content.split('\n').enumerate() {
+        let trimmed = line.trim();
+        let marker = ["```", "~~~"]
+            .into_iter()
+            .find(|marker| trimmed.starts_with(marker));
+        match (fence, marker) {
+            (None, Some(marker)) => fence = Some(marker),
+            (Some(open), Some(marker)) if open == marker => fence = None,
+            (None, None) => {
+                if let Some(item) = re_list_item().captures(trimmed).and_then(|c| c.get(1)) {
+                    out.push((index, item.as_str()));
+                }
+            }
+            _ => {}
+        }
+    }
+    out
+}
+
 fn classify_bullet(raw: &str, pattern: ListPattern) -> ListItem {
     let plain = |raw: &str| ListItem {
         raw: raw.to_string(),

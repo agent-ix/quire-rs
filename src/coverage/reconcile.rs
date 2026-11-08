@@ -59,46 +59,26 @@ pub(super) fn reconcile(
     // while only source targets enter the coverage denominator (#363).
     let mut declared_ids: BTreeSet<String> = BTreeSet::new();
     for target in &model.trace_targets {
-        let exclude = declared_tables::ExcludeSet::compile_validated(&target.exclude);
         let mut reference_only_ctx = declared_tables::ScanContext::default();
         let target_ctx = if target.evidence == TraceTargetEvidence::ReferenceOnly {
             &mut reference_only_ctx
         } else {
             &mut ctx
         };
-        for row in declared_tables::scan(
-            spec,
-            root,
-            declared_tables::DeclaredScope {
-                name: &target.name,
-                archetype: &target.archetype,
-                exclude: &exclude,
-                model_exclude: &model_exclude,
-                // The minting half of the model: CR-117's two diagnostics are
-                // scoped to it, and the id column they name comes from here.
-                mints: Some(&target.id_column),
-                status_column: None,
-                target_required: target.required,
-            },
-            &target.section,
-            target_ctx,
-        ) {
-            let Some(id) = row.cell(&target.id_column) else {
-                continue;
-            };
-            declared_ids.insert(id.to_string());
+        for minted_id in declared_tables::mint(spec, root, target, &model_exclude, target_ctx) {
+            declared_ids.insert(minted_id.id.clone());
             minted_by_target
                 .entry(target.name.as_str())
                 .or_default()
-                .insert(id.to_string());
+                .insert(minted_id.id.clone());
             if target.evidence == TraceTargetEvidence::ReferenceOnly {
                 continue;
             }
             minted.push(MintedTargetRecord {
-                id: id.to_string(),
+                document: relative(root, &minted_id.path),
+                id: minted_id.id,
                 target: target.name.clone(),
-                document: relative(root, &row.path),
-                line: row.line,
+                line: minted_id.line,
                 backed: false,
                 retired: false,
             });
@@ -899,11 +879,11 @@ fn retired_obligation_flags(
                 .find(|target| &target.name == name)
         });
         let (archetype, section, id_column) = match target {
-            Some(target) => (
-                target.archetype.as_str(),
-                &target.section,
-                Some(target.id_column.as_str()),
-            ),
+            // Load validation admits only table-row targets here.
+            Some(target) => match target.id_column() {
+                Some(id_column) => (target.archetype.as_str(), &target.section, Some(id_column)),
+                None => continue,
+            },
             None => {
                 let (Some(archetype), Some(section)) =
                     (source.archetype.as_deref(), source.section.as_ref())

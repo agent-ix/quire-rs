@@ -54,7 +54,7 @@ impl<'a> DeclaredTarget<'a> {
     pub fn id(&self) -> &'a str {
         self.id
     }
-    /// Original table line, absent for a frontmatter-declared document.
+    /// Original row, list-item or heading line, absent for a frontmatter-declared document.
     pub fn line(&self) -> Option<usize> {
         self.line
     }
@@ -91,7 +91,7 @@ pub fn declared_target<'a>(
     document: &'a str,
     id: &'a str,
 ) -> Result<DeclaredTarget<'a>, InventoryLookupError> {
-    use crate::corpus::declared_tables::{self, DeclaredScope, ExcludeSet, ScanContext};
+    use crate::corpus::declared_tables::{self, ExcludeSet, ScanContext};
     let selection = inventory
         .selection()
         .ok_or(InventoryLookupError::SelectionMismatch)?;
@@ -109,27 +109,11 @@ pub fn declared_target<'a>(
         .iter()
         .find(|target| target.name == declaration_name)
         .ok_or(InventoryLookupError::UnknownIdentity)?;
-    let excluded = ExcludeSet::compile_validated(&declaration.exclude);
     let model_excluded = ExcludeSet::compile_validated(&model.exclude);
     let mut context = ScanContext::default();
-    let rows = declared_tables::scan(
-        spec,
-        root,
-        DeclaredScope {
-            name: &declaration.name,
-            archetype: &declaration.archetype,
-            exclude: &excluded,
-            model_exclude: &model_excluded,
-            mints: Some(&declaration.id_column),
-            status_column: None,
-            target_required: declaration.required,
-        },
-        &declaration.section,
-        &mut context,
-    );
-    let mut matching = rows.into_iter().filter(|row| {
-        crate::coverage::relative(root, &row.path) == document
-            && row.cell(&declaration.id_column) == Some(id)
+    let minted = declared_tables::mint(spec, root, declaration, &model_excluded, &mut context);
+    let mut matching = minted.into_iter().filter(|minted| {
+        crate::coverage::relative(root, &minted.path) == document && minted.id == id
     });
     let row = matching.next();
     let frontmatter =
