@@ -19,7 +19,8 @@
         "FR-008-AC-4",
         "FR-008-AC-10",
         "FR-008-AC-11",
-        "FR-008-AC-12"
+        "FR-008-AC-12",
+        "TC-025"
       ],
       "obligations": 6
     }
@@ -63,7 +64,8 @@
         "FR-008-AC-4",
         "FR-008-AC-10",
         "FR-008-AC-11",
-        "FR-008-AC-12"
+        "FR-008-AC-12",
+        "TC-025"
       ],
       "obligations": 6
     }
@@ -107,7 +109,8 @@
         "FR-008-AC-4",
         "FR-008-AC-10",
         "FR-008-AC-11",
-        "FR-008-AC-12"
+        "FR-008-AC-12",
+        "TC-025"
       ],
       "obligations": 6
     }
@@ -151,7 +154,8 @@
         "FR-008-AC-4",
         "FR-008-AC-10",
         "FR-008-AC-11",
-        "FR-008-AC-12"
+        "FR-008-AC-12",
+        "TC-025"
       ],
       "obligations": 6
     }
@@ -195,7 +199,8 @@
         "Rule-008-AC-4",
         "Rule-008-AC-10",
         "Rule-008-AC-11",
-        "Rule-008-AC-12"
+        "Rule-008-AC-12",
+        "TC-025"
       ],
       "obligations": 6
     }
@@ -236,7 +241,8 @@
     "expect": {
       "obligations": 1,
       "unbacked": [
-        "FR-275-AC-23"
+        "FR-275-AC-23",
+        "TC-201"
       ]
     }
   },

@@ -1,0 +1,91 @@
+[
+  {
+    "name": "criterion-tagged-outside-matrix-row",
+    "issue_ref": "agent-ix/quire-rs#467",
+    "tags": [
+      "PLAT-2",
+      "binding",
+      "coverage"
+    ],
+    "comment": "A tag on another test case must not back an acceptance criterion; the correctly paired test remains a control.",
+    "input": {
+      "module": "name: row-aware-binding\nversion: 0.1.0\nartifact_types:\n- name: FR\n- name: TestMatrix\ntraceability:\n  trace_targets:\n  - name: acceptance-criterion\n    archetype: FR\n    section: Acceptance Criteria\n    id_column: ID\n  - name: test-case\n    archetype: TestMatrix\n    section: Test Cases\n    id_column: ID\n  document_references:\n  - name: verification\n    archetype: FR\n    section: Acceptance Criteria\n    row_id_column: ID\n    column: Verification\n    pattern: '\\b(TC-\\d+)\\b'\n    targets: [test-case]\n  - name: traces-to\n    archetype: TestMatrix\n    section: Test Cases\n    row_id_column: ID\n    column: Traces To\n    pattern: '\\b((?:FR|TC)-\\d+(?:-AC-\\d+)?)\\b'\n    targets: [acceptance-criterion, test-case]\n  status:\n    column: Status\n    complete: [\"✅\"]\n    pending: [\"🚧\"]\n  obligations:\n  - name: acceptance-criteria\n    target: acceptance-criterion\n    statement_column: Criteria\n    method_column: Verification\n  trace_tags:\n    markers:\n    - name: rust-trace-attribute\n      language: rust\n      pattern: '#\\[trace\\(([^)]*)\\)\\]'\n      template: '#[trace({ids})]'\n",
+      "documents": {
+        "FR-001.md": "---\nid: FR-001\ntype: FR\n---\n\n## Acceptance Criteria\n\n| ID | Criteria | Verification |\n|---|---|---|\n| FR-001-AC-1 | The first behavior shall work. | Test (TC-001) |\n| FR-001-AC-2 | The second behavior shall work. | Test (TC-002) |\n",
+        "tests.md": "---\nid: TM-001\ntype: TestMatrix\n---\n\n## Test Cases\n\n| ID | Traces To | Status |\n|---|---|---|\n| TC-001 | FR-001-AC-1 | ✅ |\n| TC-002 | FR-001-AC-2 | 🚧 |\n| TC-003 | FR-001-AC-1 | 🚧 |\n"
+      },
+      "sources": {
+        "lib.rs": "#[cfg(test)]\nmod tests {\n    #[trace(\"TC-001\", \"FR-001-AC-1\")]\n    #[test]\n    fn tc001_first_behavior() {}\n\n    #[trace(\"TC-003\", \"FR-001-AC-2\")]\n    #[test]\n    fn tc002_wrong_row_for_second_behavior() {}\n}\n"
+      }
+    },
+    "expect": {
+      "backed": 3,
+      "total": 5,
+      "diagnostic_reasons": [
+        "criterion-tagged-outside-row"
+      ],
+      "criterion_backed": {
+        "FR-001-AC-1": true,
+        "FR-001-AC-2": false
+      }
+    }
+  },
+  {
+    "name": "criterion-tags-match-their-matrix-rows",
+    "issue_ref": "agent-ix/quire-rs#467",
+    "tags": [
+      "PLAT-2",
+      "binding",
+      "coverage"
+    ],
+    "comment": "Matching matrix rows back their criteria and emit no out-of-row diagnostic.",
+    "input": {
+      "module": "name: row-aware-binding\nversion: 0.1.0\nartifact_types:\n- name: FR\n- name: TestMatrix\ntraceability:\n  trace_targets:\n  - name: acceptance-criterion\n    archetype: FR\n    section: Acceptance Criteria\n    id_column: ID\n  - name: test-case\n    archetype: TestMatrix\n    section: Test Cases\n    id_column: ID\n  document_references:\n  - name: verification\n    archetype: FR\n    section: Acceptance Criteria\n    row_id_column: ID\n    column: Verification\n    pattern: '\\b(TC-\\d+)\\b'\n    targets: [test-case]\n  - name: traces-to\n    archetype: TestMatrix\n    section: Test Cases\n    row_id_column: ID\n    column: Traces To\n    pattern: '\\b((?:FR|TC)-\\d+(?:-AC-\\d+)?)\\b'\n    targets: [acceptance-criterion, test-case]\n  status:\n    column: Status\n    complete: [\"✅\"]\n    pending: [\"🚧\"]\n  obligations:\n  - name: acceptance-criteria\n    target: acceptance-criterion\n    statement_column: Criteria\n    method_column: Verification\n  trace_tags:\n    markers:\n    - name: rust-trace-attribute\n      language: rust\n      pattern: '#\\[trace\\(([^)]*)\\)\\]'\n      template: '#[trace({ids})]'\n",
+      "documents": {
+        "FR-001.md": "---\nid: FR-001\ntype: FR\n---\n\n## Acceptance Criteria\n\n| ID | Criteria | Verification |\n|---|---|---|\n| FR-001-AC-1 | The first behavior shall work. | Test (TC-001) |\n| FR-001-AC-2 | The second behavior shall work. | Test (TC-002) |\n",
+        "tests.md": "---\nid: TM-001\ntype: TestMatrix\n---\n\n## Test Cases\n\n| ID | Traces To | Status |\n|---|---|---|\n| TC-001 | FR-001-AC-1 | ✅ |\n| TC-002 | FR-001-AC-2 | 🚧 |\n| TC-003 | FR-001-AC-1 | 🚧 |\n"
+      },
+      "sources": {
+        "lib.rs": "#[cfg(test)]\nmod tests {\n    #[trace(\"TC-001\", \"FR-001-AC-1\")]\n    #[test]\n    fn tc001_first_behavior() {}\n\n    #[trace(\"TC-002\", \"FR-001-AC-2\")]\n    #[test]\n    fn tc002_wrong_row_for_second_behavior() {}\n}\n"
+      }
+    },
+    "expect": {
+      "backed": 4,
+      "total": 5,
+      "diagnostic_reasons": [],
+      "criterion_backed": {
+        "FR-001-AC-1": true,
+        "FR-001-AC-2": true
+      },
+      "absent_diagnostic_reasons": [
+        "criterion-tagged-outside-row"
+      ]
+    }
+  },
+  {
+    "name": "a-matching-row-needs-evidence-for-every-criterion",
+    "issue_ref": "agent-ix/quire-rs#467",
+    "tags": ["PLAT-2", "binding", "coverage"],
+    "comment": "A test row that cites two criteria is unbacked when evidence names only one of them.",
+    "input": {
+      "module": "name: row-aware-binding\nversion: 0.1.0\nartifact_types:\n- name: FR\n- name: TestMatrix\ntraceability:\n  trace_targets:\n  - name: acceptance-criterion\n    archetype: FR\n    section: Acceptance Criteria\n    id_column: ID\n  - name: test-case\n    archetype: TestMatrix\n    section: Test Cases\n    id_column: ID\n  document_references:\n  - name: verification\n    archetype: FR\n    section: Acceptance Criteria\n    row_id_column: ID\n    column: Verification\n    pattern: '\\b(TC-\\d+)\\b'\n    targets: [test-case]\n  - name: traces-to\n    archetype: TestMatrix\n    section: Test Cases\n    row_id_column: ID\n    column: Traces To\n    pattern: '\\b((?:FR|TC)-\\d+(?:-AC-\\d+)?)\\b'\n    targets: [acceptance-criterion, test-case]\n  status:\n    column: Status\n    complete: [\"✅\"]\n    pending: [\"🚧\"]\n  obligations:\n  - name: acceptance-criteria\n    target: acceptance-criterion\n    statement_column: Criteria\n    method_column: Verification\n  trace_tags:\n    markers:\n    - name: rust-trace-attribute\n      language: rust\n      pattern: '#\\[trace\\(([^)]*)\\)\\]'\n      template: '#[trace({ids})]'\n",
+      "documents": {
+        "FR-001.md": "---\nid: FR-001\ntype: FR\n---\n\n## Acceptance Criteria\n\n| ID | Criteria | Verification |\n|---|---|---|\n| FR-001-AC-1 | The first behavior shall work. | Test (TC-001) |\n| FR-001-AC-2 | The second behavior shall work. | Test (TC-001) |\n",
+        "tests.md": "---\nid: TM-001\ntype: TestMatrix\n---\n\n## Test Cases\n\n| ID | Traces To | Status |\n|---|---|---|\n| TC-001 | FR-001-AC-1, FR-001-AC-2 | 🚧 |\n"
+      },
+      "sources": {
+        "lib.rs": "#[cfg(test)]\nmod tests {\n    #[trace(\"TC-001\", \"FR-001-AC-1\")]\n    #[test]\n    fn only_the_first_of_two_row_criteria_is_backed() {}\n}\n"
+      }
+    },
+    "expect": {
+      "backed": 2,
+      "total": 3,
+      "criterion_backed": {
+        "FR-001-AC-1": true,
+        "FR-001-AC-2": false
+      },
+      "diagnostic_reasons": [],
+      "unbacked_rows": ["FR-001-AC-2", "TC-001"]
+    }
+  }
+]

@@ -370,6 +370,7 @@
   "diagnostic_reason_registry": [
     "archetype-matches-nothing",
     "catch-all-universal",
+    "criterion-tagged-outside-row",
     "hollow-denominator",
     "id-column-matches-nothing",
     "low-symbol-binding",
