@@ -263,7 +263,7 @@ mod tests {
         assert_eq!(module_path_env(None, None), None);
     }
 
-    #[trace("FR-013-AC-18")]
+    #[trace("TC-2050", "FR-013-AC-18")]
     // PLAT-106: env roots extend the default install root, as quire-cli does.
     #[test]
     fn env_roots_keep_default_root() {

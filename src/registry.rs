@@ -1686,7 +1686,7 @@ roles:
         assert_eq!(alt.status.as_ref().unwrap().column, "State");
     }
 
-    #[trace("FR-013-AC-19")]
+    #[trace("TC-2051", "FR-013-AC-19")]
     // PLAT-323: a module whose manifest carries a key this engine does not
     // know fails every constructor loudly, naming module, version and key,
     // instead of yielding an empty model.
@@ -1742,7 +1742,7 @@ roles:
         check(inline, "zzz", "7.7.7");
     }
 
-    #[trace("FR-013-AC-19")]
+    #[trace("TC-2051", "FR-013-AC-19")]
     // Keys owned by other tools stay loadable as opaque values.
     #[test]
     fn foreign_owned_top_level_keys_still_load() {

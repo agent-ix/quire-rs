@@ -60,7 +60,7 @@ fn error<T>(result: Result<T, quire_bench::BenchError>) -> String {
     }
 }
 
-#[trace("FR-050-AC-52")]
+#[trace("TC-2052", "FR-050-AC-52")]
 #[test]
 fn modified_tracked_file_refuses_and_clean_checkout_is_accepted() {
     let root = tempfile::tempdir().unwrap();
@@ -73,7 +73,7 @@ fn modified_tracked_file_refuses_and_clean_checkout_is_accepted() {
     );
 }
 
-#[trace("FR-050-AC-52")]
+#[trace("TC-2052", "FR-050-AC-52")]
 #[test]
 fn absent_path_and_non_checkout_refuse() {
     let root = tempfile::tempdir().unwrap();
@@ -85,7 +85,7 @@ fn absent_path_and_non_checkout_refuse() {
     );
 }
 
-#[trace("FR-050-AC-52")]
+#[trace("TC-2052", "FR-050-AC-52")]
 #[test]
 fn nested_directory_follows_its_enclosing_checkout() {
     let root = tempfile::tempdir().unwrap();
@@ -98,7 +98,7 @@ fn nested_directory_follows_its_enclosing_checkout() {
     );
 }
 
-#[trace("FR-050-AC-52")]
+#[trace("TC-2052", "FR-050-AC-52")]
 #[test]
 fn normal_run_skips_a_dirty_entry_and_strict_run_fails_naming_it() {
     let root = tempfile::tempdir().unwrap();
@@ -115,7 +115,7 @@ fn normal_run_skips_a_dirty_entry_and_strict_run_fails_naming_it() {
     );
 }
 
-#[trace("FR-050-AC-52")]
+#[trace("TC-2052", "FR-050-AC-52")]
 #[test]
 fn module_source_rules_apply_when_an_entry_reads_the_default_module() {
     let root = tempfile::tempdir().unwrap();

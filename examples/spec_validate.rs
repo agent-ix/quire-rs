@@ -84,6 +84,29 @@ fn load_provider_registry(providers: &ProviderRoots) -> Result<Registry, String>
     if registry.module_names().next().is_none() {
         return Err("no modules found in the declared schema providers".to_string());
     }
+    // A schema that fails to load drops its archetype from the registry, which
+    // every document of that type would then report as "unknown type". Fail
+    // here, naming each archetype and its load reason.
+    if !registry.failures().is_empty() {
+        let causes: Vec<String> = registry
+            .failures()
+            .iter()
+            .map(|f| {
+                format!(
+                    "  {}::{} ({}): {}",
+                    f.module,
+                    f.archetype,
+                    f.path.display(),
+                    f.reason
+                )
+            })
+            .collect();
+        return Err(format!(
+            "spec_validate: schema providers did not load cleanly ({} archetype failure(s)):\n{}",
+            causes.len(),
+            causes.join("\n")
+        ));
+    }
     Ok(registry)
 }
 
@@ -302,6 +325,24 @@ fn main() {
         }
     }
 
+    // ── Audit-table completeness (FR-050-AC-58, CR-200) ──
+    // Per-document validation cannot see a row that is absent: a coverage row
+    // declaring `AC-1..N` over an audit table lacking one criterion's row
+    // validates cell by cell. The matrix and the requirement documents are
+    // read together.
+    match quire_rs::audit_table::audit_spec_dir(&root.join("spec")) {
+        Ok(gaps) => {
+            for gap in gaps {
+                eprintln!("error: spec/tests.md: audit table: {gap}");
+                failed_documents += 1;
+            }
+        }
+        Err(error) => {
+            eprintln!("error: audit table: {error}");
+            failed_documents += 1;
+        }
+    }
+
     for path in &skipped_untyped {
         println!("skipped (untyped, not validated): {path}");
     }
@@ -324,7 +365,7 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use super::{load_provider_registry, parse_provider_roots};
+    use super::{load_provider_registry, parse_provider_roots, ProviderRoots};
     use std::ffi::OsString;
     use std::path::Path;
 
@@ -383,5 +424,41 @@ mod tests {
             panic!("missing named provider must fail");
         };
         assert!(error.contains("module directory missing"));
+    }
+
+    /// A provider whose archetype fails to load is a
+    /// loud load error naming the archetype, never a downstream "unknown type".
+    #[test]
+    fn archetype_load_failure_is_reported_not_swallowed() {
+        let scratch = tempfile::tempdir().expect("scratch providers");
+        let process_root = scratch.path().join("process-repo");
+        let iso_root = scratch.path().join("iso-repo");
+        write_module(
+            &process_root.join("spec_artifacts_process"),
+            "spec-artifacts-process",
+            "ProcessOnly",
+        );
+        write_module(
+            &iso_root.join("spec_artifacts_iso"),
+            "spec-artifacts-iso",
+            "IsoOnly",
+        );
+        std::fs::remove_file(
+            iso_root
+                .join("spec_artifacts_iso")
+                .join("schemas/schema.json"),
+        )
+        .expect("break the schema");
+        let providers = ProviderRoots {
+            process: process_root,
+            iso: iso_root,
+        };
+        let Err(error) = load_provider_registry(&providers) else {
+            panic!("a provider archetype that fails to load must fail the gate");
+        };
+        assert!(error.contains("did not load cleanly"), "{error}");
+        assert!(error.contains("spec-artifacts-iso::IsoOnly"), "{error}");
+        assert!(error.contains("schemas/schema.json"), "{error}");
+        assert!(error.contains("No such file or directory"), "{error}");
     }
 }

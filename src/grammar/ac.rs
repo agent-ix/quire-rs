@@ -369,15 +369,27 @@ fn find_closing_run(body: &str, ticks: usize) -> Option<usize> {
 }
 
 /// True when the statement has a **predicate** — a modal or copula, an inflected
-/// or irregular verb form, a declared observable verb, a concrete signal, or an
-/// elided-copula predication (CR-019). This is the structural question
-/// `unclassifiable` asks after CR-014, and it is deliberately independent of any
-/// domain vocabulary being complete.
+/// or irregular verb form, a declared observable verb, a concrete signal, an
+/// elided-copula predication (CR-019), or an imperative head (CR-202). This is
+/// the structural question `unclassifiable` asks after CR-014, and it is
+/// deliberately independent of any domain vocabulary being complete.
 ///
-/// On the corpus this is a weak test — 99.6% of cells satisfy it, 23.4% via the
-/// `-s`/`-ed`/`-ing` branch alone, which cannot tell a verb from a plural noun.
-/// FR-047 describes what it actually catches; do not read the name as a claim
-/// that a finite verb was found (agent-ix/quire-rs#19).
+/// This is a **bare-fragment heuristic**, not a finite-verb test: the
+/// `-s`/`-ed`/`-ing` branch cannot tell a verb from a plural noun, and a digit
+/// or backtick anywhere counts as a signal. It is therefore hard to fail. On a
+/// clean frame of 27,214 `Criteria` cells it fires on 49 (0.18%), so about
+/// 99.8% pass — mostly because the corpus is real sentences, not because the
+/// predicate is sharp. Of those 49 findings 38 are true (bare headings and
+/// field names such as `Structural evaluation`, `Task ID`). The imperative-head
+/// branch clears 3 false positives (49 -> 46, no true positive lost); the rest
+/// still fire: imperatives with no preposition, a verb outside the closed list,
+/// Title-Case imperatives, and predicative `-able`/`-ible` adjectives (rejected
+/// as a branch, CR-019). A stricter "not first/last token" variant was
+/// measured and flags far more valid predicates, and real POS tagging is out of
+/// scope for a deterministic engine; "can this criterion fail" belongs to
+/// criterion-strength analysis. FR-047 describes what this catches; do not read
+/// the name as a claim that a finite verb was found (agent-ix/quire-rs#19,
+/// PLAT-395).
 fn has_predicate(statement: &str, vocab: GrammarVocabularies<'_>) -> bool {
     let normalized = ears::normalize(statement);
     carries_signal(&normalized, vocab)
@@ -385,6 +397,7 @@ fn has_predicate(statement: &str, vocab: GrammarVocabularies<'_>) -> bool {
         || re_inflected_verb().is_match(&normalized)
         || re_irregular_past().is_match(&normalized)
         || re_elided_copula().is_match(&normalized)
+        || re_imperative_head().is_match(&normalized)
 }
 
 // ─── Classification ─────────────────────────────────────────────────────────
@@ -772,6 +785,29 @@ fn re_elided_copula() -> &'static Regex {
             r"(?i)(^\s*(no|none|neither|only|exactly|at most|at least)\b|\b(present|absent|missing|visible|hidden|identical|independent|equal|equivalent|unique|empty|non-empty|consistent|idempotent|deterministic|available|unavailable|immutable|atomic|monotonic|stable|reachable|unreachable|distinct|sorted|ordered|unchanged)\b)",
         )
         .expect("elided-copula regex")
+    })
+}
+
+/// An **imperative head** (CR-202): a cell that opens with a base-form action
+/// verb and then names an object and a prepositional complement
+/// (`Attach job to scenario version`, `Add service to scenario version`). The
+/// verb has no inflection, so none of the morphological branches see it.
+///
+/// Deliberately narrow so a bare heading keeps firing: the verb list is closed
+/// and omits words that are as often nouns (`list`, `test`, `type`, `check`,
+/// `set`, `update`, `view`, `run`, `link`), and the cell must also carry an
+/// object word followed by a preposition, which a title such as `Type Check`
+/// or `List Replace` never does. The object word must be lower-case, so a
+/// Title-Case heading (`Add Item To Cart`) keeps firing; the verb list also
+/// omits noun-like verbs (`copy`, `move`, `merge`, `split`, `upload`,
+/// `download`, `install`, `cancel`).
+fn re_imperative_head() -> &'static Regex {
+    static R: OnceLock<Regex> = OnceLock::new();
+    R.get_or_init(|| {
+        Regex::new(
+            r"^\s*(?i:add|attach|detach|remove|delete|create|assign|unassign|rename|register|unregister|enable|disable|restore|send|fetch|retrieve|reject|accept|validate|verify|apply|unlink|publish|revoke|grant|insert|append|prepend|replace|resolve|emit)\s+[a-z]\S*(\s+\S+)*?\s+(?:to|from|into|onto|in|on|with|for|by|at|of|under|between|against)\s+\S",
+        )
+        .expect("imperative-head regex")
     })
 }
 
@@ -1464,6 +1500,42 @@ mod tests {
             assert_eq!(count(&[s], "unclassifiable"), 1, "{s}");
             assert_eq!(classify(s, v), AcShape::Unstructured, "{s}");
         }
+    }
+
+    #[trace("TC-2070", "FR-047-AC-19")]
+    // an imperative head (base-form action verb, object, prepositional
+    // complement) is a predicate (CR-202, PLAT-395); bare headings still fire.
+    #[test]
+    fn tc2070_imperative_head_is_a_predicate() {
+        let (lx, vb, vc) = (empty_lex(), verbs(), vacuities());
+        let v = vocab(&lx, &vb, &vc);
+
+        for s in [
+            "Attach job to scenario version",
+            "Add service to scenario version",
+            "Remove stale token from session",
+        ] {
+            assert_eq!(count(&[s], "unclassifiable"), 0, "{s}");
+            assert_eq!(classify(s, v), AcShape::Assertion, "{s}");
+        }
+
+        for s in [
+            "Structural evaluation",
+            "Task ID",
+            "Type Check",
+            "Add",
+            "Attach job",
+            "Add Item To Cart",
+        ] {
+            assert_eq!(count(&[s], "unclassifiable"), 1, "{s}");
+            assert_eq!(classify(s, v), AcShape::Unstructured, "{s}");
+        }
+        // The branch itself stays narrow: a noun-like verb is not in the list,
+        // and a Title-Case object word is not a sentence-case imperative.
+        let r = re_imperative_head();
+        assert!(!r.is_match("Download of artifacts from registry"));
+        assert!(!r.is_match("Add Item To Cart"));
+        assert!(r.is_match("Add service to scenario version"));
     }
 
     #[trace("TC-761", "FR-047-AC-13")]

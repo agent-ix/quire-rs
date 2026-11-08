@@ -80,7 +80,9 @@ violates a check:
 1. **unclassifiable** — the statement carries **no predicate marker at all**: no
    modal or copula, no inflected verb form, no irregular past form, no
    elided-copula predication (an existential/quantifier head or a predicative
-   adjective — CR-019), no declared observable-result verb, and no
+   adjective — CR-019), no imperative head (a base-form action verb, an object
+   and a prepositional complement, such as `Attach job to scenario version` —
+   CR-202), no declared observable-result verb, and no
    concrete-object signal. A bare noun phrase (`Structural evaluation`,
    `Type Check`), a bolded heading (`**Key Generation**`) or a dangling prose
    fragment (`Current validation note:`) authored into a `Criteria` column
@@ -98,7 +100,11 @@ violates a check:
    not establish, that a passing cell states a testable outcome. The 5,187 → 87
    drop CR-014 reported is predominantly the test becoming easier to satisfy,
    not a precision improvement; the honest statement of CR-014's effect is that
-   it exchanged one signal for a much narrower one. See CR-019.
+   it exchanged one signal for a much narrower one. See CR-019. Re-measured on a
+   clean frame of 27,214 cells (CR-202) the check fires on 49 (0.18%), so about
+   99.8% pass — largely because the corpus is real sentences. A stricter
+   candidate was measured and flags mostly valid predicates; judging whether a
+   criterion *can fail* is criterion-strength analysis, not this check.
 2. **non-singular** — the statement bundles more than one independent
    obligation: more than one `shall`, or more than one `Then` clause. A single
    criterion pairing one positive and one negative case of the same behavior
@@ -516,6 +522,21 @@ the active bundle. The summary parser SHALL group findings by the generic
 prefix `[<grammar>:<check>]` — replacing the hardcoded `[ears:` prefix — so
 the histogram covers every grammar and check.
 
+> **CR-202 note (PLAT-395):** The `has_predicate` doc comment still cited CR-019's
+> 99.6% / 23.4% figures. Re-measured on a clean 27,214-cell frame, `unclassifiable`
+> fired on 49 cells (0.18%), 38 of them true positives (bare headings, field
+> names). The check gains a narrow **imperative head** branch
+> (`re_imperative_head`, FR-047-AC-19, TC-2070): a closed list of base-form action
+> verbs, a lower-case object word and a preposition, deliberately omitting words
+> that are as often nouns. Measured effect: 49 -> 46 findings, no true positive
+> stops firing, and 3 false positives clear (`Add service to scenario version`,
+> `Attach dataset reference to scenario`, `Attach job to scenario version`).
+> Still firing as false positives: imperatives with no preposition, verbs outside
+> the list, Title-Case imperatives, and predicative `-able`/`-ible` adjectives
+> (that branch stays rejected, CR-019). A stronger candidate (inflected word not
+> first/last token) newly flagged 0.39% of cells, mostly valid predicates, so it
+> was not adopted. The check remains a bare-fragment heuristic.
+
 ## Constraints
 
 | ID | Constraint | Type | Validation |
@@ -545,6 +566,7 @@ the histogram covers every grammar and check.
 | FR-047-AC-16 | `Then` counts as an obligation separator only in a `given-when-then` criterion that states no modal (CR-024): a precedence chain (``resolves safeStorage first, then `GITHUB_TOKEN`, then `undefined` ``) yields no `non-singular` finding, while a `Given`/`When`/`Then` cell with two `Then` clauses still yields one. | Test (TC-776) |
 | FR-047-AC-17 | A vacuous predicate that is also a common noun does not fire on the noun (CR-025): a criterion reading `the code functions that implement it` yields no `vacuous-outcome` finding, while the qualified predicate (`functions independently of exporters`) still yields one. | Test (TC-777) |
 | FR-047-AC-18 | A backtick run masks to its matching run (CR-026): a criterion quoting a modal inside a double-tick span classifies `assertion` and yields no `non-singular` or `non-canonical-shape` finding, while an unbalanced run opens no span and leaves a following unquoted modal counted. | Test (TC-778) |
+| FR-047-AC-19 | A cell that opens with a base-form action verb from a closed list and carries a lower-case object word followed by a preposition (`Attach job to scenario version`, `Add service to scenario version`) is a predicate: it classifies `assertion` and yields no `unclassifiable` finding, while a bare heading or field name (`Structural evaluation`, `Task ID`, `Type Check`), and a verb without a complement (`Attach job`) each still classify `unstructured` and yield one. | Test (TC-2070) |
 
 ## Dependencies
 

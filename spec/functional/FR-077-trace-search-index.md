@@ -93,7 +93,7 @@ a Python hit with the same evidentiary weight as a Rust one.
 |----|-----------|------|------------|
 | FR-077-CON-1 | The query/index layer (`src/symbols/trace_search.rs`) SHALL NOT declare or match any trace-tag-shaped regex; it reads only the data `src/symbols/trace.rs` already computed. No trace-form regex lives outside `trace.rs`. | Design | Inspection |
 | FR-077-CON-2 | This requirement SHALL NOT execute, build, or type-resolve the extracted code, inheriting FR-051-CON-1. | Design | Inspection |
-| FR-077-CON-3 | The `mentions` scan SHALL NOT mask string-literal content — an id-shaped token inside a string literal is reported as a citation, not hidden. This is deliberately narrower than the existing legacy-form masking on the `verifies`/`non_binding_tags` claim paths, which stays unchanged: hiding an id the caller asked about is the failure mode this scan exists to avoid. | Test (TC-1894) |
+| FR-077-CON-3 | The `mentions` scan SHALL NOT mask string-literal content — an id-shaped token inside a string literal is reported as a citation, not hidden. This is deliberately narrower than the existing legacy-form masking on the `verifies`/`non_binding_tags` claim paths, which stays unchanged: hiding an id the caller asked about is the failure mode this scan exists to avoid. | Design | Test (TC-1894) |
 
 ## Dependencies
 
