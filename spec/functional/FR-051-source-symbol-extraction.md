@@ -188,7 +188,7 @@ byte-identical JSON ordering and stable record ids.
 > `rust-symbols` yields "a build-configuration diagnostic" is superseded by
 > this note. Coverage, trace search and the assurance export refuse the same way: FR-050-AC-59, FR-077-AC-7 and FR-067-AC-8 own those behaviours; AC-29 and AC-30 own the extraction and graph-record halves, and the statement above now says a build may lack an adapter instead of promising all three unconditionally.
 
-> **CR-203 note (2026-11-08, PLAT-876):** the boundary crate
+> **CR-204 note (2026-11-08, PLAT-876):** the boundary crate
 > `crates/quire-rust-extraction` is renamed `crates/quire-code-extraction`
 > (lib `quire_code_extraction`): it has wrapped all three grammars since
 > PLAT-851 and is no longer Rust-specific. Every reference in this document,
