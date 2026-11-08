@@ -320,6 +320,14 @@ coverage-baseline-update:
 # those two modules through the registry's closed-set API.
 # The Phase-7 assurance documents are named one-by-one in the governed
 # exclusion file; no new or renamed document can disappear from validation.
+#
+# Minimum to run from a plain checkout or worktree: a checkout of each provider
+# repository on its `main` branch (CI does exactly this), passed as
+#   make validate VALIDATION_PROCESS_ROOT=<path> VALIDATION_ISO_ROOT=<path>
+# The `../spec-artifacts-*` defaults only resolve for a sibling checkout, not
+# from a `worktrees/` subdirectory. A provider on a stale branch whose
+# manifests the engine rejects now fails with the per-archetype load reason
+# (PLAT-1091), not with one "unknown type" line per document.
 VALIDATION_PROCESS_ROOT ?= ../spec-artifacts-process
 VALIDATION_ISO_ROOT ?= ../spec-artifacts-iso
 .PHONY: validate
