@@ -139,6 +139,7 @@ impl Registry {
     /// the absent manifest.
     pub fn load_module(module_root: &Path) -> Result<Self, QuireError> {
         let outcome = crate::loader::load_single_module(module_root);
+        Self::fail_on_unreadable_manifest(&outcome)?;
         Ok(Self::finish_tolerant(outcome))
     }
 
@@ -174,6 +175,7 @@ impl Registry {
     /// declaring the same module name still collide and still diagnose.
     pub fn load_module_set(module_roots: &[&Path]) -> Result<Self, QuireError> {
         let outcome = crate::loader::load_module_set(module_roots);
+        Self::fail_on_unreadable_manifest(&outcome)?;
         Ok(Self::finish_tolerant(outcome))
     }
 
@@ -238,6 +240,34 @@ impl Registry {
     ) -> Result<Self, QuireError> {
         let outcome = crate::loader::load_inline_module(manifest_yaml, schemas);
         Self::finish_strict(outcome)
+    }
+
+    /// A caller that names a module directory exactly asked for that module.
+    /// If its `manifest.yaml` exists but does not parse (for example a key
+    /// from a newer engine), returning an empty registry would let the model
+    /// silently mint nothing, so the parse failure is fatal and names the
+    /// module and its declared version.
+    fn fail_on_unreadable_manifest(outcome: &crate::loader::LoadOutcome) -> Result<(), QuireError> {
+        let unreadable = outcome.failures.iter().find(|f| {
+            f.archetype == "<manifest>"
+                && f.path.is_file()
+                && !outcome
+                    .modules
+                    .iter()
+                    .any(|m| f.path.parent() == Some(m.root.as_path()))
+        });
+        let Some(f) = unreadable else {
+            return Ok(());
+        };
+        let version = std::fs::read(&f.path)
+            .ok()
+            .and_then(|b| serde_yaml::from_slice::<serde_yaml::Value>(&b).ok())
+            .and_then(|v| v.get("version").and_then(|v| v.as_str().map(str::to_owned)))
+            .unwrap_or_else(|| "<undeclared>".to_string());
+        Err(QuireError::ManifestError {
+            path: f.path.clone(),
+            message: format!("module `{}` version {version}: {}", f.module, f.reason),
+        })
     }
 
     fn finish_tolerant(outcome: crate::loader::LoadOutcome) -> Self {
@@ -1105,7 +1135,10 @@ lint_rules:
             "name: mod-lint-bad\nartifact_types: []\nlint_rules:\n- type: bogus_rule\n  id: x\n",
         )
         .unwrap();
-        let r = Registry::load_module(&module_root).expect("tolerant");
+        let err = Registry::load_module(&module_root).expect_err("named module must fail loud");
+        assert!(err.to_string().contains("bogus_rule"));
+        // A search root stays tolerant: the broken module is a recorded failure.
+        let r = Registry::load_from(&[&parent]).expect("tolerant");
         assert_eq!(r.module_names().count(), 0);
         assert_eq!(r.failures().len(), 1);
     }
@@ -1672,6 +1705,26 @@ roles:
             .expect("declared model");
         assert!(alt.target("clause").is_some());
         assert_eq!(alt.status.as_ref().unwrap().column, "State");
+    }
+
+    // PLAT-323: an explicitly named module whose manifest carries a key this
+    // engine does not know fails the load, naming the key and module version,
+    // instead of yielding an empty registry.
+    #[test]
+    fn named_module_with_future_manifest_key_fails_loud() {
+        let p = tmpdir("future-key");
+        let m = p.join("m");
+        write_vocab_module(
+            &m,
+            "m",
+            "version: 9.9.9\ntraceability:\n  a_future_key: [x]\n",
+        );
+        let err = Registry::load_module(&m).expect_err("must fail loud");
+        let msg = err.to_string();
+        assert!(msg.contains("a_future_key"), "{msg}");
+        assert!(msg.contains("9.9.9"), "{msg}");
+        let err = Registry::load_module_set(&[&m]).expect_err("must fail loud");
+        assert!(err.to_string().contains("a_future_key"));
     }
 
     #[trace("TC-733", "FR-050-AC-2")]

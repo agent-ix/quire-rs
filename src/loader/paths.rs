@@ -70,21 +70,21 @@ pub fn expand_tilde<P: AsRef<Path>>(path: P) -> PathBuf {
 /// expansion) plus optional explicit overrides.
 ///
 /// `explicit` wins when non-empty; otherwise the caller-supplied `env_value`
-/// (see [`module_path_env`]) is read; otherwise the default
-/// `~/.ix/filament/modules/` ([`default_module_root`]) is returned.
+/// (see [`module_path_env`]) roots are read, followed by the default
+/// `$IX_HOME/filament/modules/` ([`default_module_root`]), which the env value
+/// extends rather than replaces.
 pub fn resolve_search_paths(
     explicit: &[&Path],
     env_value: Option<OsString>,
 ) -> Vec<PathDiagnostic> {
     let candidates: Vec<PathBuf> = if !explicit.is_empty() {
         explicit.iter().map(|p| p.to_path_buf()).collect()
-    } else if let Some(env) = env_value {
-        split_colon_paths(&env)
     } else {
-        match default_module_root() {
-            Some(root) => vec![root],
-            None => Vec::new(),
-        }
+        let mut roots = env_value
+            .map(|e| split_search_paths(&e))
+            .unwrap_or_default();
+        roots.extend(default_module_root());
+        roots
     };
 
     let mut diags: Vec<PathDiagnostic> = Vec::new();
@@ -120,13 +120,11 @@ fn classify(path: &Path) -> PathDiagnostic {
     }
 }
 
-/// Split a colon-separated path string into `PathBuf`s. Empty entries
+/// Split a platform-separated path string into `PathBuf`s. Empty entries
 /// (consecutive `:`s or leading/trailing) are dropped.
-fn split_colon_paths(s: &OsString) -> Vec<PathBuf> {
-    let s = s.to_string_lossy();
-    s.split(':')
-        .filter(|p| !p.is_empty())
-        .map(PathBuf::from)
+fn split_search_paths(s: &OsString) -> Vec<PathBuf> {
+    std::env::split_paths(s)
+        .filter(|p| !p.as_os_str().is_empty())
         .collect()
 }
 
@@ -151,10 +149,19 @@ pub fn module_root_under(ix_home: Option<OsString>, home: Option<PathBuf>) -> Op
     Some(root.join("filament").join("modules"))
 }
 
-/// Select the module-search env value: `IX_FILAMENT_MODULES_PATH` takes
-/// precedence over the legacy `IX_SCHEMA_PATH` alias (kept for back-compat).
+/// Select the module-search env value: the roots of `IX_FILAMENT_MODULES_PATH`
+/// followed by those of `IX_SCHEMA_PATH` (both are honoured, as `quire-cli`
+/// does).
 pub fn module_path_env(filament: Option<OsString>, schema: Option<OsString>) -> Option<OsString> {
-    filament.or(schema)
+    match (filament, schema) {
+        (Some(f), Some(s)) => {
+            let mut joined = f;
+            joined.push(":");
+            joined.push(s);
+            Some(joined)
+        }
+        (f, s) => f.or(s),
+    }
 }
 
 /// Cross-platform home-dir lookup. Falls back to `HOME` / `USERPROFILE`
@@ -234,10 +241,10 @@ mod tests {
     }
 
     #[test]
-    fn module_path_env_prefers_filament_over_schema_alias() {
+    fn module_path_env_unions_both_variables() {
         assert_eq!(
             module_path_env(Some(OsString::from("/a")), Some(OsString::from("/b"))),
-            Some(OsString::from("/a"))
+            Some(OsString::from("/a:/b"))
         );
         assert_eq!(
             module_path_env(None, Some(OsString::from("/b"))),
@@ -246,9 +253,36 @@ mod tests {
         assert_eq!(module_path_env(None, None), None);
     }
 
+    // PLAT-106: env roots extend the default install root, as quire-cli does.
     #[test]
-    fn split_colon_paths_drops_empties() {
-        let v = split_colon_paths(&OsString::from("/a::/b:/c:"));
+    fn env_roots_keep_default_root() {
+        let a = env::temp_dir().join(format!("quire-rs-roots-a-{}", std::process::id()));
+        let b = env::temp_dir().join(format!("quire-rs-roots-b-{}", std::process::id()));
+        std::fs::create_dir_all(&a).unwrap();
+        std::fs::create_dir_all(&b).unwrap();
+        let env_value = module_path_env(
+            Some(a.clone().into_os_string()),
+            Some(b.clone().into_os_string()),
+        );
+        let diags = resolve_search_paths(&[], env_value);
+        let paths: Vec<PathBuf> = diags
+            .iter()
+            .map(|d| match d {
+                PathDiagnostic::Ok(p) => p.clone(),
+                PathDiagnostic::Missing(p) | PathDiagnostic::NotADirectory(p) => p.clone(),
+                PathDiagnostic::Unreadable { path, .. } => path.clone(),
+            })
+            .collect();
+        let _ = std::fs::remove_dir_all(&a);
+        let _ = std::fs::remove_dir_all(&b);
+        assert_eq!(paths[0], std::fs::canonicalize(&a).unwrap_or(a));
+        assert_eq!(paths[1], std::fs::canonicalize(&b).unwrap_or(b));
+        assert_eq!(paths.get(2), default_module_root().as_ref());
+    }
+
+    #[test]
+    fn split_search_paths_drops_empties() {
+        let v = split_search_paths(&OsString::from("/a::/b:/c:"));
         assert_eq!(
             v,
             vec![
@@ -278,8 +312,12 @@ mod tests {
         let tmp = env::temp_dir();
         let s = format!("{}:{}", tmp.display(), tmp.display());
         let diags = resolve_search_paths(&[], Some(OsString::from(s)));
-        let oks: Vec<_> = diags.iter().filter(|d| d.is_ok()).collect();
-        assert_eq!(oks.len(), 1);
+        let canon = std::fs::canonicalize(&tmp).unwrap();
+        let hits = diags
+            .iter()
+            .filter(|d| matches!(d, PathDiagnostic::Ok(p) if *p == canon))
+            .count();
+        assert_eq!(hits, 1);
     }
 
     #[test]
