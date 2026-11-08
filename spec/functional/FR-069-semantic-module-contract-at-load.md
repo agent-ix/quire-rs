@@ -145,7 +145,7 @@ Filament extraction API:
 - If a `FilamentObjectType` snapshot carries a reference-form `data_schema`,
   then the engine SHALL refuse the snapshot with
   `semantic.data-schema-unresolved-reference` and produce no node for that
-  archetype; the caller owning the registry resolves the schema.
+  object type; the caller owning the registry resolves the schema.
 - If a snapshot's `semantic.contractVersion` is
   unsupported, then the engine SHALL refuse the snapshot with the code above
   before any node is produced.
