@@ -281,6 +281,15 @@ impl Outcome {
     }
 }
 
+/// True for a cookiecutter placeholder directory name, e.g.
+/// `{{cookiecutter.repo_name}}`. Such a tree is generated-project scaffolding:
+/// its placeholder ids collide with the repository's real ids, so both the
+/// document loader and the symbol walk prune it below the walk root.
+pub(crate) fn is_template_dir(name: &std::ffi::OsStr) -> bool {
+    name.to_str()
+        .is_some_and(|n| n.starts_with("{{") && n.ends_with("}}"))
+}
+
 pub(crate) fn discover_files(root: &Path, opts: &WalkOptions) -> Vec<PathBuf> {
     discover_files_observed(root, opts).files
 }
@@ -304,6 +313,12 @@ pub(crate) fn discover_files_observed(root: &Path, opts: &WalkOptions) -> Discov
         // (the default `require_git(true)` would otherwise ignore it).
         .require_git(false)
         .follow_links(false); // never follow symlinks → no loop risk (FR-024-AC-5)
+                              // Cookiecutter template trees below the root are not this repo's documents.
+    builder.filter_entry(|e| {
+        !(e.depth() > 0
+            && e.file_type().is_some_and(|t| t.is_dir())
+            && is_template_dir(e.file_name()))
+    });
 
     let mut files = Vec::new();
     let mut errors = Vec::new();
@@ -455,6 +470,26 @@ mod tests {
             fs::create_dir_all(parent).unwrap();
         }
         fs::write(path, body).unwrap();
+    }
+
+    // Regression: a cookiecutter template tree below the root holds placeholder
+    // documents whose ids duplicate real ones; the loader must not read them,
+    // but a root that is itself a template dir is still walked.
+    #[test]
+    fn cookiecutter_template_tree_is_not_loaded() {
+        let d = tmpdir("cookiecutter");
+        let doc = "---\nid: FR-001\ntype: FR\n---\n# X\n";
+        write(&d, "spec/FR-001-real.md", doc);
+        let tpl = "templates/m/{{cookiecutter.repo_name}}";
+        write(&d, &format!("{tpl}/spec/FR-001-tpl.md"), doc);
+
+        let out = load_repo(&d);
+        assert_eq!(out.documents.len(), 1);
+        assert!(out.documents[0].path.ends_with("spec/FR-001-real.md"));
+
+        let rooted = load_repo(&d.join(tpl));
+        assert_eq!(rooted.documents.len(), 1, "a template root is still walked");
+        let _ = fs::remove_dir_all(&d);
     }
 
     const FR_023: &str = "---\nid: FR-023\ntype: FR\nuuid: 0190b6a0-0000-7000-8000-000000000023\n---\n# Behavior\nbody\n";
