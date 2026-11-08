@@ -25,6 +25,10 @@ use crate::diagnostic::Diagnostic;
 #[derive(Clone)]
 pub struct Spec {
     pub(crate) inner: Arc<SpecInner>,
+    /// Declared repository identity `<org>/<repo>` (FR-076). Declared by the
+    /// caller, never derived from paths; `None` until
+    /// [`Spec::with_bundle_package`] is called.
+    pub(crate) bundle_package: Option<Arc<str>>,
 }
 
 pub(crate) struct SpecInner {
@@ -106,7 +110,23 @@ impl Spec {
                 incoming: resolved.incoming,
                 diagnostics,
             }),
+            bundle_package: None,
         }
+    }
+
+    /// Declare the repository identity `<org>/<repo>` this corpus belongs to.
+    /// `validate_bundle` qualifies `## Relationships` targets under it
+    /// (FR-076); without it a relationships table is reported `unavailable`
+    /// with reason `no-bundle-package`. An empty string clears the identity.
+    #[must_use]
+    pub fn with_bundle_package(mut self, package: &str) -> Self {
+        self.bundle_package = (!package.is_empty()).then(|| Arc::from(package));
+        self
+    }
+
+    /// The declared repository identity, if any.
+    pub fn bundle_package(&self) -> Option<&str> {
+        self.bundle_package.as_deref()
     }
 
     /// Convenience: walk `root` with default options, then build the

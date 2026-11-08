@@ -9,6 +9,10 @@ bumps; once 1.0 ships, semver is strict.
 
 ### Fixed
 
+- `Spec::with_bundle_package` declares the repository identity `<org>/<repo>`;
+  `validate_bundle` passes it to `validate_document_in_bundle`, so
+  `## Relationships` rows are checked instead of reporting `no-bundle-package`
+  (PLAT-48, quire-rs#437). Without a declared identity behaviour is unchanged.
 - A required locator whose value is present but rejected by its `regex` now
   reports reason `regex`, naming the value and the pattern, instead of
   `missing` or `empty` (PLAT-25, PLAT-29; quire-rs#451, #453).

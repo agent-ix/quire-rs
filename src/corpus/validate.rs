@@ -298,7 +298,14 @@ pub fn validate_bundle(
     let lexicon = registry.lexicon_with(&project_terms);
 
     for doc in &spec.inner.documents {
-        validate_concept(doc, registry, posture, &lexicon, &mut report);
+        validate_concept(
+            doc,
+            registry,
+            posture,
+            &lexicon,
+            spec.bundle_package(),
+            &mut report,
+        );
     }
 
     // Reference resolution: a dangling `ix://` ref is a hard error under
@@ -461,6 +468,7 @@ fn validate_concept(
     registry: &Registry,
     posture: BundlePosture,
     lexicon: &crate::grammar::GrammarLexicon,
+    bundle_package: Option<&str>,
     report: &mut BundleReport,
 ) {
     let fm = doc.frontmatter().cloned().unwrap_or_default();
@@ -500,12 +508,21 @@ fn validate_concept(
                     // frontmatter `object:` archetype too. Object errors
                     // merge into bundle errors; an unknown `object:`
                     // degrades to a bundle warning.
-                    let result = crate::validate_document_in_registry_with_lexicon(
-                        registry,
-                        archetype,
-                        doc.raw(),
-                        lexicon,
-                    );
+                    let result = match bundle_package {
+                        Some(package) => crate::validate_document_in_bundle(
+                            registry,
+                            archetype,
+                            doc.raw(),
+                            package,
+                            Some(lexicon),
+                        ),
+                        None => crate::validate_document_in_registry_with_lexicon(
+                            registry,
+                            archetype,
+                            doc.raw(),
+                            lexicon,
+                        ),
+                    };
                     for err in result.errors {
                         report.bridged(
                             GrammarSeverity::Error,
