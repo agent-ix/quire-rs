@@ -80,7 +80,9 @@ violates a check:
 1. **unclassifiable** — the statement carries **no predicate marker at all**: no
    modal or copula, no inflected verb form, no irregular past form, no
    elided-copula predication (an existential/quantifier head or a predicative
-   adjective — CR-019), no declared observable-result verb, and no
+   adjective — CR-019), no imperative head (a base-form action verb, an object
+   and a prepositional complement, such as `Attach job to scenario version` —
+   CR-197), no declared observable-result verb, and no
    concrete-object signal. A bare noun phrase (`Structural evaluation`,
    `Type Check`), a bolded heading (`**Key Generation**`) or a dangling prose
    fragment (`Current validation note:`) authored into a `Criteria` column
@@ -98,7 +100,11 @@ violates a check:
    not establish, that a passing cell states a testable outcome. The 5,187 → 87
    drop CR-014 reported is predominantly the test becoming easier to satisfy,
    not a precision improvement; the honest statement of CR-014's effect is that
-   it exchanged one signal for a much narrower one. See CR-019.
+   it exchanged one signal for a much narrower one. See CR-019. Re-measured on a
+   clean frame of 26,709 cells (CR-197) the check fires on 50 (0.19%), so about
+   99.8% pass — largely because the corpus is real sentences. A stricter
+   candidate was measured and flags mostly valid predicates; judging whether a
+   criterion *can fail* is criterion-strength analysis, not this check.
 2. **non-singular** — the statement bundles more than one independent
    obligation: more than one `shall`, or more than one `Then` clause. A single
    criterion pairing one positive and one negative case of the same behavior
@@ -516,6 +522,18 @@ the active bundle. The summary parser SHALL group findings by the generic
 prefix `[<grammar>:<check>]` — replacing the hardcoded `[ears:` prefix — so
 the histogram covers every grammar and check.
 
+> **CR-197 note (PLAT-395):** The `has_predicate` doc comment still cited CR-019's
+> 99.6% / 23.4% figures. Re-measured on a clean 26,709-cell frame, `unclassifiable`
+> fires on 50 cells (0.19%); about 30 were true (bare headings, field names) and
+> about 12 were imperatives (`Attach job to scenario version`) that carry no
+> inflected verb. The check gains a narrow **imperative head** branch
+> (`re_imperative_head`, FR-047-AC-19, TC-2030): a closed list of base-form action
+> verbs, an object and a prepositional complement, deliberately omitting words
+> that are as often nouns. A stronger candidate (inflected word not first/last
+> token) was measured and newly flagged 0.39% of cells, mostly valid predicates,
+> so it was not adopted; the `-able`/`-ible` branch stays rejected (CR-019). The
+> check remains a bare-fragment heuristic.
+
 ## Constraints
 
 | ID | Constraint | Type | Validation |
@@ -541,6 +559,7 @@ the histogram covers every grammar and check.
 | FR-047-AC-12 | Both vocabularies are module data: a module's `observable_verbs` registry merges first-wins over the built-in defaults (a module-added verb suppresses `vacuous-outcome` and gives the cell a predicate), a module's `vacuous_predicates` registry likewise extends the built-in vacuity set, and with no module declaration both built-in default sets apply unchanged. | Test (TC-757) |
 | FR-047-AC-13 | A grammar keyword inside an inline code span is a mention, not a use: a cell reading ``a statement with two `shall` clauses yields one finding`` classifies `assertion` and yields no `non-canonical-shape` or `non-singular` finding, while the same cell with the modal unquoted classifies `obligation`; the span's contents are still read by the signal and lexicon checks, and an unbalanced backtick opens no span. | Test (TC-761) |
 | FR-047-AC-14 | A predication whose copula is elided is a predicate: a cell headed by an existential or quantifier (`No refresh_token in response body`, `Only one active password_reset token per user at any time`) or carrying a predicative adjective (`No credential-material field present`, `Loki datasource visible in Grafana`, `Lockout response identical to normal failure`) classifies `assertion` and yields no `unclassifiable` finding, while a bare noun phrase, a bolded heading and a dangling prose fragment each still classify `unstructured` and yield one. | Test (TC-763) |
+| FR-047-AC-19 | A cell that opens with a base-form action verb from a closed list and carries an object word followed by a preposition (`Attach job to scenario version`, `Add service to scenario version`) is a predicate: it classifies `assertion` and yields no `unclassifiable` finding, while a bare heading or field name (`Structural evaluation`, `Task ID`, `Type Check`), and a verb without a complement (`Attach job`) each still classify `unstructured` and yield one. | Test (TC-2030) |
 | FR-047-AC-15 | The positive/negative pair idiom is recognized by its second obligation rather than by a separator (CR-024): ``SHALL render `skipped` … and SHALL NOT execute``, `` SHALL set `git_url` but `github_url` SHALL be None ``, and `SHALL reject … . No Secret deletion SHALL occur.` each yield no `non-singular` finding, while two positive obligations joined the same way (`SHALL emit `A` and SHALL persist `B`.`) still yield one, a criterion whose *condition* contains `not` still yields one, and a three-obligation criterion yields one however it is worded. | Test (TC-775) |
 | FR-047-AC-16 | `Then` counts as an obligation separator only in a `given-when-then` criterion that states no modal (CR-024): a precedence chain (``resolves safeStorage first, then `GITHUB_TOKEN`, then `undefined` ``) yields no `non-singular` finding, while a `Given`/`When`/`Then` cell with two `Then` clauses still yields one. | Test (TC-776) |
 | FR-047-AC-17 | A vacuous predicate that is also a common noun does not fire on the noun (CR-025): a criterion reading `the code functions that implement it` yields no `vacuous-outcome` finding, while the qualified predicate (`functions independently of exporters`) still yields one. | Test (TC-777) |

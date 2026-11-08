@@ -369,15 +369,24 @@ fn find_closing_run(body: &str, ticks: usize) -> Option<usize> {
 }
 
 /// True when the statement has a **predicate** — a modal or copula, an inflected
-/// or irregular verb form, a declared observable verb, a concrete signal, or an
-/// elided-copula predication (CR-019). This is the structural question
-/// `unclassifiable` asks after CR-014, and it is deliberately independent of any
-/// domain vocabulary being complete.
+/// or irregular verb form, a declared observable verb, a concrete signal, an
+/// elided-copula predication (CR-019), or an imperative head (CR-197). This is
+/// the structural question `unclassifiable` asks after CR-014, and it is
+/// deliberately independent of any domain vocabulary being complete.
 ///
-/// On the corpus this is a weak test — 99.6% of cells satisfy it, 23.4% via the
-/// `-s`/`-ed`/`-ing` branch alone, which cannot tell a verb from a plural noun.
-/// FR-047 describes what it actually catches; do not read the name as a claim
-/// that a finite verb was found (agent-ix/quire-rs#19).
+/// This is a **bare-fragment heuristic**, not a finite-verb test: the
+/// `-s`/`-ed`/`-ing` branch cannot tell a verb from a plural noun, and a digit
+/// or backtick anywhere counts as a signal. It is therefore hard to fail. On a
+/// clean frame of 26,709 `Criteria` cells it fires on 50 (0.19%), so about
+/// 99.8% pass — mostly because the corpus is real sentences, not because the
+/// predicate is sharp. Of those 50 findings roughly 30 are true (bare headings
+/// and field names such as `Structural evaluation`, `Task ID`); the rest were
+/// mostly imperatives, which the imperative-head branch now covers. A stricter
+/// "not first/last token" variant was measured and flags far more valid
+/// predicates, and real POS tagging is out of scope for a deterministic engine;
+/// "can this criterion fail" belongs to criterion-strength analysis. FR-047
+/// describes what this catches; do not read the name as a claim that a finite
+/// verb was found (agent-ix/quire-rs#19, PLAT-395).
 fn has_predicate(statement: &str, vocab: GrammarVocabularies<'_>) -> bool {
     let normalized = ears::normalize(statement);
     carries_signal(&normalized, vocab)
@@ -385,6 +394,7 @@ fn has_predicate(statement: &str, vocab: GrammarVocabularies<'_>) -> bool {
         || re_inflected_verb().is_match(&normalized)
         || re_irregular_past().is_match(&normalized)
         || re_elided_copula().is_match(&normalized)
+        || re_imperative_head().is_match(&normalized)
 }
 
 // ─── Classification ─────────────────────────────────────────────────────────
@@ -775,6 +785,26 @@ fn re_elided_copula() -> &'static Regex {
     })
 }
 
+/// An **imperative head** (CR-197): a cell that opens with a base-form action
+/// verb and then names an object and a prepositional complement
+/// (`Attach job to scenario version`, `Add service to scenario version`). The
+/// verb has no inflection, so none of the morphological branches see it.
+///
+/// Deliberately narrow so a bare heading keeps firing: the verb list is closed
+/// and omits words that are as often nouns (`list`, `test`, `type`, `check`,
+/// `set`, `update`, `view`, `run`, `link`), and the cell must also carry an
+/// object word followed by a preposition, which a title such as `Type Check`
+/// or `List Replace` never does.
+fn re_imperative_head() -> &'static Regex {
+    static R: OnceLock<Regex> = OnceLock::new();
+    R.get_or_init(|| {
+        Regex::new(
+            r"(?i)^\s*(add|attach|detach|remove|delete|create|assign|unassign|move|copy|rename|register|unregister|install|uninstall|enable|disable|cancel|restore|send|fetch|retrieve|reject|accept|validate|verify|apply|merge|split|unlink|upload|download|publish|revoke|grant|insert|append|prepend|replace|resolve|emit)\s+\S+(\s+\S+)*?\s+(to|from|into|onto|in|on|with|for|by|at|of|under|between|against)\s+\S",
+        )
+        .expect("imperative-head regex")
+    })
+}
+
 /// Irregular past/participle forms the `-ed` rule cannot reach.
 pub(super) fn re_irregular_past() -> &'static Regex {
     static R: OnceLock<Regex> = OnceLock::new();
@@ -968,7 +998,7 @@ mod tests {
         );
     }
 
-    #[trace("TC-775", "FR-047-AC-15")]
+    #[trace("TC-775", "FR-047-AC-19")]
     // the pair idiom is recognized by the second (CR-024)
     // obligation, not by the separator joining the two.
     #[test]
@@ -1460,6 +1490,35 @@ mod tests {
             "Sparse Checkout",
             "Feature Detection",
             "Current validation note:",
+        ] {
+            assert_eq!(count(&[s], "unclassifiable"), 1, "{s}");
+            assert_eq!(classify(s, v), AcShape::Unstructured, "{s}");
+        }
+    }
+
+    #[trace("TC-2030", "FR-047-AC-19")]
+    // an imperative head (base-form action verb, object, prepositional
+    // complement) is a predicate (CR-197, PLAT-395); bare headings still fire.
+    #[test]
+    fn tc2030_imperative_head_is_a_predicate() {
+        let (lx, vb, vc) = (empty_lex(), verbs(), vacuities());
+        let v = vocab(&lx, &vb, &vc);
+
+        for s in [
+            "Attach job to scenario version",
+            "Add service to scenario version",
+            "Remove stale token from session",
+        ] {
+            assert_eq!(count(&[s], "unclassifiable"), 0, "{s}");
+            assert_eq!(classify(s, v), AcShape::Assertion, "{s}");
+        }
+
+        for s in [
+            "Structural evaluation",
+            "Task ID",
+            "Type Check",
+            "Add",
+            "Attach job",
         ] {
             assert_eq!(count(&[s], "unclassifiable"), 1, "{s}");
             assert_eq!(classify(s, v), AcShape::Unstructured, "{s}");
