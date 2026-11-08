@@ -58,6 +58,9 @@ none of it.
   whose `params` are `FieldDecl` entries (empty when no table) and whose
   `pre`/`post` are `ClauseRef` entries `{ language, clauseId }` copying the
   referenced clause's language.
+- `operationExpressions?`: `{ operation, slot, expression }[]` of the
+  inline expressions of `Pre:`/`Post:` lines (Behavior, "Inline
+  expressions"), an additive optional key of the semantic-v1 record.
 - Diagnostics with a `semantic.*` code, severity, and locus; per-kind
   availability for `clauses` and `operations`.
 
@@ -109,14 +112,62 @@ Operations:
   `Param | Type | Multiplicity | Constraints` (cells mapped by FR-070; a
   `unit` on `Returns` is `agent-ix.semantic-core.UNIT_ON_RETURNS`), an
   optional `Returns: <Type>[<mult>]` line, and optional `Pre:` and
-  `Post:` lines each naming one or more comma-separated clause ids of the
-  same artifact's `## Invariants`. `Pre:` fills the operation's `pre`
-  and `Post:` its `post`.
-- If a `Pre:` or `Post:` id names no invariant clause, then the engine SHALL
+  `Post:` lines, each holding either one or more comma-separated clause ids
+  of the same artifact's `## Invariants` or one inline expression
+  ("Inline expressions" below). `Pre:` fills the operation's `pre` and
+  `Post:` its `post`.
+- If a `Pre:` or `Post:` clause id names no invariant clause, then the engine SHALL
   emit `semantic.dangling-clause-ref` at that line. If a second operation
   carries a name already declared, then the engine SHALL emit
   `semantic.duplicate-operation` at the second heading.
 - If any clause or operation in a section carries an `error`, then the engine SHALL set that kind `unavailable` with reason `entry-errors` listing the loci, emitting no partial array.
+
+Inline expressions (CR-196, PLAT-57):
+
+- A `Pre:` or `Post:` line, and a `state_machine` transition `Guard` cell
+  ([FR-075](./FR-075-model-feature-extraction.md)), is classified by its
+  text alone, never by what is declared. The text is trimmed; if it is
+  empty, see the empty-expression rule below. A `Pre:`/`Post:` line whose
+  comma-separated pieces are each a semantic-core `Identifier` is a
+  clause-id reference list, as before. A `Guard` cell that is one
+  `Identifier` is a clause-id reference. Any other `Pre:`/`Post:` line, and
+  any other `Guard` cell, is ONE inline expression: its whole trimmed text,
+  never split on commas.
+- A reference is resolved against the artifact's `## Invariants` and an id
+  that names no clause stays `semantic.dangling-clause-ref`; it is never
+  reinterpreted as an expression. A bare identifier is therefore always a
+  reference, even though a bare name is also valid expression text; an
+  author who means the expression writes it so that it is not a bare
+  identifier (for example parenthesised). This keeps a mistyped clause id
+  an error instead of a silently accepted expression.
+- The engine SHALL carry each expression opaquely as an `Expression`
+  `{ kind: "expression", text, sourceSpan }`: `text` the trimmed text
+  byte-for-byte, `sourceSpan` a semantic-core `SourceLocus` of the text
+  (`startLine` and `endLine` its line, `startColumn` the 1-based byte
+  column of its first byte, `endColumn` one past its last byte). `kind` is
+  the constant `"expression"`; it is what distinguishes an expression from
+  a clause-id reference and what lets a later syntax check attach to the
+  entry.
+- The engine SHALL NOT parse, tokenize, typecheck, resolve names in, or
+  evaluate an expression, and quire-rs has no expression grammar or parser.
+  Syntax validation, name resolution inside an expression, and the meaning
+  of the shared Quire expression grammar (cited by reference only: QSpec
+  `proposals/quire-v1/shared-grammar.md`; the grammar parser is tracked by
+  QSL-1814) belong to the consumer.
+- For each expression the engine SHALL emit the advisory
+  `semantic.expression-unchecked` at its line and mark the owning kind
+  lossy, as for `semantic.clause-language-unchecked`.
+- A `Pre:` or `Post:` line with no text after the key is
+  `semantic.empty-expression` at that line, an error. An empty `Guard`
+  cell is an absent guard, as before.
+- Expressions do not enter `OperationDecl`: its `pre` and `post` are closed
+  semantic-core `ClauseRef[]` and carry reference ids only. Expressions are
+  carried in the sibling record key `operationExpressions`, an array of
+  `{ operation, slot, expression }` in authored order, `slot` `pre` or
+  `post`, `operation` the operation name; the key is absent when no
+  operation carries an expression. A transition `Guard` expression is
+  carried as `guardExpression` ([FR-075](./FR-075-model-feature-extraction.md)).
+  Mapping an expression into the declaration record is not specified here.
 
 General:
 
@@ -137,12 +188,24 @@ General:
   second parameter table under one operation, is
   `semantic.duplicate-operation-line`.
 
+> **CR-196 note (2026-11-08, agent-ix/quire-rs#433, PLAT-57):** the original
+> text allowed only clause ids in `Pre:`/`Post:` and in a transition `Guard`,
+> so a condition true only in some states had no place to live: an invariant
+> must hold in every state, and naming one as a guard makes the guard vacuous.
+> Both now also accept an inline expression, carried opaquely. The ticket
+> calls the lines `Requires:`/`Ensures:`; the authored lines and this
+> requirement are `Pre:`/`Post:`. Classification is by text shape rather than
+> by resolution so that a mistyped clause id stays `semantic.dangling-clause-ref`.
+> Affected criteria: FR-071-AC-10..13, FR-075-AC-28..29; no existing criterion
+> changes.
+
 ## Constraints
 
 | ID | Constraint | Type | Validation |
 |----|------------|------|------------|
 | FR-071-CON-1 | No code path SHALL tokenize, typecheck, or evaluate clause text; the only operations on a fence body are span recording and byte copy. | Architecture | Test |
 | FR-071-CON-2 | The engine SHALL derive spans from the `code_block` locator's fence recognition, leaving `parse_document` output byte-identical to the checked-in parser golden. | Integrity | Test |
+| FR-071-CON-3 | The only operations on expression text SHALL be the `Identifier` shape test that classifies it, trimming, span recording, and byte copy; quire-rs depends on no expression parser. | Architecture | Test |
 
 ## Acceptance Criteria
 
@@ -157,6 +220,10 @@ General:
 | FR-071-AC-7 | With no caller-supplied `sourceIdentity`, spans carry `ix://local/<scope>/spec` and one `semantic.source-identity-defaulted` advisory per document; with one supplied, spans carry it and no advisory. | Test |
 | FR-071-AC-8 | A `quire` fence under the embedded semantic-core extracts with no diagnostic and the kind available and not lossy; an `ocl` fence under the embedded semantic-core extracts with only the advisory `semantic.clause-language-unchecked` at the fence, its body carried verbatim, and the kind lossy. | Test |
 | FR-071-AC-9 | Removed: the criterion covered semantic-core `0.1.0`, which no longer loads; the id is not reused. | Test |
+| FR-071-AC-10 | `Pre: x > 1 and y(a, b)` yields one `operationExpressions` entry `{ operation, slot: "pre", expression: { kind: "expression", text: "x > 1 and y(a, b)", sourceSpan } }` with the span of the text on its line, `pre` empty, the advisory `semantic.expression-unchecked`, and the `operations` kind lossy; the expression text is not split on its comma. | Test |
+| FR-071-AC-11 | `Pre: a, b` with both clauses declared yields references only and no `operationExpressions`; `Post: missing` where `missing` names no clause yields `semantic.dangling-clause-ref` and no expression; `Pre: (a)` yields an expression whereas `Pre: a` yields a reference, the choice depending on the text alone and not on whether `a` is declared. | Test |
+| FR-071-AC-12 | A `Pre:` or `Post:` line with nothing after the key yields `semantic.empty-expression` at that line and the `operations` kind `unavailable` (`entry-errors`). | Test |
+| FR-071-AC-13 | An expression with invalid Quire syntax (`Pre: ))) ===`) extracts byte-for-byte with only `semantic.expression-unchecked`: no syntax diagnostic is emitted, and `operationExpressions` validates against `semantic-v1.schema.json`. | Test |
 
 ## Dependencies
 

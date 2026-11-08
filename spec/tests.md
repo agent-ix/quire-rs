@@ -108,10 +108,10 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | FR-068 Source-grounded assurance projection | AC-1..9; CON-1..4 | TC-1091..TC-1099 | ✅ Implemented |
 | FR-069 Semantic module contract at load | AC-1..8, AC-10..13; CON-1, CON-2, CON-4 | TC-1599..TC-1606, TC-1608, TC-1609, TC-1645, TC-1646, TC-1848, TC-2005 | ✅ AC-1..12 Implemented; AC-13 🚧 |
 | FR-070 Typed Properties extraction to FieldDecl[] | AC-1..14; CON-1..3 | TC-1610..TC-1621, TC-1647, TC-1945..TC-1947, TC-1952 | ✅ AC-1..10 Implemented; AC-11..14 🚧 |
-| FR-071 Clause and operation extraction | AC-1..9; CON-1..2 | TC-1622..TC-1629, TC-1648, TC-1850, TC-1851 | ✅ Implemented |
+| FR-071 Clause and operation extraction | AC-1..13; CON-1..3 | TC-1622..TC-1629, TC-1648, TC-1850, TC-1851, TC-2006..TC-2008 | ✅ AC-1..9 Implemented; AC-10..13 🚧 |
 | FR-072 Semantic extraction surface | AC-1..9; CON-1..3 | TC-1630..TC-1640, TC-1650 (TC-1636 external: quire-wasm#3) | ✅ Implemented; WASM leg external |
 | FR-073 Generic rights-aware clause sets | AC-1..6 | TC-1806..TC-1809 | ✅ Implemented |
-| FR-075 Model feature extraction | AC-1..27; CON-1..2 | TC-1840..TC-1847, TC-1849, TC-1869, TC-1870, TC-1872..TC-1875, TC-1948..TC-1951, TC-1953, TC-1993..TC-1998 | ✅ AC-1..15 Implemented; AC-16..27 🚧 |
+| FR-075 Model feature extraction | AC-1..29; CON-1..2 | TC-1840..TC-1847, TC-1849, TC-1869, TC-1870, TC-1872..TC-1875, TC-1948..TC-1951, TC-1953, TC-1993..TC-1998, TC-2009 | ✅ AC-1..15 Implemented; AC-16..29 🚧 |
 | FR-076 Relationships extraction to RelationDecl[] | AC-1..21; CON-1..4 | TC-1852..TC-1868, TC-1999..TC-2004 | ✅ AC-1..15 Implemented; AC-16..21 🚧 |
 | FR-077 Trace search index (structural forward/inverse lookup) | AC-1..6; CON-1..3 | TC-1887..TC-1894 | ✅ Implemented |
 | FR-078 Qualified retained evidence | AC-1..20; CON-1..4 | TC-1963..TC-1982 | 🚧 Planned — spec-first, no execution claim |
@@ -1145,6 +1145,10 @@ in this specification is not runtime or coverage evidence.
 | TC-2001 | Header-only table on a typed-only type; mixed type keeps `relationSources` aligned with `relations` | Unit | P0 | FR-076-AC-18 | 🚧 |
 | TC-2002 | `semantic.duplicate-authority` for a frontmatter typed key per document; the FR-069 module-load refusal is exercised by TC-2005; control silent | Integration | P0 | FR-076-AC-19, FR-076-CON-4 | 🚧 |
 | TC-2005 | A module naming `relationships` with a `table_row` locator keyed on a typed relation key fails every archetype with `semantic.duplicate-authority` naming module, type and key; removing the locator, a key the schema lacks, and a module without the mapping all load | Integration | P0 | FR-069-AC-13 | 🚧 |
+| TC-2006 | Declarative cases (`issue_ref` PLAT-57): `Pre: x > 1 and y(a, b)` extracts one `operationExpressions` entry with the verbatim text, its span and `kind: "expression"`, the advisory `semantic.expression-unchecked`, a lossy `operations` kind and an unsplit comma; the control with `Pre: a, b` over declared clauses asserts via `absent_diagnostic_reasons` that no expression, advisory or dangling ref appears | Unit | P0 | FR-071-AC-10, FR-071-AC-11 | 🚧 |
+| TC-2007 | `Post: missing` yields `semantic.dangling-clause-ref` and no expression; `Pre: (a)` is an expression and `Pre: a` a reference whether or not `a` is declared; an empty `Pre:` line yields `semantic.empty-expression` and `operations` `unavailable` (`entry-errors`) | Unit | P0 | FR-071-AC-11, FR-071-AC-12 | 🚧 |
+| TC-2008 | An invalid-syntax expression extracts byte-for-byte with only `semantic.expression-unchecked`; `operationExpressions` validates against `semantic-v1.schema.json`; a static audit finds no expression parser dependency or symbol in quire-rs | Static | P0 | FR-071-AC-13, FR-071-CON-3 | 🚧 |
+| TC-2009 | Transition `Guard` cases (`issue_ref` PLAT-57): an expression cell yields `guardExpression` with span and no `guard`; an unsplit comma; a dangling bare identifier yields `semantic.dangling-clause-ref` only; a declared clause id yields `guard` only; an empty cell yields neither; with no bundle index the `Emits` outcome of AC-26 is unchanged; the Python binding and Rust library return equal JSON | Integration | P0 | FR-075-AC-28, FR-075-AC-29 | 🚧 |
 | TC-2003 | No-index typed row lowers unchecked with the advisory; one identity for one declaration across FR-075 items and FR-076 targets; title row stays `target-not-id`; untyped types byte-identical | Unit | P0 | FR-076-AC-20 | 🚧 |
 | TC-2004 | Semantic cases per typed key with `issue_ref` `PLAT-55`: lowered identity, refusal and control | Integration | P0 | FR-076-AC-21 | 🚧 |
 
@@ -1614,6 +1618,8 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-075-AC-25 | TC-1996 |
 | FR-075-AC-26 | TC-1997 |
 | FR-075-AC-27 | TC-1998 |
+| FR-075-AC-28 | TC-2009 |
+| FR-075-AC-29 | TC-2009 |
 | FR-075-CON-2 | TC-1993 |
 | FR-076-AC-1 | TC-1852 |
 | FR-076-AC-2 | TC-1853 |

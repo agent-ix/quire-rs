@@ -69,6 +69,7 @@ verbatim `clauseText` and the byte-identity constraints below.
 - Library: `extract_semantic(document, context) -> SemanticExtraction`, a
   `serde` value `{ formatVersion: 1, contractVersion, package,
   fields?, fieldsForm?, fieldSources?, operationSources?, clauses?, clauseText?, operations?,
+  operationExpressions?,
   model?, relations?, relationSources?, availability, diagnostics }`, where
   `model` and `availability.model` are the model features of
   [FR-075](./FR-075-model-feature-extraction.md), and `relations`,
@@ -79,6 +80,9 @@ verbatim `clauseText` and the byte-identity constraints below.
   each operation's parameter rows and `Returns:` line, so a consumer need not
   re-scan the source; `FieldDecl` and `OperationDecl` keep the semantic-core
   shape.
+  `operationExpressions` holds the opaque inline `Pre:`/`Post:` expressions of
+  [FR-071](./FR-071-clause-and-operation-extraction.md) (CR-196), an additive
+  optional key listed in `semantic-v1.schema.json`.
   Each diagnostic is `{ code, severity, line, column?, message, reason?,
   sourceSpan?, section? }`; an FR-075 refusal carries `sourceSpan` and
   `section`.
