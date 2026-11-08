@@ -53,9 +53,14 @@ impl SemanticFailure {
         }
     }
 
-    /// The `ArchetypeLoadFailure.reason` form: `<code>: <message>`.
+    /// The `ArchetypeLoadFailure.reason` form: `<code>: <path>: <message>`,
+    /// or `<code>: <message>` when the refusal has no manifest locus.
     pub fn reason(&self) -> String {
-        format!("{}: {}", self.code, self.message)
+        if self.path.is_empty() {
+            format!("{}: {}", self.code, self.message)
+        } else {
+            format!("{}: {}: {}", self.code, self.path, self.message)
+        }
     }
 }
 

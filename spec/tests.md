@@ -106,7 +106,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | FR-044 Project Ubiquitous-Language lexicon | AC-1..7 | TC-674 (harvest Term column from Glossary `## Terms` table), TC-675 (harvest bold term from `## Ubiquitous Language` bullets), TC-676 (combined lexicon = registry keys ∪ project terms), TC-677 (validate_document_in_registry_with_lexicon injects lexicon), TC-678 (validate_bundle harvests Spec + applies combined lexicon), TC-679 (advisory: project suppression never changes is_valid), TC-680 (no glossary → empty terms → module-only path) | 🚧 Pending implementation |
 | FR-067 Versioned assurance export | AC-1..5, 7, 8 (AC-6 withdrawn); CON-1..5 | TC-1084..TC-1090 (TC-1089 withdrawn), TC-2063 | ✅ Implemented |
 | FR-068 Source-grounded assurance projection | AC-1..9; CON-1..4 | TC-1091..TC-1099 | ✅ Implemented |
-| FR-069 Semantic module contract at load | AC-1..8, AC-10..13; CON-1, CON-2, CON-4 | TC-1599..TC-1606, TC-1608, TC-1609, TC-1645, TC-1646, TC-1848, TC-2005 | ✅ Implemented |
+| FR-069 Semantic module contract at load | AC-1..8, AC-10..14; CON-1, CON-2, CON-4 | TC-1599..TC-1606, TC-1608, TC-1609, TC-1645, TC-1646, TC-1848, TC-2005, TC-2081 | ✅ Implemented |
 | FR-070 Typed Properties extraction to FieldDecl[] | AC-1..14; CON-1..3 | TC-1610..TC-1621, TC-1647, TC-1945..TC-1947, TC-1952 | ✅ AC-1..10 Implemented; AC-11..14 🚧 |
 | FR-071 Clause and operation extraction | AC-1..14; CON-1..3 | TC-1622..TC-1629, TC-1648, TC-1850, TC-1851, TC-2040..TC-2042 | ✅ AC-1..14 Implemented |
 | FR-072 Semantic extraction surface | AC-1..9; CON-1..3 | TC-1630..TC-1640, TC-1650 (TC-1636 external: quire-wasm#3) | ✅ Implemented; WASM leg external |
@@ -1128,6 +1128,7 @@ Reserved withdrawn IDs (not active test cases): TC-834, TC-842, TC-871, TC-1089,
 | TC-2055 | Coverage-v1, properties-v1 and assurance-v1 outputs equal their checked-in fixtures byte-for-byte and diagnostic severities stay within `info`, `warning`, `error` | Integration | P0 | FR-072-AC-9 | 🚧 |
 | TC-2056 | Audit-table completeness (CR-200): deleting an audit row, including a mixed-case `StR-` row, is one error naming the criterion and every declaration of it; a document-defined criterion with no row, a coverage-range or audit-row id no document defines, and an unreadable or runaway criteria cell are each an error; tombstones (`RETIRED`, `Removed:`, bare `Withdrawn.`), struck-through or RETIRED-status coverage rows, parenthetical notes, a `RETIRED` word in a live row's test cell and a `###` gaps table are not; and this repository's own matrix passes | Integration | P0 | FR-050-AC-58 | ✅ |
 | TC-2080 | Module-loaded `table_row` targets with omitted `from` preserve existing ids; `list_item` and `heading` targets mint ids from capture group 1 only within their selected section; invalid patterns and patterns without capture group 1 are rejected without partial ids (CR-203) | Integration | P0 | FR-050-AC-60 | ✅ |
+| TC-2081 | Semantic refusals carry their manifest path in `reason` as `<code>: <path>: <message>`: unknown key, export undeclared, ambiguous, reference-without-block, and missing schema file each assert the locus (CR-205) | Integration | P0 | FR-069-AC-14 | ✅ |
 
 ---
 
@@ -2117,6 +2118,7 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-069-AC-11 | TC-1646 |
 | FR-069-AC-12 | TC-1848 |
 | FR-069-AC-13 | TC-2005 |
+| FR-069-AC-14 | TC-2081 |
 | FR-070-AC-1 | TC-1610 |
 | FR-070-AC-2 | TC-1611 |
 | FR-070-AC-3 | TC-1612 |

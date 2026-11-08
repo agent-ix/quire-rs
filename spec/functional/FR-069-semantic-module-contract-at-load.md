@@ -38,6 +38,8 @@ as it does today.
 
 > **CR note (PLAT-237):** The prose previously said "object type" throughout. The loader has always resolved `semantic.exports` against every archetype (`manifest.all_archetypes()`), as FR-069-AC-3 states, so the wording was corrected to "archetype" to match the code. Behavior is unchanged.
 
+> **CR-205 note (PLAT-1299):** `SemanticFailure::reason()` formatted only `<code>: <message>`, so a refusal dropped the manifest location its `path` recorded. The reason now carries it (`<code>: <path>: <message>`); `ArchetypeLoadFailure` gains no field. FR-069-AC-14 asserts one refusal of each kind.
+
 ## Inputs
 
 - `manifest.yaml` and the files under the module root (filesystem loader,
@@ -76,7 +78,11 @@ as it does today.
 - Per archetype: the resolved data schema and a compiled validator over the
   extracted record.
 - One `ArchetypeLoadFailure` per archetype of a refused module whose
-  `reason` starts with the `semantic.*` code below, followed by the message.
+  `reason` starts with the `semantic.*` code below, followed by the manifest
+  path of the refusal (for example `object_types[entity].data_schema.schema`
+  or `semantic.exports.ghost`) and the message, as
+  `<code>: <path>: <message>`. A refusal with no manifest locus omits the
+  path segment.
 - Warning diagnostics for the advisory cases.
 
 ## Behavior
@@ -207,6 +213,7 @@ stricter of the two.
 | FR-069-AC-11 | `Registry::from_inline_parts` with a reference-form `data_schema` resolves the file from the `schemas` map, applies the same escape and `$ref` rules, and refuses a key with a `..` segment. | Test |
 | FR-069-AC-12 | A module whose `semantic` block lists `mappings` loads with those tokens recorded on its `SemanticModule`, in order; a block without `mappings` records an empty list. | Test |
 | FR-069-AC-13 | A module naming `relationships` whose `process` type declares a `table_row` locator keyed `emits` (a typed relation key of its `data_schema`), under `yield_pattern.match` or `yield_pattern.per_match`, is refused: every archetype of the module fails with a reason starting `semantic.duplicate-authority` and naming the module, `process` and `emits`; the same module with the locator removed loads; a locator keyed `emits` on a type whose schema has no `emits`, and the same locator in a module not naming `relationships`, load. | Test |
+| FR-069-AC-14 | Every `semantic.*` refusal that records a manifest path carries it in its `reason` as `<code>: <path>: <message>`: an unknown block key names `semantic`, an undeclared export names `semantic.exports.<type>`, a mixed `data_schema` names `<section>[<type>].data_schema`, a reference-form `data_schema` without a `semantic` block names the same locus, and a missing schema file names `<section>[<type>].data_schema.schema`. | Test |
 
 ## Dependencies
 
