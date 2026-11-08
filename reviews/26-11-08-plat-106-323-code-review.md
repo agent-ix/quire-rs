@@ -69,3 +69,27 @@ Minimal design for FND-002/FND-003, to close PLAT-323:
    key. Carry `version` from the first read.
 3. Update the three FND-001 tests and FR-013 (plus any AC that states the
    tolerant behaviour) in the same PR.
+
+## Dispositions
+
+Round 1, at head 683b0fa. The reviewer checked the fix diff `126f813..683b0fa`.
+On that head, `cargo test --test it` passes 520/520, `cargo test --lib` passes
+709/709, `cargo clippy --workspace --all-targets -D warnings` is clean, and
+`cargo fmt --check` is clean. The reviewer also loaded every one of the 1316
+`manifest.yaml` directories under ~/dev and ~/.ix through `load_module` on this
+head. No installed or real module fails. The 85 failures are deliberately
+malformed test fixtures (`catalog/bad-key`, `catalog/empty-field`,
+`traceability/obligations-both`, `traceability/obligations-neither`, across
+worktree copies) and unrendered cookiecutter templates. All of them failed
+before this change too. No real manifest carries a top-level key outside the
+six opaque ones.
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | The three tests now assert the error (`expect_err`, message contains the cause). `plain_language` was updated too. `tests/it` passes 520/520. |
+| FND-002 | fixed | `finish_tolerant` now calls `refuse_unreadable_manifests` for every constructor (`load_from`, `from_env`, `from_default`, `load_module`, `load_module_set`, inline). `walk_search_root` records `manifest_errors`. The test covers `load_from` over a root with one skewed module among good ones. |
+| FND-003 | fixed | `#[serde(deny_unknown_fields)]` is now on `Manifest`, with `manifest_version`, `grammars`, `doc_kinds`, `nav`, `depends_on` and `state_schemas` as opaque `Option<serde_yaml::Value>`. `a_top_future_key` fails, naming key and version. A scan of 1316 manifests finds no other real top-level key. |
+| FND-004 | fixed | `finish_strict` calls `refuse_unreadable_manifests` first. The test covers `load_module_strict`, `load_module_set_strict` and `load_strict`. |
+| FND-005 | fixed | `module_path_env` splits each variable with `split_paths` and rejoins with `std::env::join_paths`. The multi-root test uses `join_paths` on both sides. |
+| FND-006 | fixed | FR-013 has a 2026-11-08 CR note, Search-path items 2 and 3 are rewritten, the Path-handling text names the platform separator, the 06-15 note is marked superseded, and AC-18 and AC-19 are added. The paths.rs module doc is updated. |
+| FND-007 | fixed | `load_manifest_with_origins` returns `ManifestReadError { reason, version }`, with `declared_version` taken from the same bytes. `refuse_unreadable_manifests` joins every `manifest_errors` message. The test asserts both keys from a two-module set. |
