@@ -10,3 +10,11 @@ rustflags = ["-C", "link-arg=-undefined", "-C", "link-arg=dynamic_lookup"]
 
 [target.x86_64-apple-darwin]
 rustflags = ["-C", "link-arg=-undefined", "-C", "link-arg=dynamic_lookup"]
+
+# clippy.toml bans (disallowed-types/methods) are opt-in: allowed everywhere
+# (build tools and the corpus submodule legitimately spawn processes), and
+# re-enabled by `#![deny(...)]` in the quire-rs library modules they police.
+# Source attributes override these flags, and bare `cargo clippy` in CI picks
+# them up without a workflow edit.
+[target.'cfg(all())']
+rustflags = ["-A", "clippy::disallowed-types", "-A", "clippy::disallowed-methods"]

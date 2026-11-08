@@ -220,7 +220,7 @@ Reserved withdrawn IDs (not active test cases): TC-834, TC-842, TC-871, TC-1089,
 | TC-055 | QuireError snapshot pins canonical error per archetype | Snapshot | P1 | NFR-005-AC-3 | 🚧 |
 | TC-056 | Determinism: render 100x across threads → byte-identical | Property | P0 | NFR-006-AC-1 | 🚧 |
 | TC-057 | Determinism: parse 100x → Eq | Property | P0 | NFR-006-AC-2 | 🚧 |
-| TC-058 | Static audit: no HashMap in render/parse code paths | Static | P1 | NFR-006-AC-3 | 🚧 |
+| TC-058 | Static audit (clippy `disallowed-types`): no HashMap in parse/extract/merge/validate_document code paths | Static | P1 | NFR-006-AC-3 | 🚧 |
 | TC-060 | Registry behavior identical across three on-disk corpora (Filament/hand/test) | Integration | P0 | StR-001-AC-5 | 🚧 |
 | TC-061 | LLM tool-call schema round-trip: schema_for → tool input → render | Integration | P1 | US-001-AC-2, US-001-AC-3 | 🚧 |
 | TC-062 | All-feature cargo-deny bans `schemars` | Static | P1 | FR-003-AC-4 | ✅ |
@@ -267,7 +267,7 @@ Reserved withdrawn IDs (not active test cases): TC-834, TC-842, TC-871, TC-1089,
 | TC-190 | Slug for non-ASCII heading "Café Menu" → "caf-menu-L<n>" | Unit | P0 | FR-009-AC-6 | 🚧 |
 | TC-191 | Slug for degenerate "!!!" heading → "-L<n>" | Unit | P1 | FR-009-AC-7 | 🚧 |
 | TC-200 | Smoke: `cargo add quire-rs` + `use quire_rs::parse_document` compiles & links in a hello-world consumer | Integration | P0 | StR-001-AC-1, US-002-AC-1 | 🚧 |
-| TC-201 | Static grep: no `std::process::Command` invocations targeting python/node/npm/pip in src/ | Static | P0 | StR-001-AC-2 | 🚧 |
+| TC-201 | Static audit (clippy `disallowed-methods`): no `std::process::Command::new` in the library crate | Static | P0 | StR-001-AC-2 | 🚧 |
 | TC-202 | Doc exists: spec/assets/render-parity-notes.md documents any known whitespace exceptions vs Python reference | Static | P1 | StR-002-AC-2 | 🚧 |
 | TC-203 | Static: clippy.toml / deny.toml / rustfmt.toml / scripts/check_unsafe_comments.sh byte-equal rust-lib-cookiecutter baseline | Static | P0 | StR-004-AC-1, StR-004-AC-2 | 🚧 |
 | TC-204 | CI workflow includes render_parity job (not just test job) ((RETIRED); (RETIRED)) | Static | P0 | US-005-AC-2, US-005-AC-3, StR-002-AC-3 | 🚧 |
