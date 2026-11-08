@@ -394,7 +394,8 @@ fn semantic_findings(
     warnings: &mut Vec<ValidationWarning>,
 ) {
     use crate::semantic::{
-        BundleIndex, RelationVocabulary, RequiredSections, SemanticContext, SemanticSeverity,
+        BundleIndex, ConstructReferences, RelationVocabulary, RequiredSections, SemanticContext,
+        SemanticSeverity,
     };
     let mut bundle = BundleIndex {
         package: bundle_package.unwrap_or_default().to_string(),
@@ -404,8 +405,17 @@ fn semantic_findings(
         bundle.imports.insert(m.package.clone(), m.exports.clone());
     }
     // This surface has no document path: spans and refusals name `<document>`.
-    let ctx = SemanticContext::new(module.clone(), "<document>", bundle)
+    let mut ctx = SemanticContext::new(module.clone(), "<document>", bundle)
         .with_relation_vocabulary(RelationVocabulary::from_registry(registry, arch));
+    if let Some(references) = arch
+        .construct()
+        .and_then(ConstructReferences::from_construct)
+    {
+        ctx = ctx.with_construct_references(references);
+    }
+    if let Some(schema) = arch.data_schema.as_deref() {
+        ctx = ctx.with_data_schema(schema);
+    }
     let ctx = match arch.body_extraction() {
         Some(dsl) => ctx.with_body_extraction(dsl),
         None => ctx,

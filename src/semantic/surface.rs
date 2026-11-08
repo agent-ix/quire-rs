@@ -76,6 +76,11 @@ pub struct SemanticExtraction {
     /// (the embedded semantic-core carrier, `agent-ix/filament-core-data#155`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub relation_sources: Option<Vec<RelationSource>>,
+    /// FR-076 typed relation keys (`emits`, `persists`, ...): each key the
+    /// object type's data schema declares, with its `SemanticId`s in row
+    /// order, present when `availability.relations` is `available`.
+    #[serde(flatten, default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub typed_relations: BTreeMap<String, Vec<String>>,
     pub availability: Availability,
     pub diagnostics: Vec<SemanticDiagnostic>,
 }
@@ -248,12 +253,14 @@ pub fn extract_semantic(
                 declared: fields.model_declared,
                 failed: failed(&fields.availability),
                 lossy: false,
+                unresolved: None,
                 diagnostics: &fields.diagnostics,
             },
             ModelSource {
                 declared: operations.model_declared,
                 failed: failed(&operations.availability),
                 lossy: false,
+                unresolved: None,
                 diagnostics: &operations.diagnostics,
             },
         ])
@@ -270,8 +277,10 @@ pub fn extract_semantic(
             a
         }),
     };
-    let (relation_decls, relation_sources) =
-        relations.relations.map(ExtractedRelation::split).unzip();
+    let relation_record = relations
+        .relations
+        .map(|rows| ExtractedRelation::split(rows, relations.typed.as_ref()))
+        .unwrap_or_default();
     // `model` is carried exactly when `availability.model` is available.
     let model = availability
         .model
@@ -305,8 +314,9 @@ pub fn extract_semantic(
         },
         operations: operations.operations,
         model,
-        relations: relation_decls,
-        relation_sources,
+        relations: relation_record.relations,
+        relation_sources: relation_record.sources,
+        typed_relations: relation_record.typed,
         availability,
         diagnostics,
     }
@@ -334,6 +344,9 @@ pub struct DeclarationRecord<'a> {
     /// The systems-model record; FR-075 admits at most one per artifact.
     #[serde(flatten, skip_serializing_if = "Option::is_none")]
     pub systems: Option<SystemsRecord<'a>>,
+    /// FR-076 typed relation keys, each a `SemanticId[]`.
+    #[serde(flatten)]
+    pub typed_relations: &'a BTreeMap<String, Vec<String>>,
 }
 
 /// One systems-model record, serialized as its own keys.
@@ -402,6 +415,7 @@ impl SemanticExtraction {
                 .and_then(|m| m.feature_order.as_ref())
                 .map(|order| order.iter().map(|e| e.name.as_str()).collect()),
             systems,
+            typed_relations: &self.typed_relations,
         })
     }
 
@@ -431,8 +445,8 @@ impl SemanticExtraction {
             .count();
             debug_assert_eq!(
                 value.as_object().map_or(0, serde_json::Map::len),
-                arrays + systems_keys,
-                "a systems-model record key collides with a declaration array"
+                arrays + systems_keys + declaration.typed_relations.len(),
+                "a systems-model record key or typed relation key collides with a declaration array"
             );
         }
         Ok(value)

@@ -159,31 +159,6 @@ fn validation_exclusions(
     Ok(result)
 }
 
-fn audit_table_gaps(spec: &Path) -> Result<Vec<quire_rs::audit_table::AuditGap>, String> {
-    let read = |path: &Path| {
-        std::fs::read_to_string(path).map_err(|error| format!("{}: {error}", path.display()))
-    };
-    let matrix = read(&spec.join("tests.md"))?;
-    let mut documents: Vec<(String, String)> = Vec::new();
-    for directory in ["stakeholder", "usecase", "functional", "non-functional"] {
-        let entries = std::fs::read_dir(spec.join(directory))
-            .map_err(|error| format!("spec/{directory}: {error}"))?;
-        for entry in entries.flatten() {
-            let path = entry.path();
-            if path.extension().is_some_and(|extension| extension == "md") {
-                let label = format!("{directory}/{}", entry.file_name().to_string_lossy());
-                documents.push((label, read(&path)?));
-            }
-        }
-    }
-    documents.sort();
-    let documents: Vec<(&str, &str)> = documents
-        .iter()
-        .map(|(label, text)| (label.as_str(), text.as_str()))
-        .collect();
-    Ok(quire_rs::audit_table::audit_gaps(&matrix, &documents))
-}
-
 fn main() {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let providers = match parse_provider_roots(std::env::args_os().skip(1)) {
@@ -327,12 +302,12 @@ fn main() {
         }
     }
 
-    // ── Audit-table completeness (FR-050-AC-58, CR-196) ──
+    // ── Audit-table completeness (FR-050-AC-58, CR-200) ──
     // Per-document validation cannot see a row that is absent: a coverage row
     // declaring `AC-1..N` over an audit table lacking one criterion's row
     // validates cell by cell. The matrix and the requirement documents are
     // read together.
-    match audit_table_gaps(&root.join("spec")) {
+    match quire_rs::audit_table::audit_spec_dir(&root.join("spec")) {
         Ok(gaps) => {
             for gap in gaps {
                 eprintln!("error: spec/tests.md: audit table: {gap}");
