@@ -2,12 +2,12 @@
 # The root package stays the workspace default-member (mirrors quire-code-rs's
 # own choice, PLAT-841): existing tooling that runs bare `cargo build`/`cargo
 # test` from the repo root keeps building exactly what it built before
-# `crates/quire-rust-extraction` existed. That crate is a member so
+# `crates/quire-code-extraction` existed. That crate is a member so
 # `cargo test --workspace` and the dependency-boundary gate exercise it too,
 # but it is never implicitly selected on its own.
 members = [
     ".",
-    "crates/quire-rust-extraction",
+    "crates/quire-code-extraction",
     "crates/quire-fixtures",
     "crates/spec-objects-architecture-fixture",
     "crates/build-npm-fetch",
@@ -91,10 +91,10 @@ getrandom = { version = "^0.3", features = ["wasm_js"], optional = true }
 # Dependency-boundary crate (PLAT-843, widened to all three grammars by
 # PLAT-851): the one place in this workspace that names
 # `quire-code-parse`/`tree-sitter` — see
-# `crates/quire-rust-extraction/src/lib.rs` and its
+# `crates/quire-code-extraction/src/lib.rs` and its
 # `tests/dependency_boundary.rs`. `src/symbols/rust.rs` walks the tree this
 # re-exports; it never names `tree-sitter` itself. Still named
-# `quire-rust-extraction` even though it now also wraps the `python` and
+# `quire-code-extraction` even though it now also wraps the `python` and
 # `typescript` grammars — the rename is tracked as PLAT-876, deliberately
 # deferred so this slice makes zero edits to `rust.rs` (see the crate's own
 # `Cargo.toml` for why).
@@ -107,10 +107,10 @@ getrandom = { version = "^0.3", features = ["wasm_js"], optional = true }
 # workspace does not carry — the same cross-compilation shape `resolve-file`
 # is already gated off `wasm` for, one dependency over. Each `*-symbols`
 # feature activates only this crate's matching grammar feature
-# (`quire-rust-extraction/rust` etc.), not the other two, so enabling one
+# (`quire-code-extraction/rust` etc.), not the other two, so enabling one
 # never pulls the other languages' C toolchains — see the crate's own
 # `Cargo.toml` for the full reasoning.
-quire-rust-extraction = { path = "crates/quire-rust-extraction", optional = true }
+quire-code-extraction = { path = "crates/quire-code-extraction", optional = true }
 # Embedded semantic-core + module-manifest schema bytes (FR-069 Inputs),
 # sourced from filament-core-data's own tree via a plain git dependency —
 # see src/semantic/embedded.rs for why this replaced a build.rs npm fetch.
@@ -157,11 +157,11 @@ loom = "^0.7"
 default = ["resolve-file", "rust-symbols", "python-symbols", "typescript-symbols"]
 python = ["dep:pyo3"]
 # The Rust symbol adapter (FR-051, PLAT-843), gated so the `wasm` build can
-# opt out — see `quire-rust-extraction`'s own dependency comment above for
+# opt out — see `quire-code-extraction`'s own dependency comment above for
 # why. `src/symbols/mod.rs` records Rust as an unavailable language when this
 # feature is off and coverage refuses to run (FR-051-AC-29), rather than
 # failing to compile or reporting zero symbols.
-rust-symbols = ["dep:quire-rust-extraction", "quire-rust-extraction/rust"]
+rust-symbols = ["dep:quire-code-extraction", "quire-code-extraction/rust"]
 # The Python symbol adapter (FR-051, PLAT-868), same shape as `rust-symbols`
 # one language over: gated so the `wasm` build can opt out (tree-sitter-python
 # carries the identical C-toolchain cross-compilation problem `rust-symbols`'s
@@ -173,7 +173,7 @@ rust-symbols = ["dep:quire-rust-extraction", "quire-rust-extraction/rust"]
 # `python-symbols`, not `python`, because `python` is already taken above
 # (the PyO3 bindings feature) and a bare `python` here would misleadingly
 # pair with it.
-python-symbols = ["dep:quire-rust-extraction", "quire-rust-extraction/python"]
+python-symbols = ["dep:quire-code-extraction", "quire-code-extraction/python"]
 # The TypeScript symbol adapter (FR-051, PLAT-882), gated exactly like
 # `rust-symbols` so the `wasm` build can opt out — `tree-sitter-typescript`'s
 # `cc`-crate build script cannot cross-compile to `wasm32-unknown-unknown`
@@ -182,7 +182,7 @@ python-symbols = ["dep:quire-rust-extraction", "quire-rust-extraction/python"]
 # to compile. Default: `typescript.rs` uses it unconditionally now that
 # PLAT-882 has landed, so a default build must keep extracting TypeScript
 # the way it always did.
-typescript-symbols = ["dep:quire-rust-extraction", "quire-rust-extraction/typescript"]
+typescript-symbols = ["dep:quire-code-extraction", "quire-code-extraction/typescript"]
 # Measurement-only. Re-enables the `ac:no-observable-outcome` check CR-014
 # retired, so it can be re-measured over the corpus with the mechanical fixes
 # CR-014/CR-017 applied (agent-ix/quire-rs#18). NEVER enabled in a shipping

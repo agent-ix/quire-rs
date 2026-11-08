@@ -1,12 +1,12 @@
 [package]
-name = "quire-rust-extraction"
+name = "quire-code-extraction"
 version = "0.1.0"
 edition = "2021"
 rust-version = "1.98.1"
 # NOTE (PLAT-851): this crate now wraps all three `quire-code-parse` grammars
 # (rust/python/typescript), not just Rust — the name is stale. Renaming it is
 # deliberately deferred, tracked as PLAT-876: `src/symbols/rust.rs` names this
-# crate directly (`use quire_rust_extraction::...`), and that file was
+# crate directly (`use quire_code_extraction::...`), and that file was
 # plat845's live editing surface at the time, mid-flight proving that every
 # symbol-identity change it made was a nested-function case. A concurrent
 # rename touching the same file would have muddied exactly the evidence that
@@ -18,7 +18,7 @@ repository = "https://github.com/agent-ix/quire-rs"
 publish = false
 
 [lib]
-name = "quire_rust_extraction"
+name = "quire_code_extraction"
 path = "src/lib.rs"
 
 # Purity boundary, copied from filament-ide-rs's `crates/filament-code-extraction`

@@ -1015,6 +1015,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "quire-code-extraction"
+version = "0.1.0"
+dependencies = [
+ "quire-code-parse",
+ "serde_json",
+]
+
+[[package]]
 name = "quire-code-parse"
 version = "0.2.2"
 source = "git+https://github.com/agent-ix/quire-code-rs?rev=b58164a8cf4e6543d7bc5f5f2042ea792612ed16#b58164a8cf4e6543d7bc5f5f2042ea792612ed16"
@@ -1049,8 +1057,8 @@ dependencies = [
  "proptest",
  "pyo3",
  "qa-corpus",
+ "quire-code-extraction",
  "quire-fixtures",
- "quire-rust-extraction",
  "rayon",
  "regex",
  "serde",
@@ -1060,14 +1068,6 @@ dependencies = [
  "thiserror",
  "uuid",
  "yaml_serde",
-]
-
-[[package]]
-name = "quire-rust-extraction"
-version = "0.1.0"
-dependencies = [
- "quire-code-parse",
- "serde_json",
 ]
 
 [[package]]

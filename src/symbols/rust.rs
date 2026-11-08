@@ -1,7 +1,7 @@
 //! Rust source adapter (FR-051).
 //!
 //! Parses over a tree-sitter syntax tree, through the dependency-boundary
-//! crate `quire-rust-extraction` (PLAT-843) — see that crate's own module
+//! crate `quire-code-extraction` (PLAT-843) — see that crate's own module
 //! docs for why the tree-sitter dependency itself is never named here. This
 //! adapter still answers exactly the questions FR-051 needs — which
 //! declaration owns a span, what its qualified name and kind are, whether it
@@ -124,8 +124,8 @@
 //! correctly, not as a deliberate optimisation — no benchmark exists for
 //! that site alone.
 
-use quire_rust_extraction::tree_sitter::Node;
-use quire_rust_extraction::{parse_file, Language};
+use quire_code_extraction::tree_sitter::Node;
+use quire_code_extraction::{parse_file, Language};
 
 use super::{leading_span, RawSymbol, SymbolKind};
 
