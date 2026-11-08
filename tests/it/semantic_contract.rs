@@ -1353,6 +1353,22 @@ fn locator_on_a_typed_relation_key_is_duplicate_authority() {
     assert!(registry.archetype("process").is_none());
     assert!(registry.archetype("entity").is_none());
 
+    // The same locator under `yield_pattern.per_match` is refused too.
+    let root = process_module(&tmp, "dup-per-match", true, true, false);
+    let manifest_path = root.join("manifest.yaml");
+    let mut manifest: serde_yaml::Value =
+        serde_yaml::from_slice(&fs::read(&manifest_path).unwrap()).unwrap();
+    manifest["object_types"][2]["body_extraction"]["yield_pattern"] = serde_yaml::from_str(
+        "{ iterate_over: { section_path: [Steps], kind: heading }, per_match: { emits: { from: table_row, under_section: Emits, assert: { columns: [Event] } } } }",
+    )
+    .unwrap();
+    fs::write(&manifest_path, serde_yaml::to_string(&manifest).unwrap()).unwrap();
+    let registry = load(&root);
+    assert_eq!(registry.failures().len(), 3, "{:?}", reasons(&registry));
+    assert!(codes(&registry)
+        .iter()
+        .all(|c| c == "semantic.duplicate-authority"));
+
     for (name, relationships, typed, locator) in [
         ("no-locator", true, true, false),
         ("untyped", true, false, true),

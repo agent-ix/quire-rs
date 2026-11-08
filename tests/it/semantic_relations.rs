@@ -666,14 +666,19 @@ fn typed_relation_keys_lower_from_rows() {
     );
     assert!(record.get("relations").is_none());
 
-    let record = typed_extract(&typed_request(
+    let mut two_events = typed_request(
         "aggregate_root",
         "",
-        "| placed | emits | event-001 | 0..* |\n| shipped | emits | ix://agent-ix/shop/event-001 | 0..* |\n",
-    ));
+        "| shipped | emits | event-002 | 0..* |\n| placed | emits | ix://agent-ix/shop/event-001 | 0..* |\n",
+    );
+    two_events["bundle"]["artifacts"]
+        .as_array_mut()
+        .unwrap()
+        .push(json!({ "id": "event-002", "object": "event", "operations": [] }));
+    let record = typed_extract(&two_events);
     assert_eq!(
         record["emits"],
-        json!([identity("event-001"), identity("event-001")]),
+        json!([identity("event-002"), identity("event-001")]),
         "{record:#}"
     );
     for value in record["emits"].as_array().unwrap() {
@@ -846,4 +851,18 @@ fn typed_rows_share_identity_and_index_states() {
     let without = serde_json::to_string(&extract_semantic_json(&untyped).unwrap()).unwrap();
     assert_eq!(with_schema, without);
     assert!(with_schema.contains("\"relations\""), "{with_schema}");
+
+    // A schema with neither a typed key nor `relations` reads every row as
+    // before, too: the AC-1 fixture under `{ type: object }` is unchanged.
+    let fixture = mapping_json("relationships.expected.json");
+    let md = mapping_text("relationships.md");
+    let mut plain = request(&fixture, &md, "relationships.md", None);
+    let before = serde_json::to_string(&extract_semantic_json(&plain).unwrap()).unwrap();
+    plain["dataSchema"] = json!({ "type": "object" });
+    let after = serde_json::to_string(&extract_semantic_json(&plain).unwrap()).unwrap();
+    assert_eq!(before, after);
+    let record: Value = serde_json::from_str(&after).unwrap();
+    assert_eq!(record["relations"], fixture["relations"]);
+    assert_eq!(record["relationSources"], fixture["relationSources"]);
+    assert_eq!(record["diagnostics"], fixture["diagnostics"]);
 }
