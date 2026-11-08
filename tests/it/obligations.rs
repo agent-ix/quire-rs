@@ -1486,3 +1486,47 @@ fn selected_inventory_preserves_legacy_consumers_without_evidence_verdicts() {
         InventoryTerminal::Incomplete
     );
 }
+
+// PLAT-104 / quire-rs#428: quoin reads exactly `id` and `statement` from each
+// entry of `coverage --json`'s `obligations[]` through a deserialize-only
+// projection with both fields required. Renaming or dropping either is a
+// breaking change for that consumer, so the serialized payload pins both.
+#[test]
+fn coverage_json_obligations_carry_id_and_statement() {
+    let scope = ac_bundle(
+        "plat104",
+        "| FR-001-AC-1 | The system shall do it. | Test (TC-001) | P1 |\n\
+         | FR-001-AC-2 | The system shall log it. | Analysis | P2 |\n",
+    );
+    let registry = Registry::load_module(&fixture_module("obligations")).expect("load module");
+    let spec = Spec::from_path(&scope);
+    let source = scope.parent().unwrap().join("src");
+    fs::create_dir_all(&source).expect("mkdir");
+    write(&source, "lib.rs", "//! empty\n");
+    let extraction = extract_tree(&source);
+    let model = registry.traceability().cloned().unwrap();
+    let graph = trace::bind(&extraction, &model);
+    let report = compute(&spec, &registry, &graph, &scope).expect("report");
+
+    let json: serde_json::Value = serde_json::from_str(&report.to_json()).expect("valid JSON");
+    let entries = json["obligations"].as_array().expect("obligations array");
+    assert_eq!(entries.len(), 2, "{entries:#?}");
+    let pairs: Vec<(&str, &str)> = entries
+        .iter()
+        .map(|e| {
+            (
+                e["id"].as_str().expect("`id` must be a string"),
+                e["statement"]
+                    .as_str()
+                    .expect("`statement` must be a string"),
+            )
+        })
+        .collect();
+    assert_eq!(
+        pairs,
+        [
+            ("FR-001-AC-1", "The system shall do it."),
+            ("FR-001-AC-2", "The system shall log it."),
+        ]
+    );
+}
