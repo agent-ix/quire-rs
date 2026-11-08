@@ -74,6 +74,24 @@ clause id and never parses them
   sections a document must carry through `RequiredSections::from_extraction`,
   the one reader of required sections; no surface scans DSL JSON keys of its
   own.
+- The object type's construct `references` (the module's `construct`
+  declaration, member name to role list, for example
+  `transitions: [event-like]`), read by the admission rule of "Declaration
+  references". Its carrier is a `construct_references` member on
+  `SemanticContext`, set with `with_construct_references`. Per surface:
+  - `validate_document` and its registry variants take it from the compiled
+    archetype's `construct()` inside `RelationVocabulary::from_registry`'s
+    caller (`semantic_findings`); the compiled archetype already holds it.
+  - Filament `attach_semantic` receives no construct today: the
+    `SemanticSnapshot` and `CompiledObjectType` carry none. This is an
+    implementation requirement: the Filament snapshot MUST carry the object
+    type's construct `references`, and `attach_semantic` MUST pass them into
+    the context. Until it does, the Filament surface applies the
+    `allowed_links` tier and then the admit-any tier, and the construct tier
+    is untested there.
+  - The Python entry supplies it only when the request carries
+    `constructReferences`, as it supplies `relationVocabulary`.
+  A context without construct references skips the construct tier.
 - The document path. The Filament and Python surfaces pass the artifact
   path; `validate_document` has no path, and its spans and messages name
   `<document>`.
@@ -118,8 +136,8 @@ past that line's byte length.
 | `population` | table `Type \| Extent` (both required) | `{ members: [{ type, extent, sourceSpan }] }` |
 | `values` | table `Value \| Description` (`Value` required) | `{ value, doc?, sourceSpan }` |
 | `states` | table `State \| Description` (`State` required) | `{ value, doc?, sourceSpan }` |
-| `transitions` | table `From \| To \| Trigger \| Guard \| Emits` (`From`, `To`, `Trigger` required) | `{ from, to, trigger, guard?, emits?, sourceSpan }`, `emits` a name list |
-| `steps` | table `Step \| Kind \| Consumes \| Emits \| Description` (`Step`, `Kind` required) | `{ name, kind, consumes?, emits?, doc?, sourceSpan }` |
+| `transitions` | table `From \| To \| Trigger \| Guard \| Emits` (`From`, `To`, `Trigger` required) | `{ from, to, trigger, guard?, emits?, sourceSpan }`, `emits` one `SemanticId` (the module types a transition's `emits` as a single `SemanticId`) |
+| `steps` | table `Step \| Kind \| Consumes \| Emits \| Description` (`Step`, `Kind` required) | `{ name, kind, consumes?, emits?, doc?, sourceSpan }`, `consumes` and `emits` each a `SemanticId[]`, in cell order |
 | `members` | table `Member \| Multiplicity` (both required) | `{ target, multiplicity, sourceSpan }` |
 | `vocabulary` | table `Term \| Description` (`Term` required) | `{ term, doc, sourceSpan }` |
 | `part` | table `Owner \| Declared Type \| Multiplicity` (all required), one row | `{ owner, declaredType, multiplicity, sourceSpan }` |
@@ -230,9 +248,10 @@ Tables:
   `Identifier`; a `Description` cell is carried verbatim, and an empty one
   is absent.
 - A `Kind` cell SHALL be one of `command`, `event`, `decision`,
-  `compensation`, `wait`. `Consumes` and `Emits` cells (in `steps` and in
-  `transitions`) SHALL list comma-separated names, carried verbatim as a
-  name list; an empty cell is absent.
+  `compensation`, `wait`. A `steps` `Consumes` or `Emits` cell SHALL
+  list comma-separated references, and a `transitions` `Emits` cell SHALL
+  hold at most one; each is resolved by "Declaration references" below to a
+  `SemanticId`. An empty cell is absent. No cell is carried as a raw string.
 - A cell of a column the header omits under `optional_columns` is absent.
 - A transition `From` or `To` that names no `states` entry of the artifact
   is `semantic.unknown-state`, checked only when the `states` table carries
@@ -246,6 +265,90 @@ Tables:
 - Any other cell error is `semantic.invalid-model-cell` at the row.
 - A second declared table of the same feature in one artifact is
   `semantic.duplicate-section` at its header line and fails that feature.
+
+Declaration references:
+
+A *reference item* is one comma-separated item of a `Consumes` or `Emits`
+cell, trimmed of surrounding whitespace, with backticks stripped.
+The engine SHALL resolve each reference item to the `SemanticId` of the
+declaration it names.
+The engine SHALL NOT carry the item text.
+ The `Target` of an FR-076 typed-key
+row resolves to the same `SemanticId` for the same declaration
+([FR-076](./FR-076-relationships-extraction.md)); that sameness is claimed
+for declaration references only, and the FR-070 `Type` cell identity
+`ix://<org>/<repo>/type/<token>` is unchanged.
+
+- Identity: the `SemanticId` is `ix://<package>/<id>`, `<id>` the artifact's
+  frontmatter `id`, `<package>` the bundle's package, else the source
+  identity's package (the FR-076 rule). With neither package known, the
+  engine SHALL treat the item as the no-bundle-package state below.
+- Fields read: the engine SHALL join `BundleIndex.artifacts` (`id`, `object`)
+  to `BundleIndex.objects` (`id`, `names`) by `id`, so each declaration has
+  an `id`, its names (`id`, `title` and `name`) and its object type. The
+  extracted artifact's own frontmatter `id`, `title`, `name` and `object`
+  always count as a declaration of the bundle, so an item naming the artifact
+  itself resolves to it when its object type is admitted. No other index
+  field is read.
+- Candidates: the engine SHALL collect together every distinct declaration
+  (by `id`) whose `id` equals the item and every declaration whose `title` or
+  `name` equals the item (exact, case-sensitive); one declaration authored in
+  two forms under one `id` is one declaration. There is no precedence
+  between an `id` match and a name match.
+- An item in the form `ix://<org>/<repo>/<id>` is resolved by the shared
+  resolver as an FR-076 `Target` is and is never matched by name. An
+  identity in an imported package has no object type and is admitted
+  unchecked, as FR-076 admits it.
+- Admission: the admitted declarations of a cell are read from module data,
+  in this precedence. First, the object type's construct `references` entry
+  for the model member holding the cell (`transitions` for a `Transitions`
+  `Emits` cell, `steps` for a `Steps` `Consumes` or `Emits` cell), whose
+  tokens are roles, so a declaration is admitted when its object type
+  carries one of them (spec-objects-business: `state_machine` declares
+  `transitions: [event-like]`, `process` declares `steps: [event-like]`, and
+  `event` carries `event-like`). Second, when the construct declares no
+  entry for the member, the object type's `allowed_links` entry for the verb
+  named by the column (`emits` for `Emits`, `consumes` for `Consumes`), each
+  token `*`, an object type or a role, as FR-076 applies them. Third, when
+  the module declares neither, every declaration is admitted. The first
+  declaration found wins and the later sources are not consulted. The engine
+  names no object type or role of its own. Both sources are read from the
+  context's `RelationVocabulary` (roles, `allowed_links`) and construct
+  references; a context without them admits every declaration. A bundle
+  declaration with no object type satisfies only `*` or an unrestricted cell.
+- Outcome, per item, after the candidates not admitted are removed: exactly
+  one declaration resolves; none, where the item named no candidate at all,
+  is `semantic.unknown-reference` at the row with `reason` `unknown-name`;
+  none, where it named one or more candidates of no admitted type, is
+  `semantic.reference-kind-mismatch` at the row; more than one distinct
+  declaration is `semantic.ambiguous-reference` at the row naming at least
+  two ids. An item that is the `id` of a candidate of a non-admitted type
+  and the title of a candidate of an admitted type resolves to the latter.
+- A cell whose items resolve to the same identity twice (`OrderPlaced, EV-001`
+  naming one event) is `semantic.duplicate-model-entry` at the row with
+  `reason` `repeated-reference`. An empty item (`A,,B`, a trailing comma) is
+  `semantic.invalid-model-cell` at the row with `reason` `empty-item`. A
+  `transitions` `Emits` cell with a second item is
+  `semantic.invalid-model-cell` at the row with `reason`
+  `too-many-references`.
+- No bundle index: this is one state with one definition, shared with
+  [FR-076](./FR-076-relationships-extraction.md) Inputs: `BundleIndex.artifacts`
+  is absent or empty, whatever `objects` holds, and the extracted artifact's
+  own entry does not make it non-empty. A bundle that lists only the
+  extracted artifact is indexed. When the state holds, the engine SHALL emit the advisory
+  `semantic.unresolved-target` at the row with `reason` `no-bundle-index`,
+  once per row holding a reference item. It SHALL set `availability.model`
+  `unavailable` with reason `no-bundle-index` and omit `model`, with no raw
+  text and no placeholder in the record. No bundle package: the same, with
+  reason `no-bundle-package`. An advisory is not an error, so per-document
+  validation (`validate_document`) keeps passing.
+- Every error of this section carries `code`, severity `error`, `reason`
+  where stated, the row's `sourceSpan`, and a message naming the artifact
+  path, the section, the feature and the item. Each makes `availability.model`
+  `unavailable` listing the error lines, and `model` is omitted, as for any
+  other model error.
+- The engine specifies no fallback for an unresolved item: not a raw string,
+  not a placeholder identity.
 
 Dimension and unit tables:
 
@@ -394,11 +497,31 @@ General:
 - The engine SHALL NOT read a table as a model feature unless a declared
   locator owns its section and its header conforms to that locator.
 
+> **CR-192 note (2026-11-08, agent-ix/quire-rs#444, PLAT-35):** the original text
+> carried the `Emits` and `Consumes` cells as verbatim name lists, although
+> the module types them `SemanticId`, so each frontend re-resolved the cell
+> itself or kept a raw string. They now resolve through the bundle index by
+> `id` or declared name, and an unresolved, ambiguous or repeated item is a
+> refusal; with no bundle index the document keeps validating, the model is
+> unavailable and nothing raw is carried. A transition's `Emits` is one
+> `SemanticId`, as the module types it. Raw-name cells are not carried forward
+> in any form. Affected criteria: FR-075-AC-5 (`emits` is no longer a name
+> list; read it with AC-22) and the new AC-22..27. The admission tier now reads the module's construct `references`, which
+> is a new context input (FR-075 Inputs); the Filament snapshot must carry it
+> (a `agent-ix/filament-core-data` / `filament-core-service` dependency, with
+> `agent-ix/filament-core-service#32` for the vocabulary), and ownership of the
+> admitted types moves from the FCD frontend to this engine. Deferred, not specified here:
+> `Event.source` and `NestedEntity.owner`. No module declares a `Source`
+> locator, and `owner` is a `RelationDecl` read from the required `## Parent`
+> section under the `composite-owner` role, so both wait for a module-side
+> locator.
+
 ## Constraints
 
 | ID | Constraint | Type | Validation |
 |----|------------|------|------------|
 | FR-075-CON-1 | An artifact that declares no model feature SHALL yield a record byte-identical to the FR-072 record: no `model` key and no `availability.model` key. | Compatibility | Test |
+| FR-075-CON-2 | The engine SHALL carry a reference item in the record only as the `SemanticId` of a declaration found in the bundle. | Correctness | Test |
 
 ## Acceptance Criteria
 
@@ -408,7 +531,7 @@ General:
 | FR-075-AC-2 | Under `mappings: [presence, subsetting, redefinition]`, a typed table with `Presence`, `Subsets`, `Redefines` columns yields the FR-070 `fields` plus one `fieldFeatures` entry per row declaring a feature, with row spans; `availability.model` is `available`; a `Presence` of `maybe` yields `semantic.invalid-model-cell`, `fields` `unavailable`, and no `model`; an unknown or repeated feature column yields only `semantic.invalid-model-cell` at the header with `section` `Properties`; a typed feature table before the first `##` heading is refused with `section` `preamble`. | Test |
 | FR-075-AC-3 | Under `mappings: [effect-frames]`, an operation with `Pre:`, `Post:`, `Modifies:`, `Creates:`, and `Deletes:` lines yields `pre`/`post` and one `operationFrames` entry at its heading; a second `Pre:` yields `semantic.duplicate-operation-line`; a dangling `Pre:` id yields `semantic.dangling-clause-ref`; a second `Modifies:` line yields `semantic.duplicate-operation-line`; a frame name that is not an `Identifier` path yields `semantic.invalid-model-cell`; each error sets `availability.model` `unavailable` and omits `model`. | Test |
 | FR-075-AC-4 | A `population` artifact whose object type declares a `Type \| Extent` table extracts each member with its resolved `TypeRef`, its `extent` multiplicity, and its row span. | Test |
-| FR-075-AC-5 | Under declared table locators, `Values`, `States`, `Transitions`, `Steps`, `Members`, and `Ubiquitous Language` tables extract to their typed entries with row spans; a transition to an undeclared state yields `semantic.unknown-state`, an unknown trigger `semantic.unknown-trigger`, an unknown guard `semantic.dangling-clause-ref`, a repeated value `semantic.duplicate-model-entry`, an unknown step kind `semantic.invalid-model-cell`, and a second table under a declared section `semantic.duplicate-section`; `emits` is a name list; a failed `states` table suppresses `semantic.unknown-state`; a transitions table omitting its optional columns extracts, and one omitting a required column is refused; a mermaid fence and a bullet list under declared sections are refused with their section and line. | Test |
+| FR-075-AC-5 | Under declared table locators, `Values`, `States`, `Transitions`, `Steps`, `Members`, and `Ubiquitous Language` tables extract to their typed entries with row spans; a transition to an undeclared state yields `semantic.unknown-state`, an unknown trigger `semantic.unknown-trigger`, an unknown guard `semantic.dangling-clause-ref`, a repeated value `semantic.duplicate-model-entry`, an unknown step kind `semantic.invalid-model-cell`, and a second table under a declared section `semantic.duplicate-section`; `emits` is a `SemanticId` (AC-22); a failed `states` table suppresses `semantic.unknown-state`; a transitions table omitting its optional columns extracts, and one omitting a required column is refused; a mermaid fence and a bullet list under declared sections are refused with their section and line. | Test |
 | FR-075-AC-6 | Each feature of AC-1..AC-5 authored under a manifest that does not declare it yields the error `semantic.feature-not-extractable` at the declaring line, with the feature as `reason`, `sourceSpan` of that line, `section`, and a message naming the artifact path and section, and the owning kind `unavailable` with no entry; a model table under an unowned section or before the first `##` heading is refused the same way. | Test |
 | FR-075-AC-7 | An artifact declaring no model feature yields no `model` and no `availability.model`, every existing semantic case record is unchanged, and every record of AC-1..AC-6 validates against `semantic-v1.schema.json`. | Test |
 | FR-075-AC-8 | A record carrying `model` carries `identity` with the frontmatter `id` and `displayName` with the frontmatter `title`, each spanning its frontmatter line. | Test |
@@ -425,8 +548,14 @@ General:
 | FR-075-AC-19 | Under a manifest declaring none of the `Base`, `Dimension \| Exponent` and `Dimension \| Target \| Scale \| Offset` locators, an artifact carrying each table yields `semantic.feature-not-extractable` at the declaring line with `reason` `dimension`, `terms` or `unit`, `sourceSpan` and `section`, and no entry; an artifact declaring none of the three tables yields no `dimension`, `terms` or `unit` member and a record byte-identical to the FR-072 record. | Test |
 | FR-075-AC-20 | Every record of AC-16..AC-19 validates against `semantic-v1.schema.json`, which lists `dimension`, `terms` and `unit` with `additionalProperties: false`; the Python binding and the Rust library return equal JSON values for each case; extraction of the same input twice is byte-identical. | Test |
 | FR-075-AC-21 | Two `Base` tables, two `Dimension \| Exponent` tables, and two `Dimension \| Target \| Scale \| Offset` tables in one artifact each yield `semantic.duplicate-section` at the second table's header line; an artifact declaring a `Base` table and then a unit table yields `semantic.duplicate-section` at the unit table's header line and extracts `model.dimension` only, and a unit table then a `Base` table yields it at the `Base` table's header line and extracts `model.unit` only; a `Base` table with a `terms` table is accepted and extracts both. | Test |
+| FR-075-AC-22 | Under a bundle with event artifacts `EV-001` titled `OrderPlaced` and `EV-002` titled `OrderShipped`, a `Transitions` row with `Emits` `OrderPlaced` yields `emits` `ix://<org>/<repo>/EV-001`; a `Steps` row with `Consumes` `OrderPlaced, EV-002` and `Emits` `OrderShipped` yields `consumes` `[…/EV-001, …/EV-002]` and `emits` `[…/EV-002]` in cell order; an empty `Emits` cell yields no `emits`; every `emits` and `consumes` value is an `ix://` identity and none equals its cell text; the record validates against `semantic-v1.schema.json`. | Test |
+| FR-075-AC-23 | An `Emits` item `OrderLost` naming no declaration yields `semantic.unknown-reference` with `reason` `unknown-name` at the row; under a `state_machine` whose construct declares `transitions: [event-like]`, a `Transitions` `Emits` item `Order` naming only an `entity` artifact yields `semantic.reference-kind-mismatch`, and the same item under a `process` with only `allowed_links.emits: [event]` and no construct entry for `steps` yields it too; under a module declaring neither source the item resolves to the entity; each sets `availability.model` `unavailable` listing the row's line and omits `model`; the control (every item resolves) yields neither. | Test |
+| FR-075-AC-24 | Two event artifacts titled `OrderPlaced` make an item `OrderPlaced` `semantic.ambiguous-reference` naming both ids; an event and an entity both titled `OrderPlaced` resolve the item to the event; one event authored in two forms under one `id` resolves with no diagnostic; an event with `id` `OrderPlaced` and another event titled `OrderPlaced` is `semantic.ambiguous-reference`; an item that is the `id` of an entity and the title of an event resolves to the event; an item in the form `ix://<org>/<repo>/EV-001` is resolved as FR-076 resolves a `Target` and never by name; an item naming the extracted artifact by its own title resolves to it when admitted, and is `semantic.reference-kind-mismatch` otherwise. | Test |
+| FR-075-AC-25 | A cell `OrderPlaced, EV-001` naming one event twice yields `semantic.duplicate-model-entry` with `reason` `repeated-reference`; `OrderPlaced,,EV-002` and a trailing comma yield `semantic.invalid-model-cell` with `reason` `empty-item`; a `Transitions` `Emits` cell `OrderPlaced, OrderShipped` yields `reason` `too-many-references`; an imported-package `ix://` item resolves unchecked with no diagnostic; a declaration with no `object` satisfies an unrestricted cell and is `semantic.reference-kind-mismatch` under `allowed_links.emits: [event]`; where a construct entry and an `allowed_links` entry both exist, the construct entry decides. | Test |
+| FR-075-AC-26 | With a bundle whose `artifacts` is empty (whatever `objects` holds), a valid `Emits` cell yields one `semantic.unresolved-target` advisory with `reason` `no-bundle-index` per such row, `availability.model` `unavailable` with reason `no-bundle-index`, no `model`, no error, and `validate_document` of the artifact reports valid; with a bundle but no package and no source identity the same holds with `no-bundle-package`; a bundle listing only the extracted artifact is indexed, and an item naming another declaration is `semantic.unknown-reference` `unknown-name`. | Test |
+| FR-075-AC-27 | `tests/fixtures/semantic/cases.json` carries, for each of transition `emits`, step `consumes` and step `emits`, a case with `issue_ref` `PLAT-35` asserting the resolved `SemanticId`, a case asserting the refusal, and a control asserting its `absent_diagnostic_reasons`; the Python binding and the Rust library return equal JSON for each. | Test |
 
 ## Dependencies
 
 - **Upstream**: [FR-069](./FR-069-semantic-module-contract-at-load.md), [FR-070](./FR-070-typed-properties-extraction.md), [FR-071](./FR-071-clause-and-operation-extraction.md), [FR-072](./FR-072-semantic-extraction-surface.md)
-- **Downstream**: `agent-ix/filament-core-data#148` (domain package lift); `agent-ix/spec-objects-business` (manifest `mappings` and `table_row` locators); `agent-ix/spec-objects-foundation` (`dimension` and `unit` object types); `agent-ix/filament-core-data` FR-146 "Spec-bundle extraction"
+- **Downstream**: `agent-ix/filament-core-data#148` (domain package lift); `agent-ix/filament-core-data#154` (the extraction frontend drops its own cell resolution); `agent-ix/spec-objects-business` (manifest `mappings` and `table_row` locators; `Transition.emits` single `SemanticId`, `Process` step arrays); `agent-ix/spec-objects-foundation` (`dimension` and `unit` object types); `agent-ix/filament-core-data` FR-146 "Spec-bundle extraction"

@@ -120,6 +120,23 @@ Refusals, in evaluation order:
 - The loader SHALL NOT rewrite, normalize, or dereference a referenced schema
   before validation.
 
+Duplicate declaration authority, per module after its data schemas resolve:
+
+- If a module names `relationships` in `semantic.mappings` and one of its
+  object types declares in `body_extraction` a `table_row` locator whose
+  match key equals a typed relation key of that object type, then the
+  loader SHALL refuse the module with `semantic.duplicate-authority`.
+  A typed relation key is a top-level `SemanticId[]` property of the type's
+  resolved `data_schema` whose name is a verb in the type's `allowed_links`
+  ([FR-076](./FR-076-relationships-extraction.md)). The trigger is the
+  per-type locator under the module-level mapping token: a locator keyed
+  `emits` on a type with no such key, or a module not naming `relationships`,
+  is not refused.
+- The failure shape is the existing `ArchetypeLoadFailure` per archetype of
+  the refused module, with `reason` starting `semantic.duplicate-authority`
+  followed by a message naming the module, the object type and the locator
+  key.
+
 Cross-module checks, after every module of a load has been read, in sorted
 module-root order:
 
@@ -179,8 +196,9 @@ stricter of the two.
 | FR-069-AC-10 | Two loaded modules with one `semantic.package` fail the later sorted root with `semantic.duplicate-package` naming both; an import no loaded module provides warns `semantic.import-unresolved` and still loads; a two-module import cycle fails both with `semantic.import-cycle`. | Test |
 | FR-069-AC-11 | `Registry::from_inline_parts` with a reference-form `data_schema` resolves the file from the `schemas` map, applies the same escape and `$ref` rules, and refuses a key with a `..` segment. | Test |
 | FR-069-AC-12 | A module whose `semantic` block lists `mappings` loads with those tokens recorded on its `SemanticModule`, in order; a block without `mappings` records an empty list. | Test |
+| FR-069-AC-13 | A module naming `relationships` whose `process` type declares a `table_row` locator keyed `emits` (a typed relation key of its `data_schema`) is refused: every archetype of the module fails with a reason starting `semantic.duplicate-authority` and naming the module, `process` and `emits`; the same module with the locator removed loads; a locator keyed `emits` on a type whose schema has no `emits`, and the same locator in a module not naming `relationships`, load. | Test |
 
 ## Dependencies
 
-- **Upstream**: [FR-013](./FR-013-archetype-loader.md), [FR-045](./FR-045-filament-core-extraction-engine.md), [FR-067](./FR-067-versioned-assurance-export.md); `agent-ix/quoin` FR-070/FR-073/FR-075; `agent-ix/filament-core-service` FR-035-AC-13..15, `#23`
+- **Upstream**: [FR-013](./FR-013-archetype-loader.md), [FR-076](./FR-076-relationships-extraction.md) (typed relation keys), [FR-045](./FR-045-filament-core-extraction-engine.md), [FR-067](./FR-067-versioned-assurance-export.md); `agent-ix/quoin` FR-070/FR-073/FR-075; `agent-ix/filament-core-service` FR-035-AC-13..15, `#23`
 - **Downstream**: [FR-070](./FR-070-typed-properties-extraction.md), [FR-071](./FR-071-clause-and-operation-extraction.md), [FR-072](./FR-072-semantic-extraction-surface.md)
