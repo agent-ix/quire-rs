@@ -74,6 +74,24 @@ clause id and never parses them
   sections a document must carry through `RequiredSections::from_extraction`,
   the one reader of required sections; no surface scans DSL JSON keys of its
   own.
+- The object type's construct `references` (the module's `construct`
+  declaration, member name to role list, for example
+  `transitions: [event-like]`), read by the admission rule of "Declaration
+  references". Its carrier is a `construct_references` member on
+  `SemanticContext`, set with `with_construct_references`. Per surface:
+  - `validate_document` and its registry variants take it from the compiled
+    archetype's `construct()` inside `RelationVocabulary::from_registry`'s
+    caller (`semantic_findings`); the compiled archetype already holds it.
+  - Filament `attach_semantic` receives no construct today: the
+    `SemanticSnapshot` and `CompiledObjectType` carry none. This is an
+    implementation requirement: the Filament snapshot MUST carry the object
+    type's construct `references`, and `attach_semantic` MUST pass them into
+    the context. Until it does, the Filament surface applies the
+    `allowed_links` tier and then the admit-any tier, and the construct tier
+    is untested there.
+  - The Python entry supplies it only when the request carries
+    `constructReferences`, as it supplies `relationVocabulary`.
+  A context without construct references skips the construct tier.
 - The document path. The Filament and Python surfaces pass the artifact
   path; `validate_document` has no path, and its spans and messages name
   `<document>`.
@@ -488,7 +506,11 @@ General:
 > unavailable and nothing raw is carried. A transition's `Emits` is one
 > `SemanticId`, as the module types it. Raw-name cells are not carried forward
 > in any form. Affected criteria: FR-075-AC-5 (`emits` is no longer a name
-> list; read it with AC-22) and the new AC-22..27. Deferred, not specified here:
+> list; read it with AC-22) and the new AC-22..27. The admission tier now reads the module's construct `references`, which
+> is a new context input (FR-075 Inputs); the Filament snapshot must carry it
+> (a `agent-ix/filament-core-data` / `filament-core-service` dependency, with
+> `agent-ix/filament-core-service#32` for the vocabulary), and ownership of the
+> admitted types moves from the FCD frontend to this engine. Deferred, not specified here:
 > `Event.source` and `NestedEntity.owner`. No module declares a `Source`
 > locator, and `owner` is a `RelationDecl` read from the required `## Parent`
 > section under the `composite-owner` role, so both wait for a module-side

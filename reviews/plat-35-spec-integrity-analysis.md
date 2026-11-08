@@ -46,3 +46,5 @@ Changes requested. Ids, ledger rows and the tests.md summary rows are consistent
 | FND-003 | fixed | Verified in f04fa2c. |
 | FND-004 | fixed | Verified in f04fa2c. |
 | FND-005 | fixed | Verified in f04fa2c. |
+| FND-006 | fixed | Verified in 41c64b6 (round 2). |
+| FND-007 | fixed | Verified in 41c64b6 (round 2). |

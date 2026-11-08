@@ -56,3 +56,12 @@ Changes requested. The ids are new and unique, and every AC has one TC row and o
 | FND-008 | fixed | Verified in f04fa2c. |
 | FND-009 | fixed | Verified in f04fa2c. |
 | FND-010 | fixed | Verified in f04fa2c. |
+| FND-011 | fixed | Verified in 41c64b6 (round 2). |
+| FND-012 | fixed | Verified in 41c64b6 (round 2). |
+
+## New findings (disposition pass 2)
+
+| ID | Severity | Summary | Refs | Escape Cause |
+| --- | --- | --- | --- | --- |
+| FND-013 | medium | The new first admission source, construct `references`, has no stated input. FR-075 Inputs does not list it, `RelationVocabulary` carries only roles, edge types and `allowed_links` (src/semantic/relations.rs:71), and the loader keeps `construct` raw with the comment that filament-core-data owns its meaning (src/loader/manifest.rs:529-530). Two things are left open: how `construct.references` reaches `SemanticContext` on each surface (validate_document builds the vocabulary via `from_registry`; Filament `attach_semantic` supplies no vocabulary), and the fact that quire-rs now interprets a key it documents as owned elsewhere. Without them the rule's 'a context without them admits every declaration' clause is the only behaviour an implementer can build. Fix: add the object type's `construct.references` to FR-075 Inputs, name the carrier (for example a field on `RelationVocabulary` or the context built from the compiled object type) for each surface, and record the ownership change (or a filament-core-data dependency) in the CR-192 note. | spec/functional/FR-075-model-feature-extraction.md:284-300 | wrong-requirement |
+| FND-014 | low | The FR-076 Upstream line still lists FR-069 twice, and the first entry now has no comma before FR-040 (`[FR-069](...) [FR-040](...)`). Fix: keep one FR-069 entry, comma-separated. | spec/functional/FR-076-relationships-extraction.md:323 | wrong-requirement |

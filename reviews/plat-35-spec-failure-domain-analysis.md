@@ -43,3 +43,4 @@ Changes requested. The ambiguity rule over distinct ids, and treating one declar
 | FND-002 | fixed | Verified in f04fa2c. |
 | FND-003 | fixed | Verified in f04fa2c. |
 | FND-004 | fixed | Verified in f04fa2c. |
+| FND-005 | fixed | Verified in 41c64b6 (round 2). |
