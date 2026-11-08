@@ -36,6 +36,8 @@ partial model.
 When a manifest carries no `semantic` block, the loader SHALL load it exactly
 as it does today.
 
+> **CR note (PLAT-237):** The prose previously said "object type" throughout. The loader has always resolved `semantic.exports` against every archetype (`manifest.all_archetypes()`), as FR-069-AC-3 states, so the wording was corrected to "archetype" to match the code. Behavior is unchanged.
+
 ## Inputs
 
 - `manifest.yaml` and the files under the module root (filesystem loader,
