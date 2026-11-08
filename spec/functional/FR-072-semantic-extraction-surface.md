@@ -81,7 +81,7 @@ verbatim `clauseText` and the byte-identity constraints below.
   re-scan the source; `FieldDecl` and `OperationDecl` keep the semantic-core
   shape.
   `operationExpressions` holds the opaque inline `Pre:`/`Post:` expressions of
-  [FR-071](./FR-071-clause-and-operation-extraction.md) (CR-196), an additive
+  [FR-071](./FR-071-clause-and-operation-extraction.md) (CR-199), an additive
   optional key listed in `semantic-v1.schema.json`.
   Each diagnostic is `{ code, severity, line, column?, message, reason?,
   sourceSpan?, section? }`; an FR-075 refusal carries `sourceSpan` and
@@ -125,8 +125,22 @@ verbatim `clauseText` and the byte-identity constraints below.
 - Repeated extraction over identical input SHALL produce byte-identical JSON,
   and the three surfaces SHALL agree as JSON values on every fixture case.
 - The record SHALL validate against `semantic-v1.schema.json` (JSON Schema
-  2020-12, `additionalProperties: false` on every object, `$id` ending in
-  `semantic-v1.schema.json`).
+  2020-12, `additionalProperties: false` on every object except the two whose
+  keys are data, `$id` ending in `semantic-v1.schema.json`). The two
+  exceptions are the record's top level, whose additional keys are the
+  [FR-076](./FR-076-relationships-extraction.md) typed relation keys, named by
+  the object type's data schema, with `additionalProperties` exactly
+  `{ "type": "array", "items": { "$ref": "#/$defs/semanticId" } }`, and
+  `clauseText`, a map from clause id to verbatim text, with
+  `additionalProperties` exactly `{ "type": "string" }`.
+
+> **CR-194 note (2026-11-08, agent-ix/quire-rs#435, PLAT-55):** the original
+> text required `additionalProperties: false` on every object. FR-076 typed
+> relation keys (`emits`, `persists`, ...) are top-level record keys whose
+> names come from module data, so the top level admits additional keys, each
+> a `SemanticId[]` and nothing looser. `clauseText` was already a map keyed by
+> clause id and is named here so the rule states what the schema holds.
+> Affected criteria: FR-072-AC-8.
 
 ## Constraints
 
@@ -147,7 +161,7 @@ verbatim `clauseText` and the byte-identity constraints below.
 | FR-072-AC-5 | `validate_document` over the vendored corpus copy reports the legacy-form warning at its line, and over `both-forms.md` the both-forms error at the fence line, with the library's codes; the error fails validation. | Test |
 | FR-072-AC-6 | The Python binding's `extract_filament_core` and `extract_semantic` return JSON values equal to the Rust output for every fixture case under `make ci-python`; the WASM leg is verified by `agent-ix/quire-wasm#3` against the same fixture file. | Test |
 | FR-072-AC-7 | Two extractions over identical input serialize byte-identically; editing an unrelated section changes no declaration, span, or diagnostic. | Test |
-| FR-072-AC-8 | `semantic-v1.schema.json` is valid 2020-12 with `additionalProperties: false` everywhere, and a checked-in compatibility fixture pins every field and state token; removing or renaming a pinned field fails the fixture test. | Test |
+| FR-072-AC-8 | `semantic-v1.schema.json` is valid 2020-12 with `additionalProperties: false` on every object except the record's top level (exactly a `SemanticId[]` for typed relation keys) and `clauseText` (exactly a string map), and a checked-in compatibility fixture pins every field and state token; removing or renaming a pinned field fails the fixture test. | Test |
 | FR-072-AC-9 | Coverage-v1, properties-v1, and assurance-v1 outputs equal their checked-in fixtures byte-for-byte, and `CoreExtractionDiagnostic.severity` values remain within `info`, `warning`, `error`. | Test |
 
 ## Dependencies

@@ -85,6 +85,15 @@ pub struct SemanticSnapshot {
     /// The module `semantic.mappings`; FR-075 features are gated on it.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub mappings: Vec<String>,
+    /// The object type's construct `references`, which admit FR-075
+    /// declaration references.
+    #[serde(
+        rename = "constructReferences",
+        alias = "construct_references",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub construct_references: Option<crate::semantic::ConstructReferences>,
 }
 
 impl FilamentObjectType {
@@ -1139,7 +1148,12 @@ fn attach_semantic(
         input.rel_path.clone(),
         input.semantic_bundle.clone().unwrap_or_default(),
     )
-    .with_source_identity(format!("ix://{}/{}/spec", input.org, input.repo_name));
+    .with_source_identity(format!("ix://{}/{}/spec", input.org, input.repo_name))
+    .with_data_schema(&object_type.schema);
+    let ctx = match &snapshot.construct_references {
+        Some(references) => ctx.with_construct_references(references.clone()),
+        None => ctx,
+    };
     let ctx = match object_type.body_extraction.as_ref() {
         Some(dsl) => ctx.with_body_extraction(dsl),
         None => ctx,
