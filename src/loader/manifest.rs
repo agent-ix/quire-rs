@@ -411,6 +411,17 @@ impl Manifest {
                 !repeat
             })
     }
+
+    /// The manifest section that declares `a`, for naming it in a refusal path.
+    pub fn section_of(&self, a: &Archetype) -> &'static str {
+        if self.artifact_types.contains(a) {
+            "artifact_types"
+        } else if self.object_types.contains(a) {
+            "object_types"
+        } else {
+            "archetypes"
+        }
+    }
 }
 
 /// One unified archetype entry (FR-031). Every field except `name` is
