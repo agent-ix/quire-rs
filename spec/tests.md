@@ -111,7 +111,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | FR-071 Clause and operation extraction | AC-1..14; CON-1..3 | TC-1622..TC-1629, TC-1648, TC-1850, TC-1851, TC-2040..TC-2042 | ✅ AC-1..9 Implemented; AC-10..14 🚧 |
 | FR-072 Semantic extraction surface | AC-1..9; CON-1..3 | TC-1630..TC-1640, TC-1650 (TC-1636 external: quire-wasm#3) | ✅ Implemented; WASM leg external |
 | FR-073 Generic rights-aware clause sets | AC-1..6 | TC-1806..TC-1809 | ✅ Implemented |
-| FR-075 Model feature extraction | AC-1..30; CON-1..2 | TC-1840..TC-1847, TC-1849, TC-1869, TC-1870, TC-1872..TC-1875, TC-1948..TC-1951, TC-1953, TC-1993..TC-1998, TC-2043 | ✅ AC-1..15, AC-22..27 Implemented; AC-16..21, AC-28..30 🚧 |
+| FR-075 Model feature extraction | AC-1..30; CON-1..2 | TC-1840..TC-1847, TC-1849, TC-1869, TC-1870, TC-1872..TC-1875, TC-1948..TC-1951, TC-1953, TC-1993..TC-1998, TC-2040, TC-2043 | ✅ AC-1..15, AC-22..27 Implemented; AC-16..21, AC-28..30 🚧 |
 | FR-076 Relationships extraction to RelationDecl[] | AC-1..21; CON-1..4 | TC-1852..TC-1868, TC-1999..TC-2004 | ✅ Implemented |
 | FR-077 Trace search index (structural forward/inverse lookup) | AC-1..6; CON-1..3 | TC-1887..TC-1894 | ✅ Implemented |
 | FR-078 Qualified retained evidence | AC-1..20; CON-1..4 | TC-1963..TC-1982 | 🚧 Planned — spec-first, no execution claim |
