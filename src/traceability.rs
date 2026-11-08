@@ -38,17 +38,6 @@ impl SourceLanguage {
             Self::Typescript => "typescript",
         }
     }
-
-    /// Whether this build carries the language's symbol adapter (FR-051-AC-29).
-    /// False only when its Cargo feature (`rust-symbols`, `python-symbols`,
-    /// `typescript-symbols`) is off, as in the `wasm` build.
-    pub fn is_compiled_in(self) -> bool {
-        match self {
-            Self::Rust => cfg!(feature = "rust-symbols"),
-            Self::Python => cfg!(feature = "python-symbols"),
-            Self::Typescript => cfg!(feature = "typescript-symbols"),
-        }
-    }
 }
 
 /// The heading, or headings, a declared table may live under (CR-118, #272).

@@ -44,3 +44,19 @@ The coder widened the change from Rust to Python and TypeScript. That is sound: 
 ## Verification
 
 Default features: `cargo clippy --locked --all-targets -- -D warnings` clean, `cargo fmt --check` clean, `cargo test --locked --lib symbols::` 137 passed, `--lib symbol_table` 4 passed, `cargo test --locked --test it` 528 passed. No-adapter configuration (`--no-default-features --features resolve-file`): `cargo clippy --all-targets -D warnings` clean, `missing_adapter_is_unavailable_not_a_diagnostic` passes. 49 other `symbols::` lib tests fail in that configuration because they assert Rust symbols; that is expected without an adapter and is not introduced by this PR. `cargo check --target wasm32-unknown-unknown --no-default-features --features wasm` succeeds. Aggregate gate not run.
+
+## New findings (disposition pass 1)
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-005 | low | `CoverageError::ExtractionUnavailable { languages: Vec<String> }` restates the new shared `symbols::ExtractionUnavailable` (its own label list and a near-copy of the error message). `AssuranceError` wraps the shared type with `#[from]`, but coverage does not, so the same refusal now has two shapes and two messages to keep in sync. | src/coverage.rs:55-67 |
+| FND-006 | low | `SourceLanguage::is_compiled_in` is now public API with no production caller: only `tc2060` branches on it. It restates the cfg facts the `cfg(not(feature))` record arms already own. Use `cfg!(feature = "rust-symbols")` in the test and delete the method. | src/traceability.rs:42-51 |
+
+## Dispositions
+
+| FND | Outcome | Reason |
+| --- | --- | --- |
+| FND-001 | fixed | `search` returns `Result<SearchResult, ExtractionUnavailable>` and calls `extraction.require_available()?` first; TC-2062 |
+| FND-002 | fixed | `build_assurance_export` calls `input.symbols.require_available()?`; `AssuranceError::ExtractionUnavailable`; TC-2063 |
+| FND-003 | fixed | `graph_records` returns `Result` and refuses first; TC-2064 |
+| FND-004 | fixed | `is_compiled_in` early return and dead `Ok(Vec::new())` arms removed; unavailability recorded only in the `cfg(not(feature))` arms via `record_unavailable` |

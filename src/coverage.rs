@@ -53,18 +53,10 @@ pub enum CoverageError {
     )]
     ModelUndeclared,
     /// The tree holds source in a language this build has no symbol adapter
-    /// for (FR-051-AC-29). Every count would omit those files and read as
+    /// for (FR-050-AC-59). Every count would omit those files and read as
     /// "unbacked", so the run refuses rather than report them.
-    #[error(
-        "this build cannot extract symbols for: {}; coverage would silently omit those files \
-         (rebuild with the matching `rust-symbols` / `python-symbols` / `typescript-symbols` \
-         Cargo feature)",
-        languages.join(", ")
-    )]
-    ExtractionUnavailable {
-        /// Stable labels of the unavailable languages, sorted.
-        languages: Vec<String>,
-    },
+    #[error(transparent)]
+    ExtractionUnavailable(#[from] crate::symbols::ExtractionUnavailable),
 }
 
 /// A declared reference row whose trace target has no backing `verifies`
@@ -746,13 +738,10 @@ fn compute_inner(
     backing: Option<&crate::evidence::BackingInput<'_>>,
 ) -> Result<CoverageReport, CoverageError> {
     if !graph.unavailable_languages.is_empty() {
-        return Err(CoverageError::ExtractionUnavailable {
-            languages: graph
-                .unavailable_languages
-                .iter()
-                .map(|l| l.as_str().to_string())
-                .collect(),
-        });
+        return Err(crate::symbols::ExtractionUnavailable {
+            languages: graph.unavailable_languages.clone(),
+        }
+        .into());
     }
     let model = registry
         .traceability()

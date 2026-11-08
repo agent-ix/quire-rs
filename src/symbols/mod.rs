@@ -712,7 +712,7 @@ mod tests {
     fn tc2060_missing_adapter_is_unavailable_not_a_diagnostic() {
         let out = extract_file("src/lib.rs", SourceLanguage::Rust, "fn a() {}\n");
         let report = crate::symbol_table::build(&out, None);
-        if SourceLanguage::Rust.is_compiled_in() {
+        if cfg!(feature = "rust-symbols") {
             assert!(out.unavailable_languages.is_empty());
             assert!(!out.symbols.is_empty());
             assert!(report.unavailable_languages.is_empty());

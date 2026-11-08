@@ -186,7 +186,7 @@ byte-identical JSON ordering and stable record ids.
 > and measurement refuses: AC-29. AC-9's diagnostic channel is again only for
 > files whose own content fails to parse. The CR-177 sentence that an off
 > `rust-symbols` yields "a build-configuration diagnostic" is superseded by
-> this note. Coverage, trace search and the assurance export refuse the same way: FR-050-AC-58, FR-077-AC-7 and FR-067-AC-8 own those behaviours; AC-29 and AC-30 own the extraction and graph-record halves, and the statement above now says a build may lack an adapter instead of promising all three unconditionally.
+> this note. Coverage, trace search and the assurance export refuse the same way: FR-050-AC-59, FR-077-AC-7 and FR-067-AC-8 own those behaviours; AC-29 and AC-30 own the extraction and graph-record halves, and the statement above now says a build may lack an adapter instead of promising all three unconditionally.
 
 > **CR-189 note (2026-09-28):** three corrections to AC-27 and AC-28, found
 > by the code review of CR-187's implementation. None changes what an AC

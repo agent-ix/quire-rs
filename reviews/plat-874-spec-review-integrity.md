@@ -35,3 +35,16 @@ Ticket: PLAT-874. Frozen PR head: `5b129915de90eb833c198b86d87ce9288243c1cc`. Sp
 | TC-2010 row and FR-051-AC-29 → TC-2010 matrix line | examined | Consistent |
 | FR-051 statement | examined | FND-001 |
 | ADR-0013 | examined | FND-002 |
+
+## New findings (disposition pass 1)
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-003 | high | The `FR-077-AC-7 → TC-2062` audit row was inserted into the Test Case Summary table (between TC-1893 and TC-1894) instead of the `## AC → TC Coverage Audit` table. `quire validate --scope . spec/tests.md` fails with four TestMatrix errors at line 1112, the only errors in the file, so `make validate` and `make ci` go red. The audit section also has no FR-077-AC-7 row. Move the row to follow `FR-077-AC-6` in the audit table. | spec/tests.md:1112 |
+
+## Dispositions
+
+| FND | Outcome | Reason |
+| --- | --- | --- |
+| FND-001 | fixed | FR-051 statement now states the per-feature adapters and the SHALL record/refuse clause; refusal owned by FR-050-AC-58, FR-077-AC-7, FR-067-AC-8 |
+| FND-002 | fixed | ADR-0013 carries a PLAT-874 / CR-201 supersession note |

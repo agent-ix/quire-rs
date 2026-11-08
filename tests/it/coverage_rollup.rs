@@ -1111,7 +1111,7 @@ fn tc739_non_iso_model_rolls_up() {
 // `wasm` (no `rust-symbols`) arm that sets this field is covered natively by
 // driving the refusal with the field set directly, plus the cfg-gated unit
 // test in `src/symbols/mod.rs`.
-#[trace("TC-2061", "FR-050-AC-58")]
+#[trace("TC-2061", "FR-050-AC-59")]
 #[test]
 fn tc2061_unextractable_language_refuses_coverage() {
     let bundle = iso_bundle("2061", &[("TC-001", "FR-001-AC-1", "✅")], &["TC-001"]);
@@ -1132,9 +1132,9 @@ fn tc2061_unextractable_language_refuses_coverage() {
     let err = compute(&spec, &registry, &graph, &bundle.scope).expect_err("must refuse");
     assert_eq!(
         err,
-        CoverageError::ExtractionUnavailable {
-            languages: vec!["rust".to_string()]
-        }
+        CoverageError::ExtractionUnavailable(quire_rs::symbols::ExtractionUnavailable {
+            languages: vec![quire_rs::traceability::SourceLanguage::Rust]
+        })
     );
     assert!(err.to_string().contains("rust"));
 }

@@ -32,3 +32,9 @@ TC-2010 is bound by two tests. `tc2010_unextractable_language_refuses_coverage` 
 | FR-051-AC-29: "records that language as unavailable on the extraction, the symbol graph and the symbol-table report, with no symbols and no per-file diagnostic for those files, and coverage computed over that graph is refused with an error naming the language … A tree with no file in the unavailable language is unaffected." | examined | Refusal clause backed by an injected-field test; recording arm, symbol-table clause and unaffected clause unexercised in any gate (FND-001) |
 | TC-2010 → FR-051-AC-29 bindings (both tests) | examined | Trace tags correct |
 | Production code with no owning requirement | examined | None. All new code traces to AC-29 |
+
+## Dispositions
+
+| FND | Outcome | Reason |
+| --- | --- | --- |
+| FND-001 | fixed | `make check-no-adapters` (in `ci`) runs the `tc206` lib tests with every adapter off (3 pass). `tc2060` now asserts the symbol-table record and single naming, and refusal tests cover search, graph records, export and coverage |
