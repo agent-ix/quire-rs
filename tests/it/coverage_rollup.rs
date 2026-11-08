@@ -1,6 +1,7 @@
 //! FR-050 — coverage reconciliation (TC-734..TC-740) and the FR-050-CON-2 /
 //! FR-051-CON-1 static boundary audit (TC-756).
 
+use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -296,6 +297,141 @@ fn tc734_unbacked_rows() {
     assert_eq!(row.document, "tests.md");
     assert!(row.target_ids.contains(&"TC-002".to_string()));
     assert!(row.target_ids.contains(&"FR-001-AC-2".to_string()));
+}
+
+/// Provenance: PLAT-2.
+#[trace("TC-734", "FR-050-AC-3")]
+#[test]
+fn a_criterion_tag_only_backs_its_own_matrix_row() {
+    let cases: serde_json::Value = serde_json::from_str(include_str!(
+        "../fixtures/corpus_cases/row-aware-trace-binding.json"
+    ))
+    .expect("row-aware binding fixture JSON");
+    for case in cases.as_array().expect("row-aware binding cases") {
+        assert_eq!(case["issue_ref"], "agent-ix/quire-rs#467");
+        let name = case["name"].as_str().expect("case name");
+        let root = tempfile::tempdir().expect("temporary fixture");
+        let module = root.path().join("module");
+        let scope = root.path().join("spec");
+        let source = root.path().join("src");
+        write(
+            &module,
+            "manifest.yaml",
+            case["input"]["module"].as_str().expect("module manifest"),
+        );
+        for (path, contents) in case["input"]["documents"]
+            .as_object()
+            .expect("fixture documents")
+        {
+            write(&scope, path, contents.as_str().expect("document text"));
+        }
+        for (path, contents) in case["input"]["sources"]
+            .as_object()
+            .expect("fixture sources")
+        {
+            write(&source, path, contents.as_str().expect("source text"));
+        }
+
+        let registry = Registry::load_module(&module).expect("fixture module");
+        let model = registry.traceability().cloned().unwrap_or_default();
+        let graph = trace::bind(&extract_tree(&source), &model);
+        let report = compute(&Spec::from_path(&scope), &registry, &graph, &scope)
+            .unwrap_or_else(|error| panic!("{name}: fixture coverage: {error}"));
+
+        assert_eq!(
+            report.totals.backed,
+            case["expect"]["backed"].as_u64().expect("backed count") as usize,
+            "{name}: backed count"
+        );
+        assert_eq!(
+            report.totals.total,
+            case["expect"]["total"].as_u64().expect("total count") as usize,
+            "{name}: total count"
+        );
+        if let Some(expected_rows) = case["expect"]["unbacked_rows"].as_array() {
+            let mut actual_rows: Vec<_> = report
+                .unbacked_rows
+                .iter()
+                .filter_map(|row| row.row_id.as_deref())
+                .collect();
+            actual_rows.sort_unstable();
+            let mut expected_rows: Vec<_> = expected_rows
+                .iter()
+                .map(|row| row.as_str().expect("unbacked row id"))
+                .collect();
+            expected_rows.sort_unstable();
+            assert_eq!(actual_rows, expected_rows, "{name}: unbacked matrix rows");
+        }
+        let minted: BTreeMap<_, _> = report
+            .minted_targets
+            .iter()
+            .map(|record| (record.id.as_str(), record.backed))
+            .collect();
+        let criteria: BTreeMap<_, _> = report
+            .coverage_matrix
+            .iter()
+            .flat_map(|requirement| &requirement.criteria)
+            .map(|criterion| (criterion.id.as_str(), criterion))
+            .collect();
+        for (id, expected) in case["expect"]["criterion_backed"]
+            .as_object()
+            .expect("expected criterion backing")
+        {
+            let expected = expected.as_bool().expect("backed boolean");
+            assert_eq!(minted.get(id.as_str()), Some(&expected), "{name}: {id}");
+            assert_eq!(
+                criteria[id.as_str()].status,
+                if expected {
+                    quire_rs::coverage::CoverageMatrixStatus::Tagged
+                } else {
+                    quire_rs::coverage::CoverageMatrixStatus::Untagged
+                },
+                "{name}: coverage matrix status for {id}"
+            );
+        }
+
+        let diagnostics: Vec<_> = report
+            .diagnostics
+            .iter()
+            .filter(|diagnostic| diagnostic.reason == "criterion-tagged-outside-row")
+            .collect();
+        if matches!(
+            name,
+            "criterion-tagged-outside-matrix-row"
+                | "criterion-tag-without-matrix-row"
+                | "criterion-tag-with-unrecognized-matrix-row"
+        ) {
+            assert_eq!(diagnostics.len(), 1, "{name}: {report:?}");
+            assert_eq!(diagnostics[0].value.as_deref(), Some("FR-001-AC-2"));
+            assert!(diagnostics[0].message.contains("TC-002"));
+            assert!(diagnostics[0].guidance.is_some());
+        }
+        let mut expected_reasons: Vec<_> = case["expect"]["diagnostic_reasons"]
+            .as_array()
+            .expect("expected diagnostic reasons")
+            .iter()
+            .map(|reason| reason.as_str().expect("reason string"))
+            .collect();
+        expected_reasons.sort_unstable();
+        let mut actual_reasons: Vec<_> = diagnostics
+            .iter()
+            .map(|diagnostic| diagnostic.reason.as_str())
+            .collect();
+        actual_reasons.sort_unstable();
+        assert_eq!(actual_reasons, expected_reasons, "{name}: diagnostics");
+        if let Some(absent_reasons) = case["expect"]["absent_diagnostic_reasons"].as_array() {
+            for absent in absent_reasons {
+                let reason = absent.as_str().expect("diagnostic reason string");
+                assert!(
+                    report
+                        .diagnostics
+                        .iter()
+                        .all(|diagnostic| diagnostic.reason != reason),
+                    "{name}: expected diagnostic reason {reason} absent"
+                );
+            }
+        }
+    }
 }
 
 #[trace("TC-735", "FR-050-AC-4")]

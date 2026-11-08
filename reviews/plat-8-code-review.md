@@ -49,3 +49,13 @@ Not mergeable as is. FND-001 makes the intended breaking change silent for
 spec-objects-business and the FCD fixture module until they change. FND-002
 leaves `extent` ungated, unlike the `abstract:` precedent it follows. The
 rest of the Rust change is idiomatic and small.
+
+## Dispositions
+
+Round 1, at head 2337e140 (fix commit checked against 62c592a9). `cargo test --test it`: 526 passed. The reviewer ran a throwaway example, not committed, that feeds the spec-objects-business population skeleton and fixtures through `extract_semantic_json` with that repo's own manifest. It ran on a main build (2a3f56b) and a head build, each in its own target dir.
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | `TableSpec::for_columns` falls back to `is_legacy_population_header`, and `refuse_table` refuses a `Type \| Extent` table as `population` with a message that names the `Type` table and frontmatter `extent`. That covers an unowned section, a non-conforming owned table and the preamble. It is tested under both a `[Type, Extent]` and a `[Type]` manifest (`legacy_population_table_is_refused_under_either_manifest`). Against upstream spec-objects-business 8ae0482, all three population files are refused loudly at head (`feature-not-extractable`, `availability.model` `unavailable`), where main extracted them. |
+| FND-002 | fixed | `extent` sets `declared`. It is refused with `feature-not-extractable` (section `frontmatter`) unless `declared_tables.declares(Population)`. An `extent` with no `Type` table is `invalid-model-cell` at the `extent` line. Both cases are tested (`extent_without_a_declared_population_is_refused`). |
+| FND-003 | fixed | CHANGELOG `[Unreleased]` / `### Changed` has a "Breaking, `semantic-v1` edited in place (no v2)" entry that lists the API and record changes. |

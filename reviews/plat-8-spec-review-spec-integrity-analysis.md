@@ -44,3 +44,13 @@ Examined, clean:
 The shape is right and matches QSpec and FCD. FND-001 and FND-002 should be
 fixed with the code findings, so that the spec states the refusal the code
 then enforces.
+
+## Dispositions
+
+Round 1, at head 2337e140. `quire validate` on FR-075 and `spec/tests.md` exits 0.
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | The Behavior rule now states the refusal under any manifest: `feature-not-extractable`, `reason` `population`, at the header line, `unavailable`. AC-4 and TC-1843 carry it. |
+| FND-002 | fixed | The Behavior rule declares `extent` a population feature gated by the `population` locator and refused in section `frontmatter` otherwise. AC-6 and TC-1845 carry it. |
+| FND-003 | fixed | The CR note now sits after the Tables list. |

@@ -43,3 +43,12 @@ says so.
 
 AC-4's main path is covered. The gaps are the two cases where the
 implementation is weak, so they block together with SR-16307.
+
+## Dispositions
+
+Round 1, at head 2337e140. `cargo test --test it`: 526 passed.
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | `population_members_with_one_extent` asserts `extentSpan` at the `extent:` line. |
+| FND-002 | fixed | `legacy_population_table_is_refused_under_either_manifest` (TC-1843) covers the `[Type, Extent]` manifest. `extent_without_a_declared_population_is_refused` (TC-1845) covers `extent` with no declared population and with no `Type` table. |
