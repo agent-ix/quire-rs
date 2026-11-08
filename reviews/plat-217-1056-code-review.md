@@ -44,3 +44,11 @@ Re-checked at head 257a744b (fix commit `fix: address PR review findings`). `car
 | FND-002 | fixed | Stubs are a `BTreeMap` keyed on `(source, target, type)` with authority as the value; a bare spelling wins. New unit test `spellings_of_one_absent_target_dedup_without_splitting_on_authority`. |
 | FND-003 | fixed | `ix_authority` returns `None` unless a third segment exists; unit test `ix_authority_needs_org_repo_and_a_target_segment`. |
 | FND-004 | fixed | `LocatedTable` alias moved above `locate_table`'s doc block. |
+
+## Dispositions (disposition pass 2)
+
+Re-checked at head 3155b7cd (after `7df2272`, merge `0293ba0` of origin/main, `3155b7c`). `cargo test --lib -- corpus:: assert_eval` 95 passed; `cargo test --test it` 523 passed.
+
+| FND | Outcome | Reason |
+| --- | --- | --- |
+| FND-005 | fixed | Relative-link targets go through `add_target(&source, &target, None, ...)` with no `extract_target_id`; new test `relative_link_to_id_less_doc_resolves_and_nested_miss_keeps_full_path` resolves `spec/sub/b.md` and keeps `sub/gone.md` whole. |
