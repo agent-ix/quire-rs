@@ -178,9 +178,9 @@ mod tests {
     /// Harvest from a repo holding a `Glossary` `## Terms` table (Widget,
     /// Sprocket) and a `domain` `## Ubiquitous Language` (Place, Capture).
     /// Shared fixture for TC-674 and TC-675.
-    fn harvest_fixture(tag: &str) -> Vec<String> {
-        let tmp = std::env::temp_dir().join(format!("ql-glossary-{tag}-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&tmp);
+    fn harvest_fixture(_tag: &str) -> Vec<String> {
+        let tmp_guard = tempfile::TempDir::new().unwrap();
+        let tmp = tmp_guard.path().to_path_buf();
         std::fs::create_dir_all(&tmp).unwrap();
         std::fs::write(
             tmp.join("GLO-001.md"),
@@ -192,9 +192,7 @@ mod tests {
             "---\nid: dom-1\ntype: domain\n---\n# Domain\n\n## Ubiquitous Language\n\n- **Place** — convert a draft order.\n- **Capture** — confirm payment.\n",
         )
         .unwrap();
-        let terms = glossary_terms(&Spec::from_path(&tmp));
-        let _ = std::fs::remove_dir_all(&tmp);
-        terms
+        glossary_terms(&Spec::from_path(&tmp))
     }
 
     #[trace("TC-674", "FR-044-AC-1")]
@@ -239,8 +237,8 @@ mod tests {
     // them entirely.
     #[test]
     fn glossary_terms_from_path_scopes_to_glossary_docs() {
-        let dir = std::env::temp_dir().join(format!("ql-frompath-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
+        let dir_guard = tempfile::TempDir::new().unwrap();
+        let dir = dir_guard.path().to_path_buf();
         std::fs::create_dir_all(dir.join("functional")).unwrap();
         std::fs::write(
             dir.join("glossary.md"),
@@ -259,7 +257,6 @@ mod tests {
         assert_eq!(from_path, vec!["Sprocket".to_string()]);
         // Parity with the Spec-based harvester over the same tree.
         assert_eq!(from_path, glossary_terms(&Spec::from_path(&dir)));
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[trace("TC-808", "FR-024-AC-11")]
@@ -272,8 +269,8 @@ mod tests {
     #[trace("TC-808", "FR-024-AC-11")]
     #[test]
     fn tc808_from_path_applies_the_corpus_membership_rule() {
-        let dir = std::env::temp_dir().join(format!("ql-membership-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
+        let dir_guard = tempfile::TempDir::new().unwrap();
+        let dir = dir_guard.path().to_path_buf();
         std::fs::create_dir_all(&dir).unwrap();
 
         // Identical glossary content, once without frontmatter and once with.
@@ -297,15 +294,14 @@ mod tests {
             glossary_terms_from_path(&dir),
             glossary_terms(&Spec::from_path(&dir))
         );
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     /// Build a bundle report for a repo whose `Glossary` defines `widget` and
     /// whose `FR-001` says "shall provide a widget", validated Strict (so the
     /// EARS grammar runs). Shared fixture for TC-678 and TC-679.
-    fn glossary_bundle_report(tag: &str) -> crate::corpus::BundleReport {
-        let base = std::env::temp_dir().join(format!("ql-bundle-{tag}-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&base);
+    fn glossary_bundle_report(_tag: &str) -> crate::corpus::BundleReport {
+        let base_guard = tempfile::TempDir::new().unwrap();
+        let base = base_guard.path().to_path_buf();
         let m = base.join("mod");
         std::fs::create_dir_all(m.join("schemas")).unwrap();
         std::fs::write(
@@ -328,15 +324,13 @@ mod tests {
         )
         .unwrap();
         let spec = Spec::from_path(&docs);
-        let report = crate::corpus::validate_bundle(
+        crate::corpus::validate_bundle(
             &spec,
             &registry,
             crate::corpus::BundlePosture::Strict,
             &docs,
             &docs,
-        );
-        let _ = std::fs::remove_dir_all(&base);
-        report
+        )
     }
 
     #[trace("TC-678", "FR-044-AC-5")]
@@ -364,8 +358,8 @@ mod tests {
     // a repo with no glossary harvests nothing.
     #[test]
     fn tc680_no_glossary_empty() {
-        let tmp = std::env::temp_dir().join(format!("ql-noglossary-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&tmp);
+        let tmp_guard = tempfile::TempDir::new().unwrap();
+        let tmp = tmp_guard.path().to_path_buf();
         std::fs::create_dir_all(&tmp).unwrap();
         std::fs::write(
             tmp.join("FR-001.md"),
@@ -374,15 +368,14 @@ mod tests {
         .unwrap();
         let spec = Spec::from_path(&tmp);
         assert!(glossary_terms(&spec).is_empty());
-        let _ = std::fs::remove_dir_all(&tmp);
     }
 
     // CON-2 (malformed half): a `## Terms` heading with no table harvests zero
     // terms and never panics (FR-044-AC-7's sibling constraint).
     #[test]
     fn malformed_glossary_harvests_nothing() {
-        let tmp = std::env::temp_dir().join(format!("ql-malformed-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&tmp);
+        let tmp_guard = tempfile::TempDir::new().unwrap();
+        let tmp = tmp_guard.path().to_path_buf();
         std::fs::create_dir_all(&tmp).unwrap();
         std::fs::write(
             tmp.join("GLO-001.md"),
@@ -391,7 +384,6 @@ mod tests {
         .unwrap();
         let spec = Spec::from_path(&tmp);
         assert!(glossary_terms(&spec).is_empty());
-        let _ = std::fs::remove_dir_all(&tmp);
     }
 
     #[trace("TC-823", "FR-044-AC-8")]
@@ -423,8 +415,8 @@ mod tests {
     // harvests the same terms an unnumbered one does, through both harvesters.
     #[test]
     fn tc823_numbered_heading_harvests_end_to_end() {
-        let dir = std::env::temp_dir().join(format!("ql-numbered-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
+        let dir_guard = tempfile::TempDir::new().unwrap();
+        let dir = dir_guard.path().to_path_buf();
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(
             dir.join("domain.md"),
@@ -442,7 +434,6 @@ mod tests {
             vec!["Sprocket".to_string()],
             "and both harvesters must agree"
         );
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[trace("TC-823", "FR-044-AC-8")]
@@ -453,8 +444,8 @@ mod tests {
     // domain nouns one indirection later.
     #[test]
     fn tc823_a_frontmatterless_glossary_is_reported() {
-        let dir = std::env::temp_dir().join(format!("ql-silent-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
+        let dir_guard = tempfile::TempDir::new().unwrap();
+        let dir = dir_guard.path().to_path_buf();
         std::fs::create_dir_all(&dir).unwrap();
         let body = "# Project\n\n## Ubiquitous Language\n\n- **Sprocket** — a streamed unit.\n";
         std::fs::write(dir.join("glossary.md"), body).unwrap();
@@ -484,7 +475,5 @@ mod tests {
         let (terms, diagnostics) = glossary_terms_from_path_with_diagnostics(&dir);
         assert_eq!(terms, vec!["Sprocket".to_string()]);
         assert!(diagnostics.is_empty(), "{diagnostics:?}");
-
-        let _ = std::fs::remove_dir_all(&dir);
     }
 }

@@ -485,10 +485,9 @@ mod tests {
     // unresolved-mapping diagnostic.
     #[test]
     fn tc553_unresolved_mapping_still_included() {
-        let parent =
-            std::env::temp_dir().join(format!("quire-rs-contract-{}-unmapped", std::process::id()));
+        let parent_guard = tempfile::TempDir::new().unwrap();
+        let parent = parent_guard.path().to_path_buf();
         let root = parent.join("mod");
-        let _ = fs::remove_dir_all(&parent);
         fs::create_dir_all(&root).unwrap();
         // A `heading` locator selecting by level only addresses no
         // concrete section heading.
@@ -523,7 +522,6 @@ object_types:
             "diagnostics: {:?}",
             c.diagnostics
         );
-        let _ = fs::remove_dir_all(&parent);
     }
 
     /// Inline registry with FR + aggregate_root allowed_links + edge_types

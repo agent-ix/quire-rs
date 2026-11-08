@@ -130,13 +130,25 @@ fn split_colon_paths(s: &OsString) -> Vec<PathBuf> {
         .collect()
 }
 
-/// The default module search root: `~/.ix/filament/modules`.
+/// The default module search root: `$IX_HOME/filament/modules`, or
+/// `~/.ix/filament/modules` when `IX_HOME` is unset or empty.
 ///
 /// quire-rs reads installed Filament modules from here — the same directory
-/// `quoin` materializes its default module set into. Returns `None` when no
-/// home directory can be determined.
+/// `quoin` materializes its default module set into, and `quoin` honours
+/// `IX_HOME` the same way. Returns `None` when neither `IX_HOME` nor a home
+/// directory can be determined.
 pub fn default_module_root() -> Option<PathBuf> {
-    home_dir().map(|h| h.join(".ix").join("filament").join("modules"))
+    module_root_under(std::env::var_os("IX_HOME"), home_dir())
+}
+
+/// Pure form of [`default_module_root`]: a non-empty `ix_home` is the config
+/// root; otherwise it is `<home>/.ix`.
+pub fn module_root_under(ix_home: Option<OsString>, home: Option<PathBuf>) -> Option<PathBuf> {
+    let root = match ix_home {
+        Some(h) if !h.is_empty() => PathBuf::from(h),
+        _ => home?.join(".ix"),
+    };
+    Some(root.join("filament").join("modules"))
 }
 
 /// Select the module-search env value: `IX_FILAMENT_MODULES_PATH` takes
@@ -190,10 +202,34 @@ mod tests {
 
     #[test]
     fn default_module_root_points_at_filament_modules() {
+        if std::env::var_os("IX_HOME").is_some_and(|v| !v.is_empty()) {
+            return;
+        }
         let h = home_dir().expect("HOME set");
         assert_eq!(
             default_module_root().expect("home"),
             h.join(".ix").join("filament").join("modules")
+        );
+    }
+
+    #[test]
+    fn ix_home_overrides_home_for_module_root() {
+        assert_eq!(
+            module_root_under(Some(OsString::from("/x/fake")), Some(PathBuf::from("/h"))),
+            Some(PathBuf::from("/x/fake/filament/modules"))
+        );
+        assert_eq!(
+            module_root_under(Some(OsString::new()), Some(PathBuf::from("/h"))),
+            Some(PathBuf::from("/h/.ix/filament/modules"))
+        );
+        assert_eq!(
+            module_root_under(None, Some(PathBuf::from("/h"))),
+            Some(PathBuf::from("/h/.ix/filament/modules"))
+        );
+        assert_eq!(module_root_under(None, None), None);
+        assert_eq!(
+            module_root_under(Some(OsString::from("/x")), None),
+            Some(PathBuf::from("/x/filament/modules"))
         );
     }
 
