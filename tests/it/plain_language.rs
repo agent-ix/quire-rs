@@ -62,15 +62,11 @@ fn typed_profile_loads_and_malformed_profiles_fail_load() {
             "acronym",
         ),
     ] {
-        let registry =
-            Registry::from_inline_parts(manifest(body).as_bytes(), &BTreeMap::new()).unwrap();
+        let error = Registry::from_inline_parts(manifest(body).as_bytes(), &BTreeMap::new())
+            .expect_err("malformed profile fails the load");
         assert!(
-            registry
-                .failures()
-                .iter()
-                .any(|failure| failure.reason.contains(needle)),
-            "expected {needle:?} in {:?}",
-            registry.failures()
+            error.to_string().contains(needle),
+            "expected {needle:?} in {error}"
         );
     }
 }

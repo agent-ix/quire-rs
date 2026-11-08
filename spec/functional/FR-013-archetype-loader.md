@@ -28,7 +28,7 @@ relationships:
 > from `~/.ix/schemas/` to **`~/.ix/filament/modules/`**, and the env override
 > gains a preferred name `IX_FILAMENT_MODULES_PATH` with the legacy
 > `IX_SCHEMA_PATH` retained as a back-compat alias (read only when the new var
-> is unset). This aligns the engine with the single directory that `quoin`
+> is unset; superseded by the 2026-11-08 CR below, which reads both). This aligns the engine with the single directory that `quoin`
 > (via `@agent-ix/ts-plugin-kit`) materializes installed Filament modules into,
 > so one install serves both the CLI and the engine. The change is additive and
 > non-breaking: explicit `load_from`/`load_module` paths are unaffected, and
@@ -49,6 +49,22 @@ relationships:
 > "Closed module set" subsection and AC-15..AC-17. Additive and non-breaking:
 > `load_from`, `load_module`, `from_env` and `from_default` are unchanged.
 
+> **CR note (search-path union and loud manifest failure — 2026-11-08,
+> PLAT-106 / PLAT-323):** Two behaviours change. (1) The 2026-06-15 rule that
+> `IX_SCHEMA_PATH` is read only when `IX_FILAMENT_MODULES_PATH` is unset is
+> withdrawn: both variables are read and unioned (preferred first), and the
+> default root stays in the set, so the engine resolves the same roots as
+> `quire-cli`'s scoped `validate`. Roots split on the platform separator.
+> (2) A module whose `manifest.yaml` exists but fails to parse (including an
+> unknown key at any level, as from a newer engine) is a fatal
+> `QuireError::ManifestError` naming the module, its declared version and the
+> offending key, from every filesystem and inline constructor, strict or not.
+> It is no longer demoted to an advisory `failures()` entry that leaves an
+> empty model. Unknown top-level keys are refused; keys owned by other tools
+> (`manifest_version`, `grammars`, `doc_kinds`, `nav`, `depends_on`,
+> `state_schemas`) are declared opaque. A missing `manifest.yaml` is unchanged
+> (AC-13). Adds AC-18 and AC-19.
+
 ## Description
 
 `quire-rs` SHALL load archetypes from the **local filesystem**. The engine has no network calls, no Filament API client, and no required runtime services. Whatever populates the local directory tree (Filament sync, hand-authoring, git checkout, an unzipped distribution tarball) is outside the engine's concern.
@@ -58,8 +74,8 @@ relationships:
 The engine resolves archetype roots from, in priority order:
 
 1. Explicit `Registry::load_from(paths: &[&Path])` constructor argument.
-2. `IX_FILAMENT_MODULES_PATH` environment variable (preferred), then the legacy `IX_SCHEMA_PATH` alias when the preferred var is unset — colon-separated list of directories (PATH-style).
-3. Default: `~/.ix/filament/modules/`.
+2. The roots of `IX_FILAMENT_MODULES_PATH`, then the roots of the legacy `IX_SCHEMA_PATH` alias — both are read when both are set, each a platform-separator list of directories (PATH-style).
+3. Default: `$IX_HOME/filament/modules/` (`~/.ix/filament/modules/` when `IX_HOME` is unset). It is appended after the environment roots, never replaced by them.
 
 Each path entry is treated as a directory containing one or more **module roots**. The engine walks one level deep to discover modules.
 
@@ -156,7 +172,7 @@ Templates are NOT parsed or registered (render is removed). Per-validate and per
 - A search path entry that is a **file, not a directory**: warning diagnostic; entry is skipped, other entries process normally.
 - A search path entry whose **read permission is denied**: warning diagnostic with `errno`; entry is skipped.
 - **Tilde (`~`) expansion**: the loader SHALL expand a leading `~/` or `~` to the user's home directory before resolving. No mid-path tilde expansion.
-- **Environment variables** in `IX_FILAMENT_MODULES_PATH` / `IX_SCHEMA_PATH` entries are NOT expanded — entries are taken literally after splitting on `:`.
+- **Environment variables** in `IX_FILAMENT_MODULES_PATH` / `IX_SCHEMA_PATH` entries are NOT expanded — entries are taken literally after splitting on the platform path separator (`:` on Unix, `;` on Windows).
 - **Duplicate entries** in the search-path env var (same canonical path appearing more than once): the loader SHALL deduplicate before walking; modules are loaded at most once per canonical path.
 - **Symlink loops**: the directory walker SHALL maintain a `visited` set of canonical paths and break cycles. Cycle detection emits a warning diagnostic; the cyclic branch is skipped.
 
@@ -226,6 +242,8 @@ unreachable, and an unreachable target is one nobody acts on.
 | FR-013-AC-15 | A `Registry::load_module_set` run over an exact set of module directories, each declared once, emits no `DuplicateModuleName` and no `DuplicateArchetype` diagnostic — including when a directory holding a second copy of those same modules by name exists alongside. Naming one module directory twice in the same set loads it once and emits no collision diagnostic. | Test |
 | FR-013-AC-16 | The declared set is closed, not preferred: with modules `{base, extra}` declared, the archetype `extra` contributes resolves and a document declaring it validates; with `{base}` declared, that archetype does not resolve. | Test |
 | FR-013-AC-17 | `Registry::load_module_set` consults neither `IX_FILAMENT_MODULES_PATH` / `IX_SCHEMA_PATH` nor `~/.ix/filament/modules/`: a module present only outside the declared set is not loaded, and an empty declared set produces an empty registry with no path diagnostics rather than the ambient module set. | Test |
+| FR-013-AC-18 | With `IX_FILAMENT_MODULES_PATH` and `IX_SCHEMA_PATH` both set, the resolved search roots are every root of the first, then every root of the second, then the default module root; neither variable replaces the others or the default root. | Test |
+| FR-013-AC-19 | A module whose `manifest.yaml` carries an unknown key (nested under `traceability:` or at the top level) makes every `Registry` constructor that reads it, search-root and named, strict and tolerant, return a `QuireError::ManifestError` naming the module, its `version` and the key; keys owned by other tools (`manifest_version`, `grammars`, `doc_kinds`, `nav`, `depends_on`, `state_schemas`) still load. | Test |
 
 ## Dependencies
 

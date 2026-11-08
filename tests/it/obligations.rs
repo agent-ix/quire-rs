@@ -148,15 +148,9 @@ fn tc833_ambiguous_or_originless_source_fails_load() {
         );
 
         // And nothing downstream sees the bad source.
-        let registry = Registry::load_module(&fixture_module(module)).expect("tolerant load");
-        assert_eq!(
-            registry
-                .traceability()
-                .map(|m| m.obligations.len())
-                .unwrap_or(0),
-            0,
-            "module {module} contributed a bad source",
-        );
+        let error = Registry::load_module(&fixture_module(module))
+            .expect_err("a bad obligation source fails the load");
+        assert!(error.to_string().contains(source), "{error}");
     }
 }
 

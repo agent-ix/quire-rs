@@ -1,11 +1,12 @@
 //! Search-path resolution (FR-013 path section).
 //!
-//! The loader resolves archetype roots from, in priority order:
+//! The loader resolves archetype roots as:
 //!
-//! 1. Explicit `Registry::load_from(paths)` argument.
-//! 2. `IX_FILAMENT_MODULES_PATH` env var (preferred), then the legacy
-//!    `IX_SCHEMA_PATH` alias — colon-separated PATH-style list.
-//! 3. Default: `~/.ix/filament/modules/`.
+//! 1. An explicit `Registry::load_from(paths)` argument, which wins outright.
+//! 2. Otherwise the roots of `IX_FILAMENT_MODULES_PATH`, then those of the
+//!    legacy `IX_SCHEMA_PATH` alias (both are read), followed by
+//! 3. the default `$IX_HOME/filament/modules/`, which the environment roots
+//!    extend rather than replace.
 //!
 //! Each path is tilde-expanded (leading `~/` or `~` only), canonicalized
 //! when possible, and de-duplicated. Missing / file-not-directory /
@@ -153,15 +154,17 @@ pub fn module_root_under(ix_home: Option<OsString>, home: Option<PathBuf>) -> Op
 /// followed by those of `IX_SCHEMA_PATH` (both are honoured, as `quire-cli`
 /// does).
 pub fn module_path_env(filament: Option<OsString>, schema: Option<OsString>) -> Option<OsString> {
-    match (filament, schema) {
-        (Some(f), Some(s)) => {
-            let mut joined = f;
-            joined.push(":");
-            joined.push(s);
-            Some(joined)
-        }
-        (f, s) => f.or(s),
+    let roots: Vec<PathBuf> = [filament, schema]
+        .iter()
+        .flatten()
+        .flat_map(split_search_paths)
+        .collect();
+    if roots.is_empty() {
+        return None;
     }
+    // Every piece came out of `split_paths`, so it holds no separator and
+    // `join_paths` cannot fail.
+    std::env::join_paths(roots).ok()
 }
 
 /// Cross-platform home-dir lookup. Falls back to `HOME` / `USERPROFILE`
@@ -183,6 +186,7 @@ pub fn home_dir() -> Option<PathBuf> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ix_trace_rs::trace;
     use std::env;
 
     #[test]
@@ -242,9 +246,15 @@ mod tests {
 
     #[test]
     fn module_path_env_unions_both_variables() {
+        // Multi-root values keep every root, in variable order.
+        let multi = std::env::join_paths(["/a", "/b"]).unwrap();
+        assert_eq!(
+            module_path_env(Some(multi), Some(OsString::from("/c"))),
+            std::env::join_paths(["/a", "/b", "/c"]).ok()
+        );
         assert_eq!(
             module_path_env(Some(OsString::from("/a")), Some(OsString::from("/b"))),
-            Some(OsString::from("/a:/b"))
+            std::env::join_paths(["/a", "/b"]).ok()
         );
         assert_eq!(
             module_path_env(None, Some(OsString::from("/b"))),
@@ -253,6 +263,7 @@ mod tests {
         assert_eq!(module_path_env(None, None), None);
     }
 
+    #[trace("FR-013-AC-18")]
     // PLAT-106: env roots extend the default install root, as quire-cli does.
     #[test]
     fn env_roots_keep_default_root() {

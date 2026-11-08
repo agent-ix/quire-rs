@@ -110,7 +110,7 @@ impl Registry {
     /// see [`load_strict`](Registry::load_strict) for the strict variant.
     pub fn load_from(paths: &[&Path]) -> Result<Self, QuireError> {
         let outcome = load_modules(paths);
-        Ok(Self::finish_tolerant(outcome))
+        Self::finish_tolerant(outcome)
     }
 
     /// Like [`load_from`](Registry::load_from), but the first module-
@@ -139,8 +139,7 @@ impl Registry {
     /// the absent manifest.
     pub fn load_module(module_root: &Path) -> Result<Self, QuireError> {
         let outcome = crate::loader::load_single_module(module_root);
-        Self::fail_on_unreadable_manifest(&outcome)?;
-        Ok(Self::finish_tolerant(outcome))
+        Self::finish_tolerant(outcome)
     }
 
     /// Strict counterpart of [`load_module`](Registry::load_module):
@@ -175,8 +174,7 @@ impl Registry {
     /// declaring the same module name still collide and still diagnose.
     pub fn load_module_set(module_roots: &[&Path]) -> Result<Self, QuireError> {
         let outcome = crate::loader::load_module_set(module_roots);
-        Self::fail_on_unreadable_manifest(&outcome)?;
-        Ok(Self::finish_tolerant(outcome))
+        Self::finish_tolerant(outcome)
     }
 
     /// Strict counterpart of
@@ -191,13 +189,13 @@ impl Registry {
     /// default `~/.ix/filament/modules/`).
     pub fn from_env() -> Result<Self, QuireError> {
         let outcome = load_modules(&[]);
-        Ok(Self::finish_tolerant(outcome))
+        Self::finish_tolerant(outcome)
     }
 
     /// Load from `~/.ix/filament/modules/` only.
     pub fn from_default() -> Result<Self, QuireError> {
         let outcome = crate::loader::load_from_default();
-        Ok(Self::finish_tolerant(outcome))
+        Self::finish_tolerant(outcome)
     }
 
     /// Build a `Registry` from an in-memory module blob — no filesystem
@@ -229,7 +227,7 @@ impl Registry {
         schemas: &std::collections::BTreeMap<String, String>,
     ) -> Result<Self, QuireError> {
         let outcome = crate::loader::load_inline_module(manifest_yaml, schemas);
-        Ok(Self::finish_tolerant(outcome))
+        Self::finish_tolerant(outcome)
     }
 
     /// Strict counterpart of [`Self::from_inline_parts`]: the first
@@ -242,40 +240,33 @@ impl Registry {
         Self::finish_strict(outcome)
     }
 
-    /// A caller that names a module directory exactly asked for that module.
-    /// If its `manifest.yaml` exists but does not parse (for example a key
-    /// from a newer engine), returning an empty registry would let the model
-    /// silently mint nothing, so the parse failure is fatal and names the
-    /// module and its declared version.
-    fn fail_on_unreadable_manifest(outcome: &crate::loader::LoadOutcome) -> Result<(), QuireError> {
-        let unreadable = outcome.failures.iter().find(|f| {
-            f.archetype == "<manifest>"
-                && f.path.is_file()
-                && !outcome
-                    .modules
-                    .iter()
-                    .any(|m| f.path.parent() == Some(m.root.as_path()))
-        });
-        let Some(f) = unreadable else {
+    /// A module whose `manifest.yaml` exists but does not parse (for example
+    /// a key from a newer engine) is fatal for every constructor: returning
+    /// an empty registry would let the model silently mint nothing. Every
+    /// failure is reported, each naming its module, version and key.
+    fn refuse_unreadable_manifests(outcome: &crate::loader::LoadOutcome) -> Result<(), QuireError> {
+        let Some(first) = outcome.manifest_errors.first() else {
             return Ok(());
         };
-        let version = std::fs::read(&f.path)
-            .ok()
-            .and_then(|b| serde_yaml::from_slice::<serde_yaml::Value>(&b).ok())
-            .and_then(|v| v.get("version").and_then(|v| v.as_str().map(str::to_owned)))
-            .unwrap_or_else(|| "<undeclared>".to_string());
         Err(QuireError::ManifestError {
-            path: f.path.clone(),
-            message: format!("module `{}` version {version}: {}", f.module, f.reason),
+            path: first.path.clone(),
+            message: outcome
+                .manifest_errors
+                .iter()
+                .map(|e| e.message.as_str())
+                .collect::<Vec<_>>()
+                .join("; "),
         })
     }
 
-    fn finish_tolerant(outcome: crate::loader::LoadOutcome) -> Self {
+    fn finish_tolerant(outcome: crate::loader::LoadOutcome) -> Result<Self, QuireError> {
+        Self::refuse_unreadable_manifests(&outcome)?;
         let shape = flatten_into_registry(outcome);
-        Self::from_shape(shape)
+        Ok(Self::from_shape(shape))
     }
 
     fn finish_strict(outcome: crate::loader::LoadOutcome) -> Result<Self, QuireError> {
+        Self::refuse_unreadable_manifests(&outcome)?;
         let shape = flatten_into_registry_strict(outcome)?;
         Ok(Self::from_shape(shape))
     }
@@ -1137,10 +1128,8 @@ lint_rules:
         .unwrap();
         let err = Registry::load_module(&module_root).expect_err("named module must fail loud");
         assert!(err.to_string().contains("bogus_rule"));
-        // A search root stays tolerant: the broken module is a recorded failure.
-        let r = Registry::load_from(&[&parent]).expect("tolerant");
-        assert_eq!(r.module_names().count(), 0);
-        assert_eq!(r.failures().len(), 1);
+        let err = Registry::load_from(&[&parent]).expect_err("search root must fail loud");
+        assert!(err.to_string().contains("bogus_rule"));
     }
 
     #[trace("FR-014-AC-4")]
@@ -1545,24 +1534,14 @@ roles:
             "m",
             "grammar_severity:\n  \"ac:unclassifiable\": fatal\n",
         );
-        let r = Registry::load_from(&[&p]).expect("tolerant ok");
-        assert!(r.module_names().next().is_none(), "module must not load");
-        assert!(r
-            .failures()
-            .iter()
-            .any(|f| f.archetype == "<manifest>" && f.reason.contains("fatal")));
+        let err = Registry::load_from(&[&p]).expect_err("module must not load");
+        assert!(err.to_string().contains("fatal"));
 
         // Non-string key.
         let p2 = tmpdir("severity-723-key");
         write_vocab_module(&p2.join("m"), "m", "grammar_severity:\n  12: error\n");
-        let r2 = Registry::load_from(&[&p2]).expect("tolerant ok");
-        assert!(r2.module_names().next().is_none(), "module must not load");
-        assert!(
-            r2.failures()
-                .iter()
-                .any(|f| f.archetype == "<manifest>"
-                    && f.reason.contains("grammar_severity key '12'"))
-        );
+        let err2 = Registry::load_from(&[&p2]).expect_err("module must not load");
+        assert!(err2.to_string().contains("grammar_severity key '12'"));
     }
 
     #[trace("TC-722", "FR-048-AC-7")]
@@ -1707,24 +1686,75 @@ roles:
         assert_eq!(alt.status.as_ref().unwrap().column, "State");
     }
 
-    // PLAT-323: an explicitly named module whose manifest carries a key this
-    // engine does not know fails the load, naming the key and module version,
-    // instead of yielding an empty registry.
+    #[trace("FR-013-AC-19")]
+    // PLAT-323: a module whose manifest carries a key this engine does not
+    // know fails every constructor loudly, naming module, version and key,
+    // instead of yielding an empty model.
     #[test]
-    fn named_module_with_future_manifest_key_fails_loud() {
+    fn future_manifest_key_fails_every_constructor_loud() {
         let p = tmpdir("future-key");
-        let m = p.join("m");
+        let nested = p.join("nested");
         write_vocab_module(
-            &m,
-            "m",
+            &nested,
+            "nested",
             "version: 9.9.9\ntraceability:\n  a_future_key: [x]\n",
         );
-        let err = Registry::load_module(&m).expect_err("must fail loud");
-        let msg = err.to_string();
-        assert!(msg.contains("a_future_key"), "{msg}");
-        assert!(msg.contains("9.9.9"), "{msg}");
-        let err = Registry::load_module_set(&[&m]).expect_err("must fail loud");
-        assert!(err.to_string().contains("a_future_key"));
+        let top = p.join("top");
+        write_vocab_module(&top, "top", "version: 8.8.8\na_top_future_key: 1\n");
+        let good = p.join("good");
+        write_vocab_module(&good, "good", "artifact_types: []\n");
+
+        let check = |r: Result<Registry, QuireError>, key: &str, version: &str| {
+            let msg = r.expect_err("must fail loud").to_string();
+            assert!(msg.contains(key), "{msg}");
+            assert!(msg.contains(version), "{msg}");
+        };
+        check(Registry::load_module(&nested), "a_future_key", "9.9.9");
+        check(
+            Registry::load_module_strict(&top),
+            "a_top_future_key",
+            "8.8.8",
+        );
+        check(
+            Registry::load_module_set(&[&top]),
+            "a_top_future_key",
+            "8.8.8",
+        );
+        check(
+            Registry::load_module_set_strict(&[&nested]),
+            "a_future_key",
+            "9.9.9",
+        );
+        // A search root holding one skewed module among good ones.
+        check(Registry::load_from(&[&p]), "a_top_future_key", "8.8.8");
+        check(Registry::load_strict(&[&p]), "a_future_key", "9.9.9");
+        // Every failure in a set is reported, not only the first.
+        let both = Registry::load_module_set(&[&nested, &top])
+            .expect_err("both fail")
+            .to_string();
+        assert!(
+            both.contains("a_future_key") && both.contains("a_top_future_key"),
+            "{both}"
+        );
+        // Inline modules go through the same check.
+        let inline =
+            Registry::from_inline_parts(b"name: i\nversion: 7.7.7\nzzz: 1\n", &Default::default());
+        check(inline, "zzz", "7.7.7");
+    }
+
+    #[trace("FR-013-AC-19")]
+    // Keys owned by other tools stay loadable as opaque values.
+    #[test]
+    fn foreign_owned_top_level_keys_still_load() {
+        let p = tmpdir("foreign-keys");
+        write_vocab_module(
+            &p.join("m"),
+            "m",
+            "manifest_version: 1\ngrammars: []\ndoc_kinds: {}\nnav: []\n\
+             depends_on: []\nstate_schemas: {}\n",
+        );
+        let r = Registry::load_from(&[&p]).expect("loads");
+        assert_eq!(r.module_names().count(), 1);
     }
 
     #[trace("TC-733", "FR-050-AC-2")]
@@ -1748,12 +1778,8 @@ roles:
             "traceability:\n  document_references:\n  - name: r\n    archetype: FR\n    \
              section: S\n    column: C\n    pattern: '(TC-\\d+)'\n    targets: [nope]\n",
         );
-        let r2 = Registry::load_from(&[&bad]).expect("tolerant ok");
-        assert!(r2.module_names().next().is_none(), "module must not load");
-        assert!(r2
-            .failures()
-            .iter()
-            .any(|f| f.archetype == "<manifest>" && f.reason.contains("undeclared target")));
+        let err2 = Registry::load_from(&[&bad]).expect_err("module must not load");
+        assert!(err2.to_string().contains("undeclared target"));
 
         // Malformed: an unknown field inside the section.
         let typo = tmpdir("trace-733-typo");
@@ -1763,8 +1789,8 @@ roles:
             "traceability:\n  trace_targets:\n  - name: t\n    archetype: FR\n    section: S\n    \
              id_column: ID\n    typo: x\n",
         );
-        let r3 = Registry::load_from(&[&typo]).expect("tolerant ok");
-        assert!(r3.module_names().next().is_none(), "module must not load");
+        let err3 = Registry::load_from(&[&typo]).expect_err("module must not load");
+        assert!(err3.to_string().contains("typo"));
     }
 
     #[trace("TC-676", "FR-044-AC-3")]
