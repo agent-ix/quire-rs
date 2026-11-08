@@ -281,6 +281,83 @@ fn typed_relation_key_cases() {
     );
 }
 
+/// Run the PLAT-57 cases tagged `tc`: each is schema-valid, meets its
+/// `expect`, and equals its `cases.expected.json` record.
+fn assert_inline_expression_cases(tc: &str) -> usize {
+    let schema = schema();
+    let expected = expected_records();
+    let mut ran = 0;
+    for case in cases().into_iter().filter(|c| {
+        c["issue_ref"] == "PLAT-57" && c["tags"].as_array().unwrap().contains(&json!(tc))
+    }) {
+        let name = case["name"].as_str().unwrap();
+        let value = serde_json::to_value(extract_semantic_json(&case["input"]).unwrap()).unwrap();
+        let errors: Vec<String> = schema
+            .iter_errors(&value)
+            .map(|e| format!("{} at {}", e, e.instance_path()))
+            .collect();
+        assert!(errors.is_empty(), "{name}: {errors:?}\n{value:#}");
+        assert_case(name, &case["expect"], &value);
+        assert_eq!(
+            value, expected[name],
+            "{name}: differs from cases.expected.json"
+        );
+        ran += 1;
+    }
+    ran
+}
+
+#[trace("TC-2040", "FR-071-AC-10", "FR-071-AC-11", "FR-075-AC-30")]
+// `Pre: x > 1 and y(a, b)` is one unsplit expression with an empty frame
+// `pre`; the `Pre: a, b` control stays a reference list.
+#[test]
+fn pre_expression_cases() {
+    assert_eq!(assert_inline_expression_cases("TC-2040"), 2);
+}
+
+#[trace("TC-2041", "FR-071-AC-11", "FR-071-AC-12", "FR-071-AC-14")]
+// classification by text shape, empty lines refused, and no expression
+// without its operation.
+#[test]
+fn expression_classification_cases() {
+    assert_eq!(assert_inline_expression_cases("TC-2041"), 9);
+}
+
+#[trace("TC-2042", "FR-071-AC-13")]
+// an invalid-syntax expression is carried verbatim with only the advisory.
+#[test]
+fn invalid_syntax_expression_is_carried() {
+    assert_eq!(assert_inline_expression_cases("TC-2042"), 1);
+}
+
+#[trace("TC-2043", "FR-075-AC-28", "FR-075-AC-29")]
+// transition `Guard` cells: expression, reference, dangling, empty.
+#[test]
+fn guard_expression_cases() {
+    assert_eq!(assert_inline_expression_cases("TC-2043"), 9);
+    // A `Guard` expression neither adds nor removes the `Emits` outcome of
+    // the same table without a bundle index (FR-075-AC-26).
+    let expected = expected_records();
+    let with = &expected["plat57-guard-expression-no-bundle-index"];
+    let without = &expected["plat57-guard-empty-no-bundle-index"];
+    assert_eq!(with["availability"], without["availability"]);
+    let emits = |record: &Value| -> Vec<Value> {
+        record["diagnostics"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|d| d["code"] == "semantic.unresolved-target")
+            .map(|d| json!({ "reason": d["reason"], "line": d["line"], "section": d["section"] }))
+            .collect()
+    };
+    assert_eq!(emits(with), emits(without));
+    assert_eq!(
+        emits(with).len(),
+        1,
+        "the Emits outcome is one diagnostic: {with:#}"
+    );
+}
+
 #[trace("TC-1631", "FR-072-AC-2")]
 // every state token and both lossy values appear, each distinct;
 // unavailable/missing carry a reason.
