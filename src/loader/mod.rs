@@ -492,6 +492,7 @@ pub fn load_inline_module(manifest_yaml: &[u8], schemas: &BTreeMap<String, Strin
             &module_name,
             inline_root.clone(),
             a,
+            manifest.section_of(a),
             inline_semantic.as_ref(),
             &inline_source,
             &mut diagnostics,
@@ -701,8 +702,8 @@ fn load_one_module(
     let semantic = match read_module_semantic(&manifest) {
         Ok(s) => s,
         Err(semantic_failures) => {
-            // FR-069: a manifest outside the contract fails every object
-            // type of the module; nothing loads as an empty model.
+            // FR-069: a manifest outside the contract fails every archetype
+            // of the module; nothing loads as an empty model.
             for at in manifest.all_archetypes() {
                 for f in &semantic_failures {
                     failures.push(failure(
@@ -746,6 +747,7 @@ fn load_one_module(
             &module_name,
             module_root,
             at,
+            manifest.section_of(at),
             semantic.as_ref(),
             &source,
             diagnostics,
@@ -803,6 +805,7 @@ fn compile_archetype(
     module: &str,
     module_root: &Path,
     a: &Archetype,
+    section: &str,
     semantic: Option<&crate::semantic::SemanticModule>,
     source: &crate::semantic::SchemaSource<'_>,
     diagnostics: &mut Vec<Diagnostic>,
@@ -835,6 +838,7 @@ fn compile_archetype(
         module,
         module_root.join("manifest.yaml"),
         a,
+        section,
         semantic,
         source,
         diagnostics,
@@ -884,6 +888,7 @@ fn resolve_data_schema(
     module: &str,
     manifest_path: PathBuf,
     a: &Archetype,
+    section: &str,
     semantic: Option<&crate::semantic::SemanticModule>,
     source: &crate::semantic::SchemaSource<'_>,
     diagnostics: &mut Vec<Diagnostic>,
@@ -899,7 +904,7 @@ fn resolve_data_schema(
             manifest_path,
             crate::semantic::SemanticFailure::error(
                 "semantic.data-schema-ambiguous",
-                format!("object_types[{}].data_schema", a.name),
+                format!("{section}[{}].data_schema", a.name),
                 "data_schema carries both the { schema } reference and schema keywords",
             )
             .reason(),
@@ -912,14 +917,14 @@ fn resolve_data_schema(
                     manifest_path,
                     crate::semantic::SemanticFailure::error(
                         "semantic.data-schema-reference-without-block",
-                        format!("object_types[{}].data_schema", a.name),
+                        format!("{section}[{}].data_schema", a.name),
                         "the { schema } reference form requires a semantic block",
                     )
                     .reason(),
                 ));
             }
             let resolved =
-                crate::semantic::resolver::resolve_reference(source, &reference, &a.name)
+                crate::semantic::resolver::resolve_reference(source, &reference, section, &a.name)
                     .map_err(|f| failure(module, &a.name, manifest_path.clone(), f.reason()))?;
             Ok((
                 Some(Arc::new(resolved.schema)),
@@ -930,7 +935,7 @@ fn resolve_data_schema(
             if semantic.is_some() {
                 diagnostics.push(Diagnostic::Semantic {
                     module: module.to_string(),
-                    path: format!("object_types[{}].data_schema", a.name),
+                    path: format!("{section}[{}].data_schema", a.name),
                     code: "semantic.inline-data-schema".to_string(),
                     message: format!(
                         "{}: inline data_schema under a semantic block; prefer the {{ schema }} reference form",
