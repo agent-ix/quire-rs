@@ -1,6 +1,6 @@
 # Task 031: Whole-Spec Query API + Gate G5
 
-Status: complete — `src/corpus/query.rs` (6 unit tests) + `tests/spec_dogfood.rs` (5 tests). by_id/by_type/referencing/outgoing/orphans/dangling; untyped→UntypedArtifact; sorted/deterministic. **Gate G5 PASS** — corpus loads quire-rs's own spec/ (≥50 artifacts), FR-023..027 each resolve `implements`→StR, reverse lookup + dangling all correct.
+Status: complete — `src/corpus/query.rs` (6 unit tests) + `tests/it/spec_dogfood.rs` (5 tests). by_id/by_type/referencing/outgoing/orphans/dangling; untyped→UntypedArtifact; sorted/deterministic. **Gate G5 PASS** — corpus loads quire-rs's own spec/ (≥50 artifacts), FR-023..027 each resolve `implements`→StR, reverse lookup + dangling all correct.
 
 ## Scope
 
@@ -26,14 +26,14 @@ Expose read-only whole-spec queries over the resolved corpus, then run the G5 do
 - 032 (bindings) — **via Gate G5**
 
 ## Deliverables
-- Query methods on `Spec`; `benches/corpus_query.rs`; `tests/spec_dogfood.rs` (G5)
+- Query methods on `Spec`; `benches/corpus_query.rs`; `tests/it/spec_dogfood.rs` (G5)
 
 ## Primary Tests
 - TC-493 (by_type), TC-494 (referencing), TC-495 (orphans), TC-496 (coverage), TC-497 (dangling agreement), TC-498 (sorted determinism), TC-499 (no-IO), TC-500 (untyped), TC-458 (query bench)
 
 ## Gate G5: Corpus correctness (dogfood)
 - **Measures:** resolution + queries correct on the real `quire-rs/spec/` corpus.
-- **Pass criteria:** TC-480..501 green + `tests/spec_dogfood.rs` assertions pass.
+- **Pass criteria:** TC-480..501 green + `tests/it/spec_dogfood.rs` assertions pass.
 - **If fails:** stop before 032. Root-cause in id derivation (028) or target-id extraction (030) against the real spec diff.
 
 ## Notes

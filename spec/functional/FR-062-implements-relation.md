@@ -19,7 +19,7 @@ a spec trace id. Nothing linked a **requirement to the production code that impl
 That gap is measurable. Across this repository's 52 FRs, **38 have at least one mutable target and 14
 have none** (CR-071). The fourteen fail for one reason: every symbol verifying them lives in
 `tests/`, which holds test code only, so a computed file set names no production file. `FR-053` is
-the clean case — 17 bound test cases, all in `tests/obligations.rs`, and nothing connects it to
+the clean case — 17 bound test cases, all in `tests/it/obligations.rs`, and nothing connects it to
 `src/obligation.rs`.
 
 **Reach therefore correlates with test placement, not with requirement quality**, and inversely with

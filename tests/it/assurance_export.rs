@@ -167,7 +167,7 @@ fn schema() -> Validator {
 }
 
 fn golden() -> Value {
-    serde_json::from_str(include_str!("fixtures/assurance/v1.json")).expect("golden JSON")
+    serde_json::from_str(include_str!("../fixtures/assurance/v1.json")).expect("golden JSON")
 }
 
 #[trace("TC-1084", "FR-067-AC-1")]
@@ -262,7 +262,7 @@ fn tc1087_reader_rejects_unsupported_premises_before_returning_records() {
     let export: AssuranceExport = serde_json::from_value(golden()).expect("typed golden");
     let accepted = AcceptedAssurancePremises::from_export(&export);
     assert_eq!(
-        read_assurance_export(include_bytes!("fixtures/assurance/v1.json"), &accepted).unwrap(),
+        read_assurance_export(include_bytes!("../fixtures/assurance/v1.json"), &accepted).unwrap(),
         export
     );
 
@@ -276,13 +276,13 @@ fn tc1087_reader_rejects_unsupported_premises_before_returning_records() {
     let mut rejected = accepted.clone();
     rejected.modules[0].version = "9.9.9".to_string();
     assert!(matches!(
-        read_assurance_export(include_bytes!("fixtures/assurance/v1.json"), &rejected),
+        read_assurance_export(include_bytes!("../fixtures/assurance/v1.json"), &rejected),
         Err(AssuranceError::UnacceptedModuleVersion { .. })
     ));
     rejected = accepted.clone();
     rejected.modules.clear();
     assert!(matches!(
-        read_assurance_export(include_bytes!("fixtures/assurance/v1.json"), &rejected),
+        read_assurance_export(include_bytes!("../fixtures/assurance/v1.json"), &rejected),
         Err(AssuranceError::UnacceptedModule { .. })
     ));
 

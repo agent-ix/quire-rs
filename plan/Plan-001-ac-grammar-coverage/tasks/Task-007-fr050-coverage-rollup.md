@@ -90,4 +90,4 @@ of extracted code).
   (FR-050-CON-2 names local source trees as an input); the forbidden set is
   network/service/execution surface. Two comment rewordings were needed to keep
   the textual audit honest rather than weakening the needle list.
-- TC-734..TC-740, TC-756 green (`tests/coverage_rollup.rs`); `make ci` green.
+- TC-734..TC-740, TC-756 green (`tests/it/coverage_rollup.rs`); `make ci` green.

@@ -47,4 +47,4 @@ The engine must be cheap to use in hot paths (Filament editor live-preview, bulk
 ## Verification
 
 - Criterion benches in `benches/load.rs` execute on every PR with stored baselines.
-- Tracing-based assertions in `tests/no_hidden_recompile.rs`.
+- Tracing-based assertions in `tests/it/no_hidden_recompile.rs`.

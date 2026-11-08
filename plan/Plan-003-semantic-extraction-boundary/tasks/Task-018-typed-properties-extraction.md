@@ -50,7 +50,7 @@ Extract the typed table or `sysml` fence into normalized `FieldDecl[]` under the
 
 ## Deliverables
 
-- `src/semantic/{context,decl,scan,properties}.rs`, `tests/semantic_properties.rs` (property test TC-1621 inside)
+- `src/semantic/{context,decl,scan,properties}.rs`, `tests/it/semantic_properties.rs` (property test TC-1621 inside)
 
 ## Notes
 

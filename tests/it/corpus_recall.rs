@@ -2,7 +2,7 @@
 
 #![allow(dead_code, unused_imports)]
 
-mod corpus_case;
+use crate::corpus_case;
 
 use std::collections::{BTreeMap, BTreeSet};
 

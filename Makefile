@@ -306,8 +306,7 @@ coverage-baseline-update:
 	@echo "Regenerating the FR-050-AC-7 coverage baseline (CR-057)."
 	@echo "The resulting diff belongs in the pull request — a change to what"
 	@echo "coverage reconciles is reviewable, not absorbable."
-	QUIRE_UPDATE_COVERAGE_BASELINE=1 cargo test --locked --test coverage_baseline \
-		tc824_coverage_report_matches_the_checked_in_baseline
+	QUIRE_UPDATE_COVERAGE_BASELINE=1 cargo test --locked --test it coverage_baseline::tc824_coverage_report_matches_the_checked_in_baseline
 	@git --no-pager diff --stat -- tests/fixtures/coverage_baseline/expected.json
 
 # The #212 gate: the engine under test validates its own spec/ tree. PR #204
@@ -333,7 +332,7 @@ QUIRE_CLI ?= ../quire-cli
 
 .PHONY: corpus-recall-update
 corpus-recall-update:
-	UPDATE_CORPUS_RECALL=1 CARGO_TARGET_DIR=target cargo test --locked --test corpus_recall
+	UPDATE_CORPUS_RECALL=1 CARGO_TARGET_DIR=target cargo test --locked --test it corpus_recall::
 
 .PHONY: ci
 # NFR-021-AC-2 (TC-1649): the semantic resolver runs from the embedded bundle,
@@ -342,7 +341,7 @@ corpus-recall-update:
 .PHONY: check-wasm
 check-wasm:
 	CARGO_TARGET_DIR=target/wasm-check $(CARGO) check --locked --target wasm32-unknown-unknown --no-default-features --features wasm --quiet
-	$(CARGO) test --locked --no-default-features --features wasm --quiet --test semantic_contract --test semantic_properties --test semantic_clauses --test semantic_surface --test semantic_relations
+	$(CARGO) test --locked --no-default-features --features wasm --quiet --test it -- semantic_contract:: semantic_properties:: semantic_clauses:: semantic_surface:: semantic_relations::
 
 ci: fmt-check lint check-python check-python-symbols check-typescript-symbols check-wasm check-tools test deny deny-grammars audit-property audit-static validate
 

@@ -5,9 +5,9 @@ type: FR
 verification_method: test
 evidence:
   - kind: test_case
-    ref: tests/assurance_export.rs
+    ref: tests/it/assurance_export.rs
   - kind: inspection_checklist
-    ref: tests/assurance_boundary.rs
+    ref: tests/it/assurance_boundary.rs
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/usecase/US-018"
     type: "implements"

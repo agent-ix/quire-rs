@@ -20,7 +20,7 @@ relationships:
 ## Description
 
 The engine's checks are gated today by cases embedded in code — mini-repositories as
-strings inside one JSON blob, `include_str!`-bound at `tests/corpus_cases.rs:20`. A
+strings inside one JSON blob, `include_str!`-bound at `tests/it/corpus_cases.rs:20`. A
 sibling toolchain does the same in JavaScript, materialising template literals to a
 tmpdir and returning `labels.json` as the value of a function.
 

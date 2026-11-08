@@ -1,6 +1,6 @@
 //! Port of `~/dev/quire-py/tests/test_parser.py` (FR-005/006/007/008/009).
 //!
-//! Divergences (see `tests/parser_parity/divergences.md`):
+//! Divergences (see `tests/it/parser_parity/divergences.md`):
 //! - Section content is byte-exact (FR-008) in Rust; the Py reference
 //!   strips. The Rust assertions reflect the byte-exact bytes.
 //! - `_slug` is a private helper in Py; Rust exposes it via

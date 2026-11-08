@@ -5,7 +5,7 @@ type: StR
 verification_method: test
 evidence:
   - kind: test_case
-    ref: tests/assurance_export.rs
+    ref: tests/it/assurance_export.rs
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/stakeholder/StR-006"
     type: "depends_on"

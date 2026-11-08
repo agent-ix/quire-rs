@@ -55,4 +55,4 @@ degrade to typed errors, not crashes.
 ## Verification
 
 - Fuzz target under `fuzz/fuzz_targets/` on the scheduled fuzz lane ([NFR-011](./NFR-011-fuzz-testing.md)).
-- Proptest in `tests/robustness.rs` run on every PR (`PROPTEST_CASES=512`).
+- Proptest in `tests/it/robustness.rs` run on every PR (`PROPTEST_CASES=512`).

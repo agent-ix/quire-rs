@@ -59,5 +59,5 @@ The parity suite ([FR-012](../functional/FR-012-archetype-parity-suite.md)) comp
 
 ## Verification
 
-- Proptest suite in `tests/determinism.rs`.
+- Proptest suite in `tests/it/determinism.rs`.
 - CI runs the suite with `PROPTEST_CASES=512`.

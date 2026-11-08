@@ -36,7 +36,7 @@ Task 013 (full corpus loaded).
 
 - `benches/parse.rs`, `benches/validate.rs`, `benches/load.rs` (no `benches/render.rs`)
 - Stored criterion baselines under `target/criterion/`
-- `tests/no_hidden_recompile.rs` (tracing audit)
+- `tests/it/no_hidden_recompile.rs` (tracing audit)
 
 ## Primary Tests
 

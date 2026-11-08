@@ -16,7 +16,7 @@
 //! whose origin is unrecorded becomes a fixture nobody dares change, which is
 //! how a corpus rots into a set of assertions everybody works around.
 
-mod corpus_case;
+use crate::corpus_case;
 
 use std::collections::{BTreeMap, BTreeSet};
 

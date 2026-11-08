@@ -40,7 +40,7 @@ Extract `## Invariants` and `## Operations` into `ClauseRef[]`, `clauseText`, an
 
 ## Deliverables
 
-- `src/semantic/clauses.rs`, scanner refactor in `src/extract/locator.rs`, `tests/semantic_clauses.rs`
+- `src/semantic/clauses.rs`, scanner refactor in `src/extract/locator.rs`, `tests/it/semantic_clauses.rs`
 
 ## Notes
 

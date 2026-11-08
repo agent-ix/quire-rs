@@ -2,7 +2,7 @@
 //!
 //! Each `#[test]` corresponds to one `it(...)` block in the TS suite.
 //!
-//! Divergences (see `tests/parser_parity/divergences.md`):
+//! Divergences (see `tests/it/parser_parity/divergences.md`):
 //! - Section content is byte-exact (FR-008). Where the TS asserts a
 //!   stripped value, the Rust port asserts the byte-exact slice.
 //! - `parseTable` returns `{headers: [], rows: []}` in TS for no-table

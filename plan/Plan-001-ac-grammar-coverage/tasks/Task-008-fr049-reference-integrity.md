@@ -78,4 +78,4 @@ Deterministic finding order.
 - Test-authoring gotcha worth keeping: `query::section` returns the *first*
   heading that matches, so a fixture titled `# Checks` shadows its own
   `## Checks` table section.
-- TC-724..TC-731 green (`tests/trace_references.rs`); `make ci` green.
+- TC-724..TC-731 green (`tests/it/trace_references.rs`); `make ci` green.

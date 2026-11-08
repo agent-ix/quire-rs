@@ -33,7 +33,7 @@ Protect the architectural boundary and prove the new export does not mutate exis
 
 ## Deliverables
 
-- `tests/assurance_boundary.rs`
+- `tests/it/assurance_boundary.rs`
 - Legacy-output regression coverage and full local gate evidence
 
 ## Notes

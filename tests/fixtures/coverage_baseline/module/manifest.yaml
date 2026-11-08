@@ -3,7 +3,7 @@
 # Deliberately exercises the whole reconciliation surface in one corpus:
 # archetype-minted ids, an auxiliary matrix, an `exclude:` glob, the status
 # vocabulary (complete/pending/failed), the `no_source_symbol` exemption, and
-# an archetype nothing declares. See tests/coverage_baseline.rs.
+# an archetype nothing declares. See tests/it/coverage_baseline.rs.
 name: traceability-baseline
 version: 0.1.0
 description: Fixture module for the FR-050-AC-7 byte-identity baseline

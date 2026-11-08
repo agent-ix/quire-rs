@@ -5,9 +5,9 @@ type: FR
 verification_method: test
 evidence:
   - kind: test_case
-    ref: tests/assurance_export.rs
+    ref: tests/it/assurance_export.rs
   - kind: test_case
-    ref: tests/output_contract.rs
+    ref: tests/it/output_contract.rs
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/usecase/US-018"
     type: "implements"
