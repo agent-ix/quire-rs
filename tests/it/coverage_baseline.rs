@@ -132,11 +132,14 @@ fn tc824_the_baseline_corpus_still_exercises_the_surface() {
     // An allowlist would have quietly stopped gating each new check; naming the
     // single exclusion keeps the gate closed by default.
     //
-    // `range-in-trace-tag` (CR-187) is the second deliberate
-    // exclusion: FR-050-AC-20 itself requires this baseline to carry one, over
-    // `covers_range`'s own deliberately-authored range tag — a fixture
-    // authoring choice, not a model defect, the same distinction
-    // `catch-all-universal` already draws.
+    // `range-in-trace-tag` (CR-187) is a deliberate exclusion: FR-050-AC-20
+    // requires this baseline to carry one, over `covers_range`'s authored
+    // range tag — a fixture choice, not a model defect.
+    //
+    // The two `criterion-tagged-outside-row` findings are expected too. FR-003
+    // in this synthetic corpus declares `Test` without a TC reference, and no
+    // test-matrix row cites FR-003-AC-1 or FR-003-AC-3. Keep the criterion tags
+    // to exercise their unbacked statuses, and check these exact findings below.
     assert!(
         report
             .diagnostics
@@ -146,10 +149,30 @@ fn tc824_the_baseline_corpus_still_exercises_the_surface() {
          FR-050-AC-20): {:?}",
         report.diagnostics
     );
+    let outside_row_diagnostics: Vec<_> = report
+        .diagnostics
+        .iter()
+        .filter(|d| d.reason == "criterion-tagged-outside-row")
+        .collect();
+    assert_eq!(outside_row_diagnostics.len(), 2);
+    let mut outside_row_criteria: Vec<_> = outside_row_diagnostics
+        .iter()
+        .filter_map(|d| d.value.as_deref())
+        .collect();
+    outside_row_criteria.sort_unstable();
+    assert_eq!(
+        outside_row_criteria,
+        ["FR-003-AC-1", "FR-003-AC-3"],
+        "only the two deliberately row-unqualified baseline test symbols may be diagnosed"
+    );
     let model_health: Vec<_> = report
         .diagnostics
         .iter()
-        .filter(|d| d.reason != "catch-all-universal" && d.reason != "range-in-trace-tag")
+        .filter(|d| {
+            d.reason != "catch-all-universal"
+                && d.reason != "range-in-trace-tag"
+                && d.reason != "criterion-tagged-outside-row"
+        })
         .collect();
     assert!(
         model_health.is_empty(),
@@ -201,8 +224,10 @@ fn tc824_the_baseline_corpus_still_exercises_the_surface() {
         "an undeclared archetype must not be body-parsed during coverage"
     );
 
-    // CR-187, FR-050-AC-20: all four `coverage_matrix` statuses, over
-    // `spec/FR-003.md`.
+    // CR-187, FR-050-AC-20: computed coverage statuses over `spec/FR-003.md`.
+    // Its direct criterion tags have no corresponding TC rows, so both remain
+    // untagged under row-aware binding; other tests cover tagged statuses with
+    // explicitly paired rows.
     use quire_rs::coverage::CoverageMatrixStatus;
     let status = |id: &str| {
         report
@@ -213,12 +238,9 @@ fn tc824_the_baseline_corpus_still_exercises_the_surface() {
             .unwrap_or_else(|| panic!("no coverage_matrix criterion {id}"))
             .status
     };
-    assert_eq!(status("FR-003-AC-1"), CoverageMatrixStatus::Tagged);
+    assert_eq!(status("FR-003-AC-1"), CoverageMatrixStatus::Untagged);
     assert_eq!(status("FR-003-AC-2"), CoverageMatrixStatus::Untagged);
-    assert_eq!(
-        status("FR-003-AC-3"),
-        CoverageMatrixStatus::TaggedByIgnoredTest
-    );
+    assert_eq!(status("FR-003-AC-3"), CoverageMatrixStatus::Untagged);
     assert_eq!(
         status("FR-003-AC-4"),
         CoverageMatrixStatus::MethodWithoutSymbol
