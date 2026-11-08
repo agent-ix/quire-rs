@@ -9,6 +9,7 @@
 //! lookup per stub — and never reaches outside the loaded set
 //! (StR-006-AC-4).
 
+use std::collections::btree_map::Entry;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::path::{Component, Path, PathBuf};
 
@@ -69,43 +70,46 @@ pub(crate) fn resolve(
     // (ADR 0007) resolve through this (FR-026-AC-9).
     let by_path = build_path_index(documents);
 
-    // Harvest into a sorted, deduplicated stub set: identical
+    // Harvest into a sorted, deduplicated stub map: identical
     // (source, target, type) triples from any source collapse to one
-    // (FR-026-AC-8/AC-11); same-pair-different-type stay distinct.
-    // The authority is kept only for targets absent from the corpus, so a
-    // resolved edge dedups exactly as before.
-    let mut stubs: BTreeSet<(ArtifactId, ArtifactId, String, Option<String>)> = BTreeSet::new();
-    let authority_if_unresolved = |raw: &str, target: &str| {
-        (!by_id.contains_key(target))
+    // (FR-026-AC-8/AC-11); same-pair-different-type stay distinct. The value
+    // is the foreign authority of an unresolved target; it never takes part in
+    // the key, so one absent target written several ways is still one edge.
+    let mut stubs: BTreeMap<(ArtifactId, ArtifactId, String), Option<String>> = BTreeMap::new();
+    let mut add = |source: &ArtifactId, raw: &str, edge_type: String| {
+        let target = extract_target_id(raw);
+        let authority = (!by_id.contains_key(target))
             .then(|| ix_authority(raw))
-            .flatten()
+            .flatten();
+        match stubs.entry((source.clone(), target.to_string(), edge_type)) {
+            Entry::Vacant(v) => {
+                v.insert(authority);
+            }
+            // A bare-id spelling claims the target is local, so it wins; two
+            // different foreign authorities settle on the smaller, stably.
+            Entry::Occupied(mut o) => {
+                let merged = match (o.get().as_ref(), authority) {
+                    (Some(a), Some(b)) => Some(a.min(&b).to_string()),
+                    _ => None,
+                };
+                o.insert(merged);
+            }
+        }
     };
     for doc in documents {
         let source = artifact_key(doc);
         for (target_raw, edge_type) in harvest_frontmatter(doc) {
-            let target = extract_target_id(&target_raw);
-            stubs.insert((
-                source.clone(),
-                target.to_string(),
-                edge_type,
-                authority_if_unresolved(&target_raw, target),
-            ));
+            add(&source, &target_raw, edge_type);
         }
         for target_raw in harvest_body_links(doc, ix_link) {
-            let target = extract_target_id(&target_raw);
-            stubs.insert((
-                source.clone(),
-                target.to_string(),
-                "references".to_string(),
-                authority_if_unresolved(&target_raw, target),
-            ));
+            add(&source, &target_raw, "references".to_string());
         }
         // Internal relative-path links (ADR 0007). Navigation documents
         // (`index.md`) is excluded as a source so its contents links do not
         // flood the graph (FR-026-AC-10).
         if !is_nav_doc(&doc.path) {
             for target in harvest_body_relative_links(doc, md_link, &by_path) {
-                stubs.insert((source.clone(), target, "references".to_string(), None));
+                add(&source, &target, "references".to_string());
             }
         }
     }
@@ -115,7 +119,7 @@ pub(crate) fn resolve(
     let mut incoming: BTreeMap<ArtifactId, Vec<usize>> = BTreeMap::new();
     let mut diagnostics = Vec::new();
 
-    for (source, target, edge_type, authority) in stubs {
+    for ((source, target, edge_type), authority) in stubs {
         let resolution = if by_id.contains_key(&target) {
             Resolution::Resolved
         } else {
@@ -307,15 +311,15 @@ pub(crate) fn extract_target_id(target: &str) -> &str {
 }
 
 /// The `<org>/<repo>` authority of an `ix://` URI: its first two path
-/// segments (one when the URI names only an org). `None` for a bare id.
+/// segments, compared exactly. Only a URI with a third segment names a repo
+/// that way; `ix://<org>/<id>` has no repo segment, so it has no authority.
+/// `None` for a bare id.
 fn ix_authority(target: &str) -> Option<String> {
     let rest = target.strip_prefix("ix://")?;
     let mut segments = rest.split('/').filter(|s| !s.is_empty());
-    let org = segments.next()?;
-    Some(match segments.next() {
-        Some(repo) => format!("{org}/{repo}"),
-        None => org.to_string(),
-    })
+    let (org, repo) = (segments.next()?, segments.next()?);
+    segments.next()?;
+    Some(format!("{org}/{repo}"))
 }
 
 /// The `ix://` URI grammar (CR-067):
@@ -470,6 +474,30 @@ mod tests {
         let out = resolve(&docs, &index(&docs));
         assert_eq!(out.edges[0].target, "StR-001");
         assert_eq!(out.edges[0].resolution, Resolution::Dangling);
+    }
+
+    // FR-026-AC-8/AC-11: one absent target spelled as a bare id and as a
+    // foreign ix:// link is one edge, one diagnostic, and the bare spelling
+    // keeps it local (no authority).
+    #[test]
+    fn spellings_of_one_absent_target_dedup_without_splitting_on_authority() {
+        let docs = vec![loaded(
+            "FR-023",
+            "relationships:\n  - target: \"StR-999\"\n    type: references\n",
+            "see [x](ix://o/r/spec/StR-999)\n",
+        )];
+        let out = resolve(&docs, &index(&docs));
+        assert_eq!(out.edges.len(), 1);
+        assert_eq!(out.diagnostics.len(), 1);
+        assert_eq!(out.edges[0].authority, None);
+    }
+
+    #[test]
+    fn ix_authority_needs_org_repo_and_a_target_segment() {
+        assert_eq!(ix_authority("ix://o/r/spec/StR-1").as_deref(), Some("o/r"));
+        assert_eq!(ix_authority("ix://o/r/StR-1").as_deref(), Some("o/r"));
+        assert_eq!(ix_authority("ix://o/StR-1"), None);
+        assert_eq!(ix_authority("StR-1"), None);
     }
 
     // TC-490, FR-026-AC-5: a Resolved edge is in both outgoing(src) and incoming(tgt).

@@ -486,14 +486,13 @@ fn tc889_switching_one_pack_off_leaves_siblings_reporting() {
         "tests.md",
         &tests_matrix(&[("TC-001", "FR-001-AC-1")]),
     );
-    // …and, separately, a dangling reference.
+    // …and, separately, a dangling `ix://` reference.
     write(
         &root,
         "FR-002.md",
-        &fr_document("FR-002", &[("FR-002-AC-1", "Test (TC-001)")]).replacen(
-            "title: A requirement\n",
-            "title: A requirement\nrelationships:\n  - target: MISSING\n    type: references\n",
-            1,
+        &format!(
+            "{}\nSee [missing](ix://o/r/MISSING).\n",
+            fr_document("FR-002", &[("FR-002-AC-1", "Test (TC-001)")])
         ),
     );
 

@@ -171,6 +171,15 @@ fn check_level(
     }
 }
 
+/// A located table: the parsed table, the section's start line, each data
+/// row's document line, and each data row's authored cell count.
+type LocatedTable = (
+    crate::query::TableResult,
+    Option<usize>,
+    Vec<usize>,
+    Vec<usize>,
+);
+
 /// The located table, the section's start line, and each data row's own
 /// **document** line (FR-033-AC-16, CR-097).
 ///
@@ -184,15 +193,6 @@ fn check_level(
 /// coverage path does the same conversion at `corpus::declared_tables::rows_of`
 /// and lands on the data row; two paths disagreeing about one row's line is the
 /// defect, so this arithmetic must keep matching that one.
-/// A located table: the parsed table, the section's start line, each data
-/// row's document line, and each data row's authored cell count.
-type LocatedTable = (
-    crate::query::TableResult,
-    Option<usize>,
-    Vec<usize>,
-    Vec<usize>,
-);
-
 fn locate_table(
     doc: &QuireDocument,
     primitive: &LocatorPrimitive,
@@ -750,6 +750,15 @@ mod tests {
         // Control: a uniform table fires nothing.
         let ok = parse_document("## T\n| ID | Type |\n| - | - |\n| A-1 | Unit |\n");
         assert!(evaluate_assert(&ok, &p, &a, None).is_empty());
+
+        // An escaped pipe is cell text, and an empty trailing cell still
+        // counts: neither row is the wrong width.
+        let edge = parse_document(concat!(
+            "## T\n| ID | Type |\n| - | - |\n",
+            "| A-1 | Unit \\| Int |\n",
+            "| A-2 | |\n",
+        ));
+        assert!(evaluate_assert(&edge, &p, &a, None).is_empty());
     }
 
     #[trace("TC-991", "FR-033-AC-16")]

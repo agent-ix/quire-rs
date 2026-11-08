@@ -309,14 +309,15 @@ pub fn validate_bundle(
     }
 
     // Reference resolution: a dangling `ix://` ref is a hard error under
-    // Strict, a warning under OKF. Foreign-authority targets are skipped.
+    // Strict, a warning under OKF. Foreign-authority targets are skipped when the bundle's package is declared.
     for edge in spec.inner.edges.iter() {
         // A target under another repo's authority is cross-repo, not dangling:
-        // this corpus cannot see it, so it cannot call it broken.
-        let cross_repo = edge
-            .authority
-            .as_deref()
-            .is_some_and(|a| spec.bundle_package() != Some(a));
+        // this corpus cannot see it. Needs the bundle's own package declared
+        // to tell the two apart; without one, every miss stays dangling.
+        let cross_repo = matches!(
+            (edge.authority.as_deref(), spec.bundle_package()),
+            (Some(authority), Some(package)) if authority != package
+        );
         if edge.resolution == Resolution::Dangling && !cross_repo {
             report.route(
                 severity,

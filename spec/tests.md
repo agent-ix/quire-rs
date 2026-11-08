@@ -1133,7 +1133,7 @@ in this specification is not runtime or coverage evidence.
 | TC-1989 | Unknown guard, non-Rust guarded form and use outside implements are invalid module input, never an unguarded fallback | Integration | P0 | FR-062-AC-12 | 🚧 Planned |
 | TC-1990 | Guarded forms preserve identities, range-finding locations, parse-failure isolation, deterministic outputs and the scope/evidence separation | Integration | P0 | FR-062-AC-17 | 🚧 Planned |
 | TC-1991 | A `columns` assert whose header conforms still fails with reason `row-width` for each row whose cell count differs from the header's, at the row's own line with its `row_id`; a uniformly wide table fires nothing (PLAT-217) | Unit | P0 | FR-033-AC-17 | ✅ |
-| TC-1992 | An `ix://` reference under a foreign `<org>/<repo>` authority is not `dangling-reference`, while the same absent id under the bundle's declared package, or as a bare id, still is (PLAT-1056) | Integration | P0 | FR-038-AC-9 | ✅ |
+| TC-1992 | An `ix://` reference under a foreign `<org>/<repo>` authority is not `dangling-reference` when the bundle declares a different package (Strict and Okf), while the same id under the declared package, with no package declared, or as a bare id, still is (PLAT-1056) | Integration | P0 | FR-038-AC-9 | ✅ |
 
 Procedures use the public module-load-to-bind path, not a manually patched
 `TraceabilityModel`. Each form declares its pattern and template in the
