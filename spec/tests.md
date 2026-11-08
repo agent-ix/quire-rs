@@ -111,8 +111,8 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | FR-071 Clause and operation extraction | AC-1..9; CON-1..2 | TC-1622..TC-1629, TC-1648, TC-1850, TC-1851 | ✅ Implemented |
 | FR-072 Semantic extraction surface | AC-1..9; CON-1..3 | TC-1630..TC-1640, TC-1650 (TC-1636 external: quire-wasm#3) | ✅ Implemented; WASM leg external |
 | FR-073 Generic rights-aware clause sets | AC-1..6 | TC-1806..TC-1809 | ✅ Implemented |
-| FR-075 Model feature extraction | AC-1..21; CON-1 | TC-1840..TC-1847, TC-1849, TC-1869, TC-1870, TC-1872..TC-1875, TC-1948..TC-1951, TC-1953 | ✅ AC-1..15 Implemented; AC-16..21 🚧 |
-| FR-076 Relationships extraction to RelationDecl[] | AC-1..15; CON-1..2 | TC-1852..TC-1868 | ✅ Implemented |
+| FR-075 Model feature extraction | AC-1..26; CON-1..2 | TC-1840..TC-1847, TC-1849, TC-1869, TC-1870, TC-1872..TC-1875, TC-1948..TC-1951, TC-1953, TC-1993..TC-1997 | ✅ AC-1..15 Implemented; AC-16..26 🚧 |
+| FR-076 Relationships extraction to RelationDecl[] | AC-1..20; CON-1..3 | TC-1852..TC-1868, TC-1998..TC-2002 | ✅ AC-1..15 Implemented; AC-16..20 🚧 |
 | FR-077 Trace search index (structural forward/inverse lookup) | AC-1..6; CON-1..3 | TC-1887..TC-1894 | ✅ Implemented |
 | FR-078 Qualified retained evidence | AC-1..20; CON-1..4 | TC-1963..TC-1982 | 🚧 Planned — spec-first, no execution claim |
 
@@ -1134,6 +1134,16 @@ in this specification is not runtime or coverage evidence.
 | TC-1990 | Guarded forms preserve identities, range-finding locations, parse-failure isolation, deterministic outputs and the scope/evidence separation | Integration | P0 | FR-062-AC-17 | 🚧 Planned |
 | TC-1991 | A `columns` assert whose header conforms still fails with reason `row-width` for each row whose cell count differs from the header's, at the row's own line with its `row_id`; a uniformly wide table fires nothing (PLAT-217) | Unit | P0 | FR-033-AC-17 | ✅ |
 | TC-1992 | An `ix://` reference under a foreign `<org>/<repo>` authority is not `dangling-reference` when the bundle declares a different package (Strict and Okf), while the same id under the declared package, with no package declared, or as a bare id, still is (PLAT-1056) | Integration | P0 | FR-038-AC-9 | ✅ |
+| TC-1993 | Reference cells of `Transitions` and `Steps` resolve by id or declared name to ordered `SemanticId[]`; empty cell absent; no raw cell text in the record; record schema-valid | Unit | P0 | FR-075-AC-22 | 🚧 |
+| TC-1994 | Unknown name, wrong object type, no bundle index and no bundle package each refuse with `semantic.unknown-reference` / `semantic.reference-kind-mismatch` and their reasons, omit `model`, and the all-resolving control is silent | Unit | P0 | FR-075-AC-23, FR-075-CON-2 | 🚧 |
+| TC-1995 | Two events with one title are `semantic.ambiguous-reference` naming both ids; event-versus-entity title resolves to the event; one declaration in two forms is not ambiguous; id beats name; `ix://` cells are never name-matched | Unit | P0 | FR-075-AC-24 | 🚧 |
+| TC-1996 | `Source` and `Owner` tables extract `model.source` and `model.owner` as resolved `SemanticId`s with spans; unresolved, ambiguous, empty and second-row cases are refused; undeclared locators are `semantic.feature-not-extractable` | Unit | P0 | FR-075-AC-25 | 🚧 |
+| TC-1997 | Corpus cases per key (transition emits, step consumes, step emits, source, owner) carry `issue_ref`, a resolving case, an unresolved case and an `absent_diagnostic_reasons` control; Python and Rust JSON are equal | Unit | P0 | FR-075-AC-26 | 🚧 |
+| TC-1998 | Typed relation keys: process `emits`, repository `persists`, aggregate_root `emits` rows lower into `SemanticId[]` with no `relations`, `relationSources` carrying every row, schema-valid | Unit | P0 | FR-076-AC-16, FR-076-CON-3 | 🚧 |
+| TC-1999 | Typed rows get the FR-076 refusals unchanged (`target-not-id`, `target-not-allowed`, `inverse-verb`) plus `verb-not-typed-key`; any error leaves no typed key; control row is clean | Unit | P0 | FR-076-AC-17 | 🚧 |
+| TC-2000 | Header-only table on a typed type gives empty typed keys and nothing else; a mixed table on a type with `relations_allowed` splits rows between `emits` and `relations` | Unit | P0 | FR-076-AC-18 | 🚧 |
+| TC-2001 | `semantic.duplicate-authority` for a typed-key locator and for a frontmatter typed key (reasons `typed-key-locator`, `frontmatter-key`); control with one site is silent | Unit | P0 | FR-076-AC-19 | 🚧 |
+| TC-2002 | Model cell and relationship target resolve to one identical `SemanticId`; a title row stays `target-not-id`; untyped types are byte-identical; corpus cases per typed key with `issue_ref` `PLAT-55`, unresolved case and control | Unit | P0 | FR-076-AC-20 | 🚧 |
 
 Procedures use the public module-load-to-bind path, not a manually patched
 `TraceabilityModel`. Each form declares its pattern and template in the
@@ -1595,6 +1605,12 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-075-AC-19 | TC-1950 |
 | FR-075-AC-20 | TC-1951 |
 | FR-075-AC-21 | TC-1953 |
+| FR-075-AC-22 | TC-1993 |
+| FR-075-AC-23 | TC-1994 |
+| FR-075-AC-24 | TC-1995 |
+| FR-075-AC-25 | TC-1996 |
+| FR-075-AC-26 | TC-1997 |
+| FR-075-CON-2 | TC-1994 |
 | FR-076-AC-1 | TC-1852 |
 | FR-076-AC-2 | TC-1853 |
 | FR-076-AC-3 | TC-1854 |
@@ -1610,6 +1626,12 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-076-AC-13 | TC-1864 |
 | FR-076-AC-14 | TC-1865 |
 | FR-076-AC-15 | TC-1866, TC-1867, TC-1868 |
+| FR-076-AC-16 | TC-1998 |
+| FR-076-AC-17 | TC-1999 |
+| FR-076-AC-18 | TC-2000 |
+| FR-076-AC-19 | TC-2001 |
+| FR-076-AC-20 | TC-2002 |
+| FR-076-CON-3 | TC-1998 |
 | FR-073-AC-1 | TC-1807, TC-1809 |
 | FR-073-AC-2 | TC-1806 |
 | FR-073-AC-3 | TC-1806 |

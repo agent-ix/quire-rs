@@ -77,6 +77,12 @@ label is refused in favour of its forward verb
   is the no-bundle-index state. The artifact's own frontmatter `id` and
   `object` always count as a bundle artifact.
 - The artifact's frontmatter `relationships` entries.
+- The extracting object type's *typed relation keys* on the
+  `RelationVocabulary`: `typed_keys` (verb → record key, the key one of
+  `emits` or `persists`) and `relations_allowed` (whether the type's record
+  admits a `relations` key). A type with no `typed_keys` behaves exactly as
+  before this section existed. The surfaces that build the vocabulary supply
+  both from the object type's record shape.
 
 ## Outputs
 
@@ -84,11 +90,20 @@ label is refused in favour of its forward verb
   `{ verb, category, composite, target, multiplicity }` validating against
   the vendored semantic-core `RelationDecl.json`.
 - `relationSources`: one `{ name, sourceSpan }` per `relations` element at
-  the same index; `name` is the row's `Name` cell and `sourceSpan` the
+  the same index (for a type with `typed_keys`, one per table row in row
+  order, so every typed row keeps its `Name` and line, and the i-th entry of a
+  typed key corresponds to the i-th row of that key's verb); `name` is the row's `Name` cell and `sourceSpan` the
   row's line span, built as FR-075 builds spans. This is the semantic-core
   `0.2.0` carrier: when `agent-ix/filament-core-data#155` adds `name` and
   `sourceSpan` to `RelationDecl`, they move onto each element and
   `relationSources` is removed.
+- `emits`, `persists`: record keys of `SemanticId[]`, in row order, each
+  present exactly when the object type's `typed_keys` names it and
+  `availability.relations` is `available`. A row whose verb is a key of
+  `typed_keys` lowers into that key only: its element is the row's resolved
+  identity (`ix://<package>/<id>`), and it contributes nothing to
+  `relations`. When `relations_allowed` is `false`, no `relations` key is
+  produced.
 - `availability.relations`: `{ state, reason?, lossy }`.
 - Diagnostics with `code`, `severity`, `line`, `section`, `reason`,
   `sourceSpan` of the declaring line, and a message naming the artifact
@@ -168,6 +183,7 @@ Refusals, one diagnostic per row, first failing check only, in this order:
 | `Verb` is `specializes`; the message names the FR-075 `generalization` mapping | `semantic.invalid-model-cell` | `generalization` |
 | `Verb` is neither a forward key nor an inverse label | `semantic.invalid-model-cell` | `unknown-verb` |
 | `Verb` is not a key of the object type's `allowed_links` | `semantic.invalid-model-cell` | `verb-not-allowed` |
+| the object type's `relations_allowed` is `false` and the `Verb` is no key of `typed_keys` | `semantic.invalid-model-cell` | `verb-not-typed-key` |
 | `Target` is a title, an unknown id, an own-package identity naming no artifact, or an identity of a package neither the bundle's nor imported | `semantic.invalid-model-cell` | `target-not-id` |
 | a bundle target satisfies no `allowed_links` token | `semantic.invalid-model-cell` | `target-not-allowed` |
 | `Multiplicity` is empty or malformed | `semantic.invalid-model-cell` | `multiplicity` |
@@ -177,6 +193,31 @@ A frontmatter target compares by identity: a bare id maps to
 `ix://<package>/<id>`, and an `ix://<org>/<repo>/…/<id>` path to
 `ix://<org>/<repo>/<id>`; an entry without `type` is `references`
 ([FR-026](./FR-026-intra-spec-reference-resolution.md)).
+
+Typed relation keys:
+
+- Where the object type's `typed_keys` names the row's verb, the engine SHALL
+  lower the row into the typed key and SHALL NOT add it to `relations`. Every
+  other check of this section applies to the row first and unchanged (the
+  refusals table, `allowed_links`, the bundle index states, the advisories),
+  so a typed row is refused for exactly the reasons a `relations` row is.
+- The row's `Target` SHALL resolve through the resolver of
+  [FR-075](./FR-075-model-feature-extraction.md) "Declaration references"
+  in its *id-only* form: the `Target` grammar of this section is unchanged,
+  and a title is `target-not-id`, not a name match. A declaration therefore
+  has the same identity as a model cell naming it.
+- The `emits` and `persists` keys are derived from the `## Relationships` rows
+  only. The engine SHALL emit the error `semantic.duplicate-authority`, at
+  the first line of the document, with `reason` `typed-key-locator`, when
+  the module declares a `table_row` locator whose match key is a key of
+  `typed_keys` for the artifact's object type, and with `reason`
+  `frontmatter-key` when the artifact's frontmatter carries that key. The
+  engine SHALL NOT merge two declaration sites.
+- When `relations_allowed` is `false`, a row whose verb is not a key of
+  `typed_keys` is `semantic.invalid-model-cell` with `reason`
+  `verb-not-typed-key` at the row, checked after `verb-not-allowed`.
+- A header-only table on a type with `typed_keys` yields `available`, each
+  typed key present and empty, no `relations` and no `relationSources`.
 
 Availability:
 
@@ -213,12 +254,23 @@ Availability:
   and carry no `relations` and no `relationSources`.
 - `lossy` SHALL be `true` only under `compatibility_posture: declared-lossy`.
 
+> **CR-435 note (2026-11-08, agent-ix/quire-rs#435 and #444, PLAT-55, PLAT-35):**
+> the original text lowered every row into `relations`, so a type whose record
+> forbids `relations` (`process`, `repository`) failed with
+> `semantic.record-invalid`, and `emits` / `persists` had no extractor. Rows
+> now lower into typed keys on the types that declare them, through the
+> resolver shared with FR-075, and a second declaration site is refused.
+> Affected criteria: FR-076-AC-8 and -AC-14 are unchanged for types without
+> `typed_keys`; the new AC-16..20 and CON-3 cover the rest. No fallback to
+> `relations` exists for a type that declares `typed_keys`.
+
 ## Constraints
 
 | ID | Constraint | Type | Validation |
 |----|------------|------|------------|
 | FR-076-CON-1 | An artifact whose module does not name `relationships` and that holds no relationship-shaped table SHALL yield a record byte-identical to the FR-075 record: no `relations`, `relationSources`, or `availability.relations` key. | Compatibility | Test |
 | FR-076-CON-2 | The engine SHALL NOT derive a relationship's category or composition from the verb's spelling, the target's name, or the object type's roles. | Correctness | Test |
+| FR-076-CON-3 | A typed relation key SHALL hold only resolved `SemanticId`s of bundle declarations (or unchecked imported identities as above); no row text SHALL be carried in its place, and no key SHALL have a second declaration site. | Correctness | Test |
 
 ## Acceptance Criteria
 
@@ -239,8 +291,13 @@ Availability:
 | FR-076-AC-13 | `validate_document` over a loaded registry checks relationship rows against the registry's `edge_types`, `roles`, and `allowed_links`: a row whose own-id target satisfies a role lowers with no finding, and an unregistered verb, an inverse label, and a disallowed target are errors. Filament extraction and the Python entry without `relationVocabulary` report `no-relation-vocabulary`. | Test |
 | FR-076-AC-14 | With no bundle index, rows `references FR-005 1..1` and `references FR-006 many` yield exactly one diagnostic, the `multiplicity` error at line 21, and `availability.relations` `unavailable` with reason `entry-errors: lines 21`. | Test |
 | FR-076-AC-15 | Targets qualify under the bundle package, else the source identity's package: through `validate_document_in_bundle` an own-package `ix://` target lowers with the `no-bundle-index` advisory and a frontmatter duplicate is refused across the bare and `ix://` forms; with no bundle package, the Python entry and `validate_document_in_registry` report `no-bundle-package` with one heading advisory; the Python `validate_document` binding's optional `bundle_package` routes to `validate_document_in_bundle`. | Test |
+| FR-076-AC-16 | Under `typed_keys` `{ emits → emits }` and `relations_allowed` false, a `process` artifact with the row `done \| emits \| event-001 \| 0..1` yields `emits` `["ix://<org>/<repo>/event-001"]`, no `relations`, a `relationSources` entry with `name` `done` and the row's span, and `availability.relations` `available`; a `repository` with `orders \| persists \| aggregate-root-001 \| 0..*` under `typed_keys` `{ persists → persists }` yields `persists` `["ix://<org>/<repo>/aggregate-root-001"]` the same way; an `aggregate_root` with two `emits` rows yields two elements in row order; each record validates against `semantic-v1.schema.json`. | Test |
+| FR-076-AC-17 | On a type with `typed_keys`, the rows `x \| emits \| nope \| 1`, `x \| emits \| <title of an event> \| 1`, `x \| emits \| <a non-event with a disallowing allowed_links> \| 1`, `x \| triggers \| event-001 \| 1` (a verb outside `typed_keys` while `relations_allowed` is false), and a registry inverse label each yield the FR-076 refusal of the matching row check (`target-not-id`, `target-not-id`, `target-not-allowed`, `verb-not-typed-key`, `inverse-verb`), one diagnostic per row, and `availability.relations` `unavailable` with no `emits`, `persists`, `relations` or `relationSources`; the control row with a resolving event id yields none of them. | Test |
+| FR-076-AC-18 | A header-only `## Relationships` table on a type with `typed_keys` yields `available`, `emits` `[]` (or `persists` `[]`), no `relations` and no `relationSources`; on a type with `relations_allowed` true and `typed_keys` `{ emits → emits }`, a table with one `emits` row and one `references` row yields `emits` of one element and `relations` of one element, the `references` row only. | Test |
+| FR-076-AC-19 | A module declaring a `table_row` locator keyed `emits` next to the `relationships` token, on a type whose `typed_keys` names `emits`, yields `semantic.duplicate-authority` with `reason` `typed-key-locator` at line 1 and no merged `emits`; an artifact whose frontmatter carries `persists:` on a `repository` yields the same code with `reason` `frontmatter-key`; the control (neither site) yields no such diagnostic. | Test |
+| FR-076-AC-20 | The model-table cell `EV-001` and the relationship row target `EV-001` (and the cell `OrderPlaced`, the title of the same event) resolve to the same `SemanticId` ([FR-075](./FR-075-model-feature-extraction.md)-AC-22); a row `x \| emits \| OrderPlaced \| 1` is still `target-not-id`; a type without `typed_keys` yields a record byte-identical to AC-1 (CON-1); the corpus fixtures carry, for each of `emits` on `aggregate_root`, `emits` on `process` and `persists`, a resolving case with `issue_ref` `PLAT-55`, an unresolved case and a control. | Test |
 
 ## Dependencies
 
 - **Upstream**: [FR-040](./FR-040-object-edge-vocabulary.md), [FR-041](./FR-041-authorable-inverse-edges.md), [FR-069](./FR-069-semantic-module-contract-at-load.md), [FR-070](./FR-070-typed-properties-extraction.md), [FR-072](./FR-072-semantic-extraction-surface.md), [FR-075](./FR-075-model-feature-extraction.md); `agent-ix/quoin` FR-104 and its mapping fixtures
-- **Downstream**: `agent-ix/filament-core-data#155` (`RelationDecl` `name` and `sourceSpan`), `agent-ix/filament-core-data#156` (`RelationDecl` lowering from extraction), `agent-ix/filament-core-service#32` (`edge_types` and `roles` in the registry snapshot), `agent-ix/quire-cli#91`, `agent-ix/quoin#557`, and `agent-ix/quire-rs#437` (callers pass the bundle package to `validate_document_in_bundle`)
+- **Downstream**: `agent-ix/spec-objects-business` (`typed_keys` source: TC-097 / TC-098 fixtures), `agent-ix/filament-core-data#155` (`RelationDecl` `name` and `sourceSpan`), `agent-ix/filament-core-data#156` (`RelationDecl` lowering from extraction), `agent-ix/filament-core-service#32` (`edge_types` and `roles` in the registry snapshot), `agent-ix/quire-cli#91`, `agent-ix/quoin#557`, and `agent-ix/quire-rs#437` (callers pass the bundle package to `validate_document_in_bundle`)
