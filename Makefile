@@ -325,9 +325,8 @@ coverage-baseline-update:
 # repository on its `main` branch (CI does exactly this), passed as
 #   make validate VALIDATION_PROCESS_ROOT=<path> VALIDATION_ISO_ROOT=<path>
 # The `../spec-artifacts-*` defaults only resolve for a sibling checkout, not
-# from a `worktrees/` subdirectory. A provider on a stale branch whose
-# manifests the engine rejects now fails with the per-archetype load reason
-# (PLAT-1091), not with one "unknown type" line per document.
+# from a `worktrees/` subdirectory. A provider archetype that fails to load
+# aborts the run with that archetype's load reason.
 VALIDATION_PROCESS_ROOT ?= ../spec-artifacts-process
 VALIDATION_ISO_ROOT ?= ../spec-artifacts-iso
 .PHONY: validate

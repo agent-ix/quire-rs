@@ -85,8 +85,8 @@ fn load_provider_registry(providers: &ProviderRoots) -> Result<Registry, String>
         return Err("no modules found in the declared schema providers".to_string());
     }
     // A schema that fails to load drops its archetype from the registry, which
-    // every document of that type then reports as "unknown type". Name the real
-    // cause instead of letting 131 documents hide it.
+    // every document of that type would then report as "unknown type". Fail
+    // here, naming each archetype and its load reason.
     if !registry.failures().is_empty() {
         let causes: Vec<String> = registry
             .failures()
@@ -408,7 +408,7 @@ mod tests {
         assert!(error.contains("module directory missing"));
     }
 
-    /// Trace: FR-013-AC-17. A provider whose archetype fails to load is a
+    /// A provider whose archetype fails to load is a
     /// loud load error naming the archetype, never a downstream "unknown type".
     #[test]
     fn archetype_load_failure_is_reported_not_swallowed() {
@@ -440,5 +440,7 @@ mod tests {
         };
         assert!(error.contains("did not load cleanly"), "{error}");
         assert!(error.contains("spec-artifacts-iso::IsoOnly"), "{error}");
+        assert!(error.contains("schemas/schema.json"), "{error}");
+        assert!(error.contains("No such file or directory"), "{error}");
     }
 }
