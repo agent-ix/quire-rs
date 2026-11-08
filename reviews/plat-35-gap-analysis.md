@@ -60,3 +60,10 @@ tests, not stubs. Two oracles are weaker than their AC: FND-001 cannot
 detect a row-order bug, and FND-002 leaves the no-typed-key, no-relations
 schema untested. The fixture regeneration only adds records. Python parity
 holds.
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | Round 1, commit 9231e53. The bundle gains `event-002`. The rows are `shipped -> event-002` then `placed -> ix://.../event-001`, and the test asserts `[event-002, event-001]`, which is reverse id order, so a reordering would now fail. Test passes. |
+| FND-002 | fixed | Round 1, commit 9231e53. TC-2003 now extracts the AC-1 `relationships.md` fixture, relation vocabulary included, with and without `dataSchema: {type: object}` (no typed key, no `relations`). It asserts byte-identical output, and that `relations`, `relationSources` and `diagnostics` equal `relationships.expected.json`. Test passes. |

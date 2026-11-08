@@ -88,3 +88,10 @@ assessed:
    the TC-1846 filter drops no prior coverage. AC-21 and AC-27 require the
    `PLAT-35`/`PLAT-55` issue_ref, which the tracker-key acceptor admits.
 6. Root `additionalProperties`: a defect, FND-001.
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | Round 1, commit 9231e53. CR-194 amends FR-072 Behavior and FR-072-AC-8 to name exactly two open objects: the record top level (`SemanticId[]`) and `clauseText` (a string map, unchanged since main). TC-1638 now pins both exact `additionalProperties` values and requires `false` on every other object. Test passes. |
+| FND-002 | fixed | Round 1, commit 9231e53. The spec was changed instead of the code: CR-195 defines "match key" as a locator key in `yield_pattern.match` or `yield_pattern.per_match`, a fallback chain included. That is the reading FR-075 Inputs (lines 64-66) and FR-075-AC-11 already use. FR-069-AC-13 is reworded, and TC-2005 gains a per_match case. Test passes. CR-194 and CR-195 are free on main (highest there is CR-193) and on every other open PR. |
