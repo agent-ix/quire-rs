@@ -42,3 +42,12 @@ AP-201 (`spec/assurance/AP-201-detection-minting.md`) applies through its "diagn
 | FND-002 | low | The CON-3 audit repeats the `no_clause_parser_or_template_dependency` denylist loop in a parallel test. Its `parse_expression` symbol is already covered by the existing `parse_expr` substring. It omits the common Rust parser crates `nom`, `winnow`, `logos`, `peg`, `combine`, `pest_derive`, none of which is in Cargo.lock today. Fold the list into the existing audit (or a shared helper) and add those crates. | tests/it/semantic_boundary.rs:79-110 |
 | FND-003 | low | `TableRead::guard` adds a third copy of the header-to-column lookup (`cell`, `raw_cell`, `guard`). Its `.unwrap_or(0..0)` would silently emit a 1..1 span instead of failing if the lookup ever missed. Extract one column-index helper and use it in all three. | src/semantic/model.rs:1461-1479 |
 | FND-004 | low | CHANGELOG `[Unreleased]` has no entry for the consumer-visible additive record keys and diagnostics (`operationExpressions`, `guardExpression`, `semantic.expression-unchecked`, `semantic.empty-expression`) or the new public types `Expression`/`OperationExpression`. The PLAT-175 `fieldSources` entry is the precedent. | CHANGELOG.md:10 |
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | Round 1 (7829832): the filter skips only cases whose module maps `effect-frames`. The 10 PLAT-57 cases that lost `mappings` contain no `Modifies:`/`Creates:`/`Deletes:` line, so the mapping was inert for them. Their `expect` blocks and `cases.expected.json` are unchanged, and the records still equal the expected ones (5 still emit an `operationExpressions` entry; the advisory, dangling, empty-expression and refusal outcomes are unchanged). The 9 PLAT-55 cases are checked again. |
+| FND-002 | fixed | Round 1: the CON-3 audit is folded into `no_clause_parser_or_template_dependency` (tagged TC-2042/FR-071-CON-3), with nom, winnow, logos, peg, combine and pest_derive added; the parallel test is removed. |
+| FND-003 | fixed | Round 1: one `TableRead::column` helper serves `cell`, `raw_cell` and `guard`. The `unwrap_or(0..0)` is replaced by `expect`s whose invariant holds: rows are `split_row` of the same line, which equals `split_row_spans` cell for cell. |
+| FND-004 | fixed | Round 1: CHANGELOG `[Unreleased]` / Added carries the PLAT-57 entry. |

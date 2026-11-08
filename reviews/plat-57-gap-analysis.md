@@ -35,3 +35,9 @@ Reverse gap: all new production code belongs to FR-071/FR-075. The changed sourc
 | ID | Severity | Summary | Refs |
 | --- | --- | --- | --- |
 | FND-001 | low | `spec/tests.md` still marks FR-071 AC-10..14, FR-075 AC-28..30 and TC-2040..TC-2043 as 🚧, though this PR implements and tests them. Status flips are not content edits; #593 flipped its TC and summary rows while implementing. Flip them in this PR (no CR note needed for status-only changes). | spec/tests.md:111, spec/tests.md:114, spec/tests.md:1148-1151 |
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | Round 1 (7829832): the `spec/tests.md` status for FR-071 AC-1..14 and FR-075 AC-22..30 now reads Implemented, and TC-2040..TC-2043 read ✅. Status only, with no content change. |
