@@ -156,7 +156,7 @@ pub fn read_semantic_block(
             "semantic.unsupported-contract-version",
             "semantic.contract_version",
             format!(
-                "semantic.contract_version {} is not {}",
+                "contract_version {} is not {}",
                 contract_version
                     .map(|v| format!("{v:?}"))
                     .unwrap_or_else(|| "absent".to_string()),
@@ -239,7 +239,7 @@ pub fn read_semantic_block(
             failures.push(SemanticFailure::error(
                 "semantic.export-undeclared",
                 format!("semantic.exports.{name}"),
-                format!("semantic.exports names {name}, which the manifest does not declare"),
+                format!("exports names {name}, which the manifest does not declare"),
             ));
         }
     }

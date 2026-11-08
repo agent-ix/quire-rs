@@ -942,10 +942,17 @@ fn duplicate_authority(
             .map(|(key, _)| key.as_str());
         let typed: Vec<&str> = schema.typed_keys(arch.allowed_links()).collect();
         let key = table_row_keys.into_iter().find(|key| typed.contains(key))?;
-        Some(format!(
-            "semantic.duplicate-authority: module {module}: object type {} declares a table_row locator keyed `{key}`, a typed relation key its `## Relationships` rows declare",
-            arch.name
-        ))
+        Some(
+            crate::semantic::SemanticFailure::error(
+                "semantic.duplicate-authority",
+                format!("object_types[{}].body_extraction", arch.name),
+                format!(
+                    "module {module}: object type {} declares a table_row locator keyed `{key}`, a typed relation key its `## Relationships` rows declare",
+                    arch.name
+                ),
+            )
+            .reason(),
+        )
     })
 }
 

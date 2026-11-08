@@ -1346,6 +1346,13 @@ fn locator_on_a_typed_relation_key_is_duplicate_authority() {
             "{}",
             f.reason
         );
+        assert!(
+            f.reason.starts_with(
+                "semantic.duplicate-authority: object_types[process].body_extraction: "
+            ),
+            "{}",
+            f.reason
+        );
         for needle in ["dup", "process", "emits"] {
             assert!(f.reason.contains(needle), "{needle}: {}", f.reason);
         }
@@ -1439,5 +1446,15 @@ fn refusals_carry_their_manifest_path() {
             r.iter().any(|x| x.starts_with(prefix)),
             "{name} ({code}) carries its path: {r:?}"
         );
+        let path = prefix.trim_start_matches(code).trim_matches([':', ' ']);
+        let tail = &r[0][prefix.len()..];
+        assert!(
+            !tail.contains(path) || path == "semantic",
+            "{name}: path appears once: {r:?}"
+        );
     }
+    assert_eq!(
+        quire_rs::semantic::SemanticFailure::error("semantic.x", "", "msg").reason(),
+        "semantic.x: msg"
+    );
 }
