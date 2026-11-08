@@ -13,6 +13,10 @@ bumps; once 1.0 ships, semver is strict.
   row or fence line) and `operationSources` (each operation's parameter rows
   and `Returns:` line), beside `fields` and `operations` (PLAT-175, #420).
 
+### Changed
+
+- **Breaking, `semantic-v1` edited in place (no v2), FR-075 (PLAT-8, #465):** a population has one `extent`, `closed` or `open`, authored as frontmatter `extent:`, and its members carry no multiplicity. The `population` record is `{ extent, extentSpan, members: [{ type, sourceSpan }] }`; `PopulationMemberDecl.extent` is removed, `PopulationDecl` gains `extent` and `extent_span`, and `PopulationExtent` is new. The population table is a `Type` table; a retired `Type | Extent` table is refused with `semantic.feature-not-extractable`, and a manifest locator that lists `Extent` no longer declares a population table.
+
 ### Fixed
 
 - `Spec::with_bundle_package` declares the repository identity `<org>/<repo>`;

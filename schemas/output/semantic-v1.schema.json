@@ -189,17 +189,18 @@
         "population": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["members"],
+          "required": ["extent", "extentSpan", "members"],
           "properties": {
+            "extent": { "enum": ["closed", "open"] },
+            "extentSpan": { "$ref": "#/$defs/sourceLocus" },
             "members": {
               "type": "array",
               "items": {
                 "type": "object",
                 "additionalProperties": false,
-                "required": ["type", "extent", "sourceSpan"],
+                "required": ["type", "sourceSpan"],
                 "properties": {
                   "type": { "$ref": "#/$defs/typeRef" },
-                  "extent": { "$ref": "#/$defs/multiplicity" },
                   "sourceSpan": { "$ref": "#/$defs/sourceLocus" }
                 }
               }
