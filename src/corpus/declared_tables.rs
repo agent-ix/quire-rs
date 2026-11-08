@@ -5,7 +5,7 @@
 //! that one scan, so the two consumers cannot drift apart on which rows they
 //! see.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
 use super::spec::Spec;
@@ -694,6 +694,7 @@ fn scan_text(
             continue;
         }
         let line_offset = crate::validate_document::body_line_offset(&body.raw);
+        let mut minted_headings = BTreeSet::new();
         for sec in matched {
             match source {
                 TextSource::ListItem => {
@@ -712,6 +713,11 @@ fn scan_text(
                     let mut nested = Vec::new();
                     collect_nested(&sec.children, &mut nested);
                     for child in nested {
+                        // A matched section nested in another matched section
+                        // is walked twice; each heading still mints once.
+                        if !minted_headings.insert(child.start_line) {
+                            continue;
+                        }
                         if let Some(id) = id_of(&child.heading) {
                             out.push(MintedId {
                                 id,

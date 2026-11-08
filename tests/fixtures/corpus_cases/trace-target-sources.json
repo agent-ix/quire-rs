@@ -5,8 +5,8 @@
     "input": {
       "module": "name: trace-target-sources\nversion: 0.1.0\nartifact_types:\n- name: FR\n- name: IT\n- name: US\ntraceability:\n  trace_targets:\n  - name: criterion\n    archetype: FR\n    section: Acceptance Criteria\n    id_column: ID\n  - name: scenario\n    archetype: IT\n    section: Test Procedure\n    from: list_item\n    pattern: '^(IT-\\d+-SC-\\d+):'\n  - name: example\n    archetype: US\n    section: Acceptance Examples (Illustrative)\n    from: heading\n    pattern: '^\\[(US-\\d+-EX-\\d+)\\]'\n  document_references:\n  - name: verification\n    archetype: FR\n    section: Acceptance Criteria\n    column: Verification\n    row_id_column: ID\n    pattern: '\\b((?:IT-\\d+-SC|US-\\d+-EX)-\\d+)\\b'\n    targets: [scenario, example]\n  trace_tags:\n    markers:\n    - name: rust-trace\n      language: rust\n      pattern: '#\\[trace\\(([^)]*)\\)\\]'\n",
       "documents": {
-        "IT-002.md": "---\nid: IT-002\ntype: IT\n---\n\n## Test Procedure\n\n1. Run the search.\n   - IT-002-SC-01: lexical results are returned with no remote call.\n   - IT-002-SC-02: chunks are batched.\n\n```text\n- IT-002-SC-98: inside a fence\n```\n\n## Notes\n\n- IT-002-SC-03: outside the declared section.\n",
-        "US-033.md": "---\nid: US-033\ntype: US\n---\n\n## Acceptance Examples (Illustrative)\n\n### [US-033-EX-1] Toggling the code layer\n\nThe layer toggles.\n\n### Background\n\n#### [US-033-EX-2] Following a call edge\n\n## Other\n\n### [US-033-EX-9] Outside the declared section\n",
+        "IT-002.md": "---\nid: IT-002\ntype: IT\n---\n\n## Test Procedure\n\n1. Run the search.\n   - IT-002-SC-01: lexical results are returned with no remote call.\n   - IT-002-SC-02: chunks are batched.\n\n```text\n- IT-002-SC-98: inside a fence\n```\n\n2. IT-002-SC-04: an ordered item mints.\n3) IT-002-SC-05: so does a parenthesised one.\n\n````markdown\n```\ninner\n```\n- IT-002-SC-97: inside the outer fence.\n````\n\n## Notes\n\n- IT-002-SC-03: outside the declared section.\n",
+        "US-033.md": "---\nid: US-033\ntype: US\n---\n\n## Acceptance Examples (Illustrative)\n\n### [US-033-EX-1] Toggling the code layer\n\nThe layer toggles.\n\n### Background\n\n#### [US-033-EX-2] Following a call edge\n\n### Acceptance Examples (Illustrative)\n\n#### [US-033-EX-3] Nested under a same-named heading\n\n## Other\n\n### [US-033-EX-9] Outside the declared section\n",
         "FR-001.md": "---\nid: FR-001\ntype: FR\n---\n\n## Acceptance Criteria\n\n| ID | Criteria | Verification |\n|---|---|---|\n| FR-001-AC-1 | Scenarios run. | Test (IT-002-SC-02) |\n| FR-001-AC-2 | Examples hold. | Test (US-033-EX-1) |\n| FR-001-AC-3 | Out of section. | Test (IT-002-SC-03) |\n\n## Test Procedure\n\n- IT-002-SC-77: another archetype mints nothing.\n"
       },
       "sources": {
@@ -51,6 +51,13 @@
           true
         ],
         [
+          "example",
+          "US-033-EX-3",
+          "US-033.md",
+          18,
+          false
+        ],
+        [
           "scenario",
           "IT-002-SC-01",
           "IT-002.md",
@@ -62,6 +69,20 @@
           "IT-002-SC-02",
           "IT-002.md",
           10,
+          false
+        ],
+        [
+          "scenario",
+          "IT-002-SC-04",
+          "IT-002.md",
+          16,
+          false
+        ],
+        [
+          "scenario",
+          "IT-002-SC-05",
+          "IT-002.md",
+          17,
           false
         ]
       ],

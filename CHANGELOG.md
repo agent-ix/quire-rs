@@ -19,8 +19,17 @@ bumps; once 1.0 ships, semver is strict.
   the advisory `semantic.expression-unchecked` (the owning kind is lossy) and
   the error `semantic.empty-expression` for an empty `Pre:`/`Post:` line.
   quire-rs does not parse expressions.
+- Trace targets mint from list items and headings (PLAT-316, FR-050-AC-60):
+  a `trace_targets` entry takes `from: table_row | list_item | heading`
+  (omitted means `table_row`). `list_item` and `heading` declare a `pattern`
+  whose capture group 1 is the id, read only inside the target's section.
 
 ### Changed
+
+- **Breaking (Rust API), PLAT-316:** `TraceTarget.id_column` is replaced by
+  `TraceTarget.source: TraceTargetSource`; `TraceTarget::id_column()` returns
+  the column for a `table_row` target. Module manifests are unchanged for
+  table targets.
 
 - **Breaking, `semantic-v1` edited in place (no v2), FR-075 (PLAT-8, #465):** a population has one `extent`, `closed` or `open`, authored as frontmatter `extent:`, and its members carry no multiplicity. The `population` record is `{ extent, extentSpan, members: [{ type, sourceSpan }] }`; `PopulationMemberDecl.extent` is removed, `PopulationDecl` gains `extent` and `extent_span`, and `PopulationExtent` is new. The population table is a `Type` table; a retired `Type | Extent` table is refused with `semantic.feature-not-extractable`, and a manifest locator that lists `Extent` no longer declares a population table.
 
