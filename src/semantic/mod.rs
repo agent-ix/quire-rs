@@ -27,7 +27,7 @@ pub mod systems;
 pub(crate) mod target;
 
 pub use clauses::{
-    extract_clauses, extract_operations, ClauseRef, ClausesOutcome, OperationDecl,
+    extract_clauses, extract_operations, ClauseRef, ClausesOutcome, OperationDecl, OperationSource,
     OperationsOutcome, SourceLocus,
 };
 pub use context::{BundleArtifact, BundleEntry, BundleIndex, SemanticContext};

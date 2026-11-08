@@ -70,7 +70,23 @@ pub struct OperationsOutcome {
     pub frames: Vec<OperationFrameDecl>,
     /// Whether any operation carries an FR-075 contract or frame line.
     pub model_declared: bool,
+    /// Source loci of each operation's parameters and `Returns:` line, at the
+    /// index of the matching `operations` element (PLAT-175); empty unless
+    /// `operations` is available.
+    pub sources: Vec<OperationSource>,
     pub diagnostics: Vec<SemanticDiagnostic>,
+}
+
+/// Where one operation's parameters and `Returns:` line were read, kept beside
+/// `OperationDecl` so that stays byte-identical to the semantic-core model.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OperationSource {
+    pub name: String,
+    /// One locus per `params` element, in order.
+    pub params: Vec<SourceLocus>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub returns: Option<SourceLocus>,
 }
 
 fn err(code: &str, line: usize, message: impl Into<String>) -> SemanticDiagnostic {
@@ -461,6 +477,7 @@ pub fn extract_operations(
                 operations: None,
                 frames: Vec::new(),
                 model_declared: false,
+                sources: Vec::new(),
                 diagnostics: Vec::new(),
             }
         }
@@ -470,6 +487,7 @@ pub fn extract_operations(
                 operations: None,
                 frames: Vec::new(),
                 model_declared: false,
+                sources: Vec::new(),
                 diagnostics: vec![err(
                     "semantic.duplicate-section",
                     second_heading_line,
@@ -481,6 +499,7 @@ pub fn extract_operations(
     };
     let mut diagnostics = Vec::new();
     let mut operations: Vec<OperationDecl> = Vec::new();
+    let mut sources: Vec<OperationSource> = Vec::new();
     let mut frames: Vec<OperationFrameDecl> = Vec::new();
     let mut model_declared = false;
     let mut lossy = false;
@@ -508,6 +527,8 @@ pub fn extract_operations(
         let before = diagnostics.len();
         // Parameter table (one at most).
         let mut params: Vec<FieldDecl> = Vec::new();
+        let mut param_loci: Vec<SourceLocus> = Vec::new();
+        let mut returns_locus = None;
         let mut tables = 0;
         for block in blocks_in(&lines, heading.heading_line + 1, heading.end) {
             if let Block::Table(table) = block {
@@ -528,6 +549,7 @@ pub fn extract_operations(
                     if let Some((field, row_lossy)) = map_row(&row, ctx, &mut diagnostics) {
                         lossy |= row_lossy;
                         params.push(field);
+                        param_loci.push(line_span(ctx, &lines, row.line));
                     }
                 }
             }
@@ -569,7 +591,8 @@ pub fn extract_operations(
             let ids = || -> Vec<String> { comma_list(rest).map(str::to_string).collect() };
             match (slot, feature) {
                 (OpSlot::Returns, _) => {
-                    returns = parse_returns(rest.trim(), l, &name, ctx, &mut diagnostics)
+                    returns = parse_returns(rest.trim(), l, &name, ctx, &mut diagnostics);
+                    returns_locus = Some(line_span(ctx, &lines, l));
                 }
                 (OpSlot::Pre, _) => {
                     pre = resolve_refs(rest, l, clauses, &mut diagnostics);
@@ -607,6 +630,11 @@ pub fn extract_operations(
                 source_span: line_span(ctx, &lines, heading.heading_line),
             });
         }
+        sources.push(OperationSource {
+            name: name.clone(),
+            params: param_loci,
+            returns: returns.is_some().then_some(returns_locus).flatten(),
+        });
         operations.push(OperationDecl {
             name,
             params,
@@ -630,6 +658,7 @@ pub fn extract_operations(
             operations: None,
             frames: Vec::new(),
             model_declared,
+            sources: Vec::new(),
             diagnostics,
         };
     }
@@ -638,6 +667,7 @@ pub fn extract_operations(
         operations: Some(operations),
         frames,
         model_declared,
+        sources,
         diagnostics,
     }
 }

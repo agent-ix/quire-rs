@@ -23,6 +23,7 @@ The facet supports these optional keys:
 - `columns` — ordered list of exact table column headers the located table MUST have (case-sensitive, in order).
 - `optional_columns` — a subset of `columns` the document MAY omit ([CR-023](#cr-023-note)). The declared order still holds: the headers MUST be an ordered subsequence of `columns` containing every non-optional column. **`table_row` only.**
 - `min_rows` — minimum number of data rows in the located table.
+- `columns` on a `table_row` locator selects, among the tables under its section, the first whose header conforms to `columns`/`optional_columns`, so several locators can each assert their own table under one heading; when none conforms the first table is asserted and the `columns` assert fails. (Applies to every other `table_row` assert key too, which read the selected table.)
 - `max_rows` — maximum number of data rows in the located table; a table that must hold exactly one row pairs it with `min_rows`. A table with more rows fails with `table has N data row(s) but assert allows at most M`. **`table_row` only.**
 - `min_items` — minimum number of items in the located list.
 - `id_column` — the table column whose cells are treated as ids.

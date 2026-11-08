@@ -222,7 +222,7 @@ Constraints cells: entries separated by commas outside a `/…/` pattern;
 `exclusiveMin`, `exclusiveMax`, `minLength`, `maxLength`, `pattern /…/`
 (the value runs from the first `/` to the last `/` of the entry, carried
 opaque with `dialect: ecma-262`, never compiled), `enumValues a|b`
-(`|`-separated, no spaces), `nonEmpty`, `unique`, `format ns:name`, and the
+(`|`-separated, no spaces; a comma or bracketed list is refused once as `semantic.invalid-constraint-value` naming the `|` form, never split into per-member keywords), `nonEmpty`, `unique`, `format ns:name`, and the
 field flags `identity` and `nullable`; an unknown keyword is the error
 `semantic.unknown-constraint-keyword` at the row; a value that is empty or
 not a finite number where one is required is

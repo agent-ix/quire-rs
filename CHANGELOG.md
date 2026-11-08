@@ -7,7 +7,20 @@ bumps; once 1.0 ships, semver is strict.
 
 ## [Unreleased]
 
+### Added
+
+- `extract_semantic` carries `fieldSources` (the source span of each field's
+  row or fence line) and `operationSources` (each operation's parameter rows
+  and `Returns:` line), beside `fields` and `operations` (PLAT-175, #420).
+
 ### Fixed
+
+- A `table_row` assert selects the table under its section whose header
+  conforms to its `columns`, so several locators can share one section; with
+  no matching table it still fails (PLAT-56, #434).
+- A comma or bracketed `enumValues` constraint is refused once with
+  `semantic.invalid-constraint-value` naming the `|` form, instead of one
+  `unknown-constraint-keyword` per member (PLAT-202, #401).
 
 - A required locator whose value is present but rejected by its `regex` now
   reports reason `regex`, naming the value and the pattern, instead of

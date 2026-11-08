@@ -298,23 +298,38 @@ pub fn parse_table(content: &str) -> Option<TableResult> {
 /// numbering `ears::locate_line` uses, so both convert to a document line by
 /// the same arithmetic.
 pub(crate) fn parse_table_with_lines(content: &str) -> Option<(TableResult, Vec<usize>, usize)> {
+    parse_tables_with_lines(content).into_iter().next()
+}
+
+/// Every pipe-delimited table in `content`, each with the same line data
+/// [`parse_table_with_lines`] returns for the first one.
+pub(crate) fn parse_tables_with_lines(content: &str) -> Vec<(TableResult, Vec<usize>, usize)> {
     let lines: Vec<&str> = content.split('\n').collect();
-    let header_line: usize = lines
-        .windows(2)
-        .position(|w| w[0].contains('|') && is_separator_row(w[1]))?;
-    let headers = parse_cells(lines[header_line], None);
-    let header_count = headers.len();
-    let mut rows: Vec<Vec<String>> = Vec::new();
-    let mut row_lines: Vec<usize> = Vec::new();
-    for (idx, line) in lines.iter().enumerate().skip(header_line + 2) {
-        let t = line.trim();
-        if t.is_empty() || !t.contains('|') {
-            break;
+    let mut out = Vec::new();
+    let mut i = 0;
+    while i + 1 < lines.len() {
+        if !(lines[i].contains('|') && is_separator_row(lines[i + 1])) {
+            i += 1;
+            continue;
         }
-        rows.push(parse_cells(line, Some(header_count)));
-        row_lines.push(idx);
+        let headers = parse_cells(lines[i], None);
+        let header_count = headers.len();
+        let mut rows: Vec<Vec<String>> = Vec::new();
+        let mut row_lines: Vec<usize> = Vec::new();
+        let mut j = i + 2;
+        while j < lines.len() {
+            let t = lines[j].trim();
+            if t.is_empty() || !t.contains('|') {
+                break;
+            }
+            rows.push(parse_cells(lines[j], Some(header_count)));
+            row_lines.push(j);
+            j += 1;
+        }
+        out.push((TableResult { headers, rows }, row_lines, i));
+        i = j;
     }
-    Some((TableResult { headers, rows }, row_lines, header_line))
+    out
 }
 
 /// Parse every pipe-delimited table in `content`.
