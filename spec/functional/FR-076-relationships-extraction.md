@@ -39,9 +39,9 @@ keys `relations` and `relationSources`, with `availability.relations`.
 
 The grammar follows `agent-ix/quoin` FR-104 (quoin PRs #553, #555 and #558); the
 relocated fixtures `relationships.md`, `relationships.expected.json`, and
-`relationships-cases.json` (CR-182), whose bytes are unchanged from
-`agent-ix/quoin` FR-104's own fixtures with ownership transferred to quire-rs's
-`quire-fixtures` crate, are the oracle. A relationship's category and
+`relationships-cases.json` (CR-182), derived from `agent-ix/quoin` FR-104's own
+fixtures with ownership transferred to quire-rs's `quire-fixtures` crate, are
+the oracle. A relationship's category and
 composition come only from the FR-040 `edge_types` registry entry of its
 verb ([FR-040](./FR-040-object-edge-vocabulary.md)); an inverse
 label is refused in favour of its forward verb
@@ -268,6 +268,13 @@ Availability:
   then the engine SHALL report `unavailable` with reason
   `entry-errors: lines <lines>` (ascending, deduplicated, joined with `, `)
   and carry no `relations` and no `relationSources`.
+- Where a mapping fixture case expects a kind `unavailable` through entry
+  errors, it SHALL state the reason as `reasonLoci`, an array of the same
+  `locus` names its diagnostics use, in ascending line order with one entry per
+  distinct line, and carry no line number in a reason. The harness SHALL
+  resolve each locus to its line in the case's artifact and compare those lines
+  with the lines the engine's `entry-errors` reason lists, so a case with
+  errors on several lines is expressible.
 - `lossy` SHALL be `true` only under `compatibility_posture: declared-lossy`.
 
 > **CR-193 note (2026-11-08, agent-ix/quire-rs#435, PLAT-55):** the original
@@ -317,6 +324,7 @@ Availability:
 | FR-076-AC-19 | The FR-069 module-load refusal (FR-069-AC-13) fires for a `table_row` locator keyed `emits` on an object type whose schema has a typed key `emits`; an artifact whose frontmatter carries `persists:` on a `repository` yields the same code with `reason` `frontmatter-key` at line 1; the control (neither site) yields neither. | Test |
 | FR-076-AC-20 | With no bundle index, a typed row `done \| emits \| event-001 \| 1` lowers `emits` `["ix://<package>/event-001"]` with one `semantic.unresolved-target` advisory (`no-bundle-index`) and `availability.relations` `available`; the same declaration in a model reference item and in a typed row resolves to one `SemanticId` under a bundle; a row `x \| emits \| OrderPlaced \| 1` is `target-not-id`; a type whose schema has no typed key yields a record byte-identical to AC-1 (CON-1). | Test |
 | FR-076-AC-21 | `tests/fixtures/semantic/cases.json` carries, for each of `emits` on `aggregate_root`, `emits` on `process` and `persists` on `repository`, a case with `issue_ref` `PLAT-55` asserting the lowered identity, a refusal case and a control asserting its `absent_diagnostic_reasons`. | Test |
+| FR-076-AC-22 | In `relationships-cases.json` and `operations-cases.json`, no `availability` states an `entry-errors` reason as a string: every kind unavailable through entry errors states `reasonLoci`, including a case with two erroring rows (`row`, `second-row`); the harness fails when the engine's reason lines differ from the resolved loci. | Test |
 
 ## Dependencies
 
