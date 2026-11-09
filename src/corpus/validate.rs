@@ -316,7 +316,7 @@ pub fn validate_bundle(
         // to tell the two apart; without one, every miss stays dangling.
         let cross_repo = matches!(
             (edge.authority.as_deref(), spec.bundle_package()),
-            (Some(authority), Some(package)) if authority != package
+            (Some(authority), Some(package)) if !authority.eq_ignore_ascii_case(package)
         );
         if edge.resolution == Resolution::Dangling && !cross_repo {
             report.route(

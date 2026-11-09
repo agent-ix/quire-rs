@@ -727,3 +727,45 @@ fn foreign_authority_target_is_not_dangling() {
     let undeclared = run(None, BundlePosture::Okf);
     assert_eq!(count(&undeclared.warnings, "dangling-reference"), 1);
 }
+
+/// The authority-versus-package comparison folds ASCII case.
+#[trace("TC-2151", "FR-038-AC-10")]
+#[test]
+fn authority_comparison_folds_ascii_case() {
+    let root = tmpdir("cross_repo_case");
+    write(
+        &root,
+        "NOTE-001.md",
+        &note("NOTE-001", "see [own](ix://Acme/widgets/spec/X)"),
+    );
+    write(
+        &root,
+        "NOTE-002.md",
+        &note("NOTE-002", "see [other](ix://Other/Repo/spec/X)"),
+    );
+    let run = |package: Option<&str>| {
+        let mut spec = quire_rs::Spec::from_path(&root);
+        if let Some(p) = package {
+            spec = spec.with_bundle_package(p);
+        }
+        quire_rs::validate_bundle(&spec, &bundle_registry(), BundlePosture::Okf, &root, &root)
+    };
+
+    // Own repo in mixed case: dangling; foreign mixed case: skipped.
+    let declared = run(Some("acme/widgets"));
+    assert_eq!(count(&declared.warnings, "dangling-reference"), 1);
+    assert!(
+        declared
+            .warnings
+            .iter()
+            .any(|f| f.message.contains("ix://Acme/widgets/spec/X")),
+        "{:?}",
+        declared.warnings
+    );
+
+    // No package declared: every miss is dangling.
+    let undeclared = run(None);
+    assert_eq!(count(&undeclared.warnings, "dangling-reference"), 2);
+
+    fs::remove_dir_all(&root).ok();
+}
