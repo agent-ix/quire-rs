@@ -46,6 +46,20 @@ pub struct BundleArtifact {
     pub operations: Vec<String>,
 }
 
+/// One artifact of a package a module imports and a loaded corpus provides:
+/// the owning `package` (`<org>/<repo>`), the artifact `id`, every name a
+/// unit or dimension token may use for it, and its frontmatter `object` type
+/// (FR-070 Inputs).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ImportedArtifact {
+    pub package: String,
+    pub id: String,
+    #[serde(default)]
+    pub names: Vec<String>,
+    #[serde(default)]
+    pub object: Option<String>,
+}
+
 /// The bundle-wide name index type resolution reads (FR-070). An empty
 /// index is an explicit state (`no-bundle-index`), never a default.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -63,11 +77,22 @@ pub struct BundleIndex {
     /// Every artifact `id` of the bundle, typed or not (FR-076).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub artifacts: Vec<BundleArtifact>,
+    /// The artifacts of every imported package a loaded corpus provides;
+    /// absent when the corpus loads none.
+    #[serde(
+        default,
+        rename = "importedArtifacts",
+        skip_serializing_if = "Vec::is_empty"
+    )]
+    pub imported_artifacts: Vec<ImportedArtifact>,
 }
 
 impl BundleIndex {
     pub fn is_empty(&self) -> bool {
-        self.objects.is_empty() && self.enumerations.is_empty() && self.imports.is_empty()
+        self.objects.is_empty()
+            && self.enumerations.is_empty()
+            && self.imports.is_empty()
+            && self.imported_artifacts.is_empty()
     }
 
     /// Build the corpus-mode index from loaded documents (FR-070 Inputs):
