@@ -36,3 +36,4 @@ Examined: the Shell adapter section (FR-051:85-104), FR-051-CON-1, FR-051-AC-34.
 | FND-001 | fixed | FR-051-CON-1 now holds for every adapter, shell included, through `tree-sitter-bash`. The grammar enters through a `bash` feature of `quire-code-parse`, which `quire-code-extraction` forwards under `shell-symbols` (Language adapters statement and CR-213 note "Parser" paragraph). The exception is removed. |
 | FND-002 | fixed | The CR-213 note now counts four `.sh` files (three in `scripts/audits/` plus `scripts/check_property_purity.sh`). It cites the entry point as AC-37, which is correct after renumbering. TC-050 and TC-203 are removed, with the reason recorded. |
 | FND-003 | fixed | The TC-502 status now names AC-42 (marker form), AC-38 (glob) and AC-46 (end to end). It also records that the script header must carry the marker. |
+| FND-004 | fixed | `spec/tests.md` maps NFR-003-AC-3 to TC-506, the grep test. TC-582 stays on AC-5 only (round 2, head 1e924db). |
