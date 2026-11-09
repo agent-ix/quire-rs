@@ -8,6 +8,7 @@ edition = "2021"
 cargo-fuzz = true
 
 [dependencies]
+ix-trace-rs = { git = "https://github.com/agent-ix/ix-trace-rs", rev = "2ce4ebf47f726b9d76388220545cd0abda8a5cfb" }
 libfuzzer-sys = "~0.4"
 serde_json = "^1"
 serde_yaml = { package = "yaml_serde", version = "=0.10.7" }

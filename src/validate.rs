@@ -467,11 +467,12 @@ mod tests {
     }
 
     proptest! {
-        // FR-002-AC-4: apply_patch never panics on arbitrary input.
+        // apply_patch never panics on arbitrary input.
         // Outcome may be Ok(_) or Err(SchemaViolation); both are fine
         // — the AC is "no panic".
         #![proptest_config(ProptestConfig::with_cases(10_000))]
         #[test]
+        #[trace("FR-002-AC-4")]
         fn apply_patch_never_panics(
             current in any_json(),
             patch   in any_json(),

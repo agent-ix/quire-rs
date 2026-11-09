@@ -421,6 +421,12 @@ fn tc2110_load_refusals() {
     let err = load(json!({ "trace_tags": { "bogus": [] }})).expect_err("unknown key");
     assert!(err.contains("bogus"), "{err}");
 
+    // CR-215: the retired `legacy` list is refused by name, like any unknown key.
+    let err = load(json!({ "trace_tags": { "legacy": [
+        { "name": "l", "language": "rust", "pattern": pattern, "rewrite_to": "r" } ]}}))
+    .expect_err("legacy key");
+    assert!(err.contains("legacy"), "{err}");
+
     let err = load(json!({ "trace_tags": { "markers": [
         { "name": "r", "language": "rust", "pattern": pattern, "entry_paths": ["a/**"] } ]}}))
     .expect_err("entry_paths off shell");

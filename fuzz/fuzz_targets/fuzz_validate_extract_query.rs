@@ -12,15 +12,9 @@
 //! Any discovered crash is committed as a regression reproducer
 //! (parity with NFR-011-AC-4).
 
-// TC-579, NFR-019-AC-1: this target is the enforcement identity of the row.
-//
-// The tag is a `//` line rather than the `//!` header above it: the declared
-// legacy forms match `//` and `///`, and `//!` matches neither, so a tag
-// written there binds nothing. It binds from here — several lines above the
-// invocation — because a fuzz target's span is its whole file (CR-061).
-
 use std::sync::OnceLock;
 
+use ix_trace_rs::trace;
 use libfuzzer_sys::fuzz_target;
 use quire_rs::{
     extract, extract_diagrams, parse_bullet_list, parse_document, parse_tables, search, sections,
@@ -41,6 +35,7 @@ fn registry() -> &'static Registry {
     })
 }
 
+#[trace("NFR-019-AC-1", "TC-579")]
 fuzz_target!(|data: &[u8]| {
     // Lossy conversion so non-UTF-8 byte sequences are exercised too.
     let s = String::from_utf8_lossy(data);

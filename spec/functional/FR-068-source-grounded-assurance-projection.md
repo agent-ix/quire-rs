@@ -107,6 +107,11 @@ apply exactly as they do in bundle validation.
 > review's downstream fit check also adds `relation_kinds`, preventing an empty
 > observed edge set from masquerading as an unavailable engine capability.
 
+> **CR-215** (`PLAT-847`) amends AC-5: only a marker form binds a `verifies`
+> relation (FR-051-AC-11), so the relation's `provenance` field, which told a
+> canonical marker from a legacy textual form, is gone with the legacy forms. The
+> relation keeps `form`, the name of the marker form that bound it.
+
 ## Constraints
 
 | ID | Constraint | Type | Validation |
@@ -124,7 +129,7 @@ apply exactly as they do in bundle validation.
 | FR-068-AC-2 | Every obligation record preserves FR-053's id, document, statement, method, parameters, criticality, and target ids exactly, and its row locator selects the source statement. | Test (TC-1092) |
 | FR-068-AC-3 | Every symbol preserves FR-051's stable identity, language, kind, qualified name, path, declaration line, and binding capabilities; duplicate names in different containers or paths remain distinct. | Test (TC-1093) |
 | FR-068-AC-4 | The corpus-relation projection is a bijection with `Spec::edges()` over `(source, target, edge_type, resolution)`, including dangling edges, and the relation-kind catalog retains every module-declared, trace-binding, and observed kind even when its observed count is zero. | Test (TC-1094) |
-| FR-068-AC-5 | `verifies` and `implements` remain separate relation record variants: a test binding carries provenance and counts as evidence, while a production binding carries no invented provenance and never counts as evidence. | Test (TC-1095) |
+| FR-068-AC-5 | `verifies` and `implements` remain separate relation record variants: a test binding names the marker form that bound it and counts as evidence, while a production binding carries no evidence count and never counts as evidence. | Test (TC-1095) |
 | FR-068-AC-6 | For module-declared required relations, fixtures exercise `available`, `missing`, `not_applicable`, and `unknown`; each state remains distinct in JSON, and `unknown` carries a non-empty reason rather than defaulting to another state. | Test (TC-1096) |
 | FR-068-AC-7 | Evidence relations export freshness `unknown`, non-evidence relations export `not_applicable`, and no Quire-produced export claims `current` or `suspect`. | Test (TC-1097) |
 | FR-068-AC-8 | Two projections over identical authoritative inputs serialize byte-identically, and changing an unrelated document does not change any other artifact, obligation, symbol, or relation identity. | Test (TC-1098) |

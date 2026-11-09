@@ -536,7 +536,7 @@ fn systems_references_resolve_qualified_and_imported_names_of_the_admitted_kind(
     );
 }
 
-/// FR-152/#461 (TC-197 Y01, Sys/Pump/sys_pump/pump_alloc): a Part `Owner`
+/// TC-197 Y01, Sys/Pump/sys_pump/pump_alloc: a Part `Owner`
 /// names the owning composite type, refusing only a `part`, `port`,
 /// `connection`, `allocation`, or a declarer with no declared type. An
 /// allocation `Source` `<id>/<member>` admits any declared kind but a

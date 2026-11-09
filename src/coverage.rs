@@ -553,7 +553,6 @@ pub const COVERAGE_DIAGNOSTIC_REASONS: &[&str] = &[
     "id-column-matches-nothing",
     "legacy-implements-form",
     "low-symbol-binding",
-    "marker-form-mismatch",
     "model-mints-nothing",
     "no-symbol-bound",
     "not-in-tag-channel",
@@ -564,7 +563,7 @@ pub const COVERAGE_DIAGNOSTIC_REASONS: &[&str] = &[
     "section-holds-no-table",
     "section-matches-nothing",
     "status-column-matches-nothing",
-    "tag-on-non-binding-symbol",
+    "trace-id-outside-marker",
     "untracked-id-near-miss",
     "untracked-id-has-minted-children",
     "uncatalogued-verification-method",
@@ -843,26 +842,6 @@ fn coverage_metrics(
         walked_symbols,
         walked_symbols,
     ));
-
-    // #367: a language-level binder can look healthy because comments or
-    // attributes bind while the repository's dominant test-name convention
-    // binds nothing. Retain that subpopulation as its own ratio; a zero match
-    // over non-zero examined input is then caught by the existing generic
-    // hollow-denominator invariant.
-    for census in &report.binding_census {
-        if census.self_named == 0 {
-            continue;
-        }
-        metrics.push(Metric::measured(
-            &format!("coverage.self_named_binding.{}", census.language),
-            "self-named evidence symbol",
-            "evidence symbols carrying a separator-delimited id in their own declaration name whose id was read by a declared name form; comment and attribute bindings do not satisfy this premise",
-            census.self_named_bound,
-            census.self_named,
-            census.self_named,
-            census.self_named_bound,
-        ));
-    }
 
     metrics.push(
         match (report.totals.property_shaped, report.totals.criteria) {

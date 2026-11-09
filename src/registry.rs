@@ -856,9 +856,10 @@ mod tests {
         assert_eq!(mods, vec!["mod-x"]);
     }
 
-    // FR-011-AC-6/7/8: a body_extraction DSL that's structurally
+    // A body_extraction DSL that's structurally
     // invalid (both `match` and `iterate_over` set) surfaces as an
     // ArchetypeLoadFailure at load time, NOT at extract() time.
+    #[trace("FR-011-AC-6")]
     #[test]
     fn invalid_dsl_in_object_type_fails_at_load() {
         let parent = tmpdir("bad-dsl");
@@ -1578,11 +1579,12 @@ roles:
         assert!(type_only.errors.is_empty());
     }
 
-    // TC-718, FR-048-AC-3, end-to-end half: with `ac:unclassifiable` mapped
+    // End-to-end half: with `ac:unclassifiable` mapped
     // to `error`, a real unclassifiable criteria cell lands in
     // `ValidationResult.errors` and clears `is_valid`, while an `ears` finding
     // with no map entry stays a warning. (The framework-level contract is
     // pinned in `validate_document::tests::tc718_per_check_error_routing`.)
+    #[trace("FR-048-AC-3", "TC-718")]
     #[test]
     fn tc718_ac_error_routing_end_to_end() {
         let p = tmpdir("severity-718");
@@ -1674,7 +1676,6 @@ roles:
             .markers
             .iter()
             .any(|m| m.language == crate::traceability::SourceLanguage::Python));
-        assert!(!model.trace_tags.legacy.is_empty());
 
         // The non-ISO fixture declares an entirely different vocabulary.
         let alt = Registry::load_module(&fixture_modules().join("alt"))

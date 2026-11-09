@@ -340,8 +340,9 @@ mod tests {
         }
     }
 
-    // TC-623, FR-039-AC-1: bare id in prose -> one AutoFix with token span +
+    // bare id in prose -> one AutoFix with token span +
     // suggested relative-path link.
+    #[trace("FR-039-AC-1", "TC-623")]
     #[test]
     fn bare_id_in_prose_is_autofix() {
         let spec = spec_of(vec![
@@ -360,7 +361,8 @@ mod tests {
         assert_eq!(&raw[r.byte_span.clone()], "FR-008");
     }
 
-    // TC-624, FR-039-AC-2: sub-id links to the PARENT file, label = full token.
+    // sub-id links to the PARENT file, label = full token.
+    #[trace("FR-039-AC-2", "TC-624")]
     #[test]
     fn sub_id_links_to_parent_file() {
         let spec = spec_of(vec![
@@ -376,8 +378,9 @@ mod tests {
         assert_eq!(autofix(r), Some("[FR-008-CON-4](./FR-008-byte-exact.md)"));
     }
 
-    // TC-625, FR-039-AC-3: inline-code token -> span covers backticks, link is
+    // inline-code token -> span covers backticks, link is
     // backtick-free.
+    #[trace("FR-039-AC-3", "TC-625")]
     #[test]
     fn inline_code_token_converted() {
         let spec = spec_of(vec![
@@ -395,9 +398,10 @@ mod tests {
         assert_eq!(autofix(r), Some("[FR-008](./FR-008-byte-exact.md)"));
     }
 
-    // TC-632, FR-039-AC-10: a code span holding >1 artifact token is skipped
+    // a code span holding >1 artifact token is skipped
     // entirely (converting each would emit overlapping whole-span fixes that
     // corrupt on apply); a single-token code span still converts.
+    #[trace("FR-039-AC-10", "TC-632")]
     #[test]
     fn multi_token_code_span_skipped() {
         let spec = spec_of(vec![
@@ -430,7 +434,8 @@ mod tests {
             .any(|r| r.token == "FR-008"));
     }
 
-    // TC-626, FR-039-AC-4: fenced block + frontmatter tokens yield no finding.
+    // fenced block + frontmatter tokens yield no finding.
+    #[trace("FR-039-AC-4", "TC-626")]
     #[test]
     fn fenced_and_frontmatter_ignored() {
         let spec = spec_of(vec![
@@ -445,7 +450,8 @@ mod tests {
         assert!(refs.iter().all(|r| r.token != "FR-008"));
     }
 
-    // TC-627, FR-039-AC-5: already-linked tokens yield nothing (idempotence).
+    // already-linked tokens yield nothing (idempotence).
+    #[trace("FR-039-AC-5", "TC-627")]
     #[test]
     fn already_linked_ignored() {
         let spec = spec_of(vec![
@@ -460,7 +466,8 @@ mod tests {
         assert!(refs.iter().all(|r| r.token != "FR-008"));
     }
 
-    // TC-628, FR-039-AC-6: self-references skipped; cross-references kept.
+    // self-references skipped; cross-references kept.
+    #[trace("FR-039-AC-6", "TC-628")]
     #[test]
     fn self_reference_skipped() {
         let spec = spec_of(vec![
@@ -476,7 +483,8 @@ mod tests {
         assert!(refs.iter().any(|r| r.token == "FR-008"));
     }
 
-    // TC-629, FR-039-AC-7: unresolved parent -> WarnOnly{Unresolved}, no link.
+    // unresolved parent -> WarnOnly{Unresolved}, no link.
+    #[trace("FR-039-AC-7", "TC-629")]
     #[test]
     fn unresolved_is_warn_only() {
         let spec = spec_of(vec![doc_at(
@@ -494,7 +502,8 @@ mod tests {
         );
     }
 
-    // TC-630, FR-039-AC-8: duplicate parent id -> WarnOnly{Ambiguous}.
+    // duplicate parent id -> WarnOnly{Ambiguous}.
+    #[trace("FR-039-AC-8", "TC-630")]
     #[test]
     fn ambiguous_is_warn_only() {
         let spec = spec_of(vec![
@@ -516,7 +525,8 @@ mod tests {
         );
     }
 
-    // TC-631, FR-039-AC-9: results sorted by (path, span.start), stable.
+    // results sorted by (path, span.start), stable.
+    #[trace("FR-039-AC-9", "TC-631")]
     #[test]
     fn results_sorted_and_stable() {
         let docs = vec![

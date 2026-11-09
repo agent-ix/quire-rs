@@ -22,7 +22,7 @@ use regex::Regex;
 
 use super::trace::{
     marker_ids, range_pattern, ImplementsRelation, RangeInTraceTag, SymbolGraph, TraceDiagnostic,
-    TraceProvenance, VerifiesRelation,
+    VerifiesRelation,
 };
 use super::{SourceAttribute, Symbol, SymbolExtraction, SymbolKind};
 use crate::corpus::declared_tables::ExcludeSet;
@@ -143,7 +143,6 @@ impl<'m> ShellBinder<'m> {
                             symbol: symbol.qualified_name.clone(),
                             path: symbol.path.clone(),
                             trace_id,
-                            provenance: TraceProvenance::Canonical,
                             form: form.name.clone(),
                             line: symbol.line,
                             column: symbol.column,

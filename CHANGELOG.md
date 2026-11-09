@@ -53,6 +53,13 @@ bumps; once 1.0 ships, semver is strict.
 
 ### Added
 
+- `trace-id-outside-marker`: one warning per id-shaped token in a comment or
+  docstring attached to a declaration in Rust, Python or TypeScript, naming the
+  file, line, qualified symbol, the id and the text to write instead, rendered
+  from the module's declared marker `template`
+  (`SymbolGraph.outside_marker`; PLAT-847, FR-051-AC-22, AC-24, AC-49, AC-50).
+  String contents are masked in every language; a Python docstring is the
+  annotation channel there.
 - Record-sections extraction (PLAT-1370, FR-081, quoin FR-121/FR-122/FR-123):
   when `semantic.mappings` names `record-sections`, a `##` section whose heading
   matches a record key of the object type's `data_schema` (ignoring case, space,
@@ -208,6 +215,20 @@ bumps; once 1.0 ships, semver is strict.
 - Contract and glossary unit tests use `tempfile::TempDir` guards instead of
   hand-rolled `std::env::temp_dir()` trees, so a failed assertion no longer
   leaks the tree (PLAT-320).
+
+### Removed
+
+- Only a marker form binds a `verifies` relation (PLAT-847, FR-051-CON-3,
+  FR-051-AC-11, CR-215). The textual trace forms are gone: a model's
+  `trace_tags.legacy` list (a module that still declares it now fails to load),
+  `TraceLegacyForm`, `id_format` reconstruction from captures, `rewrite_to` and
+  `RewriteSuggestion`, `SymbolGraph.rewrites`, `TraceProvenance` and the
+  `provenance` field of `VerifiesRelation` and of the assurance export's
+  `verifies` relation, `SymbolGraph.non_binding_tags` and the
+  `tag-on-non-binding-symbol` reason, and the census fields and diagnostic for a
+  test's own name (`self_named*`, `marker-form-mismatch`, FR-050-AC-44). Coverage
+  falls for a repository not yet retagged: the evidence standard changed, not the
+  tests.
 
 ## [0.53.0] — 2026-11-07
 

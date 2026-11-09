@@ -88,7 +88,6 @@
       "source": "[\"rust\",\"tests/assurance.rs\",\"tests::exports_artifact\",\"test_function\"]",
       "target": "TC-001",
       "form": "rust-trace",
-      "provenance": "canonical",
       "locator": {
         "path": "tests/assurance.rs",
         "line": 9

@@ -340,6 +340,7 @@ mod tests {
         assert_eq!(sibling.children.len(), 0);
     }
 
+    #[trace("FR-009-AC-4")]
     #[test]
     fn frontmatter_is_attached_and_does_not_shift_line_indices() {
         let input = "---\nid: FR-001\n---\n## First\ncontent";
@@ -347,7 +348,7 @@ mod tests {
         let fm = d.frontmatter.as_ref().expect("frontmatter");
         assert_eq!(fm.get("id").and_then(|v| v.as_str()), Some("FR-001"));
         // Line 0 of the body (post-frontmatter-strip) is the heading.
-        // FR-009-AC-4: frontmatter does NOT count toward line indices.
+        // frontmatter does NOT count toward line indices.
         assert_eq!(d.sections[0].start_line, 0);
         assert_eq!(d.sections[0].id, "first-L0");
         // raw still holds the verbatim original.
@@ -501,9 +502,10 @@ mod tests {
     }
 
     proptest! {
-        // FR-005-AC-4, TC-002: parse_document does not panic on any input.
+        // parse_document does not panic on any input.
         #![proptest_config(ProptestConfig::with_cases(10_000))]
         #[test]
+        #[trace("FR-005-AC-4", "TC-002")]
         fn never_panics_on_arbitrary_utf8(s in "\\PC*") {
             let _ = parse_document(&s);
         }

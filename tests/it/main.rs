@@ -31,6 +31,8 @@ mod markdown_validation;
 mod no_hidden_recompile;
 mod obligations;
 mod output_contract;
+#[cfg(feature = "rust-symbols")]
+mod outside_marker_advisory;
 mod parser_golden;
 mod parser_parity;
 mod parser_real_documents;

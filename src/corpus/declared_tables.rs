@@ -1174,6 +1174,7 @@ pub(crate) fn scan_finding(
 
 #[cfg(test)]
 mod props_metamorphic {
+    use ix_trace_rs::trace;
     use proptest::prelude::*;
 
     /// Cells built from the tokens the two opt-in normalizations rewrite —
@@ -1193,11 +1194,12 @@ mod props_metamorphic {
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(3000))]
 
-        /// TC-892 (FR-049, CR-069, Property): cell normalization is idempotent
+        /// FR-049, CR-069, Property: cell normalization is idempotent
         /// under every combination of the two opt-in flags. Its counterexample
         /// before the fixpoint loop was the chained range
         /// `FR-375..FR-432..FR-432`, which left a `..` the pattern rejects.
         #[test]
+        #[trace("TC-892")]
         fn tc892_reference_cell_normalization_is_idempotent(
             s in cellish(),
             strip in any::<bool>(),
@@ -1211,10 +1213,11 @@ mod props_metamorphic {
             );
         }
 
-        /// TC-892 (FR-049, CR-069, Property): with both flags off the cell is
+        /// FR-049, CR-069, Property: with both flags off the cell is
         /// returned unchanged — normalization is opt-in (CR-015), so the
         /// no-declaration path must be the identity.
         #[test]
+        #[trace("TC-892")]
         fn tc892_no_flags_is_the_identity(s in cellish()) {
             prop_assert_eq!(super::normalize_reference_cell(&s, false, false), s.clone());
         }
@@ -1440,10 +1443,12 @@ mod cr110_scanned_table {
 
 #[cfg(test)]
 mod cr069_regressions {
-    /// TC-892: regression (FR-049, CR-069) — the generator's minimized witness.
+    use ix_trace_rs::trace;
+    /// regression (FR-049, CR-069) — the generator's minimized witness.
     /// A chained range expanded only its leftmost pair and left a `..` behind,
     /// which the declaration's pattern then rejects — so a cell the engine could
     /// have read reported as a dangling trace reference instead.
+    #[trace("TC-892")]
     #[test]
     fn tc892_chained_ranges_expand_completely() {
         let out = super::normalize_reference_cell("FR-001..FR-003..FR-005", false, true);

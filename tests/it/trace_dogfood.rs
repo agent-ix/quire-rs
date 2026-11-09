@@ -9,7 +9,7 @@
 //! Two ways to silently un-back them again, both of which this test catches:
 //! rewriting the bench tag as `NFR-002-AC-4 / TC-577` (the declared list
 //! separator is a comma, so the second id is dropped), or moving the fuzz tag
-//! into the `//!` module header (which matches no declared legacy form).
+//! into the `//!` module header (which matches no declared marker form).
 //!
 //! The fixture `iso` module is used rather than a real `spec-artifacts-process`
 //! checkout, so this runs in CI, where there is neither network nor a module.
@@ -122,29 +122,12 @@ fn tc1880_the_python_decorator_wrap_tests_actually_bind() {
 
 /// PLAT-882 PR #481, round 2 review: `TC-1881` (`FR-051-AC-25`) was marked ✅
 /// in `spec/tests.md` on the strength of
-/// `tc1881_a_brace_inside_a_regex_literal_is_content` in `typescript.rs`,
-/// with no `#[trace(...)]` tag on it — the same shape `TC-1880` above exists
-/// to catch. Checked here the same way: the row **did** already bind, just
-/// not the way the ✅ implied. Its doc comment opens `/// TC-1881,
-/// FR-051-AC-25: ...` — id first, right after `///` — which matches this
-/// module's `comment-id` **legacy** form (`tests/fixtures/traceability/iso/
-/// manifest.yaml`), so removing the tag and rerunning does **not** go red:
-/// the row stays backed either way, just with `provenance: Legacy` instead
-/// of `Canonical`. Confirmed by a throwaway debug print rather than assumed.
-///
-/// A legacy binding is a real bind, not the `TC-1880` defect (which bound
-/// nowhere, not merely non-canonically) — but every other test in
-/// `typescript.rs` uses the canonical `#[trace(...)]` form, and
-/// `FR-051-CON-3`'s own direction of travel is to migrate off legacy forms,
-/// not add new ones. So the tag is added anyway, for consistency, and what
-/// this test actually pins is the **provenance**: `Canonical`, not merely
-/// present. That is the assertion the `TC-1880` test above does not need
-/// (none of its three candidate tests' doc comments open id-first, so no
-/// legacy form covers them) but this one does, or a second tag removal here
-/// would silently regress to `Legacy` without ever going red.
+/// `tc1881_a_brace_inside_a_regex_literal_is_content` in `typescript.rs`, with
+/// no `#[trace(...)]` tag on it. Only a marker binds (CR-215), so the row is
+/// backed exactly when that tag is present; this pins it.
 #[trace("TC-1881", "FR-051-AC-25")]
 #[test]
-fn tc1881_the_regex_brace_test_actually_binds_canonically() {
+fn tc1881_the_regex_brace_test_actually_binds() {
     let graph = graph_for("src/symbols");
     let backed = graph.backed_trace_ids();
     assert!(
@@ -153,7 +136,7 @@ fn tc1881_the_regex_brace_test_actually_binds_canonically() {
     );
 
     let symbol = "tests::tc1881_a_brace_inside_a_regex_literal_is_content";
-    let relation = graph
+    graph
         .verifies
         .iter()
         .find(|r| r.symbol.contains(symbol) && r.trace_id == "TC-1881")
@@ -167,11 +150,4 @@ fn tc1881_the_regex_brace_test_actually_binds_canonically() {
                     .collect::<Vec<_>>()
             )
         });
-    assert_eq!(
-        relation.provenance,
-        quire_rs::symbols::trace::TraceProvenance::Canonical,
-        "{symbol} must bind TC-1881 via the canonical `#[trace(...)]` form, not the \
-         `comment-id` legacy fallback its id-first doc comment also satisfies — otherwise \
-         removing the tag again would silently fall back to Legacy instead of going red: {relation:?}"
-    );
 }
