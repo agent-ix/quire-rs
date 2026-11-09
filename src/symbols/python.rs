@@ -10,7 +10,7 @@
 //! of the extracted code (FR-051-CON-1).
 //!
 //! **Form matching is a seam this adapter does not cross.** Which declared
-//! marker or legacy trace form appears inside a symbol's span is
+//! marker appears inside a symbol's span is
 //! `trace.rs`'s question, answered afterwards against the resolved span
 //! (`Symbol::attached_source`); this file has no reference to trace forms,
 //! regex, or `TraceabilityModel`, and the tree walk below must not gain one.

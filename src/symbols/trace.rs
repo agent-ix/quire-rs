@@ -77,7 +77,7 @@ pub struct ImplementsRelation {
 pub struct LegacyImplementsUse {
     pub path: String,
     pub symbol: String,
-    /// 1-based line the legacy text sits on.
+    /// 1-based line the textual `implements` use sits on.
     pub line: usize,
     /// The ids this occurrence binds, in authored order.
     pub trace_ids: Vec<String>,
@@ -2355,7 +2355,7 @@ mod tests {
     }
 
     #[trace("TC-894", "FR-051-AC-6")]
-    // a legacy tag inside a Rust string literal is data,
+    // a tag-shaped snippet inside a Rust string literal is data,
     // not a marker. This engine's own suite feeds tag-shaped snippets to the
     // extractor as fixtures, and before the mask every one of them bound and
     // showed up as an untracked symbol. The ids below sit outside any declared

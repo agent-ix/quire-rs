@@ -9,7 +9,7 @@
 //! installation, and no execution of the extracted code (FR-051-CON-1).
 //!
 //! **Form matching is a seam this adapter does not cross.** Which declared
-//! marker or legacy trace form appears inside a symbol's span is
+//! marker appears inside a symbol's span is
 //! `trace.rs`'s question, answered afterwards against the resolved span
 //! (`Symbol::attached_source`); this file has no reference to trace forms,
 //! regex, or `TraceabilityModel`, and the tree walk below must not gain one.
@@ -384,7 +384,7 @@ fn function_symbol(node: Node, source: &str, container: Option<String>) -> Optio
     let qualified_name = qualify(&container, &name);
     // Kani proofs are test evidence even though Kani does not mark them with
     // Rust's built-in `#[test]`. Keeping them in the same symbol kind lets the
-    // existing trace binder attach both `#[trace(...)]` and legacy `Trace:`
+    // existing trace binder attach `#[trace(...)]`
     // tags without treating production functions as evidence.
     let is_test = has_attribute(node, source, "test") || has_kani_proof_attribute(node, source);
     let kind = if is_test {

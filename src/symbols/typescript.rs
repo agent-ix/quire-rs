@@ -11,7 +11,7 @@
 //! and no execution of the extracted code (FR-051-CON-1).
 //!
 //! **Form matching is a seam this adapter does not cross.** Which declared
-//! marker or legacy trace form appears inside a symbol's span is
+//! marker appears inside a symbol's span is
 //! `trace.rs`'s question, answered afterwards against the resolved span
 //! (`Symbol::attached_source`); this file has no reference to trace forms,
 //! regex, or `TraceabilityModel`, and the tree walk below must not gain
@@ -934,7 +934,7 @@ mod tests {
     // `it.skipIf(cond)("TC-118 …")` produced **no symbol at all**, because the
     // single-line regex required the title's quote to follow `it(` immediately.
     // A registration the extractor cannot see is worse than a missed tag: the
-    // test runs, passes, and neither a legacy comment id nor a canonical
+    // test runs, passes, and a canonical
     // `trace(…)` in its body has anything to bind to.
     #[test]
     fn tc943_curried_and_wrapped_registrations_bind() {
