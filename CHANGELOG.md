@@ -7,6 +7,12 @@ bumps; once 1.0 ships, semver is strict.
 
 ## [Unreleased]
 
+### Changed
+
+- **Breaking, PLAT-214 (quoin#338):** a module set that loaded before is now refused: two loaded modules that export one semantic type
+  name no longer resolve by load order. The later sorted root is refused with
+  `semantic.duplicate-export` naming the type and both modules (FR-069-AC-15).
+
 ## [0.54.0] — 2026-11-08
 
 ### Changed

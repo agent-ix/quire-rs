@@ -1757,7 +1757,8 @@ pub struct RegistryShape {
 }
 
 /// FR-069 cross-module checks, after every module of a load has been read,
-/// in sorted module-root order: a duplicated `semantic.package` refuses the
+/// in sorted module-root order: a duplicated `semantic.package` or a type
+/// name exported by two modules (`semantic.duplicate-export`) refuses the
 /// later module, an unprovided import warns, an import cycle refuses every
 /// module on it. A refused module keeps its vocabulary and loses its
 /// archetypes, each recorded as a failure.
@@ -1791,6 +1792,44 @@ fn semantic_cross_module_checks(outcome: &mut LoadOutcome) {
             ));
         } else {
             seen.insert(package, i);
+        }
+    }
+    // Exports: one type name has one exporting module. The later sorted root
+    // is refused rather than letting load order pick a definition.
+    let mut exported: BTreeMap<String, usize> = BTreeMap::new();
+    for &i in &order {
+        if refusals.contains_key(&i) {
+            continue;
+        }
+        let exports = outcome.modules[i]
+            .semantic
+            .as_ref()
+            .unwrap()
+            .exports
+            .clone();
+        let clashes: Vec<(String, usize)> = exports
+            .iter()
+            .filter_map(|name| match exported.get(name) {
+                Some(&first) if first != i => Some((name.clone(), first)),
+                _ => None,
+            })
+            .collect();
+        if clashes.is_empty() {
+            // A refused module claims no export name.
+            for name in exports {
+                exported.insert(name, i);
+            }
+        }
+        for (name, first) in clashes {
+            refusals.entry(i).or_default().push(SemanticFailure::error(
+                "semantic.duplicate-export",
+                format!("semantic.exports.{name}"),
+                format!(
+                    "type {name} is also exported by module {} ({}); later sorted root refused",
+                    outcome.modules[first].name,
+                    outcome.modules[first].root.display()
+                ),
+            ));
         }
     }
     // Imports: provided at exactly that version by a non-refused module?

@@ -637,6 +637,83 @@ fn filament_snapshot_unsupported_versions_are_refused() {
     );
 }
 
+#[trace("TC-2190", "FR-069-AC-15")]
+// two packages exporting one type: the later sorted root is refused, with no
+// archetype collision after it; a refused module claims none of its exports;
+// disjoint exports load all; the outcome does not depend on search-root order.
+#[test]
+fn duplicate_export_refuses_the_later_module() {
+    fn exports(m: &mut serde_yaml::Value, names: &[&str]) {
+        let list = names.iter().map(|n| serde_yaml::Value::from(*n)).collect();
+        semantic(m).insert("exports".into(), serde_yaml::Value::Sequence(list));
+    }
+    fn pkg(m: &mut serde_yaml::Value, name: &str, names: &[&str]) {
+        retarget(m, &format!("agent-ix/{name}"));
+        exports(m, names);
+    }
+
+    let tmp = tempfile::tempdir().unwrap();
+    module(&tmp, "a-first", |m, _| pkg(m, "a-first", &["entity"]));
+    module(&tmp, "b-second", |m, _| pkg(m, "b-second", &["entity"]));
+    let registry = Registry::load_from(&[tmp.path()]).unwrap();
+    let r = reasons(&registry);
+    assert!(
+        r.iter().any(|x| x.starts_with("semantic.duplicate-export")
+            && x.contains("entity")
+            && x.contains("a-first")),
+        "{r:?}"
+    );
+    assert!(registry.semantic_module("a-first").is_some());
+    assert!(registry.semantic_module("b-second").is_none());
+    assert!(registry.archetype_in_module("b-second", "entity").is_none());
+    assert!(
+        !registry
+            .diagnostics()
+            .iter()
+            .any(|d| matches!(d, quire_rs::Diagnostic::DuplicateArchetype { .. })),
+        "{:?}",
+        registry.diagnostics()
+    );
+
+    // b-second is refused for `entity`, so it claims no `enumeration`.
+    let tmp = tempfile::tempdir().unwrap();
+    module(&tmp, "a-first", |m, _| pkg(m, "a-first", &["entity"]));
+    module(&tmp, "b-second", |m, _| {
+        pkg(m, "b-second", &["entity", "enumeration"])
+    });
+    module(&tmp, "c-third", |m, _| pkg(m, "c-third", &["enumeration"]));
+    let registry = Registry::load_from(&[tmp.path()]).unwrap();
+    assert!(registry.semantic_module("a-first").is_some());
+    assert!(registry.semantic_module("b-second").is_none());
+    assert!(registry.semantic_module("c-third").is_some());
+    assert_eq!(reasons(&registry).len(), 2, "{:?}", reasons(&registry));
+
+    let tmp = tempfile::tempdir().unwrap();
+    module(&tmp, "a-first", |m, _| pkg(m, "a-first", &["entity"]));
+    module(&tmp, "b-second", |m, _| {
+        pkg(m, "b-second", &["enumeration"])
+    });
+    let registry = Registry::load_from(&[tmp.path()]).unwrap();
+    assert!(registry.semantic_module("a-first").is_some());
+    assert!(registry.semantic_module("b-second").is_some());
+    assert!(reasons(&registry).is_empty(), "{:?}", reasons(&registry));
+
+    // Two search roots, each holding one module, in both orders.
+    let tmp = tempfile::tempdir().unwrap();
+    module(&tmp, "a-first", |m, _| pkg(m, "a-first", &["entity"]));
+    module(&tmp, "b-second", |m, _| pkg(m, "b-second", &["entity"]));
+    let (r1, r2) = (tmp.path().join("r1"), tmp.path().join("r2"));
+    fs::create_dir_all(&r1).unwrap();
+    fs::create_dir_all(&r2).unwrap();
+    fs::rename(tmp.path().join("a-first"), r1.join("a-first")).unwrap();
+    fs::rename(tmp.path().join("b-second"), r2.join("b-second")).unwrap();
+    for roots in [[r1.as_path(), r2.as_path()], [r2.as_path(), r1.as_path()]] {
+        let registry = Registry::load_from(&roots).unwrap();
+        assert!(registry.semantic_module("a-first").is_some(), "{roots:?}");
+        assert!(registry.semantic_module("b-second").is_none(), "{roots:?}");
+    }
+}
+
 #[trace("TC-1645", "FR-069-AC-10")]
 // cross-module: duplicate package, unresolved import, import cycle.
 #[test]
@@ -687,6 +764,7 @@ fn cross_module_checks() {
     });
     module(&tmp, "y-cycle", |m, _| {
         retarget(m, "agent-ix/y");
+        semantic(m).insert("exports".into(), serde_yaml::Value::Sequence(vec![]));
         semantic(m).insert(
             "imports".into(),
             serde_yaml::from_str("{ 'agent-ix/x': '0.1.0' }").unwrap(),
