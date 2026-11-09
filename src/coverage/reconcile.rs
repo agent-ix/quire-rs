@@ -556,6 +556,22 @@ pub(super) fn reconcile(
         value: Some(finding.attribute.clone()), guidance: None,
     }));
 
+    diagnostics.extend(graph.partial_syntax_matches.iter().map(|finding| CoverageDiagnostic {
+        declaration: finding.form.clone(),
+        reason: "partial-implements-syntax-match".to_string(),
+        message: format!("form '{}' matched only part of {} on {} at {}:{}; match the complete candidate", finding.form, finding.attribute, finding.symbol, finding.path, finding.line),
+        path: Some(finding.path.clone()), line: Some(finding.line),
+        value: Some(finding.attribute.clone()), guidance: None,
+    }));
+
+    diagnostics.extend(graph.unattached_syntax.iter().map(|finding| CoverageDiagnostic {
+        declaration: finding.form.clone(),
+        reason: "implements-syntax-unattached".to_string(),
+        message: format!("form '{}' names {} at {}:{}, but no wrapper chain attaches it to a const, let or var declarator, so it binds nothing", finding.form, finding.candidate, finding.path, finding.line),
+        path: Some(finding.path.clone()), line: Some(finding.line),
+        value: Some(finding.candidate.clone()), guidance: None,
+    }));
+
     diagnostics.extend(legacy_implements_diagnostics(
         &graph.legacy_implements,
         model,

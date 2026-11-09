@@ -189,14 +189,18 @@ pub(super) fn outside_marker_diagnostics(
     // The first `rust_attribute` implements form declaring a template, for the
     // finding's own language (FR-051-AC-22): a Python or TypeScript function is
     // never told a Rust attribute.
-    let implements_template = |language: SourceLanguage| {
+    // For a Python or TypeScript symbol, the structural form of its own position
+    // (FR-062-AC-26); a position with no structural form is named by kind alone.
+    let implements_template = |finding: &OutsideMarkerId| {
+        let wanted = match finding.language {
+            SourceLanguage::Rust => Some(TraceMarkerSyntax::RustAttribute),
+            _ => finding.position,
+        }?;
         model
             .trace_tags
             .implements
             .iter()
-            .filter(|form| {
-                form.language == language && form.syntax == Some(TraceMarkerSyntax::RustAttribute)
-            })
+            .filter(|form| form.language == finding.language && form.syntax == Some(wanted))
             .find_map(|form| form.template.as_deref())
     };
     found
@@ -229,7 +233,7 @@ pub(super) fn outside_marker_diagnostics(
                 },
                 OutsideMarkerOwner::Production(kind) => {
                     let kind = kind.as_str();
-                    match implements_template(finding.language).map(render) {
+                    match implements_template(finding).map(render) {
                         Some(text) => (
                             format!(
                                 "a {kind} binds no trace id, so a `trace` marker would bind nothing; to say what it implements write `{text}`"

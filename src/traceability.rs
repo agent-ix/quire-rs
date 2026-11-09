@@ -1162,6 +1162,15 @@ pub struct TraceMarkerForm {
 pub enum TraceMarkerSyntax {
     /// A complete outer Rust attribute attached to a declaration.
     RustAttribute,
+    /// A decorator directly attached to a Python `def`, `async def` or `class`
+    /// (FR-062).
+    PythonDecorator,
+    /// A decorator directly attached to a TypeScript class declaration or method
+    /// definition (FR-062).
+    TypescriptDecorator,
+    /// The callee call of a wrapper chain initializing a TypeScript `const`,
+    /// `let` or `var` declarator (FR-062).
+    TypescriptWrapper,
     /// A `#` comment node of a shell script (FR-051-AC-42).
     Comment,
 }
@@ -1171,6 +1180,19 @@ fn present_syntax<'de, D: serde::Deserializer<'de>>(
     deserializer: D,
 ) -> Result<Option<serde_json::Value>, D::Error> {
     serde_json::Value::deserialize(deserializer).map(Some)
+}
+
+impl TraceMarkerSyntax {
+    /// The module-declared spelling.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::RustAttribute => "rust_attribute",
+            Self::PythonDecorator => "python_decorator",
+            Self::TypescriptDecorator => "typescript_decorator",
+            Self::TypescriptWrapper => "typescript_wrapper",
+            Self::Comment => "comment",
+        }
+    }
 }
 
 impl<'de> Deserialize<'de> for TraceMarkerForm {
@@ -1201,6 +1223,24 @@ impl<'de> Deserialize<'de> for TraceMarkerForm {
                     && wire.language == SourceLanguage::Rust =>
             {
                 Some(TraceMarkerSyntax::RustAttribute)
+            }
+            Some(value)
+                if value.as_str() == Some("python_decorator")
+                    && wire.language == SourceLanguage::Python =>
+            {
+                Some(TraceMarkerSyntax::PythonDecorator)
+            }
+            Some(value)
+                if value.as_str() == Some("typescript_decorator")
+                    && wire.language == SourceLanguage::Typescript =>
+            {
+                Some(TraceMarkerSyntax::TypescriptDecorator)
+            }
+            Some(value)
+                if value.as_str() == Some("typescript_wrapper")
+                    && wire.language == SourceLanguage::Typescript =>
+            {
+                Some(TraceMarkerSyntax::TypescriptWrapper)
             }
             Some(value) => {
                 return Err(serde::de::Error::custom(format!(
@@ -1716,8 +1756,18 @@ impl TraceabilityModel {
         let mut marker_names: BTreeSet<&str> = BTreeSet::new();
         for marker in &self.trace_tags.markers {
             check_named("trace_tags.markers", &marker.name)?;
-            if marker.syntax == Some(TraceMarkerSyntax::RustAttribute) {
-                return Err(format!("trace_tags.markers form '{}' cannot declare syntax rust_attribute; only trace_tags.implements supports it", marker.name));
+            if let Some(
+                syntax @ (TraceMarkerSyntax::RustAttribute
+                | TraceMarkerSyntax::PythonDecorator
+                | TraceMarkerSyntax::TypescriptDecorator
+                | TraceMarkerSyntax::TypescriptWrapper),
+            ) = marker.syntax
+            {
+                return Err(format!(
+                    "trace_tags.markers form '{}' cannot declare syntax {}; only trace_tags.implements supports it",
+                    marker.name,
+                    syntax.as_str()
+                ));
             }
             if !marker_names.insert(marker.name.as_str()) {
                 return Err(format!(
@@ -1763,16 +1813,23 @@ impl TraceabilityModel {
                     marker.name
                 ));
             }
-            match marker.syntax {
-                Some(TraceMarkerSyntax::RustAttribute)
-                    if marker.language != SourceLanguage::Rust =>
-                {
+            let required = match marker.syntax {
+                Some(TraceMarkerSyntax::RustAttribute) => Some(SourceLanguage::Rust),
+                Some(TraceMarkerSyntax::PythonDecorator) => Some(SourceLanguage::Python),
+                Some(
+                    TraceMarkerSyntax::TypescriptDecorator | TraceMarkerSyntax::TypescriptWrapper,
+                ) => Some(SourceLanguage::Typescript),
+                _ => None,
+            };
+            if let (Some(required), Some(syntax)) = (required, marker.syntax) {
+                if marker.language != required {
                     return Err(format!(
-                        "trace_tags.implements form '{}' requires Rust for rust_attribute",
-                        marker.name
+                        "trace_tags.implements form '{}' requires {} for {}",
+                        marker.name,
+                        required.as_str(),
+                        syntax.as_str()
                     ));
                 }
-                _ => {}
             }
         }
         Ok(())

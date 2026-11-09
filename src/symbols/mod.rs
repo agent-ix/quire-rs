@@ -50,7 +50,7 @@ pub mod typescript;
 
 use std::path::Path;
 
-use crate::traceability::SourceLanguage;
+use crate::traceability::{SourceLanguage, TraceMarkerSyntax};
 
 /// What a symbol is. `kind` is part of the identity: a `Container` named `Foo`
 /// and a function named `Foo` in the same file are different symbols.
@@ -142,8 +142,17 @@ pub struct SourceAttribute {
 /// One extracted symbol.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Symbol {
-    /// Exact outer Rust attributes owned by this declaration, in source order.
+    /// Syntax-node candidates owned by this declaration, in source order: the
+    /// outer Rust attributes, the Python or TypeScript decorators attached to it,
+    /// or the callee calls of a TypeScript wrapper chain (FR-062).
     pub attributes: Vec<SourceAttribute>,
+    /// The structural `implements` syntax this declaration's position admits
+    /// (FR-062): `python_decorator` for a Python `def` or `class`,
+    /// `typescript_decorator` for a class or method, `typescript_wrapper` for a
+    /// `const`/`let`/`var`-bound function. `None` where the language declares no
+    /// structural position (a TypeScript `function` declaration, a `describe` suite,
+    /// the file's module container, Rust).
+    pub position: Option<TraceMarkerSyntax>,
     pub language: SourceLanguage,
     /// Repo-relative path, `/`-separated so identities are platform-stable.
     pub path: String,
@@ -247,6 +256,11 @@ pub struct SourceFile {
     /// Every `#` comment node of a shell script, in source order (FR-051-AC-41,
     /// AC-44). Empty for other languages.
     pub comments: Vec<SourceAttribute>,
+    /// Curried calls of a TypeScript file that no wrapper chain attaches to a
+    /// declarator, as the callee call of each (FR-062). The binder alone decides
+    /// which of them a declared `typescript_wrapper` form names. Empty for other
+    /// languages.
+    pub unattached_calls: Vec<SourceAttribute>,
 }
 
 /// A per-file problem. Extraction degrades per file: one unreadable or
@@ -322,6 +336,7 @@ impl SymbolExtraction {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct RawSymbol {
     pub attributes: Vec<SourceAttribute>,
+    pub position: Option<TraceMarkerSyntax>,
     pub qualified_name: String,
     pub kind: SymbolKind,
     pub line: usize,
@@ -547,6 +562,8 @@ impl SymbolExtraction {
         // diagnostic (AC-9's channel) and never as a silent zero.
         #[cfg_attr(not(feature = "shell-symbols"), allow(unused_mut))]
         let mut file_comments: Vec<SourceAttribute> = Vec::new();
+        #[cfg_attr(not(feature = "typescript-symbols"), allow(unused_mut))]
+        let mut unattached_calls: Vec<SourceAttribute> = Vec::new();
         let parsed: Option<Result<Vec<RawSymbol>, String>> = match language {
             #[cfg(feature = "rust-symbols")]
             SourceLanguage::Rust => Some(rust::parse(&source)),
@@ -563,7 +580,12 @@ impl SymbolExtraction {
                 None
             }
             #[cfg(feature = "typescript-symbols")]
-            SourceLanguage::Typescript => Some(typescript::parse(path, &source)),
+            SourceLanguage::Typescript => {
+                Some(typescript::parse_with_calls(path, &source).map(|parsed| {
+                    unattached_calls = parsed.unattached_calls;
+                    parsed.symbols
+                }))
+            }
             #[cfg(not(feature = "typescript-symbols"))]
             SourceLanguage::Typescript => {
                 self.record_unavailable(language);
@@ -596,6 +618,7 @@ impl SymbolExtraction {
         for r in raw {
             file_symbols.push(Symbol {
                 attributes: r.attributes,
+                position: r.position,
                 language,
                 path: path.to_string(),
                 id: Symbol::compute_id(language, path, &r.qualified_name, r.kind),
@@ -621,6 +644,7 @@ impl SymbolExtraction {
             language,
             source,
             comments: file_comments,
+            unattached_calls,
         });
         self.files.sort_by(|a, b| a.path.cmp(&b.path));
     }

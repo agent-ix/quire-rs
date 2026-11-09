@@ -87,6 +87,7 @@ pub(crate) fn parse(source: &str) -> Result<Parsed, String> {
     let header = header_comments(root, &comments);
     let mut symbols = vec![RawSymbol {
         attributes: Vec::new(),
+        position: None,
         qualified_name: "entry_point".to_string(),
         kind: SymbolKind::EntryPoint,
         line: 1,
@@ -101,6 +102,7 @@ pub(crate) fn parse(source: &str) -> Result<Parsed, String> {
         let block = block_above(&comments, function.line);
         symbols.push(RawSymbol {
             attributes: Vec::new(),
+            position: None,
             qualified_name: function.name,
             kind: SymbolKind::Function,
             line: function.line,

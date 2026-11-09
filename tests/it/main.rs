@@ -23,6 +23,7 @@ mod filament_core_fixtures;
 mod id_column_lists;
 #[cfg(feature = "rust-symbols")]
 mod implements_relation;
+mod implements_structural;
 mod integration;
 mod inverse_edges;
 #[cfg(feature = "rust-symbols")]

@@ -362,6 +362,7 @@ fn container_symbol(
 ) -> RawSymbol {
     RawSymbol {
         attributes: declaration_attributes(node, source),
+        position: None,
         qualified_name,
         kind: SymbolKind::Container,
         line: node.start_position().row + 1,
@@ -403,6 +404,7 @@ fn function_symbol(node: Node, source: &str, container: Option<String>) -> Optio
     let ignored = is_test && has_attribute(node, source, "ignore");
     Some(RawSymbol {
         attributes: declaration_attributes(node, source),
+        position: None,
         qualified_name,
         kind,
         line: node.start_position().row + 1,
@@ -727,6 +729,7 @@ fn scan_token_tree_for_fns(
                     flat_leading_span_and_test(&children, i, source);
                 out.push(RawSymbol {
                     attributes: Vec::new(),
+                    position: None,
                     qualified_name: qualified_name.clone(),
                     kind: if is_test {
                         SymbolKind::TestFunction
@@ -891,6 +894,7 @@ fn fuzz_target(root: Node, source: &str) -> Option<RawSymbol> {
     let span_node = invocation.parent().unwrap_or(invocation);
     Some(RawSymbol {
         attributes: Vec::new(),
+        position: None,
         qualified_name: "fuzz_target".to_string(),
         kind: SymbolKind::FuzzTarget,
         line: invocation.start_position().row + 1,
