@@ -96,6 +96,12 @@ pub(super) fn guidance_for(diagnostic: &CoverageDiagnostic) -> crate::finding::F
         "partial-implements-attribute-match" => FindingGuidance::remedy(
             declaration, locus, "make the declared implements pattern match the complete outer attribute; a substring never creates a relation",
         ),
+        "partial-implements-syntax-match" => FindingGuidance::remedy(
+            declaration, locus, "make the declared implements pattern match the complete decorator or wrapper callee call; a substring never creates a relation",
+        ),
+        "implements-syntax-unattached" => FindingGuidance::remedy(
+            declaration, locus, "bind the wrapper to a const, let or var declarator as `const name = wrapper(\"ID\")(fn)`; a wrapper on a bare statement, an argument, a default export or a non-function never binds",
+        ),
         "range-in-trace-tag" => FindingGuidance::remedy(
             format!("range `{value}`"),
             locus,

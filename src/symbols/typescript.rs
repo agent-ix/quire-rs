@@ -15,9 +15,10 @@
 //! `trace.rs`'s question, answered afterwards against the resolved span
 //! (`Symbol::attached_source`); this file has no reference to trace forms,
 //! regex, or `TraceabilityModel`, and the tree walk below must not gain
-//! one — including a query over `@decorator` nodes, which would look
-//! tempting and belongs to PLAT-866 instead (explicit `@trace(...)`
-//! constructs), landing after both this port and PLAT-868's Python port.
+//! one. PLAT-866 (FR-062) adds the one exception: the adapter reads the
+//! `decorator` nodes and curried-call shapes that a declared structural
+//! `implements` form is applied to, as exact node text, and still names no form
+//! or wrapper.
 //!
 //! Test classification follows the vitest/jest convention: a `test(...)` or
 //! `it(...)` registration is a test symbol, and **its registered title is
@@ -167,14 +168,27 @@
 use quire_code_extraction::tree_sitter::Node;
 use quire_code_extraction::{parse_file, Language};
 
-use super::{leading_span, RawSymbol, SymbolKind};
+use super::{leading_span, RawSymbol, SourceAttribute, SymbolKind};
+use crate::traceability::TraceMarkerSyntax;
 
 /// Parse `source` into raw symbols, or return a per-file reason to skip it.
 ///
 /// **A declaration-structure failure fails loudly, naming the line** — the
 /// same contract the Rust adapter documents (`src/symbols/rust.rs`), backed
 /// by the same `quire-code-parse` diagnostic and the same body-node rule.
+#[cfg(test)]
 pub(crate) fn parse(path: &str, source: &str) -> Result<Vec<RawSymbol>, String> {
+    parse_with_calls(path, source).map(|parsed| parsed.0)
+}
+
+/// [`parse`], plus the curried calls no wrapper chain attaches to a declarator
+/// (FR-062), as the callee call of each. The adapter reads call shape only and
+/// names no wrapper: which of them a declared `typescript_wrapper` form names is
+/// the binder's question.
+pub(crate) fn parse_with_calls(
+    path: &str,
+    source: &str,
+) -> Result<(Vec<RawSymbol>, Vec<SourceAttribute>), String> {
     // `.tsx` needs the TSX grammar (JSX syntax is a genuine parse ambiguity
     // against a bare type assertion in `.ts`); every other extension this
     // adapter is ever called for is `.ts` (`language_of` in `mod.rs` binds
@@ -209,6 +223,7 @@ pub(crate) fn parse(path: &str, source: &str) -> Result<Vec<RawSymbol>, String> 
     let line_count = source.lines().count().max(1);
     let mut out = vec![RawSymbol {
         attributes: Vec::new(),
+        position: None,
         qualified_name: module.clone(),
         kind: SymbolKind::Container,
         line: 1,
@@ -222,7 +237,162 @@ pub(crate) fn parse(path: &str, source: &str) -> Result<Vec<RawSymbol>, String> 
 
     let mut scopes: Vec<Scope> = Vec::new();
     walk(parsed.root_node(), source, &module, &mut scopes, &mut out);
-    Ok(out)
+    let unattached = unattached_calls(parsed.root_node(), source);
+    Ok((out, unattached))
+}
+
+/// Function-valued node kinds a wrapper chain may wrap (FR-051-AC-51).
+fn is_function_value(node: Node) -> bool {
+    matches!(
+        node.kind(),
+        "arrow_function" | "function_expression" | "function" | "generator_function"
+    )
+}
+
+/// The `callee(...)` call of a curried call `callee(...)(argument)`.
+fn callee_call(call: Node) -> Option<Node> {
+    if call.kind() != "call_expression" {
+        return None;
+    }
+    call.child_by_field_name("function")
+        .filter(|callee| callee.kind() == "call_expression")
+}
+
+/// The callee call of every link of a **wrapper chain** rooted at `call`, outer
+/// link first, or `None` when `call` is not one (FR-051-AC-51): a curried call
+/// whose single argument is a function-valued node or another wrapper chain.
+fn wrapper_chain(call: Node) -> Option<Vec<Node>> {
+    let callee = callee_call(call)?;
+    let arguments = call.child_by_field_name("arguments")?;
+    let mut cursor = arguments.walk();
+    let mut args = arguments
+        .named_children(&mut cursor)
+        .filter(|node| node.kind() != "comment");
+    let argument = args.next()?;
+    if args.next().is_some() {
+        return None;
+    }
+    if is_function_value(argument) {
+        return Some(vec![callee]);
+    }
+    let mut links = vec![callee];
+    links.extend(wrapper_chain(argument)?);
+    Some(links)
+}
+
+/// The declarator nodes' wrapper-chain initializer, for a declarator whose name
+/// is a plain identifier (the only shape that mints a symbol).
+fn declarator_chain(declarator: Node) -> Option<Vec<Node>> {
+    let name = declarator.child_by_field_name("name")?;
+    if name.kind() != "identifier" {
+        return None;
+    }
+    wrapper_chain(declarator.child_by_field_name("value")?)
+}
+
+/// Every curried call in the tree that is not a link of a wrapper chain
+/// initializing a declarator, as its callee call, in source order (FR-062).
+fn unattached_calls(root: Node, source: &str) -> Vec<SourceAttribute> {
+    fn collect<'t>(
+        node: Node<'t>,
+        attached: &mut std::collections::BTreeSet<usize>,
+        curried: &mut Vec<(Node<'t>, Node<'t>)>,
+    ) {
+        if node.kind() == "variable_declarator" {
+            if let Some(value) = node.child_by_field_name("value") {
+                if declarator_chain(node).is_some() {
+                    // Every link of the chain: the root call, then each argument
+                    // that is itself a chain link.
+                    let mut link = Some(value);
+                    while let Some(call) = link {
+                        attached.insert(call.id());
+                        link = call
+                            .child_by_field_name("arguments")
+                            .and_then(|arguments| arguments.named_child(0))
+                            .filter(|argument| callee_call(*argument).is_some());
+                    }
+                }
+            }
+        }
+        if let Some(callee) = callee_call(node) {
+            curried.push((node, callee));
+        }
+        let mut cursor = node.walk();
+        for child in node.children(&mut cursor) {
+            collect(child, attached, curried);
+        }
+    }
+    let mut attached = std::collections::BTreeSet::new();
+    let mut curried = Vec::new();
+    collect(root, &mut attached, &mut curried);
+    curried
+        .into_iter()
+        .filter(|(call, _)| !attached.contains(&call.id()))
+        .filter_map(|(_, callee)| node_candidate(callee, source))
+        .collect()
+}
+
+/// A node as a candidate: its exact source text and 1-based start line.
+fn node_candidate(node: Node, source: &str) -> Option<SourceAttribute> {
+    node.utf8_text(source.as_bytes())
+        .ok()
+        .map(|text| SourceAttribute {
+            text: text.to_string(),
+            line: node.start_position().row + 1,
+        })
+}
+
+/// The decorators of a class declaration, in source order: those written before
+/// `export` (children of the `export_statement`) and those after it or on an
+/// unexported class (children of the declaration itself) (FR-062).
+fn class_decorators(class: Node, source: &str) -> Vec<SourceAttribute> {
+    let mut nodes = Vec::new();
+    if let Some(export) = class.parent().filter(|p| p.kind() == "export_statement") {
+        let mut cursor = export.walk();
+        nodes.extend(
+            export
+                .named_children(&mut cursor)
+                .filter(|n| n.kind() == "decorator"),
+        );
+    }
+    let mut cursor = class.walk();
+    nodes.extend(
+        class
+            .named_children(&mut cursor)
+            .filter(|n| n.kind() == "decorator"),
+    );
+    nodes
+        .into_iter()
+        .filter_map(|n| node_candidate(n, source))
+        .collect()
+}
+
+/// The decorators of a method definition: the grammar places them as siblings
+/// preceding the `method_definition` inside the class body, so the run of
+/// decorators immediately before it is read (comments between are skipped); a
+/// property, another member or a statement ends the run (FR-062).
+fn method_decorators(method: Node, source: &str) -> Vec<SourceAttribute> {
+    let mut nodes = Vec::new();
+    let mut previous = method.prev_sibling();
+    while let Some(node) = previous {
+        match node.kind() {
+            "decorator" => nodes.push(node),
+            "comment" => {}
+            _ => break,
+        }
+        previous = node.prev_sibling();
+    }
+    nodes.reverse();
+    let mut cursor = method.walk();
+    nodes.extend(
+        method
+            .named_children(&mut cursor)
+            .filter(|n| n.kind() == "decorator"),
+    );
+    nodes
+        .into_iter()
+        .filter_map(|n| node_candidate(n, source))
+        .collect()
 }
 
 /// Whether a TypeScript parser diagnostic points at the valid optional
@@ -496,13 +666,16 @@ fn walk(node: Node, source: &str, module: &str, scopes: &mut Vec<Scope>, out: &m
                 if let Some(name) = field_text(child, "name", source) {
                     let qualified = qualify(scopes, &name);
                     let container = scope_container(scopes, module);
-                    out.push(symbol_at(
+                    let mut symbol = symbol_at(
                         stmt_anchor(child),
                         qualified.clone(),
                         SymbolKind::Container,
                         container,
                         false,
-                    ));
+                    );
+                    symbol.attributes = class_decorators(child, source);
+                    symbol.position = Some(TraceMarkerSyntax::TypescriptDecorator);
+                    out.push(symbol);
                     // A class carries no ignorability of its own (FR-051-AC-27
                     // names no class-skip form) — it only passes its own
                     // enclosing scope's state through, so a class nested
@@ -548,13 +721,11 @@ fn walk(node: Node, source: &str, module: &str, scopes: &mut Vec<Scope>, out: &m
                     if name != "constructor" {
                         let qualified = qualify(scopes, &name);
                         let container = scope_container(scopes, module);
-                        out.push(symbol_at(
-                            child,
-                            qualified,
-                            SymbolKind::Function,
-                            container,
-                            false,
-                        ));
+                        let mut symbol =
+                            symbol_at(child, qualified, SymbolKind::Function, container, false);
+                        symbol.attributes = method_decorators(child, source);
+                        symbol.position = Some(TraceMarkerSyntax::TypescriptDecorator);
+                        out.push(symbol);
                     }
                 }
                 walk(child, source, module, scopes, out);
@@ -640,26 +811,39 @@ fn mint_arrow_const_declarators(
         let Some(value) = declarator.child_by_field_name("value") else {
             continue;
         };
-        if value.kind() != "arrow_function" {
+        // A wrapper chain (`callee(...)(fn)`) mints the same symbol an
+        // arrow-valued declarator does, and its links' callee calls are the
+        // candidates a `typescript_wrapper` form reads (FR-051-AC-51, FR-062).
+        let candidates: Vec<SourceAttribute> = if value.kind() == "arrow_function" {
+            if value.child_by_field_name("parameters").is_none() {
+                // The bare, unparenthesized single-parameter form — outside the
+                // old regex's own `\(` requirement.
+                continue;
+            }
+            Vec::new()
+        } else if let Some(links) = wrapper_chain(value) {
+            links
+                .into_iter()
+                .filter_map(|link| node_candidate(link, source))
+                .collect()
+        } else {
             continue;
-        }
-        if value.child_by_field_name("parameters").is_none() {
-            // The bare, unparenthesized single-parameter form — outside the
-            // old regex's own `\(` requirement.
-            continue;
-        }
+        };
         let Ok(name) = name_node.utf8_text(source.as_bytes()) else {
             continue;
         };
         let qualified = qualify(scopes, name);
         let container = scope_container(scopes, module);
-        out.push(symbol_at(
+        let mut symbol = symbol_at(
             stmt_anchor(decl),
             qualified,
             SymbolKind::Function,
             container,
             false,
-        ));
+        );
+        symbol.attributes = candidates;
+        symbol.position = Some(TraceMarkerSyntax::TypescriptWrapper);
+        out.push(symbol);
     }
 }
 
@@ -726,6 +910,7 @@ fn symbol_at(
 ) -> RawSymbol {
     RawSymbol {
         attributes: Vec::new(),
+        position: None,
         qualified_name,
         kind,
         line: anchor.start_position().row + 1,

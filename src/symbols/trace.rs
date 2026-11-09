@@ -101,6 +101,20 @@ pub struct PartialAttributeMatch {
     pub attribute: String,
 }
 
+/// A `typescript_wrapper` form matched the callee call of a curried call that
+/// no wrapper chain attaches to a declarator, so it binds nothing (FR-062).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UnattachedSyntax {
+    /// Module-declared form name.
+    pub form: String,
+    /// Repo-relative source path.
+    pub path: String,
+    /// Actual 1-based start line of the candidate.
+    pub line: usize,
+    /// Verbatim candidate text.
+    pub candidate: String,
+}
+
 /// A duplicate binding, dropped to one relation (FR-045 edge-dedup).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TraceDiagnostic {
@@ -318,6 +332,12 @@ pub struct SymbolGraph {
     pub diagnostics: Vec<TraceDiagnostic>,
     /// Rejected proper-substring matches, in declaration/form/source order.
     pub partial_attribute_matches: Vec<PartialAttributeMatch>,
+    /// Rejected proper-substring matches of a Python or TypeScript structural
+    /// form (FR-062), in declaration/form/source order.
+    pub partial_syntax_matches: Vec<PartialAttributeMatch>,
+    /// Wrapper calls a `typescript_wrapper` form names that attach to nothing
+    /// (FR-062), in file/form/source order.
+    pub unattached_syntax: Vec<UnattachedSyntax>,
     /// Per-language candidate/bound counts (FR-051-AC-19, CR-093). Ordered by
     /// language label, and present for every language the walk saw at least one
     /// evidence symbol in.
@@ -400,6 +420,9 @@ pub struct OutsideMarkerId {
     /// The qualified symbol it is attached to, or the file path for a header.
     pub symbol: String,
     pub owner: OutsideMarkerOwner,
+    /// The structural `implements` syntax the owning declaration admits
+    /// (FR-051-AC-22, FR-062), when it has one.
+    pub position: Option<crate::traceability::TraceMarkerSyntax>,
 }
 
 /// Which of the three non-claim shapes a [`Mention`] is (FR-077-AC-2).
@@ -694,6 +717,8 @@ pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolG
             },
         );
     }
+
+    bind_unattached_wrappers(extraction, model, &patterns, &mut graph);
 
     // Appending is cheap in the symbol loop. Sort once after every symbol has
     // been visited; sorting in `bind_symbol` would invalidate the per-symbol
@@ -1081,6 +1106,7 @@ fn outside_marker_ids(extraction: &SymbolExtraction, graph: &SymbolGraph) -> Vec
             if range_endpoints.contains(&(file.path.as_str(), line, normalized.clone())) {
                 continue;
             }
+            let position = owner.and_then(|symbol| symbol.position);
             let (symbol, kind) = match owner {
                 Some(symbol) => {
                     if implements_read.contains(&(symbol.id.as_str(), normalized)) {
@@ -1102,6 +1128,7 @@ fn outside_marker_ids(extraction: &SymbolExtraction, graph: &SymbolGraph) -> Vec
                 line,
                 symbol,
                 owner: kind,
+                position,
             });
         }
     }
@@ -1332,6 +1359,24 @@ fn bind_implements(
                 .iter()
                 .map(|attribute| (attribute.text.as_str(), attribute.line))
                 .collect(),
+            // A structural form reads only the candidates of a declaration whose
+            // position is its own: a decorator form never reads a wrapper's
+            // callee calls, nor the reverse (FR-062).
+            Some(
+                structural @ (crate::traceability::TraceMarkerSyntax::PythonDecorator
+                | crate::traceability::TraceMarkerSyntax::TypescriptDecorator
+                | crate::traceability::TraceMarkerSyntax::TypescriptWrapper),
+            ) => {
+                if symbol.position == Some(structural) {
+                    symbol
+                        .attributes
+                        .iter()
+                        .map(|attribute| (attribute.text.as_str(), attribute.line))
+                        .collect()
+                } else {
+                    Vec::new()
+                }
+            }
             None | Some(crate::traceability::TraceMarkerSyntax::Comment) => {
                 vec![(span.as_str(), symbol.leading_line)]
             }
@@ -1383,17 +1428,62 @@ fn bind_implements(
                 }
             }
             if partial {
-                graph.partial_attribute_matches.push(PartialAttributeMatch {
+                let finding = PartialAttributeMatch {
                     form: marker.name.clone(),
                     path: symbol.path.clone(),
                     symbol: symbol.qualified_name.clone(),
                     line,
                     attribute: candidate.to_string(),
-                });
+                };
+                if marker.syntax == Some(crate::traceability::TraceMarkerSyntax::RustAttribute) {
+                    graph.partial_attribute_matches.push(finding);
+                } else {
+                    graph.partial_syntax_matches.push(finding);
+                }
             }
         }
     }
     ranges
+}
+
+/// Report each curried call a declared `typescript_wrapper` form names in full
+/// but that no wrapper chain attaches to a declarator (FR-062). It binds nothing;
+/// a call written as a decorator is never among these candidates.
+fn bind_unattached_wrappers(
+    extraction: &SymbolExtraction,
+    model: &TraceabilityModel,
+    patterns: &CompiledTracePatterns,
+    graph: &mut SymbolGraph,
+) {
+    for file in &extraction.files {
+        if file.unattached_calls.is_empty() {
+            continue;
+        }
+        for marker in &model.trace_tags.implements {
+            if marker.language != file.language
+                || marker.syntax != Some(crate::traceability::TraceMarkerSyntax::TypescriptWrapper)
+            {
+                continue;
+            }
+            let Some(re) = patterns.implements(&marker.pattern) else {
+                continue;
+            };
+            for call in &file.unattached_calls {
+                let whole = re.captures_iter(&call.text).any(|caps| {
+                    caps.get(0)
+                        .is_some_and(|m| m.start() == 0 && m.end() == call.text.len())
+                });
+                if whole {
+                    graph.unattached_syntax.push(UnattachedSyntax {
+                        form: marker.name.clone(),
+                        path: file.path.clone(),
+                        line: call.line,
+                        candidate: call.text.clone(),
+                    });
+                }
+            }
+        }
+    }
 }
 
 /// Blank the *contents* of Rust string literals, preserving byte length and
