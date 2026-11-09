@@ -110,7 +110,7 @@ pub(crate) fn resolve_target<'a>(
                 Err(Unresolved::UnimportedPackage)
             };
         }
-        (parsed.path(), cell.to_string())
+        (parsed.path(), format!("ix://{package}/{}", parsed.path()))
     } else if alphabet(cell) {
         (cell, format!("ix://{package}/{cell}"))
     } else {
