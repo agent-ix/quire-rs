@@ -416,7 +416,13 @@ fn semantic_findings(
         ctx = ctx.with_construct_references(references);
     }
     if let Some(schema) = arch.data_schema.as_deref() {
-        ctx = ctx.with_data_schema(schema);
+        let no_documents = std::collections::BTreeMap::new();
+        ctx = ctx.with_data_schema(schema).with_record_schema(
+            schema,
+            arch.data_schema_documents
+                .as_deref()
+                .unwrap_or(&no_documents),
+        );
     }
     let ctx = match arch.body_extraction() {
         Some(dsl) => ctx.with_body_extraction(dsl),
@@ -1167,6 +1173,7 @@ mod tests {
             frontmatter_validator,
             data_schema: None,
             data_validator: None,
+            data_schema_documents: None,
             body_extraction,
             carry_over: ArchetypeCarryOver::default(),
         }

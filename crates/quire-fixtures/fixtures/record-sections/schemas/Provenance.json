@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/quire-fixtures/0.1.0/Provenance.json",
+  "type": "object",
+  "properties": {
+    "assertedBy": {
+      "type": "string"
+    },
+    "assertedAt": {
+      "type": "string"
+    },
+    "revision": {
+      "type": "integer"
+    },
+    "signature": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/quire-fixtures/0.1.0/Signature.json"
+    }
+  },
+  "unevaluatedProperties": {
+    "not": {}
+  }
+}

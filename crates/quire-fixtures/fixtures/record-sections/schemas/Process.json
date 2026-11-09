@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/quire-fixtures/0.1.0/Process.json",
+  "type": "object",
+  "properties": {
+    "steps": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/agent-ix/quire-fixtures/0.1.0/ProcessStep.json"
+      }
+    }
+  },
+  "unevaluatedProperties": {
+    "not": {}
+  }
+}

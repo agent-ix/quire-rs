@@ -9,6 +9,25 @@ bumps; once 1.0 ships, semver is strict.
 
 ### Added
 
+- Record-sections extraction (PLAT-1370, FR-081, quoin FR-121/FR-122/FR-123):
+  when `semantic.mappings` names `record-sections`, a `##` section whose heading
+  matches a record key of the object type's `data_schema` (ignoring case, space,
+  hyphen and underscore) extracts to the new `record`, with a span per key in
+  `recordSources` and a state per key in `availability.recordKeys`. A table, a
+  bullet list or one inline value is read by the key's schema type; the single
+  `## Provider`/`## Exposes` id, the architecture forms (`routes`,
+  `associated_types`, the `## Layout` fence to `records` and `endianness` with
+  `size-unknown-field` and `size-ambiguous`, `thresholds` with
+  `status-required`) and the copy of `values`, `states`, `transitions` and
+  `steps` to their record keys follow quoin FR-122 and FR-123. **Additive for
+  `semantic-v1`:** the three keys are new and absent unless the token is named,
+  so every existing record is unchanged (FR-076-AC-9). **Breaking for Rust
+  struct-literal construction:** `Availability`, `SemanticExtraction`,
+  `DeclarationRecord` and `CompiledArchetype` gain fields.
+  `SemanticContext::with_record_schema` supplies the schema; the Python entry
+  takes `schemaDocuments`. Golden cases: `quire-fixtures`
+  `fixtures/record-sections`. `record_key_owners` backs the FR-122-AC-7
+  ownership audit.
 - Type cells `Clock` (the `SemanticId` `ix://quire/native/Clock`) and
   `Quantity<u>` (the identity of the unit artifact `u`), unit and dimension
   tokens bare or `<org>/<repo>::name`, and the optional `importedArtifacts` of

@@ -1023,6 +1023,7 @@ fn compile_object_types(value: Value) -> PyResult<BTreeMap<String, Arc<CompiledA
                 frontmatter_validator: None,
                 data_schema: Some(Arc::clone(&raw)),
                 data_validator: Some(Arc::clone(&v)),
+                data_schema_documents: None,
                 body_extraction,
                 carry_over: Default::default(),
             }),

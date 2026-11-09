@@ -1,0 +1,2982 @@
+{
+  "$comment": "FR-081 golden cases. `at` names the line a diagnostic or an entry-errors reason sits at: the first line containing the text; `@2` selects the second. `recordValid` says whether the declaration record validates against the case schema. Quoin holds no copy of this file (quoin FR-121-CON-2, FR-122-CON-2, FR-123-CON-1).",
+  "cases": [
+    {
+      "id": "assessment-row",
+      "ac": "FR-081-AC-1",
+      "schema": "Hazard",
+      "artifact": "---\nid: hazard-001\ntitle: \"Fixture hazard-001\"\nobject: hazard\n---\n# [hazard-001] Fixture\n\n## Assessment\n\n| Severity | Likelihood | Exposure | Controllability | Rationale |\n|---|---|---|---|---|\n| S3 | `not_assessed` | | C2 | Crush injury |\n",
+      "record": {
+        "assessment": {
+          "severity": "S3",
+          "likelihood": "not_assessed",
+          "controllability": "C2",
+          "rationale": "Crush injury"
+        }
+      },
+      "recordSources": [
+        "assessment"
+      ],
+      "recordValid": true,
+      "availability": {
+        "assessment": {
+          "state": "available",
+          "lossy": false
+        },
+        "status": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "provenance": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "evidence": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "tags": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "requires": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "retryPolicy": {
+          "state": "not_applicable",
+          "lossy": false
+        }
+      },
+      "diagnostics": []
+    },
+    {
+      "id": "assessment-absent",
+      "ac": "FR-081-AC-1",
+      "schema": "Hazard",
+      "artifact": "---\nid: hazard-001\ntitle: \"Fixture hazard-001\"\nobject: hazard\n---\n# [hazard-001] Fixture\n\n## Notes\n\nNothing structured.\n",
+      "record": null,
+      "recordSources": [],
+      "recordValid": true,
+      "availability": {
+        "assessment": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "status": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "provenance": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "evidence": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "tags": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "requires": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "retryPolicy": {
+          "state": "not_applicable",
+          "lossy": false
+        }
+      },
+      "diagnostics": []
+    },
+    {
+      "id": "lifecycle-keys",
+      "ac": "FR-081-AC-2",
+      "schema": "Hazard",
+      "artifact": "---\nid: hazard-001\ntitle: \"Fixture hazard-001\"\nobject: hazard\n---\n# [hazard-001] Fixture\n\n## Assessment\n\n| Severity | Likelihood | Exposure | Controllability | Rationale |\n|---|---|---|---|---|\n| S3 | `not_assessed` | | C2 | Crush injury |\n\n## Status\n\n`accepted`\n\n## Provenance\n\n| Asserted By | Asserted At | Revision |\n|---|---|---|\n| alice | 2026-11-08 | 3 |\n",
+      "record": {
+        "assessment": {
+          "severity": "S3",
+          "likelihood": "not_assessed",
+          "controllability": "C2",
+          "rationale": "Crush injury"
+        },
+        "status": "accepted",
+        "provenance": {
+          "assertedBy": "alice",
+          "assertedAt": "2026-11-08",
+          "revision": 3
+        }
+      },
+      "recordSources": [
+        "assessment",
+        "status",
+        "provenance"
+      ],
+      "recordValid": true,
+      "availability": {
+        "assessment": {
+          "state": "available",
+          "lossy": false
+        },
+        "status": {
+          "state": "available",
+          "lossy": false
+        },
+        "provenance": {
+          "state": "available",
+          "lossy": false
+        },
+        "evidence": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "tags": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "requires": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "retryPolicy": {
+          "state": "not_applicable",
+          "lossy": false
+        }
+      },
+      "diagnostics": []
+    },
+    {
+      "id": "accepted-without-provenance",
+      "ac": "FR-081-AC-2",
+      "schema": "Hazard",
+      "artifact": "---\nid: hazard-001\ntitle: \"Fixture hazard-001\"\nobject: hazard\n---\n# [hazard-001] Fixture\n\n## Assessment\n\n| Severity | Likelihood | Exposure | Controllability | Rationale |\n|---|---|---|---|---|\n| S3 | `not_assessed` | | C2 | Crush injury |\n\n## Status\n\n`accepted`\n",
+      "record": {
+        "assessment": {
+          "severity": "S3",
+          "likelihood": "not_assessed",
+          "controllability": "C2",
+          "rationale": "Crush injury"
+        },
+        "status": "accepted"
+      },
+      "recordSources": [
+        "assessment",
+        "status"
+      ],
+      "recordValid": false,
+      "availability": {
+        "assessment": {
+          "state": "available",
+          "lossy": false
+        },
+        "status": {
+          "state": "available",
+          "lossy": false
+        },
+        "provenance": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "evidence": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "tags": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "requires": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "retryPolicy": {
+          "state": "not_applicable",
+          "lossy": false
+        }
+      },
+      "diagnostics": []
+    },
+    {
+      "id": "frontmatter-status-ignored",
+      "ac": "FR-081-AC-2",
+      "schema": "Hazard",
+      "artifact": "---\nid: hazard-001\ntitle: \"Fixture hazard-001\"\nobject: hazard\nstatus: accepted\n---\n# [hazard-001] Fixture\n\n## Notes\n\nprose\n",
+      "record": null,
+      "recordSources": [],
+      "recordValid": true,
+      "availability": {
+        "assessment": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "status": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "provenance": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "evidence": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "tags": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "requires": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "retryPolicy": {
+          "state": "not_applicable",
+          "lossy": false
+        }
+      },
+      "diagnostics": []
+    },
+    {
+      "id": "evidence-rows",
+      "ac": "FR-081-AC-3",
+      "schema": "Hazard",
+      "artifact": "---\nid: hazard-001\ntitle: \"Fixture hazard-001\"\nobject: hazard\n---\n# [hazard-001] Fixture\n\n## Evidence\n\n| Target | Kind |\n|---|---|\n| control-001 | design |\n| ix://acme/safety/test-001 | test |\n",
+      "bundle": {
+        "package": "acme/safety",
+        "artifacts": [
+          {
+            "id": "hazard-001",
+            "object": "hazard",
+            "operations": []
+          },
+          {
+            "id": "control-001",
+            "object": "control",
+            "operations": []
+          },
+          {
+            "id": "test-001",
+            "object": "test",
+            "operations": []
+          }
+        ]
+      },
+      "record": {
+        "evidence": [
+          {
+            "target": "ix://acme/safety/control-001",
+            "kind": "design"
+          },
+          {
+            "target": "ix://acme/safety/test-001",
+            "kind": "test"
+          }
+        ]
+      },
+      "recordSources": [
+        "evidence"
+      ],
+      "recordValid": true,
+      "availability": {
+        "assessment": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "status": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "provenance": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "evidence": {
+          "state": "available",
+          "lossy": false
+        },
+        "tags": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "requires": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "retryPolicy": {
+          "state": "not_applicable",
+          "lossy": false
+        }
+      },
+      "diagnostics": []
+    },
+    {
+      "id": "evidence-header-only",
+      "ac": "FR-081-AC-3",
+      "schema": "Hazard",
+      "artifact": "---\nid: hazard-001\ntitle: \"Fixture hazard-001\"\nobject: hazard\n---\n# [hazard-001] Fixture\n\n## Evidence\n\n| Target | Kind |\n|---|---|\n",
+      "bundle": {
+        "package": "acme/safety",
+        "artifacts": [
+          {
+            "id": "hazard-001",
+            "object": "hazard",
+            "operations": []
+          },
+          {
+            "id": "control-001",
+            "object": "control",
+            "operations": []
+          },
+          {
+            "id": "test-001",
+            "object": "test",
+            "operations": []
+          }
+        ]
+      },
+      "record": {
+        "evidence": []
+      },
+      "recordSources": [
+        "evidence"
+      ],
+      "recordValid": true,
+      "availability": {
+        "assessment": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "status": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "provenance": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "evidence": {
+          "state": "available",
+          "lossy": false
+        },
+        "tags": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "requires": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "retryPolicy": {
+          "state": "not_applicable",
+          "lossy": false
+        }
+      },
+      "diagnostics": []
+    },
+    {
+      "id": "evidence-no-bundle-index",
+      "ac": "FR-081-AC-3",
+      "schema": "Hazard",
+      "artifact": "---\nid: hazard-001\ntitle: \"Fixture hazard-001\"\nobject: hazard\n---\n# [hazard-001] Fixture\n\n## Evidence\n\n| Target | Kind |\n|---|---|\n| control-001 | design |\n| ix://acme/safety/test-001 | test |\n",
+      "bundle": {
+        "package": "acme/safety",
+        "artifacts": []
+      },
+      "record": {
+        "evidence": [
+          {
+            "target": "ix://acme/safety/control-001",
+            "kind": "design"
+          },
+          {
+            "target": "ix://acme/safety/test-001",
+            "kind": "test"
+          }
+        ]
+      },
+      "recordSources": [
+        "evidence"
+      ],
+      "recordValid": true,
+      "availability": {
+        "assessment": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "status": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "provenance": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "evidence": {
+          "state": "available",
+          "lossy": false
+        },
+        "tags": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "requires": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "retryPolicy": {
+          "state": "not_applicable",
+          "lossy": false
+        }
+      },
+      "diagnostics": [
+        {
+          "code": "semantic.unresolved-target",
+          "severity": "advisory",
+          "reason": "no-bundle-index",
+          "at": "| control-001 |"
+        },
+        {
+          "code": "semantic.unresolved-target",
+          "severity": "advisory",
+          "reason": "no-bundle-index",
+          "at": "| ix://acme/safety/test-001 |"
+        }
+      ]
+    },
+    {
+      "id": "evidence-target-not-id",
+      "ac": "FR-081-AC-3",
+      "schema": "Hazard",
+      "artifact": "---\nid: hazard-001\ntitle: \"Fixture hazard-001\"\nobject: hazard\n---\n# [hazard-001] Fixture\n\n## Evidence\n\n| Target | Kind |\n|---|---|\n| control-001 | design |\n| No Such Thing | test |\n",
+      "bundle": {
+        "package": "acme/safety",
+        "artifacts": [
+          {
+            "id": "hazard-001",
+            "object": "hazard",
+            "operations": []
+          },
+          {
+            "id": "control-001",
+            "object": "control",
+            "operations": []
+          },
+          {
+            "id": "test-001",
+            "object": "test",
+            "operations": []
+          }
+        ]
+      },
+      "record": null,
+      "recordSources": [],
+      "recordValid": true,
+      "availability": {
+        "assessment": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "status": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "provenance": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "evidence": {
+          "state": "unavailable",
+          "reasonAt": [
+            "| No Such Thing |"
+          ],
+          "lossy": false
+        },
+        "tags": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "requires": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "retryPolicy": {
+          "state": "not_applicable",
+          "lossy": false
+        }
+      },
+      "diagnostics": [
+        {
+          "code": "semantic.invalid-model-cell",
+          "severity": "error",
+          "reason": "target-not-id",
+          "at": "| No Such Thing |"
+        }
+      ]
+    },
+    {
+      "id": "evidence-no-bundle-package",
+      "ac": "FR-081-AC-3",
+      "schema": "Hazard",
+      "artifact": "---\nid: hazard-001\ntitle: \"Fixture hazard-001\"\nobject: hazard\n---\n# [hazard-001] Fixture\n\n## Evidence\n\n| Target | Kind |\n|---|---|\n| control-001 | design |\n| ix://acme/safety/test-001 | test |\n",
+      "bundle": {
+        "package": "",
+        "artifacts": []
+      },
+      "withoutSourceIdentity": true,
+      "record": null,
+      "recordSources": [],
+      "recordValid": true,
+      "availability": {
+        "assessment": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "status": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "provenance": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "evidence": {
+          "state": "unavailable",
+          "reason": "no-bundle-package",
+          "lossy": false
+        },
+        "tags": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "requires": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "retryPolicy": {
+          "state": "not_applicable",
+          "lossy": false
+        }
+      },
+      "diagnostics": [
+        {
+          "code": "semantic.unresolved-target",
+          "severity": "advisory",
+          "reason": "no-bundle-package",
+          "at": "| control-001 |"
+        }
+      ]
+    },
+    {
+      "id": "column-unknown",
+      "ac": "FR-081-AC-4",
+      "schema": "Hazard",
+      "artifact": "---\nid: hazard-001\ntitle: \"Fixture hazard-001\"\nobject: hazard\n---\n# [hazard-001] Fixture\n\n## Assessment\n\n| Severity | Weight |\n|---|---|\n| S1 | 2 |\n",
+      "record": null,
+      "recordSources": [],
+      "recordValid": true,
+      "availability": {
+        "assessment": {
+          "state": "unavailable",
+          "reasonAt": [
+            "| Severity | Weight |"
+          ],
+          "lossy": false
+        },
+        "status": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "provenance": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "evidence": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "tags": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "requires": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "retryPolicy": {
+          "state": "not_applicable",
+          "lossy": false
+        }
+      },
+      "diagnostics": [
+        {
+          "code": "semantic.invalid-model-cell",
+          "severity": "error",
+          "reason": "column-unknown",
+          "at": "| Severity | Weight |"
+        }
+      ]
+    },
+    {
+      "id": "column-duplicate",
+      "ac": "FR-081-AC-4",
+      "schema": "Hazard",
+      "artifact": "---\nid: hazard-001\ntitle: \"Fixture hazard-001\"\nobject: hazard\n---\n# [hazard-001] Fixture\n\n## Assessment\n\n| Severity | severity |\n|---|---|\n| S1 | S2 |\n",
+      "record": null,
+      "recordSources": [],
+      "recordValid": true,
+      "availability": {
+        "assessment": {
+          "state": "unavailable",
+          "reasonAt": [
+            "| Severity | severity |"
+          ],
+          "lossy": false
+        },
+        "status": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "provenance": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "evidence": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "tags": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "requires": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "retryPolicy": {
+          "state": "not_applicable",
+          "lossy": false
+        }
+      },
+      "diagnostics": [
+        {
+          "code": "semantic.invalid-model-cell",
+          "severity": "error",
+          "reason": "column-duplicate",
+          "at": "| Severity | severity |"
+        }
+      ]
+    },
+    {
+      "id": "second-row",
+      "ac": "FR-081-AC-4",
+      "schema": "Hazard",
+      "artifact": "---\nid: hazard-001\ntitle: \"Fixture hazard-001\"\nobject: hazard\n---\n# [hazard-001] Fixture\n\n## Assessment\n\n| Severity | Likelihood | Exposure | Controllability | Rationale |\n|---|---|---|---|---|\n| S1 | L1 | E1 | C1 | one |\n| S2 | L2 | E2 | C2 | two |\n",
+      "record": null,
+      "recordSources": [],
+      "recordValid": true,
+      "availability": {
+        "assessment": {
+          "state": "unavailable",
+          "reasonAt": [
+            "| S2 |"
+          ],
+          "lossy": false
+        },
+        "status": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "provenance": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "evidence": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "tags": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "requires": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "retryPolicy": {
+          "state": "not_applicable",
+          "lossy": false
+        }
+      },
+      "diagnostics": [
+        {
+          "code": "semantic.invalid-model-cell",
+          "severity": "error",
+          "reason": "second-row",
+          "at": "| S2 |"
+        }
+      ]
+    },
+    {
+      "id": "no-row",
+      "ac": "FR-081-AC-4",
+      "schema": "Hazard",
+      "artifact": "---\nid: hazard-001\ntitle: \"Fixture hazard-001\"\nobject: hazard\n---\n# [hazard-001] Fixture\n\n## Assessment\n\n| Severity | Likelihood | Exposure | Controllability | Rationale |\n|---|---|---|---|---|\n",
+      "record": null,
+      "recordSources": [],
+      "recordValid": true,
+      "availability": {
+        "assessment": {
+          "state": "unavailable",
+          "reasonAt": [
+            "| Severity |"
+          ],
+          "lossy": false
+        },
+        "status": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "provenance": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "evidence": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "tags": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "requires": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "retryPolicy": {
+          "state": "not_applicable",
+          "lossy": false
+        }
+      },
+      "diagnostics": [
+        {
+          "code": "semantic.invalid-model-cell",
+          "severity": "error",
+          "reason": "no-row",
+          "at": "| Severity |"
+        }
+      ]
+    },
+    {
+      "id": "nested-object-cell",
+      "ac": "FR-081-AC-4",
+      "schema": "Hazard",
+      "artifact": "---\nid: hazard-001\ntitle: \"Fixture hazard-001\"\nobject: hazard\n---\n# [hazard-001] Fixture\n\n## Provenance\n\n| Asserted By | Signature |\n|---|---|\n| alice | rsa |\n",
+      "record": null,
+      "recordSources": [],
+      "recordValid": true,
+      "availability": {
+        "assessment": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "status": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "provenance": {
+          "state": "unavailable",
+          "reasonAt": [
+            "| alice |"
+          ],
+          "lossy": false
+        },
+        "evidence": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "tags": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "requires": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "retryPolicy": {
+          "state": "not_applicable",
+          "lossy": false
+        }
+      },
+      "diagnostics": [
+        {
+          "code": "semantic.invalid-model-cell",
+          "severity": "error",
+          "reason": "nested-object-cell",
+          "at": "| alice |"
+        }
+      ]
+    },
+    {
+      "id": "cell-type",
+      "ac": "FR-081-AC-4",
+      "schema": "Hazard",
+      "artifact": "---\nid: hazard-001\ntitle: \"Fixture hazard-001\"\nobject: hazard\n---\n# [hazard-001] Fixture\n\n## Provenance\n\n| Asserted By | Revision |\n|---|---|\n| alice | three |\n",
+      "record": null,
+      "recordSources": [],
+      "recordValid": true,
+      "availability": {
+        "assessment": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "status": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "provenance": {
+          "state": "unavailable",
+          "reasonAt": [
+            "| alice |"
+          ],
+          "lossy": false
+        },
+        "evidence": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "tags": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "requires": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "retryPolicy": {
+          "state": "not_applicable",
+          "lossy": false
+        }
+      },
+      "diagnostics": [
+        {
+          "code": "semantic.invalid-model-cell",
+          "severity": "error",
+          "reason": "cell-type",
+          "at": "| alice |"
+        }
+      ]
+    },
+    {
+      "id": "second-section",
+      "ac": "FR-081-AC-4",
+      "schema": "Hazard",
+      "artifact": "---\nid: hazard-001\ntitle: \"Fixture hazard-001\"\nobject: hazard\n---\n# [hazard-001] Fixture\n\n## Assessment\n\n| Severity | Likelihood | Exposure | Controllability | Rationale |\n|---|---|---|---|---|\n| S3 | `not_assessed` | | C2 | Crush injury |\n\n## Assessment\n\n| Severity | Likelihood | Exposure | Controllability | Rationale |\n|---|---|---|---|---|\n| S1 | L1 | E1 | C1 | again |\n",
+      "record": null,
+      "recordSources": [],
+      "recordValid": true,
+      "availability": {
+        "assessment": {
+          "state": "unavailable",
+          "reasonAt": [
+            "## Assessment@2"
+          ],
+          "lossy": false
+        },
+        "status": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "provenance": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "evidence": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "tags": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "requires": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "retryPolicy": {
+          "state": "not_applicable",
+          "lossy": false
+        }
+      },
+      "diagnostics": [
+        {
+          "code": "semantic.duplicate-section",
+          "severity": "error",
+          "reason": "second-section",
+          "at": "## Assessment@2"
+        }
+      ]
+    },
+    {
+      "id": "first-failing-cell-only",
+      "ac": "FR-081-AC-4",
+      "schema": "Hazard",
+      "artifact": "---\nid: hazard-001\ntitle: \"Fixture hazard-001\"\nobject: hazard\n---\n# [hazard-001] Fixture\n\n## Provenance\n\n| Asserted By | Revision | Signature |\n|---|---|---|\n| alice | three | rsa |\n",
+      "record": null,
+      "recordSources": [],
+      "recordValid": true,
+      "availability": {
+        "assessment": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "status": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "provenance": {
+          "state": "unavailable",
+          "reasonAt": [
+            "| alice |"
+          ],
+          "lossy": false
+        },
+        "evidence": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "tags": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "requires": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "retryPolicy": {
+          "state": "not_applicable",
+          "lossy": false
+        }
+      },
+      "diagnostics": [
+        {
+          "code": "semantic.invalid-model-cell",
+          "severity": "error",
+          "reason": "cell-type",
+          "at": "| alice |"
+        },
+        {
+          "code": "semantic.invalid-model-cell",
+          "severity": "error",
+          "reason": "nested-object-cell",
+          "at": "| alice |"
+        }
+      ]
+    },
+    {
+      "id": "list-under-table-key",
+      "ac": "FR-081-AC-5",
+      "schema": "Hazard",
+      "artifact": "---\nid: hazard-001\ntitle: \"Fixture hazard-001\"\nobject: hazard\n---\n# [hazard-001] Fixture\n\n## Assessment\n\n- S3\n- L2\n",
+      "record": null,
+      "recordSources": [],
+      "recordValid": true,
+      "availability": {
+        "assessment": {
+          "state": "unavailable",
+          "reasonAt": [
+            "- S3"
+          ],
+          "lossy": false
+        },
+        "status": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "provenance": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "evidence": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "tags": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "requires": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "retryPolicy": {
+          "state": "not_applicable",
+          "lossy": false
+        }
+      },
+      "diagnostics": [
+        {
+          "code": "semantic.feature-not-extractable",
+          "severity": "error",
+          "reason": "assessment",
+          "at": "- S3"
+        }
+      ]
+    },
+    {
+      "id": "list-after-table",
+      "ac": "FR-081-AC-5",
+      "schema": "Hazard",
+      "artifact": "---\nid: hazard-001\ntitle: \"Fixture hazard-001\"\nobject: hazard\n---\n# [hazard-001] Fixture\n\n## Assessment\n\n| Severity | Likelihood | Exposure | Controllability | Rationale |\n|---|---|---|---|---|\n| S3 | `not_assessed` | | C2 | Crush injury |\n\n- extra\n",
+      "record": null,
+      "recordSources": [],
+      "recordValid": true,
+      "availability": {
+        "assessment": {
+          "state": "unavailable",
+          "reasonAt": [
+            "- extra"
+          ],
+          "lossy": false
+        },
+        "status": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "provenance": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "evidence": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "tags": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "requires": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "retryPolicy": {
+          "state": "not_applicable",
+          "lossy": false
+        }
+      },
+      "diagnostics": [
+        {
+          "code": "semantic.feature-not-extractable",
+          "severity": "error",
+          "reason": "assessment",
+          "at": "- extra"
+        }
+      ]
+    },
+    {
+      "id": "prose-only-section",
+      "ac": "FR-081-AC-5",
+      "schema": "Hazard",
+      "artifact": "---\nid: hazard-001\ntitle: \"Fixture hazard-001\"\nobject: hazard\n---\n# [hazard-001] Fixture\n\n## Assessment\n\nStill to be assessed.\n",
+      "record": null,
+      "recordSources": [],
+      "recordValid": true,
+      "availability": {
+        "assessment": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "status": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "provenance": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "evidence": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "tags": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "requires": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "retryPolicy": {
+          "state": "not_applicable",
+          "lossy": false
+        }
+      },
+      "diagnostics": [
+        {
+          "code": "semantic.record-key-no-block",
+          "severity": "warning",
+          "reason": "no-block",
+          "at": "## Assessment"
+        }
+      ]
+    },
+    {
+      "id": "scalar-not-inline-code",
+      "ac": "FR-081-AC-5",
+      "schema": "Hazard",
+      "artifact": "---\nid: hazard-001\ntitle: \"Fixture hazard-001\"\nobject: hazard\n---\n# [hazard-001] Fixture\n\n## Status\n\naccepted\n",
+      "record": null,
+      "recordSources": [],
+      "recordValid": true,
+      "availability": {
+        "assessment": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "status": {
+          "state": "unavailable",
+          "reasonAt": [
+            "accepted"
+          ],
+          "lossy": false
+        },
+        "provenance": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "evidence": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "tags": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "requires": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "retryPolicy": {
+          "state": "not_applicable",
+          "lossy": false
+        }
+      },
+      "diagnostics": [
+        {
+          "code": "semantic.feature-not-extractable",
+          "severity": "error",
+          "reason": "status",
+          "at": "accepted"
+        }
+      ]
+    },
+    {
+      "id": "scalar-two-values",
+      "ac": "FR-081-AC-5",
+      "schema": "Hazard",
+      "artifact": "---\nid: hazard-001\ntitle: \"Fixture hazard-001\"\nobject: hazard\n---\n# [hazard-001] Fixture\n\n## Status\n\n`draft`\n`accepted`\n",
+      "record": null,
+      "recordSources": [],
+      "recordValid": true,
+      "availability": {
+        "assessment": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "status": {
+          "state": "unavailable",
+          "reasonAt": [
+            "`accepted`"
+          ],
+          "lossy": false
+        },
+        "provenance": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "evidence": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "tags": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "requires": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "retryPolicy": {
+          "state": "not_applicable",
+          "lossy": false
+        }
+      },
+      "diagnostics": [
+        {
+          "code": "semantic.feature-not-extractable",
+          "severity": "error",
+          "reason": "status",
+          "at": "`accepted`"
+        }
+      ]
+    },
+    {
+      "id": "scalar-array-list",
+      "ac": "FR-081-AC-5",
+      "schema": "Hazard",
+      "artifact": "---\nid: hazard-001\ntitle: \"Fixture hazard-001\"\nobject: hazard\n---\n# [hazard-001] Fixture\n\n## Tags\n\n- electrical\n- `thermal`\n",
+      "record": {
+        "tags": [
+          "electrical",
+          "thermal"
+        ]
+      },
+      "recordSources": [
+        "tags"
+      ],
+      "recordValid": true,
+      "availability": {
+        "assessment": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "status": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "provenance": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "evidence": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "tags": {
+          "state": "available",
+          "lossy": false
+        },
+        "requires": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "retryPolicy": {
+          "state": "not_applicable",
+          "lossy": false
+        }
+      },
+      "diagnostics": []
+    },
+    {
+      "id": "no-token",
+      "ac": "FR-081-AC-6",
+      "schema": "Hazard",
+      "artifact": "---\nid: hazard-001\ntitle: \"Fixture hazard-001\"\nobject: hazard\n---\n# [hazard-001] Fixture\n\n## Assessment\n\n| Severity | Likelihood | Exposure | Controllability | Rationale |\n|---|---|---|---|---|\n| S3 | `not_assessed` | | C2 | Crush injury |\n",
+      "mappings": [
+        "typed-table"
+      ],
+      "record": null,
+      "recordSources": [],
+      "recordValid": true,
+      "availability": null,
+      "diagnostics": []
+    },
+    {
+      "id": "prose-headings",
+      "ac": "FR-081-AC-6",
+      "schema": "Hazard",
+      "artifact": "---\nid: hazard-001\ntitle: \"Fixture hazard-001\"\nobject: hazard\n---\n# [hazard-001] Fixture\n\n## Notes\n\n| A | B |\n|---|---|\n| 1 | 2 |\n\n## Requires\n\n- control-001\n",
+      "relationVocabulary": {
+        "objectType": "hazard",
+        "edgeTypes": {
+          "requires": {
+            "category": "dependency"
+          }
+        },
+        "roles": {
+          "hazard": []
+        },
+        "allowedLinks": {
+          "hazard": {
+            "requires": [
+              "*"
+            ]
+          }
+        }
+      },
+      "bundle": {
+        "package": "acme/safety",
+        "artifacts": [
+          {
+            "id": "hazard-001",
+            "object": "hazard",
+            "operations": []
+          },
+          {
+            "id": "control-001",
+            "object": "control",
+            "operations": []
+          },
+          {
+            "id": "test-001",
+            "object": "test",
+            "operations": []
+          }
+        ]
+      },
+      "record": null,
+      "recordSources": [],
+      "recordValid": true,
+      "availability": {
+        "assessment": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "status": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "provenance": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "evidence": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "tags": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "retryPolicy": {
+          "state": "not_applicable",
+          "lossy": false
+        }
+      },
+      "diagnostics": []
+    },
+    {
+      "id": "values-table",
+      "ac": "FR-081-AC-15",
+      "schema": "Enumeration",
+      "artifact": "---\nid: enum-001\ntitle: \"Fixture enum-001\"\nobject: enumeration\n---\n# [enum-001] Fixture\n\n## Values\n\n| Value | Description |\n|---|---|\n| draft | Not yet reviewed |\n| final | |\n",
+      "bodyExtraction": {
+        "yield_pattern": {
+          "match": {
+            "values": {
+              "from": "table_row",
+              "under_section": "Values",
+              "assert": {
+                "columns": [
+                  "Value",
+                  "Description"
+                ],
+                "optional_columns": [
+                  "Description"
+                ]
+              }
+            }
+          }
+        }
+      },
+      "record": {
+        "values": [
+          {
+            "value": "draft",
+            "doc": "Not yet reviewed"
+          },
+          {
+            "value": "final"
+          }
+        ]
+      },
+      "recordSources": [
+        "values"
+      ],
+      "recordValid": true,
+      "availability": {
+        "notes": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "values": {
+          "state": "available",
+          "lossy": false
+        }
+      },
+      "diagnostics": [],
+      "modelHasValues": true
+    },
+    {
+      "id": "values-header-only",
+      "ac": "FR-081-AC-15",
+      "schema": "Enumeration",
+      "artifact": "---\nid: enum-001\ntitle: \"Fixture enum-001\"\nobject: enumeration\n---\n# [enum-001] Fixture\n\n## Values\n\n| Value | Description |\n|---|---|\n",
+      "bodyExtraction": {
+        "yield_pattern": {
+          "match": {
+            "values": {
+              "from": "table_row",
+              "under_section": "Values",
+              "assert": {
+                "columns": [
+                  "Value",
+                  "Description"
+                ],
+                "optional_columns": [
+                  "Description"
+                ]
+              }
+            }
+          }
+        }
+      },
+      "record": {
+        "values": []
+      },
+      "recordSources": [
+        "values"
+      ],
+      "recordValid": true,
+      "availability": {
+        "notes": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "values": {
+          "state": "available",
+          "lossy": false
+        }
+      },
+      "diagnostics": []
+    },
+    {
+      "id": "values-list-refused",
+      "ac": "FR-081-AC-15",
+      "schema": "Enumeration",
+      "artifact": "---\nid: enum-001\ntitle: \"Fixture enum-001\"\nobject: enumeration\n---\n# [enum-001] Fixture\n\n## Values\n\n- draft: Not yet reviewed\n",
+      "bodyExtraction": {
+        "yield_pattern": {
+          "match": {
+            "values": {
+              "from": "table_row",
+              "under_section": "Values",
+              "assert": {
+                "columns": [
+                  "Value",
+                  "Description"
+                ],
+                "optional_columns": [
+                  "Description"
+                ]
+              }
+            }
+          }
+        }
+      },
+      "record": null,
+      "recordSources": [],
+      "recordValid": true,
+      "availability": {
+        "notes": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "values": {
+          "state": "unavailable",
+          "reasonAt": [
+            "- draft"
+          ],
+          "lossy": false
+        }
+      },
+      "diagnostics": [
+        {
+          "code": "semantic.feature-not-extractable",
+          "severity": "error",
+          "reason": "values",
+          "at": "- draft"
+        }
+      ]
+    },
+    {
+      "id": "states-and-transitions",
+      "ac": "FR-081-AC-15",
+      "schema": "StateMachine",
+      "artifact": "---\nid: machine-001\ntitle: \"Fixture machine-001\"\nobject: state_machine\n---\n# [machine-001] Fixture\n\n## States\n\n| State | Description |\n|---|---|\n| open | Accepting lines |\n| closed | |\n\n## Transitions\n\n| From | To | Trigger | Guard |\n|---|---|---|---|\n| open | closed | close | NotCancelled |\n\n## Operations\n\n### close\n\nReturns: String[1]\n\n## Invariants\n\n### NotCancelled\n\n```ocl\ncontext Order inv NotCancelled: not self.cancelled\n```\n",
+      "bodyExtraction": {
+        "yield_pattern": {
+          "match": {
+            "states": {
+              "from": "table_row",
+              "under_section": "States",
+              "assert": {
+                "columns": [
+                  "State",
+                  "Description"
+                ],
+                "optional_columns": [
+                  "Description"
+                ]
+              }
+            },
+            "transitions": {
+              "from": "table_row",
+              "under_section": "Transitions",
+              "assert": {
+                "columns": [
+                  "From",
+                  "To",
+                  "Trigger",
+                  "Guard",
+                  "Emits"
+                ],
+                "optional_columns": [
+                  "Guard",
+                  "Emits"
+                ]
+              }
+            }
+          }
+        }
+      },
+      "record": {
+        "states": [
+          {
+            "value": "open",
+            "doc": "Accepting lines"
+          },
+          {
+            "value": "closed"
+          }
+        ],
+        "transitions": [
+          {
+            "from": "open",
+            "to": "closed",
+            "trigger": "close",
+            "guard": {
+              "language": "quire",
+              "clauseId": "NotCancelled"
+            }
+          }
+        ]
+      },
+      "recordSources": [
+        "states",
+        "transitions"
+      ],
+      "recordValid": true,
+      "availability": {
+        "states": {
+          "state": "available",
+          "lossy": false
+        },
+        "transitions": {
+          "state": "available",
+          "lossy": false
+        }
+      },
+      "diagnostics": [
+        {
+          "code": "semantic.clause-language-unchecked",
+          "severity": "advisory",
+          "reason": "",
+          "at": "```ocl"
+        }
+      ]
+    },
+    {
+      "id": "steps-copied-states-stay-in-model",
+      "ac": "FR-081-AC-15",
+      "schema": "Process",
+      "artifact": "---\nid: process-001\ntitle: \"Fixture process-001\"\nobject: process\n---\n# [process-001] Fixture\n\n## States\n\n| State | Description |\n|---|---|\n| open | Accepting |\n\n## Workflow\n\n| Step | Kind | Consumes | Emits | Description |\n|---|---|---|---|---|\n| place | command | | | Place the order |\n",
+      "bodyExtraction": {
+        "yield_pattern": {
+          "match": {
+            "states": {
+              "from": "table_row",
+              "under_section": "States",
+              "assert": {
+                "columns": [
+                  "State",
+                  "Description"
+                ],
+                "optional_columns": [
+                  "Description"
+                ]
+              }
+            },
+            "steps": {
+              "from": "table_row",
+              "under_section": "Workflow",
+              "assert": {
+                "columns": [
+                  "Step",
+                  "Kind",
+                  "Consumes",
+                  "Emits",
+                  "Description"
+                ],
+                "optional_columns": [
+                  "Consumes",
+                  "Emits",
+                  "Description"
+                ]
+              }
+            }
+          }
+        }
+      },
+      "record": {
+        "steps": [
+          {
+            "name": "place",
+            "kind": "command",
+            "doc": "Place the order"
+          }
+        ]
+      },
+      "recordSources": [
+        "steps"
+      ],
+      "recordValid": true,
+      "availability": {
+        "steps": {
+          "state": "available",
+          "lossy": false
+        }
+      },
+      "diagnostics": [],
+      "modelHasValues": false
+    },
+    {
+      "id": "camel-case-heading",
+      "ac": "FR-081-AC-7",
+      "schema": "Hazard",
+      "artifact": "---\nid: hazard-001\ntitle: \"Fixture hazard-001\"\nobject: hazard\n---\n# [hazard-001] Fixture\n\n## Retry Policy\n\n| Attempts | Backoff |\n|---|---|\n| 3 | exponential |\n",
+      "record": {
+        "retryPolicy": {
+          "attempts": 3,
+          "backoff": "exponential"
+        }
+      },
+      "recordSources": [
+        "retryPolicy"
+      ],
+      "recordValid": true,
+      "availability": {
+        "assessment": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "status": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "provenance": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "evidence": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "tags": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "requires": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "retryPolicy": {
+          "state": "available",
+          "lossy": false
+        }
+      },
+      "diagnostics": []
+    },
+    {
+      "id": "key-ambiguous",
+      "ac": "FR-081-AC-7",
+      "schema": "Ambiguous",
+      "artifact": "---\nid: hazard-001\ntitle: \"Fixture hazard-001\"\nobject: hazard\n---\n# [hazard-001] Fixture\n\n## Retry Policy\n\n| Attempts |\n|---|\n| 3 |\n",
+      "record": null,
+      "recordSources": [],
+      "recordValid": true,
+      "availability": {},
+      "diagnostics": [
+        {
+          "code": "semantic.feature-not-extractable",
+          "severity": "error",
+          "reason": "key-ambiguous",
+          "at": "## Retry Policy"
+        }
+      ]
+    },
+    {
+      "id": "provider-exposes",
+      "ac": "FR-081-AC-8",
+      "schema": "ArchitectureKeys",
+      "artifact": "---\nid: arch-001\ntitle: \"Fixture arch-001\"\nobject: external_contract\n---\n# [arch-001] Fixture\n\n## Provider\n\n`ext-001`\n\n## Exposes\n\n`pt-001`\n",
+      "package": "agent-ix/spec-objects-architecture",
+      "record": {
+        "provider": "ix://acme/arch/ext-001",
+        "exposes": "ix://acme/arch/pt-001"
+      },
+      "recordSources": [
+        "provider",
+        "exposes"
+      ],
+      "recordValid": true,
+      "availability": {
+        "requires": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "provider": {
+          "state": "available",
+          "lossy": false
+        },
+        "exposes": {
+          "state": "available",
+          "lossy": false
+        },
+        "delivery": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "versioning": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "registration": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "stability": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "routes": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "associated_types": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "records": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "endianness": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "thresholds": {
+          "state": "not_applicable",
+          "lossy": false
+        }
+      },
+      "diagnostics": [],
+      "bundle": {
+        "package": "acme/arch",
+        "artifacts": [
+          {
+            "id": "ext-001",
+            "object": "external_contract",
+            "operations": []
+          },
+          {
+            "id": "pt-001",
+            "object": "extension_point",
+            "operations": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "policy-tables",
+      "ac": "FR-081-AC-8",
+      "schema": "ArchitectureKeys",
+      "artifact": "---\nid: arch-001\ntitle: \"Fixture arch-001\"\nobject: external_contract\n---\n# [arch-001] Fixture\n\n## Delivery\n\n| Semantics | Ordering | Retention |\n|---|---|---|\n| at_least_once | partition | |\n\n## Versioning\n\n| Scheme | Breaking Change Signal |\n|---|---|\n| semver | major bump |\n\n## Registration\n\n| Mechanism | Conflict | Discovery |\n|---|---|---|\n| entry_point | error | |\n\n## Stability\n\n| Compatibility | Deprecation Window |\n|---|---|\n| stable | |\n",
+      "package": "agent-ix/spec-objects-architecture",
+      "record": {
+        "delivery": {
+          "semantics": "at_least_once",
+          "ordering": "partition"
+        },
+        "versioning": {
+          "scheme": "semver",
+          "breaking_change_signal": "major bump"
+        },
+        "registration": {
+          "mechanism": "entry_point",
+          "conflict": "error"
+        },
+        "stability": {
+          "compatibility": "stable"
+        }
+      },
+      "recordSources": [
+        "delivery",
+        "versioning",
+        "registration",
+        "stability"
+      ],
+      "recordValid": true,
+      "availability": {
+        "requires": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "provider": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "exposes": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "delivery": {
+          "state": "available",
+          "lossy": false
+        },
+        "versioning": {
+          "state": "available",
+          "lossy": false
+        },
+        "registration": {
+          "state": "available",
+          "lossy": false
+        },
+        "stability": {
+          "state": "available",
+          "lossy": false
+        },
+        "routes": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "associated_types": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "records": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "endianness": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "thresholds": {
+          "state": "not_applicable",
+          "lossy": false
+        }
+      },
+      "diagnostics": [],
+      "bundle": {
+        "package": "acme/arch",
+        "artifacts": [
+          {
+            "id": "ext-001",
+            "object": "external_contract",
+            "operations": []
+          },
+          {
+            "id": "pt-001",
+            "object": "extension_point",
+            "operations": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "registration-bullet-list",
+      "ac": "FR-081-AC-8",
+      "schema": "ArchitectureKeys",
+      "artifact": "---\nid: arch-001\ntitle: \"Fixture arch-001\"\nobject: external_contract\n---\n# [arch-001] Fixture\n\n## Registration\n\n- Mechanism: entry_point\n- Conflict: error\n",
+      "package": "agent-ix/spec-objects-architecture",
+      "record": null,
+      "recordSources": [],
+      "recordValid": true,
+      "availability": {
+        "requires": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "provider": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "exposes": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "delivery": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "versioning": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "registration": {
+          "state": "unavailable",
+          "reasonAt": [
+            "- Mechanism"
+          ],
+          "lossy": false
+        },
+        "stability": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "routes": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "associated_types": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "records": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "endianness": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "thresholds": {
+          "state": "not_applicable",
+          "lossy": false
+        }
+      },
+      "diagnostics": [
+        {
+          "code": "semantic.feature-not-extractable",
+          "severity": "error",
+          "reason": "registration",
+          "at": "- Mechanism"
+        }
+      ],
+      "bundle": {
+        "package": "acme/arch",
+        "artifacts": [
+          {
+            "id": "ext-001",
+            "object": "external_contract",
+            "operations": []
+          },
+          {
+            "id": "pt-001",
+            "object": "extension_point",
+            "operations": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "routes",
+      "ac": "FR-081-AC-9",
+      "schema": "ArchitectureKeys",
+      "artifact": "---\nid: arch-001\ntitle: \"Fixture arch-001\"\nobject: api_endpoint\n---\n# [arch-001] Fixture\n\n## Operations\n\n### getThing\n\nReturns: String[1]\n\n## Routes\n\n| Method | Path | Operation |\n|---|---|---|\n| GET | /things/{id} | getThing |\n",
+      "package": "agent-ix/spec-objects-architecture",
+      "record": {
+        "routes": [
+          {
+            "method": "GET",
+            "path": "/things/{id}",
+            "operation": "getThing"
+          }
+        ]
+      },
+      "recordSources": [
+        "routes"
+      ],
+      "recordValid": true,
+      "availability": {
+        "requires": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "provider": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "exposes": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "delivery": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "versioning": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "registration": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "stability": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "routes": {
+          "state": "available",
+          "lossy": false
+        },
+        "associated_types": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "records": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "endianness": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "thresholds": {
+          "state": "not_applicable",
+          "lossy": false
+        }
+      },
+      "diagnostics": [],
+      "bundle": {
+        "package": "acme/arch",
+        "artifacts": [
+          {
+            "id": "ext-001",
+            "object": "external_contract",
+            "operations": []
+          },
+          {
+            "id": "pt-001",
+            "object": "extension_point",
+            "operations": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "route-operation-unknown",
+      "ac": "FR-081-AC-9",
+      "schema": "ArchitectureKeys",
+      "artifact": "---\nid: arch-001\ntitle: \"Fixture arch-001\"\nobject: api_endpoint\n---\n# [arch-001] Fixture\n\n## Operations\n\n### getThing\n\nReturns: String[1]\n\n## Routes\n\n| Method | Path | Operation |\n|---|---|---|\n| GET | /things/{id} | getThing |\n| POST | /things | createThing |\n",
+      "package": "agent-ix/spec-objects-architecture",
+      "record": null,
+      "recordSources": [],
+      "recordValid": true,
+      "availability": {
+        "requires": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "provider": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "exposes": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "delivery": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "versioning": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "registration": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "stability": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "routes": {
+          "state": "unavailable",
+          "reasonAt": [
+            "| POST |"
+          ],
+          "lossy": false
+        },
+        "associated_types": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "records": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "endianness": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "thresholds": {
+          "state": "not_applicable",
+          "lossy": false
+        }
+      },
+      "diagnostics": [
+        {
+          "code": "semantic.invalid-model-cell",
+          "severity": "error",
+          "reason": "route-operation-unknown",
+          "at": "| POST |"
+        }
+      ],
+      "bundle": {
+        "package": "acme/arch",
+        "artifacts": [
+          {
+            "id": "ext-001",
+            "object": "external_contract",
+            "operations": []
+          },
+          {
+            "id": "pt-001",
+            "object": "extension_point",
+            "operations": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "associated-types",
+      "ac": "FR-081-AC-10",
+      "schema": "ArchitectureKeys",
+      "artifact": "---\nid: arch-001\ntitle: \"Fixture arch-001\"\nobject: interface\n---\n# [arch-001] Fixture\n\n## Associated Types\n\n| Type | Multiplicity |\n|---|---|\n| String | 1 |\n| Integer | 0..* |\n\n## Contract\n\n```yaml\nassociated_types:\n  - Money\n```\n",
+      "package": "agent-ix/spec-objects-architecture",
+      "record": {
+        "associated_types": [
+          {
+            "target": {
+              "kind": "KernelScalar",
+              "value": "String"
+            },
+            "multiplicity": {
+              "lower": 1,
+              "upper": 1,
+              "ordered": false,
+              "unique": false
+            }
+          },
+          {
+            "target": {
+              "kind": "KernelScalar",
+              "value": "Integer"
+            },
+            "multiplicity": {
+              "lower": 0,
+              "ordered": false,
+              "unique": false
+            }
+          }
+        ]
+      },
+      "recordSources": [
+        "associated_types"
+      ],
+      "recordValid": true,
+      "availability": {
+        "requires": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "provider": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "exposes": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "delivery": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "versioning": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "registration": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "stability": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "routes": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "associated_types": {
+          "state": "available",
+          "lossy": false
+        },
+        "records": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "endianness": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "thresholds": {
+          "state": "not_applicable",
+          "lossy": false
+        }
+      },
+      "diagnostics": [],
+      "bundle": {
+        "package": "acme/arch",
+        "artifacts": [
+          {
+            "id": "ext-001",
+            "object": "external_contract",
+            "operations": []
+          },
+          {
+            "id": "pt-001",
+            "object": "extension_point",
+            "operations": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "contract-fence-not-a-source",
+      "ac": "FR-081-AC-10",
+      "schema": "ArchitectureKeys",
+      "artifact": "---\nid: arch-001\ntitle: \"Fixture arch-001\"\nobject: interface\n---\n# [arch-001] Fixture\n\n## Contract\n\n```yaml\nassociated_types:\n  - Money\n```\n",
+      "package": "agent-ix/spec-objects-architecture",
+      "record": null,
+      "recordSources": [],
+      "recordValid": true,
+      "availability": {
+        "requires": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "provider": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "exposes": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "delivery": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "versioning": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "registration": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "stability": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "routes": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "associated_types": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "records": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "endianness": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "thresholds": {
+          "state": "not_applicable",
+          "lossy": false
+        }
+      },
+      "diagnostics": [],
+      "bundle": {
+        "package": "acme/arch",
+        "artifacts": [
+          {
+            "id": "ext-001",
+            "object": "external_contract",
+            "operations": []
+          },
+          {
+            "id": "pt-001",
+            "object": "extension_point",
+            "operations": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "layout-fence",
+      "ac": "FR-081-AC-11",
+      "schema": "ArchitectureKeys",
+      "artifact": "---\nid: arch-001\ntitle: \"Fixture arch-001\"\nobject: binary_format\n---\n# [arch-001] Fixture\n\n## Layout\n\n```yaml\nformat: segment-v1\nmagic: \"QSEG\"\nendianness: little\nrecord_types:\n  - name: metadata_block\n    tag: 0x21\n    size: 16\n    fields:\n      - {name: payload_len, offset: 0, size: 4, type: u32}\n  - name: posting_tuple\n    tag: 0x22\n    fields:\n      - {name: doc_id, offset: 0, size: 8, type: u64}\n      - {name: payload, offset: 8, size: payload_len, type: bytes}\n```\n\n## Endianness\n\n`big`\n",
+      "package": "agent-ix/spec-objects-architecture",
+      "record": {
+        "endianness": "little",
+        "records": [
+          {
+            "name": "metadata_block",
+            "tag": "0x21",
+            "size": 16,
+            "fields": [
+              {
+                "name": "payload_len",
+                "offset": 0,
+                "size": 4,
+                "type": "u32"
+              }
+            ]
+          },
+          {
+            "name": "posting_tuple",
+            "tag": "0x22",
+            "fields": [
+              {
+                "name": "doc_id",
+                "offset": 0,
+                "size": 8,
+                "type": "u64"
+              },
+              {
+                "name": "payload",
+                "offset": 8,
+                "size": "payload_len",
+                "type": "bytes"
+              }
+            ]
+          }
+        ]
+      },
+      "recordSources": [
+        "records",
+        "endianness"
+      ],
+      "recordValid": true,
+      "availability": {
+        "requires": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "provider": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "exposes": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "delivery": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "versioning": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "registration": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "stability": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "routes": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "associated_types": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "records": {
+          "state": "available",
+          "lossy": false
+        },
+        "endianness": {
+          "state": "available",
+          "lossy": false
+        },
+        "thresholds": {
+          "state": "not_applicable",
+          "lossy": false
+        }
+      },
+      "diagnostics": [],
+      "bundle": {
+        "package": "acme/arch",
+        "artifacts": [
+          {
+            "id": "ext-001",
+            "object": "external_contract",
+            "operations": []
+          },
+          {
+            "id": "pt-001",
+            "object": "extension_point",
+            "operations": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "layout-size-unknown-field",
+      "ac": "FR-081-AC-11",
+      "schema": "ArchitectureKeys",
+      "artifact": "---\nid: arch-001\ntitle: \"Fixture arch-001\"\nobject: binary_format\n---\n# [arch-001] Fixture\n\n## Layout\n\n```yaml\nformat: segment-v1\nmagic: \"QSEG\"\nendianness: little\nrecord_types:\n  - name: metadata_block\n    tag: 0x21\n    size: 16\n    fields:\n      - {name: payload_len, offset: 0, size: 4, type: u32}\n  - name: posting_tuple\n    tag: 0x22\n    fields:\n      - {name: doc_id, offset: 0, size: 8, type: u64}\n      - {name: payload, offset: 8, size: nowhere, type: bytes}\n```\n\n## Endianness\n\n`big`\n",
+      "package": "agent-ix/spec-objects-architecture",
+      "record": null,
+      "recordSources": [],
+      "recordValid": true,
+      "availability": {
+        "requires": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "provider": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "exposes": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "delivery": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "versioning": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "registration": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "stability": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "routes": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "associated_types": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "records": {
+          "state": "unavailable",
+          "reasonAt": [
+            "```yaml"
+          ],
+          "lossy": false
+        },
+        "endianness": {
+          "state": "unavailable",
+          "reasonAt": [
+            "```yaml"
+          ],
+          "lossy": false
+        },
+        "thresholds": {
+          "state": "not_applicable",
+          "lossy": false
+        }
+      },
+      "diagnostics": [
+        {
+          "code": "semantic.invalid-model-cell",
+          "severity": "error",
+          "reason": "size-unknown-field",
+          "at": "```yaml"
+        }
+      ],
+      "bundle": {
+        "package": "acme/arch",
+        "artifacts": [
+          {
+            "id": "ext-001",
+            "object": "external_contract",
+            "operations": []
+          },
+          {
+            "id": "pt-001",
+            "object": "extension_point",
+            "operations": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "layout-size-ambiguous",
+      "ac": "FR-081-AC-11",
+      "schema": "ArchitectureKeys",
+      "artifact": "---\nid: arch-001\ntitle: \"Fixture arch-001\"\nobject: binary_format\n---\n# [arch-001] Fixture\n\n## Layout\n\n```yaml\nformat: segment-v1\nmagic: \"QSEG\"\nendianness: little\nrecord_types:\n  - name: metadata_block\n    tag: 0x21\n    size: 16\n    fields:\n      - {name: payload_len, offset: 0, size: 4, type: u32}\n  - name: posting_tuple\n    tag: 0x22\n    fields:\n      - {name: payload_len, offset: 99, size: 4, type: u32}\n      - {name: doc_id, offset: 0, size: 8, type: u64}\n      - {name: payload, offset: 8, size: payload_len, type: bytes}\n```\n\n## Endianness\n\n`big`\n",
+      "package": "agent-ix/spec-objects-architecture",
+      "record": null,
+      "recordSources": [],
+      "recordValid": true,
+      "availability": {
+        "requires": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "provider": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "exposes": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "delivery": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "versioning": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "registration": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "stability": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "routes": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "associated_types": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "records": {
+          "state": "unavailable",
+          "reasonAt": [
+            "```yaml"
+          ],
+          "lossy": false
+        },
+        "endianness": {
+          "state": "unavailable",
+          "reasonAt": [
+            "```yaml"
+          ],
+          "lossy": false
+        },
+        "thresholds": {
+          "state": "not_applicable",
+          "lossy": false
+        }
+      },
+      "diagnostics": [
+        {
+          "code": "semantic.invalid-model-cell",
+          "severity": "error",
+          "reason": "size-ambiguous",
+          "at": "```yaml"
+        }
+      ],
+      "bundle": {
+        "package": "acme/arch",
+        "artifacts": [
+          {
+            "id": "ext-001",
+            "object": "external_contract",
+            "operations": []
+          },
+          {
+            "id": "pt-001",
+            "object": "extension_point",
+            "operations": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "endianness-section-is-prose",
+      "ac": "FR-081-AC-11",
+      "schema": "ArchitectureKeys",
+      "artifact": "---\nid: arch-001\ntitle: \"Fixture arch-001\"\nobject: binary_format\n---\n# [arch-001] Fixture\n\n## Endianness\n\n`big`\n\n## Records\n\n- a\n",
+      "package": "agent-ix/spec-objects-architecture",
+      "record": null,
+      "recordSources": [],
+      "recordValid": true,
+      "availability": {
+        "requires": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "provider": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "exposes": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "delivery": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "versioning": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "registration": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "stability": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "routes": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "associated_types": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "records": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "endianness": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "thresholds": {
+          "state": "not_applicable",
+          "lossy": false
+        }
+      },
+      "diagnostics": [],
+      "bundle": {
+        "package": "acme/arch",
+        "artifacts": [
+          {
+            "id": "ext-001",
+            "object": "external_contract",
+            "operations": []
+          },
+          {
+            "id": "pt-001",
+            "object": "extension_point",
+            "operations": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "thresholds-row",
+      "ac": "FR-081-AC-12",
+      "schema": "ArchitectureKeys",
+      "artifact": "---\nid: arch-001\ntitle: \"Fixture arch-001\"\nobject: rate_limit\n---\n# [arch-001] Fixture\n\n## Thresholds\n\n| Scope | Metric | Limit | Window | Status | Retry After | Behavior |\n|---|---|---|---|---|---|---|\n| per_token | requests | 60 | 1m | 429 | true | |\n",
+      "package": "agent-ix/spec-objects-architecture",
+      "record": {
+        "thresholds": [
+          {
+            "scope": "per_token",
+            "metric": "requests",
+            "limit": 60,
+            "window": "1m",
+            "on_exceeded": {
+              "status": 429,
+              "retry_after": true
+            }
+          }
+        ]
+      },
+      "recordSources": [
+        "thresholds"
+      ],
+      "recordValid": true,
+      "availability": {
+        "requires": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "provider": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "exposes": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "delivery": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "versioning": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "registration": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "stability": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "routes": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "associated_types": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "records": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "endianness": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "thresholds": {
+          "state": "available",
+          "lossy": false
+        }
+      },
+      "diagnostics": [],
+      "bundle": {
+        "package": "acme/arch",
+        "artifacts": [
+          {
+            "id": "ext-001",
+            "object": "external_contract",
+            "operations": []
+          },
+          {
+            "id": "pt-001",
+            "object": "extension_point",
+            "operations": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "thresholds-status-required",
+      "ac": "FR-081-AC-12",
+      "schema": "ArchitectureKeys",
+      "artifact": "---\nid: arch-001\ntitle: \"Fixture arch-001\"\nobject: rate_limit\n---\n# [arch-001] Fixture\n\n## Thresholds\n\n| Scope | Metric | Limit | Window | Status | Retry After | Behavior |\n|---|---|---|---|---|---|---|\n| per_token | requests | 60 | 1m |  | true | |\n",
+      "package": "agent-ix/spec-objects-architecture",
+      "record": null,
+      "recordSources": [],
+      "recordValid": true,
+      "availability": {
+        "requires": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "provider": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "exposes": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "delivery": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "versioning": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "registration": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "stability": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "routes": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "associated_types": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "records": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "endianness": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "thresholds": {
+          "state": "unavailable",
+          "reasonAt": [
+            "| per_token |"
+          ],
+          "lossy": false
+        }
+      },
+      "diagnostics": [
+        {
+          "code": "semantic.invalid-model-cell",
+          "severity": "error",
+          "reason": "status-required",
+          "at": "| per_token |"
+        }
+      ],
+      "bundle": {
+        "package": "acme/arch",
+        "artifacts": [
+          {
+            "id": "ext-001",
+            "object": "external_contract",
+            "operations": []
+          },
+          {
+            "id": "pt-001",
+            "object": "extension_point",
+            "operations": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "typed-relation-vs-requires-section",
+      "ac": "FR-081-AC-6",
+      "schema": "ArchitectureKeys",
+      "artifact": "---\nid: arch-001\ntitle: \"Fixture arch-001\"\nobject: api_endpoint\n---\n# [arch-001] Fixture\n\n## Relationships\n\n| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| needs | requires | pt-001 | 1..1 |\n\n## Requires\n\n- ext-001\n",
+      "package": "agent-ix/spec-objects-architecture",
+      "mappings": [
+        "relationships",
+        "record-sections"
+      ],
+      "relationVocabulary": {
+        "objectType": "api_endpoint",
+        "edgeTypes": {
+          "requires": {
+            "category": "dependency"
+          }
+        },
+        "roles": {
+          "api_endpoint": [],
+          "extension_point": []
+        },
+        "allowedLinks": {
+          "api_endpoint": {
+            "requires": [
+              "*"
+            ]
+          }
+        }
+      },
+      "typedRelations": {
+        "requires": [
+          "ix://acme/arch/pt-001"
+        ]
+      },
+      "record": null,
+      "recordSources": [],
+      "recordValid": true,
+      "availability": {
+        "provider": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "exposes": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "delivery": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "versioning": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "registration": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "stability": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "routes": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "associated_types": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "records": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "endianness": {
+          "state": "not_applicable",
+          "lossy": false
+        },
+        "thresholds": {
+          "state": "not_applicable",
+          "lossy": false
+        }
+      },
+      "diagnostics": [],
+      "bundle": {
+        "package": "acme/arch",
+        "artifacts": [
+          {
+            "id": "ext-001",
+            "object": "external_contract",
+            "operations": []
+          },
+          {
+            "id": "pt-001",
+            "object": "extension_point",
+            "operations": []
+          }
+        ]
+      }
+    }
+  ]
+}

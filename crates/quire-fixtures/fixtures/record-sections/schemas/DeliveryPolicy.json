@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/quire-fixtures/0.1.0/DeliveryPolicy.json",
+  "type": "object",
+  "properties": {
+    "semantics": {
+      "enum": [
+        "at_least_once",
+        "exactly_once"
+      ]
+    },
+    "ordering": {
+      "enum": [
+        "none",
+        "partition"
+      ]
+    },
+    "retention": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "semantics"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  }
+}

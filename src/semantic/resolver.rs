@@ -33,6 +33,9 @@ pub enum SchemaSource<'a> {
 pub struct ResolvedSchema {
     pub schema: Value,
     pub validator: Validator,
+    /// Every document the schema's `$ref`s reach, keyed by the URL the
+    /// `$ref` names (record-sections reads property types through them).
+    pub documents: BTreeMap<String, Value>,
     /// The manifest-relative path of the schema file.
     pub path: String,
 }
@@ -145,13 +148,16 @@ pub fn resolve_reference(
             Err(_) => None,
         }
     };
-    let validator = compile_module_schema(&schema, &siblings, &module_base).map_err(|mut f| {
+    let relocate = |mut f: SemanticFailure| {
         f.path = locus(section, object_type, "schema");
         f
-    })?;
+    };
+    let documents = module_schema_documents(&schema, &siblings, &module_base).map_err(relocate)?;
+    let validator = compile_documents(&schema, &documents).map_err(relocate)?;
     Ok(ResolvedSchema {
         schema,
         validator,
+        documents,
         path: rel.to_string(),
     })
 }
@@ -174,15 +180,16 @@ fn collect_refs(value: &Value, out: &mut Vec<String>) {
     }
 }
 
-/// Compile `schema` with every `$ref` resolved offline: module siblings come
-/// from `siblings(name)`, semantic-core documents from the embedded bundle.
-/// Unshipped targets and cycles are refused
-/// with their FR-069 codes; a `$ref` to a document's own `$id` is a fragment.
-pub fn compile_module_schema(
+/// Every document `schema` reaches through its `$ref`s, keyed by the URL the
+/// `$ref` names (the schema itself under its `$id`): module siblings from
+/// `siblings(name)`, semantic-core documents from the embedded bundle.
+/// Unshipped targets and cycles are refused with their FR-069 codes; a `$ref`
+/// to a document's own `$id` is a fragment.
+pub fn module_schema_documents(
     schema: &Value,
     siblings: &dyn Fn(&str) -> Option<Result<Value, String>>,
     module_base: &str,
-) -> Result<Validator, SemanticFailure> {
+) -> Result<BTreeMap<String, Value>, SemanticFailure> {
     let bundle = embedded::semantic_core_bundle();
     let semantic_core = embedded::embedded_semantic_core_version();
     let core_base = format!("{}{}/", embedded::SEMANTIC_CORE_BASE, semantic_core);
@@ -204,6 +211,25 @@ pub fn compile_module_schema(
         &mut documents,
         &mut stack,
     )?;
+    Ok(documents)
+}
+
+/// Compile `schema` with every `$ref` resolved offline
+/// ([`module_schema_documents`]).
+pub fn compile_module_schema(
+    schema: &Value,
+    siblings: &dyn Fn(&str) -> Option<Result<Value, String>>,
+    module_base: &str,
+) -> Result<Validator, SemanticFailure> {
+    let documents = module_schema_documents(schema, siblings, module_base)?;
+    compile_documents(schema, &documents)
+}
+
+/// Compile `schema` against its already-resolved `documents`.
+pub fn compile_documents(
+    schema: &Value,
+    documents: &BTreeMap<String, Value>,
+) -> Result<Validator, SemanticFailure> {
     let not_schema = |e: &dyn std::fmt::Display| {
         SemanticFailure::error(
             "semantic.data-schema-not-schema",
@@ -215,7 +241,7 @@ pub fn compile_module_schema(
     // declares no `$schema` is read as draft-07, as `schema_options` does for
     // the root.
     let mut registry = jsonschema::Registry::new();
-    for (id, doc) in &documents {
+    for (id, doc) in documents {
         // A root that declares no `$id` is walked under a placeholder name
         // and is compiled directly below, so it has no URI to register.
         if id == "<root>" {

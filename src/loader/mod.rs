@@ -488,7 +488,7 @@ pub fn load_inline_module(manifest_yaml: &[u8], schemas: &BTreeMap<String, Strin
 
         // Data schema (optional): inline, or the FR-069 reference form served
         // from the `schemas` map.
-        let (data_schema, data_validator) = match resolve_data_schema(
+        let (data_schema, data_validator, data_schema_documents) = match resolve_data_schema(
             &module_name,
             inline_root.clone(),
             a,
@@ -524,6 +524,7 @@ pub fn load_inline_module(manifest_yaml: &[u8], schemas: &BTreeMap<String, Strin
             frontmatter_validator,
             data_schema,
             data_validator,
+            data_schema_documents,
         )));
     }
 
@@ -864,7 +865,7 @@ fn compile_archetype(
     };
 
     // Data schema (optional): inline JSON Schema, or the FR-069 reference form.
-    let (data_schema, data_validator) = resolve_data_schema(
+    let (data_schema, data_validator, data_schema_documents) = resolve_data_schema(
         module,
         module_root.join("manifest.yaml"),
         a,
@@ -894,6 +895,7 @@ fn compile_archetype(
         frontmatter_validator,
         data_schema,
         data_validator,
+        data_schema_documents,
     ))
 }
 
@@ -971,7 +973,11 @@ fn duplicate_authority(
     })
 }
 
-type DataSchemaParts = (Option<Arc<Value>>, Option<Arc<jsonschema::Validator>>);
+type DataSchemaParts = (
+    Option<Arc<Value>>,
+    Option<Arc<jsonschema::Validator>>,
+    Option<Arc<BTreeMap<String, Value>>>,
+);
 
 /// Resolve an archetype's `data_schema` (FR-069 Behavior): the reference
 /// form is compiled offline; an inline schema under a
@@ -987,7 +993,7 @@ fn resolve_data_schema(
 ) -> Result<DataSchemaParts, ArchetypeLoadFailure> {
     use crate::semantic::contract::DataSchemaForm;
     let Some(schema) = &a.data_schema else {
-        return Ok((None, None));
+        return Ok((None, None, None));
     };
     match crate::semantic::reference_form(schema) {
         DataSchemaForm::Ambiguous => Err(failure(
@@ -1021,6 +1027,7 @@ fn resolve_data_schema(
             Ok((
                 Some(Arc::new(resolved.schema)),
                 Some(Arc::new(resolved.validator)),
+                Some(Arc::new(resolved.documents)),
             ))
         }
         DataSchemaForm::Inline => {
@@ -1037,7 +1044,11 @@ fn resolve_data_schema(
             }
             let validator =
                 compile_schema(schema).map_err(|r| failure(module, &a.name, manifest_path, r))?;
-            Ok((Some(Arc::new(schema.clone())), Some(Arc::new(validator))))
+            Ok((
+                Some(Arc::new(schema.clone())),
+                Some(Arc::new(validator)),
+                None,
+            ))
         }
     }
 }
@@ -1053,6 +1064,7 @@ fn finish_compiled(
     frontmatter_validator: Option<Arc<jsonschema::Validator>>,
     data_schema: Option<Arc<Value>>,
     data_validator: Option<Arc<jsonschema::Validator>>,
+    data_schema_documents: Option<Arc<BTreeMap<String, Value>>>,
 ) -> CompiledArchetype {
     let (raw_schema, validator) = match (&frontmatter_schema, &frontmatter_validator) {
         (Some(s), Some(v)) => (Arc::clone(s), Arc::clone(v)),
@@ -1070,6 +1082,7 @@ fn finish_compiled(
         frontmatter_validator,
         data_schema,
         data_validator,
+        data_schema_documents,
         body_extraction: a.body_extraction.clone(),
         carry_over: a.carry_over(),
     }

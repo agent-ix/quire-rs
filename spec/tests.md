@@ -1155,6 +1155,20 @@ Reserved withdrawn IDs (not active test cases): TC-834, TC-842, TC-871, TC-1089,
 | TC-2164 | A test whose name embeds a trace id adds nothing to `tagged` or `bound`, and no `marker-form-mismatch` or `hollow-denominator` is emitted for a name subpopulation. Replaces TC-1083 (CR-215) | Integration | P0 | FR-050-AC-44 | 🚧 |
 | TC-2165 | A canonical `#[trace("X")]` marker on a production function, a container and a module yields no `trace-id-outside-marker` finding, while a comment id on the same production function is reported with its kind and no `#[trace(...)]` replacement text, naming instead the text rendered from the first `syntax: rust_attribute` implements form that declares a `template` (`#[implements("X")]`, as FR-050-AC-62), never the textual `rust-implements-line` form, and a module is named by kind alone; the same id twice on one line yields one finding, and the `unmatched_tags` record for the token is unchanged (CR-215; replaces TC-1047) | Integration | P0 | FR-051-AC-22, FR-051-AC-49 | 🚧 |
 | TC-2166 | A range in `/// Implements: FR-001..FR-003` and in `# Implements: FR-001..FR-003` binds no id, mints no `implements` relation for either endpoint, and yields one `range-in-trace-tag` warning naming the literal range text (CR-215) | Integration | P0 | FR-051-AC-28 | 🚧 |
+| TC-2167 | `## Assessment` row extracts `assessment` with a `recordSources` span (`not_assessed` kept, empty `Exposure` absent, no section: `not_applicable`); `## Status`, `## Provenance` extract the lifecycle keys, accepted without provenance fails record validation, frontmatter `status` yields none | Integration | P0 | FR-081-AC-1, FR-081-AC-2, FR-081-CON-1 | ✅ |
+| TC-2168 | `## Evidence` targets resolve by the FR-076 `Target` rules: id, `ix://` identity, no-index advisory, header-only `[]`, `target-not-id`, no bundle package | Integration | P0 | FR-081-AC-3 | ✅ |
+| TC-2169 | `column-unknown`, `column-duplicate`, `second-row`, `no-row`, `nested-object-cell`, `cell-type`, `second-section`, first failing check per cell; each key `unavailable` with `entry-errors` | Integration | P0 | FR-081-AC-4 | ✅ |
+| TC-2170 | List under a table-form key, list after a table, prose-only section, scalar not in backticks, two values, scalar-array list | Integration | P0 | FR-081-AC-5 | ✅ |
+| TC-2171 | Without the token the AC-1 fixture yields the record of a request with no record schema; a heading naming no key and one naming an owned key (typed relation key) are prose | Integration | P0 | FR-081-AC-6, FR-081-CON-2 | ✅ |
+| TC-2172 | `## Retry Policy` reaches `retryPolicy`; two properties normalizing equal yield `key-ambiguous` | Integration | P0 | FR-081-AC-7 | ✅ |
+| TC-2173 | `## Provider`, `## Exposes` single ids; `delivery`, `versioning`, `registration`, `stability` one-row tables with omitted optional cells; bullet-list `## Registration` refused | Integration | P0 | FR-081-AC-8 | ✅ |
+| TC-2174 | `## Routes` extracts `routes`; an undeclared operation yields `route-operation-unknown` | Integration | P0 | FR-081-AC-9 | ✅ |
+| TC-2175 | `## Associated Types` extracts `TypeRef[]`; a `## Contract` fence listing `associated_types` yields none | Integration | P0 | FR-081-AC-10 | ✅ |
+| TC-2176 | `## Layout` fence lowers to `records` and `endianness`, `tag: 0x21` as `"0x21"`, `payload_len` identifier; `size-unknown-field`, `size-ambiguous`; `## Endianness` and `## Records` are prose | Integration | P0 | FR-081-AC-11 | ✅ |
+| TC-2177 | `## Thresholds` row builds `on_exceeded`; an empty `Status` yields `status-required` | Integration | P0 | FR-081-AC-12 | ✅ |
+| TC-2178 | `semantic-v1.schema.json` declares `record`, `recordSources`, `availability.recordKeys`; every case record validates against it and `declaration_record` carries the keys | Integration | P0 | FR-081-AC-13 | ✅ |
+| TC-2179 | Every top-level property of every object-type record schema of `agent-ix/spec-objects-architecture` has an owner (quoin FR-122-AC-7, TC-2115); skipped when the module cannot be fetched | Static | P0 | FR-081-AC-14 | ✅ |
+| TC-2180 | `## Values`, `## States`, `## Transitions`, `## Workflow` entries copy to the record keys the schema declares; a clause-id `Guard` becomes a `ClauseRef`; header-only `[]`; a list under `## Values` refused | Integration | P0 | FR-081-AC-15 | ✅ |
 
 ---
 
@@ -2251,6 +2265,23 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-078-CON-2 | TC-1982 |
 | FR-078-CON-3 | TC-1974, TC-1975 |
 | FR-078-CON-4 | TC-1981 |
+| FR-081-AC-1 | TC-2167 |
+| FR-081-AC-2 | TC-2167 |
+| FR-081-AC-3 | TC-2168 |
+| FR-081-AC-4 | TC-2169 |
+| FR-081-AC-5 | TC-2170 |
+| FR-081-AC-6 | TC-2171 |
+| FR-081-AC-7 | TC-2172 |
+| FR-081-AC-8 | TC-2173 |
+| FR-081-AC-9 | TC-2174 |
+| FR-081-AC-10 | TC-2175 |
+| FR-081-AC-11 | TC-2176 |
+| FR-081-AC-12 | TC-2177 |
+| FR-081-AC-13 | TC-2178 |
+| FR-081-AC-14 | TC-2179 |
+| FR-081-AC-15 | TC-2180 |
+| FR-081-CON-1 | TC-2167 |
+| FR-081-CON-2 | TC-2171 |
 
 ### Non-Functional Requirements
 

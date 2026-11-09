@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/quire-fixtures/0.1.0/HazardAssessment.json",
+  "type": "object",
+  "properties": {
+    "severity": {
+      "type": "string"
+    },
+    "likelihood": {
+      "type": "string"
+    },
+    "exposure": {
+      "type": "string"
+    },
+    "controllability": {
+      "type": "string"
+    },
+    "rationale": {
+      "type": "string"
+    }
+  },
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "Fixture: the assessment axes of a hazard; each axis is a scale value or one of unknown, not_assessed, not_applicable."
+}

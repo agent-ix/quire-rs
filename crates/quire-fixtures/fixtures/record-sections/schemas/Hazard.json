@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/quire-fixtures/0.1.0/Hazard.json",
+  "type": "object",
+  "properties": {
+    "status": {
+      "enum": [
+        "draft",
+        "accepted",
+        "rejected"
+      ]
+    },
+    "assessment": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/quire-fixtures/0.1.0/HazardAssessment.json"
+    },
+    "provenance": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/quire-fixtures/0.1.0/Provenance.json"
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/agent-ix/quire-fixtures/0.1.0/Evidence.json"
+      }
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "requires": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/semantic-core/0.3.3/SemanticId.json"
+      }
+    },
+    "retryPolicy": {
+      "type": "object",
+      "properties": {
+        "attempts": {
+          "type": "integer"
+        },
+        "backoff": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "status": {
+            "const": "accepted"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "provenance"
+        ]
+      }
+    }
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "Fixture: a hazard record with lifecycle keys. An accepted status requires a provenance."
+}

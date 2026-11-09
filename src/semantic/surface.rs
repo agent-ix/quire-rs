@@ -20,6 +20,7 @@ use super::model::{
     extract_model, failed, model_availability, ModelDeclarations, ModelRefs, ModelSource,
 };
 use super::properties::{extract_fields, FieldsForm};
+use super::record::{copy_model_keys, extract_record, RecordSource};
 use super::relations::{extract_relations, ExtractedRelation, RelationDecl, RelationSource};
 use super::systems::{AllocationRecord, ConnectionRecord, PartRecord, PortRecord};
 use super::{AvailabilityState, KindAvailability, SemanticDiagnostic};
@@ -39,6 +40,14 @@ pub struct Availability {
     /// or the artifact holds a relationship-shaped table.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub relations: Option<KindAvailability>,
+    /// FR-081 record-key sections, per key; present when the module names
+    /// `record-sections`.
+    #[serde(
+        default,
+        rename = "recordKeys",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub record_keys: Option<BTreeMap<String, KindAvailability>>,
 }
 
 /// The FR-072 record. Optional keys are skipped when absent so the shape
@@ -86,6 +95,12 @@ pub struct SemanticExtraction {
     /// order, present when `availability.relations` is `available`.
     #[serde(flatten, default, skip_serializing_if = "BTreeMap::is_empty")]
     pub typed_relations: BTreeMap<String, Vec<String>>,
+    /// FR-081 record keys, present when at least one key is extracted.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub record: Option<BTreeMap<String, Value>>,
+    /// The section span of each `record` key, in document order.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub record_sources: Option<Vec<RecordSource>>,
     pub availability: Availability,
     pub diagnostics: Vec<SemanticDiagnostic>,
 }
@@ -210,6 +225,7 @@ pub fn extract_semantic(
     );
 
     let relations = extract_relations(raw, ctx);
+    let record = extract_record(raw, ctx);
 
     let mut diagnostics: Vec<SemanticDiagnostic> = Vec::new();
     diagnostics.extend(fields.diagnostics.iter().cloned());
@@ -217,6 +233,7 @@ pub fn extract_semantic(
     diagnostics.extend(operations.diagnostics.iter().cloned());
     diagnostics.extend(model_outcome.diagnostics.iter().cloned());
     diagnostics.extend(relations.diagnostics);
+    diagnostics.extend(record.iter().flat_map(|r| r.diagnostics.iter().cloned()));
     diagnostics.sort_by(|a, b| {
         (a.line.unwrap_or(0), a.column.unwrap_or(0), a.code.as_str()).cmp(&(
             b.line.unwrap_or(0),
@@ -236,7 +253,7 @@ pub fn extract_semantic(
         }
         a
     };
-    let availability = Availability {
+    let mut availability = Availability {
         fields: missing(
             fields.availability.clone(),
             required.properties,
@@ -281,7 +298,9 @@ pub fn extract_semantic(
             }
             a
         }),
+        record_keys: None,
     };
+
     let relation_record = relations
         .relations
         .map(|rows| ExtractedRelation::split(rows, relations.typed.as_ref()))
@@ -298,6 +317,27 @@ pub fn extract_semantic(
             model.operation_frames = (!operations.frames.is_empty()).then_some(operations.frames);
             model
         });
+    let mut record = record;
+    if let Some(outcome) = record.as_mut() {
+        copy_model_keys(
+            raw,
+            outcome,
+            ctx,
+            model.as_ref(),
+            availability.model.as_ref(),
+        );
+    }
+    availability.record_keys = record
+        .as_ref()
+        .map(|r| r.availability.clone())
+        .filter(|keys| !keys.is_empty())
+        .map(|mut keys| {
+            if declared_lossy {
+                keys.values_mut().for_each(|a| a.lossy = true);
+            }
+            keys
+        });
+    let record = record.unwrap_or_default();
     SemanticExtraction {
         format_version: SEMANTIC_FORMAT_VERSION,
         contract_version: ctx.module.contract_version.clone(),
@@ -324,6 +364,8 @@ pub fn extract_semantic(
         relations: relation_record.relations,
         relation_sources: relation_record.sources,
         typed_relations: relation_record.typed,
+        record: (!record.record.is_empty()).then_some(record.record),
+        record_sources: (!record.sources.is_empty()).then_some(record.sources),
         availability,
         diagnostics,
     }
@@ -354,6 +396,9 @@ pub struct DeclarationRecord<'a> {
     /// FR-076 typed relation keys, each a `SemanticId[]`.
     #[serde(flatten)]
     pub typed_relations: &'a BTreeMap<String, Vec<String>>,
+    /// FR-081 record keys, each the value its section produced.
+    #[serde(flatten)]
+    pub record: Option<&'a BTreeMap<String, Value>>,
 }
 
 /// One systems-model record, serialized as its own keys.
@@ -423,6 +468,7 @@ impl SemanticExtraction {
                 .map(|order| order.iter().map(|e| e.name.as_str()).collect()),
             systems,
             typed_relations: &self.typed_relations,
+            record: self.record.as_ref(),
         })
     }
 
@@ -452,7 +498,10 @@ impl SemanticExtraction {
             .count();
             debug_assert_eq!(
                 value.as_object().map_or(0, serde_json::Map::len),
-                arrays + systems_keys + declaration.typed_relations.len(),
+                arrays
+                    + systems_keys
+                    + declaration.typed_relations.len()
+                    + declaration.record.map_or(0, BTreeMap::len),
                 "a systems-model record key or typed relation key collides with a declaration array"
             );
         }
@@ -467,6 +516,7 @@ impl SemanticExtraction {
         [Some(&a.fields), Some(&a.clauses), Some(&a.operations)]
             .into_iter()
             .chain([a.model.as_ref(), a.relations.as_ref()])
+            .chain(a.record_keys.iter().flat_map(BTreeMap::values).map(Some))
             .flatten()
             .any(|k| k.state == AvailabilityState::Unavailable)
     }

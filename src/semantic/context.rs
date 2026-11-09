@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use super::contract::SemanticModule;
 use super::model::{DeclaredSections, DeclaredTables};
+use super::record::RecordSchema;
 use super::relations::{RelationSchema, RelationVocabulary};
 use crate::extract::dsl::ExtractionDsl;
 
@@ -222,6 +223,9 @@ pub struct SemanticContext {
     /// What the object type's resolved `data_schema` declares that FR-076
     /// typed relation keys read; `None` reads every row into `relations`.
     pub(crate) relation_schema: Option<RelationSchema>,
+    /// The record schema FR-081 reads record-key sections against; `None`
+    /// reads no record key.
+    pub(crate) record_schema: Option<RecordSchema>,
 }
 
 impl SemanticContext {
@@ -237,6 +241,7 @@ impl SemanticContext {
             relation_vocabulary: None,
             construct_references: None,
             relation_schema: None,
+            record_schema: None,
         }
     }
 
@@ -250,6 +255,18 @@ impl SemanticContext {
     /// Lower FR-076 rows into the typed relation keys `data_schema` declares.
     pub fn with_data_schema(mut self, data_schema: &serde_json::Value) -> Self {
         self.relation_schema = Some(RelationSchema::from_data_schema(data_schema));
+        self
+    }
+
+    /// Read record-key sections (FR-081) against the object type's resolved
+    /// `data_schema` `root`, following its `$ref`s through `documents` and the
+    /// embedded semantic-core bundle.
+    pub fn with_record_schema(
+        mut self,
+        root: &serde_json::Value,
+        documents: &BTreeMap<String, serde_json::Value>,
+    ) -> Self {
+        self.record_schema = Some(RecordSchema::new(root, documents));
         self
     }
 

@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://agent-ix.github.io/quire-rs/schemas/output/semantic-v1.schema.json",
   "title": "Quire semantic extraction record v1 (FR-072)",
-  "description": "Hand-authored. One record per object artifact under a module with a `semantic` block: FieldDecl[], ClauseRef[] with verbatim clauseText, OperationDecl[], RelationDecl[] with relationSources, typed relation keys, per-kind availability, ordered diagnostics with loci. A key not listed under properties is an FR-076 typed relation key, named by the object type's data schema: a SemanticId[] in row order.",
+  "description": "Hand-authored. One record per object artifact under a module with a `semantic` block: FieldDecl[], ClauseRef[] with verbatim clauseText, OperationDecl[], RelationDecl[] with relationSources, typed relation keys, record-key sections under `record` with `recordSources`, per-kind availability, ordered diagnostics with loci. A key not listed under properties is an FR-076 typed relation key, named by the object type's data schema: a SemanticId[] in row order.",
   "type": "object",
   "additionalProperties": { "type": "array", "items": { "$ref": "#/$defs/semanticId" } },
   "required": ["formatVersion", "contractVersion", "package", "availability", "diagnostics"],
@@ -21,6 +21,25 @@
     "operationSources": { "type": "array", "items": { "$ref": "#/$defs/operationSource" } },
     "operationExpressions": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/operationExpression" } },
     "relationSources": { "type": "array", "items": { "$ref": "#/$defs/relationSource" } },
+    "record": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": true,
+      "description": "FR-081: the record keys read from the record-key sections, each a value its data-schema property accepts."
+    },
+    "recordSources": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["key", "sourceSpan"],
+        "properties": {
+          "key": { "type": "string", "minLength": 1 },
+          "sourceSpan": { "$ref": "#/$defs/sourceLocus" }
+        }
+      }
+    },
     "availability": {
       "type": "object",
       "additionalProperties": false,
@@ -30,7 +49,12 @@
         "clauses": { "$ref": "#/$defs/kindAvailability" },
         "operations": { "$ref": "#/$defs/kindAvailability" },
         "model": { "$ref": "#/$defs/kindAvailability" },
-        "relations": { "$ref": "#/$defs/kindAvailability" }
+        "relations": { "$ref": "#/$defs/kindAvailability" },
+        "recordKeys": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": { "$ref": "#/$defs/kindAvailability" }
+        }
       }
     },
     "diagnostics": { "type": "array", "items": { "$ref": "#/$defs/diagnostic" } }
