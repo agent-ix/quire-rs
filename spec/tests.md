@@ -1157,7 +1157,7 @@ Reserved withdrawn IDs (not active test cases): TC-834, TC-842, TC-871, TC-1089,
 | TC-2135 | Symbols for vitest: nested `describe` gives bare title, `it.each` yields two cases named by the template title; `name`==`classname`, `file` set, equal to `quire coverage --json` | Integration | P1 | FR-080-AC-5 | 🚧 Planned — not run |
 | TC-2136 | Modifier registrations (`skipIf`, `only`, `skip`) report the registered title once with the runner's outcome; skipped carries no ids | Integration | P1 | FR-080-AC-6 | 🚧 Planned — not run |
 | TC-2137 | A test that calls `trace` then throws is `fail` with its ids | Integration | P1 | FR-080-AC-7 | 🚧 Planned — not run |
-| TC-2138 | Default parallel execution across files: each tagged test once with its own ids | Integration | P1 | FR-080-AC-8 | 🚧 Planned — not run |
+| TC-2138 | Default parallel execution across files: each tagged test once with its own ids; `trace()` in an `it.concurrent` test throws naming the test | Integration | P1 | FR-080-AC-8 | 🚧 Planned — not run |
 | TC-2139 | Result file written by the reporter during the run, no sidecar or post-run rewrite | Integration | P1 | FR-080-AC-9 | 🚧 Planned — not run |
 | TC-2140 | Cost: 500-test tagged suite under 5% median overhead with emission on | Integration | P1 | FR-080-AC-10 | 🚧 Planned — not run |
 | TC-2141 | End to end: real vitest suite -> `quoin evidence record` binds; failing variant binds nothing | Integration | P1 | FR-080-AC-11 | 🚧 Planned — not run |
@@ -2254,8 +2254,6 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-080-AC-9 | TC-2138 |
 | FR-080-AC-10 | TC-2139 |
 | FR-080-AC-11 | TC-2140 |
-| FR-079-CON-1 | TC-2127 |
-| FR-080-CON-1 | TC-2138 |
 | FR-078-CON-4 | TC-1981 |
 | FR-079-AC-1 | TC-2120 |
 | FR-079-AC-2 | TC-2121 |

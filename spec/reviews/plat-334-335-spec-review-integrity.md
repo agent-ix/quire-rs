@@ -22,3 +22,11 @@ Tickets: PLAT-334, PLAT-335. This review checks consistency with the upstream Em
 ## Verdict
 
 Examined: E-1..E-10 against both FRs, FR-120-AC-5, the FR-079/FR-080 relationships (`implements` Quoin FR-120, `references` FR-051, `traces_to` StR-007), TC-2120..2140 and their audit rows, and the id ranges. All 21 ACs map one-to-one to a TC. The ids are unique. `QUIRE_TRACE_EMIT=1` is the only enable name used across both FRs and their ACs. Its claim about the Rust emitter is wrong, as recorded in SR-16370 FND-002. FND-001 blocks merge.
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | deferred | The FR-120 amendment is tracked on PLAT-334 and has not merged in quoin. Commit eaf5dbd now records the shortfall in the spec itself, as an explicit `Deviation from E-4 and FR-120-AC-5 (FR-120 amendment pending, PLAT-334)` entry in FR-080 Limits (FR-080:72-79), so the binding no longer claims conformance it cannot meet. |
+| FND-002 | fixed | Commit eaf5dbd adds the FR-079 (`AC-1..11; CON-1`, TC-2120..TC-2130) and FR-080 (`AC-1..11; CON-1`, TC-2131..TC-2141) summary rows (spec/tests.md:118-119). |
+| FND-003 | still-open | Commit eaf5dbd adds correct `Inspection — ...` audit rows for FR-079-CON-1 and FR-080-CON-1 (spec/tests.md:2282-2283), but leaves the old rows `FR-079-CON-1 -> TC-2127` and `FR-080-CON-1 -> TC-2138` at spec/tests.md:2257-2258, still between FR-078-CON-3 and FR-078-CON-4. After the renumber those rows point at unrelated tests: TC-2127 is FR-079-AC-8 and TC-2138 is FR-080-AC-8 (parallel execution). Each constraint is now declared twice with contradicting evidence. Fix: delete the two stale rows. |

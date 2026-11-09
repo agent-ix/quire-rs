@@ -24,3 +24,19 @@ Tickets: PLAT-334, PLAT-335. This review looks for unstated failure modes and ru
 ## Verdict
 
 Measured clean: the pytest probe put the accumulated `trace` property on every case, including a failing parametrized case, an xfail (`<skipped type="pytest.xfail">`) and a skip. One `<testcase>` was written per parametrized case, `name` and `classname` overrode pytest's dotted module default, and `--strict-markers` passed with the marker registered. These results back FR-079-AC-1/3/5/6. The rename must run where `LogXML` lives, which under xdist is the controller. FR-079-AC-7 covers that. FND-001 blocks merge, and FND-002 to FND-005 should be fixed in this PR.
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | Commit eaf5dbd scopes FR-080 to vitest and records `jest is unsupported` in Limits, with the cause (worker processes, no user-metadata field on `AssertionResult`) and revisit-by-amendment (FR-080:80-83). jest is removed from AC-5, AC-8, AC-10 and AC-11. |
+| FND-002 | fixed | Commit eaf5dbd states that xunit2 drops `file` and xunit1 keeps it, and that an enabled run under any other family fails naming the family and the remedy `-o junit_family=xunit1` (FR-079:76-80). The new FR-079-AC-9 and TC-2128 test it. |
+| FND-003 | fixed | Commit eaf5dbd names the mechanism: the reporter enables vitest task location, reads the literal template from source at that location, and fails the run naming the test if the template cannot be recovered (FR-080:60-65). |
+| FND-004 | still-open | Commit eaf5dbd removes `it.concurrent` from FR-080-AC-6 and adds a Limit, but the Limit's safe case is wrong. See FND-006. |
+| FND-005 | fixed | Commit eaf5dbd restricts emission to markers on the test function. FR-079-AC-3 now asserts that class and module markers add nothing, with the static-side reason stated (FR-079:50-53). |
+
+## New findings (disposition pass 1)
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-006 | medium | The new `it.concurrent` Limit says a `trace()` call `is attributed correctly only when made before the first await`, and that is false. In `@vitest/runner` 4.1.9, `runTest` calls `setCurrentTest(test)` and then awaits `callAroundEachHooks`, `onBeforeTryTask`, the `beforeEach` hooks and `limitMaxConcurrency` before it invokes the test function. When concurrent tests run, test A sets the slot, yields, and test B sets it. A's first synchronous line then reads B. So even a `trace()` before A's first `await` can attach to B, breaking E-5 for a use the FR calls supported. Fix: declare every `trace()` call in a concurrent test unsupported, or have the helper fail when more than one test is running, or bind through the test context. | spec/functional/FR-080-vitest-jest-trace-helper-and-reporter.md:84-87 |

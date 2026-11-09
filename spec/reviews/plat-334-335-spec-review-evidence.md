@@ -22,3 +22,11 @@ Tickets: PLAT-334, PLAT-335. This review checks whether each AC's declared metho
 ## Verdict
 
 Examined all 21 ACs and TC-2120..2140. These can fail as written: FR-079-AC-1/2/5/6/7/8/9 and FR-080-AC-1/2/3/4/6/7/8/9/10. Each states a measurable result and a negative control: a byte-equal comparison apart from timing, a 5% median over five runs or more, an exact count of `<testcase>`, and a compile-time error. The AC-level issues in FR-080-AC-5 are recorded in SR-16370 FND-001 and SR-16374.
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | Commit eaf5dbd rewords FR-079-AC-4 and `Failure is loud` to a non-`str` argument, and records that a string held in a variable is emitted while the static side does not bind it (FR-079:72-74, :96). |
+| FND-002 | fixed | Commit eaf5dbd drops the order requirement. FR-079-AC-3 now requires each id once, and the Emission section says the order of ids carries no meaning (FR-079:46-47). FR-080-AC-3 does the same. |
+| FND-003 | fixed | Commit eaf5dbd removes the staleness clause from both end-to-end ACs, now FR-079-AC-11 and FR-080-AC-11. |

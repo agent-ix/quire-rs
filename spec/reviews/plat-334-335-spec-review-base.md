@@ -30,3 +30,13 @@ Applicable profile: `spec/assurance/AP-201-detection-minting.md` (scope includes
 Examined against E-1..E-10: E-1 (both FRs: JUnit `trace` property only), E-3 (FR-079-AC-4, FR-080-AC-4), E-5 (FR-079-AC-7, FR-080-AC-8), E-6 (FR-079-AC-2, FR-080-AC-2), E-7 (AC-9/AC-10 at the SHALL bound of 5%), E-8 (FR-079-AC-8, FR-080-AC-9, both CON-1) and E-10 (FR-079-AC-10, FR-080-AC-11). E-9 is Rust-only and does not apply. The Python symbol rules match `python.rs`: bare at module level, `Class.method`, nested classes dot-joined, no module prefix. The vitest/jest bare-title, nested-`describe` and `it.each` template-literal rules match `typescript.rs`.
 
 E-2 fails on FND-001. E-4 fails as recorded in SR-16372. Not mergeable until FND-001 to FND-003 are fixed.
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | Commit eaf5dbd removes the `Class method` row and the class-method clause of FR-080-AC-5, and adds that vitest registers tests only through `it`/`test`, so the symbol is the title (FR-080:51-53, :104). |
+| FND-002 | fixed | Commit eaf5dbd removes the Rust claim. Both FRs now say `QUIRE_TRACE_EMIT` is the enable name for the pytest and TypeScript emitters only, and that the Rust emitter is enabled by a cargo feature (FR-079:41-42, FR-080:45-46). |
+| FND-003 | deferred | The package repos `agent-ix/ix-trace-py` and `agent-ix/ix-trace-ts` do not exist yet (creation pending Peter). Commit eaf5dbd records in both Package home notes that each FR is held in quire-rs only until its repo exists, then relocates there, leaving quire-rs only AC-5 (symbol equality) and AC-11 (end to end) (FR-079:114, FR-080:121). |
+| FND-004 | fixed | Commit eaf5dbd drops CR-212 from every TC row; no row cites an undefined CR. |
+| FND-005 | fixed | Commit eaf5dbd deletes the #189 sentence. |

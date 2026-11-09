@@ -81,10 +81,13 @@ package cannot meet.
   reporter an `AssertionResult` that has no user metadata field, so no channel
   carries a `trace()` call to the reporter. The requirement is revisited by
   amendment when a channel is identified.
-- **`it.concurrent`.** `trace()` finds the running test through a module-level
-  current-test slot, so a call after the first `await` in a concurrent test can
-  attach to another test. A `trace()` call is attributed correctly only when made
-  before the first `await`; other calls in a concurrent test are unsupported.
+- **Concurrent tests are unsupported.** `trace()` finds the running test through a
+  module-level current-test slot that vitest sets before it awaits hooks and the
+  concurrency limit, so with concurrent tests another test can overwrite the slot
+  and the ids would land on the wrong test. While emission is enabled, `trace()`
+  called in a test whose `concurrent` flag is true (`it.concurrent`, or a test in
+  `describe.concurrent`) throws an error naming that test. No call in a concurrent
+  test is attributed.
 
 ## Rationale
 
@@ -104,7 +107,7 @@ renames every case.
 | FR-080-AC-5 | While enabled, an `it` inside two nested `describe` blocks reports its bare title, and an `it.each` with two cases yields two `<testcase>` elements both named by the template title; for each, `name` equals `classname`, `file` is the repo-relative path, and all three equal what `quire coverage --json` reports for the same fixture. | Test |
 | FR-080-AC-6 | While enabled, `it.skipIf(true)(…)`, `it.only` and `it.skip` registrations each report their registered title once with the runner's outcome (`skip` for a skipped one), and a skipped test carries no ids and discharges nothing. | Test |
 | FR-080-AC-7 | A test that calls `trace` and then throws or fails an assertion is recorded `fail` with its ids; the outcome written is always the runner's. | Test |
-| FR-080-AC-8 | Under vitest's default parallel execution across files, each tagged test appears once with exactly its own ids, none mixed with another test's. | Test |
+| FR-080-AC-8 | Under vitest's default parallel execution across files, each tagged test appears once with exactly its own ids, none mixed with another test's; while enabled, `trace()` called in an `it.concurrent` test throws an error naming that test. | Test |
 | FR-080-AC-9 | The result file is written by the reporter during the run; no sidecar file is merged and no step after vitest exits rewrites names or ids. | Test |
 | FR-080-AC-10 | While enabled, a 500-test tagged suite adds under 5% to the median wall-clock time of the same suite with emission disabled, over at least five runs. | Test |
 | FR-080-AC-11 | A real vitest suite run with emission enabled produces a result file that `quoin evidence record` accepts and whose obligation is bound; the same suite with its tagged test made to fail yields a failing entry and binds nothing. | Test |
