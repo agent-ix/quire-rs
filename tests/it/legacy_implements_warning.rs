@@ -208,6 +208,17 @@ pub fn outer() {\n\
     /// Implements: FR-007-AC-3\n\
     fn in_fn() {}\n\
     in_fn();\n\
+}\n\
+\n\
+pub mod spaced {\n\
+\n\
+    /// Implements: FR-007-AC-4\n\
+    pub fn after_blank() {}\n\
+\n\
+    /// Implements: FR-007-AC-5\n\
+    #[inline]\n\
+    #[must_use]\n\
+    pub fn with_attributes() {}\n\
 }\n";
     let forms = vec![
         legacy_form("textual", "rust", LEGACY_PATTERN),
@@ -218,15 +229,27 @@ pub fn outer() {\n\
     let at: Vec<(Option<usize>, bool)> = found
         .iter()
         .map(|d| {
-            let member = ["in_mod", "in_trait", "in_fn"]
-                .iter()
-                .any(|name| d.message.contains(&format!("{name}` at")));
+            let member = [
+                "in_mod",
+                "in_trait",
+                "in_fn",
+                "after_blank",
+                "with_attributes",
+            ]
+            .iter()
+            .any(|name| d.message.contains(&format!("{name}` at")));
             (d.line, member)
         })
         .collect();
     assert_eq!(
         at,
-        vec![(Some(2), true), (Some(7), true), (Some(12), true)],
+        vec![
+            (Some(2), true),
+            (Some(7), true),
+            (Some(12), true),
+            (Some(19), true),
+            (Some(22), true)
+        ],
         "{found:?}"
     );
 }

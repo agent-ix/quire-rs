@@ -32,3 +32,9 @@ The FR-057 severity clause has no engine-side field and no test. That matches th
 ## Verdict
 
 Examined: FR-050-AC-62, TC-2090 and the FR-050 and TC-2090 rows in `spec/tests.md`. The AC is otherwise fully and falsifiably covered. Add a nested-occurrence test that asserts exactly one finding naming the innermost symbol. It should be written alongside the SR-16380 FND-001 fix. Known and not a finding: `tc1026_the_declared_vocabulary_matches_the_engine` fails until qa-corpus `corpus.yaml` `emitted` lists `legacy-implements-form`. That test also requires every emitted reason to be asserted present in one corpus case and absent in another, so the qa-corpus PR needs both cases, not only the `emitted` entry.
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | - |

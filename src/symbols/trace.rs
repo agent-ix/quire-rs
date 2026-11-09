@@ -1337,9 +1337,11 @@ fn bind_implements(
                     && marker.language == SourceLanguage::Rust
                     && !bound_ids.is_empty()
                 {
-                    let offset = caps.get(0).map_or(0, |matched| {
-                        candidate[..matched.start()].matches('\n').count()
-                    });
+                    // The authored line of the ids, not of the match: a pattern
+                    // opening with `^\s*` starts on a preceding blank line.
+                    let offset = caps
+                        .get(1)
+                        .map_or(0, |ids| candidate[..ids.start()].matches('\n').count());
                     graph.legacy_implements.push(LegacyImplementsUse {
                         path: symbol.path.clone(),
                         symbol: symbol.qualified_name.clone(),
