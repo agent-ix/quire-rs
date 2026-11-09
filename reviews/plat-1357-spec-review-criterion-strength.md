@@ -30,3 +30,9 @@ Changes requested. AC-9 can fail: an implementation that skips with no package d
 | --- | --- | --- |
 | FR-038-AC-9 | examined | Can fail; adverse cases present |
 | FR-038-AC-10 | examined | FND-001 |
+
+## Dispositions
+
+| FND | Outcome | Reason |
+| --- | --- | --- |
+| FND-001 | fixed | FR-038-AC-10 adds the vector: declared package `Acme/Widgets`, absent `ix://acme/WIDGETS/X` is `dangling-reference`, so a one-sided fold now fails it. |

@@ -35,3 +35,18 @@ Changes requested (two medium). The amendment matches the ticket and the planned
 | TC-2151 | examined | Matches AC-10; status planned |
 | FR-038 statement | context_only | Owner of dangling-reference |
 | FR-076 | context_only | FND-002 |
+
+## New findings (disposition pass 1)
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-004 | medium | FR-076-AC-23 says a mixed-case own-package target "qualifies as the own package" but not which identity it lowers to. `resolve_target` keeps the cell as written (`cell.to_string()`), while a bare id lowers to `ix://{package}/{id}`. So one artifact named as `X` and as `ix://Acme/Widgets/X` would lower to two different identities under package `acme/widgets`, and two implementers could choose either spelling. Fix: state the lowered identity, e.g. `ix://<bundle package as declared>/<id>`. | spec/functional/FR-076-relationships-extraction.md:320; src/semantic/target.rs:104-114 |
+| FND-005 | low | FR-076-AC-23 names the internal Rust variant `UnimportedPackage` as the refusal. The spec's observable outcome for that row is `semantic.invalid-model-cell` with reason `target-not-id` (FR-076 Refusals table; fixture case `target-qualified-not-imported`). Name the observable code and reason. | spec/functional/FR-076-relationships-extraction.md:320 |
+
+## Dispositions
+
+| FND | Outcome | Reason |
+| --- | --- | --- |
+| FND-001 | fixed | FR-038-AC-10 now states that an own-repo spelling plus any foreign spelling is one edge that stays dangling whatever the case or byte order, with the zz/Zz/aaa vectors. |
+| FND-002 | fixed | New FR-076-AC-23 (TC-2152) folds ASCII case on both sides for the Relationships own-package check. |
+| FND-003 | fixed | The PLAT-1357 change-history note is removed; the rationale is in FR-038-AC-10. |
