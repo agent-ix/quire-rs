@@ -4,7 +4,7 @@
   "type": "object",
   "properties": {
     "value": {
-      "$ref": "https://schemas.agent-ix.org/semantic-core/0.3.3/Identifier.json"
+      "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.0/Identifier.json"
     },
     "doc": {
       "type": "string"

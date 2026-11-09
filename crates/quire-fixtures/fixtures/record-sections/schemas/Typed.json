@@ -4,13 +4,13 @@
     "associated_types": {
       "type": "array",
       "items": {
-        "$ref": "https://schemas.agent-ix.org/semantic-core/0.3.3/TypeRef.json"
+        "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.0/TypeRef.json"
       }
     },
     "other_types": {
       "type": "array",
       "items": {
-        "$ref": "https://schemas.agent-ix.org/semantic-core/0.3.3/TypeRef.json"
+        "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.0/TypeRef.json"
       }
     }
   },
