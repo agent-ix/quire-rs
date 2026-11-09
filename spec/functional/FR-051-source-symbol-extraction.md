@@ -114,6 +114,17 @@ form the module declares in `trace_tags.implements`. Whether an `entry_point`
 is **eligible** to bind is decided at the binding stage by the module's
 `entry_paths` globs (AC-38, AC-39), not at extraction.
 
+> **CR-213 note (2026-11-08, PLAT-362):** two clarifications. First, the
+> function symbol is minted for every `function_definition` node the grammar
+> yields *except* one inside a command substitution (`$( )` or backticks): that
+> definition lives in a subshell and is not a global function, and AC-36 lists
+> the substitution among the places a definition-shaped line mints nothing.
+> Second, shell symbols are **excluded from the binding census of AC-19**:
+> the `entry_point` is minted for every `.sh` file regardless of any declared
+> pattern, so counting it would report every unglobbed script as an unbound
+> candidate and fire `no-symbol-bound` on repositories that declare no shell
+> form. A shell marker that binds nothing is reported by AC-44 instead.
+
 ## Trace-tag grammar
 
 The extractor SHALL bind symbols to spec trace ids via a **trace-tag grammar**

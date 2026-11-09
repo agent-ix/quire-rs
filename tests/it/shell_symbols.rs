@@ -198,6 +198,32 @@ fn tc2104_one_entry_point_per_file() {
     let id_of = |path: &str| sh(path, "x\n").symbols[0].id.clone();
     assert_eq!(id_of("scripts/a.sh"), id_of("scripts/a.sh"));
     assert_ne!(id_of("scripts/a.sh"), id_of("scripts/b.sh"));
+    // The symbol-table report lists it as a kind that binds and carries no
+    // `implements`, and the FR-045 graph node carries the `entry_point` kind.
+    let extraction = sh("scripts/a.sh", "f() { :; }\n");
+    let report = quire_rs::symbol_table::build(&extraction, None);
+    let record = report
+        .symbols
+        .iter()
+        .find(|r| r.kind == "entry_point")
+        .expect("entry_point record");
+    assert!(record.binds_trace_ids && !record.carries_implements);
+    let graph = bind(&extraction, &model(Some(vec!["scripts/**"])));
+    let input = quire_rs::symbols::trace::SymbolRecordInput {
+        org: "o".into(),
+        repo_name: "r".into(),
+        project_id: "p".into(),
+        document_id: "d".into(),
+        artifact_id: None,
+    };
+    let (nodes, _) =
+        quire_rs::symbols::trace::graph_records(&extraction, &graph, &input).expect("records");
+    assert!(
+        nodes
+            .iter()
+            .any(|n| n.data_json.contains("\"kind\":\"entry_point\"")),
+        "{nodes:?}"
+    );
     assert!(SymbolKind::EntryPoint.binds_trace_ids());
     assert!(!SymbolKind::EntryPoint.carries_implements());
     assert_eq!(SymbolKind::EntryPoint.as_str(), "entry_point");
@@ -361,6 +387,20 @@ fn tc2109_no_declared_form_mints_nothing() {
     assert!(bind(&sh("scripts/a.sh", src), &rust_only)
         .verifies
         .is_empty());
+
+    // A shell form without `syntax: comment` is refused at load, naming it...
+    let no_syntax = json!({ "trace_tags": { "markers": [
+        { "name": "plain", "language": "shell", "pattern": r"#\s*trace:\s*(.+)$",
+          "entry_paths": ["scripts/**"] },
+    ]}});
+    let model: TraceabilityModel = serde_json::from_value(no_syntax).expect("shape");
+    let err = model.validate().expect_err("shell form without syntax");
+    assert!(
+        err.contains("plain") && err.contains("syntax: comment"),
+        "{err}"
+    );
+    // ...and a model that skipped validation binds nothing through it.
+    assert!(bind(&sh("scripts/a.sh", src), &model).verifies.is_empty());
 }
 
 #[trace("TC-2110", "FR-051-AC-43")]
@@ -435,6 +475,39 @@ f() { :; }
             ("function-not-evidence", 6, "FR-001-AC-3"),
         ]
     );
+    // AC-44: "no census count moves" — shell is not in the binding census.
+    assert!(
+        outside.binding_census.iter().all(|c| c.language != "shell"),
+        "{:?}",
+        outside.binding_census
+    );
+    // A range binds nothing wherever it sits and leaves a record (AC-28): in
+    // an ineligible header, a function's block, and any other comment.
+    let ranges = "\
+#!/bin/sh
+# trace: FR-001-AC-1..FR-001-AC-3
+set -e
+# trace: FR-002-AC-1..FR-002-AC-3
+
+# trace: FR-003-AC-1..FR-003-AC-3
+f() { :; }
+";
+    let graph = bind(&sh("other/a.sh", ranges), &model(Some(vec!["scripts/**"])));
+    let got: Vec<(usize, &str, &str)> = graph
+        .range_diagnostics
+        .iter()
+        .map(|r| (r.line, r.symbol.as_str(), r.range_text.as_str()))
+        .collect();
+    assert_eq!(
+        got,
+        [
+            (2, "entry_point", "FR-001-AC-1..FR-001-AC-3"),
+            (4, "entry_point", "FR-002-AC-1..FR-002-AC-3"),
+            (6, "f", "FR-003-AC-1..FR-003-AC-3"),
+        ]
+    );
+    assert!(graph.verifies.is_empty() && graph.shell_findings.is_empty());
+
     // Inside a glob only the two that cannot bind remain.
     let inside = bind(&sh("scripts/a.sh", src), &model(Some(vec!["scripts/**"])));
     let got: Vec<&str> = inside.shell_findings.iter().map(|f| f.reason).collect();
@@ -457,7 +530,7 @@ fn tc2112_unparseable_file() {
     );
     assert_eq!(extraction.diagnostics[0].path, "bad.sh");
     assert!(
-        extraction.diagnostics[0].reason.contains("line "),
+        extraction.diagnostics[0].reason.starts_with("line 2:"),
         "{}",
         extraction.diagnostics[0].reason
     );

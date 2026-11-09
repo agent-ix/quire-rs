@@ -11,7 +11,8 @@
 //!
 //! - a [`SymbolKind::Function`] for every `function_definition` node outside a
 //!   command substitution (`$( )`, backticks: a subshell's function is not a
-//!   global one, and FR-051-AC-36 lists them as decoys), whatever its spelling. Shell functions are global, so the qualified name is the
+//!   global one, and FR-051-AC-36 lists them as decoys), whatever its
+//!   spelling. Shell functions are global, so the qualified name is the
 //!   function's own name even when the definition sits inside another
 //!   function's body; the enclosing function is only its `container`.
 //! - one [`SymbolKind::EntryPoint`] per file, named `entry_point` and spanning

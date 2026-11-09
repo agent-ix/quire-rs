@@ -1781,6 +1781,18 @@ impl TraceabilityModel {
                 ));
             }
             check_capturing_pattern("trace_tags.markers", &marker.name, &marker.pattern)?;
+            // FR-051-AC-42: shell tags are read only through a `syntax: comment`
+            // form, so a shell form without it would bind nothing; refuse it
+            // at load rather than let it fail silently.
+            if marker.language == SourceLanguage::Shell
+                && marker.syntax != Some(TraceMarkerSyntax::Comment)
+            {
+                return Err(format!(
+                    "traceability: trace_tags.markers form '{}' is a shell form and must \
+                     declare `syntax: comment`",
+                    marker.name
+                ));
+            }
             if let Some(entry_paths) = &marker.entry_paths {
                 if marker.language != SourceLanguage::Shell {
                     return Err(format!(

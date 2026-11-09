@@ -26,7 +26,7 @@ use super::trace::{
 };
 use super::{SourceAttribute, Symbol, SymbolExtraction, SymbolKind};
 use crate::corpus::declared_tables::ExcludeSet;
-use crate::traceability::{SourceLanguage, TraceMarkerForm, TraceabilityModel};
+use crate::traceability::{SourceLanguage, TraceMarkerForm, TraceMarkerSyntax, TraceabilityModel};
 
 /// Why a declared shell marker that matched a comment bound nothing (AC-44).
 pub const OUTSIDE_ENTRY_PATHS: &str = "outside-entry-paths";
@@ -63,10 +63,14 @@ pub(crate) struct ShellBinder<'m> {
 
 impl<'m> ShellBinder<'m> {
     pub(crate) fn new(model: &'m TraceabilityModel, graph: &mut SymbolGraph) -> Self {
-        let compile = |forms: &'m [TraceMarkerForm]| -> Vec<Form<'m>> {
+        let compile = |forms: &'m [TraceMarkerForm], comment_only: bool| -> Vec<Form<'m>> {
             forms
                 .iter()
                 .filter(|form| form.language == SourceLanguage::Shell)
+                // FR-051-AC-42: a `markers` form reads shell tags only with
+                // `syntax: comment`. Load refuses the rest; a hand-built model
+                // that skipped validation binds nothing through them.
+                .filter(|form| !comment_only || form.syntax == Some(TraceMarkerSyntax::Comment))
                 // An uncompilable pattern is refused at module load; a
                 // hand-built model that skipped validation reads nothing here,
                 // as it reads nothing in the other languages.
@@ -78,8 +82,8 @@ impl<'m> ShellBinder<'m> {
                 })
                 .collect()
         };
-        let markers = compile(&model.trace_tags.markers);
-        let implements = compile(&model.trace_tags.implements);
+        let markers = compile(&model.trace_tags.markers, true);
+        let implements = compile(&model.trace_tags.implements, false);
         // One union across every loaded shell form (AC-39). A list that does
         // not compile is refused as one unit, never as a partial subset, and
         // the finding names the pattern (FR-050-AC-25).
@@ -89,14 +93,9 @@ impl<'m> ShellBinder<'m> {
             .flatten()
             .cloned()
             .collect();
-        let entry_paths = match ExcludeSet::compile(&globs) {
-            Ok(set) => set,
-            Err(reason) => {
-                let pattern = globs
-                    .iter()
-                    .find(|p| globset::Glob::new(p).is_err())
-                    .cloned()
-                    .unwrap_or_default();
+        let entry_paths = match refuse_uncompilable(&globs) {
+            None => ExcludeSet::compile_validated(&globs),
+            Some((pattern, reason)) => {
                 graph.diagnostics.push(TraceDiagnostic {
                     path: pattern,
                     symbol: String::new(),
@@ -202,6 +201,18 @@ impl<'m> ShellBinder<'m> {
             };
             let header = in_channel(SymbolKind::EntryPoint);
             let blocks = in_channel(SymbolKind::Function);
+            // The function owning each block line, so a range finding names it.
+            let owner = |line: usize| -> &str {
+                extraction
+                    .symbols
+                    .iter()
+                    .find(|s| {
+                        s.path == file.path
+                            && s.kind == SymbolKind::Function
+                            && s.tag_comments.iter().any(|c| c.line == line)
+                    })
+                    .map_or("entry_point", |s| s.qualified_name.as_str())
+            };
             let eligible = self.eligible(&file.path);
             for comment in &file.comments {
                 let reason = if header.contains(&comment.line) {
@@ -219,6 +230,15 @@ impl<'m> ShellBinder<'m> {
                         let Some(args) = caps.get(1) else { continue };
                         for trace_id in marker_ids(args.as_str()) {
                             if range_pattern().is_match(&trace_id) {
+                                // A range binds nothing wherever it sits
+                                // (FR-051-AC-28); the eligible header's was
+                                // already reported by the binder.
+                                graph.range_diagnostics.push(RangeInTraceTag {
+                                    path: file.path.clone(),
+                                    symbol: owner(comment.line).to_string(),
+                                    line: comment.line,
+                                    range_text: trace_id,
+                                });
                                 continue;
                             }
                             graph.shell_findings.push(ShellFinding {
@@ -237,6 +257,18 @@ impl<'m> ShellBinder<'m> {
         });
         graph.shell_findings.dedup();
     }
+}
+
+/// The first `entry_paths` pattern that does not compile, with the reason; the
+/// list is refused as one unit (FR-050-AC-25). `None` when every pattern
+/// compiles, which is also what makes the set build infallible.
+fn refuse_uncompilable(globs: &[String]) -> Option<(String, String)> {
+    globs
+        .iter()
+        .find_map(|pattern| match globset::Glob::new(pattern) {
+            Ok(_) => None,
+            Err(error) => Some((pattern.clone(), error.to_string())),
+        })
 }
 
 /// The ids one comment yields under `pattern`, each paired with the range it
