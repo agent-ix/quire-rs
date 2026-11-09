@@ -35,3 +35,4 @@ Each case in `cases[]` has these fields:
 | `exactDiagnostics` | The exact number of diagnostics the extraction emits; a row that fails several checks yields one (FR-104 refusal order). |
 | `relations`, `relationSources` | Expected outputs; `relations: null` means neither is emitted. |
 | `availability` | Expected `availability`; `{}` means no `availability.relations` key. |
+| `availability.<kind>.reasonLoci` | For a kind `unavailable` through entry errors: the `locus` names (as in `diagnostics[].locus`) of the lines the engine's `entry-errors` reason lists, in ascending line order, one per distinct line. It replaces a `reason` string for such kinds; a `reason` beside it is refused. The harness resolves each locus to its line in the case's artifact. A kind unavailable for another cause keeps a plain `reason`. |
