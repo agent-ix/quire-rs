@@ -24,7 +24,7 @@ review, and knowledge-graph ingestion.
 ## Symbols
 
 The extractor SHALL extract, per file, the symbols visible at syntax level:
-functions, test functions, and containers (Rust `struct`/`enum`/`trait`/`mod`,
+functions, test functions, entry points (shell, below), and containers (Rust `struct`/`enum`/`trait`/`mod`,
 Python classes and modules, TypeScript classes and modules). Each symbol SHALL
 carry a **stable identity** composed of language, repo-relative file path,
 qualified symbol path, and kind. Symbol identity SHALL NOT incorporate line
@@ -57,9 +57,9 @@ attribute. Record ids SHALL be the identity itself, per the
 > spellings and sibling non-test controls (TC-1803).
 > Authority: [Python unittest loading](https://docs.python.org/3/library/unittest.html#unittest.TestLoader.loadTestsFromTestCase).
 
-The extractor SHALL ship per-language adapters for Rust, Python, and
-TypeScript, each behind its own Cargo feature (`rust-symbols`, `python-symbols`,
-`typescript-symbols`); a build without a feature SHALL record that language as
+The extractor SHALL ship per-language adapters for Rust, Python,
+TypeScript, and shell, each behind its own Cargo feature (`rust-symbols`,
+`python-symbols`, `typescript-symbols`, `shell-symbols`); a build without a feature SHALL record that language as
 unavailable when the tree holds source in it, and every consumer of the
 extraction SHALL refuse rather than report on a tree it only partly read
 (AC-29, AC-30). Each adapter SHALL parse its file to a syntax tree with that
@@ -80,7 +80,39 @@ symbol's qualified name). A TypeScript `describe(...)`/`suite(...)` registration
 is a **container**, not a test: it groups tests rather than being one, and it is
 the scope the registrations inside it are parented to. If an adapter cannot
 parse a file, then the extractor SHALL emit a per-file diagnostic, skip the
-file, and continue.
+file, and continue. Every grammar reaches the extractor through the single
+tree-sitter boundary crate `quire-code-extraction`
+(`scripts/audits/check_tree_sitter_boundary.sh`): the shell adapter SHALL
+parse with the `tree-sitter-bash` grammar, enabled by a `bash` feature of
+`quire-code-parse` (in `quire-code-rs`) that `quire-code-extraction`
+forwards under the `shell-symbols` feature, as the other three adapters are.
+
+### Shell adapter (CR-213, PLAT-362)
+
+The extractor SHALL read a file whose extension is `.sh` through the shell
+adapter and report it as language `shell`; no other spelling (`.bash`, an
+extension-less file with a `#!` line) is read. Shell has no attribute syntax,
+so its tag channel is the `#` comment, read from the syntax tree's comment
+nodes. The adapter SHALL mint two kinds of symbol:
+
+- a **function** symbol for every `function_definition` node the grammar
+  yields, whatever the spelling (`name() { … }`, `function name { … }`,
+  `function name() { … }`, `{` on a following line, a subshell or other compound
+  body, a name containing `-`, `.` or `:`), whose qualified name is the
+  function's own name. Shell functions are global, so a definition nested in
+  another function's body is named by its own name alone;
+- one **`entry_point`** symbol for **every** `.sh` file, spanning the whole file
+  and named `entry_point` (the whole-file precedent of the Rust `fuzz_target`
+  symbol). The extractor SHALL mint it without consulting module data, so the
+  candidate population does not depend on declared patterns (AC-19) and the
+  symbol table is the same with or without a module (AC-23).
+
+An `entry_point` is evidence: it binds `verifies` ids, and it does not carry
+`implements` (the FR-062 complement rule). A shell function is production: it
+binds no `verifies`, and carries `implements` only through a `language: shell`
+form the module declares in `trace_tags.implements`. Whether an `entry_point`
+is **eligible** to bind is decided at the binding stage by the module's
+`entry_paths` globs (AC-38, AC-39), not at extraction.
 
 ## Trace-tag grammar
 
@@ -99,11 +131,18 @@ module-declared data, with these forms as the intended ISO declaration
 - Rust — a no-op proc-macro attribute from a lightweight support crate:
   `#[trace("FR-007-AC-01")]`;
 - TypeScript — a vitest/jest helper or tag-metadata form:
-  `trace("FR-007-AC-01")` wrapping or annotating the registration.
+  `trace("FR-007-AC-01")` wrapping or annotating the registration;
+- shell — a `#` comment (`# trace: FR-007-AC-01`) in the tag channel of AC-40,
+  declared as a `markers` entry with `language: shell` and `syntax: comment`.
+  Shell has no attribute syntax, so a comment is the only construct a canonical
+  shell marker can be; it is canonical because the module declares its form and
+  the extractor reads it from the syntax tree's comment nodes, not because of
+  where it sits on the page. It is **not** the legacy class below, and
+  FR-051-CON-3 does not retire it.
 
 The extractor SHALL read markers **statically** from the syntax tree — the
-decorator, attribute and call-argument nodes the tree attaches to the test
-symbol's declaration — so a marker binds by its attachment rather than by its
+decorator, attribute and call-argument nodes (and, for shell, the comment
+nodes) the tree attaches to the test symbol's declaration — so a marker binds by its attachment rather than by its
 position on the page, and coverage never requires a runtime. Runtime
 queryability (running all tests for an FR, tagging JUnit reports) is a stated
 benefit of the marker form, not a requirement of this FR.
@@ -115,7 +154,8 @@ diagnostic, per the FR-045 edge-dedup convention.
 The textual forms the `gap-analysis` workflow greps today are a recognized
 **legacy class**, read only during migration: a bare trace id in a doc comment
 or docstring (`FR-007-AC-01`, `TC-041`), a `Trace:` line (`Trace: FR-001`), a
-trace id in a line comment (`# TC-041`, `// TC-041`), and a test name embedding
+trace id in a Rust, Python or TypeScript line comment (`# TC-041`,
+`// TC-041`; a shell comment is read only through a declared marker form), and a test name embedding
 a trace id (`tc657_classification`). A legacy binding SHALL be marked `legacy`
 in the relation's provenance metadata, and the extractor SHALL emit a
 mechanical marker-rewrite suggestion (`quire fix`-style) where the equivalent
@@ -138,7 +178,7 @@ byte-identical JSON ordering and stable record ids.
 
 | ID | Constraint | Type | Validation |
 |----|------------|------|------------|
-| FR-051-CON-1 | The extractor SHALL classify syntax from a syntax tree that a grammar-driven parser library produces over the source text, and performs no network I/O, no service I/O, no execution of extracted code, no compilation of the analysed tree, no dependency installation, and no type resolution. | Architecture | Test |
+| FR-051-CON-1 | The extractor SHALL classify syntax from a syntax tree that a grammar-driven parser library produces over the source text, and performs no network I/O, no service I/O, no execution of extracted code, no compilation of the analysed tree, no dependency installation, and no type resolution. This holds for every adapter, shell included (the `tree-sitter-bash` grammar), and the shell adapter never executes or sources the script it reads. | Architecture | Test |
 | FR-051-CON-2 | Adapters SHALL degrade per file: one unparseable file never aborts the tree extraction. | Operational | Test |
 | FR-051-CON-3 | Legacy textual-tag recognition SHALL be removed once the marker-normalization sweep lands (sweep gated on explicit user sign-off) — no deprecated compat path is retained after it. | Operational | Inspection |
 
@@ -146,7 +186,7 @@ byte-identical JSON ordering and stable record ids.
 
 | ID | Criteria | Verification |
 |----|----------|--------------|
-| FR-051-AC-1 | Each adapter extracts functions, test functions, and containers from a fixture tree, and each symbol carries language, repo-relative path, qualified path, kind, and a line attribute. | Test (TC-741) |
+| FR-051-AC-1 | Each adapter extracts functions, test functions, and containers from a fixture tree (the shell adapter: functions and the `entry_point`), and each symbol carries language, repo-relative path, qualified path, kind, and a line attribute. | Test (TC-741) |
 | FR-051-AC-2 | Reformatting a fixture file (whitespace and line-number changes only) leaves every symbol id unchanged; renaming a symbol changes only that symbol's id. | Test (TC-742) |
 | FR-051-AC-3 | Rust `#[test]`-family functions, Python `test_` functions and direct imported unittest.TestCase methods in the bounded forms above, and TypeScript `test`/`it` registrations classify as test symbols; sibling non-test symbols do not. **Since CR-187:** TypeScript `xtest`/`xit` base names classify as test symbols exactly as `test`/`it` do (they mint with `ignored: true`, FR-051-AC-27) — no new registration shape, only the admitted base-name set widens. | Test (TC-743, TC-1803, TC-1940) |
 | FR-051-AC-4 | Each canonical marker form binds statically: a Python `@pytest.mark.trace(...)` decorator, a Rust `#[trace(...)]` attribute, and a TypeScript `trace(...)` helper each mint one `verifies` relation per attached trace id, with no code executed. | Test (TC-744) |
@@ -155,7 +195,7 @@ byte-identical JSON ordering and stable record ids.
 | FR-051-AC-7 | The emitted records match the FR-045 graph-record shapes with normalized `ref` values, and filament-core ingestion fixtures accept them unchanged. | Test (TC-747) |
 | FR-051-AC-8 | `defined_in` edges link every symbol to its file and `contains` edges link containers to members, deterministically ordered. | Test (TC-748) |
 | FR-051-AC-9 | An unparseable fixture file yields a per-file diagnostic naming that file and the line the error sits at, while the rest of the tree extracts normally. | Test (TC-749, TC-1884) |
-| FR-051-AC-10 | Repeated extraction over an identical fixture tree, at a pinned grammar version (`tree-sitter-rust`/`tree-sitter-python`, locked in `Cargo.lock`) and a fixed Cargo feature set (`rust-symbols`/`python-symbols`, which change whether Rust/Python extract at all — see CR-177, CR-179), emits byte-identical JSON and identical record ids. | Test (TC-750) |
+| FR-051-AC-10 | Repeated extraction over an identical fixture tree, at a pinned grammar version (`tree-sitter-rust`/`tree-sitter-python`/`tree-sitter-bash`, locked in `Cargo.lock`) and a fixed Cargo feature set (`rust-symbols`/`python-symbols`/`shell-symbols`, which change whether Rust/Python extract at all — see CR-177, CR-179), emits byte-identical JSON and identical record ids. | Test (TC-750) |
 | FR-051-AC-11 | The legacy textual forms (docstring bare id, `Trace:` line, line-comment id, trace-embedding test name) still bind during migration, carry `legacy` provenance on the minted relation, and yield a mechanical marker-rewrite suggestion where derivable. | Test (TC-753) |
 | FR-051-AC-12 | Comment recognition is string-aware, and template-literal state carries across lines: a `//` or `/*` inside a string or template literal is content, not a comment opener, whether it sits on the literal's opening line or a continuation line. | Test (TC-798, TC-799) |
 | FR-051-AC-13 | A declaration whose signature spans lines binds tags in its docstring: a `def` wrapped by a formatter has the same span as the unwrapped form. | Test (TC-800) |
@@ -166,19 +206,32 @@ byte-identical JSON ordering and stable record ids.
 | FR-051-AC-18 | A `test`/`it`/`xtest`/`xit` registration (CR-187 widens this AC's own base-name set to match AC-3's) whose modifier chain is curried (`it.skipIf(cond)(…)`, `it.each([…])(…)`, `xit.each([…])(…)`), whose chain carries whitespace anywhere — before `(`, between curried groups, or before a `.` modifier (PLAT-882) — or whose title literal begins on a later line, registers a test symbol named by that title, with the span and leading block any other registration gets: the tree names a call's own first argument directly, so there is no longer a scan or a window bounding how far down the file that argument may sit (PLAT-882, superseding CR-084's own bounded-scan mechanism — see CR-180). A registration carries a callback as its second argument or it registers nothing: a title held in a variable, an identifier merely beginning with `it`, and a call with no second argument each register nothing rather than something wrong. A title inside a multi-line template literal is out of scope and registers nothing (CR-084). | Test (TC-943, TC-948, TC-958, TC-960, TC-961, TC-1920, TC-1921, TC-1940) |
 | FR-051-AC-19 | Binding reports a per-language census of what it examined: `candidates` counts evidence symbols whose kind admits a trace tag; `tagged` counts candidates whose attached annotation block carries a generic id-shaped token or whose declared form bound; `bound` counts candidates that minted at least one `verifies` relation; and `forms` names every declared form consulted, markers before legacy. The hard invariant is `bound <= tagged <= candidates`. An unbound candidate carries `unbound_example`; a tagged-but-unbound candidate additionally carries `unmatched_example`, each the deterministic lowest `path:line`. Generic tag detection is independent of the declared grammar and does not inspect the test body. Counts are symbols rather than relations, containers and production functions are not candidates, rows are language-ordered, and the candidate population does not depend on declared patterns (CR-093, CR-142). | Test (TC-982, TC-1060) |
 | FR-051-AC-20 | A Python triple-quoted string is content wherever its delimiter sits: a body opened mid-line (`FIXTURE = """`) is never read as code, and a declaration following an embedded string keeps its true container rather than resuming the scope that was open when the string began. Both delimiter kinds and every string prefix (`f`, `r`, `b`, `rb`, `u`) are recognised as openers; a triple delimiter written inside a single-quoted string, escaped, or after a `#` comment marker opens nothing, and a `#` inside a triple-quoted string ends nothing (CR-115). | Test (TC-1029, TC-1030, TC-1031) |
-| FR-051-AC-22 | A trace id a declared **verifies** form attaches to a symbol whose kind cannot bind it is reported, naming the id, the symbol, that symbol's kind, the form that matched, and the channel a symbol of that kind can carry. The tag still binds nothing — the kinds stay as CR-061 set them and no count in the payload moves, so the census `candidates` denominator is unchanged. Two rules bound the report and both are load-bearing: an id that **bound anywhere else** is not reported, because a container's span runs to end of file and would otherwise re-report every id in it; and where several symbols span one tag the **innermost** is named, because the fix a reader needs is the symbol the tag sits on and not the module that contains it. The forms consulted are the same ones the binder consults, from the same declaration, so a tag the binder would read and a tag this reports cannot diverge. Only the **legacy textual forms** are reported: a canonical marker is syntax the language attaches to the declaration that follows it, so one that bound nothing either decorates a symbol that bound — already excluded — or decorates no declaration at all, which means the text is data. Quoted legacy prose remains visible to that shared matcher and is calibrated as an advisory rather than masked in only one caller. | Test (TC-1044, TC-1045, TC-1046, TC-1047, TC-1081) |
-| FR-051-AC-23 | The extracted symbol table is reported on its own surface, as the engine built it: per symbol its path, qualified name, kind, language, declaration line, **declaration column** (CR-187: the 1-based UTF-8 byte column of the declaration's own start, as tree-sitter itself reports it — all three adapters parse through tree-sitter at this head), annotation-block line, end line, container, whether that **kind** can bind a trace id, whether it can carry an `implements` marker, whether AC-27 marks it (or its container) ignored, and — when a module is supplied — the ids it bound. A scanner defect must be sizeable **without reimplementing the scanner**: three ports of `symbols/python.rs` gave 386, 490 and 5,263 lost declarations over one tree, disagreeing precisely where the original is wrong. Binding is reported as **not asked** rather than as zero when no module is supplied, because an unbound run and a repository nobody tagged produce the same empty list. Per-language totals carry both denominators — symbols examined and symbols of a **binding kind** — since a rate over the wrong one reads a tree of containers as untagged. | Test (TC-1052, TC-1053, TC-1054) |
+| FR-051-AC-22 | A trace id a declared **verifies** form attaches to a symbol whose kind cannot bind it is reported, naming the id, the symbol, that symbol's kind, the form that matched, and the channel a symbol of that kind can carry. The tag still binds nothing — the kinds stay as CR-061 set them and no count in the payload moves, so the census `candidates` denominator is unchanged. Two rules bound the report and both are load-bearing: an id that **bound anywhere else** is not reported, because a container's span runs to end of file and would otherwise re-report every id in it; and where several symbols span one tag the **innermost** is named, because the fix a reader needs is the symbol the tag sits on and not the module that contains it. The forms consulted are the same ones the binder consults, from the same declaration, so a tag the binder would read and a tag this reports cannot diverge. Only the **legacy textual forms** are reported here (a shell comment marker that binds nothing is reported under AC-44 instead): a canonical marker is syntax the language attaches to the declaration that follows it, so one that bound nothing either decorates a symbol that bound — already excluded — or decorates no declaration at all, which means the text is data. Quoted legacy prose remains visible to that shared matcher and is calibrated as an advisory rather than masked in only one caller. | Test (TC-1044, TC-1045, TC-1046, TC-1047, TC-1081) |
+| FR-051-AC-23 | The extracted symbol table is reported on its own surface, as the engine built it: per symbol its path, qualified name, kind, language, declaration line, **declaration column** (CR-187: the 1-based UTF-8 byte column of the declaration's own start, as tree-sitter itself reports it — all four adapters parse through tree-sitter at this head), annotation-block line, end line, container, whether that **kind** can bind a trace id, whether it can carry an `implements` marker, whether AC-27 marks it (or its container) ignored, and — when a module is supplied — the ids it bound. A scanner defect must be sizeable **without reimplementing the scanner**: three ports of `symbols/python.rs` gave 386, 490 and 5,263 lost declarations over one tree, disagreeing precisely where the original is wrong. Binding is reported as **not asked** rather than as zero when no module is supplied, because an unbound run and a repository nobody tagged produce the same empty list. Per-language totals carry both denominators — symbols examined and symbols of a **binding kind** — since a rate over the wrong one reads a tree of containers as untagged. | Test (TC-1052, TC-1053, TC-1054) |
 | FR-051-AC-24 | String-literal contents are masked before a **legacy** textual form is matched, in **every** language rather than in Rust alone — a trace id a file carries as data is not a tag, and binding it invents coverage nobody authored. The mask preserves each language's declared **tag channel**: comments everywhere, and additionally a Python **docstring** and a TypeScript test **registration title**, because `python-docstring-id` and `typescript-test-name-id` are declared forms that read an id out of a string literal by design. Rust needs no such exemption — its `rust-test-name-id` reads an identifier — which is why a blanket mask is correct there and wrong in the other two. Canonical markers are never masked against: they put ids inside string literals by design. | Test (TC-1055, TC-1056, TC-1057) |
 | FR-051-AC-21 | A TypeScript `describe(...)` / `suite(...)` registration mints one **container** symbol named by its registered title, spanning its block and its leading annotation block, and the registrations written inside it carry it as their container rather than the file's module — a `describe(` whose `{` falls on a later line (a callback wrapped for width, like any other registration under AC-18) still parents its members to it: the tree, not a same-line text check, decides what is inside a suite's callback (PLAT-882, superseding the pre-tree-sitter scanner's own same-line requirement — see CR-180). A suite does not *name* its members: a registration's qualified name is its own registered title whether or not a suite encloses it, while a class inside a suite still qualifies its own. A suite is a grouping and not evidence, so a trace tag on a suite header mints **no** `verifies` relation and the suite is **not** a `binding_census` candidate — and since `agent-ix/quire-rs#312` that tag is **reported** rather than dropped, under AC-22. The tag naming a test is the declarative form; a tag on the group would make coverage an inference about which test inside is meant, and the report says where the tag is instead of guessing. A registration whose name chain names a suite **anywhere along it** is a suite: `test.describe(...)` and `it.describe.only(...)` classify exactly as `describe(...)` does, because a harness spells its suite as a member of its test namespace and reading only the first identifier gave one construct two classifications (CR-121). `context` is not a suite name. **Since CR-187:** `xdescribe` classifies as a suite base name exactly as `describe`/`suite` do (it mints with `ignored: true`, FR-051-AC-27, inherited by every member the tree still parents to it) — no new container shape, only the admitted base-name set widens. | Test (TC-1039, TC-1040, TC-1042, TC-1940) |
 | FR-051-AC-25 | A symbol and its trace ids are read from the declaration's own node in the syntax tree, so attachment rather than page position decides them: a Rust test whose attribute block carries `#[test]` in any position, a Rust declaration whose attribute block a formatter has split across lines, a Rust declaration preceded by a block doc comment (`/** ... */`), a Python marker a formatter has wrapped across lines, a marker separated from its `def` by a second wrapped decorator, and a declaration whose signature spans lines each classify and bind exactly as their single-line, adjacent spelling does (`agent-ix/quire-rs#387`, `agent-ix/quire-rs#395`, `agent-ix/quire-rs#459`, `agent-ix/quire-rs#843`). A brace inside a regular-expression literal is content — the ground AC-12 and AC-15 hold for the other literal forms — so a file carrying a `{n,m}` quantifier yields its symbols (`agent-ix/quire-rs#424`). | Test (TC-1879, TC-1880, TC-1881, TC-1885, TC-1886) |
 | FR-051-AC-26 | Extraction over a fixture tree that has never been compiled and whose declared dependencies are not installed yields that tree's symbols and relations, and the extraction path invokes no compiler, package manager, or build artifact of the analysed tree and resolves no type. | Test (TC-1882, TC-1883) |
 | FR-051-AC-27 | A test-kind or suite-kind symbol carries `ignored: bool`, true exactly for a **statically decidable** language form (CR-187, PLAT-1077; SR-117 FND-003/FND-004 narrowed this from the first draft): **Rust** — a `#[ignore]` attribute (with or without a reason string), before or after `#[test]`, on any function AC-3 already classifies as a test (which already includes the `#[tokio::test]`/`#[rstest]`/`#[wasm_bindgen_test]` family; no new attribute vocabulary is added for `ignored` itself). **TypeScript** — a `.skip` modifier anywhere in a registration's chain (`it.skip(...)`, `describe.skip(...)`), or a registration whose base name is `xit`/`xtest`/`xdescribe` (AC-3, AC-21). **Python** — `@unittest.skip(...)`/`@pytest.mark.skip(...)` on a function or method, the same decorator at class level on a `unittest.TestCase` subclass or a pytest test class, or a module carrying `pytestmark = pytest.mark.skip(...)` (bare `@pytest.mark.skip` with no call, and the aliased-import forms AC-3's own unittest binding already resolves, count identically). A suite's or class's `ignored` is inherited by every test-kind or suite-kind member nested in it, transitively, via the same `contains` edges AC-8 already emits — a test's own marking is not required when its container is ignored. Inheritance follows the enclosing container at the member's own declaration site, never a qualified-name lookup, because AC-21 lets two TypeScript suites share a title (CR-189). **Explicitly excluded, because each may still run:** Rust `#[cfg_attr(..., ignore)]` (conditional); TypeScript `.skipIf(cond)`, `.todo`, `test.fixme`; Python `skipif`/`skipIf`/`xfail`. A form the extractor does not otherwise classify as a test attribute at all — for example a bare `#[should_panic]` — is out of scope for `ignored` the same way it is out of scope for AC-3. A symbol carrying none of its language's ignored forms, and contained in no ignored container, has `ignored: false`. Marking a symbol ignored manufactures no new *relation* or *diagnostic* — a tag on an ignored symbol still binds a `verifies`/`implements` relation exactly as it would on a running one — but it is not silent on *symbols*: `xit`/`xtest`/`xdescribe` are registrations AC-3/AC-21 now mint (where they minted nothing before CR-187), each carrying `ignored: true` from the moment it exists. `ignored` is carried on the FR-051-AC-23 symbol-table record and on `VerifiesRelation`, serialized only when `true` (`skip_serializing_if`), so a payload over a corpus with no ignored symbol — including every existing fixture — stays byte-identical to TC-750's pre-CR-187 baseline. | Test (TC-1939, TC-1940, TC-1941, TC-1943) |
 | FR-051-AC-28 | A range — two id-shaped tokens joined by a bare `..`, whether same-prefix, differing-prefix, or short-suffix — inside a trace tag's argument, whether read by a canonical marker or a legacy textual form, binds no id and mints no `verifies`/`implements` relation for any id it names, including its endpoints. One finding is reported per occurrence, in `CoverageReport.diagnostics` under reason `range-in-trace-tag` at FR-057 severity `warning` exactly as FR-050-AC-50 states it, naming the file, the 1-based line the range text sits on, the qualified symbol, and the literal range text verbatim (CR-189); the occurrence contributes to neither `verifies`/`implements` nor the generic id-shaped-token channels (`unmatched_tags`, `mentions`) — the range finding is the only record of it. This is a behavior change from the prior release: a marker range used to mint one relation keyed on the whole literal string, and a legacy range (`// Trace: A..B`) used to bind its left endpoint `A` alone; both stop, so `verifies`/`implements` counts over a corpus carrying either shape can change (CR-187, PLAT-1077). Only the range token is inert: a legacy comma list that continues past a range (`// Trace: A..B, C`) still binds every other id it names, as CR-043's comma-list rule already requires, and a legacy rewrite suggestion names those ids only (CR-189). | Test (TC-1936, TC-1937) |
-| FR-051-AC-29 | A build that has no symbol adapter for a language whose source is in the tree (the `wasm` build drops all three adapter features) records that language as unavailable on the extraction, the symbol graph and the symbol-table report, with no symbols and no per-file diagnostic for those files; a tree with no file in an unavailable language is unaffected. Satisfied only when the unavailability is recorded: a zero-symbol extraction with no unavailable-language fact for a tree holding source the build cannot read fails this criterion (CR-201, PLAT-874). | Test (TC-2060) |
+| FR-051-AC-29 | A build that has no symbol adapter for a language whose source is in the tree (the `wasm` build drops all four adapter features) records that language as unavailable on the extraction, the symbol graph and the symbol-table report, with no symbols and no per-file diagnostic for those files; a tree with no file in an unavailable language is unaffected. Satisfied only when the unavailability is recorded: a zero-symbol extraction with no unavailable-language fact for a tree holding source the build cannot read fails this criterion (CR-201, PLAT-874). | Test (TC-2060) |
 | FR-051-AC-30 | Emitting FR-045 graph records from an extraction that records an unavailable language is refused with an error naming the language, not returned as an empty node and edge set (CR-201). | Test (TC-2064) |
 | FR-051-AC-31 | When two or more symbols extracted from one file share a symbol id, extraction reports one per-file diagnostic per colliding id, reason `symbol-id-collision`, at severity `warning` (as AC-28 does): it is advisory, appears on the symbol-table report with its severity, and never changes an exit code or refuses a result. The diagnostic names the kind, the qualified name, and every colliding declaration by `path:line`, followed by that declaration's `#[cfg(...)]` / `#[cfg_attr(...)]` outer attributes, whitespace-collapsed to one line, where the adapter records them (other attributes are not listed; adapters without such conditions list none). It reports shared identity and does not claim a defect: causes include mutually exclusive `#[cfg]`-gated variants, Rust trait-impl methods differing only by generics (`From<A>` / `From<B>`), a Python function defined in both branches of an `if` or a nested helper repeated across scopes, and TypeScript registrations with one title. Symbol ids are unchanged, and a file with no collision yields no such diagnostic (CR-206, PLAT-877). | Test (TC-2082) |
 | FR-051-AC-32 | A Rust test symbol's `qualified_name` is the `::`-joined chain of its enclosing `mod`, `struct`, `enum`, `trait`, the `impl` target type (never the trait) and an enclosing `fn`, then the function; neither the crate name nor the file stem appears, and the extractor walks each file from an empty container. For a fixture crate, `quire coverage --json` reports exactly these `(path, qualified_name)` pairs for its four tagged tests: `(tests/x.rs, top_level)` for a top-level test, `(tests/x.rs, inner::nested)` for a test in `mod inner`, `(src/foo/bar.rs, tests::t)` for a test in `mod tests` of the non-root source file `src/foo/bar.rs`, and `(tests/x.rs, param)` for an `#[rstest]` function `param` written with `#[trace]` above `#[rstest]` (the only order `ix-trace-rs` FR-005 supports; the source function, not its generated cases) (CR-211, PLAT-333; `ix://agent-ix/quoin/FR-120`, emitter rule E-2). | Test (TC-2091) |
 | FR-051-AC-33 | One emitter chain over a fixture crate demonstrates `ix://agent-ix/quoin/FR-120` (E-10) with the `ix-trace-rs` `emit` feature and `ix-trace-run` runner (`ix-trace-rs` FR-005, FR-006): a `#[trace]` marker in source; a run writing JUnit whose `<testcase>` for each of the four tests of FR-051-AC-32 carries `name` and `classname` equal to that test's `qualified_name`, a `file` attribute equal to its `path`, and the `trace` property with its ids; `quoin evidence record` over that file; and an obligation bound by the recorded ids. A **second run** of the same crate, in which one tagged test panics (the test fails when the environment variable `IX_TRACE_E2E_FAIL` is set), records that test as `fail` into a fresh evidence store and binds no obligation. No other test of the fixture carries the panicking test's ids (CR-211, PLAT-333). | Test (TC-2092) |
+| FR-051-AC-34 | When the extractor reads a tree holding `.sh` files, it opens each `.sh` file and every symbol it mints carries language `shell`; `SourceLanguage::Shell` serializes as `shell`; a `.bash` file and an extension-less file with a `#!/bin/sh` line are not read. | Test (TC-2101) |
+| FR-051-AC-35 | The shell adapter mints one `function` symbol, named by the function alone and spanning its definition, for each spelling `name() { … }`, `function name { … }` and `function name() { … }`, for a `{` on the line after the header, for a subshell body `name() ( … )`, for a name containing `-`, `.` or `:`, and for a definition nested in another function's body. | Test (TC-2102) |
+| FR-051-AC-36 | The shell adapter mints no function, and no false unterminated-structure diagnostic, for a definition-shaped line inside a single-quoted, double-quoted, `$'…'`, backtick or `$( )` string, a here-string `<<<`, a heredoc body (`<<EOF`, `<<'EOF'`, `<<-EOF`), a comment, or a `name)` `case` pattern, and for a brace group `{ …; }`, `${x:-}}`, `$(( ))` or CRLF line endings; each real function in the same file is still minted. | Test (TC-2103) |
+| FR-051-AC-37 | The shell adapter mints exactly one `entry_point` symbol for every `.sh` file, qualified name `entry_point`, spanning the whole file, with and without a module supplied; its kind label `entry_point` is part of the symbol identity and of the FR-045 record `kind`, and the symbol-table report lists it as a kind that binds a trace id and carries no `implements`. | Test (TC-2104) |
+| FR-051-AC-38 | A shell `entry_point` binds a `verifies` id only when its repo-relative path matches an `entry_paths` glob of a loaded shell marker form; an `entry_point` matching none binds nothing, and a shell function binds no `verifies` whether or not its file matches. | Test (TC-2105) |
+| FR-051-AC-39 | The `entry_paths` globs use the dialect and compile check of `source_exclude` (FR-050-AC-22) and match a path relative to the code root; the globs of all shell marker forms across all loaded modules are one union; `source_exclude` is applied first, so an excluded `.sh` file mints no symbol; a pattern that does not compile is rejected at module load with an error naming `entry_paths` as the key at fault, and an extraction handed uncompiled globs applies none and reports a diagnostic naming the pattern (FR-050-AC-25). | Test (TC-2106) |
+| FR-051-AC-40 | A shell function reads its tag channel from the contiguous `#` comment lines immediately above its definition (a blank line ends the block), and an `entry_point` reads its from the file's first run of consecutive `#` comment lines that precedes the first command, skipping a `#!` line and blank lines; a comment after the first command, such as one following `set -euo pipefail`, is not in the header channel. | Test (TC-2107) |
+| FR-051-AC-41 | Only a syntax-tree comment node opens a shell comment: a `#` inside a quoted string, a heredoc body, `$#`, `${#x}`, `${x#pat}`, or a word (`a#b`, a URL fragment) is content and carries no tag. | Test (TC-2108) |
+| FR-051-AC-42 | Shell tags are read only through a declared `markers` form with `language: shell` and `syntax: comment`; a shell binding carries no `legacy` provenance, and a shell file under a model that declares no such form mints zero `verifies` relations. | Test (TC-2109) |
+| FR-051-AC-43 | Module load rejects `syntax: comment` on a form that is not `language: shell` or that sits in `trace_tags.legacy`, and rejects `entry_paths` on a form that is not a `language: shell` form in `trace_tags.markers`, each with an error naming the key at fault; a `language: shell` form in `trace_tags.implements` is accepted, and neither carries `entry_paths` nor binds an `entry_point`. | Test (TC-2110) |
+| FR-051-AC-44 | A declared shell marker that matches in a comment but binds nothing is reported in `CoverageReport.diagnostics`, naming the id, the repo-relative path and the line, with the reason `outside-entry-paths` when it sits in an `entry_point` header whose file matches no glob, `function-not-evidence` when it sits in a shell function's comment block (a shell function binds no `verifies`, AC-38), and `not-in-tag-channel` when it sits in a comment that is neither a function's block nor a header; no census count moves. | Test (TC-2111) |
+| FR-051-AC-45 | An unparseable `.sh` file (a tree carrying an error over its declaration structure) yields a per-file diagnostic naming the file and the line the error sits at, while the rest of the tree extracts normally. | Test (TC-2112) |
+| FR-051-AC-46 | A fixture audit script matching a declared `entry_paths` glob whose header comment carries a declared shell marker backs the `Static` matrix row it names in the coverage report, with the `verifies` relation on its `entry_point`; the same marker in a script matching no glob backs nothing and is reported by AC-44. | Test (TC-2113) |
 
 > **CR-206 note (2026-11-08, PLAT-877):** AC-31 is new. The id hashes
 > language, path, qualified name and kind and nothing evaluates `#[cfg]`, so
@@ -892,6 +945,52 @@ byte-identical JSON ordering and stable record ids.
 > before. A template literal is the only TS/JS string form that can span lines, so
 > it is the only one carried; a `'` or `"` left open at end of line is a malformed
 > line, not a continuation. TC-799 covers the continuation form.
+
+> **CR-213 note (2026-11-08, PLAT-362):** `language_of` read three
+> extensions, so `scripts/audits/check_no_shared_mutable.sh` (TC-502), a shell
+> audit that enforces a `Static` row, was never opened and could mint no symbol.
+> The tree holds four `.sh` files (three in `scripts/audits/`, plus
+> `scripts/check_property_purity.sh`). CR-061 widened what binds but could not
+> reach a language the extractor does not read. Ruled (PLAT-362 option 1;
+> research on PLAT-390): add the language rather than declare `Static` in
+> `no_source_symbol`, which would change verdicts for every repository on the
+> module and withdraw an accusation the code does not earn.
+>
+> **Parser.** The shell adapter parses with `tree-sitter-bash` (MIT, within
+> `deny.toml`'s allowed licences), not a hand-written line lexer: shell's
+> quoting, heredocs, `$( )` and `case` patterns are exactly the lexer class
+> CR-039 and CR-040 paid for and PLAT-843/868/882 removed. The grammar enters
+> through the PLAT-911 boundary: a `bash` feature of `quire-code-parse`
+> (`quire-code-rs`), forwarded by `quire-code-extraction` under
+> `shell-symbols`, which `check_tree_sitter_boundary.sh` already polices. No
+> CON-1 exception is needed.
+>
+> **Entry point.** The file is the entry point (AC-37) because a shell audit
+> declares no function that *is* the test. It is minted for every `.sh` file so
+> that extraction depends on no module data (AC-19, AC-23); the module's
+> `entry_paths` glob decides only whether it may bind (AC-38), so a production
+> script never becomes evidence, for the reason CR-061 kept plain functions out.
+> A marker that does not bind is reported (AC-44) because a misplaced audit or a
+> glob typo would otherwise leave its `Static` row unbacked in silence. The tag
+> is a comment, so it is declared as a `markers` entry, not `legacy`:
+> FR-051-CON-3 retires legacy recognition, and a shell marker must outlive it.
+>
+> **Cross-repo.** The implementation also needs a change in `quire-code-rs`:
+> `quire-code-parse` must add the `bash` feature (tree-sitter-bash) before
+> `quire-code-extraction` can forward it under `shell-symbols`.
+>
+> **Ordering.** `SourceLanguage` is closed and the grammar is
+> `deny_unknown_fields`, so an engine that predates this change rejects a module
+> declaring a shell form at load; the engine release must precede the module
+> release. The qualified-name spelling here (function name; `entry_point`) is the
+> shell row for quoin FR-120's per-language table.
+>
+> **TC-502 flips** when the engine and module ship **and** this repo's
+> `check_no_shared_mutable.sh` header carries the declared marker (it carries
+> prose today) under a declared `entry_paths` glob covering `scripts/audits/`.
+> TC-050 and TC-203 were removed in the same change: the scripts they name
+> (`check_unsafe_comments.sh`, `verify_cookiecutter_inheritance.sh`) no longer
+> exist, and TC-203 was a byte-equality check against an external baseline.
 
 ## Dependencies
 

@@ -48,7 +48,7 @@ Three independent things keep them apart, and none of them is a naming conventio
 1. **A separate declared list.** `trace_tags.implements`, not a flag on `trace_tags.markers`.
 2. **A separate relation type.** `ImplementsRelation`, not `VerifiesRelation` with a field.
 3. **Complementary symbol kinds.** `verifies` binds only evidence symbols
-   (`TestFunction`/`Benchmark`/`FuzzTarget`); `implements` binds only production symbols
+   (`TestFunction`/`Benchmark`/`FuzzTarget`/`EntryPoint`); `implements` binds only production symbols
    (`Function`/`Container`).
 
 Point 3 is what makes a mis-declared pattern harmless: an `implements` marker on a test binds
