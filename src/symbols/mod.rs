@@ -232,6 +232,20 @@ pub struct SourceFile {
 pub struct SymbolDiagnostic {
     pub path: String,
     pub reason: String,
+    /// `Warning` for findings that never change an exit code or refuse a
+    /// result (FR-051-AC-31); `Error` for a file extraction could not read.
+    pub severity: DiagnosticSeverity,
+}
+
+/// Severity of a [`SymbolDiagnostic`].
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum DiagnosticSeverity {
+    /// A file or glob extraction could not honour.
+    #[default]
+    Error,
+    /// Advisory: reported, never refuses and never changes an exit code.
+    Warning,
 }
 
 /// This build has no symbol adapter for a language the tree holds source in
@@ -448,6 +462,7 @@ pub fn extract_tree_scoped(
             Err(e) => out.diagnostics.push(SymbolDiagnostic {
                 path: rel,
                 reason: format!("unreadable: {e}"),
+                severity: DiagnosticSeverity::Error,
             }),
         }
     }
@@ -531,6 +546,7 @@ impl SymbolExtraction {
                 self.diagnostics.push(SymbolDiagnostic {
                     path: path.to_string(),
                     reason,
+                    severity: DiagnosticSeverity::Error,
                 });
                 return;
             }
@@ -585,10 +601,12 @@ fn id_collision_diagnostics(path: &str, symbols: &[Symbol]) -> Vec<SymbolDiagnos
             let decls = g
                 .iter()
                 .map(|s| {
+                    // Only the conditions that explain a shared id, one line each.
                     let attrs = s
                         .attributes
                         .iter()
-                        .map(|a| a.text.as_str())
+                        .filter(|a| is_cfg_attribute(&a.text))
+                        .map(|a| a.text.split_whitespace().collect::<Vec<_>>().join(" "))
                         .collect::<Vec<_>>()
                         .join(" ");
                     if attrs.is_empty() {
@@ -601,6 +619,7 @@ fn id_collision_diagnostics(path: &str, symbols: &[Symbol]) -> Vec<SymbolDiagnos
                 .join(" and ");
             SymbolDiagnostic {
                 path: path.to_string(),
+                severity: DiagnosticSeverity::Warning,
                 reason: format!(
                     "symbol-id-collision: {} declarations of {} `{}` share one symbol id: {decls}",
                     g.len(),
@@ -612,6 +631,20 @@ fn id_collision_diagnostics(path: &str, symbols: &[Symbol]) -> Vec<SymbolDiagnos
         .collect();
     out.sort_by(|a, b| a.reason.cmp(&b.reason));
     out
+}
+
+/// True for a `#[cfg(...)]` / `#[cfg_attr(...)]` outer attribute.
+fn is_cfg_attribute(text: &str) -> bool {
+    let t = text.trim_start();
+    let Some(inner) = t.strip_prefix("#[").or_else(|| t.strip_prefix("#![")) else {
+        return false;
+    };
+    let name: String = inner
+        .trim_start()
+        .chars()
+        .take_while(|c| c.is_alphanumeric() || *c == '_')
+        .collect();
+    name == "cfg" || name == "cfg_attr"
 }
 
 /// `/`-separated relative path, so identities do not vary by platform.
@@ -801,6 +834,18 @@ mod tests {
         ] {
             assert!(d.reason.contains(want), "{want} missing: {}", d.reason);
         }
+        // The message names the kind; the finding is advisory and refuses nothing.
+        assert!(d.reason.contains("function `rec`"), "{}", d.reason);
+        assert_eq!(d.severity, DiagnosticSeverity::Warning);
+        assert!(out.require_available().is_ok());
+        let report = crate::symbol_table::build(&out, None);
+        assert_eq!(report.diagnostics[0].severity, DiagnosticSeverity::Warning);
+        // Only cfg conditions are listed, normalized to one line.
+        let multi = "#[cfg(\n    unix\n)]\n#[inline]\nfn g() {}\n#[cfg(windows)]\nfn g() {}\n";
+        let out = extract_file("src/b.rs", SourceLanguage::Rust, multi);
+        let r = &out.diagnostics[0].reason;
+        assert!(r.contains("src/b.rs:5 [#[cfg( unix )]]"), "{r}");
+        assert!(!r.contains("inline") && !r.contains('\n'), "{r}");
         // Control: distinct names report nothing.
         let ok = extract_file("src/a.rs", SourceLanguage::Rust, "fn a() {}\nfn b() {}\n");
         assert!(ok.diagnostics.is_empty());

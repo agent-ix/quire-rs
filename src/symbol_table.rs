@@ -112,6 +112,14 @@ pub(crate) fn is_false(value: &bool) -> bool {
 pub struct FileDiagnostic {
     pub path: String,
     pub reason: String,
+    /// Omitted for an error, so reports without advisory findings are
+    /// byte-identical to before (FR-051-AC-31).
+    #[serde(default, skip_serializing_if = "is_error")]
+    pub severity: crate::symbols::DiagnosticSeverity,
+}
+
+fn is_error(s: &crate::symbols::DiagnosticSeverity) -> bool {
+    *s == crate::symbols::DiagnosticSeverity::Error
 }
 
 /// Per-language totals, so a reader sees the shape of the table before the rows.
@@ -239,6 +247,7 @@ pub fn build(extraction: &SymbolExtraction, graph: Option<&SymbolGraph>) -> Symb
             .map(|d| FileDiagnostic {
                 path: d.path.clone(),
                 reason: d.reason.clone(),
+                severity: d.severity,
             })
             .collect(),
         excluded_source_files: extraction.excluded_source_files,
