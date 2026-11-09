@@ -42,6 +42,14 @@ bumps; once 1.0 ships, semver is strict.
   FR-033-AC-17), and bundle validation no longer reports `ix://` targets under
   a foreign org/repo authority as `dangling-reference` (PLAT-217, PLAT-1056,
   #590).
+- Bundle validation folds ASCII case when comparing an `ix://` authority to the
+  declared package (PLAT-1357, FR-038-AC-10, #621).
+- Skeptic-oracle detection scans assertions once per binding name, so it is
+  linear instead of quadratic (PLAT-182, #608).
+- Extraction warns on the legacy `Implements:` doc-comment form, one finding
+  per authored line at the innermost owner (PLAT-1170, FR-050-AC-61/62, #615).
+- Semantic fixture mappings state entry-error reasons by locus (PLAT-58,
+  FR-076-AC-22, #619).
 
 ### Added
 
