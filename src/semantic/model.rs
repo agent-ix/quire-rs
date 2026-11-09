@@ -428,8 +428,16 @@ impl DeclaredTables {
         Self(out)
     }
 
-    fn declares(&self, feature: ModelFeature) -> bool {
+    pub(crate) fn declares(&self, feature: ModelFeature) -> bool {
         self.0.iter().any(|t| t.feature == feature)
+    }
+
+    /// The `##` heading of the table the model key `key` is read under.
+    pub(crate) fn section_of(&self, key: &str) -> Option<&str> {
+        self.0
+            .iter()
+            .find(|t| t.feature.name() == key)
+            .map(|t| t.section.as_str())
     }
 
     fn for_section<'a>(&'a self, heading: &'a str) -> impl Iterator<Item = &'a DeclaredTable> {
@@ -788,7 +796,9 @@ pub struct FeatureOrderDecl {
 #[serde(rename_all = "camelCase")]
 pub struct TermDecl {
     pub term: String,
-    pub doc: String,
+    /// The `Description` cell; absent when empty.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub doc: Option<String>,
     pub source_span: SourceLocus,
 }
 
@@ -1904,7 +1914,7 @@ fn read_vocabulary(r: &mut TableRead<'_>) {
         }
         entries.push(TermDecl {
             term: term.to_string(),
-            doc: r.cell(cells, "Description").to_string(),
+            doc: optional(r.cell(cells, "Description")),
             source_span: r.span(*line),
         });
     }

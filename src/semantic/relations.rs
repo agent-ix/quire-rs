@@ -18,7 +18,7 @@ use super::clauses::SourceLocus;
 use super::context::SemanticContext;
 use super::contract::SemanticSeverity;
 use super::decl::{is_identifier, Multiplicity};
-use super::model::{entry_errors, line_span, Section};
+use super::model::{entry_errors, line_span, ModelFeature, Section};
 use super::properties::{map_multiplicity, strip_ticks};
 use super::scan::{blocks_in, level2_headings, lines, Block, Table};
 use super::target::{is_id_segment, resolve_target, OwnArtifact, Target};
@@ -152,6 +152,29 @@ impl RelationVocabulary {
     /// inverse, when `label` is not itself a forward verb (FR-041).
     fn forward_of_inverse(&self, label: &str) -> Option<&str> {
         self.inverse_forwards.get(label).map(String::as_str)
+    }
+
+    /// The extracting object type's name.
+    pub(crate) fn object_type(&self) -> Option<&str> {
+        self.object_type.as_deref()
+    }
+
+    /// The composite verbs the extracting object type's `allowed_links` admit
+    /// for a target of object type `object` (quoin FR-123).
+    pub(crate) fn composite_verbs_admitting(&self, object: Option<&str>) -> Vec<(&str, &EdgeVerb)> {
+        let Some(links) = self.own_allowed_links() else {
+            return Vec::new();
+        };
+        links
+            .iter()
+            .filter_map(|(verb, tokens)| {
+                let entry = self.edge_types.get(verb).filter(|e| e.composite)?;
+                tokens
+                    .iter()
+                    .any(|token| self.satisfies(token, object))
+                    .then_some((verb.as_str(), entry))
+            })
+            .collect()
     }
 
     /// The target tokens the extracting object type allows for `verb`.
@@ -402,6 +425,9 @@ enum Finding {
         why: String,
     },
     DeclaredInFrontmatter,
+    /// A composite verb the `## Members` table of the object type derives
+    /// (quoin FR-123).
+    DeclaredInMembers,
     /// A typed relation key declared in frontmatter: a second declaration
     /// site beside the `## Relationships` rows.
     TypedKeyInFrontmatter {
@@ -423,7 +449,9 @@ impl Finding {
         match self {
             Self::NotExtractable => "semantic.feature-not-extractable",
             Self::SecondTable | Self::SecondSection => "semantic.duplicate-section",
-            Self::DuplicateName | Self::DeclaredInFrontmatter => "semantic.duplicate-model-entry",
+            Self::DuplicateName | Self::DeclaredInFrontmatter | Self::DeclaredInMembers => {
+                "semantic.duplicate-model-entry"
+            }
             Self::TypedKeyInFrontmatter { .. } => "semantic.duplicate-authority",
             Self::NameNotIdentifier
             | Self::InverseVerb { .. }
@@ -461,6 +489,7 @@ impl Finding {
             | Self::TargetNotAllowed { .. }
             | Self::Multiplicity { .. }
             | Self::DeclaredInFrontmatter
+            | Self::DeclaredInMembers
             | Self::TypedKeyInFrontmatter { .. } => SemanticSeverity::Error,
         }
     }
@@ -481,6 +510,7 @@ impl Finding {
             Self::TargetNotAllowed { .. } => "target-not-allowed",
             Self::Multiplicity { .. } => "multiplicity",
             Self::DeclaredInFrontmatter => "declared-in-frontmatter",
+            Self::DeclaredInMembers => "declared-in-members",
             Self::TypedKeyInFrontmatter { .. } => "frontmatter-key",
             Self::NoBlock => "no-block",
             Self::NoVocabulary => NO_VOCABULARY,
@@ -541,6 +571,9 @@ impl Finding {
             Self::Multiplicity { why } => format!("row {name}: {why}"),
             Self::DeclaredInFrontmatter => format!(
                 "`{verb}` {target} is also declared in frontmatter `relationships`; declare it once"
+            ),
+            Self::DeclaredInMembers => format!(
+                "`{verb}` is derived from the `## Members` table of object type {object_type}; declare the member there"
             ),
             Self::TypedKeyInFrontmatter { key } => format!(
                 "frontmatter key `{key}` is a typed relation key of object type {object_type}; it is declared only by `## {SECTION}` rows"
@@ -707,6 +740,9 @@ impl RowCheck<'_> {
         let Some(allowed) = vocabulary.allowed_targets(row.verb) else {
             return Err(Finding::VerbNotAllowed);
         };
+        if entry.composite && self.ctx.declared_tables.declares(ModelFeature::Members) {
+            return Err(Finding::DeclaredInMembers);
+        }
         if self
             .typed
             .is_some_and(|shape| !shape.declares_relations && !shape.is_key(row.verb))

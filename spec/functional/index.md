@@ -80,3 +80,4 @@ description: "Index of artifacts in this directory."
 * [FR-075: Model feature extraction driven by the module manifest](./FR-075-model-feature-extraction.md)
 * [FR-076: Relationships extraction to RelationDecl[]](./FR-076-relationships-extraction.md)
 * [FR-077: Trace search: structural forward/inverse lookup over the symbol graph](./FR-077-trace-search-index.md)
+* [FR-081: Record-sections extraction to a module's own record keys](./FR-081-record-sections-extraction.md)

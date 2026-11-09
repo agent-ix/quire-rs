@@ -1,0 +1,17 @@
+{
+  "type": "object",
+  "properties": {
+    "anything": {
+      "type": "array",
+      "items": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/quire-fixtures/0.1.0/Unreadable.json",
+  "$comment": "Synthetic fixture root for the record-sections cases; not a module schema."
+}

@@ -52,6 +52,25 @@ pub fn module_ok_dir() -> PathBuf {
     fixtures_root().join("module-ok")
 }
 
+/// `fixtures/record-sections` — the quoin FR-121/FR-122/FR-123 record-sections
+/// cases (`cases.json`) and the small record schemas they extract against
+/// (`schemas/`).
+pub fn record_sections_dir() -> PathBuf {
+    fixtures_root().join("record-sections")
+}
+
+/// One `fixtures/record-sections` file's text.
+pub fn record_sections_fixture(name: &str) -> String {
+    std::fs::read_to_string(record_sections_dir().join(name))
+        .unwrap_or_else(|e| panic!("record-sections fixture {name}: {e}"))
+}
+
+/// One `fixtures/record-sections` file, parsed as JSON.
+pub fn record_sections_json(name: &str) -> Value {
+    serde_json::from_str(&record_sections_fixture(name))
+        .unwrap_or_else(|e| panic!("record-sections fixture {name}: invalid JSON: {e}"))
+}
+
 /// One fixture file's text, from `fixtures/mapping`.
 pub fn mapping_fixture(name: &str) -> String {
     std::fs::read_to_string(mapping_dir().join(name))

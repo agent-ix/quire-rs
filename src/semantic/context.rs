@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use super::contract::SemanticModule;
 use super::model::{DeclaredSections, DeclaredTables};
+use super::record::RecordSchema;
 use super::relations::{RelationSchema, RelationVocabulary};
 use crate::extract::dsl::ExtractionDsl;
 
@@ -222,6 +223,12 @@ pub struct SemanticContext {
     /// What the object type's resolved `data_schema` declares that FR-076
     /// typed relation keys read; `None` reads every row into `relations`.
     pub(crate) relation_schema: Option<RelationSchema>,
+    /// The record schema FR-081 reads record-key sections against; `None`
+    /// reads no record key.
+    pub(crate) record_schema: Option<RecordSchema>,
+    /// The extracting object type's name; scopes the keys quoin FR-123 lists
+    /// as unmapped. Falls back to the relation vocabulary's.
+    pub object_type: Option<String>,
 }
 
 impl SemanticContext {
@@ -237,6 +244,8 @@ impl SemanticContext {
             relation_vocabulary: None,
             construct_references: None,
             relation_schema: None,
+            record_schema: None,
+            object_type: None,
         }
     }
 
@@ -251,6 +260,33 @@ impl SemanticContext {
     pub fn with_data_schema(mut self, data_schema: &serde_json::Value) -> Self {
         self.relation_schema = Some(RelationSchema::from_data_schema(data_schema));
         self
+    }
+
+    /// Read record-key sections (FR-081) against the object type's resolved
+    /// `data_schema` `root`, following its `$ref`s through `documents` and the
+    /// embedded semantic-core bundle.
+    pub fn with_record_schema(
+        mut self,
+        root: &serde_json::Value,
+        documents: &BTreeMap<String, serde_json::Value>,
+    ) -> Self {
+        self.record_schema = Some(RecordSchema::new(root, documents));
+        self
+    }
+
+    /// Name the extracting object type.
+    pub fn with_object_type(mut self, object_type: impl Into<String>) -> Self {
+        self.object_type = Some(object_type.into());
+        self
+    }
+
+    /// The extracting object type's name, when a surface supplies it.
+    pub(crate) fn object_type_name(&self) -> Option<&str> {
+        self.object_type.as_deref().or_else(|| {
+            self.relation_vocabulary
+                .as_ref()
+                .and_then(|v| v.object_type())
+        })
     }
 
     /// Check relationship rows against `vocabulary` (FR-076).

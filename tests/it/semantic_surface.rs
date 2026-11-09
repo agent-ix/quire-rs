@@ -575,13 +575,19 @@ fn schema_and_compatibility_fixture() {
         .unwrap()
         .ends_with("semantic-v1.schema.json"));
     // Every object is closed except the two whose keys are data: the record's
-    // top level (FR-076 typed relation keys) and `clauseText`.
+    // top level (FR-076 typed relation keys), `clauseText`, and the FR-081
+    // `record` and `availability.recordKeys`.
     fn every_object_closed(v: &Value, path: &str) {
         if let Some(map) = v.as_object() {
             if map.get("type") == Some(&json!("object")) {
                 let want = match path {
                     "" => json!({ "type": "array", "items": { "$ref": "#/$defs/semanticId" } }),
                     "/properties/clauseText" => json!({ "type": "string" }),
+                    // FR-081: record keys and their availability are data keyed.
+                    "/properties/record" => json!(true),
+                    "/properties/availability/properties/recordKeys" => {
+                        json!({ "$ref": "#/$defs/kindAvailability" })
+                    }
                     _ => json!(false),
                 };
                 assert_eq!(

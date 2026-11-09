@@ -90,6 +90,10 @@ pub struct CompiledArchetype {
     /// (FR-031-AC-4) — distinct from the frontmatter validator.
     pub data_schema: Option<Arc<Value>>,
     pub data_validator: Option<Arc<Validator>>,
+    /// Every document the reference-form `data_schema` reaches through its
+    /// `$ref`s, keyed by the URL the `$ref` names; `None` for an inline
+    /// schema. FR-081 reads property types through them.
+    pub data_schema_documents: Option<Arc<std::collections::BTreeMap<String, Value>>>,
     /// Parsed `body_extraction` DSL (FR-011), `None` when absent.
     /// Drives both `extract()` and `validate_document()` (FR-032).
     pub body_extraction: Option<ExtractionDsl>,
