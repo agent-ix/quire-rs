@@ -75,3 +75,4 @@ Author decisions:
 | FND-006 | fixed | 4d4877e: FR-066 disposition 3 and the evidence table name the repository (retag) as owner, and the module only for an undeclared marker form |
 | FND-007 | fixed | 4d4877e: FR-062 now reads "Neither `ImplementsRelation` nor `VerifiesRelation` carries a `provenance` field ... (FR-051-CON-3)" |
 | FND-008 | fixed | 4d4877e: AC-43 rejects "any undeclared `trace_tags` key, naming it" |
+| FND-009 | fixed | 8952e9a: AC-22 names the text rendered, as FR-050-AC-62 renders it, from the first `syntax: rust_attribute` implements form with a template (never the textual form), or the kind alone when none declares one; TC-2165 asserts it |

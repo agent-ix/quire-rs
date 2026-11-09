@@ -53,3 +53,5 @@ FND-006 blocks merge: the spec gate is red. The rest are reference and status de
 | FND-004 | fixed | 4d4877e: TC-2090 no longer mentions `RewriteSuggestion` (0 occurrences in spec/tests.md) |
 | FND-005 | fixed | 4d4877e: the shell paragraph reads "It is a marker form, so FR-051-CON-3 does not retire it" |
 | FND-006 | fixed | 4d4877e merges main with #622: FR-051-AC-47/48 are now defined and the audit maps them (TC-2154/2155). The coder reports `make validate` at 198 documents, 0 failed; not re-run (no full gates) |
+| FND-001 | fixed | 8952e9a: the FR-050 row no longer cites TC-1083 and the US-017 row no longer cites TC-753; the only remaining mentions of TC-753/1045/1047/1083 are the reserved line, the FR-051 row's "removed" note and the "Replaces" notes on TC-2160/2164/2165 |
+| FND-007 | fixed | 8952e9a: TC-2165's Traces To reads `FR-051-AC-22, FR-051-AC-49` |
