@@ -659,3 +659,28 @@ fn reason_beside_reason_loci_is_refused() {
     case["availability"]["clauses"]["reason"] = json!("entry-errors: lines 3");
     assert_case(&case);
 }
+
+#[trace("TC-1945", "FR-070-AC-11")]
+// A `Clock` parameter and result lower to the native identity and validate.
+#[test]
+fn clock_operation_params_and_returns_extract() {
+    let ctx = context("o.md");
+    let md = artifact(
+        "",
+        "### now\n\n| Param | Type | Multiplicity | Constraints |\n|---|---|---|---|\n| at | Clock | 1 | |\n\nReturns: Clock[1]\n",
+    );
+    let ops = extract_operations(&md, &ctx, &[]);
+    let op = &ops
+        .operations
+        .as_ref()
+        .unwrap_or_else(|| panic!("{:?}", ops.diagnostics))[0];
+    let native = serde_json::to_value(&op.params[0].type_ref.target).unwrap();
+    assert_eq!(
+        native,
+        json!({ "kind": "SemanticId", "value": "ix://quire/native/Clock" })
+    );
+    assert_eq!(
+        serde_json::to_value(&op.returns.as_ref().unwrap().target).unwrap(),
+        native
+    );
+}
