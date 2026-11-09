@@ -1104,16 +1104,14 @@ impl StatusVocabulary {
     }
 }
 
-/// The trace-tag grammar (FR-051): framework-native **markers** are the
-/// canonical form; the textual **legacy** forms are read only during migration
-/// and their bindings carry `legacy` provenance.
+/// The trace-tag grammar (FR-051): framework-native **markers** are the only
+/// form that binds a `verifies` relation (CR-215, FR-051-CON-3). The textual
+/// `implements` forms of FR-062 are a separate list.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 #[serde(deny_unknown_fields)]
 pub struct TraceTagGrammar {
     #[serde(default)]
     pub markers: Vec<TraceMarkerForm>,
-    #[serde(default)]
-    pub legacy: Vec<TraceLegacyForm>,
     /// Marker forms binding a **production** symbol to the requirement it
     /// implements (FR-062).
     ///
@@ -1145,10 +1143,9 @@ pub struct TraceMarkerForm {
     pub name: String,
     pub language: SourceLanguage,
     pub pattern: String,
-    /// Authoring template for the marker, e.g. `#[trace("{ids}")]`. Present
-    /// only when the module wants mechanical rewrite suggestions from legacy
-    /// forms: FR-051 emits a suggestion "where the equivalent marker is
-    /// derivable", and this template is what makes it derivable.
+    /// Authoring template for the marker, e.g. `#[trace({ids})]`. Present only
+    /// when the module wants the `trace-id-outside-marker` advisory to name the
+    /// exact text to write (FR-051-AC-49): `{ids}` renders as the quoted ids.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub template: Option<String>,
     /// Repo-relative globs (the `source_exclude` dialect, matched against a path
@@ -1225,57 +1222,6 @@ impl<'de> Deserialize<'de> for TraceMarkerForm {
     }
 }
 
-/// One legacy textual form (bare id in a docstring, a `Trace:` line, a
-/// line-comment id, a trace-embedding test name). `rewrite_to` names the
-/// marker form a mechanical rewrite suggestion should target, when derivable.
-#[derive(Debug, Clone, PartialEq, Serialize)]
-#[serde(deny_unknown_fields)]
-pub struct TraceLegacyForm {
-    pub name: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub language: Option<SourceLanguage>,
-    pub pattern: String,
-    /// Template rebuilding the trace id from the captures, e.g. `TC-{1}` for a
-    /// test name like `tc741_extracts`. Absent means capture group 1 already
-    /// *is* the id.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub id_format: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub rewrite_to: Option<String>,
-}
-
-impl<'de> Deserialize<'de> for TraceLegacyForm {
-    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        #[derive(Deserialize)]
-        #[serde(deny_unknown_fields)]
-        struct Wire {
-            name: String,
-            #[serde(default)]
-            language: Option<SourceLanguage>,
-            pattern: String,
-            #[serde(default)]
-            id_format: Option<String>,
-            #[serde(default)]
-            rewrite_to: Option<String>,
-            #[serde(default, deserialize_with = "present_syntax")]
-            syntax: Option<serde_json::Value>,
-        }
-        let wire = Wire::deserialize(deserializer)?;
-        if wire.syntax.is_some() {
-            return Err(serde::de::Error::custom(format!(
-                "trace_tags.legacy form '{}' cannot declare syntax; only trace_tags.implements supports it", wire.name
-            )));
-        }
-        Ok(Self {
-            name: wire.name,
-            language: wire.language,
-            pattern: wire.pattern,
-            id_format: wire.id_format,
-            rewrite_to: wire.rewrite_to,
-        })
-    }
-}
-
 impl TraceabilityModel {
     /// True when the module declared nothing at all — consumers report the
     /// model as undeclared rather than computing an empty rollup
@@ -1285,7 +1231,6 @@ impl TraceabilityModel {
             && self.document_references.is_empty()
             && self.status.is_none()
             && self.trace_tags.markers.is_empty()
-            && self.trace_tags.legacy.is_empty()
             // FR-062 (CR-081): the third marker list, listed for the same
             // reason as the two above. Both hand-maintained per-field
             // functions — this one and `merge_traceability` — missed it when
@@ -1830,19 +1775,6 @@ impl TraceabilityModel {
                 _ => {}
             }
         }
-        for legacy in &self.trace_tags.legacy {
-            check_named("trace_tags.legacy", &legacy.name)?;
-            check_capturing_pattern("trace_tags.legacy", &legacy.name, &legacy.pattern)?;
-            if let Some(rewrite_to) = &legacy.rewrite_to {
-                if !marker_names.contains(rewrite_to.as_str()) {
-                    return Err(format!(
-                        "traceability: trace_tags.legacy entry '{}' rewrites to undeclared \
-                         marker '{rewrite_to}'",
-                        legacy.name
-                    ));
-                }
-            }
-        }
         Ok(())
     }
 }
@@ -1924,6 +1856,7 @@ fn check_capturing_pattern(section: &str, name: &str, pattern: &str) -> Result<(
 
 #[cfg(test)]
 mod cr118_props {
+    use ix_trace_rs::trace;
     use proptest::prelude::*;
 
     use super::SectionNames;
@@ -1951,7 +1884,7 @@ mod cr118_props {
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(2000))]
 
-        /// TC-1038 (FR-050-AC-34, CR-118, Property): a declared name carrying no
+        /// FR-050-AC-34, CR-118, Property: a declared name carrying no
         /// `*` selects a section exactly when [`crate::query::section`] — the
         /// lookup every `section:` has gone through since FR-010 — finds it.
         ///
@@ -1959,6 +1892,7 @@ mod cr118_props {
         /// Asserted against the real parser and the real query rather than
         /// against a restatement of the matcher.
         #[test]
+        #[trace("TC-1038")]
         fn tc1038_a_star_free_name_agrees_with_the_engines_own_section_lookup(
             declared in headingish(),
             authored in headingish(),
@@ -2057,11 +1991,6 @@ trace_tags:
   - name: rust-trace-attribute
     language: rust
     pattern: '#\[trace\(([^)]*)\)\]'
-  legacy:
-  - name: rust-test-name
-    language: rust
-    pattern: 'fn (tc\d+)_'
-    rewrite_to: rust-trace-attribute
 "#;
 
     #[test]
@@ -2211,10 +2140,11 @@ document_references:
         }
     }
 
-    /// TC-829, FR-050-AC-7 (CR-062): `archetype` is the only origin, and it is
+    /// CR-062: `archetype` is the only origin, and it is
     /// required. A `document:` key — the deleted form — is now an unknown field,
     /// which `deny_unknown_fields` rejects rather than silently ignores: a module
     /// carrying the old declaration fails load instead of minting nothing.
+    #[trace("FR-050-AC-7", "TC-829")]
     #[test]
     fn tc829_archetype_is_the_only_origin() {
         let m = model(
@@ -2253,17 +2183,18 @@ document_references:
         );
     }
 
+    #[trace("FR-050-AC-7")]
     #[test]
     fn exclude_defaults_to_empty_and_is_omitted_when_unset() {
         let m = model(FULL);
         assert!(m.target("test-case").unwrap().exclude.is_empty());
-        // FR-050-AC-7: a model declaring no exclusions must serialize exactly
+        // a model declaring no exclusions must serialize exactly
         // as it did before the field existed.
         let yaml = serde_yaml::to_string(&m).expect("serialize");
         assert!(!yaml.contains("exclude"), "{yaml}");
     }
 
-    #[trace("TC-826")]
+    #[trace("FR-050-AC-7", "TC-826")]
     // the model-level `exclude:` is a repository fact, so it (CR-060)
     // is not what makes a model *declared* — a module that says only "these
     // paths are not corpus data" has declared no model to reconcile against.
@@ -2274,7 +2205,7 @@ document_references:
         assert!(m.is_empty());
         m.validate().expect("valid");
 
-        // FR-050-AC-7: unset, it serializes exactly as before the field.
+        // unset, it serializes exactly as before the field.
         let yaml = serde_yaml::to_string(&model(FULL)).expect("serialize");
         assert!(!yaml.contains("exclude"), "{yaml}");
     }

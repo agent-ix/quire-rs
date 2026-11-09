@@ -33,3 +33,13 @@ The paragraph was cross-checked against the sibling heads.
 ## Verdict
 
 Not mergeable at 8407145. The high findings of SR-16496 (FND-001, FND-002) are still open, and FND-001 and FND-002 here are medium. Apart from these, the spellings agree across all four PRs.
+
+## Dispositions
+
+Checked at c7eadc1 (via 592e7ad, d8a3c7a). Line numbers refer to that head.
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | Spellings (L178-183) requires every module pattern to be anchored at the candidate start, so `t.implementing("X")` matches nothing and yields no finding. AC-25 (L290) and TC-2207 test this, and spec-artifacts-process#133 at fac4e2e FR-004 AC-32 requires the same `\A` anchor. |
+| FND-002 | fixed | L242-251 drop the retag-first precondition and state one change with no coexistence window and no precondition measurement, matching #133 at fac4e2e. The unmeasurable per-form count is no longer required by either side. |
+| FND-003 | fixed | L182-183 now say `ixTrace` is the namespace-import name ix-trace-ts documents and "not a package name". |

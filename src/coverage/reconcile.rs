@@ -6,12 +6,12 @@ use std::path::Path;
 use crate::corpus::declared_tables;
 use crate::corpus::spec::Spec;
 use crate::registry::Registry;
-use crate::symbols::trace::{SymbolGraph, VerifiesRelation};
+use crate::symbols::trace::{IdKinds, OutsideMarkerId, SymbolGraph, VerifiesRelation};
 use crate::traceability::{StatusClass, TraceTargetEvidence, TraceabilityModel};
 
 use super::binding_diagnostics::{
     binding_diagnostics, legacy_implements_diagnostics, minted_child_diagnostics,
-    near_miss_diagnostics, non_binding_tag_diagnostics, shell_finding_diagnostics,
+    near_miss_diagnostics, outside_marker_diagnostics, shell_finding_diagnostics,
 };
 use super::{
     relative, CoverageDiagnostic, CoverageReport, CoverageTotals, GroupCounts, ImplementsRecord,
@@ -468,12 +468,20 @@ pub(super) fn reconcile(
     // declaration selects.
     diagnostics.extend(binding_diagnostics(&graph.binding_census));
 
-    // #312: a tag that was written and reached no channel at all. Ordered
-    // immediately after the census diagnostics because it is the case they
-    // cannot see: `no-symbol-bound` and `low-symbol-binding` both read a
-    // denominator this defect is missing from, so a repository whose tags are
-    // all on the wrong symbols reports a flawless 100% and says nothing.
-    diagnostics.extend(non_binding_tag_diagnostics(&graph.non_binding_tags));
+    // CR-215: an id written in a comment or docstring, which never binds.
+    // Ordered immediately after the census diagnostics: they read a
+    // denominator this is the explanation for, since a repository still on
+    // textual tags reports its tests as unbound.
+    // Only a kind the declared targets mint is a trace id (CR-215): `CR-`,
+    // `PLAT-` and a bare `AC-` in a comment are not.
+    let id_kinds = IdKinds::from_minted(&declared_ids);
+    let outside_marker: Vec<OutsideMarkerId> = graph
+        .outside_marker
+        .iter()
+        .filter(|found| id_kinds.admits(&found.trace_id))
+        .cloned()
+        .collect();
+    diagnostics.extend(outside_marker_diagnostics(&outside_marker, model));
 
     // FR-051-AC-39, AC-44: a shell marker that matched and bound nothing.
     diagnostics.extend(shell_finding_diagnostics(&graph.shell_findings));
@@ -517,8 +525,8 @@ pub(super) fn reconcile(
         guidance: None,
     }));
 
-    // CR-187, FR-050-AC-50: a range written inside any source trace tag —
-    // marker or legacy alike — binds no id and is reported once per
+    // CR-187, FR-050-AC-50: a range written inside a source marker or a
+    // textual `implements` use binds no id and is reported once per
     // occurrence, advisory (FR-057 `warning`), naming the file, the line, the
     // qualified symbol and the literal range text.
     diagnostics.extend(
@@ -669,7 +677,12 @@ pub(super) fn reconcile(
         // FR-050-AC-39 (#362): engine-owned annotation parsing, exposed so a
         // census can join an unread authored id to its matrix row without
         // reimplementing the language adapters.
-        unmatched_tags: graph.unmatched_tags.clone(),
+        unmatched_tags: graph
+            .unmatched_tags
+            .iter()
+            .filter(|tag| id_kinds.admits(&tag.trace_id))
+            .cloned()
+            .collect(),
         // FR-063: filled by `compute`, which is where the criteria totals one
         // of these metrics describes are set.
         metrics: Vec::new(),

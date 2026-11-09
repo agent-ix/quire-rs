@@ -126,7 +126,6 @@ pub enum AssuranceRelation {
         source: String,
         target: String,
         form: String,
-        provenance: String,
         locator: AssuranceLocator,
         freshness: AssuranceFreshness,
     },
@@ -532,7 +531,6 @@ fn project_relations(
             source: relation.symbol_id.clone(),
             target: relation.trace_id.clone(),
             form: relation.form.clone(),
-            provenance: relation.provenance.as_str().to_string(),
             locator: symbol_locator(&relation.path, relation.line)?,
             freshness: AssuranceFreshness::Unknown,
         });
@@ -577,7 +575,7 @@ fn project_relation_kinds(
                     .insert(RelationKindSource::RequiredRelation);
             }
         }
-        if !model.trace_tags.markers.is_empty() || !model.trace_tags.legacy.is_empty() {
+        if !model.trace_tags.markers.is_empty() {
             kinds
                 .entry("verifies".to_string())
                 .or_default()

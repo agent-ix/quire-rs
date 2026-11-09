@@ -115,6 +115,7 @@ impl Spec {
 mod tests {
     use super::*;
     use crate::diagnostic::Diagnostic;
+    use ix_trace_rs::trace;
     use std::fs;
     use std::path::{Path, PathBuf};
 
@@ -160,7 +161,8 @@ mod tests {
         Spec::from_path(root)
     }
 
-    // TC-493 / FR-027-AC-1, US-012-AC-1.
+    // Covers (FR-027-AC-1, US-012-AC-1).
+    #[trace("TC-493")]
     #[test]
     fn by_type_returns_exactly_that_type_sorted() {
         let root = tmpdir("by_type");
@@ -171,7 +173,8 @@ mod tests {
         assert_eq!(strs, vec!["StR-001"]);
     }
 
-    // TC-494 / FR-027-AC-2, US-012-AC-3.
+    // Covers (FR-027-AC-2, US-012-AC-3).
+    #[trace("TC-494")]
     #[test]
     fn referencing_is_reverse_lookup() {
         let root = tmpdir("ref");
@@ -182,7 +185,8 @@ mod tests {
         assert!(spec.referencing("FR-002").is_empty());
     }
 
-    // TC-495 / FR-027-AC-3, US-012-AC-2: orphan FRs lacking implements->StR.
+    // Covers (FR-027-AC-3, US-012-AC-2): orphan FRs lacking implements->StR.
+    #[trace("TC-495")]
     #[test]
     fn orphans_finds_untraced_frs() {
         let root = tmpdir("orphans");
@@ -195,7 +199,8 @@ mod tests {
         assert_eq!(orphans, vec!["FR-002"]); // FR-001 has the edge; FR-002 doesn't
     }
 
-    // TC-500, FR-027-AC-9: untyped doc -> not in by_type, in by_id, diagnostic.
+    // untyped doc -> not in by_type, in by_id, diagnostic.
+    #[trace("FR-027-AC-9", "TC-500")]
     #[test]
     fn untyped_document_is_excluded_and_diagnosed() {
         let root = tmpdir("untyped");
@@ -209,7 +214,8 @@ mod tests {
             .any(|d| matches!(d, Diagnostic::UntypedArtifact { .. })));
     }
 
-    // TC-497, FR-027-AC-5: outgoing includes dangling; dangling()/referencing agree.
+    // outgoing includes dangling; dangling()/referencing agree.
+    #[trace("FR-027-AC-5", "TC-497")]
     #[test]
     fn dangling_appears_in_outgoing_not_referencing() {
         let root = tmpdir("dangling");
@@ -222,7 +228,8 @@ mod tests {
         assert!(spec.referencing("StR-404").is_empty());
     }
 
-    // TC-498, FR-027-AC-6: query results deterministic across runs (NFR-006).
+    // query results deterministic across runs (NFR-006).
+    #[trace("FR-027-AC-6", "TC-498")]
     #[test]
     fn query_results_are_deterministic() {
         let root = tmpdir("determ");

@@ -25,3 +25,11 @@ Ticket: PLAT-866. Compared each new criterion's authored verification method wit
 ## Verdict
 
 Approve with one low finding.
+
+## Dispositions
+
+Checked at c7eadc1 (via 592e7ad, d8a3c7a). Line numbers refer to that head.
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | The no-execution clause has moved from AC-27 (L292) to CON-5 (L387, Inspection (TC-2209)). spec/tests.md L1280-1296 adds the TC-2209 subcase oracle table and a CON-5 inspection paragraph (no parallel lexer, no import or alias resolution, no code execution). |

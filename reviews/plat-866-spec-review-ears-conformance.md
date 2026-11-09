@@ -25,3 +25,11 @@ Ticket: PLAT-866. Checked the new section's normative statements and FR-062-CON-
 ## Verdict
 
 Approve with one low finding.
+
+## Dispositions
+
+Checked at c7eadc1 (via 592e7ad, d8a3c7a). Line numbers refer to that head.
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | Attachment, decorator reach, wrapper, unattached and replacement obligations are now SHALL statements (L163-251). |

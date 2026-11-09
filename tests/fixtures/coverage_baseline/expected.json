@@ -384,6 +384,39 @@
   ],
   "diagnostics": [
     {
+      "declaration": "traceability.trace_tags.markers",
+      "reason": "trace-id-outside-marker",
+      "message": "`FR-003` is written in a comment or docstring on `tests` at src/lib.rs:4; a container binds no trace id, so a `trace` marker would bind nothing",
+      "path": "src/lib.rs",
+      "line": 4,
+      "value": "container",
+      "subject": "a trace id written in a comment or docstring",
+      "change_target": "src/lib.rs:4",
+      "remedy": "write the id in the marker named in the finding and remove it from the comment; a comment never binds, and the finding goes quiet once every occurrence is retagged"
+    },
+    {
+      "declaration": "traceability.trace_tags.markers",
+      "reason": "trace-id-outside-marker",
+      "message": "`FR-003` is written in a comment or docstring on `tests` at src/lib.rs:5; a container binds no trace id, so a `trace` marker would bind nothing",
+      "path": "src/lib.rs",
+      "line": 5,
+      "value": "container",
+      "subject": "a trace id written in a comment or docstring",
+      "change_target": "src/lib.rs:5",
+      "remedy": "write the id in the marker named in the finding and remove it from the comment; a comment never binds, and the finding goes quiet once every occurrence is retagged"
+    },
+    {
+      "declaration": "traceability.trace_tags.markers",
+      "reason": "trace-id-outside-marker",
+      "message": "`TC-404` is written in a comment or docstring on `tests::covers_the_round_trip` at src/lib.rs:14; a comment never binds; write `#[trace(\"TC-404\")]` on the test instead",
+      "path": "src/lib.rs",
+      "line": 14,
+      "value": "#[trace(\"TC-404\")]",
+      "subject": "a trace id written in a comment or docstring",
+      "change_target": "src/lib.rs:14",
+      "remedy": "write the id in the marker named in the finding and remove it from the comment; a comment never binds, and the finding goes quiet once every occurrence is retagged"
+    },
+    {
       "declaration": "traces-to",
       "reason": "criterion-tagged-outside-row",
       "message": "criterion `FR-003-AC-1` is tagged on `tests::covers_ac1` at src/lib.rs:28 but no matrix row cited by that test references it; expected a same-test tag for one of no declared matrix row. This tag does not provide backing",
@@ -437,7 +470,6 @@
     "id-column-matches-nothing",
     "legacy-implements-form",
     "low-symbol-binding",
-    "marker-form-mismatch",
     "model-mints-nothing",
     "no-symbol-bound",
     "not-in-tag-channel",
@@ -448,7 +480,7 @@
     "section-holds-no-table",
     "section-matches-nothing",
     "status-column-matches-nothing",
-    "tag-on-non-binding-symbol",
+    "trace-id-outside-marker",
     "untracked-id-near-miss",
     "untracked-id-has-minted-children",
     "uncatalogued-verification-method",

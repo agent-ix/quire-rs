@@ -9,6 +9,7 @@
 import json
 from pathlib import Path
 
+import pytest
 import quire
 
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures" / "semantic"
@@ -28,8 +29,9 @@ def _expected():
     return json.loads((FIXTURES / "cases.expected.json").read_text())
 
 
+@pytest.mark.trace("TC-1635")
 def test_extract_semantic_matches_rust_for_every_case():
-    """TC-1635: binding output equals the Rust oracle, case by case."""
+    """binding output equals the Rust oracle, case by case."""
     expected = _expected()
     for case in _cases():
         result = quire.extract_semantic(case["input"])
@@ -37,8 +39,9 @@ def test_extract_semantic_matches_rust_for_every_case():
         assert result == expected[case["name"]], case["name"]
 
 
+@pytest.mark.trace("TC-1644")
 def test_extract_semantic_is_deterministic():
-    """TC-1644 (Python half): repeated runs agree including diagnostic order."""
+    """Python half: repeated runs agree including diagnostic order."""
     for case in _cases():
         first = quire.extract_semantic(case["input"])
         second = quire.extract_semantic(case["input"])
@@ -46,8 +49,9 @@ def test_extract_semantic_is_deterministic():
         assert [d["code"] for d in first["diagnostics"]] == [d["code"] for d in second["diagnostics"]]
 
 
+@pytest.mark.trace("TC-1635")
 def test_extract_filament_core_carries_the_semantic_record():
-    """TC-1635: the Filament API payload is additive and equals the record."""
+    """the Filament API payload is additive and equals the record."""
     entity = json.loads((FIXTURE_CRATE / "module-ok" / "schemas" / "Entity.json").read_text())
     markdown = (FIXTURE_CRATE / "mapping" / "config-version.table.md").read_text()
     bundle = json.loads((FIXTURES / "config-version.bundle.json").read_text())

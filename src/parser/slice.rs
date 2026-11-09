@@ -72,6 +72,7 @@ pub fn slice_section_content<'a>(
 mod tests {
     use super::*;
     use crate::parser::walk::walk_headings;
+    use ix_trace_rs::trace;
     use proptest::prelude::*;
 
     fn split(body: &str) -> Vec<&str> {
@@ -107,7 +108,7 @@ mod tests {
         // split produces ["abc", ""]; we have 2 line starts.
     }
 
-    // FR-008-AC-1, TC-022
+    #[trace("FR-008-AC-1", "TC-022")]
     #[test]
     fn preserves_leading_and_trailing_whitespace() {
         let body = "## A\n  indented body  \n## B\n";
@@ -120,7 +121,7 @@ mod tests {
         assert_eq!(a, "  indented body  \n");
     }
 
-    // FR-008-AC-2, TC-023
+    #[trace("FR-008-AC-2", "TC-023")]
     #[test]
     fn preserves_crlf_byte_for_byte() {
         let body = "## A\r\nhello\r\nworld\r\n## B\r\n";
@@ -226,7 +227,7 @@ mod tests {
     }
 
     proptest! {
-        // TC-024, FR-008-AC-3, NFR-006 (Property): round-trip stitch is
+        // Property: round-trip stitch is
         // byte-exact for any body. 10 000 cases matches the parse-document
         // no-panic budget; this property is load-bearing for writeback.
         //
@@ -236,6 +237,7 @@ mod tests {
         // program exists to catch, and just as misleading.
         #![proptest_config(ProptestConfig::with_cases(10_000))]
         #[test]
+        #[trace("FR-008-AC-3", "NFR-006", "TC-024")]
         fn tc024_roundtrip_stitch_is_byte_exact(body in any_body()) {
             prop_assert_eq!(reconstruct(&body), body);
         }

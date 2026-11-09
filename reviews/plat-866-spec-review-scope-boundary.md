@@ -27,3 +27,11 @@ The replacement position (no compatibility period; FR-051 advisory names the new
 ## Verdict
 
 Approve with one low finding.
+
+## Dispositions
+
+Checked at c7eadc1 (via 592e7ad, d8a3c7a). Line numbers refer to that head.
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | L242-251: the structural forms are declared and the textual forms removed in one change that ships with the engine release accepting the syntax values. There is no coexistence window and "no precondition measurement gates it". This is identical in substance to spec-artifacts-process#133 at fac4e2e (FR-004, Replacement of the comment forms). |

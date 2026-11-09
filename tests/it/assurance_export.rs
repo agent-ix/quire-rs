@@ -12,9 +12,7 @@ use quire_rs::assurance::{
 };
 use quire_rs::corpus::walk::load_repo;
 use quire_rs::diagnostic::Diagnostic;
-use quire_rs::symbols::trace::{
-    ImplementsRelation, SymbolGraph, TraceProvenance, VerifiesRelation,
-};
+use quire_rs::symbols::trace::{ImplementsRelation, SymbolGraph, VerifiesRelation};
 use quire_rs::symbols::{extract_tree, SymbolExtraction, SymbolKind};
 use quire_rs::{
     build_assurance_export, read_assurance_export, AcceptedAssurancePremises, AssuranceError,
@@ -122,7 +120,6 @@ impl Fixture {
                 symbol: evidence.qualified_name.clone(),
                 path: evidence.path.clone(),
                 trace_id: "TC-1095".to_string(),
-                provenance: TraceProvenance::Canonical,
                 form: "rust-trace".to_string(),
                 line: evidence.line,
                 column: evidence.column,
@@ -394,14 +391,17 @@ fn tc1094_tc1097_relation_variants_preserve_graph_meaning() {
             ..
         } if edge_type == "satisfies"
     )));
-    assert!(export.relations.iter().any(|relation| matches!(
-        relation,
-        AssuranceRelation::Verifies {
-            freshness: AssuranceFreshness::Unknown,
-            provenance,
-            ..
-        } if provenance == "canonical"
-    )));
+    assert!(
+        export.relations.iter().any(|relation| matches!(
+            relation,
+            AssuranceRelation::Verifies {
+                freshness: AssuranceFreshness::Unknown,
+                form,
+                ..
+            } if form == "rust-trace"
+        )),
+        "FR-068-AC-5: a test binding names the marker form that bound it"
+    );
     assert!(export.relations.iter().any(|relation| matches!(
         relation,
         AssuranceRelation::Implements {

@@ -13,6 +13,7 @@
 //! `tc024_roundtrip_stitch_is_byte_exact` (FR-008-AC-3), and repeated extraction
 //! over an identical tree is TC-750 (FR-051-AC-10).
 
+use ix_trace_rs::trace;
 use proptest::prelude::*;
 use quire_rs::{parse_document, update_section};
 
@@ -67,7 +68,7 @@ fn is_unambiguous(doc: &quire_rs::QuireDocument, heading: &str) -> bool {
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(2_000))]
 
-    /// TC-896 (FR-022-AC-1/AC-4, CR-069, Property): writing a section's own
+    /// FR-022-AC-1/AC-4, CR-069, Property: writing a section's own
     /// content back is the **identity** on the whole document, byte for byte —
     /// frontmatter, heading lines and every other section included.
     ///
@@ -77,6 +78,7 @@ proptest! {
     /// an empty section, a section whose content is only blank lines, two
     /// adjacent headings with nothing between them.
     #[test]
+    #[trace("TC-896")]
     fn tc896_rewriting_a_section_with_its_own_content_is_the_identity(text in any_document()) {
         let doc = parse_document(&text);
         for section in &doc.sections {
@@ -97,12 +99,13 @@ proptest! {
         }
     }
 
-    /// TC-896, FR-022-AC-1 (CR-069, Property): after replacing one section's
+    /// CR-069, Property: after replacing one section's
     /// content, re-parsing yields the same heading structure and the new content
     /// under that heading — the write is readable back through the parser, which
     /// is the fixpoint the byte-splice has to hit for a round-trip edit to be
     /// safe.
     #[test]
+    #[trace("FR-022-AC-1", "TC-896")]
     fn tc896_a_section_write_reads_back_through_the_parser(text in any_document()) {
         let doc = parse_document(&text);
         let before = headings(&text);
@@ -144,6 +147,7 @@ proptest! {
 /// seed rather than under the one that happened to find them. A property that
 /// only fails one run in N is a flaky gate; a property plus its witnesses is a
 /// gate.
+#[trace("TC-896")]
 #[test]
 fn tc896_regressions_from_the_generator() {
     const FM: &str = "---\nid: X-1\ntype: note\n---\n";

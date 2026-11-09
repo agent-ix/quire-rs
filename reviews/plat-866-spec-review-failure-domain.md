@@ -29,3 +29,13 @@ Covered and clean: stacked Python decorators in any order and formatter-wrapped 
 ## Verdict
 
 Changes requested: FND-001 (medium) should be fixed this round; FND-002 and FND-003 (low) are wording fixes.
+
+## Dispositions
+
+Checked at c7eadc1 (via 592e7ad, d8a3c7a). Line numbers refer to that head.
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | The section (L207-227), AC-23 (L288) and AC-24 (L289) state composition: nested chains bind both links to one symbol; `memoize(implementing(A)(fn))` and `implementing(A)(memoize(fn))` are unattached with a warning. TC-2205, TC-2206 and TC-2210 cover these cases. |
+| FND-002 | fixed | CON-5 (L387) now forbids import resolution and code execution. The Spellings paragraph (L178-183) requires start-anchored patterns. TC-2201 tests `@t.implements("X")` and TC-2207 tests `t.implementing("X")`, each binding nothing and yielding no finding. |
+| FND-003 | fixed | Attachment (L185-195) states the sibling-run association of TypeScript method decorators. L196-206 states that a decorator on a node that mints no symbol binds nothing and yields no finding. Two cases in that list are wrong; see SR-16496 FND-007 and FND-008. |

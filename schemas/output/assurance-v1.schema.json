@@ -167,13 +167,12 @@
     "verifiesRelation": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["kind", "source", "target", "form", "provenance", "locator", "freshness"],
+      "required": ["kind", "source", "target", "form", "locator", "freshness"],
       "properties": {
         "kind": { "const": "verifies" },
         "source": { "type": "string", "minLength": 1 },
         "target": { "type": "string", "minLength": 1 },
         "form": { "type": "string", "minLength": 1 },
-        "provenance": { "enum": ["canonical", "legacy"] },
         "locator": { "$ref": "#/$defs/locator" },
         "freshness": { "$ref": "#/$defs/freshness" }
       }

@@ -208,7 +208,7 @@ edge_types:
     );
 }
 
-#[trace("TC-652b", "FR-041-AC-1")]
+#[trace("TC-652", "TC-652b", "FR-041-AC-1")]
 // an inverse label used as an `allowed_links` key in a
 // manifest is a valid verb — it does NOT raise UnknownEdgeType at load.
 #[test]

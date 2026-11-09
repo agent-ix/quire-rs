@@ -229,6 +229,7 @@ pub fn failure(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ix_trace_rs::trace;
     use serde_json::json;
     use std::fs;
 
@@ -312,8 +313,9 @@ mod tests {
         assert!(!validator.is_valid(&json!(1)));
     }
 
-    /// FR-002-AC-7: a `$ref` to a remote document is refused when the schema
+    /// a `$ref` to a remote document is refused when the schema
     /// is compiled, not fetched.
+    #[trace("FR-002-AC-7")]
     #[test]
     fn compile_schema_refuses_a_remote_ref() {
         let schema = json!({"$ref": "https://absent.invalid/other.json"});

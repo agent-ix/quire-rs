@@ -1716,9 +1716,10 @@ mod tests {
         c.signals.iter().find(|s| s.starts_with("recall:")).copied()
     }
 
-    /// TC-792, FR-052-AC-14: the determiner is read at a bounded subject
+    /// the determiner is read at a bounded subject
     /// position as well as at offset 0 — and the rule refuses everywhere it
     /// cannot bound one.
+    #[trace("FR-052-AC-14", "TC-792")]
     #[test]
     fn tc792_subject_determiner_widens_position_not_vocabulary() {
         for f in RECALL_FIXTURES {
@@ -1782,7 +1783,7 @@ mod tests {
         }
     }
 
-    /// TC-793, FR-052-AC-15: widening the determiner's position moved the
+    /// widening the determiner's position moved the
     /// classification of exactly the cells it claims and **nothing else** — no
     /// `ac` finding moved, and every other shape the classifier reaches lands
     /// byte-identically where it did before CR-030.
@@ -1792,6 +1793,7 @@ mod tests {
     /// while three rules sat behind cargo features. One of those rules now
     /// ships, so the pin is rebased onto the adopted behaviour rather than
     /// retired — the finding stream is still the thing that may not move.
+    #[trace("FR-052-AC-15", "TC-793")]
     #[test]
     fn tc793_widening_moves_no_finding_and_no_other_shape() {
         // 1. The `ac` finding stream is untouched. The property axis is
@@ -2043,7 +2045,8 @@ mod tests {
         }
     }
 
-    /// TC-795, FR-052-AC-16 — the worked cases behind the property test.
+    /// the worked cases behind the property test.
+    #[trace("FR-052-AC-16", "TC-795")]
     #[test]
     fn tc795_extraction_worked_cases() {
         // A quantified criterion with an oracle: unattended.

@@ -170,7 +170,7 @@ fn obligation_reference_rows_require_their_own_evidence() {
 
 #[trace("TC-829", "FR-051-AC-1")]
 #[test]
-fn kani_proof_functions_bind_legacy_and_attribute_trace_tags() {
+fn kani_proof_functions_bind_attribute_trace_tags_and_not_a_trace_line() {
     let fixtures: serde_json::Value =
         serde_json::from_str(include_str!("../fixtures/corpus_cases/coverage.json"))
             .expect("coverage corpus fixture JSON");
@@ -219,12 +219,12 @@ fn kani_proof_functions_bind_legacy_and_attribute_trace_tags() {
             ("tests::ordinary_test_control", "TC-006"),
             ("tests::proof_with_cfg", "TC-003"),
             ("tests::proof_with_cfg_and_unwind", "TC-005"),
-            ("tests::proof_with_legacy_tag", "TC-001"),
             ("tests::proof_with_trace_attribute", "TC-002"),
             ("tests::proof_with_unwind", "TC-004"),
             ("top_level_contract_proof", "TC-008"),
         ],
-        "each trace tag must bind to the intended Kani/test symbol"
+        "each marker binds to the intended Kani/test symbol; the `Trace:` line above \
+         `proof_with_legacy_tag` binds nothing"
     );
     let report = compute(&Spec::from_path(&scope), &registry, &graph, &scope)
         .expect("Kani fixture coverage");
@@ -2034,6 +2034,7 @@ fn tc822_declarations_that_select_nothing_are_reported() {
     assert_eq!(report.diagnostics, again.diagnostics);
 }
 
+#[trace("TC-822")]
 #[test]
 fn tc822_model_that_mints_nothing_points_to_traceability_declaration() {
     let module = tmpdir("822-model-origin-module");
@@ -2165,21 +2166,6 @@ fn rewrite_source(bundle: &Bundle, total: usize, readable: usize) {
     fs::write(path, lib).expect("write");
 }
 
-fn rewrite_mixed_self_named_source(bundle: &Bundle) {
-    let path = bundle.source.join("lib.rs");
-    fs::write(
-        path,
-        concat!(
-            "//! Fixture source tree.\n\n#[cfg(test)]\nmod tests {\n",
-            "    // TC-001\n    #[test]\n    fn tc_001_first() {}\n\n",
-            "    // TC-002\n    #[test]\n    fn tc_002_second() {}\n\n",
-            "    // TC-003\n    #[test]\n    fn tc_003_third() {}\n",
-            "}\n",
-        ),
-    )
-    .expect("write mixed self-name source");
-}
-
 fn census_for<'r>(report: &'r CoverageReport, language: &str) -> &'r BindingCensus {
     report
         .binding_census
@@ -2255,13 +2241,8 @@ fn tc983_a_language_that_binds_nothing_is_a_diagnostic() {
     assert_eq!(census.bound, 0);
     assert_eq!(
         census.forms,
-        vec![
-            "rust-trace-attribute",
-            "trace-line",
-            "comment-id",
-            "test-name-id"
-        ],
-        "markers first, then legacy — the order the binder tries them in"
+        vec!["rust-trace-attribute"],
+        "the declared marker forms for the language: only a marker binds"
     );
 
     let finding = report
@@ -2296,42 +2277,6 @@ fn tc983_a_language_that_binds_nothing_is_a_diagnostic() {
     // Reported whether or not it holds — that is what makes it a premise
     // rather than a defect list.
     assert!(healthy.to_json().contains("binding_census"));
-}
-
-#[trace("TC-1083", "FR-050-AC-44")]
-#[test]
-fn tc1083_mixed_comment_bindings_do_not_mask_a_broken_name_form() {
-    let bundle = iso_bundle(
-        "1080",
-        &[
-            ("TC-001", "FR-001-AC-1", "✅"),
-            ("TC-002", "FR-001-AC-2", "✅"),
-            ("TC-003", "FR-001-AC-3", "✅"),
-        ],
-        &[],
-    );
-    rewrite_mixed_self_named_source(&bundle);
-    let report = report_for(&bundle, "iso").expect("model declared");
-    let census = census_for(&report, "rust");
-    assert_eq!((census.candidates, census.bound), (3, 3));
-    assert_eq!((census.self_named, census.self_named_bound), (3, 0));
-    assert!(census.self_named_unbound_example.is_some());
-    assert!(report
-        .diagnostics
-        .iter()
-        .any(|diagnostic| diagnostic.reason == "marker-form-mismatch"));
-    let hollow = report
-        .diagnostics
-        .iter()
-        .find(|diagnostic| {
-            diagnostic.reason == "hollow-denominator"
-                && diagnostic.value.as_deref() == Some("coverage.self_named_binding.rust")
-        })
-        .expect("self-name subpopulation is a named hollow ratio");
-    assert!(
-        hollow.path.is_none(),
-        "aggregate metric has no invented locus"
-    );
 }
 
 #[trace("TC-984", "FR-050-AC-27")]
@@ -2816,7 +2761,7 @@ fn explicit_reference_status_selection_drives_all_classification_channels() {
             .enumerate()
             .map(|(i, id)| {
                 format!(
-                    "// Trace: {}\n#[test]\nfn check_{i}() {{ assert_eq!(1 + 1, 2); }}\n",
+                    "#[trace(\"{}\")]\n#[test]\nfn check_{i}() {{ assert_eq!(1 + 1, 2); }}\n",
                     id.as_str().unwrap()
                 )
             })
@@ -3378,7 +3323,7 @@ fn tc1038_the_section_finding_names_every_declared_section() {
     );
 }
 
-#[trace("TC-1878", "FR-053-AC-1")]
+#[trace("FR-053", "TC-1878", "FR-053-AC-1")]
 // agent-ix/quire-rs#460: an "object" archetype whose own id joins KIND and
 // NUMBER with an underscore (`interface_004`) rather than the requirement
 // archetypes' hyphen (`FR-001`) registers as an obligation-bearing kind
@@ -3448,7 +3393,7 @@ fn tc1878_interface_acceptance_criteria_register_as_obligations() {
         report.untracked_symbols
     );
 
-    // FR-053: the same registration mints obligation records for both rows.
+    // the same registration mints obligation records for both rows.
     let obligation_ids: Vec<&str> = report.obligations.iter().map(|o| o.id.as_str()).collect();
     assert_eq!(
         obligation_ids,

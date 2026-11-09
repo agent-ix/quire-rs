@@ -2,11 +2,11 @@
 //!
 //! Binds extracted symbols to spec trace ids using **only** the module-declared
 //! trace-tag grammar ([`crate::traceability::TraceTagGrammar`]) — the engine
-//! carries no tag forms of its own. Framework-native markers are the canonical
-//! form and are parsed statically from the source text; the textual forms the
-//! `gap-analysis` workflow greps today bind as a recognized `legacy` class,
-//! carry `legacy` provenance, and yield a mechanical rewrite suggestion where
-//! the target marker declares a template.
+//! carries no tag forms of its own. Only framework-native markers bind, and they
+//! are parsed statically from the source text (CR-215, FR-051-CON-3). An id
+//! written anywhere else — a comment, a docstring, a test's own name — binds
+//! nothing; the one advisory over comments and docstrings
+//! ([`outside_marker_ids`]) reports it so a reader is told what to write instead.
 //!
 //! Nothing here executes, imports, or builds the extracted code
 //! (FR-051-CON-1): binding reads the same text the adapters already read.
@@ -22,24 +22,6 @@ use super::{stable_id, Symbol, SymbolExtraction, SymbolKind};
 use crate::filament::{CoreGraphEdgeRef, CoreGraphNodeRef};
 use crate::traceability::{SourceLanguage, TraceabilityModel};
 
-/// How a trace binding was authored.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub enum TraceProvenance {
-    /// A framework-native marker — the canonical form.
-    Canonical,
-    /// A textual legacy form, read during migration only (FR-051-CON-3).
-    Legacy,
-}
-
-impl TraceProvenance {
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::Canonical => "canonical",
-            Self::Legacy => "legacy",
-        }
-    }
-}
-
 /// One `verifies` relation: a test symbol verifies a spec trace id.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VerifiesRelation {
@@ -49,7 +31,6 @@ pub struct VerifiesRelation {
     pub path: String,
     /// The referenced trace id, exactly as the declared form yields it.
     pub trace_id: String,
-    pub provenance: TraceProvenance,
     /// Name of the declared form that bound it.
     pub form: String,
     /// 1-based declaration line of the verifying symbol (#210) — what
@@ -75,9 +56,6 @@ pub struct VerifiesRelation {
 /// the behaviour broke"* versus *"is this the code the requirement is about"* —
 /// and only the first is evidence. A shared type with a discriminator would put
 /// one typo between scope and evidence.
-///
-/// Carries no `provenance`: there is no legacy `implements` form to migrate
-/// from, and inventing the field would suggest one exists.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ImplementsRelation {
     /// Identity of the implementing symbol.
@@ -99,26 +77,13 @@ pub struct ImplementsRelation {
 pub struct LegacyImplementsUse {
     pub path: String,
     pub symbol: String,
-    /// 1-based line the legacy text sits on.
+    /// 1-based line the textual `implements` use sits on.
     pub line: usize,
     /// The ids this occurrence binds, in authored order.
     pub trace_ids: Vec<String>,
     /// `leading_line` of the symbol that read it; an enclosing container reads
     /// the same text, and the greatest value is the innermost owner.
     pub owner_leading_line: usize,
-}
-
-/// A mechanical marker-rewrite suggestion for a legacy binding (FR-051-AC-11).
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct RewriteSuggestion {
-    pub path: String,
-    pub symbol: String,
-    /// 1-based line the legacy form sits on.
-    pub line: usize,
-    pub from_form: String,
-    pub to_marker: String,
-    /// The marker text to insert, rendered from the marker's template.
-    pub suggestion: String,
 }
 
 /// A guarded form matched only part of an actual attribute candidate.
@@ -170,25 +135,14 @@ pub struct BindingCensus {
     pub candidates: usize,
     /// Candidates whose annotation block carries an id-shaped token, whether
     /// or not the declared grammar can read it. A bound candidate always
-    /// counts as tagged, including declared forms such as `tc_503` that are
-    /// intentionally outside the generic near-miss pattern.
+    /// counts as tagged. The block is the attached comments, attributes and
+    /// decorators; the symbol's own declared name is never read (CR-215,
+    /// FR-050-AC-44).
     pub tagged: usize,
     /// Candidates that minted at least one `verifies` relation.
     pub bound: usize,
-    /// Evidence symbols whose own declared name carries an id-shaped token
-    /// using a separator (`tc_391`, `tc-391`). This is a subpopulation of
-    /// `candidates`, retained separately because bindings through comments or
-    /// attributes must not mask a broken test-name form (#367).
-    #[serde(default, skip_serializing_if = "is_zero")]
-    pub self_named: usize,
-    /// Self-named evidence symbols whose declaration line was actually read by
-    /// one declared legacy name form. A comment binding the same id does not
-    /// increment this count.
-    #[serde(default, skip_serializing_if = "is_zero")]
-    pub self_named_bound: usize,
-    /// Every declared form consulted for this language, marker names first,
-    /// then legacy — the list to check when `bound` is 0 and `candidates` is
-    /// not.
+    /// Every declared marker form consulted for this language — the list to
+    /// check when `bound` is 0 and `candidates` is not.
     pub forms: Vec<String>,
     /// One candidate that bound nothing — a place to look (#256).
     ///
@@ -210,13 +164,6 @@ pub struct BindingCensus {
     /// never tagged at all (agent-ix/quire-rs#271).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub unmatched_example: Option<UnboundSymbol>,
-    /// One self-named evidence symbol no declared name form read.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub self_named_unbound_example: Option<UnboundSymbol>,
-}
-
-fn is_zero(value: &usize) -> bool {
-    *value == 0
 }
 
 /// Where one unbound evidence symbol is (#256).
@@ -281,11 +228,8 @@ struct CensusAccumulator {
     candidates: usize,
     tagged: usize,
     bound: usize,
-    self_named: usize,
-    self_named_bound: usize,
     unbound_example: Option<UnboundSymbol>,
     unmatched_example: Option<UnboundSymbol>,
-    self_named_unbound_example: Option<UnboundSymbol>,
 }
 
 impl CensusAccumulator {
@@ -299,23 +243,8 @@ impl CensusAccumulator {
         }
     }
 
-    fn observe(
-        &mut self,
-        bound: bool,
-        generic_tag: Option<UnboundSymbol>,
-        self_name_bound: Option<bool>,
-        self_name_locus: UnboundSymbol,
-        unbound: UnboundSymbol,
-    ) {
+    fn observe(&mut self, bound: bool, generic_tag: Option<UnboundSymbol>, unbound: UnboundSymbol) {
         self.candidates += 1;
-        if let Some(name_bound) = self_name_bound {
-            self.self_named += 1;
-            if name_bound {
-                self.self_named_bound += 1;
-            } else {
-                Self::keep_lowest(&mut self.self_named_unbound_example, self_name_locus);
-            }
-        }
         if bound {
             self.bound += 1;
             self.tagged += 1;
@@ -342,20 +271,17 @@ impl CensusAccumulator {
             candidates: self.candidates,
             tagged: self.tagged,
             bound: self.bound,
-            self_named: self.self_named,
-            self_named_bound: self.self_named_bound,
             forms: declared_forms(model, language),
             unbound_example: self.unbound_example,
             unmatched_example: self.unmatched_example,
-            self_named_unbound_example: self.self_named_unbound_example,
         }
     }
 }
 
 /// A range — two id-shaped tokens joined by a bare `..`, in same-prefix,
-/// differing-prefix, or short-suffix form — written inside a source trace
-/// tag, marker or legacy alike (CR-187, FR-050-AC-50, FR-051-AC-28). Binds no
-/// id at all, including its own endpoints; this is the only record of the
+/// differing-prefix, or short-suffix form — written inside a marker or a
+/// textual `implements` use (CR-187, FR-050-AC-50, FR-051-AC-28). Binds no id
+/// at all, including its own endpoints; this is the only record of the
 /// occurrence.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RangeInTraceTag {
@@ -372,8 +298,8 @@ pub struct RangeInTraceTag {
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct SymbolGraph {
     pub verifies: Vec<VerifiesRelation>,
-    /// A range written inside any source trace tag, marker or legacy alike
-    /// (CR-187, FR-050-AC-50, FR-051-AC-28) — binds no id, reported once per
+    /// A range written inside a marker or a textual `implements` use (CR-187,
+    /// FR-050-AC-50, FR-051-AC-28) — binds no id, reported once per
     /// occurrence.
     pub range_diagnostics: Vec<RangeInTraceTag>,
     /// Requirement → production code (FR-062). **Never** consulted by
@@ -389,7 +315,6 @@ pub struct SymbolGraph {
     pub defined_in: Vec<(String, String, String)>,
     /// `(container qualified name, member qualified name, file path)`.
     pub contains: Vec<(String, String, String)>,
-    pub rewrites: Vec<RewriteSuggestion>,
     pub diagnostics: Vec<TraceDiagnostic>,
     /// Rejected proper-substring matches, in declaration/form/source order.
     pub partial_attribute_matches: Vec<PartialAttributeMatch>,
@@ -431,16 +356,10 @@ pub struct SymbolGraph {
     /// copied from [`SymbolExtraction::unavailable_languages`] so the coverage
     /// rollup — which sees only this graph — can refuse (FR-051-AC-29).
     pub unavailable_languages: Vec<crate::traceability::SourceLanguage>,
-    /// Trace tags written on a symbol whose kind cannot bind them (#312).
-    ///
-    /// The tag reaches NO channel: [`crate::symbols::SymbolKind::binds_trace_ids`] refuses it,
-    /// `implements` wants the literal keyword the comment does not carry, and
-    /// [`Self::binding_census`] never counts it because a non-binding symbol is
-    /// missing from the denominator rather than counted as unbound. So the two
-    /// diagnostics built for "the tests are there and the rows are unbacked"
-    /// read a census the defect has been removed from, and a repository whose
-    /// tags are all in the wrong place reports a flawless 100%.
-    pub non_binding_tags: Vec<NonBindingTag>,
+    /// Ids written in a comment or docstring attached to a declaration, which
+    /// never binds (CR-215, FR-051-AC-49): the one advisory over non-marker
+    /// trace text. Diagnostic input only — it binds nothing and moves no total.
+    pub outside_marker: Vec<OutsideMarkerId>,
     /// Every generic id-shaped token found anywhere in the tree that is not
     /// part of a `verifies`/`implements` claim (FR-077-AC-2). Additive: a
     /// citation index over the same graph, computed after everything above
@@ -453,27 +372,34 @@ pub struct SymbolGraph {
     pub shell_findings: Vec<super::shell_trace::ShellFinding>,
 }
 
-/// A trace id written where it cannot bind (#312).
-///
-/// Not a defect in the tag's *content* — the id may name a real row. The
-/// defect is that nothing in the report says the tag was seen and dropped, so
-/// it is indistinguishable from a test nobody wrote, which is the disposition
-/// this programme exists to tell apart.
+/// What a comment or docstring id sits on, which decides what the advisory can
+/// tell its author to write (FR-051-AC-22, AC-49).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OutsideMarkerOwner {
+    /// A symbol that binds trace ids (a test, benchmark or fuzz target): the
+    /// finding names the marker to write.
+    Evidence,
+    /// A production function or container: a `trace` marker binds nothing
+    /// there, so the finding names the `implements` text instead, or the kind
+    /// alone.
+    Production(SymbolKind),
+    /// Comment text in no symbol's annotation block: a file header.
+    Module,
+}
+
+/// One id-shaped token in a comment or docstring attached to a declaration
+/// (CR-215, FR-051-AC-49). One per occurrence, an occurrence being one id on
+/// one line.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct NonBindingTag {
-    pub path: String,
-    /// The symbol the tag attached to — the INNERMOST one, so a tag beside a
-    /// production function is reported against that function rather than
-    /// against the module container whose span also covers it.
-    pub symbol: String,
-    /// `function` or `container`: the whole actionable part of the message.
-    /// "This row is unbacked" is already in the report and is not a fix.
-    pub kind: &'static str,
+pub struct OutsideMarkerId {
     pub trace_id: String,
-    /// The declared form that matched, so a reader can tell an authored tag
-    /// from a coincidence of prose.
-    pub form: String,
+    pub language: SourceLanguage,
+    pub path: String,
+    /// 1-based line the token sits on.
     pub line: usize,
+    /// The qualified symbol it is attached to, or the file path for a header.
+    pub symbol: String,
+    pub owner: OutsideMarkerOwner,
 }
 
 /// Which of the three non-claim shapes a [`Mention`] is (FR-077-AC-2).
@@ -487,9 +413,8 @@ pub enum MentionBucket {
     /// id-shaped token on an evidence symbol's own annotation block that no
     /// declared form bound.
     EvidenceNearMiss,
-    /// The same shape [`NonBindingTag`] already names: a declared LEGACY
-    /// trace-tag form found somewhere in a production symbol's body that
-    /// bound nothing as `implements`.
+    /// The same shape [`OutsideMarkerId`] names on a production symbol: an id
+    /// in a comment or docstring where no `verifies` marker can bind.
     ProductionOrphanTag,
     /// A generic id-shaped token matching no declared form at all — a plain
     /// comment, doc comment, or string-literal citation. The bucket that did
@@ -512,7 +437,7 @@ impl MentionBucket {
 /// `verifies`/`implements` claim (FR-077-AC-2).
 ///
 /// Additive and read-only: nothing here changes `verifies`, `implements`,
-/// `unmatched_tags`, `non_binding_tags` or any FR-050 coverage figure.
+/// `unmatched_tags`, `outside_marker` or any FR-050 coverage figure.
 /// `mentions` is a citation index, not a second binder.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Mention {
@@ -537,7 +462,61 @@ pub struct Mention {
     pub excerpt: String,
 }
 
+/// The id kinds a loaded corpus can mint: the leading alphabetic prefix of
+/// every id the declared trace targets minted (`TC` for `TC-001`, `FR` for
+/// `FR-001-AC-1`), compared case-insensitively (CR-215, FR-051-AC-49).
+///
+/// The traceability model declares *which documents mint* ids, not what the ids
+/// look like, so the kinds are read off the minted ids themselves: a prefix no
+/// target mints (`CR-`, `PLAT-`, a bare `AC-`, `AGPL-`) is not a trace id and is
+/// not advised, recorded as unmatched or reported as a mention. A corpus that
+/// minted nothing declares no kind, and then every id-shaped token is admitted
+/// (the generic pattern, unfiltered), because there is nothing to tell a trace
+/// id from any other.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct IdKinds(BTreeSet<String>);
+
+impl IdKinds {
+    /// The kinds of the given minted ids.
+    pub fn from_minted<I, S>(ids: I) -> Self
+    where
+        I: IntoIterator<Item = S>,
+        S: AsRef<str>,
+    {
+        Self(
+            ids.into_iter()
+                .filter_map(|id| id_kind(id.as_ref()))
+                .collect(),
+        )
+    }
+
+    /// Whether `token` may be a trace id: its kind is minted, or no kind is
+    /// declared at all.
+    pub fn admits(&self, token: &str) -> bool {
+        self.0.is_empty() || id_kind(token).is_some_and(|kind| self.0.contains(&kind))
+    }
+}
+
+/// The leading alphabetic run of an id, upper-cased: `FR` for `FR-001-AC-1`.
+fn id_kind(id: &str) -> Option<String> {
+    let kind: String = id
+        .trim()
+        .chars()
+        .take_while(char::is_ascii_alphabetic)
+        .collect();
+    (!kind.is_empty()).then(|| kind.to_ascii_uppercase())
+}
+
 impl SymbolGraph {
+    /// Drop every generic id-shaped record (`unmatched_tags`, `mentions`,
+    /// `outside_marker`) whose kind the corpus does not mint (CR-215). Bound
+    /// relations are untouched: a marker binds whatever it names.
+    pub fn retain_id_kinds(&mut self, kinds: &IdKinds) {
+        self.unmatched_tags.retain(|t| kinds.admits(&t.trace_id));
+        self.mentions.retain(|m| kinds.admits(&m.trace_id));
+        self.outside_marker.retain(|o| kinds.admits(&o.trace_id));
+    }
+
     /// Trace ids backed by at least one symbol.
     pub fn backed_trace_ids(&self) -> BTreeSet<&str> {
         self.verifies.iter().map(|v| v.trace_id.as_str()).collect()
@@ -548,7 +527,6 @@ impl SymbolGraph {
 #[derive(Debug, Default)]
 struct CompiledTracePatterns {
     markers: BTreeMap<String, Option<Regex>>,
-    legacy: BTreeMap<String, Option<Regex>>,
     implements: BTreeMap<String, Option<Regex>>,
 }
 
@@ -560,12 +538,6 @@ impl CompiledTracePatterns {
             .iter()
             .map(|marker| (marker.pattern.clone(), Regex::new(&marker.pattern).ok()))
             .collect();
-        let legacy = model
-            .trace_tags
-            .legacy
-            .iter()
-            .map(|form| (form.pattern.clone(), Regex::new(&form.pattern).ok()))
-            .collect();
         let implements = model
             .trace_tags
             .implements
@@ -574,17 +546,12 @@ impl CompiledTracePatterns {
             .collect();
         Self {
             markers,
-            legacy,
             implements,
         }
     }
 
     fn marker(&self, pattern: &str) -> Option<&Regex> {
         self.markers.get(pattern)?.as_ref()
-    }
-
-    fn legacy(&self, pattern: &str) -> Option<&Regex> {
-        self.legacy.get(pattern)?.as_ref()
     }
 
     fn implements(&self, pattern: &str) -> Option<&Regex> {
@@ -621,9 +588,6 @@ pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolG
     // occurrence is reported against: a container's span covers every symbol
     // in its file, so the same occurrence is read more than once.
     let mut production_ranges: Vec<(RangeInTraceTag, SymbolKind, usize)> = Vec::new();
-    // A legacy range read on a production symbol, as the misplaced tag it may
-    // be, keyed by its occurrence.
-    let mut range_non_binding_tags: Vec<(RangeOccurrence, NonBindingTag)> = Vec::new();
 
     for symbol in &extraction.symbols {
         graph.defined_in.push((
@@ -664,82 +628,16 @@ pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolG
             graph.implements_candidates += 1;
             if graph.implements.len() > before {
                 graph.implements_bound += 1;
-            } else {
-                // THE IMPLEMENTS CHANNEL TOOK NOTHING, so if a declared
-                // VERIFIES form matched here a tag was written and dropped in
-                // silence (#312).
-                //
-                // Gating on "implements bound nothing" is what makes this safe,
-                // and the corpus controls for the naive version: the control
-                // for `tag-on-non-test-function` leaves the id-shaped
-                // annotation exactly where it is and only rewrites it as
-                // `Implements: FR-001-AC-1`. A detector written as "any
-                // declared trace-id form inside a symbol that does not bind
-                // trace ids" fires on that healthy input and is wrong.
-                //
-                // LEGACY FORMS ONLY, and the reason is about what each form
-                // GUARANTEES rather than about how many findings it removes.
-                //
-                // A canonical marker is SYNTAX: the language attaches it to the
-                // declaration that follows it. So a canonical marker inside a
-                // non-binding symbol's span that bound to nothing is one of two
-                // things — the declaration it decorates bound, and the filter
-                // below already drops it; or that declaration does not exist,
-                // which means the marker text is data rather than code.
-                // Reporting the second is guessing.
-                //
-                // MEASURED: `cases/parser/triple-quote-scope-desync` carries
-                // `@pytest.mark.trace("TC-999")` inside a `"""…"""` literal, as
-                // fixture data for the defect it pins. The detector reported it,
-                // and the fixture is right — that id is not a tag. String
-                // masking exists for Rust legacy forms only and is #323 for the
-                // other two languages; this narrowing does not depend on it.
-                //
-                // A legacy comment-id form carries no adjacency guarantee at
-                // all, and that is exactly what #312 is about: a human wrote a
-                // comment naming a row, next to the wrong thing. All five
-                // seeded fixtures are that shape, in three languages.
-                let (production_forms, ranges) =
-                    verifies_form_ids(symbol, source, model, &patterns);
-                // A range written here binds nothing wherever it sits
-                // (FR-051-AC-28), so it is reported like any other; a LEGACY
-                // one is also the misplaced tag this detector exists for, and
-                // is reported as written.
-                for FormRange {
-                    range,
-                    form,
-                    provenance,
-                } in ranges
-                {
-                    if provenance == TraceProvenance::Legacy {
-                        range_non_binding_tags.push((
-                            range_occurrence(&range),
-                            NonBindingTag {
-                                path: symbol.path.clone(),
-                                symbol: symbol.qualified_name.clone(),
-                                kind: symbol.kind.as_str(),
-                                trace_id: range.range_text.clone(),
-                                form,
-                                line: symbol.leading_line,
-                            },
-                        ));
-                    }
-                    production_ranges.push((range, symbol.kind, symbol.leading_line));
-                }
-                for (trace_id, form, provenance) in production_forms {
-                    if provenance != TraceProvenance::Legacy {
-                        continue;
-                    }
-                    graph.non_binding_tags.push(NonBindingTag {
-                        path: symbol.path.clone(),
-                        symbol: symbol.qualified_name.clone(),
-                        kind: symbol.kind.as_str(),
-                        trace_id,
-                        form,
-                        line: symbol.leading_line,
-                    });
-                }
             }
+            // A `verifies` marker on a production symbol binds nothing, and a
+            // range inside it binds nothing either; it is reported like any
+            // other (FR-051-AC-28).
+            let (_, ranges) = verifies_form_ids(symbol, source, model, &patterns);
+            production_ranges.extend(
+                ranges
+                    .into_iter()
+                    .map(|range| (range, symbol.kind, symbol.leading_line)),
+            );
             continue;
         }
         if !symbol.kind.binds_trace_ids() {
@@ -765,11 +663,6 @@ pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolG
         let before = graph.verifies.len();
         let ranges_before = graph.range_diagnostics.len();
         bind_symbol(symbol, source, model, &patterns, &mut graph);
-        let self_name_bound = self_named_trace_id(symbol).map(|trace_id| {
-            declared_name_form_ids(symbol, source, model, &patterns)
-                .iter()
-                .any(|bound| normalized_trace_id(bound) == normalized_trace_id(&trace_id))
-        });
         let bound_on_symbol: BTreeSet<String> = graph.verifies[before..]
             .iter()
             .map(|relation| relation.trace_id.clone())
@@ -794,12 +687,6 @@ pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolG
         entry.observe(
             graph.verifies.len() > before,
             generic_tag_locus,
-            self_name_bound,
-            UnboundSymbol {
-                path: symbol.path.clone(),
-                line: symbol.line,
-                symbol: symbol.qualified_name.clone(),
-            },
             UnboundSymbol {
                 path: symbol.path.clone(),
                 line: symbol.leading_line,
@@ -816,49 +703,13 @@ pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolG
         .verifies
         .sort_by(|a, b| (&a.path, &a.symbol, &a.trace_id).cmp(&(&b.path, &b.symbol, &b.trace_id)));
 
-    // TWO FILTERS, and both are load-bearing — the corpus controls prove it.
-    //
-    // 1. AN ID THAT BOUND SOMEWHERE ELSE IS NOT AN ORPHAN. A container's
-    //    attached span runs to the end of the file, so the module symbol of any
-    //    tagged test file "carries" every id in it. `tag-at-module-scope`'s
-    //    control is the whole file with the banner tag moved onto the test it
-    //    names, and without this filter the module container still reports both
-    //    ids and the control goes red on healthy input.
-    // 2. THE INNERMOST SYMBOL WINS. In `tag-on-non-test-function` the module
-    //    container and `normalize_severity` both span the tag, and the fix a
-    //    reader needs names the function — the module is where the tag is not.
-    //    Greatest `leading_line` is innermost: the container starts at the top
-    //    of the file and the function starts at its own doc comment. AT EQUAL
-    //    LINES A CONTAINER LOSES, because a tag on line 1 of a file whose first
-    //    symbol starts there gives the module and the function the same
-    //    `leading_line`, and the stable sort would then hand it to whichever
-    //    the extractor happened to emit first — which is the module.
-    //
-    // A range is the same case as (1): one an evidence symbol already read is
-    // on that test, and a container spanning the test is not carrying it.
-    // Every range reported so far came from an evidence symbol.
+    // A range an evidence symbol already reported is that symbol's: a container
+    // spanning the test reads the same text and must not report it again.
     let reported: BTreeSet<RangeOccurrence> = graph
         .range_diagnostics
         .iter()
         .map(range_occurrence)
         .collect();
-    graph.non_binding_tags.extend(
-        range_non_binding_tags
-            .into_iter()
-            .filter(|(occurrence, _)| !reported.contains(occurrence))
-            .map(|(_, tag)| tag),
-    );
-    let bound: BTreeSet<String> = graph.verifies.iter().map(|v| v.trace_id.clone()).collect();
-    graph
-        .non_binding_tags
-        .retain(|t| !bound.contains(&t.trace_id));
-    graph.non_binding_tags.sort_by(|a, b| {
-        let rank = |t: &NonBindingTag| usize::from(t.kind == "container");
-        (&a.path, &a.trace_id, b.line, rank(a)).cmp(&(&b.path, &b.trace_id, a.line, rank(b)))
-    });
-    graph
-        .non_binding_tags
-        .dedup_by(|a, b| (&a.path, &a.trace_id) == (&b.path, &b.trace_id));
 
     shell.report_unbound(extraction, &mut graph);
 
@@ -913,15 +764,11 @@ pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolG
     });
     graph.defined_in.sort();
     graph.contains.sort();
-    graph.rewrites.sort_by(|a, b| {
-        (&a.path, a.line, &a.symbol, &a.from_form).cmp(&(&b.path, b.line, &b.symbol, &b.from_form))
-    });
     graph
         .diagnostics
         .sort_by(|a, b| (&a.path, &a.symbol, &a.trace_id).cmp(&(&b.path, &b.symbol, &b.trace_id)));
-    // A range an evidence symbol already reported is that symbol's. Otherwise
-    // the innermost production symbol wins, by the same rule the non-binding
-    // tags above use: greatest `leading_line`, a container losing ties.
+    // Otherwise the innermost production symbol wins: greatest `leading_line`,
+    // a container losing ties.
     let occurrence = range_occurrence;
     production_ranges.sort_by(|(a, a_kind, a_lead), (b, b_kind, b_lead)| {
         let container = |kind: &SymbolKind| *kind == SymbolKind::Container;
@@ -950,9 +797,10 @@ pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolG
         a.path == b.path && a.line == b.line && a.symbol == b.symbol && a.range_text == b.range_text
     });
 
-    // Computed last and additively: `find_mentions` reads the graph this
-    // function already built (which symbols claimed which ids) to decide what
-    // is left to report as a citation (FR-077-AC-2).
+    // Computed last and additively, both reading the graph built above: the
+    // advisory over comment and docstring ids (FR-051-AC-49) and the citation
+    // index (FR-077-AC-2).
+    graph.outside_marker = outside_marker_ids(extraction, &graph);
     graph.mentions = find_mentions(extraction, &graph);
 
     graph
@@ -963,22 +811,20 @@ pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolG
 ///
 /// One pass per FILE over the whole source text, not per symbol: scanning
 /// per-symbol would re-read every line once per enclosing container
-/// (`SymbolGraph::non_binding_tags` accepts that cost because it only scans
-/// `Function`/`Container` symbols and dedups after; a citation pass that also
-/// wants file-scope, un-owned text does the attribution itself instead).
+/// (a citation pass that also wants file-scope, un-owned text does the
+/// attribution itself instead).
 /// Each match is attributed to the innermost symbol in that file whose span
 /// contains it, using the same "highest `leading_line` wins, a `Container`
-/// loses ties" rule already proven for [`NonBindingTag`] — or to no symbol at
+/// loses ties" rule already used for the advisory — or to no symbol at
 /// all, when the token sits outside every declared span (a file header, a
 /// trailing comment after the last item).
 ///
 /// Deliberately reuses [`generic_id_pattern`] rather than declaring a second
-/// id-shaped pattern (FR-077-CON-1), and deliberately does **not** apply
-/// [`legacy_match_span`]'s Rust string-literal masking (FR-077-CON-3): that
-/// masking exists to stop a legacy form from being mis-bound as a *claim*
-/// inside fixture data, which is still correct and unaffected here. Hiding an
-/// id the caller asked about because it happens to sit inside a string
-/// literal is the failure mode this pass exists to avoid.
+/// id-shaped pattern (FR-077-CON-1), and deliberately does **not** mask string
+/// literals (FR-077-CON-3): hiding an id the caller asked about because it
+/// happens to sit inside a string literal is the failure mode this pass exists
+/// to avoid. (The advisory masks them, FR-051-AC-24: it tells an author what to
+/// write, which data is not.)
 fn find_mentions(extraction: &SymbolExtraction, graph: &SymbolGraph) -> Vec<Mention> {
     // Claimed (symbol identity, normalized trace id) pairs — a match here is
     // not a citation, it is the claim itself, and reporting it twice would
@@ -1013,8 +859,9 @@ fn find_mentions(extraction: &SymbolExtraction, graph: &SymbolGraph) -> Vec<Ment
         })
         .collect();
     let production_orphan: BTreeSet<(&str, &str, String)> = graph
-        .non_binding_tags
+        .outside_marker
         .iter()
+        .filter(|t| matches!(t.owner, OutsideMarkerOwner::Production(_)))
         .map(|t| {
             (
                 t.path.as_str(),
@@ -1029,15 +876,7 @@ fn find_mentions(extraction: &SymbolExtraction, graph: &SymbolGraph) -> Vec<Ment
     // finding is the only record of the occurrence. Keyed by (path, line,
     // normalized endpoint), since this pass reads one physical line at a
     // time the same way `RangeInTraceTag::line` was computed.
-    let range_endpoints: BTreeSet<(&str, usize, String)> = graph
-        .range_diagnostics
-        .iter()
-        .flat_map(|r| {
-            r.range_text
-                .split("..")
-                .map(move |token| (r.path.as_str(), r.line, normalized_trace_id(token.trim())))
-        })
-        .collect();
+    let range_endpoints = range_endpoints(graph);
 
     let pattern = generic_id_pattern();
     let mut mentions = Vec::new();
@@ -1112,11 +951,257 @@ fn find_mentions(extraction: &SymbolExtraction, graph: &SymbolGraph) -> Vec<Ment
     mentions
 }
 
+/// The endpoints of every range finding, keyed by `(path, line, normalized id)`
+/// (FR-051-AC-28): a range is the only record of its occurrence, so its
+/// endpoints are claimed by no other channel.
+fn range_endpoints(graph: &SymbolGraph) -> BTreeSet<(&str, usize, String)> {
+    graph
+        .range_diagnostics
+        .iter()
+        .flat_map(|r| {
+            r.range_text
+                .split("..")
+                .map(move |token| (r.path.as_str(), r.line, normalized_trace_id(token.trim())))
+        })
+        .collect()
+}
+
+/// Every id-shaped token in a comment or docstring attached to a declaration,
+/// which never binds (CR-215, FR-051-AC-22, AC-24, AC-49, AC-50).
+///
+/// The advisory replaces the textual trace forms with one question: *is there
+/// an id here that a marker should carry?* It reads each file's annotation
+/// channel ([`annotation_channel`]): comments everywhere, a Python docstring
+/// because it is a string literal by syntax, and nothing else — string
+/// literals, code and a symbol's body are blanked, so an id a file carries as
+/// data is not reported. A symbol's annotation block is the lines from its
+/// first attribute, decorator or leading comment to its declaration line, and a
+/// Python docstring directly after the signature; the lines above the first
+/// symbol are the file's header. Where several symbols span one token the
+/// innermost owns it, and a container loses a tie.
+///
+/// One finding per occurrence, an occurrence being one id on one line. It fires
+/// whether or not the id is also backed (AC-50), binds nothing, and is
+/// additive to `unmatched_tags` and `mentions`. An id an `implements` form read
+/// belongs to FR-050-AC-62 and a range endpoint to the range finding, so
+/// neither is reported here.
+fn outside_marker_ids(extraction: &SymbolExtraction, graph: &SymbolGraph) -> Vec<OutsideMarkerId> {
+    let implements_read: BTreeSet<(&str, String)> = graph
+        .implements
+        .iter()
+        .map(|r| (r.symbol_id.as_str(), normalized_trace_id(&r.trace_id)))
+        .collect();
+    let range_endpoints = range_endpoints(graph);
+    let pattern = generic_id_pattern();
+
+    let mut by_path: BTreeMap<&str, Vec<&Symbol>> = BTreeMap::new();
+    for symbol in &extraction.symbols {
+        by_path
+            .entry(symbol.path.as_str())
+            .or_default()
+            .push(symbol);
+    }
+
+    let mut found = Vec::new();
+    for file in &extraction.files {
+        let Some(channel) = annotation_channel(&file.source, file.language) else {
+            continue;
+        };
+        let channel_lines: Vec<&str> = channel.lines().collect();
+        let code = (file.language == SourceLanguage::Python)
+            .then(|| mask_source_string_contents(&file.source, file.language));
+        let code_lines: Vec<&str> = code
+            .as_deref()
+            .map(str::lines)
+            .into_iter()
+            .flatten()
+            .collect();
+        let symbols = by_path
+            .get(file.path.as_str())
+            .map_or(&[][..], Vec::as_slice);
+
+        // The synthetic whole-file module container of the Python and TypeScript
+        // adapters owns no annotation block of its own: its tokens are the
+        // header's.
+        let is_module = |s: &Symbol| {
+            file.language != SourceLanguage::Rust
+                && s.kind == SymbolKind::Container
+                && s.container.is_none()
+                && s.line == 1
+                && s.leading_line == 1
+        };
+        let header_end = symbols
+            .iter()
+            .filter(|s| !is_module(s))
+            .map(|s| s.leading_line)
+            .min()
+            .unwrap_or(channel_lines.len() + 1)
+            - 1;
+        let header_owner = symbols
+            .iter()
+            .find(|s| is_module(s))
+            .map_or(file.path.as_str(), |s| s.qualified_name.as_str());
+
+        let mut owned = Owned::new();
+        claim(
+            &mut owned,
+            &channel_lines,
+            pattern,
+            1..=header_end,
+            (0, false),
+            None,
+        );
+        for symbol in symbols.iter().filter(|s| !is_module(s)) {
+            let rank = (symbol.leading_line, symbol.kind != SymbolKind::Container);
+            claim(
+                &mut owned,
+                &channel_lines,
+                pattern,
+                symbol.leading_line..=symbol.line,
+                rank,
+                Some(symbol),
+            );
+            if file.language == SourceLanguage::Python {
+                if let Some(docstring) = python_docstring_lines(symbol, &code_lines, &channel_lines)
+                {
+                    claim(
+                        &mut owned,
+                        &channel_lines,
+                        pattern,
+                        docstring,
+                        rank,
+                        Some(symbol),
+                    );
+                }
+            }
+        }
+
+        for ((line, trace_id), (_, owner)) in owned {
+            let normalized = normalized_trace_id(trace_id);
+            if range_endpoints.contains(&(file.path.as_str(), line, normalized.clone())) {
+                continue;
+            }
+            let (symbol, kind) = match owner {
+                Some(symbol) => {
+                    if implements_read.contains(&(symbol.id.as_str(), normalized)) {
+                        continue;
+                    }
+                    let kind = if symbol.kind.binds_trace_ids() {
+                        OutsideMarkerOwner::Evidence
+                    } else {
+                        OutsideMarkerOwner::Production(symbol.kind)
+                    };
+                    (symbol.qualified_name.clone(), kind)
+                }
+                None => (header_owner.to_string(), OutsideMarkerOwner::Module),
+            };
+            found.push(OutsideMarkerId {
+                trace_id: trace_id.to_string(),
+                language: file.language,
+                path: file.path.clone(),
+                line,
+                symbol,
+                owner: kind,
+            });
+        }
+    }
+    found.sort_by(|a, b| (&a.path, a.line, &a.trace_id).cmp(&(&b.path, b.line, &b.trace_id)));
+    found
+}
+
+/// How strongly a symbol owns an annotation token: the greater `leading_line`
+/// is the innermost declaration, and a container loses a tie.
+type Rank = (usize, bool);
+
+/// `(line, id)` → the best owner so far, `None` being the file header.
+type Owned<'a> = BTreeMap<(usize, &'a str), (Rank, Option<&'a Symbol>)>;
+
+/// Record every id-shaped token on `lines` of the annotation channel as owned by
+/// `owner` unless a stronger owner already holds it.
+fn claim<'a>(
+    owned: &mut Owned<'a>,
+    channel_lines: &[&'a str],
+    pattern: &Regex,
+    lines: std::ops::RangeInclusive<usize>,
+    rank: Rank,
+    owner: Option<&'a Symbol>,
+) {
+    for line in lines {
+        let Some(text) = line.checked_sub(1).and_then(|i| channel_lines.get(i)) else {
+            continue;
+        };
+        for matched in pattern.find_iter(text) {
+            let slot = owned
+                .entry((line, matched.as_str()))
+                .or_insert((rank, owner));
+            if rank > slot.0 {
+                *slot = (rank, owner);
+            }
+        }
+    }
+}
+
+/// The lines of the docstring that opens the body of a Python symbol, if it has
+/// one: the first statement after the signature, a triple-quoted literal
+/// (FR-051-AC-24). A literal further down is body text, not an annotation.
+///
+/// `code_lines` is the file with string contents blanked and code kept, which is
+/// what makes the signature's end findable: the first line at bracket depth zero
+/// must end in `:`; a one-line `def f(): ...` has no body line to read.
+fn python_docstring_lines(
+    symbol: &Symbol,
+    code_lines: &[&str],
+    channel_lines: &[&str],
+) -> Option<std::ops::RangeInclusive<usize>> {
+    let mut depth: i64 = 0;
+    let mut signature_end = None;
+    for line in symbol.line..=symbol.end_line {
+        let code = code_lines.get(line.checked_sub(1)?)?;
+        let code = code.split('#').next().unwrap_or_default();
+        for ch in code.chars() {
+            match ch {
+                '(' | '[' | '{' => depth += 1,
+                ')' | ']' | '}' => depth -= 1,
+                _ => {}
+            }
+        }
+        if depth <= 0 {
+            if code.trim_end().ends_with(':') {
+                signature_end = Some(line);
+            }
+            break;
+        }
+    }
+    let mut first = signature_end? + 1;
+    while code_lines.get(first - 1)?.trim().is_empty() {
+        first += 1;
+    }
+    if first > symbol.end_line {
+        return None;
+    }
+    let opener = channel_lines.get(first - 1)?.trim_start();
+    let opener = opener.trim_start_matches(|c: char| "rRbBuUfF".contains(c));
+    let delimiter = ["\"\"\"", "'''"]
+        .into_iter()
+        .find(|delimiter| opener.starts_with(delimiter))?;
+    // Closed on its own line, or on a later one.
+    if opener[delimiter.len()..].contains(delimiter) {
+        return Some(first..=first);
+    }
+    let last = (first + 1..=symbol.end_line)
+        .find(|line| {
+            channel_lines
+                .get(line - 1)
+                .is_some_and(|text| text.contains(delimiter))
+        })
+        .unwrap_or(symbol.end_line);
+    Some(first..=last)
+}
+
 /// The innermost symbol in `symbols` (already filtered to one file) whose
 /// span contains `line`, or `None` when no symbol's span does.
 ///
-/// Same tie-break [`SymbolGraph::non_binding_tags`]'s own filter already
-/// uses: greatest `leading_line` wins (the more deeply nested declaration
+/// Greatest `leading_line` wins (the more deeply nested declaration
 /// starts later), and at equal `leading_line` a [`SymbolKind::Container`]
 /// loses — a container's span starts at the top of the file, so ties there
 /// are ties against something that is never the more specific answer.
@@ -1129,65 +1214,6 @@ fn innermost_symbol_at<'a>(symbols: &[&'a Symbol], line: usize) -> Option<&'a Sy
             (s.leading_line, non_container)
         })
         .copied()
-}
-
-/// One generic trace id carried by an evidence symbol's own name.
-///
-/// A separator is required. That admits the observed `tc_391` / `tc-391`
-/// conventions without treating ordinary suffixed names such as `sha256` as
-/// trace ids. The candidate is observational only: a declared form still has
-/// to read the declaration line before it counts as bound.
-fn self_named_trace_id(symbol: &Symbol) -> Option<String> {
-    static SELF_NAME_ID: OnceLock<Regex> = OnceLock::new();
-    let pattern = SELF_NAME_ID.get_or_init(|| {
-        Regex::new(
-            r"(?i)(?:^|[^A-Z0-9])([A-Z]{2,4})[-_](\d+)(?:[-_]([A-Z]+)[-_](\d+))?(?:[^A-Z0-9]|$)",
-        )
-        .expect("self-name trace-id pattern compiles")
-    });
-    let captures = pattern.captures(&symbol.qualified_name)?;
-    let mut id = format!(
-        "{}-{}",
-        captures.get(1)?.as_str().to_uppercase(),
-        captures.get(2)?.as_str()
-    );
-    if let (Some(kind), Some(number)) = (captures.get(3), captures.get(4)) {
-        id.push('-');
-        id.push_str(&kind.as_str().to_uppercase());
-        id.push('-');
-        id.push_str(number.as_str());
-    }
-    Some(id)
-}
-
-/// Ids a declared legacy form reads from the symbol's declaration line.
-/// Annotation/comment forms elsewhere in the attached span are intentionally
-/// excluded: they may bind the same id, but do not prove the name form works.
-fn declared_name_form_ids(
-    symbol: &Symbol,
-    source: &str,
-    model: &TraceabilityModel,
-    patterns: &CompiledTracePatterns,
-) -> Vec<String> {
-    let Some(line) = source.lines().nth(symbol.line.saturating_sub(1)) else {
-        return Vec::new();
-    };
-    let mut ids = Vec::new();
-    for legacy in &model.trace_tags.legacy {
-        if legacy
-            .language
-            .is_some_and(|language| language != symbol.language)
-        {
-            continue;
-        }
-        let Some(pattern) = patterns.legacy(&legacy.pattern) else {
-            continue;
-        };
-        for captures in pattern.captures_iter(line) {
-            ids.extend(legacy_ids(&captures, legacy.id_format.as_deref()));
-        }
-    }
-    ids
 }
 
 /// The segment-preserving form of the engine's trace-id fold: the maximal runs
@@ -1229,63 +1255,54 @@ fn generic_id_pattern() -> &'static Regex {
 /// This deliberately does not reuse the declared trace grammar: that would
 /// reproduce the blindness being measured. It also stops at the declaration
 /// line, so an id mentioned in a test body is data used by the test rather than
-/// evidence that the test itself was tagged.
+/// evidence that the test itself was tagged, and it blanks the declaration's own
+/// name there: a name is not an annotation, so an id a title or identifier
+/// carries adds to no census count (CR-215, FR-050-AC-44).
 fn generic_tags(symbol: &Symbol, source: &str) -> Vec<UnmatchedTag> {
     let pattern = generic_id_pattern();
     let start = symbol.leading_line.saturating_sub(1);
     let count = symbol.line.saturating_sub(start).max(1);
-    source
-        .lines()
-        .enumerate()
-        .skip(start)
-        .take(count)
-        .flat_map(|(line, text)| {
-            pattern.find_iter(text).map(move |matched| UnmatchedTag {
-                trace_id: matched.as_str().to_string(),
-                language: symbol.language.as_str().to_string(),
-                path: symbol.path.clone(),
-                line: line + 1,
-                symbol: symbol.qualified_name.clone(),
-            })
-        })
-        .collect()
+    let name = symbol.bare_name();
+    let mut tags = Vec::new();
+    for (index, text) in source.lines().enumerate().skip(start).take(count) {
+        let line = index + 1;
+        let mut scanned = text.to_string();
+        if line == symbol.line {
+            for name in [symbol.qualified_name.as_str(), name] {
+                if !name.is_empty() {
+                    scanned = scanned.replacen(name, &" ".repeat(name.len()), 1);
+                }
+            }
+        }
+        tags.extend(pattern.find_iter(&scanned).map(|matched| UnmatchedTag {
+            trace_id: matched.as_str().to_string(),
+            language: symbol.language.as_str().to_string(),
+            path: symbol.path.clone(),
+            line,
+            symbol: symbol.qualified_name.clone(),
+        }));
+    }
+    tags
 }
 
-/// Every declared form the binder consults for `language`, markers before
-/// legacy forms — the order [`bind_symbol`] tries them in (FR-051-AC-19).
-///
-/// A legacy form declaring no `language` applies to all of them, which is the
-/// same rule `bind_symbol` uses; naming it under each language is what makes
-/// the list answer "which patterns had a chance at this file".
+/// Every declared marker form the binder consults for `language`
+/// (FR-051-AC-19).
 fn declared_forms(model: &TraceabilityModel, language: &str) -> Vec<String> {
-    let applies = |declared: Option<SourceLanguage>| match declared {
-        Some(l) => l.as_str() == language,
-        None => true,
-    };
     model
         .trace_tags
         .markers
         .iter()
-        .filter(|m| applies(Some(m.language)))
+        .filter(|m| m.language.as_str() == language)
         .map(|m| m.name.clone())
-        .chain(
-            model
-                .trace_tags
-                .legacy
-                .iter()
-                .filter(|l| applies(l.language))
-                .map(|l| l.name.clone()),
-        )
         .collect()
 }
 
 /// Implements: FR-062
 /// Bind a production symbol to the requirements it implements (FR-062).
 ///
-/// Structurally simpler than [`bind_symbol`] because there is nothing to
-/// reconcile: no legacy forms, so no provenance and no rewrite suggestions, and
-/// no precedence between forms. A requirement named twice by two forms yields
-/// one relation after the dedup in [`bind`].
+/// Structurally simpler than [`bind_symbol`] because there is no precedence
+/// between forms. A requirement named twice by two forms yields one relation
+/// after the dedup in [`bind`].
 ///
 /// A range in an `implements` marker binds nothing either, including its own
 /// endpoints (CR-187, FR-051-AC-28); it is returned for [`bind`] to report,
@@ -1382,21 +1399,12 @@ fn bind_implements(
 /// Blank the *contents* of Rust string literals, preserving byte length and
 /// line structure so downstream offset arithmetic is unaffected.
 ///
-/// A symbol's attached source includes its body, so any file that carries
-/// trace-shaped text inside a string literal binds ids that were never
-/// authored as tags. This engine's own suite is full of them — it feeds
-/// tag-shaped snippets to the extractor as fixtures, and every one of those
-/// bound. (No example is spelled out here: a comment containing a real tag
-/// would itself bind, which is the same defect one level up.)
-///
-/// Applied to the **legacy textual forms only**. Canonical markers put their
-/// ids inside string literals by design (`#[trace("TC-707")]`), so masking
-/// before matching them would suppress exactly the form the grammar prefers.
-///
-/// Comments are left intact — that is where legacy tags live. A `"` inside a
-/// comment must not open a string, or an apostrophe-quote in prose would mask
-/// every line that follows.
-fn mask_rust_string_contents(span: &str) -> String {
+/// Comments are left intact: a `"` inside a comment must not open a string, or
+/// an apostrophe-quote in prose would mask every line that follows. With
+/// `keep_code` false everything that is neither a comment nor a string
+/// delimiter is blanked too, leaving the annotation channel alone (the advisory
+/// of FR-051-AC-49 reads nothing else).
+fn mask_rust_string_contents(span: &str, keep_code: bool) -> String {
     let mut out = String::with_capacity(span.len());
     let mut block_depth: u32 = 0;
     let mut raw_hashes: Option<usize> = None;
@@ -1479,8 +1487,7 @@ fn mask_rust_string_contents(span: &str) -> String {
                 continue;
             }
 
-            // A line comment runs to end of line and is kept verbatim: legacy
-            // tags live here.
+            // A line comment runs to end of line and is kept verbatim.
             if c == '/' && bytes.get(i + 1) == Some(&b'/') {
                 out.push_str(&line[i..]);
                 break;
@@ -1508,13 +1515,36 @@ fn mask_rust_string_contents(span: &str) -> String {
                     }
                 }
             }
+            // A char literal holding a quote (`'"'`, `'\"'`) is not a string.
+            if c == '\'' {
+                let literal_len = if bytes[i..].starts_with(b"'\"'") {
+                    3
+                } else if bytes[i..].starts_with(b"'\\\"'") {
+                    4
+                } else {
+                    0
+                };
+                if literal_len > 0 {
+                    if keep_code {
+                        out.push_str(&line[i..i + literal_len]);
+                    } else {
+                        out.push_str(&" ".repeat(literal_len));
+                    }
+                    i += literal_len;
+                    continue;
+                }
+            }
             if c == '"' {
                 in_string = true;
                 out.push(c);
                 i += 1;
                 continue;
             }
-            out.push(c);
+            if keep_code {
+                out.push(c);
+            } else {
+                blank(c, &mut out);
+            }
             i += width;
         }
     }
@@ -1533,32 +1563,24 @@ fn prev_is_ident(line: &str, i: usize) -> bool {
 /// Blank the *contents* of TypeScript and Python string literals, preserving
 /// byte length and line structure exactly as [`mask_rust_string_contents`] does.
 ///
-/// **This did not exist, and Rust had it (`agent-ix/quire-rs#323`).** A trace
-/// marker written inside a TypeScript or Python string literal bound as though
-/// it were a tag, so any file carrying tag-shaped text as DATA invented
-/// coverage nobody authored. The corpus carries a measured instance:
-/// `cases/parser/triple-quote-scope-desync` holds a trace marker inside a
-/// triple-quoted literal as fixture data for the parser defect it pins, and the
-/// non-binding-tag detector reported it — 1 false positive of 6 findings,
-/// tier-1 precision 83% (TC-1047).
-///
 /// A SEPARATE FUNCTION rather than a generalisation of the Rust one. Rust's
 /// raw-string form has no analogue in either language and its handling is the
 /// delicate part of that lexer; folding three languages into one loop would put
 /// the two at risk of each other for no gain. This engine already keeps a
 /// symbol extractor per language for the same reason.
 ///
-/// Comments are left INTACT — that is where legacy tags live, and masking them
-/// would suppress the very form being matched. `//` and block comments for
-/// TypeScript, `#` for Python.
-///
-/// Applied to the LEGACY textual forms only, exactly as the Rust mask is:
-/// canonical markers put their ids inside string literals by design, so masking
-/// before matching them would suppress the form the grammar prefers.
+/// Comments are left INTACT: `//` and block comments for TypeScript, `#` for
+/// Python. With `keep_docstrings`, a Python triple-quoted literal that opens its
+/// line is kept too: Python has no doc-comment syntax, so its annotation channel
+/// IS a string literal (FR-051-AC-24). A literal opened mid-line (`x = """`) is an
+/// assigned value and is masked like any other string. With `keep_code` false
+/// everything that is neither a comment, a kept docstring nor a string delimiter
+/// is blanked too, leaving the annotation channel alone.
 fn mask_script_string_contents(
     span: &str,
     language: SourceLanguage,
-    preserve_tag_channels: bool,
+    keep_docstrings: bool,
+    keep_code: bool,
 ) -> String {
     let python = matches!(language, SourceLanguage::Python);
     let mut out = String::with_capacity(span.len());
@@ -1568,7 +1590,7 @@ fn mask_script_string_contents(
     let mut open: Option<&'static str> = None;
     let mut block_comment = false;
     // Whether the literal currently open is a DOCSTRING — Python's doc channel,
-    // preserved like a comment. See the opener below for why.
+    // preserved like a comment.
     let mut doc_string = false;
 
     for line in span.split_inclusive('\n') {
@@ -1664,27 +1686,10 @@ fn mask_script_string_contents(
             };
             if let Some(delim) = triple {
                 out.push_str(delim);
-                // A DOCSTRING IS PYTHON'S COMMENT, and masking it suppresses a
-                // form the declaration deliberately declares.
-                //
-                // `python-docstring-id` is a declared legacy form whose pattern
-                // is `^\s*(?:[rbfu]{1,2})?"""\s*(<id>)` — Python has no
-                // doc-comment syntax, so its doc channel IS a string literal,
-                // where Rust's is `///` and TypeScript's is a block comment.
-                // Both of those are preserved by their masks as comments; this
-                // is the same rule, wearing the only syntax the language has.
-                //
-                // Measured: masking every Python string took four corpus
-                // fixtures from bound to unbound — `tag-names-undeclared-section`
-                // in both directions among them — because their tags are
-                // docstrings. The corpus caught it before it shipped.
-                //
-                // The test is POSITIONAL, and it is the declaration's own: the
-                // form is `^`-anchored to an opener preceded by whitespace
-                // alone. A triple-quoted literal opened mid-line — `x = """`
-                // — is an assigned value, not documentation, and is masked like
-                // any other string.
-                if preserve_tag_channels && opens_line {
+                // A DOCSTRING IS PYTHON'S COMMENT. The test is POSITIONAL: a
+                // literal whose opener has only whitespace before it on its
+                // line is documentation; one opened mid-line is a value.
+                if keep_docstrings && opens_line {
                     doc_string = true;
                 }
                 open = Some(delim);
@@ -1693,27 +1698,6 @@ fn mask_script_string_contents(
             }
             if c == '"' || c == '\'' || (!python && c == '`') {
                 out.push(c);
-                // A REGISTRATION TITLE IS TYPESCRIPT'S TAG CHANNEL, and masking
-                // it suppresses a form the declaration deliberately declares.
-                //
-                // `typescript-test-name-id` is a declared legacy form that
-                // reads the id out of the CALL TITLE — `it("TC-001 …", …)` —
-                // which is a string literal. Rust has no such form (its
-                // `rust-test-name-id` reads an identifier, `fn tc_001_…`),
-                // which is why a blanket string mask is right there and wrong
-                // here.
-                //
-                // Measured: masking every TypeScript string took
-                // `cases/detection/test-name-id-in-call-title` from `backed 1`
-                // to `backed 0` and lit `no-symbol-bound` on a fixture whose
-                // whole subject is that the title binds. The corpus caught it.
-                //
-                // The test is the declared pattern's OWN anchor: `^\s*(await
-                // )?(it|test|describe|suite)`. A string opened anywhere else on
-                // the line is an ordinary value and is masked.
-                if preserve_tag_channels && !python && opens_registration(&line[..i]) {
-                    doc_string = true;
-                }
                 open = Some(match c {
                     '"' => "\"",
                     '\'' => "'",
@@ -1722,108 +1706,71 @@ fn mask_script_string_contents(
                 i += 1;
                 continue;
             }
-            out.push(c);
+            if keep_code {
+                out.push(c);
+            } else {
+                blank(c, &mut out);
+            }
             i += width;
         }
     }
     out
 }
 
-/// Whether the text before a quote on its line opens a test REGISTRATION —
-/// `it(`, `test(`, `describe(`, `suite(`, with the modifiers the declared
-/// pattern allows.
+/// The annotation channel of a whole file: comments everywhere and Python
+/// docstrings, with every other character blanked (FR-051-AC-24). Byte length
+/// and line count are preserved, so a line in the result is the line in the
+/// original.
 ///
-/// Kept deliberately close to `typescript-test-name-id`'s own `^\s*(?:await
-/// \s+)?(?:it|test)(?:\.…)*\s*\(` anchor rather than generalised: this
-/// exists to preserve exactly the channel the declaration reads from, and a
-/// looser rule would start preserving ordinary strings again.
-fn opens_registration(before: &str) -> bool {
-    let text = before.trim_start();
-    let text = text.strip_prefix("await ").unwrap_or(text).trim_start();
-    for name in ["describe", "suite", "test", "it"] {
-        let Some(rest) = text.strip_prefix(name) else {
-            continue;
-        };
-        // Modifiers (`.each`, `.only`, …) and whitespace may sit between the
-        // name and its parenthesis; nothing else may.
-        let rest = rest.trim_start();
-        let rest = rest.trim_start_matches(|c: char| c == '.' || c.is_alphanumeric());
-        let rest = rest.trim_start();
-        if let Some(args) = rest.strip_prefix('(') {
-            if args.trim().is_empty() {
-                return true;
-            }
-        }
-    }
-    false
-}
-
-/// The span a LEGACY form is matched against: string contents blanked, comments
-/// intact, for every language rather than for Rust alone.
-///
-/// ONE dispatch point rather than the two this file carried, which is how
-/// TypeScript and Python came to be unmasked in both of them (#323).
-fn legacy_match_span(span: &str, language: SourceLanguage) -> String {
+/// `None` for shell: its tags are read from comment nodes and its comments are
+/// FR-051-AC-44's, not this advisory's.
+fn annotation_channel(source: &str, language: SourceLanguage) -> Option<String> {
     match language {
-        SourceLanguage::Rust => mask_rust_string_contents(span),
+        SourceLanguage::Rust => Some(mask_rust_string_contents(source, false)),
         SourceLanguage::Typescript | SourceLanguage::Python => {
-            mask_script_string_contents(span, language, true)
+            Some(mask_script_string_contents(source, language, true, false))
         }
-        // Shell tags are read from comment nodes, never from masked text.
-        SourceLanguage::Shell => span.to_string(),
+        SourceLanguage::Shell => None,
     }
 }
 
 /// Blank every string's contents for a static check that reads code rather
-/// than a declared tag channel. Unlike [`legacy_match_span`], this preserves
-/// neither Python docstrings nor TypeScript registration titles: those are
-/// strings with special meaning to the tag grammar, not executable code.
+/// than an annotation channel. Unlike [`annotation_channel`], this keeps the
+/// code and preserves no Python docstring.
 pub(crate) fn mask_source_string_contents(span: &str, language: SourceLanguage) -> String {
     match language {
-        SourceLanguage::Rust => mask_rust_string_contents(span),
+        SourceLanguage::Rust => mask_rust_string_contents(span, true),
         SourceLanguage::Typescript | SourceLanguage::Python => {
-            mask_script_string_contents(span, language, false)
+            mask_script_string_contents(span, language, false, true)
         }
         SourceLanguage::Shell => span.to_string(),
     }
 }
 
-/// Every trace id a declared **verifies** form attaches to this symbol's span,
-/// with the form that attached it and where it came from.
-///
-/// SHARED by [`bind_symbol`] and by the non-binding-tag detector in [`bind`],
-/// so the two cannot disagree about what counts as a tag (#312). A detector
-/// carrying its own notion of "looks like a trace tag" would fire on forms the
-/// binder ignores and stay silent on forms it reads — a second reader of one
-/// declaration, which is the drift this engine keeps finding one declaration at
-/// a time.
+/// Every trace id a declared **verifies** marker attaches to this symbol's
+/// span, with the form that attached it.
 ///
 /// Returns every match, including duplicates: deduplication is a *binding*
-/// decision (FR-051-AC-6, canonical wins over legacy) and belongs to the caller
-/// that binds.
+/// decision (FR-051-AC-6) and belongs to the caller that binds.
 ///
 /// A range — two id-shaped tokens joined by a bare `..`, same-prefix,
 /// differing-prefix, or short-suffix (CR-187, FR-050-AC-50, FR-051-AC-28) —
-/// binds no id, in either grammar: it is filtered out of the returned id list
-/// and reported instead in the second return value, once per occurrence.
+/// binds no id: it is filtered out of the returned id list and reported instead
+/// in the second return value, once per occurrence. A marker's argument list
+/// already yields a range as ONE literal token, so the range is simply the
+/// whole id-shaped token failing the id shape and matching the range shape
+/// instead. Filtered here rather than spliced out of the raw argument text,
+/// which would leave behind an empty quoted pair (`""`) that a naive
+/// comma-split misreads as a literal empty id.
 fn verifies_form_ids(
     symbol: &Symbol,
     source: &str,
     model: &TraceabilityModel,
     patterns: &CompiledTracePatterns,
-) -> (Vec<(String, String, TraceProvenance)>, Vec<FormRange>) {
+) -> (Vec<(String, String)>, Vec<RangeInTraceTag>) {
     let span = symbol.attached_source(source);
     let mut out = Vec::new();
     let mut ranges = Vec::new();
-
-    // ── Canonical markers ──
-    //
-    // A marker's argument list already yields a range as ONE literal token —
-    // `marker_ids` has no comma to split it on, quoted or not — so the range
-    // is simply the whole id-shaped token failing the id shape and matching
-    // the range shape instead. Filtered here rather than spliced out of the
-    // raw argument text, which would leave behind an empty quoted pair
-    // (`""`) that a naive comma-split misreads as a literal empty id.
     for marker in &model.trace_tags.markers {
         if marker.language != symbol.language {
             continue;
@@ -1835,51 +1782,10 @@ fn verifies_form_ids(
             let Some(args) = caps.get(1) else { continue };
             for trace_id in marker_ids(args.as_str()) {
                 if let Some(range) = marker_range(symbol, &span, &caps, &trace_id) {
-                    ranges.push(FormRange {
-                        range,
-                        form: marker.name.clone(),
-                        provenance: TraceProvenance::Canonical,
-                    });
+                    ranges.push(range);
                     continue;
                 }
-                out.push((trace_id, marker.name.clone(), TraceProvenance::Canonical));
-            }
-        }
-    }
-
-    // ── Legacy textual forms ──
-    //
-    // Matched against a span whose Rust string *contents* are blanked. A
-    // legacy tag is comment text; trace-shaped characters inside a string
-    // literal are data the file happens to carry, and binding them invents
-    // coverage nobody authored.
-    let legacy_span = legacy_match_span(&span, symbol.language);
-    for legacy in &model.trace_tags.legacy {
-        if legacy.language.is_some_and(|l| l != symbol.language) {
-            continue;
-        }
-        let Some(re) = patterns.legacy(&legacy.pattern) else {
-            continue;
-        };
-        for caps in re.captures_iter(&legacy_span) {
-            let read = read_legacy_match(re, &caps, legacy.id_format.as_deref(), &legacy_span);
-            let start = caps.get(0).map_or(0, |m| m.start());
-            let line = symbol.leading_line + legacy_span[..start].matches('\n').count();
-            ranges.extend(read.ranges.into_iter().map(|range_text| {
-                let range = RangeInTraceTag {
-                    path: symbol.path.clone(),
-                    symbol: symbol.qualified_name.clone(),
-                    line,
-                    range_text,
-                };
-                FormRange {
-                    range,
-                    form: legacy.name.clone(),
-                    provenance: TraceProvenance::Legacy,
-                }
-            }));
-            for trace_id in read.ids {
-                out.push((trace_id, legacy.name.clone(), TraceProvenance::Legacy));
+                out.push((trace_id, marker.name.clone()));
             }
         }
     }
@@ -1889,8 +1795,8 @@ fn verifies_form_ids(
 /// Whole-token range pattern (CR-187, FR-050-AC-50, FR-051-AC-28): two
 /// id-shaped tokens joined by a bare `..`, or an id-shaped token followed by
 /// `..` and a bare short-suffix number. Anchored, because it tests a single
-/// token a grammar has already isolated — a marker's own id, or a legacy
-/// form's captured id — never a raw span.
+/// token a grammar has already isolated — a marker's own id — never a raw
+/// span.
 pub(crate) fn range_pattern() -> &'static Regex {
     static R: OnceLock<Regex> = OnceLock::new();
     R.get_or_init(|| {
@@ -1935,90 +1841,6 @@ fn range_occurrence(range: &RangeInTraceTag) -> RangeOccurrence {
     (range.path.clone(), range.line, range.range_text.clone())
 }
 
-/// A range a declared verifies form read, with the form that read it.
-struct FormRange {
-    range: RangeInTraceTag,
-    form: String,
-    provenance: TraceProvenance,
-}
-
-/// What one legacy-form match binds, and the ranges it carries instead.
-struct LegacyRead {
-    ids: Vec<String>,
-    ranges: Vec<String>,
-}
-
-/// Read one legacy-form match, splitting out every range it carries
-/// (CR-187, FR-050-AC-50, FR-051-AC-28).
-///
-/// A legacy form's id-shaped capture group cannot itself contain `..`: the id
-/// pattern stops at the first character it does not recognise. So a legacy
-/// range's right endpoint sits OUTSIDE the match, unlike a marker's, whose
-/// argument carries the whole literal string. For an `id_format`-less form,
-/// a captured last id immediately followed by `..` and another id-or-number
-/// token is a range, and its captured left endpoint binds nothing either.
-///
-/// The capture stopped at `..`, so a list continuing past the range
-/// (`// Trace: A..B, C`) is read on from there by the declared form's OWN
-/// pattern, re-run with the range's left endpoint standing in for the whole
-/// range: every id the form's list grammar admits after it still binds, an id
-/// it does not admit binds nothing, and a further range (`A..B, C..D`) is
-/// split out the same way.
-fn read_legacy_match(
-    re: &Regex,
-    caps: &regex::Captures<'_>,
-    id_format: Option<&str>,
-    legacy_span: &str,
-) -> LegacyRead {
-    let mut ids = legacy_ids(caps, id_format);
-    let mut ranges = Vec::new();
-    let (None, Some(whole), Some(group)) = (id_format, caps.get(0), caps.get(1)) else {
-        return LegacyRead { ids, ranges };
-    };
-    let prefix = &legacy_span[whole.start()..group.start()];
-    let mut pos = whole.end();
-    while let Some(continuation) = range_continuation_pattern().captures(&legacy_span[pos..]) {
-        let (Some(left), Some(right), Some(matched)) =
-            (ids.pop(), continuation.get(1), continuation.get(0))
-        else {
-            break;
-        };
-        ranges.push(format!("{left}..{}", right.as_str()));
-        let tail_start = pos + matched.end();
-        let stand_in_end = prefix.len() + left.len();
-        let probe = format!("{prefix}{left}{}", &legacy_span[tail_start..]);
-        let Some(resumed) = re.captures(&probe) else {
-            break;
-        };
-        let Some(resumed_group) = resumed.get(1) else {
-            break;
-        };
-        // The form must re-read the list from the same place and take the
-        // stand-in whole. A form whose grammar needs something after the id
-        // (a `\b`, a terminator) can fail at the stand-in, match a shorter
-        // id there, or match later in the tail instead; none of those is the
-        // continuation of this list.
-        if resumed_group.start() != prefix.len() || resumed_group.end() < stand_in_end {
-            break;
-        }
-        ids.extend(legacy_ids(&resumed, None).into_iter().skip(1));
-        pos = tail_start + (resumed_group.end() - stand_in_end);
-    }
-    LegacyRead { ids, ranges }
-}
-
-/// A range's right-hand continuation, anchored to start immediately (only
-/// inline whitespace tolerated, never a newline) after a legacy form's own
-/// match — since that match's id-shaped capture group cannot itself contain
-/// the `..` and second token (see [`verifies_form_ids`]'s own docs).
-fn range_continuation_pattern() -> &'static Regex {
-    static R: OnceLock<Regex> = OnceLock::new();
-    R.get_or_init(|| {
-        Regex::new(r"(?i)^[ \t]*\.\.[ \t]*([A-Z]{2,4}-[0-9]+(?:-[A-Z]+-[0-9]+)?|[0-9]+)")
-            .expect("range continuation pattern compiles")
-    })
-}
-
 fn bind_symbol(
     symbol: &Symbol,
     source: &str,
@@ -2026,16 +1848,12 @@ fn bind_symbol(
     patterns: &CompiledTracePatterns,
     graph: &mut SymbolGraph,
 ) {
-    let span = symbol.attached_source(source);
-    // Every attachment of a trace id to this symbol, in discovery order
-    // (canonical markers first, then legacy forms). The id is bound once no
-    // matter how many forms attached it (FR-051-AC-6).
+    // Every attachment of a trace id to this symbol, in discovery order. The id
+    // is bound once no matter how many forms attached it (FR-051-AC-6).
     let mut attachments: BTreeMap<String, Vec<VerifiesRelation>> = BTreeMap::new();
     let (forms, ranges) = verifies_form_ids(symbol, source, model, patterns);
-    graph
-        .range_diagnostics
-        .extend(ranges.into_iter().map(|found| found.range));
-    for (trace_id, form, provenance) in forms {
+    graph.range_diagnostics.extend(ranges);
+    for (trace_id, form) in forms {
         attachments
             .entry(trace_id.clone())
             .or_default()
@@ -2044,7 +1862,6 @@ fn bind_symbol(
                 symbol: symbol.qualified_name.clone(),
                 path: symbol.path.clone(),
                 trace_id,
-                provenance,
                 form,
                 line: symbol.line,
                 column: symbol.column,
@@ -2053,57 +1870,9 @@ fn bind_symbol(
             });
     }
 
-    // ── Rewrite suggestions ──
-    //
-    // A second pass over the legacy forms, because a suggestion needs the match
-    // POSITION and the ids do not. Byte length and line breaks are preserved by
-    // the mask, so the offset arithmetic below is unaffected.
-    let legacy_span = legacy_match_span(&span, symbol.language);
-    for legacy in &model.trace_tags.legacy {
-        if legacy.language.is_some_and(|l| l != symbol.language) {
-            continue;
-        }
-        let Some(re) = patterns.legacy(&legacy.pattern) else {
-            continue;
-        };
-        for caps in re.captures_iter(&legacy_span) {
-            let trace_ids =
-                read_legacy_match(re, &caps, legacy.id_format.as_deref(), &legacy_span).ids;
-            if trace_ids.is_empty() {
-                continue;
-            }
-            // A rewrite suggestion is emitted only when the target marker
-            // declares an authoring template — FR-051's "where derivable".
-            // One match is one authored line, so a match carrying a list of
-            // ids yields one suggestion naming all of them, never one
-            // conflicting single-id rewrite per id (FR-051-AC-16).
-            if let Some(marker) = legacy
-                .rewrite_to
-                .as_ref()
-                .and_then(|name| model.trace_tags.markers.iter().find(|m| &m.name == name))
-            {
-                if let Some(template) = &marker.template {
-                    let line = symbol.leading_line
-                        + legacy_span[..caps.get(0).map_or(0, |m| m.start())]
-                            .matches('\n')
-                            .count();
-                    let ids = quoted_id_list(&trace_ids);
-                    graph.rewrites.push(RewriteSuggestion {
-                        path: symbol.path.clone(),
-                        symbol: symbol.qualified_name.clone(),
-                        line,
-                        from_form: legacy.name.clone(),
-                        to_marker: marker.name.clone(),
-                        suggestion: template.replace("{ids}", &ids),
-                    });
-                }
-            }
-        }
-    }
-
-    // One relation per trace id: a canonical marker wins over a legacy form,
-    // and an id attached more than once yields exactly one diagnostic naming
-    // every form that attached it (FR-045 edge-dedup convention).
+    // One relation per trace id: an id attached more than once yields exactly
+    // one diagnostic naming every form that attached it (FR-045 edge-dedup
+    // convention).
     for (trace_id, candidates) in attachments {
         if candidates.len() > 1 {
             let forms: Vec<&str> = candidates.iter().map(|c| c.form.as_str()).collect();
@@ -2119,14 +1888,10 @@ fn bind_symbol(
             });
         }
         // A key only exists because something was pushed under it, so the
-        // `else` arm is unreachable — expressed as a match rather than an
+        // `else` arm is unreachable — expressed as an `if let` rather than an
         // `expect` so there is no panic path in library code at all.
-        if let Some(winner) = candidates
-            .iter()
-            .find(|c| c.provenance == TraceProvenance::Canonical)
-            .or_else(|| candidates.first())
-        {
-            graph.verifies.push(winner.clone());
+        if let Some(first) = candidates.into_iter().next() {
+            graph.verifies.push(first);
         }
     }
 }
@@ -2157,33 +1922,6 @@ pub(crate) fn marker_ids(args: &str) -> Vec<String> {
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty())
         .collect()
-}
-
-/// The trace ids a legacy match yields (FR-051-AC-16). Capture group 1 is
-/// comma-split the way [`marker_ids`] splits a marker's argument list, so a
-/// form whose pattern admits a list (`// Trace: FR-1-AC-1, FR-1-AC-2`) binds
-/// every id it carries rather than only the first.
-///
-/// A form declaring `id_format` renders the template over the captures and is
-/// never split: the template's inputs are structural captures (`TC-{1}` over a
-/// function name), which cannot carry a list.
-fn legacy_ids(caps: &regex::Captures<'_>, id_format: Option<&str>) -> Vec<String> {
-    match id_format {
-        None => caps.get(1).map_or_else(Vec::new, |m| {
-            m.as_str()
-                .split(',')
-                .map(|s| s.trim().to_string())
-                .filter(|s| !s.is_empty())
-                .collect()
-        }),
-        Some(template) => {
-            let mut out = template.to_string();
-            for (idx, group) in caps.iter().enumerate().skip(1) {
-                out = out.replace(&format!("{{{idx}}}"), group.map_or("", |m| m.as_str()));
-            }
-            vec![out]
-        }
-    }
 }
 
 fn re_quoted() -> &'static Regex {
@@ -2266,10 +2004,6 @@ pub fn graph_records(
 
     for relation in &graph.verifies {
         let mut data = Map::new();
-        data.insert(
-            "provenance".into(),
-            Value::String(relation.provenance.as_str().into()),
-        );
         data.insert("form".into(), Value::String(relation.form.clone()));
         push_edge(
             format!("{}#{}", relation.path, relation.symbol),
@@ -2325,7 +2059,7 @@ pub fn language_of(symbol: &Symbol) -> SourceLanguage {
 mod tests {
     use super::*;
     use crate::symbols::extract_tree;
-    use crate::traceability::{TraceLegacyForm, TraceMarkerForm};
+    use crate::traceability::TraceMarkerForm;
     use crate::Registry;
     use ix_trace_rs::trace;
 
@@ -2382,9 +2116,6 @@ mod tests {
         let mut ids: Vec<&str> = py.iter().map(|r| r.trace_id.as_str()).collect();
         ids.sort();
         assert_eq!(ids, vec!["FR-051-AC-1", "TC-741"]);
-        assert!(py
-            .iter()
-            .all(|r| r.provenance == TraceProvenance::Canonical));
 
         // A method marker binds to the method, not to its class.
         assert!(relations_for(&graph, "TestService.test_rejects_empty")
@@ -2444,9 +2175,6 @@ mod tests {
                 .count(),
             1
         );
-        // Marker plus legacy test-name form for the same id also dedups, and
-        // the canonical provenance wins.
-        assert_eq!(dupes[0].provenance, TraceProvenance::Canonical);
     }
 
     #[trace("TC-828", "FR-051-AC-17")]
@@ -2464,7 +2192,7 @@ mod tests {
             "benches/parse.rs",
             SourceLanguage::Rust,
             concat!(
-                "/// TC-577, NFR-002-AC-4: the validate-document bench.\n",
+                "#[trace(\"TC-577\", \"NFR-002-AC-4\")]\n",
                 "fn bench_validate(c: &mut Criterion) {\n",
                 "    let _ = c;\n",
                 "}\n",
@@ -2489,7 +2217,7 @@ mod tests {
             SourceLanguage::Rust,
             concat!(
                 "#![no_main]\n",
-                "// TC-579: must never panic on arbitrary input.\n",
+                "#[trace(\"TC-579\")]\n",
                 "\n",
                 "use libfuzzer_sys::fuzz_target;\n",
                 "\n",
@@ -2515,9 +2243,9 @@ mod tests {
             "src/lib.rs",
             SourceLanguage::Rust,
             concat!(
-                "// TC-741: this module implements it.\n",
+                "#[trace(\"TC-741\")]\n",
                 "mod thing {\n",
-                "    /// FR-051-AC-1: resolves the archetype.\n",
+                "    #[trace(\"FR-051-AC-1\")]\n",
                 "    pub fn resolve() -> usize {\n",
                 "        1\n",
                 "    }\n",
@@ -2552,13 +2280,13 @@ mod tests {
             "src/coverage.test.ts",
             SourceLanguage::Typescript,
             concat!(
-                "// TC-001: FR-001-AC-1 — Playwright spelling, on the SUITE header.\n",
                 "test.describe(\"warning default\", () => {\n",
+                "  trace(\"TC-001\"); // Playwright spelling, on the SUITE.\n",
                 "  test(\"defaults every finding to warning\", () => {});\n",
                 "});\n",
                 "\n",
-                "// TC-002: FR-001-AC-2 — bare spelling, on the SUITE header.\n",
                 "describe(\"plain suite\", () => {\n",
+                "  trace(\"TC-002\"); // bare spelling, on the SUITE.\n",
                 "  it(\"names the declaration on every finding\", () => {});\n",
                 "});\n",
             ),
@@ -2616,15 +2344,15 @@ mod tests {
             "src/coverage.test.ts",
             SourceLanguage::Typescript,
             concat!(
-                "// TC-001: FR-001-AC-1 — on the BLOCK header.\n",
                 "describe(\"warning default\", () => {\n",
+                "  trace(\"TC-001\"); // on the BLOCK.\n",
                 "  it(\"defaults every finding to warning\", () => {\n",
                 "    expect(1 + 1).toBe(2);\n",
                 "  });\n",
                 "});\n",
                 "\n",
-                "// TC-002: FR-001-AC-2 — the same form, on the `it`.\n",
                 "it(\"names the declaration on every finding\", () => {\n",
+                "  trace(\"TC-002\"); // the same form, on the `it`.\n",
                 "  expect(2 + 2).toBe(4);\n",
                 "});\n",
             ),
@@ -2680,43 +2408,8 @@ mod tests {
         assert_eq!(graph.implements_bound, 0);
     }
 
-    #[trace("TC-753", "FR-051-AC-11")]
-    // legacy textual forms still bind, carry `legacy`
-    // provenance, and yield a mechanical rewrite suggestion where derivable.
-    #[test]
-    fn tc753_legacy_forms_bind_with_provenance_and_rewrite() {
-        let extraction = crate::symbols::extract_file(
-            "src/lib.rs",
-            SourceLanguage::Rust,
-            "// Trace: FR-051-AC-11\n#[test]\nfn tc753_legacy() {\n    // TC-800\n    let _ = 1;\n}\n",
-        );
-        let graph = bind(&extraction, &iso_model());
-        let by_id = |id: &str| {
-            graph
-                .verifies
-                .iter()
-                .find(|v| v.trace_id == id)
-                .unwrap_or_else(|| panic!("no relation for {id}"))
-        };
-        // `Trace:` line, line-comment id, and the test name that carries an id.
-        assert_eq!(by_id("FR-051-AC-11").provenance, TraceProvenance::Legacy);
-        assert_eq!(by_id("TC-800").provenance, TraceProvenance::Legacy);
-        assert_eq!(by_id("TC-753").form, "test-name-id");
-
-        // A rewrite suggestion is derivable for the forms whose target marker
-        // declares a template.
-        let suggestion = graph
-            .rewrites
-            .iter()
-            .find(|r| r.from_form == "trace-line")
-            .expect("rewrite suggestion");
-        assert_eq!(suggestion.to_marker, "rust-trace-attribute");
-        assert_eq!(suggestion.suggestion, "#[trace(\"FR-051-AC-11\")]");
-        assert!(suggestion.line >= 1);
-    }
-
     #[trace("TC-894", "FR-051-AC-6")]
-    // a legacy tag inside a Rust string literal is data,
+    // a tag-shaped snippet inside a Rust string literal is data,
     // not a marker. This engine's own suite feeds tag-shaped snippets to the
     // extractor as fixtures, and before the mask every one of them bound and
     // showed up as an untracked symbol. The ids below sit outside any declared
@@ -2761,86 +2454,6 @@ mod tests {
             ids.contains(&"TC-902") && ids.contains(&"FR-902-AC-1"),
             "the canonical marker's string arguments must still bind; got {ids:?}"
         );
-    }
-
-    #[trace("TC-806", "FR-051-AC-16")]
-    // a legacy form yields every id its match carries,
-    // and a form declaring `id_format` is unchanged.
-    #[test]
-    fn tc806_legacy_comma_list_binds_every_id() {
-        let extraction = crate::symbols::extract_file(
-            "src/lib.rs",
-            SourceLanguage::Rust,
-            "// Trace: FR-001-AC-1, FR-001-AC-2, FR-001-AC-4\n\
-             #[test]\n\
-             fn tc806_legacy_list() {\n    // TC-033, TC-034\n    let _ = 1;\n}\n",
-        );
-        let graph = bind(&extraction, &iso_model());
-        let ids: Vec<&str> = graph.verifies.iter().map(|v| v.trace_id.as_str()).collect();
-
-        // Every id on both lines binds, not just the first of each.
-        assert_eq!(
-            ids,
-            vec![
-                "FR-001-AC-1",
-                "FR-001-AC-2",
-                "FR-001-AC-4",
-                "TC-033",
-                "TC-034",
-                "TC-806",
-            ]
-        );
-        assert!(graph
-            .verifies
-            .iter()
-            .filter(|v| v.trace_id != "TC-806")
-            .all(|v| v.provenance == TraceProvenance::Legacy));
-
-        // The widened patterns must not re-match a trailing id on its own: one
-        // relation per id, so no dedup diagnostic fires.
-        assert!(
-            graph.diagnostics.is_empty(),
-            "unexpected diagnostics: {:?}",
-            graph.diagnostics
-        );
-
-        // One authored line is one rewrite suggestion naming all of its ids —
-        // never one conflicting single-id rewrite per id.
-        let listed: Vec<&RewriteSuggestion> = graph
-            .rewrites
-            .iter()
-            .filter(|r| r.from_form == "trace-line")
-            .collect();
-        assert_eq!(listed.len(), 1);
-        assert_eq!(
-            listed[0].suggestion,
-            "#[trace(\"FR-001-AC-1\", \"FR-001-AC-2\", \"FR-001-AC-4\")]"
-        );
-
-        // `test-name-id` declares `id_format`, so it renders one id as before.
-        let by_name: Vec<&VerifiesRelation> = graph
-            .verifies
-            .iter()
-            .filter(|v| v.form == "test-name-id")
-            .collect();
-        assert_eq!(by_name.len(), 1);
-        assert_eq!(by_name[0].trace_id, "TC-806");
-    }
-
-    #[trace("TC-806", "FR-051-AC-16")]
-    // irregular spacing and a trailing comma yield the
-    // ids only — never an empty id.
-    #[test]
-    fn tc806_legacy_list_tolerates_irregular_separators() {
-        let extraction = crate::symbols::extract_file(
-            "src/lib.rs",
-            SourceLanguage::Rust,
-            "// Trace: FR-002-AC-1,  FR-002-AC-2 ,\n#[test]\nfn checks_it() {\n    let _ = 1;\n}\n",
-        );
-        let graph = bind(&extraction, &iso_model());
-        let ids: Vec<&str> = graph.verifies.iter().map(|v| v.trace_id.as_str()).collect();
-        assert_eq!(ids, vec!["FR-002-AC-1", "FR-002-AC-2"]);
-        assert!(graph.verifies.iter().all(|v| !v.trace_id.is_empty()));
     }
 
     #[trace("TC-748", "FR-051-AC-8")]
@@ -2967,9 +2580,6 @@ mod tests {
         for marker in &mut model.trace_tags.markers {
             marker.pattern = "ZZZ_NO_SUCH_MARKER_FORM".to_string();
         }
-        for legacy in &mut model.trace_tags.legacy {
-            legacy.pattern = "ZZZ_NO_SUCH_LEGACY_FORM".to_string();
-        }
         model
     }
 
@@ -2979,158 +2589,368 @@ mod tests {
         crate::symbols::extract_file("src/m.py", SourceLanguage::Python, source)
     }
 
+    /// The advisory's findings as `(line, id, symbol)` triples, in report order.
+    fn advised(graph: &SymbolGraph) -> Vec<(usize, &str, &str)> {
+        graph
+            .outside_marker
+            .iter()
+            .map(|f| (f.line, f.trace_id.as_str(), f.symbol.as_str()))
+            .collect()
+    }
+
     #[trace("TC-1044", "FR-051-AC-22")]
-    // a tag on a symbol whose kind cannot bind it is reported,
-    // naming the id, the symbol, the kind and the channel that kind can carry.
+    // an id in the annotation block of a symbol whose kind cannot bind is
+    // reported naming the id, the symbol and its kind, and the payload is
+    // otherwise unmoved.
     #[test]
-    fn tc1044_a_tag_that_binds_nothing_is_reported() {
+    fn tc1044_an_id_on_a_symbol_that_cannot_bind_is_reported() {
         // `normalize_severity` is a plain `Function`, so `binds_trace_ids()` is
-        // false and `carries_implements()` is true — the tag reaches NEITHER
-        // channel and, before #312, nothing in the payload said so. The census
-        // cannot: a non-binding symbol is missing from `candidates` rather than
-        // counted as unbound, so a file like this one reported no candidates at
-        // all rather than one unbound.
+        // false: the comment reaches no channel at all, and the census cannot
+        // say so — a non-binding symbol is missing from `candidates` rather than
+        // counted as unbound.
         let graph = bind(
             &py("# TC-001: warning default.\ndef normalize_severity(f):\n    return 1\n"),
             &iso_model(),
         );
-        assert_eq!(graph.non_binding_tags.len(), 1, "one tag, one report");
-        let tag = &graph.non_binding_tags[0];
-        assert_eq!(tag.trace_id, "TC-001");
-        assert_eq!(tag.symbol, "normalize_severity");
-        assert_eq!(tag.kind, "function");
-        assert_eq!(tag.path, "src/m.py");
-        assert!(!tag.form.is_empty(), "the form that matched is named");
+        assert_eq!(advised(&graph), [(1, "TC-001", "normalize_severity")]);
+        let finding = &graph.outside_marker[0];
+        assert_eq!(
+            finding.owner,
+            OutsideMarkerOwner::Production(SymbolKind::Function)
+        );
+        assert_eq!(finding.path, "src/m.py");
+        assert_eq!(finding.language, SourceLanguage::Python);
 
-        // AND THE PAYLOAD IS OTHERWISE UNMOVED. #312 is a diagnostic ticket:
-        // the tag still does not bind and it should not (CR-061). Asserting
-        // this here is what makes the corpus fixtures' live blocks safe.
-        assert!(graph.verifies.is_empty(), "the tag still binds nothing");
+        // And the payload is otherwise unmoved: nothing binds, and the symbol
+        // does not become a census candidate.
+        assert!(graph.verifies.is_empty(), "the id still binds nothing");
         assert!(
             graph.binding_census.is_empty(),
             "a non-binding symbol does not become a census candidate"
         );
     }
 
-    #[trace("TC-1045", "FR-051-AC-22")]
-    // an id that bound somewhere else is not reported, and a
-    // symbol carrying a proper `implements` marker is not reported either.
-    #[test]
-    fn tc1045_a_bound_id_and_an_implements_marker_are_not_orphans() {
-        // A container's attached span runs to end of file, so the module symbol
-        // of ANY tagged test file "carries" every id in it. Without the
-        // bound-elsewhere filter this fires on a perfectly healthy tree — which
-        // is what the corpus's `tag-at-module-scope` control is, and it goes red
-        // on the mutation that removes this rule.
-        let healthy = bind(
-            &py("# TC-001: on the test.\ndef test_one():\n    assert True\n"),
-            &iso_model(),
-        );
-        assert!(
-            healthy.verifies.iter().any(|v| v.trace_id == "TC-001"),
-            "the id bound on the test"
-        );
-        assert!(
-            healthy.non_binding_tags.is_empty(),
-            "an id that bound is not an orphan, even though the module container spans it"
-        );
-
-        // The harder control: the id-shaped annotation stays exactly where it
-        // is on production code, and only the RELATION changes to the one that
-        // kind can carry. A detector written as "any declared trace-id form
-        // inside a symbol that does not bind trace ids" fires here and is wrong.
-        // The iso test fixture declares no `implements` forms, so one is added
-        // here rather than in a fixture a dozen other tests assert against.
-        let mut model = iso_model();
-        model.trace_tags.implements.push(TraceMarkerForm {
-            syntax: None,
-            name: "python-implements-line".to_string(),
-            language: SourceLanguage::Python,
-            pattern: r"(?m)^\s*#\s*Implements:\s*(.+)$".to_string(),
-            template: None,
-            entry_paths: None,
-        });
-        let annotated = bind(
-            &py("# Implements: FR-001-AC-1\ndef normalize_severity(f):\n    return 1\n"),
-            &model,
-        );
-        assert!(
-            !annotated.implements.is_empty(),
-            "the production channel took it"
-        );
-        assert!(
-            annotated.non_binding_tags.is_empty(),
-            "a symbol whose implements marker bound is not carrying an orphan tag"
-        );
-    }
-
     #[trace("TC-1046", "FR-051-AC-22")]
-    // where several symbols span one tag the INNERMOST is
-    // named, because the module is where the tag is not.
+    // where several symbols span one id the INNERMOST is named, because the
+    // module is where the id is not; a container loses a tie.
     #[test]
-    fn tc1046_the_innermost_symbol_spanning_a_tag_is_the_one_named() {
-        // Both the file's module container and `normalize_severity` span this
-        // tag, and both are `carries_implements()` kinds, so both see it. The
-        // fix a reader needs names the function; "your tag is on the module"
-        // sends them to the top of the file.
+    fn tc1046_the_innermost_symbol_spanning_an_id_is_the_one_named() {
+        // The file's module container and `normalize_severity` both span this
+        // comment. The fix a reader needs names the function.
         let graph = bind(
             &py("import os\n\n\n# TC-001: warning default.\ndef normalize_severity(f):\n    return 1\n"),
             &iso_model(),
         );
-        assert_eq!(graph.non_binding_tags.len(), 1, "one tag, one report");
-        assert_eq!(graph.non_binding_tags[0].symbol, "normalize_severity");
-        assert_eq!(graph.non_binding_tags[0].kind, "function");
-    }
+        assert_eq!(advised(&graph), [(4, "TC-001", "normalize_severity")]);
 
-    #[trace("TC-1047", "FR-051-AC-22")]
-    // a CANONICAL marker on a non-binding symbol is not
-    // reported: it is syntax, so if it bound nothing its declaration is data.
-    #[test]
-    fn tc1047_a_canonical_marker_inside_a_string_is_not_a_stray_tag() {
-        // `cases/parser/triple-quote-scope-desync` carries exactly this shape as
-        // FIXTURE DATA for the defect it pins, and the detector reported it —
-        // measured, one false positive out of six findings. The fixture is
-        // right: an id inside a `"""…"""` literal is not a tag. String masking
-        // covers Rust legacy forms only; Python and TypeScript are #323, and
-        // this narrowing does not wait on it.
+        // On line 1 the module container and the function share `leading_line`;
+        // the container loses the tie.
         let graph = bind(
-            &py("SRC = \"\"\"\n@pytest.mark.trace(\"TC-999\")\ndef test_phantom():\n    pass\n\"\"\"\n"),
-            &iso_model(),
-        );
-        assert!(
-            graph.non_binding_tags.is_empty(),
-            "a canonical marker that bound nothing decorates no declaration: {:?}",
-            graph.non_binding_tags
-        );
-
-        // And the legacy form in the same position IS reported, so the
-        // narrowing is about the form's guarantee rather than about position.
-        let legacy = bind(
             &py("# TC-001: warning default.\ndef normalize_severity(f):\n    return 1\n"),
             &iso_model(),
         );
-        assert_eq!(legacy.non_binding_tags.len(), 1);
+        assert_eq!(advised(&graph), [(1, "TC-001", "normalize_severity")]);
+
+        // A method's comment belongs to the method, not to its class.
+        let graph = bind(
+            &rs("mod tests {\n    // TC-001: on the test.\n    #[test]\n    fn t() {\n    }\n}\n"),
+            &iso_model(),
+        );
+        assert_eq!(advised(&graph), [(2, "TC-001", "tests::t")]);
+        assert_eq!(graph.outside_marker[0].owner, OutsideMarkerOwner::Evidence);
     }
 
     #[trace("TC-1081", "FR-051-AC-22")]
-    // A quoted legacy id remains visible to the shared matcher. The #355
-    // calibration found a small prose-citation class but did not justify a
-    // binder/detector split or a masking rule; the redacted control proves the
-    // check still depends on an id rather than merely on quoted text.
+    // An id quoted inside comment prose remains visible to the advisory, while
+    // the same prose with a redacted non-id stays silent: the check still
+    // depends on an id rather than on quoted text, and no caller-specific mask
+    // is introduced.
     #[test]
-    fn tc1081_quoted_legacy_prose_remains_an_advisory_candidate() {
+    fn tc1081_a_quoted_id_in_prose_remains_visible() {
         let quoted = bind(
             &py("# The banner quotes `# FR-001-AC-1: Model Resolution`.\ndef normalize_severity(f):\n    return 1\n"),
             &iso_model(),
         );
-        assert_eq!(quoted.non_binding_tags.len(), 1);
-        assert_eq!(quoted.non_binding_tags[0].trace_id, "FR-001-AC-1");
+        assert_eq!(advised(&quoted), [(1, "FR-001-AC-1", "normalize_severity")]);
 
         let redacted = bind(
             &py("# The banner quotes `# FR-NNN: Model Resolution`.\ndef normalize_severity(f):\n    return 1\n"),
             &iso_model(),
         );
-        assert!(redacted.non_binding_tags.is_empty());
+        assert!(redacted.outside_marker.is_empty());
+    }
+
+    #[trace("TC-2165", "FR-051-AC-22", "FR-051-AC-49")]
+    // A canonical marker on a production function, a container or a file
+    // yields nothing; a comment id on the same function is reported with its
+    // kind; the same id twice on a line is one finding; `unmatched_tags` is
+    // unchanged by the advisory.
+    #[test]
+    fn tc2165_a_marker_is_never_reported_and_a_comment_id_is_once_per_line() {
+        let marker_only = bind(
+            &rs(concat!(
+                "#[trace(\"FR-007-AC-1\")]\n",
+                "mod holder {\n",
+                "    #[trace(\"FR-007-AC-1\")]\n",
+                "    pub fn resolve() {}\n",
+                "}\n",
+            )),
+            &iso_model(),
+        );
+        assert!(
+            marker_only.outside_marker.is_empty(),
+            "a marker is an attribute, never a comment: {:?}",
+            marker_only.outside_marker
+        );
+
+        let graph = bind(
+            &rs(concat!(
+                "// FR-007-AC-1 header prose.\n",
+                "\n",
+                "mod holder {\n",
+                "    /// FR-007-AC-1 and again FR-007-AC-1.\n",
+                "    pub fn resolve() {}\n",
+                "}\n",
+            )),
+            &iso_model(),
+        );
+        let owners: Vec<(usize, OutsideMarkerOwner)> = graph
+            .outside_marker
+            .iter()
+            .map(|f| (f.line, f.owner))
+            .collect();
+        assert_eq!(
+            owners,
+            [
+                (1, OutsideMarkerOwner::Module),
+                (4, OutsideMarkerOwner::Production(SymbolKind::Function)),
+            ],
+            "a header is a module, a function is named with its kind, and the id \
+             written twice on one line is one finding"
+        );
+        assert_eq!(graph.outside_marker[0].symbol, "src/lib.rs");
+        assert_eq!(graph.outside_marker[1].symbol, "holder::resolve");
+        assert!(graph.verifies.is_empty() && graph.implements.is_empty());
+    }
+
+    #[trace("TC-2163", "FR-051-AC-50", "FR-051-AC-24")]
+    // The advisory fires whether or not the id is also backed, stays silent for
+    // a body and a string literal outside the annotation channel, yields
+    // nothing for an all-marker tree, and goes quiet once retagged.
+    #[test]
+    fn tc2163_the_advisory_fires_on_backed_ids_and_ignores_bodies_and_strings() {
+        let graph = bind(
+            &py(concat!(
+                "# TC-741: also a comment.\n",
+                "@pytest.mark.trace(\"TC-741\")\n",
+                "def test_backed():\n",
+                "    # TC-902 in the body\n",
+                "    fixture = \"TC-903\"\n",
+                "    text = \"\"\"\n",
+                "TC-904\n",
+                "\"\"\"\n",
+                "    assert fixture\n",
+            )),
+            &iso_model(),
+        );
+        assert!(graph.verifies.iter().any(|v| v.trace_id == "TC-741"));
+        assert_eq!(
+            advised(&graph),
+            [(1, "TC-741", "test_backed")],
+            "a backed id is still reported; a body comment, a string and a \
+             triple-quoted value are not"
+        );
+
+        // Retagged: the comment goes, the finding goes.
+        let tidy = bind(
+            &py("@pytest.mark.trace(\"TC-741\")\ndef test_backed():\n    assert True\n"),
+            &iso_model(),
+        );
+        assert!(tidy.outside_marker.is_empty());
+    }
+
+    #[trace("TC-2161", "FR-051-AC-49")]
+    // The finding is additive to `unmatched_tags` and `mentions`: neither is
+    // replaced or suppressed, and one finding is made per id per line.
+    #[test]
+    fn tc2161_the_advisory_is_additive_to_unmatched_tags_and_mentions() {
+        let graph = bind(
+            &rs(concat!(
+                "// FR-001-AC-1 first\n",
+                "// FR-001-AC-2 second\n",
+                "// FR-001-AC-3 third\n",
+                "#[test]\n",
+                "fn t() {}\n",
+            )),
+            &iso_model(),
+        );
+        assert_eq!(
+            advised(&graph),
+            [
+                (1, "FR-001-AC-1", "t"),
+                (2, "FR-001-AC-2", "t"),
+                (3, "FR-001-AC-3", "t"),
+            ],
+            "three ids on three lines are three findings"
+        );
+        for id in ["FR-001-AC-1", "FR-001-AC-2", "FR-001-AC-3"] {
+            assert!(
+                graph.unmatched_tags.iter().any(|t| t.trace_id == id),
+                "{id}"
+            );
+            assert!(graph.mentions.iter().any(|m| m.trace_id == id), "{id}");
+        }
+        assert!(graph.verifies.is_empty());
+    }
+
+    #[trace("TC-2161", "FR-051-AC-49")]
+    // The advisory covers Rust, Python and TypeScript comment channels.
+    #[test]
+    fn tc2161_the_advisory_reads_each_languages_comment_channel() {
+        let ts = crate::symbols::extract_file(
+            "src/m.test.ts",
+            SourceLanguage::Typescript,
+            "/** TC-001: doc comment */\nit(\"t\", () => {});\n",
+        );
+        for (label, extraction) in [
+            ("rust", rs("/// TC-001: doc\n#[test]\nfn t() {}\n")),
+            ("python", py("# TC-001: line\ndef test_t():\n    pass\n")),
+            (
+                "python docstring",
+                py("def test_t():\n    \"\"\"TC-001: docstring.\"\"\"\n    pass\n"),
+            ),
+            ("typescript", ts),
+        ] {
+            let graph = bind(&extraction, &iso_model());
+            assert_eq!(
+                graph.outside_marker.len(),
+                1,
+                "{label}: {:?}",
+                graph.outside_marker
+            );
+            assert_eq!(graph.outside_marker[0].trace_id, "TC-001", "{label}");
+            assert_eq!(
+                graph.outside_marker[0].owner,
+                OutsideMarkerOwner::Evidence,
+                "{label}"
+            );
+        }
+    }
+
+    #[trace("TC-2164", "FR-050-AC-44")]
+    // A test whose name embeds a trace id adds nothing to `tagged` or `bound`.
+    #[test]
+    fn tc2164_an_id_in_a_name_adds_nothing_to_the_census() {
+        let ts = crate::symbols::extract_file(
+            "src/m.test.ts",
+            SourceLanguage::Typescript,
+            "it(\"TC-901 binds nothing\", () => {});\n",
+        );
+        for (label, extraction) in [
+            ("rust", rs("#[test]\nfn tc_901_named() {}\n")),
+            ("python", py("def test_tc_901_named():\n    pass\n")),
+            ("typescript", ts),
+        ] {
+            let graph = bind(&extraction, &iso_model());
+            let census = &graph.binding_census[0];
+            assert_eq!(
+                (census.candidates, census.tagged, census.bound),
+                (1, 0, 0),
+                "{label}"
+            );
+            assert!(graph.verifies.is_empty(), "{label}");
+            assert!(graph.tagged_not_bound.is_empty(), "{label}");
+            assert!(
+                graph.outside_marker.is_empty(),
+                "{label}: a name is not advised"
+            );
+        }
+    }
+
+    #[trace("TC-2160", "FR-051-AC-11")]
+    // Per language, an id in a docstring, a doc comment or a line comment, a
+    // `Trace:` line, or the test's own name mints no `verifies` relation; the
+    // same tests with a marker bind; the relation carries no provenance.
+    #[test]
+    fn tc2160_only_a_marker_binds_in_every_language() {
+        let ts = |source: &str| {
+            crate::symbols::extract_file("src/m.test.ts", SourceLanguage::Typescript, source)
+        };
+        let unmarked = [
+            (
+                "rust",
+                rs(concat!(
+                    "// Trace: FR-901-AC-1\n",
+                    "#[test]\n",
+                    "fn tc901_named() {\n    // TC-902\n}\n",
+                    "\n",
+                    "/// TC-903: a doc comment\n",
+                    "#[test]\n",
+                    "fn plain() {}\n",
+                )),
+            ),
+            (
+                "python",
+                py(concat!(
+                    "# Trace: FR-901-AC-1\n",
+                    "def test_tc_901_named():\n    # TC-902\n    pass\n",
+                    "\n",
+                    "def test_docstring():\n    \"\"\"TC-903: a docstring\"\"\"\n    pass\n",
+                )),
+            ),
+            (
+                "typescript",
+                ts(concat!(
+                    "// Trace: FR-901-AC-1\n",
+                    "it(\"TC-901 named\", () => {\n  // TC-902\n});\n",
+                    "\n",
+                    "/** TC-903: a doc comment */\n",
+                    "it(\"plain\", () => {});\n",
+                )),
+            ),
+        ];
+        for (label, extraction) in &unmarked {
+            let graph = bind(extraction, &iso_model());
+            assert!(graph.verifies.is_empty(), "{label}: {:?}", graph.verifies);
+            assert!(graph.binding_census.iter().all(|c| c.bound == 0), "{label}");
+        }
+
+        let marked = [
+            (
+                "rust",
+                rs("#[trace(\"TC-901\")]\n#[test]\nfn tc901_named() {}\n"),
+            ),
+            (
+                "python",
+                py("@pytest.mark.trace(\"TC-901\")\ndef test_tc_901_named():\n    pass\n"),
+            ),
+            (
+                "typescript",
+                ts("it(\"named\", () => {\n  trace(\"TC-901\");\n});\n"),
+            ),
+        ];
+        for (label, extraction) in &marked {
+            let model = iso_model();
+            let graph = bind(extraction, &model);
+            assert_eq!(
+                graph
+                    .verifies
+                    .iter()
+                    .map(|v| v.trace_id.as_str())
+                    .collect::<Vec<_>>(),
+                ["TC-901"],
+                "{label}"
+            );
+            // The emitted edge carries the form and nothing else.
+            let (_, edges) = graph_records(extraction, &graph, &record_input()).unwrap();
+            let verifies = edges.iter().find(|e| e.edge_type == "verifies").unwrap();
+            let data: Value = serde_json::from_str(&verifies.data_json).unwrap();
+            assert_eq!(
+                data.as_object().unwrap().keys().collect::<Vec<_>>(),
+                ["form"],
+                "{label}"
+            );
+        }
     }
 
     #[trace("TC-982", "FR-051-AC-19")]
@@ -3362,7 +3182,7 @@ mod tests {
     fn plat181_masks_preserve_multibyte_and_byte_offsets() {
         let rust =
             "let s = \"h\u{e9}llo \u{2192} x\"; // \u{fc}ber TC-1\nlet r = r#\"a\u{e9}\"b\"#;\n";
-        let masked = mask_rust_string_contents(rust);
+        let masked = mask_rust_string_contents(rust, true);
         assert_eq!(
             masked,
             "let s = \" \u{e9}    \u{2192}  \"; // \u{fc}ber TC-1\nlet r = r#\" \u{e9}  \"#;\n"
@@ -3370,7 +3190,7 @@ mod tests {
         assert_eq!(masked.len(), rust.len());
 
         let ts = "const a = \"x\u{e9}y\"; // \u{e9} \"q\"\nconst b = `m\u{2192}n`; /* \u{e9}\n\"z\" */\n";
-        let masked = mask_script_string_contents(ts, SourceLanguage::Typescript, false);
+        let masked = mask_script_string_contents(ts, SourceLanguage::Typescript, false, true);
         assert_eq!(
             masked,
             "const a = \" \u{e9} \"; // \u{e9} \"q\"\nconst b = ` \u{2192} `; /* \u{e9}\n\"z\" */\n"
@@ -3378,7 +3198,7 @@ mod tests {
         assert_eq!(masked.len(), ts.len());
 
         let py = "x = \"\"\"a\u{e9}b\"\"\"\n    \"\"\"doc \u{e9} TC-2\"\"\"\ny = 'k\u{2192}'  # \u{e9}\n";
-        let masked = mask_script_string_contents(py, SourceLanguage::Python, true);
+        let masked = mask_script_string_contents(py, SourceLanguage::Python, true, true);
         assert_eq!(
             masked,
             "x = \"\"\" \u{e9} \"\"\"\n    \"\"\"doc \u{e9} TC-2\"\"\"\ny = ' \u{2192}'  # \u{e9}\n"
@@ -3392,7 +3212,7 @@ mod tests {
     fn plat181_masking_a_long_whitespace_line_is_linear() {
         let line = format!("{}\"x\" y\n", " ".repeat(300_000));
         let start = std::time::Instant::now();
-        let masked = mask_script_string_contents(&line, SourceLanguage::Python, true);
+        let masked = mask_script_string_contents(&line, SourceLanguage::Python, true, true);
         let elapsed = start.elapsed();
         assert_eq!(masked.len(), line.len());
         assert!(
@@ -3451,8 +3271,8 @@ fn tc_near_miss() {\n\
 fn fn_implements() {\n\
 }\n\
 \n\
+// Trace: FR-904\n\
 fn fn_orphan_tag() {\n\
-    // Trace: FR-904\n\
 }\n\
 \n\
 fn fn_plain_mention() {\n\
@@ -3584,26 +3404,24 @@ fn fn_plain_mention() {\n\
         assert!(graph.mentions.is_empty(), "{:?}", graph.mentions);
     }
 
-    /// CR-187: in a legacy comma list that continues past a
-    /// range (`Trace: A..C, D`), only the range token is inert — the
-    /// explicitly named id after it still binds, rather than being silently
-    /// dropped because the id-shaped capture that located the range already
-    /// stopped at `..`.
+    /// CR-187: a range inside a marker that continues past it — only the range
+    /// token is inert, and the explicitly named id after it still binds.
     #[trace("TC-1937", "FR-051-AC-28", "FR-050-AC-50")]
     #[test]
-    fn tc1937_a_legacy_list_continuing_past_a_range_still_binds_the_rest() {
+    fn tc1937_a_marker_continuing_past_a_range_still_binds_the_rest() {
         let graph = bind(
-            &rs("// Trace: FR-034-AC-1..FR-034-AC-3, FR-034-AC-7\n#[test]\nfn t() {\n}\n"),
+            &rs("#[trace(\"FR-034-AC-1..FR-034-AC-3\", \"FR-034-AC-7\")]\n#[test]\nfn t() {\n}\n"),
             &iso_model(),
         );
-        assert!(
-            graph.verifies.iter().any(|v| v.trace_id == "FR-034-AC-7"),
-            "the explicitly named id after the range must still bind: {:?}",
-            graph.verifies
-        );
-        assert!(
-            !graph.verifies.iter().any(|v| v.trace_id == "FR-034-AC-1"),
-            "the range's own left endpoint must not bind"
+        assert_eq!(
+            graph
+                .verifies
+                .iter()
+                .map(|v| v.trace_id.as_str())
+                .collect::<Vec<_>>(),
+            ["FR-034-AC-7"],
+            "the explicitly named id after the range still binds; the range's own \
+             endpoints do not"
         );
         assert!(
             !graph
@@ -3614,12 +3432,12 @@ fn fn_plain_mention() {\n\
             graph.unmatched_tags
         );
 
-        // Ids before, between and after two ranges on one line: every named
-        // id binds, neither range's endpoints do, and both ranges report.
+        // Ids before, between and after two ranges: every named id binds,
+        // neither range's endpoints do, and both ranges report.
         let graph = bind(
             &rs(concat!(
-                "// Trace: FR-034-AC-9, FR-034-AC-1..FR-034-AC-3, FR-034-AC-7, ",
-                "FR-034-AC-10..12, FR-034-AC-20\n#[test]\nfn t() {\n}\n"
+                "#[trace(\"FR-034-AC-9\", \"FR-034-AC-1..FR-034-AC-3\", \"FR-034-AC-7\", ",
+                "\"FR-034-AC-10..12\", \"FR-034-AC-20\")]\n#[test]\nfn t() {\n}\n"
             )),
             &iso_model(),
         );
@@ -3635,44 +3453,22 @@ fn fn_plain_mention() {\n\
             .map(|r| r.range_text.as_str())
             .collect();
         assert_eq!(ranges, ["FR-034-AC-1..FR-034-AC-3", "FR-034-AC-10..12"]);
-        let suggestions: Vec<&str> = graph
-            .rewrites
-            .iter()
-            .map(|r| r.suggestion.as_str())
-            .collect();
-        assert_eq!(
-            suggestions,
-            [r#"#[trace("FR-034-AC-9", "FR-034-AC-7", "FR-034-AC-20")]"#],
-            "the rewrite names the bound ids only, never a range endpoint"
-        );
-
-        // A line that is only a range suggests no rewrite at all.
-        let graph = bind(
-            &rs("// Trace: FR-034-AC-1..FR-034-AC-5\n#[test]\nfn t() {\n}\n"),
-            &iso_model(),
-        );
-        assert!(graph.rewrites.is_empty(), "{:?}", graph.rewrites);
     }
 
-    /// the range-diagnostic dedup key must equal its own
-    /// sort key, so two declared forms that both read the identical range on
-    /// one line collapse to one record rather than reporting it twice.
-    /// A legacy range above a production function binds nothing, is
-    /// reported once against that function (not the module container that
-    /// also spans it), keeps its endpoints out of `mentions`, and is still
-    /// the misplaced tag the non-binding report names. The control lists the
-    /// same ids: no range, and each id is reported as misplaced.
-    #[trace("TC-1937", "FR-051-AC-28", "FR-051-AC-22")]
+    /// A marker range above a production function binds nothing, is reported
+    /// once against that function (not the module container that also spans
+    /// it), and keeps its endpoints out of `mentions`.
+    #[trace("TC-1937", "FR-051-AC-28")]
     #[test]
-    fn tc1937_a_legacy_range_on_a_production_function_is_reported() {
+    fn tc1937_a_marker_range_on_a_production_function_is_reported() {
         for (label, extraction) in [
             (
                 "rust",
-                rs("// Trace: FR-001-AC-1..FR-001-AC-3\npub fn prod() {\n}\n"),
+                rs("#[trace(\"FR-001-AC-1..FR-001-AC-3\")]\npub fn prod() {\n}\n"),
             ),
             (
                 "python",
-                py("import os\n\n\n# Trace: FR-001-AC-1..FR-001-AC-3\ndef prod():\n    return 1\n"),
+                py("import os\n\n\n@pytest.mark.trace(\"FR-001-AC-1..FR-001-AC-3\")\ndef prod():\n    return 1\n"),
             ),
         ] {
             let graph = bind(&extraction, &iso_model());
@@ -3693,38 +3489,14 @@ fn fn_plain_mention() {\n\
                 "{label}: no endpoint is a mention: {:?}",
                 graph.mentions
             );
-            assert_eq!(
-                graph
-                    .non_binding_tags
-                    .iter()
-                    .map(|t| (t.trace_id.as_str(), t.symbol.as_str()))
-                    .collect::<Vec<_>>(),
-                [("FR-001-AC-1..FR-001-AC-3", "prod")],
-                "{label}: the misplaced tag is still reported, as written"
-            );
         }
-
-        let control = bind(
-            &rs("// Trace: FR-001-AC-1, FR-001-AC-3\npub fn prod() {\n}\n"),
-            &iso_model(),
-        );
-        assert!(control.range_diagnostics.is_empty());
-        assert_eq!(
-            control
-                .non_binding_tags
-                .iter()
-                .map(|t| t.trace_id.as_str())
-                .collect::<Vec<_>>(),
-            ["FR-001-AC-1", "FR-001-AC-3"]
-        );
     }
 
-    /// A legacy range on a test inside a container is the test's: one range
-    /// record naming the test, and no misplaced-tag report against the
-    /// container whose span also covers it.
-    #[trace("TC-1937", "FR-051-AC-28", "FR-051-AC-22")]
+    /// A marker range on a test inside a container is the test's: one range
+    /// record naming the test.
+    #[trace("TC-1937", "FR-051-AC-28")]
     #[test]
-    fn tc1937_a_legacy_range_on_a_contained_test_is_the_tests() {
+    fn tc1937_a_marker_range_on_a_contained_test_is_the_tests() {
         let ts = |source: &str| {
             crate::symbols::extract_file("src/m.test.ts", SourceLanguage::Typescript, source)
         };
@@ -3733,7 +3505,7 @@ fn fn_plain_mention() {\n\
                 "rust",
                 rs(concat!(
                     "mod tests {\n",
-                    "    // Trace: FR-001-AC-1..FR-001-AC-3\n",
+                    "    #[trace(\"FR-001-AC-1..FR-001-AC-3\")]\n",
                     "    #[test]\n",
                     "    fn t() {\n",
                     "    }\n",
@@ -3748,8 +3520,8 @@ fn fn_plain_mention() {\n\
                     "\n",
                     "\n",
                     "class TestThing:\n",
+                    "    @pytest.mark.trace(\"FR-001-AC-1..FR-001-AC-3\")\n",
                     "    def test_t(self):\n",
-                    "        # Trace: FR-001-AC-1..FR-001-AC-3\n",
                     "        assert 1\n",
                 )),
                 "TestThing.test_t",
@@ -3760,8 +3532,9 @@ fn fn_plain_mention() {\n\
                     "import { it } from \"vitest\";\n",
                     "\n",
                     "describe(\"s\", () => {\n",
-                    "  // Trace: FR-001-AC-1..FR-001-AC-3\n",
-                    "  it(\"t\", () => {});\n",
+                    "  it(\"t\", () => {\n",
+                    "    trace(\"FR-001-AC-1..FR-001-AC-3\");\n",
+                    "  });\n",
                     "});\n",
                 )),
                 "t",
@@ -3777,22 +3550,17 @@ fn fn_plain_mention() {\n\
                 [("FR-001-AC-1..FR-001-AC-3", test)],
                 "{label}: one record, naming the test"
             );
-            assert!(
-                graph.non_binding_tags.is_empty(),
-                "{label}: the container is not carrying it: {:?}",
-                graph.non_binding_tags
-            );
         }
     }
 
-    /// When a container and a function start on the same line and both span
-    /// a range on a production symbol, the function is named: a container
-    /// loses ties.
+    /// When a container and a function start on the same line and both span a
+    /// range on a production symbol, the function is named: a container loses
+    /// ties.
     #[trace("TC-1937", "FR-051-AC-28")]
     #[test]
     fn tc1937_a_container_loses_a_tie_for_a_production_range() {
         let graph = bind(
-            &py("# Trace: FR-001-AC-1..FR-001-AC-3\ndef prod():\n    return 1\n"),
+            &py("@pytest.mark.trace(\"FR-001-AC-1..FR-001-AC-3\")\ndef prod():\n    return 1\n"),
             &iso_model(),
         );
         assert_eq!(
@@ -3805,142 +3573,85 @@ fn fn_plain_mention() {\n\
         );
     }
 
-    /// Resuming a list after a range stops when the declared form cannot
-    /// re-read the list from the stand-in: here because its `\b` rejects the
-    /// id once glued to the text after the range (`..3abc`). One form then
-    /// matches a shorter id at the stand-in; the other, which admits no
-    /// shorter id, matches only on the next line. Neither is this list's
-    /// continuation, so nothing more binds and nothing is attached twice.
-    #[trace("TC-1937", "FR-051-AC-28")]
+    /// FR-051-AC-28 for the textual `implements` forms: a range in
+    /// `/// Implements: FR-001..FR-003` (Rust) and `# Implements: ...` (Python)
+    /// binds no id, mints no relation for either endpoint, and yields one
+    /// range finding on the line its text sits on.
+    #[trace("TC-2166", "FR-051-AC-28")]
     #[test]
-    fn tc1937_a_list_resumes_only_where_the_form_rereads_it() {
-        let source = concat!(
-            "// Trace: FR-001-AC-1..3abc\n",
-            "// Trace: FR-002-AC-1, FR-002-AC-2\n",
-            "#[test]\n",
-            "fn t() {\n",
-            "}\n",
-        );
-        for pattern in [
-            r"Trace:\s*([A-Z]+-\d+(?:-[A-Z]+-\d+)?(?:\s*,\s*[A-Z]+-\d+(?:-[A-Z]+-\d+)?)*)\b",
-            r"Trace:\s*(FR-\d+-AC-\d+(?:\s*,\s*FR-\d+-AC-\d+)*)\b",
+    fn tc2166_a_range_in_a_textual_implements_use_binds_nothing() {
+        let mut model = iso_model();
+        model.trace_tags.implements.push(TraceMarkerForm {
+            syntax: None,
+            name: "rust-implements-line".to_string(),
+            language: SourceLanguage::Rust,
+            pattern: r"(?m)^\s*///\s*Implements:\s*([^\n]+)".to_string(),
+            template: None,
+            entry_paths: None,
+        });
+        model.trace_tags.implements.push(TraceMarkerForm {
+            syntax: None,
+            name: "python-implements-line".to_string(),
+            language: SourceLanguage::Python,
+            pattern: r"(?m)^\s*#\s*Implements:\s*([^\n]+)".to_string(),
+            template: None,
+            entry_paths: None,
+        });
+        for (label, extraction) in [
+            (
+                "rust",
+                rs("/// Implements: FR-001..FR-003\npub fn resolve_scope() {}\n"),
+            ),
+            (
+                "python",
+                py("# Implements: FR-001..FR-003\ndef resolve_scope():\n    return 1\n"),
+            ),
         ] {
-            let mut model = iso_model();
-            model.trace_tags.legacy = vec![TraceLegacyForm {
-                name: "strict-trace-line".to_string(),
-                language: Some(SourceLanguage::Rust),
-                pattern: pattern.to_string(),
-                id_format: None,
-                rewrite_to: None,
-            }];
-            let graph = bind(&rs(source), &model);
+            let graph = bind(&extraction, &model);
+            assert!(
+                graph.implements.is_empty(),
+                "{label}: the range mints no relation: {:?}",
+                graph.implements
+            );
+            assert!(graph.verifies.is_empty(), "{label}");
             assert_eq!(
                 graph
                     .range_diagnostics
                     .iter()
-                    .map(|r| r.range_text.as_str())
+                    .map(|r| (r.range_text.as_str(), r.line, r.symbol.as_str()))
                     .collect::<Vec<_>>(),
-                ["FR-001-AC-1..3"],
-                "{pattern}"
-            );
-            assert_eq!(
-                graph
-                    .verifies
-                    .iter()
-                    .map(|v| v.trace_id.as_str())
-                    .collect::<Vec<_>>(),
-                ["FR-002-AC-1", "FR-002-AC-2"],
-                "{pattern}"
+                [("FR-001..FR-003", 1, "resolve_scope")],
+                "{label}: one finding naming the literal range text"
             );
             assert!(
-                graph.diagnostics.is_empty(),
-                "{pattern}: no id attached twice: {:?}",
-                graph.diagnostics
+                graph.outside_marker.is_empty(),
+                "{label}: the range finding is the only record of it: {:?}",
+                graph.outside_marker
             );
         }
-    }
-
-    /// The list after a range is read by the declared form's own grammar:
-    /// `comment-id` admits only its own prefixes, so `XYZ-9` binds nothing,
-    /// while an id the form admits still binds.
-    #[trace("TC-1937", "FR-051-AC-28")]
-    #[test]
-    fn tc1937_the_list_after_a_range_follows_the_declared_form() {
-        let graph = bind(
-            &rs("// FR-001-AC-1..FR-001-AC-3, XYZ-9\n#[test]\nfn t() {\n}\n"),
-            &iso_model(),
-        );
-        assert!(
-            graph.verifies.is_empty(),
-            "neither the range nor an id outside the form's grammar binds: {:?}",
-            graph.verifies
-        );
-        assert_eq!(graph.range_diagnostics.len(), 1);
-
-        let graph = bind(
-            &rs("// FR-001-AC-1..FR-001-AC-3, TC-009\n#[test]\nfn t() {\n}\n"),
-            &iso_model(),
-        );
-        assert_eq!(
-            graph
-                .verifies
-                .iter()
-                .map(|v| v.trace_id.as_str())
-                .collect::<Vec<_>>(),
-            ["TC-009"]
-        );
-    }
-
-    #[trace("TC-1936", "FR-051-AC-28")]
-    #[test]
-    fn tc1936_a_range_read_by_two_declared_forms_is_reported_once() {
-        let mut model = iso_model();
-        // Deliberately overlapping with the `trace-line` form already
-        // declared: both read an id immediately after `//`, so both
-        // independently discover the identical range on this line.
-        model.trace_tags.legacy.push(TraceLegacyForm {
-            name: "bare-comment-id".to_string(),
-            language: Some(SourceLanguage::Rust),
-            pattern: r"//\s*(?:Trace:\s*)?([A-Za-z]{2,4}-[0-9]+(?:-[A-Za-z]+-[0-9]+)?)".to_string(),
-            id_format: None,
-            rewrite_to: None,
-        });
-        let graph = bind(
-            &rs("// Trace: FR-034-AC-1..FR-034-AC-5\n#[test]\nfn t() {\n}\n"),
-            &model,
-        );
-        let matching: Vec<_> = graph
-            .range_diagnostics
-            .iter()
-            .filter(|r| r.range_text == "FR-034-AC-1..FR-034-AC-5")
-            .collect();
-        assert_eq!(
-            matching.len(),
-            1,
-            "two forms reading one identical range must deduplicate to one record: {:?}",
-            graph.range_diagnostics
-        );
     }
 }
 
 #[cfg(test)]
 mod mask_tests {
     use super::*;
+    use ix_trace_rs::trace;
 
-    /// The masked span, for a language whose strings hide tag-shaped data.
-    fn masked(src: &str, language: SourceLanguage) -> String {
-        legacy_match_span(src, language)
+    /// The annotation channel of `src`: comments and Python docstrings kept,
+    /// strings and code blanked.
+    fn channel(src: &str, language: SourceLanguage) -> String {
+        annotation_channel(src, language).expect("not shell")
     }
 
+    #[trace("TC-1055", "FR-051-AC-24")]
     #[test]
-    fn tc1055_a_legacy_form_inside_a_string_is_masked_in_every_language() {
-        // TC-1055
-        // `agent-ix/quire-rs#323`. The mask was gated on `SourceLanguage::Rust`
-        // and every other language fell through to the RAW span, so a Python or
-        // TypeScript test carrying tag-shaped text as DATA bound it. Measured on
-        // the corpus fixture pre-fix: `backed 2/3` with nothing unbacked —
-        // coverage nobody authored.
-        let python = masked(
+    fn tc1055_an_id_inside_a_string_is_masked_in_every_language() {
+        // `agent-ix/quire-rs#323`. A trace id a file carries as DATA is not an
+        // authored tag, and reporting it sends a reader to rewrite data. The
+        // mask was gated on `SourceLanguage::Rust`; it covers every language.
+        let rust = channel("let s = \"// TC-002\";\n", SourceLanguage::Rust);
+        assert!(!rust.contains("TC-002"), "a Rust string is data: {rust:?}");
+        let python = channel(
             "x = \"\"\"\n    Trace: TC-002\n\"\"\"\n",
             SourceLanguage::Python,
         );
@@ -3948,7 +3659,7 @@ mod mask_tests {
             !python.contains("TC-002"),
             "an assigned literal is data, not a tag: {python:?}"
         );
-        let ts = masked(
+        let ts = channel(
             "const x = `\n  Trace: TC-002\n`;\n",
             SourceLanguage::Typescript,
         );
@@ -3958,21 +3669,12 @@ mod mask_tests {
         );
     }
 
+    #[trace("TC-1056", "FR-051-AC-24")]
     #[test]
-    fn tc1056_each_language_keeps_its_own_declared_tag_channel() {
-        // TC-1056
-        // THE TWO EXEMPTIONS, AND WHY THEY ARE NOT AD HOC. A blanket mask is
-        // right for Rust — its legacy forms all read comments, and
-        // `rust-test-name-id` reads an identifier — and WRONG for the other two,
-        // each of which has a declared form that reads an id out of a string:
-        //
-        //   `python-docstring-id`      `^\s*(?:[rbfu]{1,2})?"""\s*(<id>)`
-        //   `typescript-test-name-id`  `^\s*(?:await\s+)?(?:it|test)…\(`
-        //
-        // Both were caught by the corpus, not by review: masking every string
-        // took four fixtures from bound to unbound and one from `backed 1` to
-        // `backed 0`.
-        let doc = masked(
+    fn tc1056_a_python_docstring_is_the_annotation_channel_there() {
+        // Python has no doc-comment syntax: its annotation channel IS a string
+        // literal, where Rust's is `///` and TypeScript's is a block comment.
+        let doc = channel(
             "def test_x():\n    \"\"\"TC-001: the declared severity.\"\"\"\n    pass\n",
             SourceLanguage::Python,
         );
@@ -3980,17 +3682,16 @@ mod mask_tests {
             doc.contains("TC-001"),
             "a docstring is Python's comment: {doc:?}"
         );
-        let title = masked(
+        // A TypeScript registration title is an ordinary string: its name is not
+        // an annotation.
+        let title = channel(
             "it(\"TC-001 binds\", () => {});\n",
             SourceLanguage::Typescript,
         );
-        assert!(
-            title.contains("TC-001"),
-            "a registration title is TypeScript's tag channel: {title:?}"
-        );
-        // And the exemptions are POSITIONAL, not "any string near a keyword":
-        // the same text assigned mid-line is masked in both languages.
-        let assigned = masked(
+        assert!(!title.contains("TC-001"), "{title:?}");
+        // And the exemption is POSITIONAL: the same text assigned mid-line is
+        // masked.
+        let assigned = channel(
             "    x = \"\"\"TC-001: not documentation.\"\"\"\n",
             SourceLanguage::Python,
         );
@@ -4000,22 +3701,46 @@ mod mask_tests {
         );
     }
 
+    #[trace("TC-1057", "FR-051-AC-24")]
     #[test]
     fn tc1057_comments_survive_and_offsets_do_not_shift() {
-        // TC-1057
-        // Comments are where legacy tags live, so masking them would suppress
-        // the very form being matched. And byte length is preserved, because
-        // the rewrite-suggestion pass matches against this span and reports
-        // POSITIONS into the original.
-        let src = "def test_x():\n    # Trace: TC-001\n    y = \"Trace: TC-002\"\n";
-        let out = masked(src, SourceLanguage::Python);
-        assert!(out.contains("TC-001"), "comment preserved: {out:?}");
-        assert!(!out.contains("TC-002"), "string masked: {out:?}");
-        assert_eq!(
-            out.len(),
-            src.len(),
-            "byte length must be preserved for the rewrite pass's offsets"
-        );
-        assert_eq!(out.lines().count(), src.lines().count());
+        // Comments are the annotation channel everywhere. Byte length and line
+        // count are preserved so a reported `file:line` is a line in the
+        // original.
+        for (language, src) in [
+            (
+                SourceLanguage::Python,
+                "def test_x():\n    # Trace: TC-001\n    y = \"Trace: TC-002\"\n",
+            ),
+            (
+                SourceLanguage::Rust,
+                "fn t() {\n    // Trace: TC-001\n    let y = \"Trace: TC-002\";\n}\n",
+            ),
+            (
+                SourceLanguage::Typescript,
+                "function t() {\n  // Trace: TC-001\n  const y = \"Trace: TC-002\";\n}\n",
+            ),
+        ] {
+            let out = channel(src, language);
+            assert!(
+                out.contains("TC-001"),
+                "{language:?}: comment preserved: {out:?}"
+            );
+            assert!(
+                !out.contains("TC-002"),
+                "{language:?}: string masked: {out:?}"
+            );
+            assert_eq!(out.len(), src.len(), "{language:?}: byte length preserved");
+            assert_eq!(out.lines().count(), src.lines().count(), "{language:?}");
+        }
+    }
+
+    #[trace("TC-1055", "FR-051-AC-24")]
+    #[test]
+    fn a_char_literal_holding_a_quote_does_not_open_a_string() {
+        // `'"'` is a char literal. Read as a string opener it would swallow the
+        // comment on the next line.
+        let out = channel("let q = '\"';\n// TC-001\n", SourceLanguage::Rust);
+        assert!(out.contains("TC-001"), "{out:?}");
     }
 }

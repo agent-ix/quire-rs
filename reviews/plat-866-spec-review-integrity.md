@@ -27,3 +27,11 @@ The two new finding reasons are specified like the Rust one: FR-057 severity `wa
 ## Verdict
 
 Approve with one low wording finding.
+
+## Dispositions
+
+Checked at c7eadc1 (via 592e7ad, d8a3c7a). Line numbers refer to that head.
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | The unattached reason is now `implements-syntax-unattached` (L217-227, AC-24, TC-2206), so it no longer uses "marker". `partial-implements-syntax-match` is scoped to the new section, and the Rust reason in the CR-191 section is untouched. |

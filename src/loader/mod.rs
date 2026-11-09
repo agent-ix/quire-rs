@@ -1528,16 +1528,6 @@ fn merge_traceability(modules: &[LoadedModule]) -> crate::traceability::Traceabi
                 merged.trace_tags.markers.push(marker.clone());
             }
         }
-        for legacy in &m.trace_tags.legacy {
-            if !merged
-                .trace_tags
-                .legacy
-                .iter()
-                .any(|x| x.name == legacy.name)
-            {
-                merged.trace_tags.legacy.push(legacy.clone());
-            }
-        }
         // CR-081: FR-062's forms merge like the other two lists. Omitting them
         // here made the whole relation inert through the loader — the only path
         // a consumer has — while the engine tests, which build the model in
@@ -2081,6 +2071,7 @@ mod tests {
         assert_eq!(outcome.modules[0].archetypes[0].name, "foo");
     }
 
+    #[trace("FR-013-AC-3")]
     #[test]
     fn aggregates_failure_for_missing_schema() {
         let parent = tmpdir("fail");
@@ -2093,7 +2084,7 @@ mod tests {
         .unwrap();
         let outcome = load_modules(&[&parent]);
         assert_eq!(outcome.failures.len(), 1);
-        // FR-013-AC-3: continues — module loads (with zero archetypes).
+        // continues — module loads (with zero archetypes).
         assert_eq!(outcome.modules.len(), 1);
         assert!(outcome.modules[0].archetypes.is_empty());
     }
@@ -2518,7 +2509,7 @@ artifact_types:
         );
     }
 
-    #[trace("TC-526c", "FR-031-AC-5")]
+    #[trace("TC-526", "TC-526c", "FR-031-AC-5")]
     // `template_ref` is a hard ArchetypeLoadFailure
     // (render removed — no backward-compatibility layer).
     #[test]
@@ -2550,7 +2541,7 @@ artifact_types:
         );
     }
 
-    #[trace("TC-526b")]
+    #[trace("TC-526", "TC-526b")]
     // `variants` is likewise a hard failure (no-compat rule).
     #[test]
     fn tc526_variants_is_hard_load_failure() {
@@ -2643,8 +2634,8 @@ object_types:
 
     // ---- FR-013 closed module set (agent-ix/quire-rs#405) ----
 
-    #[trace("TC-1651")]
-    // FR-013-AC-15: an exact set emits no duplicate-module or
+    #[trace("FR-013-AC-15", "TC-1651")]
+    // an exact set emits no duplicate-module or
     // duplicate-archetype diagnostic for a module declared once. The failing
     // case this replaces is not exotic: a module materialized at its pinned
     // revision AND installed in the ambient root was loaded from both, and
@@ -2695,8 +2686,8 @@ object_types:
         assert_eq!(twice.modules.len(), 2);
     }
 
-    #[trace("TC-1652")]
-    // FR-013-AC-16: the set is CLOSED, not merely preferred. Removing a
+    #[trace("FR-013-AC-16", "TC-1652")]
+    // the set is CLOSED, not merely preferred. Removing a
     // module changes the outcome of a document that depends on it — the
     // archetype it contributed stops resolving, rather than being answered
     // from somewhere the caller did not name.
@@ -2729,8 +2720,8 @@ object_types:
         );
     }
 
-    #[trace("TC-1653")]
-    // FR-013-AC-17: a module reachable only from the ambient install root is
+    #[trace("FR-013-AC-17", "TC-1653")]
+    // a module reachable only from the ambient install root is
     // not consulted when an exact set is declared, and an empty declared set
     // loads nothing rather than falling back. `load_module_set` never calls
     // `resolve_search_paths`, which is where the env var and the default root

@@ -42,3 +42,24 @@ Can-fail check by hand: AC-18, AC-19, AC-24, AC-25 and AC-27 can each fail on a 
 ## Verdict
 
 Not mergeable: FND-001 and FND-002 (high) block the PR, and FND-003 to FND-006 (medium) should be fixed in the same round. The id allocation, AC-to-TC mapping, public-repo content and the replacement position are clean.
+
+## New findings (disposition pass 1)
+
+Checked at c7eadc1 (via 592e7ad, d8a3c7a). Line numbers refer to that head.
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-007 | medium | FR-062-AC-21 and the section (L196-206) say a decorator on an `abstract` method signature "SHALL bind nothing and SHALL yield no finding". Measured with quire 0.36.2: `export abstract class A { @implementing("FR-1") abstract foo(): void; bar(): number { return 1; } }` makes the TypeScript adapter reject the whole file (`line 3: unresolvable declaration structure (column 14)`) and the file yields no symbols at all, so `bar` and every other symbol in the file are lost and an FR-051-AC-9 per-file diagnostic is emitted. TC-2203's "yield no finding" cannot pass. Fix: state that such a file takes FR-051's per-file failure (with a diagnostic), or drop the case. | spec/functional/FR-062-implements-relation.md:196-206, 286; spec/tests.md:1195 |
+| FND-008 | medium | The section (L196-206) and FR-062-AC-21 say an accessor decorator binds nothing because "the extractor mints no symbol for it". tree-sitter parses `get g()` as a `method_definition`, and the adapter mints it as a Function (`A.g` in `quire symbols` at 0.36.2). So by the table's own rule (a decorator attached to a method definition) an accessor decorator is eligible and binds, which contradicts the AC. Fix: let accessors bind as methods (the ix-trace-ts decorator accepts any member), or exclude `get`/`set` method definitions by name and say the extractor still mints them. | spec/functional/FR-062-implements-relation.md:158-160, 196-206, 286 |
+| FND-009 | low | FR-062-AC-26, FR-051-AC-22 and TC-2208 name `implementing(...)` for a "`const`-bound TypeScript function", but FR-051-AC-51 and the arrow-valued rule also mint `let` and `var` declarators. The replacement text for a `let`/`var`-bound function is unstated. Fix: say "declarator-bound" (`const`, `let` or `var`). | spec/functional/FR-062-implements-relation.md:291; spec/functional/FR-051-source-symbol-extraction.md:228 |
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | FR-051-AC-51 (L258, TC-2210) mints a Function symbol for a declarator whose initializer is a wrapper chain, by shape alone. FR-062-AC-23 (L288) binds that symbol and AC-24 (L289) keeps "a declarator that is not a chain" as the unattached case, so the two ACs agree with each other and with AC-51. |
+| FND-002 | fixed | This PR's FR-051-AC-22 (L228) keeps #627's own-language filter and renders from the structural form whose `language` is the symbol's own and whose position fits. Its verification lists TC-2185 and TC-2208. FR-062-AC-26 (L291) cites FR-051-AC-22. #627 is merged (7602ea4), and merge-tree against origin/main conflicts on that AC-22 row and on the `spec/tests.md` AC-22 audit row (TC-2185 vs TC-2208). The resolution is this PR's AC-22 text plus the union `TC-1044, TC-1046, TC-1081, TC-2165, TC-2185, TC-2208`. A rebase is needed before merge. |
+| FND-003 | fixed | FR-051-AC-22 and FR-062-AC-26 choose by position: `@implementing` for a class or method, `implementing(...)` for a declarator-bound function, the kind alone for a `function` declaration. TC-2208 covers each case. |
+| FND-004 | fixed | `abstract` is removed from the methods that bind (AC-21 L286, TC-2203). The replacement clause about abstract signatures is a new defect, FND-007. |
+| FND-005 | fixed | AC-20 (L285) and TC-2202 now say a `@pytest.fixture` function binds, because it is a production Function symbol, which matches the extractor. |
+| FND-006 | fixed | AC-22 (L287) replaces the impossible case with a class inside a `describe` callback, which binds, and the `describe` itself, which binds nothing. AC-21 drops "a class that is not a production container". Both inputs can be written. |
