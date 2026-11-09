@@ -328,6 +328,7 @@ mod tests {
             language: SourceLanguage::Rust,
             pattern: r"(?m)^\s*//\s*Implements:\s*(.+)$".to_string(),
             template: None,
+            entry_paths: None,
         });
         model
     }

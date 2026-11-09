@@ -369,6 +369,7 @@ fn container_symbol(
         leading_line: leading_span(node, is_annotation_node),
         end_line: node.end_position().row + 1,
         container,
+        tag_comments: Vec::new(),
         ignored: false,
     }
 }
@@ -409,6 +410,7 @@ fn function_symbol(node: Node, source: &str, container: Option<String>) -> Optio
         leading_line: leading_span(node, is_annotation_node),
         end_line: node.end_position().row + 1,
         container,
+        tag_comments: Vec::new(),
         ignored,
     })
 }
@@ -740,6 +742,7 @@ fn scan_token_tree_for_fns(
                     // function AC-3 classifies as a test, including a
                     // `proptest!`-declared one — gated on `is_test`, matching
                     // the real-`function_item` path's own rule.
+                    tag_comments: Vec::new(),
                     ignored: is_test && is_ignored,
                 });
                 // The identical PLAT-845 fix as the plain-AST `walk`: this
@@ -894,6 +897,7 @@ fn fuzz_target(root: Node, source: &str) -> Option<RawSymbol> {
         column: invocation.start_position().column + 1,
         leading_line: 1,
         end_line: span_node.end_position().row + 1,
+        tag_comments: Vec::new(),
         ignored: false,
         container: None,
     })
