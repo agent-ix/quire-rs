@@ -142,6 +142,128 @@ SHALL preserve deterministic relation and diagnostic ordering.
 > scope relations. It changes no acceptance obligation or evidence-method
 > semantics and does not itself qualify any release or consumer adoption.
 
+## Declared Python and TypeScript syntax positions (PLAT-866)
+
+Rust production code declares scope with a language construct, `#[implements]`
+(`ix-trace-rs`), read from the syntax tree by the guard above. Python and
+TypeScript production code declares it only as a comment, which the binder matches
+as text over the attached annotation block, so a wrapped line, a changed separator
+or an example in prose binds or fails to bind by page position. This section gives
+both languages a structural construct, read the way the Rust attribute is.
+
+A module MAY add a `syntax` to a form in `trace_tags.implements`. Three values are
+added to the existing `rust_attribute`:
+
+| `syntax` | Language | Position the binder reads |
+|---|---|---|
+| `python_decorator` | Python | a `decorator` node directly attached to a `def`, `async def` or `class` |
+| `typescript_decorator` | TypeScript | a decorator directly attached to a class declaration or a method definition |
+| `typescript_wrapper` | TypeScript | the callee call of a wrapper chain that is the initializer of a `const`, `let` or `var` declarator |
+
+A form that declares no `syntax` SHALL keep its declared-text behaviour. The
+`syntax` field SHALL select a syntax position only: it SHALL NOT select, replace or
+broaden the module's `pattern` or `template`, and the engine SHALL NOT supply an
+`implements` pattern (FR-062-CON-2).
+
+**Candidate text.** The candidate SHALL be the exact source text of the node, with
+its internal whitespace, line breaks and argument spelling, and the binder SHALL
+apply the form's pattern to that text and to nothing else. For `python_decorator`
+and `typescript_decorator` the candidate SHALL be the complete decorator node
+including its `@`. For `typescript_wrapper` it SHALL be the callee call of the
+wrapper, `implementing("FR-007-AC-2")`, and not the call that applies it nor the
+wrapped function. A comment, a docstring, a string or template literal and an
+undecorated line are never nodes of these kinds, so text in them SHALL bind
+nothing, and the binder SHALL NOT scan them with a second lexer.
+
+**Spellings.** The binder SHALL resolve no import and no alias: which spelling of
+the call binds is exactly what the module's declared `pattern` matches against the
+candidate text. A renamed import (`import ix_trace_py as t`, `import {
+implementing as impl }`) therefore binds nothing unless a module pattern names it,
+and yields no finding because it matches no pattern; a module pattern SHALL be anchored at the start of the candidate, because an unanchored one would find `implementing("X")` inside `t.implementing("X")` and raise a partial-match finding. The shipped patterns accept
+the unqualified spelling and the qualified one: `ix_trace_py.implements` (the module name) and `ixTrace.implementing`, where `ixTrace` is the namespace-import name `ix-trace-ts` documents (`import * as ixTrace from "@agent-ix/ix-trace-ts"`) and not a package name, as `spec-artifacts-process` FR-004 pins them.
+
+**Attachment.** The binder SHALL attach a decorator to the one declaration it
+decorates by syntax node and not by line span. A decorator SHALL bind its own
+declaration only; a class decorator SHALL bind the class container and none of its
+methods; a decorated nested declaration SHALL bind neither its parent nor its
+siblings. The tree-sitter TypeScript grammar places a method's decorators as
+siblings that precede the `method_definition` inside the class body and not as its
+children, so the binder SHALL read the run of decorators immediately preceding the
+method, and SHALL read a class declaration's own decorators. The production/evidence
+complement SHALL stay in force: a form of any of these syntaxes on a test,
+benchmark, fuzz target or entry point binds nothing.
+
+**What a TypeScript decorator reaches.** A decorator is eligible only on a class
+declaration and on a method definition, the two TypeScript constructs the adapter
+mints as production symbols that admit one. The grammar parses a `get` or `set`
+accessor as a method definition, so a decorator on an accessor binds as one on a
+method does. A decorator on a class expression, a property or a parameter SHALL bind
+nothing and SHALL yield no finding: the extractor mints no symbol for it, so no
+candidate exists to report. A decorator on an `abstract` method signature is not a
+construct the extractor can resolve: the TypeScript adapter rejects the whole file
+with its existing per-file diagnostic for unresolvable declaration structure
+(FR-051), the file yields no symbol, and nothing in it binds. This requirement adds
+no extractor behaviour for that case. A TypeScript `function` declaration admits no decorator
+and has no structural construct; its scope is declared by writing the function as a
+binding that the wrapper form wraps. This is a stated limit and not a gap the
+binder papers over.
+
+**The wrapper and the symbol it binds.** A **wrapper chain** is a curried call
+`callee(...)(argument)` whose single argument is an arrow function, a function
+expression, or another wrapper chain. FR-051-AC-51 states that a `const`, `let` or
+`var` declarator whose initializer is a wrapper chain mints a Function symbol named
+by the declarator, which is the symbol a `typescript_wrapper` form binds; `export
+const` and a declarator inside a multi-declarator statement mint it the same way.
+The binder SHALL apply the form's pattern to the callee call of every link of the
+chain, so `implementing(A)(implementing(B)(fn))` binds the ids of both links to the
+one symbol.
+
+**A wrapper that attaches to nothing.** A call whose callee call matches a
+`typescript_wrapper` form SHALL bind nothing, and the binder SHALL yield one
+`implements-syntax-unattached` finding at FR-057 severity `warning`, naming the form,
+the file, the 1-based line of the candidate and its verbatim text, when that call is
+not a link of a wrapper chain that initializes a declarator. That covers a bare
+expression statement, an argument of another call
+(`memoize(implementing(A)(fn))`), a default export, a chain whose argument is
+neither function-valued nor another chain (`implementing(A)(memoize(fn))`), and a
+declarator whose initializer is not a chain. The same call written as a decorator,
+which the grammar attaches to a class or method or drops as above, SHALL yield no
+`implements-syntax-unattached` finding.
+
+**Partial matches.** When a form's pattern matches a proper substring of a candidate
+but not all of it, the binder SHALL produce one `partial-implements-syntax-match`
+finding at `warning` severity, naming the form, file, 1-based candidate line,
+qualified owning symbol and the verbatim candidate, and SHALL create no relation,
+with no fallback to attached-source matching. A candidate the pattern does not match
+at all, such as an unrelated decorator (`@staticmethod`, `@dataclass`,
+`@Injectable()`), SHALL yield neither a relation nor this finding.
+
+**Load.** The module loader SHALL reject an unknown `syntax` value, a syntax on a
+form of another language, and any of these three outside `trace_tags.implements`, as
+invalid module input naming the offending form, and SHALL NOT drop the guard and
+fall back to text matching.
+
+**The comment forms are replaced, with no coexistence window.** Both languages are
+prerelease, so the end state is one construct per language. The module that declares
+the structural Python and TypeScript `implements` forms SHALL remove its textual
+forms for those languages in the same change, and that change SHALL ship with the
+engine release that accepts the new syntax values. No precondition measurement gates
+it. Under such a module `# Implements:` and `// Implements:` SHALL bind nothing, and
+the FR-051 advisory SHALL still report such a comment id on a production function or
+container, naming the replacement text of FR-051-AC-22 (the structural form of the
+symbol's language and position).
+
+**Runtime constructs are another repository's.** The decorator a Python author writes
+and the function a TypeScript author calls exist at run time and are specified by
+`ix-trace-py` and `ix-trace-ts`; this requirement specifies the static parse
+contract the binder holds them to.
+
+> **PLAT-866 reconciliation (FR-051-AC-22).** quire-rs#627 narrows FR-051-AC-22 to
+> the symbol's own language and renders the replacement from a `rust_attribute`
+> form only, so a Python or TypeScript symbol is named by kind alone. This change
+> keeps that language filter and widens the rendering to the structural form of the
+> symbol's language and position.
+
 ## Acceptance Criteria
 
 AC-6..AC-11 are intentionally unused here: historical measurement artifacts
@@ -162,6 +284,16 @@ waive any normative criterion.
 | FR-062-AC-15 | Guarded attributes bind only to their actual production declaration: a nested declaration's attribute binds neither parent nor sibling, and an attribute on an evidence symbol produces no `implements` relation. Field, variant, statement, expression and closure attributes do not bind to their enclosing symbol. Inner attributes, macro-token attributes and recovered-error attributes do not bind; cfg_attr payloads remain unexpanded data rather than nested candidates. Same-line siblings retain distinct owners. | Test (TC-1987) |
 | FR-062-AC-16 | Unguarded Rust comment forms and Python/TypeScript declared comment forms retain their existing relations; syntax-guard adoption supplies no implicit pattern and does not change the module's declared ids or templates. | Test (TC-1988) |
 | FR-062-AC-17 | Guarded binding preserves symbol identity, actual finding source locations, existing range refusal and per-file syntax-failure behavior, and deterministic relation/diagnostic ordering. It changes no `verifies` edge or coverage backing count. | Test (TC-1990) |
+| FR-062-AC-18 | A module-loaded Python or TypeScript `implements` form retains `syntax: python_decorator`, `typescript_decorator` or `typescript_wrapper` through the traceability model and serialization; omission preserves the declared-text behaviour. An unknown syntax value, a syntax on a form of another language, and any of the three on a `trace_tags.markers` form are refused at module load, each identifying the form, with no text-matching fallback. | Test (TC-2200) |
+| FR-062-AC-19 | A Python production function, method or class carrying a decorator that a declared `python_decorator` form matches, with two declared ids, mints exactly those two `implements` relations and no `verifies` relation; a decorator a formatter has wrapped across lines, one stacked with other decorators in any order, and one on an `async def` each bind exactly as the single-line adjacent spelling does. The candidate is the exact decorator node text, so a pattern matching only a substring of a decorator's payload binds nothing, and a renamed import binds nothing unless the module pattern names it. | Test (TC-2201) |
+| FR-062-AC-20 | Decorator-shaped text in a Python comment, docstring or string literal binds nothing and the real decorator control binds. A class decorator binds the class container and none of its methods; a decorated nested function binds neither its parent nor its siblings; the same decorator on a `test_` function binds nothing, and on a `@pytest.fixture` function binds, because a fixture is a production Function symbol. | Test (TC-2202) |
+| FR-062-AC-21 | A TypeScript class declaration and a method definition (including `static` and `async`), each carrying a decorator that a declared `typescript_decorator` form matches, mint the declared `implements` relations and no `verifies` relation, including a decorator written before or after `export` and one wrapped across lines. A decorator on an accessor binds as one on a method does, because the grammar parses an accessor as a method definition. A decorator on a class expression, a property or a parameter binds nothing and yields no finding. A decorator on an `abstract` method signature makes the adapter reject the file with the existing FR-051 per-file diagnostic for unresolvable declaration structure, so the file yields no symbol and nothing in it binds. | Test (TC-2203) |
+| FR-062-AC-22 | Decorator-shaped text in a TypeScript comment, string literal or template literal binds nothing, and the real decorator control binds; a class decorator binds the class and none of its methods, and a decorator on a method binds only that method. A class declared inside a `describe` callback binds its decorators as any class does, and the `describe` container itself binds nothing. | Test (TC-2204) |
+| FR-062-AC-23 | A `const`, `let` or `var` declarator whose initializer is a wrapper chain mints a Function symbol (FR-051-AC-51), and a declared `typescript_wrapper` form binds that symbol, as `export const` and a declarator of a multi-declarator statement do; the candidate is the callee call of each link and not the wrapped function. `implementing(A)(implementing(B)(fn))` binds the ids of both links to the one symbol. A `function` declaration binds through no TypeScript structural form. | Test (TC-2205) |
+| FR-062-AC-24 | A call whose callee call matches a `typescript_wrapper` form but which is a bare statement, an argument of another call (`memoize(implementing(A)(fn))`), a default export, a chain whose argument is neither function-valued nor a chain (`implementing(A)(memoize(fn))`), or the initializer of a declarator that is not a chain, binds nothing and yields one `implements-syntax-unattached` warning in `CoverageReport.diagnostics` naming the form, file, 1-based line and verbatim candidate; the attached control yields none, and a decorator form yields none. | Test (TC-2206) |
+| FR-062-AC-25 | A pattern matching a proper substring of a decorator or wrapper candidate yields no relation and one `partial-implements-syntax-match` warning naming the form, file, 1-based candidate line, qualified symbol and verbatim candidate, even where another candidate matches fully; a candidate the pattern does not match at all, including `@staticmethod`, `@dataclass`, `@Injectable()` and a renamed-namespace spelling (`t.implementing("X")`, `@t.implements("X")`) against a start-anchored pattern, yields neither a relation nor this finding. | Test (TC-2207) |
+| FR-062-AC-26 | Under a module whose Python and TypeScript `implements` forms are structural only, `# Implements: FR-007-AC-2` and `// Implements: FR-007-AC-2` on a production function bind nothing, and the FR-051 advisory reports each under FR-051-AC-22 naming the text rendered from the declared structural form of that symbol's language and position that declares a `template`: `@implements("FR-007-AC-2")` for a Python function, method or class, `@implementing("FR-007-AC-2")` for a TypeScript class or method, and `implementing("FR-007-AC-2")` for a `const`-, `let`- or `var`-bound TypeScript function. A TypeScript `function` declaration, and a symbol whose language declares no structural templated form, is named by kind alone. A module that still declares a textual form for the language binds that comment as before. | Test (TC-2208) |
+| FR-062-AC-27 | Structural forms preserve symbol identities, the existing range refusal for an argument carrying a `..` range, per-file parse-failure isolation and deterministic relation and diagnostic ordering, and move no `verifies` edge and no coverage backing count. | Test (TC-2209) |
 
 > **CR-081 (module-declared forms survive the load — 2026-08-19):** the relation
 > was inert wherever it was actually used. `trace_tags.implements` was added to
@@ -256,9 +388,11 @@ production code that merely cites a requirement move a coverage number.
 | FR-062-CON-1 | `implements` SHALL NOT contribute to `backed_trace_ids`, nor to any FR-050 rollup figure. It is scope, and counting it as evidence is the backdoor CR-061 closed. | Design | Test (TC-936) |
 | FR-062-CON-2 | The engine SHALL NOT declare a marker pattern. The forms are module data, exactly as `verifies` forms are. | Design | Inspection |
 | FR-062-CON-4 | The binder SHALL obtain guarded attribute positions and declaration association exclusively through the source adapter's Rust syntax interpretation, without a second comment/string lexer or macro expansion pipeline. | Design | Inspection |
+| FR-062-CON-5 | The binder SHALL obtain decorator, wrapper and declaration association for Python and TypeScript exclusively through those source adapters' syntax interpretation, without a second comment/string lexer, import resolution or code execution. | Design | Inspection (TC-2209) |
 | FR-062-CON-3 | `implements` SHALL NOT reuse `VerifiesRelation`. Two questions, two types, and no field a typo can flip between them. | Design | Inspection |
 
 ## Dependencies
 
 - **Upstream**: [FR-051](./FR-051-source-symbol-extraction.md) (the marker grammar this extends), [FR-045](./FR-045-filament-core-extraction-engine.md) (symbol identity)
+- **Downstream**: `agent-ix/ix-trace-py` FR-002 and `agent-ix/ix-trace-ts` FR-002 — the runtime constructs the Python and TypeScript forms bind; `agent-ix/spec-artifacts-process` FR-004 — the module declaration of the forms
 - **Downstream**: `agent-ix/quoin` FR-039 — mutation scoping, which needs a requirement's production files to be more than an accident of test placement
