@@ -40,8 +40,8 @@ none of it.
   `org` and `repo_name`; the library and corpus surfaces take it as an input;
   when a caller supplies none, the engine uses `ix://local/<scope directory name>/spec`
   and emits one advisory `semantic.source-identity-defaulted` per document.
-- The vendored `operations.md`, `operations.expected.json`, and
-  `operations-cases.json` fixtures from `agent-ix/quoin`.
+- The `operations.md`, `operations.expected.json`, and
+  `operations-cases.json` fixtures of the `quire-fixtures` crate.
 
 ## Outputs
 
@@ -225,7 +225,7 @@ General:
 
 | ID | Criteria | Verification |
 |----|----------|--------------|
-| FR-071-AC-1 | The vendored `operations.md` extracts to the `clauses`, `operations`, and `clauseText` of `operations.expected.json`, and `config-version.table.md` extracts its `immutable` clause with the span recorded in `config-version.expected.json`; every `clauseText` value equals the fence body byte-for-byte. | Test |
+| FR-071-AC-1 | `operations.md` extracts to the `clauses`, `operations`, and `clauseText` of `operations.expected.json`, and `config-version.table.md` extracts its `immutable` clause with the span recorded in `config-version.expected.json`; every `clauseText` value equals the fence body byte-for-byte. | Test |
 | FR-071-AC-2 | The six `fence-` cases of `operations-cases.json`, `fence-ocl-carried` among them, yield the recorded code, severity, column, message, and fence locus, and the recorded `clauses`, `clauseText`, and clause availability where present; `quire` yields no advisory. | Test |
 | FR-071-AC-3 | `duplicate-clause-id` fails at the second heading, `clause-id-not-identifier` at the heading, `inline-and-external` at the second occurrence; an ownerless fence, a bodiless heading, a heading with two fences, an unterminated fence, and an external-only `Clause:` line each yield their named code at the named locus. | Test |
 | FR-071-AC-4 | `dangling-post` fails at the `Post:` line with `semantic.dangling-clause-ref`, `duplicate-operation` at the second heading, a non-`Identifier` operation heading with `semantic.operation-name-not-identifier`; `Pre: a, b` resolves both ids into `pre`; an operation without a table yields `params: []`. | Test |

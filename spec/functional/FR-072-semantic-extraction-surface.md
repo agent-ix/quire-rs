@@ -46,8 +46,7 @@ not be read.
 Disposition of the ticket's shared-contract deliverables: graph node and edge
 records of [FR-045](./FR-045-filament-core-extraction-engine.md) are unchanged
 and the semantic record attaches to the node; the assurance export of
-[FR-067](./FR-067-versioned-assurance-export.md): a semantic projection into it is deferred to
-`agent-ix/filament-core-data#36`; lossless byte preservation is met by the
+[FR-067](./FR-067-versioned-assurance-export.md) is unchanged; lossless byte preservation is met by the
 verbatim `clauseText` and the byte-identity constraints below.
 
 ## Inputs
@@ -62,7 +61,7 @@ verbatim `clauseText` and the byte-identity constraints below.
   cases, each with `name`, `issue_ref`, `tags`, `input`, and `expect`; the
   attribution test that governs `tests/fixtures/corpus_cases/` SHALL also
   govern this file.
-- The existing coverage-v1, properties-v1, and assurance-v1 fixture outputs.
+- The checked-in coverage-v1 baseline (`tests/fixtures/coverage_baseline/expected.json`), assurance-v1 export (`tests/fixtures/assurance/export.json`), and properties-v1 criterion records (`tests/fixtures/properties/criterion-records.json`).
 
 ## Outputs
 
@@ -158,11 +157,11 @@ verbatim `clauseText` and the byte-identity constraints below.
 | FR-072-AC-2 | Fixtures exercise `available`, `not_applicable`, `missing`, and `unavailable` for each declaration kind and both values of `lossy`; each state is a distinct JSON token and `unavailable` carries a non-empty `reason`. | Test |
 | FR-072-AC-3 | A Filament snapshot with a `semantic` context yields `dataJson.semantic` and diagnostics with `locus` and mapped severity; the same document without the context yields a result equal to the checked-in baseline byte-for-byte. | Test |
 | FR-072-AC-4 | A snapshot naming `contractVersion: 2.0.0` is refused with the FR-069 code before any node is produced. | Test |
-| FR-072-AC-5 | `validate_document` over the vendored corpus copy reports the legacy-form warning at its line, and over `both-forms.md` the both-forms error at the fence line, with the library's codes; the error fails validation. | Test |
+| FR-072-AC-5 | `validate_document` over `legacy-free-table.md` reports the legacy-form warning at its line, and over `both-forms.md` the both-forms error at the fence line, with the library's codes; the error fails validation. | Test |
 | FR-072-AC-6 | The Python binding's `extract_filament_core` and `extract_semantic` return JSON values equal to the Rust output for every fixture case under `make ci-python`; the WASM leg is verified by `agent-ix/quire-wasm#3` against the same fixture file. | Test |
 | FR-072-AC-7 | Two extractions over identical input serialize byte-identically; editing an unrelated section changes no declaration, span, or diagnostic. | Test |
-| FR-072-AC-8 | `semantic-v1.schema.json` is valid 2020-12 with `additionalProperties: false` on every object except the record's top level (exactly a `SemanticId[]` for typed relation keys) and `clauseText` (exactly a string map), and a checked-in compatibility fixture pins every field and state token; removing or renaming a pinned field fails the fixture test. | Test |
-| FR-072-AC-9 | Coverage-v1, properties-v1, and assurance-v1 outputs equal their checked-in fixtures byte-for-byte, and `CoreExtractionDiagnostic.severity` values remain within `info`, `warning`, `error`. | Test |
+| FR-072-AC-8 | `semantic-v1.schema.json` is valid 2020-12 with `additionalProperties: false` on every object except the record's top level (exactly a `SemanticId[]` for typed relation keys) and `clauseText` (exactly a string map), and the checked-in `cases.expected.json` records pin every field and state token; removing or renaming a pinned field fails the fixture test. | Test |
+| FR-072-AC-9 | Coverage-v1 and assurance-v1 outputs, and the properties-v1 criterion records `quire-rs` produces (values and order; the envelope is `quire-cli`'s), equal their checked-in fixtures byte-for-byte, and `CoreExtractionDiagnostic.severity` values remain within `info`, `warning`, `error`. | Test |
 
 ## Dependencies
 

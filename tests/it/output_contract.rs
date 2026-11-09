@@ -476,6 +476,38 @@ fn tc857_emitted_criteria_conform() {
     }
 }
 
+#[trace("TC-2055", "FR-072-AC-9")]
+// the criterion record values and order the engine produces equal the
+// checked-in golden byte for byte.
+#[test]
+fn emitted_criterion_records_match_the_checked_in_golden() {
+    let module = repo().join("tests/fixtures/traceability/obligations");
+    let registry = quire_rs::Registry::load_module(&module).expect("load module");
+    let archetype = registry.archetype("FR").expect("FR archetype");
+    let doc = "---\nid: FR-001\ntype: FR\ntitle: A requirement\n---\n\n\
+               ## Acceptance Criteria\n\n\
+               | ID | Criteria | Verification | Priority |\n\
+               |----|----------|--------------|----------|\n\
+               | FR-001-AC-1 | Every finding absent from the merged map defaults to warning. | Test (TC-001) | P1 |\n\
+               | FR-001-AC-2 | Logging in with a magic link lands on the dashboard. | Demonstration | P3 |\n";
+    let records: Vec<Value> = quire_rs::classify_document_criteria(&registry, archetype, doc, None)
+        .iter()
+        .map(record_json)
+        .collect();
+    assert!(!records.is_empty(), "the fixture must produce records");
+    let actual = format!("{}\n", serde_json::to_string_pretty(&records).unwrap());
+    let path = repo().join("tests/fixtures/properties/criterion-records.json");
+    if std::env::var_os("QUIRE_UPDATE_PROPERTIES_GOLDEN").is_some() {
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(&path, &actual).unwrap();
+    }
+    let expected = std::fs::read_to_string(&path).expect("read checked-in records");
+    assert_eq!(
+        actual, expected,
+        "regenerate with QUIRE_UPDATE_PROPERTIES_GOLDEN=1 if the change is intended"
+    );
+}
+
 /// Mirror of `quire-cli`'s `record_json`. Duplicated deliberately and narrowly:
 /// the envelope lives in the CLI, and threading a serializer into the engine to
 /// avoid ten lines here would put the CLI's presentation choices in the engine.

@@ -1,0 +1,43 @@
+[
+  {
+    "domain": null,
+    "extractable": true,
+    "extraction": "extractable",
+    "line": 11,
+    "obligation": {
+      "criticality": "P1",
+      "method": "Test",
+      "source": "acceptance-criterion"
+    },
+    "oracle": null,
+    "precondition": null,
+    "property": "universal",
+    "row_id": "FR-001-AC-1",
+    "shape": "assertion",
+    "signals": [
+      "universal:determiner",
+      "span:refused-weak-boundary"
+    ],
+    "statement": "Every finding absent from the merged map defaults to warning."
+  },
+  {
+    "domain": null,
+    "extractable": false,
+    "extraction": "not-extractable",
+    "line": 12,
+    "obligation": {
+      "criticality": "P3",
+      "method": "Demonstration",
+      "source": "acceptance-criterion"
+    },
+    "oracle": null,
+    "precondition": null,
+    "property": "example",
+    "row_id": "FR-001-AC-2",
+    "shape": "assertion",
+    "signals": [
+      "example:specific-scenario"
+    ],
+    "statement": "Logging in with a magic link lands on the dashboard."
+  }
+]

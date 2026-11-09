@@ -24,7 +24,7 @@ any byte of the outputs consumers already read.
 ## Scope
 
 - Applies to: the semantic extraction module, its use inside the Filament
-  extraction API and `validate_document`, the vendored schema bundles, and the
+  extraction API and `validate_document`, the embedded schema bundles, and the
   Python and WASM bindings.
 - Operational context: `quire validate` over a spec tree, IDE worker sync,
   and the compiler frontend consuming extraction output.
@@ -57,7 +57,7 @@ values.
 | ID | Criteria | Verification |
 |----|----------|--------------|
 | NFR-021-AC-1 | A static audit of `cargo metadata` and the semantic module sources finds none of the denylisted crates (`ocl`, `sysml`, `fret`, `tera`, `handlebars`, `minijinja`, `askama`, `reqwest`, `ureq`, `hyper`, `git2`, `rusqlite`, `sled`) and no `eval`/`parse_expr`/`typecheck` symbol over clause text; clause text leaves the engine byte-identical to the fence body. | Test |
-| NFR-021-AC-2 | A static audit finds no `std::net`, `std::process`, or filesystem write on the semantic path, and `cargo check --target wasm32-unknown-unknown --no-default-features --features wasm` passes under `make ci` with the vendored bundle embedded. | Test |
+| NFR-021-AC-2 | A static audit finds no `std::net`, `std::process`, or filesystem write on the semantic path, and `cargo check --target wasm32-unknown-unknown --no-default-features --features wasm` passes under `make ci` with the semantic-core bundle embedded. | Test |
 | NFR-021-AC-4 | The semantic fixture suite yields identical JSON values across repeated runs and between the Rust and Python surfaces under `make ci-python`, including diagnostic order and loci; the WASM leg is verified by `agent-ix/quire-wasm#3`. | Test |
 
 ## Dependencies

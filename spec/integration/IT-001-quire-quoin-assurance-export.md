@@ -22,7 +22,7 @@ uses Quire's relationships without re-reading specification frontmatter.
 The producer is the `quire-rs` assurance-export API exposed by the selected
 Quire CLI. The consumer is Quoin's validated Quire adapter and read-only
 assurance-case view. The boundary is the versioned JSON artifact plus the
-vendored `assurance-v1.schema.json` contract; no network service participates.
+`assurance-v1.schema.json` contract; no network service participates.
 
 ## Preconditions
 
@@ -31,7 +31,7 @@ vendored `assurance-v1.schema.json` contract; no network service participates.
   set.
 - The fixture contains one resolved and one dangling corpus relation, test and
   production bindings, an obligation, and all relation-availability states.
-- Quoin vendors the assurance schema.
+- Quoin takes the assurance schema from the `quire_rs` dependency and holds no copy.
 
 ## Inputs
 
@@ -42,7 +42,7 @@ vendored `assurance-v1.schema.json` contract; no network service participates.
 
 1. Generate the assurance export twice from the fixture.
    - IT-001-SC-01: both byte streams are identical and validate against the
-     vendored assurance-v1 schema.
+     assurance-v1 schema.
 2. Import the export through Quoin's production adapter.
    - IT-001-SC-02: every artifact, obligation, symbol, and relationship is
      accepted exactly once.

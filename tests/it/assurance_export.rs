@@ -185,6 +185,23 @@ fn tc1084_assurance_schema_compiles_and_accepts_the_complete_fixture() {
     assert!(schema().validate(&golden()).is_ok());
 }
 
+#[trace("TC-2055", "FR-072-AC-9")]
+// the assurance-v1 bytes for the fixed fixture equal the checked-in export.
+#[test]
+fn assurance_export_matches_the_checked_in_bytes() {
+    let actual = Fixture::new().export().unwrap().to_json_bytes().unwrap();
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/assurance/export.json");
+    if std::env::var_os("QUIRE_UPDATE_ASSURANCE_GOLDEN").is_some() {
+        fs::write(&path, &actual).unwrap();
+    }
+    let expected = fs::read(&path).expect("read checked-in assurance export");
+    assert_eq!(
+        String::from_utf8_lossy(&actual),
+        String::from_utf8_lossy(&expected),
+        "regenerate with QUIRE_UPDATE_ASSURANCE_GOLDEN=1 if the change is intended"
+    );
+}
+
 #[trace("TC-1085", "FR-067-AC-2")]
 #[test]
 fn tc1085_construction_refuses_incomplete_premises_atomically() {

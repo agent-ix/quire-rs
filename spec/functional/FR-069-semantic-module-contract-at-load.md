@@ -94,14 +94,14 @@ Refusals, in evaluation order:
   key of the block.
 - A module declares no semantic-core version; the loader SHALL use the one
   embedded bundle and SHALL NOT refuse a module over a `semantic_core` value.
-- The loader SHALL validate the block against the vendored module-manifest
+- The loader SHALL validate the block against the module-manifest
   schema. If the block carries an unknown key, then the loader SHALL refuse
   with `semantic.unknown-key` naming the key. If `exports` names an
   undeclared type in the manifest's `artifact_types`, `object_types`, or
   `archetypes` sections, then the loader SHALL refuse with
   `semantic.export-undeclared` naming it. If `package` is not `<org>/<repo>`,
   then the loader SHALL refuse with `semantic.invalid-package` naming the
-  value. If a target is outside the vendored target registry, then the loader refuses
+  value. If a target is outside the target registry, then the loader refuses
   with `semantic.unknown-target` naming the value.
 - For a reference-form `data_schema`, the loader SHALL resolve `schema`
   inside the module root (a `..` segment or a symlink leaving the root is
@@ -184,7 +184,7 @@ Filament extraction API:
   before any node is produced.
 
 Allocation note: `agent-ix/quoin` FR-070 says Quire "applies the same
-vendored schema at artifact-validation time". This requirement applies it at
+schema at artifact-validation time". This requirement applies it at
 module load, so a broken block fails every archetype of the module rather
 than every artifact; Quoin's install guard makes that unreachable for
 installed modules, and hand-authored or inline modules fail loudly. The
