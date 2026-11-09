@@ -466,12 +466,8 @@ fn a_production_function_is_told_an_implements_form_of_its_own_language_only() {
             .find(|d| d.path.as_deref() == Some(p))
             .and_then(|d| d.value.clone())
     };
-    assert_ne!(
-        by_path("m.py").as_deref(),
-        Some(r#"#[implements("FR-007-AC-1")]"#)
-    );
-    assert!(
-        !by_path("m.ts").unwrap_or_default().contains("#[implements"),
-        "a TypeScript function is never told a Rust attribute"
-    );
+    // The kind alone: no form of the symbol's own language declares a
+    // `rust_attribute` template, and the Rust form is not borrowed.
+    assert_eq!(by_path("m.py").as_deref(), Some("function"));
+    assert_eq!(by_path("m.ts").as_deref(), Some("function"));
 }
