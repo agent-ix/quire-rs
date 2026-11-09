@@ -47,3 +47,15 @@ module schemas. The FR-075 CR-192 note contradicts FR-081.
 | FND-005 | low | FR-081's owned-keys statement scopes the unmapped `members` to the whole `agent-ix/spec-objects-business` package. quoin FR-123 and FR-121 scope it to the `members` of `domain` and `population`. The code follows FR-081 (`record.rs:316-320`). | spec/functional/FR-081-record-sections-extraction.md:93 |
 | FND-006 | low | The statement on line 99 holds two `shall`s (`ears:non-singular`). Lines 29, 86, 97, 113, 117 and 179 are `ears:unclassifiable` / `missing-subject` per `quire validate`. | spec/functional/FR-081-record-sections-extraction.md:99 |
 | FND-007 | low | Ceremony: the PR adds 17 hand-kept rows to the `spec/tests.md` AC→TC audit table. They restate the Verification column of the TC rows it also adds, along with a hand-set ✅ status per TC. The computed matrix (`quire matrix`) already derives both. This is a repo-wide convention, so delete the table and status column repo-wide rather than extending them. | spec/tests.md:2268-2284 |
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | accepted-no-change | Not a copy any more. FR-081-AC-1 names a synthetic root and plainly states that the `spec-objects-safety` criteria are not run because that module cannot be fetched and its schemas are never copied. Business-schema validations are stated as not run in Dependencies. The architecture criteria now validate against the fetched module (`validates`). The lead accepted this limitation. |
+| FND-002 | fixed | AC-15 is extended (duplicate and invalid `Value`, `Emits`/`consumes` references, document order). The new AC-16 covers quoin FR-123-AC-4/6/7 and the new AC-17 covers fragment, unreadable, TypeRef and Status-once. Dependencies maps every FR-123 AC and states that AC-8 is partial. |
+| FND-003 | fixed | The FR-075 CR-192 note now reads "Superseded by quoin FR-123 and quire-rs FR-081 (PLAT-1370): ... `owner` is not extracted at all ... no `## Parent` section is read as its source." |
+| FND-004 | fixed | FR-081 now says "Its `recordSources` span is the key's whole section, from its heading to its last non-blank line, as for any other key". The code uses `section_span` and falls back to entries only when no section is found. |
+| FND-005 | fixed | The owned-keys statement now names "`owner` of a `nested_entity`, `ubiquitous_language` of a `domain`, and `members` of a `domain` or `population`". The code matches on `(object_type_name, name)`. |
+| FND-006 | still-open | The token statement was split, but `quire validate` still flags `ears:non-singular` on line 111 ("SHALL NOT read a record key from frontmatter, and SHALL omit a key whose section is absent") and `unclassifiable`/`missing-subject` on lines 29, 87, 109, 125 and 129. |
+| FND-007 | fixed | The 17 FR-081 AC→TC audit rows are removed from `spec/tests.md`, and the new TC-2181/TC-2182 add no audit rows. The per-TC ✅ column remains, as a repo-wide convention. |

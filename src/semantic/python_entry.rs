@@ -66,10 +66,11 @@ struct Request {
     /// properties are the FR-076 typed relation keys.
     #[serde(default)]
     data_schema: Option<Value>,
-    /// The documents the `data_schema` `$ref`s name, keyed by `$ref` url
-    /// (FR-081 reads property types through them).
+    /// The object type's name (FR-081 scopes unmapped keys by it).
     #[serde(default)]
     object_type: Option<String>,
+    /// The documents the `data_schema` `$ref`s name, keyed by `$ref` url
+    /// (FR-081 reads property types through them).
     #[serde(default)]
     schema_documents: std::collections::BTreeMap<String, Value>,
 }

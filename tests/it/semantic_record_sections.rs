@@ -77,7 +77,7 @@ fn semantic_v1() -> Validator {
     .unwrap()
 }
 
-/// The 1-based line of the first line containing `at`; `<text>#2` selects the
+/// The 1-based line of the first line containing `at`; `<text>@2` selects the
 /// second such line.
 fn line_of(markdown: &str, at: &str) -> usize {
     let (text, nth) = at

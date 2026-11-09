@@ -71,3 +71,23 @@ extraction path is correct and well tested.
 `cargo test --test it semantic_record_sections` passed (14 tests).
 `cargo clippy --all-targets -- -D warnings` passed. Aggregate gates
 (`make ci`, `make ci-python`) were not run by this reviewer.
+
+## New findings (disposition pass 1)
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-010 | low | The fix round inserted `object_type` beneath the `schema_documents` doc comment, so that comment ("The documents the `data_schema` `$ref`s name...") now documents `object_type` and leaves `schema_documents` with no doc. | src/semantic/python_entry.rs:69-74 |
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | Fix commit 102cb00 deletes every copied module schema. The architecture cases load the fetched `spec-objects-architecture` schemas through `Schemas::of` and validate each key against the module schema named in `validates`. The remaining roots are synthetic, carry `$comment: not a module schema`, declare only the key under test, and reference only semantic-core. That safety and business modules are not validated is an accepted limitation, stated in FR-081-AC-1 and in Dependencies. |
+| FND-002 | fixed | `parse_layout` deserializes into `RecordDoc { tag: Option<String> }`, so a plain scalar keeps its authored text in flow style too. `layout-fence` now authors `posting_tuple` in flow style and expects `"0x22"`. |
+| FND-003 | fixed | `classify` follows a `#` fragment (and an own-`$id` fragment) by JSON pointer within the document. The `fragment-ref-property` case (`Fragment.json`, `#/$defs/policy`) extracts the key. An unreadable shape now yields `schema-unreadable` instead of being silent. |
+| FND-004 | fixed | `copy_model_keys` ends with `outcome.sources.sort_by_key(\|s\| s.source_span.start_line)`. Two new cases (`sources-follow-the-document-order` and `-reversed`) assert the order. |
+| FND-005 | fixed | The `None` arm is now `_ => KindAvailability::not_applicable()`, so `members` and `vocabulary` always report a state. |
+| FND-006 | fixed | `row_rules` receives `clean` (no diagnostic in the row yet) and emits `status-required` only when it is set. `thresholds-bad-status-refused-once` asserts a single `cell-type`. |
+| FND-007 | fixed | `Node::TypeRefArray => name == "associated_types"` reads the key in any module (case `type-ref-array-in-another-module`). Another `TypeRef[]` key named by a heading yields `schema-unreadable` (case `type-ref-array-other-key`). |
+| FND-008 | still-open | `tests/it/semantic_record_sections.rs:80-81` still says ``<text>#2`` selects the second line, but the code splits on `@`. |
+| FND-009 | fixed | The README row now reads "The FR-081 cases (quoin FR-121-AC-1..9, FR-122-AC-1..6, FR-123-AC-1..7 and AC-9); each case names its criterion in `ac`." |

@@ -63,3 +63,15 @@ but have no test.
 | FND-005 | low | quoin FR-123-AC-3: the `steps-copied-states-stay-in-model` case leaves `Consumes`/`Emits` empty and `states-and-transitions` has no `Emits` column, so the `SemanticId`/`SemanticId[]` copy of `emits`/`consumes` is never asserted. | crates/quire-fixtures/fixtures/record-sections/cases.json |
 | FND-006 | low | The branch where a model-table record key is `unavailable` with the model's reason (for example a duplicate `Value`, quoin FR-123-AC-2) has no case. | src/semantic/record.rs:1428-1429 |
 | FND-007 | low | TC-2179 prints `skipped` and passes when the architecture module cannot be fetched, so FR-081-AC-14 can pass without auditing anything. | tests/it/semantic_record_sections.rs:354-357 |
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | `copy_members` resolves each `Member` by declaration references, admitting by the construct `references.members`. It picks the one composite verb through `composite_verbs_admitting` and copies `RelationDecl[]`. `member-verb` and the reference refusals are emitted, and `relations.rs` emits `declared-in-members`. `TermDecl.doc` is now `Option` (`optional(...)`), so `vocabulary` copies with no empty `doc`. Covered by TC-2181: `members-composite-verbs`, `-member-verb`, `-unknown-name`, `-kind-mismatch`, `-declared-in-members`, `-no-bundle-index`, `domain-vocabulary`, `domain-vocabulary-empty-description`. |
+| FND-002 | accepted-no-change | The lead accepted this as a documented limitation. `spec-objects-business` cannot be fetched by the repo's fixture mechanism, and its schemas are not copied. FR-081 Dependencies says FR-123-AC-8 is covered only in part, with the architecture audit (FR-081-AC-14) running and the business audit not. |
+| FND-003 | fixed | Case `nested-entity-owner-is-prose` covers `## Parent` and `## Owner` (no `owner`, no diagnostic). `domain-vocabulary` reads no `ubiquitous_language`. The unmapped keys are now scoped by object type (`object_type_name`). |
+| FND-004 | fixed | `persists-and-emits-sections-are-prose` (a `persists` row through FR-076; `## Persists`/`## Emits` prose) and `event-source-section` (`## Source` inline id extracts `source`) are under TC-2181. |
+| FND-005 | fixed | `states-and-transitions` now expects `"emits": "ix://acme/shop/order-placed"`. `steps-copied-states-stay-in-model` expects `consumes` and `emits` as resolved `SemanticId[]`. |
+| FND-006 | fixed | `values-duplicate` and `values-invalid` (TC-2180) assert the refusal and the key `unavailable` with the model's `entry-errors` reason. |
+| FND-007 | fixed | TC-2179 now does `assert!(spec_objects_architecture_fixture::is_available(), "the architecture module is not fetched, so nothing was audited: ...")`, and `Schemas::of` asserts the same for every architecture case. |

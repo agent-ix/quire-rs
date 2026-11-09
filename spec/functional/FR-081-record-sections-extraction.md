@@ -25,8 +25,8 @@ relationships:
 ## Description
 
 When the engine extracts an object artifact whose module carries a
-`semantic` block that names the mapping token `record-sections`, the engine
-SHALL read each named section of the artifact that names a record key of the
+`semantic` block that names the mapping token `record-sections`,
+the engine SHALL read each named section of the artifact that names a record key of the
 object type's `data_schema` (a typed table, a bullet list, or one inline
 value) into the output key `record`, with a source span per key under
 `recordSources` and a per-key state under `availability.recordKeys`.
@@ -83,9 +83,9 @@ Token and key resolution:
   lowercasing both and removing spaces, hyphens and underscores, so
   `## Retry Policy` names `retryPolicy` and `## Associated Types` names
   `associated_types`.
-- If two properties normalize equal and a heading names them, then the engine
-  SHALL emit `semantic.feature-not-extractable` at the heading with `reason`
-  `key-ambiguous` and read neither.
+- If two properties normalize equal and a heading names them, then
+  the engine SHALL emit `semantic.feature-not-extractable` at the heading with
+  `reason` `key-ambiguous` and read neither.
 - The engine SHALL read a heading only as a key no other mapping owns. The
   owned keys are `fields`, `clauses`, `operations`, `relations`,
   `featureOrder` and the FR-075 systems members; each typed relation key
@@ -105,11 +105,12 @@ Token and key resolution:
   engine SHALL emit `semantic.feature-not-extractable` at the heading with
   `reason` `schema-unreadable` and report the key `unavailable` with that
   reason. A `$ref` to a fragment of the same document is followed.
-- If the artifact holds a second section naming the same key, then the engine
-  SHALL emit `semantic.duplicate-section` at the second heading with `reason`
+- If the artifact holds a second section naming the same key, then
+  the engine SHALL emit `semantic.duplicate-section` at the second heading with `reason`
   `second-section`.
-- The engine SHALL NOT read a record key from frontmatter, and SHALL omit a
-  key whose section is absent, reporting it `not_applicable`.
+- The engine SHALL NOT read a record key from frontmatter.
+- The engine SHALL omit a key whose section is absent, reporting it
+  `not_applicable`.
 
 Section shape by key type:
 
@@ -121,12 +122,12 @@ Section shape by key type:
   list, fence, table or diagram, then the engine SHALL emit
   `semantic.feature-not-extractable` at that block's first line with `reason`
   the key name.
-- If an object-valued key's table holds a second data row, then the engine
-  SHALL emit `semantic.invalid-model-cell` at it with `reason` `second-row`;
+- If an object-valued key's table holds a second data row, then
+  the engine SHALL emit `semantic.invalid-model-cell` at it with `reason` `second-row`;
   with no data row, at the header with `reason` `no-row`. An array-valued key
   with a header and no row yields `[]` and is `available`.
-- If a section holds no block (and for a scalar key no text), then the engine
-  SHALL emit the warning `semantic.record-key-no-block` at the heading with
+- If a section holds no block (and for a scalar key no text), then
+  the engine SHALL emit the warning `semantic.record-key-no-block` at the heading with
   `reason` `no-block` and report the key `not_applicable`.
 
 Columns and cells:
@@ -187,9 +188,9 @@ FR-122), when the record schema declares the key:
 - `thresholds` is a table `Scope | Metric | Limit | Window | Status |
   Retry After | Behavior`; `Status`, `Retry After` and `Behavior` build the
   row's `on_exceeded` object by the schema's types, an empty `Retry After` or
-  `Behavior` omitting that field. If a `Status` cell is empty, then the engine
-  SHALL emit `semantic.invalid-model-cell` at the row with `reason`
-  `status-required`.
+  `Behavior` omitting that field. If a `Status` cell is empty, then
+  the engine SHALL emit `semantic.invalid-model-cell` at the row with
+  `reason` `status-required`.
 
 Model-table keys (quoin FR-123):
 
