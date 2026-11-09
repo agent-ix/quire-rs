@@ -428,6 +428,7 @@ fn fixture_snapshot(with_context: bool) -> FilamentExtractionInput {
 }
 
 #[trace("TC-1632", "FR-072-AC-3", "FR-072-CON-1")]
+#[trace("TC-2055", "FR-072-AC-9")]
 // with a context: dataJson.semantic + diagnostics with locus and mapped
 // severity; without: no `semantic` key and no locus.
 #[test]

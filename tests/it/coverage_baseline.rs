@@ -27,6 +27,7 @@
 
 use std::path::{Path, PathBuf};
 
+use ix_trace_rs::trace as trace_tag;
 use quire_rs::coverage::compute;
 use quire_rs::symbols::{extract_tree_excluding, trace};
 use quire_rs::{Registry, Spec};
@@ -55,6 +56,7 @@ fn render_report() -> String {
 
 /// TC-824, FR-050-AC-7 (CR-057): the coverage report over the baseline corpus
 /// is byte-identical to the checked-in snapshot.
+#[trace_tag("TC-2055", "FR-072-AC-9")]
 #[test]
 fn tc824_coverage_report_matches_the_checked_in_baseline() {
     let actual = render_report();

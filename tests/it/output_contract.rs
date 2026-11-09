@@ -437,6 +437,7 @@ fn tc856_payload_carrying_every_optional_key_conforms() {
 }
 
 #[trace("TC-857", "FR-055-AC-4")]
+#[trace("TC-2055", "FR-072-AC-9")]
 // every criterion the engine actually emits conforms.
 #[test]
 fn tc857_emitted_criteria_conform() {
