@@ -1036,9 +1036,8 @@ pub(crate) fn scan_reason(diagnostic: &ScanDiagnostic) -> &'static str {
 /// `agent-ix/identity`'s matrix carries roughly thirty headings.
 const NAMES_SHOWN: usize = 12;
 
-/// `'a', 'b', 'c'`, capped, with the remainder counted rather than dropped.
-/// Every declared entry, never truncated: a message naming some of the entries
-/// a declaration lists leaves its reader to guess the rest (AC-63).
+/// Every declared entry as `'a', 'b'`, never truncated: a message naming some of
+/// the entries a declaration lists leaves its reader to guess the rest (AC-63).
 fn declared_list(names: &[String]) -> String {
     names
         .iter()
@@ -1047,6 +1046,7 @@ fn declared_list(names: &[String]) -> String {
         .join(", ")
 }
 
+/// `'a', 'b', 'c'`, capped, with the remainder counted rather than dropped.
 fn quoted_list(names: &[String]) -> String {
     if names.is_empty() {
         return "none at all".to_string();
@@ -1218,6 +1218,36 @@ mod props_metamorphic {
         fn tc892_no_flags_is_the_identity(s in cellish()) {
             prop_assert_eq!(super::normalize_reference_cell(&s, false, false), s.clone());
         }
+    }
+}
+
+#[cfg(test)]
+mod ac63_id_column_order {
+    use std::collections::BTreeMap;
+    use std::path::PathBuf;
+
+    use ix_trace_rs::trace;
+
+    use super::ScannedRow;
+    use crate::traceability::IdColumns;
+
+    /// `cells` is a `BTreeMap` (key order), and a coverage report sorts minted
+    /// ids, so only the row itself can show column order.
+    #[trace("TC-2095", "FR-050-AC-63")]
+    #[test]
+    fn ids_run_in_column_order_not_declaration_or_lexical_order() {
+        let row = ScannedRow {
+            path: PathBuf::from("t.md"),
+            cells: BTreeMap::from([
+                ("Alpha".to_string(), "T-1".to_string()),
+                ("Zeta".to_string(), "T-9".to_string()),
+            ]),
+            // Table order is the reverse of key order and of id order.
+            columns: vec!["Zeta".to_string(), "Alpha".to_string()],
+            line: 1,
+        };
+        let declared = IdColumns::new(vec!["Alpha".to_string(), "Zeta".to_string()]);
+        assert_eq!(row.ids(&declared), ["T-9", "T-1"]);
     }
 }
 

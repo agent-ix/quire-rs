@@ -1304,6 +1304,36 @@ impl TraceabilityModel {
     /// Shape-validate the declaration. Returns a caller-facing reason on the
     /// first problem, which the manifest loader turns into a module-load
     /// failure (FR-050-AC-2).
+    /// A target-bound obligation reads its statement and id from the minting
+    /// row, so the target it names must mint from table rows by ONE plain
+    /// column name (AC-63): a list or `*` is refused rather than narrowed.
+    ///
+    /// Also run on the merged model at load, because modules merge targets
+    /// first-wins by name and the binding can end up on another module's target.
+    pub fn check_bound_target(&self, source: &str, target: &str) -> Result<(), String> {
+        let Some(declared) = self.trace_targets.iter().find(|t| t.name == target) else {
+            return Err(format!(
+                "traceability: obligations entry '{source}' references undeclared target \
+                 '{target}'"
+            ));
+        };
+        let Some(columns) = declared.id_columns() else {
+            return Err(format!(
+                "traceability: obligations entry '{source}' references target '{target}', \
+                 which does not mint from table rows; a target-bound obligation reads its \
+                 statement column from the minting row"
+            ));
+        };
+        if columns.single_name().is_none() {
+            return Err(format!(
+                "traceability: obligations entry '{source}' references target '{target}', \
+                 whose `id_column` is a list or contains `*`; a target-bound obligation \
+                 reads one named id column"
+            ));
+        }
+        Ok(())
+    }
+
     pub fn validate(&self) -> Result<(), String> {
         check_excludes("model-level", "exclude", &self.exclude)?;
         check_excludes("model-level", "source_exclude", &self.source_exclude)?;
@@ -1348,12 +1378,6 @@ impl TraceabilityModel {
                 }
             }
         }
-        let table_targets: BTreeSet<&str> = self
-            .trace_targets
-            .iter()
-            .filter(|target| target.id_columns().is_some())
-            .map(|target| target.name.as_str())
-            .collect();
 
         let mut reference_names: BTreeSet<&str> = BTreeSet::new();
         for reference in &self.document_references {
@@ -1452,34 +1476,7 @@ impl TraceabilityModel {
                             source.name
                         ));
                     }
-                    // A target-bound obligation reads its statement from a
-                    // column of the row that minted its id.
-                    if !table_targets.contains(target.as_str()) {
-                        return Err(format!(
-                            "traceability: obligations entry '{}' references target '{target}', \
-                             which does not mint from table rows; a target-bound obligation \
-                             reads its statement column from the minting row",
-                            source.name
-                        ));
-                    }
-                    // AC-63: the statement and retirement joins read the target
-                    // as ONE column, so a list or `*` is refused here rather
-                    // than silently narrowed.
-                    if let Some(columns) = self
-                        .trace_targets
-                        .iter()
-                        .find(|t| &t.name == target)
-                        .and_then(TraceTarget::id_columns)
-                    {
-                        if columns.single_name().is_none() {
-                            return Err(format!(
-                                "traceability: obligations entry '{}' references target \
-                                 '{target}', whose `id_column` is a list or contains `*`; a \
-                                 target-bound obligation reads one named id column",
-                                source.name
-                            ));
-                        }
-                    }
+                    self.check_bound_target(&source.name, target)?;
                 }
                 (None, Some(archetype)) => {
                     check_field("obligations", &source.name, "archetype", archetype)?;

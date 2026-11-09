@@ -1261,6 +1261,33 @@ pub fn flatten_into_registry(mut outcome: LoadOutcome) -> RegistryShape {
         // must never expose a contradictory coverage model for computation.
         traceability = crate::traceability::TraceabilityModel::default();
     }
+    // Targets merge first-wins by name, so an `obligations:` source one module
+    // validated against its own target can end up bound to another module's
+    // target that reads a list, `*`, or no table column (AC-63, CR-203).
+    for source in &traceability.obligations.clone() {
+        let Some(target) = &source.target else {
+            continue;
+        };
+        if let Err(reason) = traceability.check_bound_target(&source.name, target) {
+            for module in &outcome.modules {
+                if module
+                    .traceability
+                    .obligations
+                    .iter()
+                    .any(|o| o.name == source.name)
+                {
+                    outcome.failures.push(ArchetypeLoadFailure {
+                        module: module.name.clone(),
+                        archetype: "<manifest>".to_string(),
+                        path: module.root.join("manifest.yaml"),
+                        reason: format!("merged selected traceability model: {reason}"),
+                    });
+                }
+            }
+            traceability = crate::traceability::TraceabilityModel::default();
+            break;
+        }
+    }
     let declaration_origins = merge_declaration_origins(&outcome.modules);
 
     // ── FR-041: derive the inverse-label → forward-verb index from the
@@ -1921,6 +1948,54 @@ mod tests {
             r#"{"type":"object","required":["id"],"properties":{"id":{"type":"string"}}}"#,
         )
         .unwrap();
+    }
+
+    #[trace("TC-2100", "FR-050-AC-63")]
+    #[test]
+    fn an_obligation_bound_to_another_modules_unreadable_target_fails_load() {
+        for (a_target, expected) in [
+            ("id_column: [ID, Other]", "list or contains"),
+            ("id_column: 'I*'", "list or contains"),
+            (
+                "from: list_item\n    pattern: '^(X-\\d+)'",
+                "does not mint from table rows",
+            ),
+        ] {
+            let parent = tmpdir("merge-bound-target");
+            // mod-a loads first, so its `x` wins the first-wins merge.
+            let a = parent.join("mod-a");
+            fs::create_dir_all(&a).unwrap();
+            fs::write(
+                a.join("manifest.yaml"),
+                format!(
+                    "name: mod-a\nartifact_types:\n- name: foo\ntraceability:\n  trace_targets:\n\
+                     \x20 - name: x\n    archetype: foo\n    section: S\n    {a_target}\n"
+                ),
+            )
+            .unwrap();
+            let b = parent.join("mod-b");
+            fs::create_dir_all(&b).unwrap();
+            fs::write(
+                b.join("manifest.yaml"),
+                "name: mod-b\nartifact_types:\n- name: foo\ntraceability:\n  trace_targets:\n\
+                 \x20 - name: x\n    archetype: foo\n    section: S\n    id_column: ID\n  \
+                 obligations:\n  - name: o\n    target: x\n    statement_column: Criteria\n",
+            )
+            .unwrap();
+            let shape = flatten_into_registry(load_modules(&[&parent]));
+            assert!(
+                shape
+                    .failures
+                    .iter()
+                    .any(|f| f.module == "mod-b" && f.reason.contains(expected)),
+                "{a_target}: {:?}",
+                shape.failures
+            );
+            assert!(
+                shape.traceability.is_empty(),
+                "a contradictory model is never exposed"
+            );
+        }
     }
 
     #[trace("TC-826")]

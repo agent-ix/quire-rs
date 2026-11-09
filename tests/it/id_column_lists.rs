@@ -273,6 +273,7 @@ fn row_binding_never_joins_a_list_target_while_a_single_name_target_joins() {
     .expect("row-aware fixture");
     let case = &cases[0];
     let module = case["input"]["module"].as_str().expect("module");
+    let anchor = "    section: Test Cases\n    id_column: ID\n";
     let documents: Vec<(&str, &str)> = case["input"]["documents"]
         .as_object()
         .expect("documents")
@@ -294,15 +295,16 @@ fn row_binding_never_joins_a_list_target_while_a_single_name_target_joins() {
     assert!(has_row_diagnostic(module), "single-name target joins");
 
     // `test-case` is bound by no `obligations:` source, so it may widen.
-    let anchor = "    section: Test Cases\n    id_column: ID\n";
     assert!(module.contains(anchor));
-    let widened = module.replacen(
-        anchor,
-        "    section: Test Cases\n    id_column: [ID, Other]\n",
-        1,
-    );
-    assert!(
-        !has_row_diagnostic(&widened),
-        "a sequence target loads but is never the row-binding join partner"
-    );
+    for declared in ["[ID, Other]", "'I*'"] {
+        let widened = module.replacen(
+            anchor,
+            &format!("    section: Test Cases\n    id_column: {declared}\n"),
+            1,
+        );
+        assert!(
+            !has_row_diagnostic(&widened),
+            "{declared}: loads but is never the row-binding join partner"
+        );
+    }
 }
