@@ -67,3 +67,12 @@ scope:
 Changes requested (high). resolve.rs and validate.rs are correct and idiomatic. There are no panics and no unsafe code. Every other site that compares an authority or package was grepped; the four changed sites are all of them. Note that `Edge.authorities` replaces the public `Edge.authority` field, which is acceptable before release.
 
 FND-001 suggested fix: in `resolve_target`, parse with `IxRef::parse`, do the folded own-package match first, and run the lower-case shape check only on the foreign or import path, or after lowering. FND-002 is spec-level and needs a decision: either fold the declared package to lower case when building identities, or refuse a mixed-case bundle package.
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | 61437cb: semantic_identity package_ok accepts ASCII alphanumerics, so ix://Acme/Widgets/X reaches the folded own-package match and lowers to ix://acme/widgets/X; a foreign mixed-case package falls to the exact imports lookup. TC-2152 passes (lead log t621f at 61437cb) |
+| FND-002 | accepted-no-change | Pre-existing for bare ids, and a mixed-case declared package is itself outside the semantic-v1 package pattern; the lead notes it on the ticket rather than widening the schema here |
+| FND-003 | fixed | 61437cb: the ix_authority doc says the authority is kept as written and compared to a package ASCII case-insensitively (FR-038-AC-10) |
+| FND-004 | accepted-no-change | Same comparison rule through the shared resolver; for lower-case input the outcome is unchanged, and a non-imported foreign package now yields unknown-reference in systems cells, consistent with FR-075-AC-12 |

@@ -48,3 +48,11 @@ scope:
 ## Verdict
 
 Changes requested. TC-2151 and the FR-038 code are complete. For FR-076-AC-23, add a case with frontmatter `ix://Acme/Widgets/FR-005` under package `acme/widgets` and row cell `FR-005`, expecting `declared-in-frontmatter`. Use a lower-case unimported foreign package and assert the reason tokens. Re-mark TC-2152 only after code-review FND-001 is fixed.
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | 61437cb: TC-2152 adds three frontmatter-fold cases, (acme/widgets, ix://Acme/Widgets/FR-005, FR-005), (acme/widgets, ix://Acme/Widgets/FR-005, ix://acme/widgets/FR-005) and (Acme/Widgets, ix://acme/widgets/FR-005, FR-005), each expecting duplicate-model-entry; reverting frontmatter_edges fails them |
+| FND-002 | fixed | 61437cb: the foreign case is now ix://other/repo/FR-005, which passes the shape check and is refused by the package comparison (UnimportedPackage). The test still matches message text, not the reason token, which is acceptable |
+| FND-003 | fixed | TC-2152 passes at 61437cb (lead log t621f: 3 passed; clippy clean), so the ✅ marker is now true |
