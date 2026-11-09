@@ -42,3 +42,9 @@ The implementation is a single shared function, so the language-agnostic clauses
 | tc2082_python_redefinition_is_reported | examined | Passes; has a control |
 | tc2082_typescript_duplicate_title_is_reported | examined | Passes; has an inline control |
 | id_collision_diagnostics | examined | Traced to AC-31 |
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | 6b9c5af: tc2082_rust asserts `d.reason.contains("function \`rec\`")`. It also pins `severity == Warning`, checks that `require_available()` is ok, and checks the warning severity on the symbol-table report. |

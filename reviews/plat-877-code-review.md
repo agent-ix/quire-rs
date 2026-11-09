@@ -47,3 +47,17 @@ Ticket: PLAT-877. PR head: `1e404e9`. Code review with the rust-review lane fold
 ## Verification
 
 These ran on a `git archive` copy of `1e404e9`, with `corpus` symlinked from a checkout at the pinned submodule commit, and used a scratchpad target that was deleted afterwards: `cargo test --locked --lib symbols::` (142 ok); `cargo test --locked --test it -- implements_relation coverage_matrix coverage_baseline trace_dogfood plat_validation_batch symbol` (55 ok); `cargo clippy --lib --tests --all-features -D warnings` and `cargo clippy --lib --no-default-features -D warnings` (both clean). A scratch probe ran `extract_tree` over quire-rs `src`/`tests`, quire-cli `src`, ecaz, auth-fastapi and chat-window to count collisions and check for multi-line reasons.
+
+## New findings (disposition pass 1)
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-003 | low | `SymbolDiagnostic` and `FileDiagnostic` each gain a new `pub severity` field without `#[non_exhaustive]`. That breaks struct-literal and exhaustive-pattern users of the public Rust API, but the CHANGELOG lists the change only under Added. The file's own convention, used for PLAT-316, is a `**Breaking (Rust API), PLAT-877:**` line under Changed. quire-cli constructs neither struct, so nothing downstream breaks today. | CHANGELOG.md:12-15; src/symbols/mod.rs:232-249; src/symbol_table.rs:112-119 |
+| FND-004 | low | The fix round committed three tracker comment bodies (`reviews/plat-877-{code-review,gap-analysis,spec-review-integrity}.comment.md`) next to the SR files. Only the SR artifacts belong in `reviews/`, and origin/main has no `*.comment.md` there. Delete the three files. | reviews/plat-877-*.comment.md |
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | 6b9c5af: the attribute list is filtered by `is_cfg_attribute` (`cfg` / `cfg_attr` only), and each attribute is `split_whitespace().join(" ")`, so the reason is one line. tc2082 asserts `src/b.rs:5 [#[cfg( unix )]]`, with no `inline` and no newline. |
+| FND-002 | fixed | 6b9c5af: a CHANGELOG `[Unreleased]` / Added entry for the `symbol-id-collision` warning (PLAT-877, FR-051-AC-31). |

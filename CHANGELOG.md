@@ -30,6 +30,9 @@ bumps; once 1.0 ships, semver is strict.
 
 ### Changed
 
+- **Breaking (Rust API), PLAT-877:** `SymbolDiagnostic` and `FileDiagnostic` gain a
+  `severity: DiagnosticSeverity` field.
+
 - **Breaking (Rust API), PLAT-316:** `TraceTarget.id_column` is replaced by
   `TraceTarget.source: TraceTargetSource`; `TraceTarget::id_column()` returns
   the column for a `table_row` target. Module manifests are unchanged for

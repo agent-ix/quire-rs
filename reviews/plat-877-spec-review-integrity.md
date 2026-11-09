@@ -40,3 +40,10 @@ Both defects concern how a consumer and a reader are meant to treat the new diag
 | spec/tests.md FR-051 matrix row | examined | Range AC-1..31; TC-2082 listed |
 | spec/tests.md TC-2082 row | examined | Matches the tests |
 | spec/tests.md audit row FR-051-AC-31 | examined | Present |
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | 6b9c5af: AC-31 now states severity `warning` (as AC-28 does): advisory, carried on the symbol-table report, and never changes an exit code or refuses a result. The code adds `DiagnosticSeverity` to `SymbolDiagnostic` and to the report's `FileDiagnostic`, omitted when Error. That covers the report field; no further spec line is needed. quire-cli still prints extraction diagnostics through its error path, which is a quire-cli rendering choice outside this repo. |
+| FND-002 | fixed | 6b9c5af: AC-31 and the CR-206 note now list the causes: cfg variants, trait-impl methods differing only by generics, Python branch and nested-helper repeats, and TypeScript duplicate titles. They also say the diagnostic reports shared identity and does not claim a defect. |
