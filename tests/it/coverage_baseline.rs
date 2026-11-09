@@ -27,8 +27,9 @@
 
 use std::path::{Path, PathBuf};
 
+use ix_trace_rs::trace;
 use quire_rs::coverage::compute;
-use quire_rs::symbols::{extract_tree_excluding, trace};
+use quire_rs::symbols::{extract_tree_excluding, trace as symbol_trace};
 use quire_rs::{Registry, Spec};
 
 fn fixture(rel: &str) -> PathBuf {
@@ -47,7 +48,7 @@ fn render_report() -> String {
     let spec = Spec::from_path(&document_root);
     let extraction = extract_tree_excluding(&scope, &[Path::new("spec")]);
     let model = registry.traceability().cloned().unwrap_or_default();
-    let graph = trace::bind(&extraction, &model);
+    let graph = symbol_trace::bind(&extraction, &model);
 
     let report = compute(&spec, &registry, &graph, &scope).expect("model declared");
     format!("{}\n", report.to_json())
@@ -55,6 +56,7 @@ fn render_report() -> String {
 
 /// TC-824, FR-050-AC-7 (CR-057): the coverage report over the baseline corpus
 /// is byte-identical to the checked-in snapshot.
+#[trace("TC-2055", "FR-072-AC-9")]
 #[test]
 fn tc824_coverage_report_matches_the_checked_in_baseline() {
     let actual = render_report();
@@ -91,7 +93,7 @@ fn tc824_the_baseline_corpus_still_exercises_the_surface() {
     let spec = Spec::from_path(&document_root);
     let extraction = extract_tree_excluding(&scope, &[Path::new("spec")]);
     let model = registry.traceability().cloned().unwrap_or_default();
-    let graph = trace::bind(&extraction, &model);
+    let graph = symbol_trace::bind(&extraction, &model);
     let report = compute(&spec, &registry, &graph, &scope).expect("model declared");
 
     assert!(report.totals.total > 0, "the model must mint");

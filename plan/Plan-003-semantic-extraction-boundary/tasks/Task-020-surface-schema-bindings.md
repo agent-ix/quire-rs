@@ -33,12 +33,12 @@ relationships:
 
 ## Scope
 
-Publish one `SemanticExtraction` record with availability and `lossy`, attach it to the Filament API, `validate_document`, and the Python binding, and pin it with a hand-authored schema and compatibility fixture.
+Publish one `SemanticExtraction` record with availability and `lossy`, attach it to the Filament API, `validate_document`, and the Python binding, and pin it with a hand-authored schema and the expected-records fixture.
 
 ## Subtasks
 
 - [x] `src/semantic/surface.rs`: `extract_semantic`, availability/`lossy` computation, diagnostic ordering, `formatVersion: 1`.
-- [x] `schemas/output/semantic-v1.schema.json` (hand-authored, `additionalProperties: false`) + `tests/fixtures/semantic/semantic-v1.json` compatibility fixture; extend `check_no_schemars.sh`.
+- [x] `schemas/output/semantic-v1.schema.json` (hand-authored, `additionalProperties: false`) + `tests/fixtures/semantic/cases.expected.json` expected records; extend `check_no_schemars.sh`.
 - [x] Filament API: `dataJson.semantic`, mirrored diagnostics with `locus` and mapped severity; no-context path byte-identical to baseline.
 - [x] `validate_document`: semantic findings with locus; error fails validation.
 - [x] Python: `extract_semantic` + additive payload in `extract_filament_core`; parity test over `cases.json` under `make ci-python`.

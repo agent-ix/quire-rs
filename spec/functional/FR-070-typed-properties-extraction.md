@@ -58,8 +58,8 @@ tokens from the engine's verdict and never from the token's spelling.
   the Filament API takes it as the optional `semanticBundle` input; a caller
   that has none passes an empty index, which is an explicit state, not a
   default.
-- The golden fixtures vendored read-only from `agent-ix/quoin`
-  `tests/fixtures/semantic-module/mapping/`, plus a quire-rs-authored `config-version.bundle.json` index
+- The golden mapping fixtures of the `quire-fixtures` crate
+  (`crates/quire-fixtures/fixtures/mapping/`), plus a quire-rs-authored `config-version.bundle.json` index
   (`{ objects: [{ id: "FR-006", names: ["ConfigVersion"] }, { id: "FR-005", names: ["ConfigOverlay"] }] }`)
   under which the golden cases run.
 
@@ -269,14 +269,14 @@ with `semantic.internal-invalid-decl`, never be dropped.
 
 | ID | Criteria | Verification |
 |----|----------|--------------|
-| FR-070-AC-1 | Under `config-version.bundle.json`, the vendored `config-version.table.md` extracts to the normalized `fields` of `config-version.expected.json`, every entry validating against `FieldDecl.json`. | Test |
-| FR-070-AC-2 | The vendored `config-version.fence.md` extracts to the identical normalized array with `fieldsForm: fence`. | Test |
+| FR-070-AC-1 | Under `config-version.bundle.json`, `config-version.table.md` extracts to the normalized `fields` of `config-version.expected.json`, every entry validating against `FieldDecl.json`. | Test |
+| FR-070-AC-2 | `config-version.fence.md` extracts to the identical normalized array with `fieldsForm: fence`. | Test |
 | FR-070-AC-3 | `both-forms.md` yields `fields` `unavailable` (`both-forms`) and one `semantic.properties-both-forms` error at the fence start line recorded in `both-forms.expected.json`; a typed table followed by a bullet list yields the same code at the list's line; two `## Properties` headings yield `semantic.duplicate-section`. | Test |
 | FR-070-AC-4 | Every `Type` case in `cell-cases.json` yields the expected target, `decimal`, `unit`, placeholder, or diagnostic at the row; a token matching two bundle names yields `semantic.ambiguous-type` naming both; an empty index yields `unresolved` with reason `no-bundle-index`; a non-`Identifier` token yields `semantic.invalid-type-token`. | Test |
 | FR-070-AC-5 | Every `Multiplicity` case in `cell-cases.json`, plus `*`, `0..*`, `0..0`, `2..2 unique`, and `a..b`, yields the expected `Multiplicity` or `semantic.invalid-multiplicity` at the row. | Test |
 | FR-070-AC-6 | Every `Constraints` case in `cell-cases.json`, plus `nullable`, `pattern: /a,b\|c/`, and a duplicated field name, yields the expected constraints, flags, or diagnostic at the row, with the pattern text carried verbatim. | Test |
 | FR-070-AC-7 | Every fence-line case in `cell-cases.json` yields `semantic.sysml-outside-subset` at the fence line, and a fence line with brace content of arbitrary UTF-8 text maps that text as the `Constraints` cell. | Test |
-| FR-070-AC-8 | The pinned `FR-006-config-version-entity.md` copy, `legacy-bullets.md`, and `legacy-mixed.md` yield the form, line, and warning of `legacy.expected.json`, with `properties` unchanged and `fields` `unavailable` (`legacy-form`); under `legacy_forms: error` the same finding is an error. | Test |
+| FR-070-AC-8 | `legacy-free-table.md`, `legacy-bullets.md`, and `legacy-mixed.md` yield the form, line, and warning of `legacy.expected.json`, with `properties` unchanged and `fields` `unavailable` (`legacy-form`); under `legacy_forms: error` the same finding is an error. | Test |
 | FR-070-AC-9 | An artifact of a module without a `semantic` block yields a record equal to the checked-in baseline byte-for-byte, with no `semantic` key and no semantic diagnostic. | Test |
 | FR-070-AC-10 | A row error in any one row yields `fields` `unavailable` with reason `row-errors` naming every erroring locus and no partial array; a typed header with zero rows yields `available` and empty. | Test |
 | FR-070-AC-11 | A `Type` cell `Clock` yields the `FieldDecl` target `{ kind: SemanticId, value: ix://quire/native/Clock }` with no `decimal` and no `unit`, in the typed table and as `attribute c : Clock` in the fence with identical normalized entries, and as an operation `Param` or `Returns:` type; the entry validates against `FieldDecl.json` and `OperationDecl.json`, and the record validates against `semantic-v1.schema.json`; `Clock [ms]` yields `agent-ix.semantic-core.UNIT_NOT_ALLOWED`, `Clock(1,2)` yields `semantic.invalid-type-token`, and a bundle object titled `Clock` does not change the verdict. | Test |

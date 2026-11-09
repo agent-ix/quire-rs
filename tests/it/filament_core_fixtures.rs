@@ -102,6 +102,26 @@ fn filament_core_graph_fixture_corpus_is_deterministic() {
     }
 }
 
+#[trace("TC-2055", "FR-072-AC-9")]
+// every diagnostic severity the shared corpus produces is info, warning or error.
+#[test]
+fn filament_core_graph_fixture_severities_stay_in_the_set() {
+    let mut seen = 0;
+    for fixture in fixtures() {
+        for d in extract_filament_core(fixture.input).diagnostics {
+            assert!(
+                matches!(d.severity.as_str(), "info" | "warning" | "error"),
+                "{}: {} has severity {}",
+                fixture.name,
+                d.code,
+                d.severity
+            );
+            seen += 1;
+        }
+    }
+    assert!(seen > 0, "the corpus must produce diagnostics");
+}
+
 fn fixtures() -> Vec<Fixture> {
     serde_json::from_str(FIXTURES).expect("filament core fixtures parse")
 }
