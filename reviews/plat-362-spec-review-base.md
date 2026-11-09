@@ -22,3 +22,9 @@ Examined: each ✅ row against its test at the head. All 13 tests pass, and `quo
 ## Verdict
 
 Sound. The status flips are backed by passing, correctly bound tests. One wording nit.
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | aa205f7: the TC-502 status cell now says "carries the marker (today prose)" once, and the second clause reads "and that header marker". |

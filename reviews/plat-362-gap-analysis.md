@@ -30,3 +30,13 @@ The production code has no requirement-less code: every new function in `shell.r
 ## Verdict
 
 Coverage is complete at the binding level: 13 of 13 ACs are tagged and each binding is correct. FND-001 is the gap that matters, because it hides a spec violation that exists in the code. The low findings are test-strength and spec-wording gaps; none hides a defect the reviewer found. The coder's AC-36 reading (lead point 1) is right, and only the narrative needs a CR line (FND-005).
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | aa205f7: TC-2109 adds a shell markers form without `syntax`. It asserts that load refuses the form, naming it and `syntax: comment`, and that `bind` on the unvalidated model mints zero `verifies`. The TC-2109 row text is updated to match. |
+| FND-002 | fixed | aa205f7: TC-2111 asserts that `binding_census` carries no `shell` row, which is how AC-44's "no census count moves" holds under the new CR-213 census exclusion. |
+| FND-003 | fixed | aa205f7: TC-2112 asserts that the reason starts with `line 2:`, the line of the unterminated string in `bad.sh`. |
+| FND-004 | fixed | aa205f7: TC-2104 asserts the `symbol_table::build` record for `entry_point` (`binds_trace_ids && !carries_implements`) and an FR-045 graph node from `graph_records` carrying `"kind":"entry_point"`. |
+| FND-005 | fixed | aa205f7: a CR-213 note in the Shell adapter section qualifies the narrative. A function is minted for every `function_definition` node except one inside a command substitution, citing AC-36. |
