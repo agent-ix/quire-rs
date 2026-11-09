@@ -306,7 +306,7 @@ optional and only some apply per locator kind (unknown keys are rejected at load
 | `min_rows`       | `table_row`                 | Minimum row count.                       |
 | `max_rows`       | `table_row`                 | Maximum row count.                       |
 | `min_items`      | `list_item`                 | Minimum item count.                      |
-| `id_column`      | `table_row`                 | Which column holds the id.               |
+| `id_column`      | `table_row`                 | Which column holds the id: one name, or a list; `*` matches any run of characters. |
 
 `{field}` tokens in an assert pattern interpolate a previously extracted frontmatter field;
 an unresolved token raises `UnresolvedField`.
