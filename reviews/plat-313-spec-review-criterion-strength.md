@@ -24,16 +24,16 @@ Ticket: PLAT-313. PR head: `3630737`. The Jev client is not installed on this ma
 **PASS, clean (manual).** AC-61 can fail. These implementations would each fail it:
 
 - a list form that mints only the first entry's column (TC-2083..2085);
-- a one-name target that also reads `ID`/`Test ID` (TC-2097, the adverse control);
-- a header read twice (TC-2097);
-- a diagnostic that fires when one of two entries misses (TC-2098);
-- an empty list accepted at load, or a scalar serialized back as a one-element list (TC-2098).
+- a one-name target that also reads `ID`/`Test ID` (TC-2086, the adverse control);
+- a header read twice (TC-2086);
+- a diagnostic that fires when one of two entries misses (TC-2087);
+- an empty list accepted at load, or a scalar serialized back as a one-element list (TC-2087).
 
-Adverse-case coverage for the requirement is present: control and refusal vectors, not only the happy path. TC-2095 and TC-2096 repeat TC-2083 over other source languages. Table reading does not depend on source language, so they add little discriminating power, but they are not vacuous.
+Adverse-case coverage for the requirement is present: control and refusal vectors, not only the happy path. TC-2084 and TC-2085 repeat TC-2083 over other source languages. Table reading does not depend on source language, so they add little discriminating power, but they are not vacuous.
 
 ## Review Scope
 
 | Unit | Role | Result |
 | --- | --- | --- |
 | FR-050-AC-61 | examined | Can fail; adverse cases present |
-| TC-2083..TC-2098 | examined | Each discriminates |
+| TC-2083..TC-2087 | examined | Each discriminates |

@@ -35,5 +35,5 @@ TC-2083..2087, CR-207 and FR-050-AC-61 collide with nothing on `main` or on open
 | Unit | Role | Result |
 | --- | --- | --- |
 | FR-050-AC-61 cross-references | examined | Resolve |
-| TC-2083..TC-2098 ids | examined | Unique |
+| TC-2083..TC-2087 ids | examined | Unique |
 | CR-207 id | examined | Unique |
