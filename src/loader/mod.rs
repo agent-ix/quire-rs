@@ -2815,8 +2815,10 @@ object_types:
     }
 
     #[trace("FR-013-AC-20", "TC-2211")]
-    // the same name in `archetypes:` and `artifact_types:` of ONE module is one
-    // registry entry and no collision; the same name from two modules still is.
+    // the same name in `archetypes:` and `artifact_types:`/`object_types:` of
+    // ONE module is one registry entry and no collision; a presentation row
+    // that carries its own validation part is a real second declaration; the
+    // same name from two modules still collides.
     #[test]
     fn tc2211_same_module_presentation_row_is_merged_not_a_duplicate() {
         let parent = tmpdir("f4-same-module");
@@ -2825,6 +2827,30 @@ object_types:
         let r = crate::Registry::load_module_set(&[&only]).expect("loads");
         assert!(duplicate_archetypes(&r).is_empty(), "{:?}", r.diagnostics());
         assert_eq!(r.archetype("ADR").expect("ADR").module, "only");
+
+        let objects = parent.join("objects");
+        let object_types = F4_TYPED.replace("artifact_types", "object_types");
+        write_f4_module(
+            &objects,
+            "objects",
+            &format!("{object_types}{F4_PRESENTATION}"),
+        );
+        let r = crate::Registry::load_module_set(&[&objects]).expect("loads");
+        assert!(duplicate_archetypes(&r).is_empty(), "{:?}", r.diagnostics());
+        assert!(r.archetype("ADR").is_some());
+
+        // A row of the same module that also carries a schema is a real conflict.
+        let both = parent.join("both");
+        let own_schema = "archetypes:\n- name: ADR\n  frontmatter_schema_ref: schemas/adr.schema.json\n  kind: navigation\n";
+        write_f4_module(&both, "both", &format!("{F4_TYPED}{own_schema}"));
+        let r = crate::Registry::load_module_set(&[&both]).expect("loads");
+        let dups = duplicate_archetypes(&r);
+        assert_eq!(dups.len(), 1, "{:?}", r.diagnostics());
+        assert!(matches!(
+            dups[0],
+            Diagnostic::DuplicateArchetype { name, modules }
+                if name == "ADR" && modules == &["both", "both"]
+        ));
 
         // Control: two modules each really declaring ADR still collide.
         let other = parent.join("other");
@@ -2840,7 +2866,7 @@ object_types:
     }
 
     #[trace("FR-013-AC-21", "TC-2212")]
-    // an `archetypes:` row with no validation part registers nothing, so it
+    // an `archetypes:` row with no quire-owned key registers nothing, so it
     // is not an accept-anything type; a real artifact type still validates.
     #[test]
     fn tc2212_presentation_only_row_is_not_a_type() {
@@ -2857,5 +2883,31 @@ object_types:
         assert!(
             !crate::validate_document::validate_document(adr, "---\nother: 1\n---\n# T\n").is_valid
         );
+    }
+
+    #[trace("FR-013-AC-21", "TC-2213")]
+    // a row with a carry-over key stays a registered type, and a row with a
+    // retired field is still refused (FR-031-AC-5), not silently dropped.
+    #[test]
+    fn tc2213_carry_over_rows_stay_and_retired_rows_are_refused() {
+        let parent = tmpdir("f4-owned-keys");
+        let m = parent.join("m");
+        write_f4_module(
+            &m,
+            "m",
+            "archetypes:\n- name: Linked\n  allowed_links: [implements]\n- name: Roled\n  roles: [r]\n- name: Old\n  required_sections: [A]\n",
+        );
+        let outcome = load_module_set(&[&m]);
+        assert!(
+            outcome.failures.iter().any(|f| f.archetype == "Old"),
+            "{:?}",
+            outcome.failures
+        );
+        let names: Vec<&str> = outcome.modules[0]
+            .archetypes
+            .iter()
+            .map(|a| a.name.as_str())
+            .collect();
+        assert_eq!(names, vec!["Linked", "Roled"]);
     }
 }

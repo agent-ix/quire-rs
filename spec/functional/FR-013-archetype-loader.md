@@ -65,6 +65,13 @@ relationships:
 > `state_schemas`) are declared opaque. A missing `manifest.yaml` is unchanged
 > (AC-13). Adds AC-18 and AC-19.
 
+> **CR note (presentation rows are not types — 2026-11-09, PLAT-277 F4):** An
+> `archetypes:` entry that declares no quire-owned key is a Filament
+> presentation row. It is no longer registered as an accept-anything type, so a
+> document typed with its name is now unknown, and it no longer collides with
+> the same-named `artifact_types:` entry of its own module. Adds AC-20 and
+> AC-21.
+
 ## Description
 
 `quire-rs` SHALL load archetypes from the **local filesystem**. The engine has no network calls, no Filament API client, and no required runtime services. Whatever populates the local directory tree (Filament sync, hand-authoring, git checkout, an unzipped distribution tarball) is outside the engine's concern.
@@ -244,8 +251,8 @@ unreachable, and an unreachable target is one nobody acts on.
 | FR-013-AC-17 | `Registry::load_module_set` consults neither `IX_FILAMENT_MODULES_PATH` / `IX_SCHEMA_PATH` nor `~/.ix/filament/modules/`: a module present only outside the declared set is not loaded, and an empty declared set produces an empty registry with no path diagnostics rather than the ambient module set. | Test |
 | FR-013-AC-18 | With `IX_FILAMENT_MODULES_PATH` and `IX_SCHEMA_PATH` both set, the resolved search roots are every root of the first, then every root of the second, then the default module root; neither variable replaces the others or the default root. | Test |
 | FR-013-AC-19 | A module whose `manifest.yaml` carries an unknown key (nested under `traceability:` or at the top level) makes every `Registry` constructor that reads it, search-root and named, strict and tolerant, return a `QuireError::ManifestError` naming the module, its `version` and the key; keys owned by other tools (`manifest_version`, `grammars`, `doc_kinds`, `nav`, `depends_on`, `state_schemas`) still load. | Test |
-| FR-013-AC-20 | A module that declares the same name in both `archetypes:` and `artifact_types:` (or `object_types:`) loads one registry entry for it and emits no `DuplicateArchetype`; the `archetypes:` row is that module's Filament presentation of the type. The same name declared by two different modules still emits `DuplicateArchetype`. | Test |
-| FR-013-AC-21 | An `archetypes:` entry that declares no validation part (no `frontmatter_schema_ref`, `data_schema`, `body_extraction` or `grammar_ref`) is not registered: `Registry::archetype` returns `None` for its name, exactly as for an undeclared name, while a real `artifact_types` entry of the same module still validates documents. | Test |
+| FR-013-AC-20 | A module that declares the same name in both `archetypes:` and `artifact_types:` or `object_types:`, the `archetypes:` row being a presentation row (AC-21), loads one registry entry for it and emits no `DuplicateArchetype`. If that same-named `archetypes:` row itself declares a quire-owned key (AC-21), it is a second declaration: `DuplicateArchetype` is emitted naming the module twice and the `artifact_types:`/`object_types:` entry is the active one. The same name declared by two different modules still emits `DuplicateArchetype`. | Test |
+| FR-013-AC-21 | An `archetypes:` entry that declares no quire-owned key is a presentation row and is not registered: `Registry::archetype` returns `None` for its name, exactly as for an undeclared name, while a real `artifact_types` entry of the same module still validates documents. The quire-owned keys are the validation parts (`frontmatter_schema_ref`, `data_schema`, `body_extraction`, `grammar_ref`), the FR-031 carry-over keys (`allowed_links`, `roles`, `defaults.id_pattern`, `has_plugin`, `construct`) and the retired fields (`required_sections`, `variants`, `template_ref`). An entry that declares any of them stays registered as before, and one with a retired field is still refused with an `ArchetypeLoadFailure` (FR-031-AC-5). | Test |
 
 ## Dependencies
 
