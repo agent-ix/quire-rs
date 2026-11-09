@@ -1813,16 +1813,23 @@ impl TraceabilityModel {
                     marker.name
                 ));
             }
-            match marker.syntax {
-                Some(TraceMarkerSyntax::RustAttribute)
-                    if marker.language != SourceLanguage::Rust =>
-                {
+            let required = match marker.syntax {
+                Some(TraceMarkerSyntax::RustAttribute) => Some(SourceLanguage::Rust),
+                Some(TraceMarkerSyntax::PythonDecorator) => Some(SourceLanguage::Python),
+                Some(
+                    TraceMarkerSyntax::TypescriptDecorator | TraceMarkerSyntax::TypescriptWrapper,
+                ) => Some(SourceLanguage::Typescript),
+                _ => None,
+            };
+            if let (Some(required), Some(syntax)) = (required, marker.syntax) {
+                if marker.language != required {
                     return Err(format!(
-                        "trace_tags.implements form '{}' requires Rust for rust_attribute",
-                        marker.name
+                        "trace_tags.implements form '{}' requires {} for {}",
+                        marker.name,
+                        required.as_str(),
+                        syntax.as_str()
                     ));
                 }
-                _ => {}
             }
         }
         Ok(())

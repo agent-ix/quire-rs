@@ -492,6 +492,7 @@ const arg = memoize(implementing("FR-752")(() => 2));
 export default implementing("FR-753")(() => 3);
 const inner = implementing("FR-754")(memoize(() => 4));
 const control = implementing("FR-755")(() => 5);
+const commented = implementing("FR-757")(/* c */ implementing("FR-758")(() => 6));
 @implementing("FR-756")
 class Decorated {}
 "#;
@@ -502,7 +503,12 @@ fn a_wrapper_attached_to_nothing_binds_nothing_and_is_reported_once() {
     let run = run(&[("lib.ts", TS_UNATTACHED)]);
     assert_eq!(
         run.implements(),
-        pairs(&[("control", "FR-755"), ("Decorated", "FR-756")])
+        pairs(&[
+            ("control", "FR-755"),
+            ("commented", "FR-757"),
+            ("commented", "FR-758"),
+            ("Decorated", "FR-756")
+        ])
     );
     let found = run.findings("implements-syntax-unattached");
     let at: Vec<_> = found
@@ -773,4 +779,157 @@ fn structural_scope_moves_no_verifies_edge_and_no_coverage_backing() {
         before_report.untracked_symbols
     );
     assert_eq!(before_report.totals.backed, 1);
+}
+
+#[trace("TC-2200", "FR-062-AC-18")]
+#[test]
+fn an_in_memory_model_cannot_keep_a_wrong_language_structural_form() {
+    use quire_rs::traceability::{SourceLanguage, TraceMarkerForm, TraceMarkerSyntax};
+    for (syntax, language) in [
+        (
+            TraceMarkerSyntax::PythonDecorator,
+            SourceLanguage::Typescript,
+        ),
+        (
+            TraceMarkerSyntax::TypescriptDecorator,
+            SourceLanguage::Python,
+        ),
+        (TraceMarkerSyntax::TypescriptWrapper, SourceLanguage::Rust),
+    ] {
+        let mut model = quire_rs::traceability::TraceabilityModel::default();
+        model.trace_tags.implements.push(TraceMarkerForm {
+            syntax: Some(syntax),
+            name: "wrong-language".to_string(),
+            language,
+            pattern: r"\A@x\(([^)]*)\)".to_string(),
+            template: None,
+            entry_paths: None,
+        });
+        let error = model.validate().unwrap_err();
+        assert!(error.contains("wrong-language"), "{error}");
+    }
+}
+
+#[trace("TC-2207", "FR-062-AC-25")]
+#[test]
+fn a_partial_candidate_creates_no_relation_even_where_another_candidate_matches_fully() {
+    let mut form = ts_decorator_form();
+    form["pattern"] = format!(r"implementing\({IDS}\)").into();
+    let run = run_with(
+        vec![],
+        vec![form],
+        &[(
+            "lib.ts",
+            "@implementing(\"FR-771\")\n@x.implementing(\"FR-772\")\nclass A {}\n",
+        )],
+    );
+    // Unanchored: both candidates match a substring only; neither binds.
+    assert!(run.implements().is_empty());
+    assert_eq!(run.graph.partial_syntax_matches.len(), 2);
+
+    let run = self::run(&[(
+        "lib.ts",
+        "@implementing(\"FR-773\")\n@t.implementing(\"FR-774\")\nclass B {}\n",
+    )]);
+    assert_eq!(run.implements(), pairs(&[("B", "FR-773")]));
+
+    // One form that fully matches one candidate and partially another.
+    let mut mixed = py_form();
+    mixed["pattern"] = format!(r"@?(?:ix_trace_py\.)?implements\({IDS}\)").into();
+    let run = run_with(
+        vec![],
+        vec![mixed],
+        &[(
+            "lib.py",
+            "@implements(\"FR-775\")\n@t.implements(\"FR-776\")\ndef f():\n    pass\n",
+        )],
+    );
+    assert_eq!(run.implements(), pairs(&[("f", "FR-775")]));
+    let partial = run.findings("partial-implements-syntax-match");
+    assert_eq!(partial.len(), 1);
+    assert_eq!(
+        partial[0].value.as_deref(),
+        Some("@t.implements(\"FR-776\")")
+    );
+}
+
+#[trace("TC-2208", "FR-062-AC-26")]
+#[test]
+fn the_advisory_names_the_decorator_for_a_python_method_and_class() {
+    let py = "# Implements: FR-007-AC-2\nclass Klass:\n    def first(self):\n        pass\n\n    # Implements: FR-007-AC-2\n    def method(self):\n        pass\n";
+    let run = advisory_run(&[("lib.py", py)], structural_forms());
+    assert!(run.implements().is_empty());
+    let values: Vec<_> = run
+        .findings("trace-id-outside-marker")
+        .iter()
+        .map(|d| (d.line.unwrap(), d.value.clone().unwrap()))
+        .collect();
+    assert_eq!(
+        values,
+        vec![
+            (1, "@implements(\"FR-007-AC-2\")".to_string()),
+            (6, "@implements(\"FR-007-AC-2\")".to_string()),
+        ]
+    );
+}
+
+#[trace("TC-2209", "FR-062-AC-27")]
+#[test]
+fn typescript_identity_decorator_location_and_finding_order_are_preserved() {
+    let plain =
+        "// unrelated\nconst early = 1; // trailing\nclass K {\n  m() {}\n}\nconst w = () => 1;\n";
+    let structural = "// unrelated\nconst early = 1; // trailing\n@implementing(\"FR-840\") class K {\n  @implementing(\"FR-841\") m() {}\n}\nconst w = implementing(\"FR-842\")(() => 1);\n";
+    let before = run(&[("lib.ts", plain)]);
+    let after = run(&[("lib.ts", structural)]);
+    // Same declarations: id, path, kind and declaration line unmoved by the
+    // candidates.
+    let identity = |run: &Run| -> Vec<_> {
+        let mut out: Vec<_> = run
+            .extraction
+            .symbols
+            .iter()
+            .map(|s| (s.id.clone(), s.path.clone(), s.kind, s.line, s.end_line))
+            .collect();
+        out.sort();
+        out
+    };
+    assert_eq!(identity(&before), identity(&after));
+
+    // Locations: each candidate's own line, after unrelated source and a
+    // trailing comment.
+    let line_of = |name: &str| {
+        after
+            .extraction
+            .symbols
+            .iter()
+            .find(|s| s.qualified_name == name)
+            .unwrap()
+            .attributes[0]
+            .line
+    };
+    assert_eq!(line_of("K"), 3);
+    assert_eq!(line_of("K.m"), 4);
+    assert_eq!(line_of("w"), 6);
+    let py = run(&[(
+        "lib.py",
+        "# unrelated\nx = 1  # trailing\n\n@implements(\"FR-843\")\ndef f():\n    pass\n",
+    )]);
+    let f = py
+        .extraction
+        .symbols
+        .iter()
+        .find(|s| s.qualified_name == "f")
+        .unwrap();
+    assert_eq!(f.attributes[0].line, 4);
+
+    // Determinism: partial-match and unattached findings repeat in order.
+    let mut partial = ts_wrapper_form();
+    partial["pattern"] = format!(r"implementing\({IDS}\)").into();
+    let source = "const a = t.implementing(\"FR-850\")(() => 1);\nimplementing(\"FR-851\")(() => 2);\nconst b = u.implementing(\"FR-852\")(() => 3);\n";
+    let first = run_with(vec![], vec![partial.clone()], &[("lib.ts", source)]);
+    let second = run_with(vec![], vec![partial], &[("lib.ts", source)]);
+    assert_eq!(first.graph.partial_syntax_matches.len(), 2);
+    assert_eq!(first.graph.unattached_syntax.len(), 1);
+    assert_eq!(first.graph, second.graph);
+    assert_eq!(first.report.diagnostics, second.report.diagnostics);
 }

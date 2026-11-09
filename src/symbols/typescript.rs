@@ -171,24 +171,29 @@ use quire_code_extraction::{parse_file, Language};
 use super::{leading_span, RawSymbol, SourceAttribute, SymbolKind};
 use crate::traceability::TraceMarkerSyntax;
 
-/// Parse `source` into raw symbols, or return a per-file reason to skip it.
+/// What one TypeScript file yields.
+pub(crate) struct Parsed {
+    pub symbols: Vec<RawSymbol>,
+    /// The curried calls no wrapper chain attaches to a declarator (FR-062), as
+    /// the callee call of each. The adapter reads call shape only and names no
+    /// wrapper: which of them a declared `typescript_wrapper` form names is the
+    /// binder's question.
+    pub unattached_calls: Vec<SourceAttribute>,
+}
+
+/// Parse `source` into raw symbols only; see [`parse_with_calls`].
+#[cfg(test)]
+pub(crate) fn parse(path: &str, source: &str) -> Result<Vec<RawSymbol>, String> {
+    parse_with_calls(path, source).map(|parsed| parsed.symbols)
+}
+
+/// Parse `source` into raw symbols and unattached calls, or return a per-file
+/// reason to skip it.
 ///
 /// **A declaration-structure failure fails loudly, naming the line** — the
 /// same contract the Rust adapter documents (`src/symbols/rust.rs`), backed
 /// by the same `quire-code-parse` diagnostic and the same body-node rule.
-#[cfg(test)]
-pub(crate) fn parse(path: &str, source: &str) -> Result<Vec<RawSymbol>, String> {
-    parse_with_calls(path, source).map(|parsed| parsed.0)
-}
-
-/// [`parse`], plus the curried calls no wrapper chain attaches to a declarator
-/// (FR-062), as the callee call of each. The adapter reads call shape only and
-/// names no wrapper: which of them a declared `typescript_wrapper` form names is
-/// the binder's question.
-pub(crate) fn parse_with_calls(
-    path: &str,
-    source: &str,
-) -> Result<(Vec<RawSymbol>, Vec<SourceAttribute>), String> {
+pub(crate) fn parse_with_calls(path: &str, source: &str) -> Result<Parsed, String> {
     // `.tsx` needs the TSX grammar (JSX syntax is a genuine parse ambiguity
     // against a bare type assertion in `.ts`); every other extension this
     // adapter is ever called for is `.ts` (`language_of` in `mod.rs` binds
@@ -238,7 +243,10 @@ pub(crate) fn parse_with_calls(
     let mut scopes: Vec<Scope> = Vec::new();
     walk(parsed.root_node(), source, &module, &mut scopes, &mut out);
     let unattached = unattached_calls(parsed.root_node(), source);
-    Ok((out, unattached))
+    Ok(Parsed {
+        symbols: out,
+        unattached_calls: unattached,
+    })
 }
 
 /// Function-valued node kinds a wrapper chain may wrap (FR-051-AC-51).
@@ -258,10 +266,12 @@ fn callee_call(call: Node) -> Option<Node> {
         .filter(|callee| callee.kind() == "call_expression")
 }
 
-/// The callee call of every link of a **wrapper chain** rooted at `call`, outer
-/// link first, or `None` when `call` is not one (FR-051-AC-51): a curried call
-/// whose single argument is a function-valued node or another wrapper chain.
-fn wrapper_chain(call: Node) -> Option<Vec<Node>> {
+/// Every link of a **wrapper chain** rooted at `call`, outer link first, as the
+/// curried call and its callee call, or `None` when `call` is not one
+/// (FR-051-AC-51): a curried call whose single argument is a function-valued
+/// node or another wrapper chain. The one function that decides chain shape, for
+/// minting and for the unattached-call set alike.
+fn wrapper_chain(call: Node) -> Option<Vec<(Node, Node)>> {
     let callee = callee_call(call)?;
     let arguments = call.child_by_field_name("arguments")?;
     let mut cursor = arguments.walk();
@@ -273,16 +283,16 @@ fn wrapper_chain(call: Node) -> Option<Vec<Node>> {
         return None;
     }
     if is_function_value(argument) {
-        return Some(vec![callee]);
+        return Some(vec![(call, callee)]);
     }
-    let mut links = vec![callee];
+    let mut links = vec![(call, callee)];
     links.extend(wrapper_chain(argument)?);
     Some(links)
 }
 
 /// The declarator nodes' wrapper-chain initializer, for a declarator whose name
 /// is a plain identifier (the only shape that mints a symbol).
-fn declarator_chain(declarator: Node) -> Option<Vec<Node>> {
+fn declarator_chain(declarator: Node) -> Option<Vec<(Node, Node)>> {
     let name = declarator.child_by_field_name("name")?;
     if name.kind() != "identifier" {
         return None;
@@ -299,19 +309,8 @@ fn unattached_calls(root: Node, source: &str) -> Vec<SourceAttribute> {
         curried: &mut Vec<(Node<'t>, Node<'t>)>,
     ) {
         if node.kind() == "variable_declarator" {
-            if let Some(value) = node.child_by_field_name("value") {
-                if declarator_chain(node).is_some() {
-                    // Every link of the chain: the root call, then each argument
-                    // that is itself a chain link.
-                    let mut link = Some(value);
-                    while let Some(call) = link {
-                        attached.insert(call.id());
-                        link = call
-                            .child_by_field_name("arguments")
-                            .and_then(|arguments| arguments.named_child(0))
-                            .filter(|argument| callee_call(*argument).is_some());
-                    }
-                }
+            if let Some(links) = declarator_chain(node) {
+                attached.extend(links.iter().map(|(call, _)| call.id()));
             }
         }
         if let Some(callee) = callee_call(node) {
@@ -824,7 +823,7 @@ fn mint_arrow_const_declarators(
         } else if let Some(links) = wrapper_chain(value) {
             links
                 .into_iter()
-                .filter_map(|link| node_candidate(link, source))
+                .filter_map(|(_, callee)| node_candidate(callee, source))
                 .collect()
         } else {
             continue;

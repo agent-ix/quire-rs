@@ -150,7 +150,8 @@ pub struct Symbol {
     /// (FR-062): `python_decorator` for a Python `def` or `class`,
     /// `typescript_decorator` for a class or method, `typescript_wrapper` for a
     /// `const`/`let`/`var`-bound function. `None` where the language declares no
-    /// structural position (a TypeScript `function` declaration, a suite, Rust).
+    /// structural position (a TypeScript `function` declaration, a `describe` suite,
+    /// the file's module container, Rust).
     pub position: Option<TraceMarkerSyntax>,
     pub language: SourceLanguage,
     /// Repo-relative path, `/`-separated so identities are platform-stable.
@@ -581,8 +582,8 @@ impl SymbolExtraction {
             #[cfg(feature = "typescript-symbols")]
             SourceLanguage::Typescript => {
                 Some(typescript::parse_with_calls(path, &source).map(|parsed| {
-                    unattached_calls = parsed.1;
-                    parsed.0
+                    unattached_calls = parsed.unattached_calls;
+                    parsed.symbols
                 }))
             }
             #[cfg(not(feature = "typescript-symbols"))]
