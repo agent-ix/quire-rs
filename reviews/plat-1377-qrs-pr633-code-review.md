@@ -49,3 +49,13 @@ No aggregate gate was run; the brief states the coder ran `make -k ci` green on 
 | Repo-wide `0.3.3` grep (PR head and `origin/main`) | examined | No stale `$ref` left |
 | `src/semantic/contract.rs` `block_validator`, `read_semantic_block` | context_only | FND-003 (dead code made dead by the relock) |
 | FR-069 version-agnostic ref resolution and `semantic_core` tolerance | context_only | No spec change needed, as the PR body claims |
+
+## Dispositions
+
+Round 1, head `fe997ce` (fix commit `fe997ce` on top of `18085f8`, which is rebased onto `7e61e14`, the 0.55.0 release). GitHub reports `MERGEABLE`. The fixture, schema and test `$ref` hunks are identical to the reviewed head `bccc1ef`. No `semantic-core/0.3` ref remains outside `reviews/` and `CHANGELOG.md`. No gate run (per brief).
+
+| FND | Outcome | Reason |
+| --- | --- | --- |
+| FND-001 | fixed | Rebased onto 0.55.0; the entry sits under `## [Unreleased]` with its own `### Changed` (CHANGELOG.md:10-12); GitHub `mergeable: MERGEABLE` |
+| FND-002 | fixed | Entry now says "There is no `{kind, value}` wire change in quire-rs" and lists the relocked FCD contract changes (semantic block drops `semantic_core`, `PACKAGE_LOCK` leaves `SCHEMAS`, manifest gains FR-149 keys) |
+| FND-003 | fixed | `block_validator` now clones the `semantic` block with no `required.retain`; the FR-069 instance strip (`map.remove("semantic_core")`, contract.rs:170) is kept |
