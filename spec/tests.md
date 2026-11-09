@@ -1190,15 +1190,16 @@ in this specification is not runtime or coverage evidence.
 | TC-1989 | Unknown guard, non-Rust guarded form and use outside implements are invalid module input, never an unguarded fallback | Integration | P0 | FR-062-AC-12 | 🚧 Planned |
 | TC-1990 | Guarded forms preserve identities, range-finding locations, parse-failure isolation, deterministic outputs and the scope/evidence separation | Integration | P0 | FR-062-AC-17 | 🚧 Planned |
 | TC-2200 | Load and round-trip the three module-declared syntax values; omission keeps the text form; unknown value, wrong-language form and a `markers` form are refused at load naming the form | Integration | P0 | FR-062-AC-18 | 🚧 Planned |
-| TC-2201 | Python decorator with two ids mints two `implements` and no `verifies`; wrapped, stacked and `async def` spellings bind as the single-line one; a substring-only pattern binds nothing | Integration | P0 | FR-062-AC-19 | 🚧 Planned |
-| TC-2202 | Python decorator-shaped comment, docstring and string bind nothing; class decorator binds the class only; nested def isolation; decorator on a test binds nothing | Integration | P0 | FR-062-AC-20 | 🚧 Planned |
-| TC-2203 | TypeScript decorator on a class and on a static, async or abstract method binds, before or after `export` and wrapped; property, accessor and parameter decorators bind nothing | Integration | P0 | FR-062-AC-21 | 🚧 Planned |
-| TC-2204 | TypeScript decorator-shaped comment, string and template literal bind nothing; class and method ownership; decorator on a test registration or suite binds nothing | Integration | P0 | FR-062-AC-22 | 🚧 Planned |
-| TC-2205 | `implementing(...)(fn)` as a const, exported const and multi-declarator arrow initializer binds the declarator's symbol through the inner-call candidate; a `function` declaration binds through no form | Integration | P0 | FR-062-AC-23 | 🚧 Planned |
-| TC-2206 | Unattached wrapper (bare statement, call argument, default export, symbol-less declarator) binds nothing and yields one `implements-marker-unattached` warning; attached control and decorator forms yield none | Integration | P0 | FR-062-AC-24 | 🚧 Planned |
+| TC-2201 | Python decorator with two ids mints two `implements` and no `verifies`; wrapped, stacked and `async def` spellings bind as the single-line one; a substring-only pattern and a renamed import bind nothing | Integration | P0 | FR-062-AC-19 | 🚧 Planned |
+| TC-2202 | Python decorator-shaped comment, docstring and string bind nothing; class decorator binds the class only; nested def isolation; a `test_` function binds nothing and a `@pytest.fixture` function binds | Integration | P0 | FR-062-AC-20 | 🚧 Planned |
+| TC-2203 | TypeScript decorator on a class and on a static or async method binds, before or after `export` and wrapped; class-expression, property, accessor, parameter and abstract-signature decorators bind nothing and yield no finding | Integration | P0 | FR-062-AC-21 | 🚧 Planned |
+| TC-2204 | TypeScript decorator-shaped comment, string and template literal bind nothing; class and method ownership; a class inside a `describe` callback binds normally and the `describe` binds nothing | Integration | P0 | FR-062-AC-22 | 🚧 Planned |
+| TC-2205 | `implementing(...)(fn)` as a const, exported const and multi-declarator initializer mints and binds the declarator's Function symbol through the callee-call candidate; `implementing(A)(implementing(B)(fn))` binds both ids; a `function` declaration binds through no form | Integration | P0 | FR-062-AC-23 | 🚧 Planned |
+| TC-2206 | Unattached wrapper (bare statement, `memoize(implementing(A)(fn))`, default export, `implementing(A)(memoize(fn))`, non-chain declarator) binds nothing and yields one `implements-syntax-unattached` warning; attached control and decorator forms yield none | Integration | P0 | FR-062-AC-24 | 🚧 Planned |
 | TC-2207 | Substring-only match of a decorator or wrapper candidate yields no relation and one `partial-implements-syntax-match` warning; unrelated decorators yield neither | Integration | P0 | FR-062-AC-25 | 🚧 Planned |
-| TC-2208 | Under structural-only Python and TypeScript forms, `# Implements:` and `// Implements:` bind nothing and the advisory names the rendered `@implements(...)` or `@implementing(...)`; a module still declaring a textual form binds as before | Integration | P0 | FR-062-AC-26 | 🚧 Planned |
-| TC-2209 | Structural forms preserve identities, range refusal, parse-failure isolation, determinism and the scope/evidence separation | Integration | P0 | FR-062-AC-27 | 🚧 Planned |
+| TC-2208 | Under structural-only forms, `# Implements:` and `// Implements:` bind nothing and the advisory names `@implements(...)` for a Python symbol, `@implementing(...)` for a TypeScript class or method and `implementing(...)` for a const-bound function, and the kind alone for a `function` declaration; a module still declaring a textual form binds as before | Integration | P0 | FR-062-AC-26 | 🚧 Planned |
+| TC-2209 | Structural forms preserve identities, range refusal, parse-failure isolation, determinism and the scope/evidence separation (subcases below); inspection of FR-062-CON-5 | Integration | P0 | FR-062-AC-27 | 🚧 Planned |
+| TC-2210 | A TypeScript declarator whose initializer is a wrapper chain mints a Function symbol (export, multi-declarator, nested chain); `memoize(fn)`, `callee(...)(memoize(fn))` and an unwrapped function expression mint none; the evidence census denominator is unchanged | Integration | P0 | FR-051-AC-51 | 🚧 Planned |
 | TC-1991 | A `columns` assert whose header conforms still fails with reason `row-width` for each row whose cell count differs from the header's, at the row's own line with its `row_id`; a uniformly wide table fires nothing (PLAT-217) | Unit | P0 | FR-033-AC-17 | ✅ |
 | TC-1992 | An `ix://` reference under a foreign `<org>/<repo>` authority is not `dangling-reference` when the bundle declares a different package (Strict and Okf), while the same id under the declared package, with no package declared, or as a bare id, still is (PLAT-1056) | Integration | P0 | FR-038-AC-9 | ✅ |
 | TC-2151 | The authority-versus-package comparison folds ASCII case: a mixed-case link to the bundle's own repo is still dangling, a mixed-case foreign authority is still skipped, and with no package declared every miss is dangling (PLAT-1357) | Integration | P0 | FR-038-AC-10 | ✅ |
@@ -1275,6 +1276,24 @@ Keep the existing ungated relation contract as the compatibility oracle for
 TC-1988. Inspection of FR-062-CON-4 SHALL follow syntax-node acquisition and
 ownership through the adapter/binder and verify that no parallel lexer or
 macro-expansion matcher supplies guarded candidates.
+
+TC-2209 SHALL have the following independently failing subcases; each SHALL assert
+its complete expected value rather than only successful execution:
+
+| Subcase | Required oracle |
+|----------|-----------------|
+| Identity | Extract the same Python and TypeScript declarations with and without the structural forms and compare every symbol id, path, kind and declaration position; compare exact relation endpoints for eligible candidates. |
+| Locations | Place a decorator and a wrapper after unrelated source and a trailing comment; assert the actual candidate's line, not the start of the attached-source span. |
+| Range refusal | Put a declared-id range inside a real decorator and inside a wrapper's callee call; assert the existing typed finding and no expanded or partial relation. |
+| File isolation | Compare a file the adapter rejects with an independently valid file; assert the existing per-file failure, zero relations from the rejected file and unchanged valid-file relations. |
+| Determinism | Repeat identical inputs and compare complete ordered relations and diagnostics, including partial-match and unattached findings. |
+| Verification separation | Include a genuine evidence-symbol control; compare the complete verifies-edge set before and after adding structural implements candidates. |
+| Backing separation | Compute coverage through the public path before and after adding structural candidates; assert exact equality of backed trace ids, totals and untracked_symbols while the implements edges change. |
+
+Inspection of FR-062-CON-5 SHALL follow decorator, wrapper and declaration
+acquisition through the Python and TypeScript adapters and the binder, and verify that
+no parallel comment/string lexer, no import or alias resolution and no code
+execution supplies structural candidates.
 
 ## Option Permutation Matrix
 
@@ -1995,7 +2014,7 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-051-AC-19 | TC-982, TC-1006, TC-1060 |
 | FR-051-AC-20 | TC-1029, TC-1030, TC-1031 |
 | FR-051-AC-21 | TC-1039, TC-1040, TC-1940 |
-| FR-051-AC-22 | TC-1044, TC-1046, TC-1081, TC-2165 |
+| FR-051-AC-22 | TC-1044, TC-1046, TC-1081, TC-2165, TC-2208 |
 | FR-051-AC-23 | TC-1052, TC-1053, TC-1054 |
 | FR-051-AC-24 | TC-1055, TC-1056, TC-1057 |
 | FR-051-AC-25 | TC-1879, TC-1880, TC-1881 |
@@ -2023,6 +2042,7 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-051-AC-48 | TC-2155 |
 | FR-051-AC-49 | TC-2161, TC-2162, TC-2165 |
 | FR-051-AC-50 | TC-2163 |
+| FR-051-AC-51 | TC-2210 |
 | FR-051-AC-28 | TC-1936, TC-1937, TC-2166 |
 | FR-052-AC-1 | TC-779 |
 | FR-052-AC-2 | TC-780 |
