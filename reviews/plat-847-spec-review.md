@@ -56,3 +56,22 @@ Author decisions:
 1. No advisory for an id embedded in a test name (including a TS registration title, now masked by AC-24): acceptable, because detection needs the removed reconstruction and CON-4 retags the three in-scope repositories first. The published coverage delta should list symbols tagged only through their name.
 2. FR-066 untouched: not acceptable as-is (FND-006).
 3. FR-062:58: flagged (FND-007).
+
+## New findings (disposition pass 1)
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-009 | medium | FR-051-AC-22 (fixed for FND-003) does not say which template is named when a kind "can carry an `implements` form that declares a `template`". spec-artifacts-process main declares `rust-implements-line` (template `/// Implements: {ids}`) before `rust-implements-attribute` (`syntax: rust_attribute`). Taking the first declared form tells a Rust author to write the textual form, which FR-050-AC-62 then warns about as `legacy-implements-form`. Name the same form FR-050-AC-62 renders (the first `syntax: rust_attribute` form with a template), and have TC-2165 assert the implements text | spec/functional/FR-051-source-symbol-extraction.md:217 |
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | 4d4877e: CON-3 is scoped to `verifies`/`trace_tags.markers` and the census, and excludes the FR-062 implements textual forms; the narrative says the same |
+| FND-002 | fixed | 4d4877e: CON-4 puts the module release before, or with, the engine release, and explains why via AC-43 |
+| FND-003 | fixed | 4d4877e: AC-49 renders `#[trace]` text only for evidence kinds; AC-22 gives non-binding kinds no `#[trace]` text (residual template choice in FND-009) |
+| FND-004 | fixed | 4d4877e: AC-28 and FR-050-AC-50 cover a range in a textual `implements` use; TC-2166 added |
+| FND-005 | fixed | 4d4877e: AC-22 states that a canonical marker on a non-binding symbol is not reported (comment and docstring lines only); TC-2165 replaces TC-1047 |
+| FND-006 | fixed | 4d4877e: FR-066 disposition 3 and the evidence table name the repository (retag) as owner, and the module only for an undeclared marker form |
+| FND-007 | fixed | 4d4877e: FR-062 now reads "Neither `ImplementsRelation` nor `VerifiesRelation` carries a `provenance` field ... (FR-051-CON-3)" |
+| FND-008 | fixed | 4d4877e: AC-43 rejects "any undeclared `trace_tags` key, naming it" |

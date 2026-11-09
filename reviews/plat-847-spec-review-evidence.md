@@ -28,3 +28,9 @@ Ticket: PLAT-847. Checked each new or edited obligation's verification method ag
 ## Verdict
 
 Methods match obligations, apart from FND-001.
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | 4d4877e: AC-49 drops "it reconstructs no id and holds no per-language pattern"; it now ends "The advisory binds nothing and moves no total." |

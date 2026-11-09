@@ -36,3 +36,20 @@ The exception is TC-1047's negative control (see SR-16420 FND-005). The defects 
 ## Verdict
 
 FND-006 blocks merge: the spec gate is red. The rest are reference and status defects, fixable in the same round as SR-16420. There are no id collisions with main or with any open PR. #622 edits the same FR-051 summary row and audit block, so whichever PR lands second rebases.
+
+## New findings (disposition pass 1)
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-007 | low | TC-2165's Traces To cell names only FR-051-AC-22, but the test asserts AC-49 clauses (one finding for the same id twice on one line; `unmatched_tags` unchanged) and the audit table maps it under FR-051-AC-49. Add FR-051-AC-49 to its Traces To | spec/tests.md:1156; spec/tests.md:1998 |
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | still-open | The withdrawn ids are now reserved and the FR-051 row is clean. Still open: the FR-050 Requirements Traceability row (spec/tests.md:148) cites `TC-1083 (#367 mixed binding channels retain the self-named subpopulation)` as live evidence, and the US-017 row (spec/tests.md:142) cites `TC-753` |
+| FND-002 | fixed | 4d4877e: the FR-050 row reads "except AC-44 (🚧, TC-2164)", the FR-051 row lists AC-11/22/24/28/49/50 as 🚧, and TC-1044, TC-1055..1057 and TC-1081 are 🚧 |
+| FND-003 | fixed | 4d4877e: TC-1894 reads "deliberately unlike the advisory masking of FR-051-AC-24" |
+| FND-004 | fixed | 4d4877e: TC-2090 no longer mentions `RewriteSuggestion` (0 occurrences in spec/tests.md) |
+| FND-005 | fixed | 4d4877e: the shell paragraph reads "It is a marker form, so FR-051-CON-3 does not retire it" |
+| FND-006 | fixed | 4d4877e merges main with #622: FR-051-AC-47/48 are now defined and the audit maps them (TC-2154/2155). The coder reports `make validate` at 198 documents, 0 failed; not re-run (no full gates) |

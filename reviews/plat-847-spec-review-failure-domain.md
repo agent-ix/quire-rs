@@ -26,3 +26,10 @@ Ticket: PLAT-847. Looked for unstated failure modes and identity confusion in th
 ## Verdict
 
 These are minor. With SR-16420's high findings fixed, the advisory's failure surface is bounded.
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | 4d4877e: AC-49 states that the finding is additive to the FR-050-AC-39 `unmatched_tags` record and the `mentions` entry |
+| FND-002 | fixed | 4d4877e: AC-49 defines an occurrence as one id on one line; the same id twice on one line yields one finding |

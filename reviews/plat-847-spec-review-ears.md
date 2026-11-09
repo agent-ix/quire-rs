@@ -26,3 +26,10 @@ Ticket: PLAT-847. Checked requirement grammar for the new and edited statements:
 ## Verdict
 
 These are minor grammar defects. AC-49 and AC-50 are long but each states one observable trigger and response.
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | 4d4877e: CON-3 has one SHALL; `quire validate` no longer raises `ears:non-singular` on FR-051 |
+| FND-002 | fixed | 4d4877e: FR-050-AC-44's second clause about another channel was removed |
