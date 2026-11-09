@@ -180,8 +180,7 @@ the call binds is exactly what the module's declared `pattern` matches against t
 candidate text. A renamed import (`import ix_trace_py as t`, `import {
 implementing as impl }`) therefore binds nothing unless a module pattern names it,
 and yields no finding because it matches no pattern; a module pattern SHALL be anchored at the start of the candidate, because an unanchored one would find `implementing("X")` inside `t.implementing("X")` and raise a partial-match finding. The shipped patterns accept
-the unqualified spelling and the package-qualified one (`ix_trace_py.implements`,
-`ixTrace.implementing`), as `spec-artifacts-process` FR-004 pins them.
+the unqualified spelling and the qualified one: `ix_trace_py.implements` (the module name) and `ixTrace.implementing`, where `ixTrace` is the namespace-import name `ix-trace-ts` documents (`import * as ixTrace from "@agent-ix/ix-trace-ts"`) and not a package name, as `spec-artifacts-process` FR-004 pins them.
 
 **Attachment.** The binder SHALL attach a decorator to the one declaration it
 decorates by syntax node and not by line span. A decorator SHALL bind its own
@@ -240,14 +239,15 @@ form of another language, and any of these three outside `trace_tags.implements`
 invalid module input naming the offending form, and SHALL NOT drop the guard and
 fall back to text matching.
 
-**The comment forms are replaced, not kept beside.** Both languages are prerelease,
-so the end state is one construct per language. A module whose Python or TypeScript
-`implements` forms declare only structural syntaxes has no textual form to read, so
-`# Implements:` and `// Implements:` SHALL bind nothing. The FR-051 advisory SHALL
-still report such a comment id on a production function or container, naming the
-replacement text of FR-051-AC-22 (the structural form of the symbol's language and
-position). The engine SHALL accept the new syntax values in a release before the
-module that declares them is released.
+**The comment forms are replaced, with no coexistence window.** Both languages are
+prerelease, so the end state is one construct per language. The module that declares
+the structural Python and TypeScript `implements` forms SHALL remove its textual
+forms for those languages in the same change, and that change SHALL ship with the
+engine release that accepts the new syntax values. No precondition measurement gates
+it. Under such a module `# Implements:` and `// Implements:` SHALL bind nothing, and
+the FR-051 advisory SHALL still report such a comment id on a production function or
+container, naming the replacement text of FR-051-AC-22 (the structural form of the
+symbol's language and position).
 
 **Runtime constructs are another repository's.** The decorator a Python author writes
 and the function a TypeScript author calls exist at run time and are specified by
@@ -287,7 +287,7 @@ waive any normative criterion.
 | FR-062-AC-22 | Decorator-shaped text in a TypeScript comment, string literal or template literal binds nothing, and the real decorator control binds; a class decorator binds the class and none of its methods, and a decorator on a method binds only that method. A class declared inside a `describe` callback binds its decorators as any class does, and the `describe` container itself binds nothing. | Test (TC-2204) |
 | FR-062-AC-23 | A `const`, `let` or `var` declarator whose initializer is a wrapper chain mints a Function symbol (FR-051-AC-51), and a declared `typescript_wrapper` form binds that symbol, as `export const` and a declarator of a multi-declarator statement do; the candidate is the callee call of each link and not the wrapped function. `implementing(A)(implementing(B)(fn))` binds the ids of both links to the one symbol. A `function` declaration binds through no TypeScript structural form. | Test (TC-2205) |
 | FR-062-AC-24 | A call whose callee call matches a `typescript_wrapper` form but which is a bare statement, an argument of another call (`memoize(implementing(A)(fn))`), a default export, a chain whose argument is neither function-valued nor a chain (`implementing(A)(memoize(fn))`), or the initializer of a declarator that is not a chain, binds nothing and yields one `implements-syntax-unattached` warning in `CoverageReport.diagnostics` naming the form, file, 1-based line and verbatim candidate; the attached control yields none, and a decorator form yields none. | Test (TC-2206) |
-| FR-062-AC-25 | A pattern matching a proper substring of a decorator or wrapper candidate yields no relation and one `partial-implements-syntax-match` warning naming the form, file, 1-based candidate line, qualified symbol and verbatim candidate, even where another candidate matches fully; a candidate the pattern does not match at all, including `@staticmethod`, `@dataclass` and `@Injectable()`, yields neither a relation nor this finding. | Test (TC-2207) |
+| FR-062-AC-25 | A pattern matching a proper substring of a decorator or wrapper candidate yields no relation and one `partial-implements-syntax-match` warning naming the form, file, 1-based candidate line, qualified symbol and verbatim candidate, even where another candidate matches fully; a candidate the pattern does not match at all, including `@staticmethod`, `@dataclass`, `@Injectable()` and a renamed-namespace spelling (`t.implementing("X")`, `@t.implements("X")`) against a start-anchored pattern, yields neither a relation nor this finding. | Test (TC-2207) |
 | FR-062-AC-26 | Under a module whose Python and TypeScript `implements` forms are structural only, `# Implements: FR-007-AC-2` and `// Implements: FR-007-AC-2` on a production function bind nothing, and the FR-051 advisory reports each under FR-051-AC-22 naming the text rendered from the declared structural form of that symbol's language and position that declares a `template`: `@implements("FR-007-AC-2")` for a Python function, method or class, `@implementing("FR-007-AC-2")` for a TypeScript class or method, and `implementing("FR-007-AC-2")` for a `const`-bound TypeScript function. A TypeScript `function` declaration, and a symbol whose language declares no structural templated form, is named by kind alone. A module that still declares a textual form for the language binds that comment as before. | Test (TC-2208) |
 | FR-062-AC-27 | Structural forms preserve symbol identities, the existing range refusal for an argument carrying a `..` range, per-file parse-failure isolation and deterministic relation and diagnostic ordering, and move no `verifies` edge and no coverage backing count. | Test (TC-2209) |
 
