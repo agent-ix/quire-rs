@@ -560,7 +560,7 @@ fn determinism_and_isolation() {
 
 #[trace("TC-1638", "FR-072-AC-8")]
 // the schema is 2020-12 with additionalProperties: false everywhere; the
-// compatibility fixture pins every field and state token; a removed field
+// expected-records fixture pins every field and state token; a removed field
 // fails the fixture.
 #[test]
 fn schema_and_compatibility_fixture() {
@@ -600,41 +600,13 @@ fn schema_and_compatibility_fixture() {
     }
     every_object_closed(&schema_value, "");
     let schema = schema();
-    if std::env::var_os("UPDATE_SEMANTIC_BASELINES").is_some() {
-        // Mint: the engine's records for five named cases, `$case` first.
-        let mut records = Vec::new();
-        for name in [
-            "golden-table-available",
-            "operations-available",
-            "required-section-missing",
-            "legacy-bullets-unavailable",
-            "unresolved-type-lossy",
-        ] {
-            let case = cases().into_iter().find(|c| c["name"] == name).unwrap();
-            let v = serde_json::to_value(extract_semantic_json(&case["input"]).unwrap()).unwrap();
-            let mut ordered = serde_json::Map::new();
-            ordered.insert("$case".into(), json!(name));
-            for (k, val) in v.as_object().unwrap() {
-                ordered.insert(k.clone(), val.clone());
-            }
-            records.push(Value::Object(ordered));
-        }
-        let out = json!({ "$comment": "FR-072-AC-8 compatibility fixture: semantic-v1 records the engine produced for the named cases.json inputs at minting; every field and state token is pinned. A drift here is a contract change.", "records": records });
-        fs::write(
-            root().join("tests/fixtures/semantic/semantic-v1.json"),
-            format!("{}\n", serde_json::to_string_pretty(&out).unwrap()),
-        )
-        .unwrap();
-    }
-    let fixture = read_json("tests/fixtures/semantic/semantic-v1.json");
-    let records = fixture["records"].as_array().unwrap();
+    let fixture = expected_records();
+    let records: Vec<&Value> = fixture.as_object().unwrap().values().collect();
     assert!(records.len() >= 3);
     let mut tokens = std::collections::BTreeSet::new();
     let mut keys = std::collections::BTreeSet::new();
-    for record in records {
-        let mut bare = record.clone();
-        bare.as_object_mut().unwrap().remove("$case");
-        assert!(schema.is_valid(&bare), "{record}");
+    for record in &records {
+        assert!(schema.is_valid(record), "{record}");
         for kind in ["fields", "clauses", "operations"] {
             tokens.insert(
                 record["availability"][kind]["state"]
@@ -664,11 +636,9 @@ fn schema_and_compatibility_fixture() {
     }
     // Removing or renaming a pinned field fails.
     let mut broken = records[0].clone();
-    broken.as_object_mut().unwrap().remove("$case");
     broken.as_object_mut().unwrap().remove("availability");
     assert!(!schema.is_valid(&broken));
     let mut renamed = records[0].clone();
-    renamed.as_object_mut().unwrap().remove("$case");
     let v = renamed
         .as_object_mut()
         .unwrap()
@@ -676,22 +646,6 @@ fn schema_and_compatibility_fixture() {
         .unwrap();
     renamed["findings"] = v;
     assert!(!schema.is_valid(&renamed));
-    // The fixture is the engine's own output for its inputs.
-    for record in records {
-        let name = record["$case"].as_str().unwrap();
-        let case = cases().into_iter().find(|c| c["name"] == name).unwrap();
-        let mut produced =
-            serde_json::to_value(extract_semantic_json(&case["input"]).unwrap()).unwrap();
-        produced["$case"] = json!(name);
-        let mut pinned = record.clone();
-        pinned.as_object_mut().unwrap().remove("$case");
-        let mut produced_cmp = produced.clone();
-        produced_cmp.as_object_mut().unwrap().remove("$case");
-        assert_eq!(
-            produced_cmp, pinned,
-            "{name}: compatibility fixture drifted from the engine"
-        );
-    }
 }
 
 #[trace("TC-1650", "FR-072-CON-3")]
