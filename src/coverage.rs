@@ -548,7 +548,6 @@ pub const COVERAGE_DIAGNOSTIC_REASONS: &[&str] = &[
     "archetype-matches-nothing",
     "catch-all-universal",
     "criterion-tagged-outside-row",
-    "entry-paths-not-applied",
     "function-not-evidence",
     "hollow-denominator",
     "id-column-matches-nothing",

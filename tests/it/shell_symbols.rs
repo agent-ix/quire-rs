@@ -278,10 +278,10 @@ fn tc2106_entry_paths_globs() {
     let graph = bind(&sh("a/x.sh", tagged), &bad);
     assert!(graph.verifies.is_empty());
     let not_applied: Vec<&str> = graph
-        .shell_findings
+        .diagnostics
         .iter()
-        .filter(|f| f.reason == "entry-paths-not-applied")
-        .map(|f| f.value.as_str())
+        .filter(|d| d.reason.starts_with("entry_paths not applied"))
+        .map(|d| d.path.as_str())
         .collect();
     assert_eq!(not_applied, ["a/[**"]);
 }

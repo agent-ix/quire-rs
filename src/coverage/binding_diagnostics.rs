@@ -2,9 +2,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use crate::symbols::shell_trace::{
-    ShellFinding, ENTRY_PATHS_NOT_APPLIED, FUNCTION_NOT_EVIDENCE, OUTSIDE_ENTRY_PATHS,
-};
+use crate::symbols::shell_trace::{ShellFinding, FUNCTION_NOT_EVIDENCE, OUTSIDE_ENTRY_PATHS};
 use crate::symbols::trace::{quoted_id_list, BindingCensus, LegacyImplementsUse, NonBindingTag};
 use crate::traceability::{SourceLanguage, TraceMarkerSyntax, TraceabilityModel};
 
@@ -198,18 +196,12 @@ pub(super) fn non_binding_tag_diagnostics(tags: &[NonBindingTag]) -> Vec<Coverag
 }
 
 /// One diagnostic per shell marker that matched a comment and bound nothing,
-/// and per `entry_paths` list that did not compile (FR-051-AC-39, AC-44).
+/// (FR-051-AC-44).
 pub(super) fn shell_finding_diagnostics(findings: &[ShellFinding]) -> Vec<CoverageDiagnostic> {
     findings
         .iter()
         .map(|finding| {
-            let applied = finding.reason == ENTRY_PATHS_NOT_APPLIED;
             let message = match finding.reason {
-                ENTRY_PATHS_NOT_APPLIED => format!(
-                    "the `entry_paths` pattern `{}` does not compile, so no `entry_paths` glob \
-                     applies and no shell entry point is eligible to bind",
-                    finding.value
-                ),
                 OUTSIDE_ENTRY_PATHS => format!(
                     "trace id `{}` sits in the header of {}:{}, but that path matches no \
                      `entry_paths` glob of a declared shell marker form, so it binds nothing",
@@ -230,8 +222,8 @@ pub(super) fn shell_finding_diagnostics(findings: &[ShellFinding]) -> Vec<Covera
                 declaration: "traceability.trace_tags".to_string(),
                 reason: finding.reason.to_string(),
                 message,
-                path: (!applied).then(|| finding.path.clone()),
-                line: (!applied).then_some(finding.line),
+                path: Some(finding.path.clone()),
+                line: Some(finding.line),
                 value: Some(finding.value.clone()),
                 guidance: None,
             }

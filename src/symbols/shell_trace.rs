@@ -21,8 +21,8 @@ use std::collections::BTreeSet;
 use regex::Regex;
 
 use super::trace::{
-    marker_ids, range_pattern, ImplementsRelation, RangeInTraceTag, SymbolGraph, TraceProvenance,
-    VerifiesRelation,
+    marker_ids, range_pattern, ImplementsRelation, RangeInTraceTag, SymbolGraph, TraceDiagnostic,
+    TraceProvenance, VerifiesRelation,
 };
 use super::{SourceAttribute, Symbol, SymbolExtraction, SymbolKind};
 use crate::corpus::declared_tables::ExcludeSet;
@@ -36,20 +36,16 @@ pub const FUNCTION_NOT_EVIDENCE: &str = "function-not-evidence";
 /// The marker sits in a comment that is neither a function's block nor the
 /// file header.
 pub const NOT_IN_TAG_CHANNEL: &str = "not-in-tag-channel";
-/// The module's `entry_paths` globs did not compile, so none applies (AC-39).
-pub const ENTRY_PATHS_NOT_APPLIED: &str = "entry-paths-not-applied";
-
-/// A shell marker the binder saw and could not bind, or a glob list it could
-/// not apply.
+/// A shell marker the binder saw and could not bind.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ShellFinding {
     /// One of the reason tokens above.
     pub reason: &'static str,
-    /// Repo-relative path; for [`ENTRY_PATHS_NOT_APPLIED`] the pattern.
+    /// Repo-relative path.
     pub path: String,
-    /// 1-based line of the comment; `0` when the finding names a pattern.
+    /// 1-based line of the comment.
     pub line: usize,
-    /// The trace id, or the offending pattern.
+    /// The trace id.
     pub value: String,
 }
 
@@ -100,12 +96,12 @@ impl<'m> ShellBinder<'m> {
                     .iter()
                     .find(|p| globset::Glob::new(p).is_err())
                     .cloned()
-                    .unwrap_or(reason);
-                graph.shell_findings.push(ShellFinding {
-                    reason: ENTRY_PATHS_NOT_APPLIED,
-                    path: pattern.clone(),
-                    line: 0,
-                    value: pattern,
+                    .unwrap_or_default();
+                graph.diagnostics.push(TraceDiagnostic {
+                    path: pattern,
+                    symbol: String::new(),
+                    trace_id: String::new(),
+                    reason: format!("entry_paths not applied: {reason}"),
                 });
                 ExcludeSet::default()
             }

@@ -43,11 +43,6 @@ pub(super) fn guidance_for(diagnostic: &CoverageDiagnostic) -> crate::finding::F
             locus,
             "correct the matrix reference or tag a test whose declared row references this criterion",
         ),
-        "entry-paths-not-applied" => FindingGuidance::remedy(
-            format!("`entry_paths` pattern `{value}`"),
-            "the `entry_paths` key of the shell marker form in the module manifest",
-            "correct the glob so it compiles; until then no shell entry point is eligible to bind",
-        ),
         "function-not-evidence" => FindingGuidance::remedy(
             format!("trace id `{value}`"),
             locus,
