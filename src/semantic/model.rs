@@ -1406,6 +1406,21 @@ fn table_features(
             };
             let before = out.diagnostics.len();
             let Some(read) = spec.read else {
+                let mut d = err(
+                    "semantic.feature-not-extractable",
+                    table.line,
+                    format!(
+                        "artifact {} declares a {} table at line {}; this engine does not extract it",
+                        ctx.path,
+                        spec.feature.name(),
+                        table.line
+                    ),
+                )
+                .with_reason(spec.feature.name());
+                d.source_span = Some(line_span(ctx, lines, table.line));
+                d.section = Some(Section::Heading(heading).label());
+                out.diagnostics.push(d);
+                failed.push(spec.feature);
                 continue;
             };
             read(&mut TableRead {

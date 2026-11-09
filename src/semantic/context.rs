@@ -92,7 +92,6 @@ impl BundleIndex {
         self.objects.is_empty()
             && self.enumerations.is_empty()
             && self.imports.is_empty()
-            && self.artifacts.is_empty()
             && self.imported_artifacts.is_empty()
     }
 

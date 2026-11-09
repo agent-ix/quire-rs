@@ -1559,6 +1559,12 @@ fn undeclared_dimension_tables_are_refused_and_absent_ones_leave_no_member() {
 
     let plain = "---\nid: FR-100\ntitle: Order\nobject: entity\n---\n# FR-100: Order\n\nProse.\n";
     let record = extract(plain, &[], dsl(json!({})));
+    let undeclared = extract(plain, &[], json!(null));
+    assert_eq!(
+        serde_json::to_string(&record).unwrap(),
+        serde_json::to_string(&undeclared).unwrap(),
+        "an artifact with none of the tables is the FR-072 record byte for byte"
+    );
     assert!(record.get("model").is_none(), "{record:#}");
     for member in ["dimension", "terms", "unit"] {
         assert!(record.get(member).is_none(), "{member}: {record:#}");
@@ -1581,8 +1587,26 @@ fn clock_field_record_validates_against_semantic_v1() {
     let record = extract(md, &[], dsl(json!({})));
     assert_eq!(
         record["fields"][0]["type"]["target"],
-        json!({ "kind": "KernelScalar", "value": "Clock" }),
+        json!({ "kind": "SemanticId", "value": "ix://quire/native/Clock" }),
         "{record:#}"
     );
     assert_eq!(record["availability"]["fields"]["state"], "available");
+}
+
+/// A declared `dimension`, `terms` or `unit` locator is refused visibly
+/// until its reader exists: the table never vanishes without a diagnostic.
+#[trace("TC-1950", "FR-075-AC-19")]
+#[test]
+fn declared_dimension_tables_without_a_reader_are_refused() {
+    let md = "---\nid: FR-100\ntitle: Order\nobject: entity\n---\n# FR-100: Order\n\n\
+## Basis\n\n| Base |\n|---|\n| true |\n";
+    let record = extract(
+        md,
+        &[],
+        dsl(json!({ "dimension": row("Basis", &["Base"], &[]) })),
+    );
+    let d = diagnostic(&record, "semantic.feature-not-extractable", "dimension");
+    assert_eq!(d["line"], line_of(md, "| Base |"), "{record:#}");
+    assert_eq!(d["section"], "Basis", "{record:#}");
+    assert_model_unavailable(&record);
 }

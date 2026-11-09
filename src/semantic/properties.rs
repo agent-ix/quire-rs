@@ -18,14 +18,13 @@ use super::decl::{
 use super::model::{line_span, not_extractable, FieldFeatureDecl, ModelFeature, Presence, Section};
 use super::resolver::compile_module_schema;
 use super::scan::{blocks_in, comma_list, level2_sections, lines, Block, Fence, Table};
-use super::units::{resolve_token, Resolution, UnitToken};
+use super::units::{resolve_token, Resolution, TokenKind, UnitToken};
 use super::{KindAvailability, SemanticDiagnostic};
 
 /// The native name `Clock`, a `Type` cell beside the kernel scalar names.
 const NATIVE_CLOCK: &str = "Clock";
-/// The `SemanticId` a `Clock` target is read as when a produced entry is
-/// validated against `FieldDecl.json`, whose `TypeRef.target` admits only a
-/// `SemanticId` or a kernel scalar.
+/// The `SemanticId` a `Clock` cell lowers to: every native type is the
+/// identity `ix://quire/native/<Name>`.
 const NATIVE_CLOCK_ID: &str = "ix://quire/native/Clock";
 /// A `Type` cell opening a quantity token, `Quantity<u>`.
 const QUANTITY_PREFIX: &str = "Quantity<";
@@ -718,7 +717,9 @@ pub(crate) fn map_type(
             return (None, false);
         }
         return (
-            Some(plain_type_ref(TypeRefTarget::KernelScalar(token))),
+            Some(plain_type_ref(TypeRefTarget::SemanticId(
+                NATIVE_CLOCK_ID.to_string(),
+            ))),
             false,
         );
     }
@@ -908,7 +909,7 @@ fn map_quantity(
         ));
         return (None, false);
     }
-    match resolve_token(ctx, "unit", token) {
+    match resolve_token(ctx, TokenKind::Unit, token) {
         Resolution::Resolved(identity) => (
             Some(plain_type_ref(TypeRefTarget::SemanticId(identity))),
             false,
@@ -925,9 +926,12 @@ fn map_quantity(
                     "semantic.unresolved-type",
                     SemanticSeverity::Advisory,
                     line,
-                    format!("unit {inner:?} resolves to no unit artifact ({reason})"),
+                    format!(
+                        "unit {inner:?} resolves to no unit artifact ({reason})",
+                        reason = reason.as_str()
+                    ),
                 )
-                .with_reason(reason),
+                .with_reason(reason.as_str()),
             );
             (
                 Some(plain_type_ref(TypeRefTarget::SemanticId(format!(
@@ -1267,10 +1271,7 @@ fn validate_decls(fields: &[FieldDecl], diagnostics: &mut Vec<SemanticDiagnostic
     }
     let validator = field_decl_validator();
     for field in fields {
-        let mut value = serde_json::to_value(field).unwrap_or(Value::Null);
-        if field.type_ref.target == TypeRefTarget::KernelScalar(NATIVE_CLOCK.to_string()) {
-            value["type"]["target"] = json!({ "kind": "SemanticId", "value": NATIVE_CLOCK_ID });
-        }
+        let value = serde_json::to_value(field).unwrap_or(Value::Null);
         if !validator.is_valid(&value) {
             diagnostics.push(err(
                 "semantic.internal-invalid-decl",

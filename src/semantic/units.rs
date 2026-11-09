@@ -45,6 +45,43 @@ fn is_package(text: &str) -> bool {
         .is_some_and(|(org, repo)| segment(org) && segment(repo))
 }
 
+/// The object type a token's artifact must carry.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum TokenKind {
+    Unit,
+    /// A dimension token, read by the FR-075 dimension tables.
+    #[cfg_attr(not(test), allow(dead_code))]
+    Dimension,
+}
+
+impl TokenKind {
+    fn object(self) -> &'static str {
+        match self {
+            Self::Unit => "unit",
+            Self::Dimension => "dimension",
+        }
+    }
+}
+
+/// Why a token resolved to no artifact: the `reason` of
+/// `semantic.unresolved-type`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum UnresolvedReason {
+    NoBundleIndex,
+    UnknownToken,
+    ImportUnresolved,
+}
+
+impl UnresolvedReason {
+    pub(crate) fn as_str(self) -> &'static str {
+        match self {
+            Self::NoBundleIndex => "no-bundle-index",
+            Self::UnknownToken => "unknown-token",
+            Self::ImportUnresolved => "import-unresolved",
+        }
+    }
+}
+
 /// What a token resolved to.
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum Resolution {
@@ -54,7 +91,7 @@ pub(crate) enum Resolution {
     Ambiguous(String),
     /// No artifact of the required object type matched; `reason` is the one
     /// `semantic.unresolved-type` reason.
-    Unresolved { reason: &'static str },
+    Unresolved { reason: UnresolvedReason },
 }
 
 /// One artifact a token may match.
@@ -155,12 +192,13 @@ fn settle(matches: &[&Candidate<'_>], token: &str) -> Option<Resolution> {
 /// it names, reading only the `BundleIndex`.
 pub(crate) fn resolve_token(
     ctx: &SemanticContext,
-    object: &str,
+    kind: TokenKind,
     token: UnitToken<'_>,
 ) -> Resolution {
-    if ctx.bundle.is_empty() {
+    let object = kind.object();
+    if ctx.bundle.is_empty() && ctx.bundle.artifacts.is_empty() {
         return Resolution::Unresolved {
-            reason: "no-bundle-index",
+            reason: UnresolvedReason::NoBundleIndex,
         };
     }
     let own = own_candidates(ctx, object);
@@ -177,7 +215,7 @@ pub(crate) fn resolve_token(
                 settle(&matching(&own, name), name)
             } else if !ctx.module.imports.contains_key(package) {
                 return Resolution::Unresolved {
-                    reason: "unknown-token",
+                    reason: UnresolvedReason::UnknownToken,
                 };
             } else if !ctx
                 .bundle
@@ -186,7 +224,7 @@ pub(crate) fn resolve_token(
                 .any(|a| a.package == package)
             {
                 return Resolution::Unresolved {
-                    reason: "import-unresolved",
+                    reason: UnresolvedReason::ImportUnresolved,
                 };
             } else {
                 let imported = imported_candidates(ctx, object, Some(package));
@@ -195,7 +233,7 @@ pub(crate) fn resolve_token(
         }
     };
     found.unwrap_or(Resolution::Unresolved {
-        reason: "unknown-token",
+        reason: UnresolvedReason::UnknownToken,
     })
 }
 
@@ -241,15 +279,15 @@ mod tests {
         })
     }
 
-    fn resolve(ctx: &SemanticContext, object: &str, token: &str) -> Resolution {
-        resolve_token(ctx, object, UnitToken::parse(token).expect("token"))
+    fn resolve(ctx: &SemanticContext, kind: TokenKind, token: &str) -> Resolution {
+        resolve_token(ctx, kind, UnitToken::parse(token).expect("token"))
     }
 
     fn resolved(identity: &str) -> Resolution {
         Resolution::Resolved(identity.to_string())
     }
 
-    fn unresolved(reason: &'static str) -> Resolution {
+    fn unresolved(reason: UnresolvedReason) -> Resolution {
         Resolution::Unresolved { reason }
     }
 
@@ -257,12 +295,15 @@ mod tests {
     #[test]
     fn bare_tokens_prefer_the_own_bundle_then_the_imports() {
         let ctx = context(imported_bundle());
-        assert_eq!(resolve(&ctx, "unit", "s"), resolved("ix://acme/own/type/s"));
         assert_eq!(
-            resolve(&ctx, "unit", "Millisecond"),
+            resolve(&ctx, TokenKind::Unit, "s"),
+            resolved("ix://acme/own/type/s")
+        );
+        assert_eq!(
+            resolve(&ctx, TokenKind::Unit, "Millisecond"),
             resolved("ix://acme/time-units/type/ms")
         );
-        match resolve(&ctx, "unit", "ms") {
+        match resolve(&ctx, TokenKind::Unit, "ms") {
             Resolution::Ambiguous(message) => {
                 assert!(
                     message.contains("acme/time-units") && message.contains("acme/other-units")
@@ -277,7 +318,7 @@ mod tests {
             .push(json!({ "id": "ms", "object": "unit", "operations": [] }));
         let ctx = context(with_own);
         assert_eq!(
-            resolve(&ctx, "unit", "ms"),
+            resolve(&ctx, TokenKind::Unit, "ms"),
             resolved("ix://acme/own/type/ms")
         );
     }
@@ -287,28 +328,28 @@ mod tests {
     fn qualified_tokens_consult_only_their_package() {
         let ctx = context(imported_bundle());
         assert_eq!(
-            resolve(&ctx, "unit", "acme/time-units::ms"),
+            resolve(&ctx, TokenKind::Unit, "acme/time-units::ms"),
             resolved("ix://acme/time-units/type/ms")
         );
         assert_eq!(
-            resolve(&ctx, "unit", "acme/other-units::ms"),
+            resolve(&ctx, TokenKind::Unit, "acme/other-units::ms"),
             resolved("ix://acme/other-units/type/ms")
         );
         assert_eq!(
-            resolve(&ctx, "unit", "acme/own::s"),
+            resolve(&ctx, TokenKind::Unit, "acme/own::s"),
             resolved("ix://acme/own/type/s")
         );
         assert_eq!(
-            resolve(&ctx, "unit", "acme/time-units::Time"),
-            unresolved("unknown-token")
+            resolve(&ctx, TokenKind::Unit, "acme/time-units::Time"),
+            unresolved(UnresolvedReason::UnknownToken)
         );
         assert_eq!(
-            resolve(&ctx, "unit", "acme/none::ms"),
-            unresolved("unknown-token")
+            resolve(&ctx, TokenKind::Unit, "acme/none::ms"),
+            unresolved(UnresolvedReason::UnknownToken)
         );
         assert_eq!(
-            resolve(&ctx, "unit", "acme/missing::ms"),
-            unresolved("import-unresolved")
+            resolve(&ctx, TokenKind::Unit, "acme/missing::ms"),
+            unresolved(UnresolvedReason::ImportUnresolved)
         );
     }
 
@@ -318,7 +359,7 @@ mod tests {
         let mut bundle = imported_bundle();
         let ctx = context(bundle.clone());
         assert_eq!(
-            resolve(&ctx, "dimension", "Time"),
+            resolve(&ctx, TokenKind::Dimension, "Time"),
             resolved("ix://acme/time-units/type/Time")
         );
         bundle["artifacts"]
@@ -327,11 +368,11 @@ mod tests {
             .push(json!({ "id": "Time", "object": "dimension", "operations": [] }));
         let ctx = context(bundle);
         assert_eq!(
-            resolve(&ctx, "dimension", "Time"),
+            resolve(&ctx, TokenKind::Dimension, "Time"),
             resolved("ix://acme/own/type/Time")
         );
         assert_eq!(
-            resolve(&ctx, "dimension", "acme/time-units::Time"),
+            resolve(&ctx, TokenKind::Dimension, "acme/time-units::Time"),
             resolved("ix://acme/time-units/type/Time")
         );
     }
@@ -344,10 +385,13 @@ mod tests {
             "artifacts": [{ "id": "s", "object": "unit", "operations": [] }]
         }));
         assert_eq!(
-            resolve(&ctx, "unit", "acme/time-units::ms"),
-            unresolved("import-unresolved")
+            resolve(&ctx, TokenKind::Unit, "acme/time-units::ms"),
+            unresolved(UnresolvedReason::ImportUnresolved)
         );
-        assert_eq!(resolve(&ctx, "unit", "ms"), unresolved("unknown-token"));
+        assert_eq!(
+            resolve(&ctx, TokenKind::Unit, "ms"),
+            unresolved(UnresolvedReason::UnknownToken)
+        );
     }
 
     #[trace("TC-1952", "FR-070-AC-14")]
@@ -355,7 +399,10 @@ mod tests {
     fn an_empty_index_has_the_single_reason_no_bundle_index() {
         let ctx = context(json!({}));
         for token in ["acme/time-units::ms", "acme/none::ms", "ms"] {
-            assert_eq!(resolve(&ctx, "unit", token), unresolved("no-bundle-index"));
+            assert_eq!(
+                resolve(&ctx, TokenKind::Unit, token),
+                unresolved(UnresolvedReason::NoBundleIndex)
+            );
         }
     }
 
