@@ -190,3 +190,43 @@ fn non_rust_source_yields_no_finding() {
     assert!(bound > 0, "the Python use still binds");
     assert!(findings(&report).is_empty());
 }
+
+#[trace("TC-2090", "FR-050-AC-62")]
+#[test]
+fn a_nested_use_yields_one_finding_naming_the_innermost_member() {
+    let source = "pub mod inner {\n\
+    /// Implements: FR-007-AC-1\n\
+    pub fn in_mod() {}\n\
+}\n\
+\n\
+pub trait Shape {\n\
+    /// Implements: FR-007-AC-2\n\
+    fn in_trait(&self);\n\
+}\n\
+\n\
+pub fn outer() {\n\
+    /// Implements: FR-007-AC-3\n\
+    fn in_fn() {}\n\
+    in_fn();\n\
+}\n";
+    let forms = vec![
+        legacy_form("textual", "rust", LEGACY_PATTERN),
+        attribute_form("attr", Some("#[implements({ids})]")),
+    ];
+    let (_, _, report) = run(forms, &[("lib.rs", source)]);
+    let found = findings(&report);
+    let at: Vec<(Option<usize>, bool)> = found
+        .iter()
+        .map(|d| {
+            let member = ["in_mod", "in_trait", "in_fn"]
+                .iter()
+                .any(|name| d.message.contains(&format!("{name}` at")));
+            (d.line, member)
+        })
+        .collect();
+    assert_eq!(
+        at,
+        vec![(Some(2), true), (Some(7), true), (Some(12), true)],
+        "{found:?}"
+    );
+}

@@ -103,6 +103,9 @@ pub struct LegacyImplementsUse {
     pub line: usize,
     /// The ids this occurrence binds, in authored order.
     pub trace_ids: Vec<String>,
+    /// `leading_line` of the symbol that read it; an enclosing container reads
+    /// the same text, and the greatest value is the innermost owner.
+    pub owner_leading_line: usize,
 }
 
 /// A mechanical marker-rewrite suggestion for a legacy binding (FR-051-AC-11).
@@ -872,10 +875,27 @@ pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolG
         (&a.path, &a.symbol, &a.trace_id, &a.form).cmp(&(&b.path, &b.symbol, &b.trace_id, &b.form))
     });
     graph.implements.dedup();
+    // An authored line is one use, owned by the innermost symbol that reads
+    // it: sort the innermost owner first within each (path, line) and keep it.
     graph.legacy_implements.sort_by(|a, b| {
-        (&a.path, a.line, &a.symbol, &a.trace_ids).cmp(&(&b.path, b.line, &b.symbol, &b.trace_ids))
+        (
+            &a.path,
+            a.line,
+            std::cmp::Reverse(a.owner_leading_line),
+            &a.symbol,
+            &a.trace_ids,
+        )
+            .cmp(&(
+                &b.path,
+                b.line,
+                std::cmp::Reverse(b.owner_leading_line),
+                &b.symbol,
+                &b.trace_ids,
+            ))
     });
-    graph.legacy_implements.dedup();
+    graph
+        .legacy_implements
+        .dedup_by(|later, kept| later.path == kept.path && later.line == kept.line);
     graph.tagged_not_bound.sort_by(|a, b| {
         (&a.language, &a.path, a.line, &a.symbol).cmp(&(&b.language, &b.path, b.line, &b.symbol))
     });
@@ -1325,6 +1345,7 @@ fn bind_implements(
                         symbol: symbol.qualified_name.clone(),
                         line: line + offset,
                         trace_ids: bound_ids,
+                        owner_leading_line: symbol.leading_line,
                     });
                 }
             }
