@@ -1,5 +1,5 @@
 ---
-id: SR-16326
+id: SR-16330
 title: "Code review (Rust lane) — PLAT-182 linear-time skeptic oracle detection (quire-rs PR 608)"
 type: SpecReview
 analysis: code-review
@@ -41,3 +41,17 @@ The defects are in the test. Its insertion point takes over another test's trace
 | src/skeptic.rs plat182 test | examined | FND-001, FND-002 |
 | src/skeptic.rs oracle_copies_in (callers) | context_only | One call of each candidate function per test span |
 | FR-064-AC-3 | context_only | Trace target displaced by FND-001 |
+
+## New findings (disposition pass 1)
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-004 | low | The fix commit adds `reviews/plat-182-code-review.md` and `reviews/plat-182-gap-analysis.md` with ids SR-16326 and SR-16327. On origin/main those ids already belong to `reviews/plat-877-*` and `spec/reviews/plat-1170-*`. Free ids are SR-16330 and SR-16331, so this file becomes SR-16330 and the gap-analysis file SR-16331 | reviews/plat-182-code-review.md:2, reviews/plat-182-gap-analysis.md:2 |
+
+## Dispositions
+
+| FND | Outcome | Reason |
+| --- | --- | --- |
+| FND-001 | fixed | At 9b3103c the `#[trace("TC-1000", "FR-064-AC-3")]` block sits directly above `tc1000_similarity_reads_tokens_not_layout`; `quire trace --id FR-064-AC-3` lists only that test |
+| FND-002 | fixed | The timing bound is gone. `plat182_oracle_candidate_scans_assertions_once_per_binding_name` asserts `scans == 2` through the private `oracle_candidate_counting_scans`. The reviewer disabled the per-name cache and the test failed with left 4001, right 2. The counter is a private `&mut usize` bumped once per scan; it adds no public surface and costs nothing |
+| FND-003 | fixed | `newline_count_before` is deleted and `span[..start].matches('\n').count()` is back at both call sites |

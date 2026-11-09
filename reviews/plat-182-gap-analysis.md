@@ -1,5 +1,5 @@
 ---
-id: SR-16327
+id: SR-16331
 title: "Gap analysis — PLAT-182 linear-time skeptic oracle detection (quire-rs PR 608)"
 type: SpecReview
 analysis: gap-analysis
@@ -18,7 +18,7 @@ Ticket criteria, checked against the code:
 - No regex re-run inside a loop over matches from the same span: met in effect. The assertion scan still sits lexically inside the binding loop, but it is memoized per binding name and runs at most twice per span.
 - No `matches('\n').count()` remains: met.
 - A regression test over several `expected`/`oracle` bindings asserts candidate and `line_offset`: met for one shape (4000 unasserted `expected` bindings, then an asserted `oracle`).
-- Reverting the change keeps the functional assertions passing: met. The timing guard does not discriminate either; see SR-16326 FND-002.
+- Reverting the change keeps the functional assertions passing: met. The timing guard does not discriminate either; see SR-16330 FND-002.
 
 ## Verdict
 
@@ -35,5 +35,11 @@ Ticket criteria, checked against the code:
 | Unit | Role | Result |
 | --- | --- | --- |
 | FR-064-AC-3 | examined | Trace displaced (FND-001) |
-| PLAT-182 ticket criteria (4) | examined | Met; timing guard weakness recorded in SR-16326 |
-| src/skeptic.rs | context_only | Production change covered by SR-16326 |
+| PLAT-182 ticket criteria (4) | examined | Met; timing guard weakness recorded in SR-16330 |
+| src/skeptic.rs | context_only | Production change covered by SR-16330 |
+
+## Dispositions
+
+| FND | Outcome | Reason |
+| --- | --- | --- |
+| FND-001 | fixed | At 9b3103c `quire trace --id FR-064-AC-3` lists only `tests::tc1000_similarity_reads_tokens_not_layout` (src/skeptic.rs:1430) |
