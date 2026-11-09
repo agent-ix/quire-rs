@@ -383,6 +383,7 @@ pub fn extract_tree_scoped(
             glob_diagnostics.push(SymbolDiagnostic {
                 path: pattern.to_string(),
                 reason: format!("source_exclude not applied — {reason}"),
+                severity: DiagnosticSeverity::Error,
             });
             crate::corpus::declared_tables::ExcludeSet::default()
         }
