@@ -232,6 +232,20 @@ pub struct SourceFile {
 pub struct SymbolDiagnostic {
     pub path: String,
     pub reason: String,
+    /// `Warning` for findings that never change an exit code or refuse a
+    /// result (FR-051-AC-31); `Error` for a file extraction could not read.
+    pub severity: DiagnosticSeverity,
+}
+
+/// Severity of a [`SymbolDiagnostic`].
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum DiagnosticSeverity {
+    /// A file or glob extraction could not honour.
+    #[default]
+    Error,
+    /// Advisory: reported, never refuses and never changes an exit code.
+    Warning,
 }
 
 /// This build has no symbol adapter for a language the tree holds source in
@@ -369,6 +383,7 @@ pub fn extract_tree_scoped(
             glob_diagnostics.push(SymbolDiagnostic {
                 path: pattern.to_string(),
                 reason: format!("source_exclude not applied — {reason}"),
+                severity: DiagnosticSeverity::Error,
             });
             crate::corpus::declared_tables::ExcludeSet::default()
         }
@@ -448,6 +463,7 @@ pub fn extract_tree_scoped(
             Err(e) => out.diagnostics.push(SymbolDiagnostic {
                 path: rel,
                 reason: format!("unreadable: {e}"),
+                severity: DiagnosticSeverity::Error,
             }),
         }
     }
@@ -531,12 +547,14 @@ impl SymbolExtraction {
                 self.diagnostics.push(SymbolDiagnostic {
                     path: path.to_string(),
                     reason,
+                    severity: DiagnosticSeverity::Error,
                 });
                 return;
             }
         };
+        let mut file_symbols: Vec<Symbol> = Vec::with_capacity(raw.len());
         for r in raw {
-            self.symbols.push(Symbol {
+            file_symbols.push(Symbol {
                 attributes: r.attributes,
                 language,
                 path: path.to_string(),
@@ -551,6 +569,9 @@ impl SymbolExtraction {
                 ignored: r.ignored,
             });
         }
+        self.diagnostics
+            .extend(id_collision_diagnostics(path, &file_symbols));
+        self.symbols.extend(file_symbols);
         self.symbols.sort_by(|a, b| {
             (&a.path, a.line, &a.qualified_name).cmp(&(&b.path, b.line, &b.qualified_name))
         });
@@ -561,6 +582,70 @@ impl SymbolExtraction {
         });
         self.files.sort_by(|a, b| a.path.cmp(&b.path));
     }
+}
+
+/// FR-051-AC-31: one diagnostic per group of two or more symbols in a file
+/// that share an id, naming every declaration's line and outer attributes.
+/// Identity is left alone: the ids stay identical, and the collision is
+/// reported rather than silently collapsed (CR-206, PLAT-877). Typical cause:
+/// two `#[cfg]`-gated variants of one Rust item.
+fn id_collision_diagnostics(path: &str, symbols: &[Symbol]) -> Vec<SymbolDiagnostic> {
+    let mut groups: std::collections::BTreeMap<&str, Vec<&Symbol>> = Default::default();
+    for s in symbols {
+        groups.entry(s.id.as_str()).or_default().push(s);
+    }
+    let mut out: Vec<SymbolDiagnostic> = groups
+        .into_values()
+        .filter(|g| g.len() > 1)
+        .map(|mut g| {
+            g.sort_by_key(|s| (s.line, s.column));
+            let decls = g
+                .iter()
+                .map(|s| {
+                    // Only the conditions that explain a shared id, one line each.
+                    let attrs = s
+                        .attributes
+                        .iter()
+                        .filter(|a| is_cfg_attribute(&a.text))
+                        .map(|a| a.text.split_whitespace().collect::<Vec<_>>().join(" "))
+                        .collect::<Vec<_>>()
+                        .join(" ");
+                    if attrs.is_empty() {
+                        format!("{path}:{}", s.line)
+                    } else {
+                        format!("{path}:{} [{attrs}]", s.line)
+                    }
+                })
+                .collect::<Vec<_>>()
+                .join(" and ");
+            SymbolDiagnostic {
+                path: path.to_string(),
+                severity: DiagnosticSeverity::Warning,
+                reason: format!(
+                    "symbol-id-collision: {} declarations of {} `{}` share one symbol id: {decls}",
+                    g.len(),
+                    g[0].kind.as_str(),
+                    g[0].qualified_name
+                ),
+            }
+        })
+        .collect();
+    out.sort_by(|a, b| a.reason.cmp(&b.reason));
+    out
+}
+
+/// True for a `#[cfg(...)]` / `#[cfg_attr(...)]` outer attribute.
+fn is_cfg_attribute(text: &str) -> bool {
+    let t = text.trim_start();
+    let Some(inner) = t.strip_prefix("#[").or_else(|| t.strip_prefix("#![")) else {
+        return false;
+    };
+    let name: String = inner
+        .trim_start()
+        .chars()
+        .take_while(|c| c.is_alphanumeric() || *c == '_')
+        .collect();
+    name == "cfg" || name == "cfg_attr"
 }
 
 /// `/`-separated relative path, so identities do not vary by platform.
@@ -727,6 +812,72 @@ mod tests {
         }
         // A tree with no file in an unavailable language is unaffected.
         assert!(SymbolExtraction::default().require_available().is_ok());
+    }
+
+    // FR-051-AC-31: same-id declarations are reported, naming both, and the
+    // ids stay as they were.
+    #[cfg(feature = "rust-symbols")]
+    #[trace("TC-2082", "FR-051-AC-31")]
+    #[test]
+    fn tc2082_rust_cfg_gated_duplicates_are_reported() {
+        let src = "#[cfg(feature = \"pg18\")]\nfn rec() { go(); }\n\n#[cfg(not(feature = \"pg18\"))]\nfn rec() {}\n\nfn other() {}\n";
+        let out = extract_file("src/a.rs", SourceLanguage::Rust, src);
+        assert_eq!(out.symbols.len(), 3);
+        assert_eq!(out.symbols[0].id, out.symbols[1].id);
+        assert_eq!(out.diagnostics.len(), 1, "{:?}", out.diagnostics);
+        let d = &out.diagnostics[0];
+        assert_eq!(d.path, "src/a.rs");
+        for want in [
+            "symbol-id-collision",
+            "`rec`",
+            "src/a.rs:2 [#[cfg(feature = \"pg18\")]]",
+            "src/a.rs:5 [#[cfg(not(feature = \"pg18\"))]]",
+        ] {
+            assert!(d.reason.contains(want), "{want} missing: {}", d.reason);
+        }
+        // The message names the kind; the finding is advisory and refuses nothing.
+        assert!(d.reason.contains("function `rec`"), "{}", d.reason);
+        assert_eq!(d.severity, DiagnosticSeverity::Warning);
+        assert!(out.require_available().is_ok());
+        let report = crate::symbol_table::build(&out, None);
+        assert_eq!(report.diagnostics[0].severity, DiagnosticSeverity::Warning);
+        // Only cfg conditions are listed, normalized to one line.
+        let multi = "#[cfg(\n    unix\n)]\n#[inline]\nfn g() {}\n#[cfg(windows)]\nfn g() {}\n";
+        let out = extract_file("src/b.rs", SourceLanguage::Rust, multi);
+        let r = &out.diagnostics[0].reason;
+        assert!(r.contains("src/b.rs:5 [#[cfg( unix )]]"), "{r}");
+        assert!(!r.contains("inline") && !r.contains('\n'), "{r}");
+        // Control: distinct names report nothing.
+        let ok = extract_file("src/a.rs", SourceLanguage::Rust, "fn a() {}\nfn b() {}\n");
+        assert!(ok.diagnostics.is_empty());
+    }
+
+    #[cfg(feature = "python-symbols")]
+    #[trace("TC-2082", "FR-051-AC-31")]
+    #[test]
+    fn tc2082_python_redefinition_is_reported() {
+        let src = "if X:\n    def f():\n        pass\nelse:\n    def f():\n        pass\n";
+        let out = extract_file("a.py", SourceLanguage::Python, src);
+        assert_eq!(out.diagnostics.len(), 1, "{:?}", out.diagnostics);
+        assert!(out.diagnostics[0].reason.contains("a.py:2 and a.py:5"));
+        let ok = extract_file(
+            "a.py",
+            SourceLanguage::Python,
+            "def f():\n    pass\ndef g():\n    pass\n",
+        );
+        assert!(ok.diagnostics.is_empty());
+    }
+
+    #[cfg(feature = "typescript-symbols")]
+    #[trace("TC-2082", "FR-051-AC-31")]
+    #[test]
+    fn tc2082_typescript_duplicate_title_is_reported() {
+        let src = "it('same', () => {});\nit('same', () => {});\nit('other', () => {});\n";
+        let out = extract_file("a.test.ts", SourceLanguage::Typescript, src);
+        assert_eq!(out.diagnostics.len(), 1, "{:?}", out.diagnostics);
+        assert!(out.diagnostics[0]
+            .reason
+            .contains("a.test.ts:1 and a.test.ts:2"));
     }
 
     fn unavailable_rust() -> SymbolExtraction {

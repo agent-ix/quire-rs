@@ -9,6 +9,10 @@ bumps; once 1.0 ships, semver is strict.
 
 ### Added
 
+- Extraction reports a `symbol-id-collision` warning when two symbols in a
+  file share an id (cfg-gated variants, generic trait-impl methods,
+  branch redefinitions), naming each declaration; ids are unchanged
+  (PLAT-877, FR-051-AC-31).
 - `extract_semantic` carries `fieldSources` (the source span of each field's
   row or fence line) and `operationSources` (each operation's parameter rows
   and `Returns:` line), beside `fields` and `operations` (PLAT-175, #420).
@@ -25,6 +29,9 @@ bumps; once 1.0 ships, semver is strict.
   whose capture group 1 is the id, read only inside the target's section.
 
 ### Changed
+
+- **Breaking (Rust API), PLAT-877:** `SymbolDiagnostic` and `FileDiagnostic` gain a
+  `severity: DiagnosticSeverity` field.
 
 - Semantic refusal reasons now carry their manifest location:
   `<code>: <path>: <message>` (for example
