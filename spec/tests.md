@@ -112,7 +112,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | FR-072 Semantic extraction surface | AC-1..9; CON-1..3 | TC-1630..TC-1640, TC-1650 (TC-1636 external: quire-wasm#3) | ✅ Implemented; WASM leg external |
 | FR-073 Generic rights-aware clause sets | AC-1..6 | TC-1806..TC-1809 | ✅ Implemented |
 | FR-075 Model feature extraction | AC-1..30; CON-1..2 | TC-1840..TC-1847, TC-1849, TC-1869, TC-1870, TC-1872..TC-1875, TC-1948..TC-1951, TC-1953, TC-1993..TC-1998, TC-2040, TC-2043 | ✅ AC-1..15, AC-19, AC-22..30 Implemented; AC-16..18, AC-20, AC-21 🚧 |
-| FR-076 Relationships extraction to RelationDecl[] | AC-1..22; CON-1..4 | TC-1852..TC-1868, TC-1999..TC-2004, TC-2150 | ✅ Implemented |
+| FR-076 Relationships extraction to RelationDecl[] | AC-1..23; CON-1..4 | TC-1852..TC-1868, TC-1999..TC-2004, TC-2150, TC-2152 | ✅ Implemented |
 | FR-077 Trace search index (structural forward/inverse lookup) | AC-1..7; CON-1..3 | TC-1887..TC-1894, TC-2062 | ✅ Implemented |
 | FR-078 Qualified retained evidence | AC-1..20; CON-1..4 | TC-1963..TC-1982 | 🚧 Planned — spec-first, no execution claim |
 
@@ -1172,6 +1172,8 @@ in this specification is not runtime or coverage evidence.
 | TC-1990 | Guarded forms preserve identities, range-finding locations, parse-failure isolation, deterministic outputs and the scope/evidence separation | Integration | P0 | FR-062-AC-17 | 🚧 Planned |
 | TC-1991 | A `columns` assert whose header conforms still fails with reason `row-width` for each row whose cell count differs from the header's, at the row's own line with its `row_id`; a uniformly wide table fires nothing (PLAT-217) | Unit | P0 | FR-033-AC-17 | ✅ |
 | TC-1992 | An `ix://` reference under a foreign `<org>/<repo>` authority is not `dangling-reference` when the bundle declares a different package (Strict and Okf), while the same id under the declared package, with no package declared, or as a bare id, still is (PLAT-1056) | Integration | P0 | FR-038-AC-9 | ✅ |
+| TC-2151 | The authority-versus-package comparison folds ASCII case: a mixed-case link to the bundle's own repo is still dangling, a mixed-case foreign authority is still skipped, and with no package declared every miss is dangling (PLAT-1357) | Integration | P0 | FR-038-AC-10 | ✅ |
+| TC-2152 | A `## Relationships` target under the bundle package compares ASCII case-insensitively: mixed-case own-package target qualifies in either direction, a foreign package without an import is still refused (PLAT-1357) | Unit | P0 | FR-076-AC-23 | ✅ |
 | TC-1993 | Transition `Emits` resolves to one `SemanticId` and step `Consumes`/`Emits` to ordered `SemanticId[]` by id or title; every value is an `ix://` identity differing from its cell text; empty cell absent; schema-valid | Unit | P0 | FR-075-AC-22, FR-075-CON-2 | ✅ |
 | TC-1994 | Unknown name and admitted-type mismatch (construct `references` role first, then `allowed_links`, then admit any; a `Transitions` `Emits` cell naming an entity under `state_machine` is refused) refuse with `semantic.unknown-reference` / `semantic.reference-kind-mismatch`, omit `model`; the all-resolving control is silent | Unit | P0 | FR-075-AC-23 | ✅ |
 | TC-1995 | Ambiguity over distinct ids (including id-versus-title), type filter, one declaration in two forms, `ix://` never name-matched, self-reference by title | Unit | P0 | FR-075-AC-24 | ✅ |
@@ -1680,6 +1682,7 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-076-AC-20 | TC-2003 |
 | FR-076-AC-21 | TC-2004 |
 | FR-076-AC-22 | TC-2150 |
+| FR-076-AC-23 | TC-2152 |
 | FR-076-CON-3 | TC-1999 |
 | FR-076-CON-4 | TC-2002 |
 | FR-073-AC-1 | TC-1807, TC-1809 |
@@ -1796,6 +1799,7 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-038-AC-7 | TC-606 |
 | FR-038-AC-8 | TC-607 |
 | FR-038-AC-9 | TC-1992 |
+| FR-038-AC-10 | TC-2151 |
 | FR-039-AC-1 | TC-623 |
 | FR-039-AC-2 | TC-624 |
 | FR-039-AC-3 | TC-625 |

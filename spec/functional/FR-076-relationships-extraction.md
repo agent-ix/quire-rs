@@ -160,13 +160,15 @@ Rows, with backticks around a cell stripped:
   `false` otherwise; `composite` is always present.
 - The engine SHALL map a bare `Target` naming an artifact `id` of the bundle
   to `ix://<package>/<id>`.
-- The engine SHALL carry an `ix://<org>/<repo>/<id>` target verbatim when
-  `<org>/<repo>` is the bundle's package and `<id>` a bundle artifact, or
-  when `<org>/<repo>` is a package in `semantic.imports`.
+- The engine SHALL lower an `ix://<org>/<repo>/<id>` target to
+  `ix://<bundle package>/<id>` when `<org>/<repo>` equals the bundle's
+  package ignoring ASCII case and `<id>` is a bundle artifact, and SHALL
+  carry it verbatim when `<org>/<repo>` is a package in `semantic.imports`.
 - When the context has no bundle index, the engine SHALL lower a bare
   `Target` in the id alphabet (an ASCII letter or digit, then ASCII letters,
   digits, `.`, `_`, `~`, `:`, or `-`) to `ix://<package>/<id>`, and an
-  own-package `ix://<org>/<repo>/<id>` verbatim, without the existence and
+  own-package `ix://<org>/<repo>/<id>` (package matched ignoring ASCII case)
+  to `ix://<bundle package>/<id>`, without the existence and
   `allowed_links` checks. A title inside the alphabet cannot be told apart
   from an id and lowers the same way; a title outside it is refused as
   `target-not-id`.
@@ -197,7 +199,9 @@ Refusals, one diagnostic per row, first failing check only, in this order:
 
 A frontmatter target compares by identity: a bare id maps to
 `ix://<package>/<id>`, and an `ix://<org>/<repo>/…/<id>` path to
-`ix://<org>/<repo>/<id>`; an entry without `type` is `references`
+`ix://<org>/<repo>/<id>`, with `<org>/<repo>` replaced by the bundle package
+when it equals it ignoring ASCII case (so a frontmatter `ix://Acme/Widgets/X`
+and a row lowered to `ix://acme/widgets/X` are the same entry); an entry without `type` is `references`
 ([FR-026](./FR-026-intra-spec-reference-resolution.md)).
 
 Typed relation keys:
@@ -325,6 +329,7 @@ Availability:
 | FR-076-AC-20 | With no bundle index, a typed row `done \| emits \| event-001 \| 1` lowers `emits` `["ix://<package>/event-001"]` with one `semantic.unresolved-target` advisory (`no-bundle-index`) and `availability.relations` `available`; the same declaration in a model reference item and in a typed row resolves to one `SemanticId` under a bundle; a row `x \| emits \| OrderPlaced \| 1` is `target-not-id`; a type whose schema has no typed key yields a record byte-identical to AC-1 (CON-1). | Test |
 | FR-076-AC-21 | `tests/fixtures/semantic/cases.json` carries, for each of `emits` on `aggregate_root`, `emits` on `process` and `persists` on `repository`, a case with `issue_ref` `PLAT-55` asserting the lowered identity, a refusal case and a control asserting its `absent_diagnostic_reasons`. | Test |
 | FR-076-AC-22 | In `relationships-cases.json` and `operations-cases.json`, no `availability` states an `entry-errors` reason as a string: every kind unavailable through entry errors states `reasonLoci`, including a case with two erroring rows (`row`, `second-row`); the harness fails when the engine's reason lines differ from the resolved loci. | Test |
+| FR-076-AC-23 | The own-package check on a `## Relationships` `ix://<org>/<repo>/<id>` target compares the target's package with the bundle package under ASCII case folding on both sides, and a matching target lowers to the identity `ix://<declared bundle package>/<id>` in the declared package's spelling, not the cell's: with bundle package `acme/widgets`, the cells `X` and `ix://Acme/Widgets/X` both lower `ix://acme/widgets/X`, and with bundle package `Acme/Widgets` the cell `ix://acme/widgets/X` lowers `ix://Acme/Widgets/X`, and a frontmatter `relationships` entry `ix://Acme/Widgets/X` under bundle package `acme/widgets` compares as `ix://acme/widgets/X`, so a row declaring the same verb and target is `declared-in-frontmatter`. A target under another package without an import is still refused with `semantic.invalid-model-cell` and reason `target-not-id`. | Test |
 
 ## Dependencies
 

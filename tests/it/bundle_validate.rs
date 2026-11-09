@@ -727,3 +727,64 @@ fn foreign_authority_target_is_not_dangling() {
     let undeclared = run(None, BundlePosture::Okf);
     assert_eq!(count(&undeclared.warnings, "dangling-reference"), 1);
 }
+
+/// The authority-versus-package comparison folds ASCII case on both sides,
+/// and an own-repo spelling of a target claims it local whatever else spells it.
+#[trace("TC-2151", "FR-038-AC-10")]
+#[test]
+fn authority_comparison_folds_ascii_case() {
+    let root = tmpdir("cross_repo_case");
+    // Each absent target X<n> is spelled by one document body.
+    let targets = [
+        "ix://Acme/widgets/spec/X1",
+        "ix://acme/WIDGETS/spec/X2",
+        "ix://Other/Repo/spec/X3",
+        "ix://acme/widgets/spec/X4 and ix://zz/o/spec/X4",
+        "ix://acme/widgets/spec/X5 and ix://Zz/o/spec/X5",
+        "ix://acme/widgets/spec/X6 and ix://aaa/b/spec/X6",
+    ];
+    for (n, body) in targets.iter().enumerate() {
+        let id = format!("NOTE-{:03}", n + 1);
+        let body = body
+            .split(" and ")
+            .map(|u| format!("[l]({u})"))
+            .collect::<Vec<_>>()
+            .join(" ");
+        write(&root, &format!("{id}.md"), &note(&id, &body));
+    }
+    let dangling = |package: Option<&str>| -> Vec<String> {
+        let mut spec = quire_rs::Spec::from_path(&root);
+        if let Some(p) = package {
+            spec = spec.with_bundle_package(p);
+        }
+        let report =
+            quire_rs::validate_bundle(&spec, &bundle_registry(), BundlePosture::Okf, &root, &root);
+        let mut ids: Vec<String> = report
+            .warnings
+            .iter()
+            .filter(|f| f.message.contains("dangling reference"))
+            .map(|f| f.message.clone())
+            .collect();
+        ids.sort();
+        ids
+    };
+    let has = |found: &[String], x: &str| found.iter().any(|m| m.contains(&format!("'{x}'")));
+
+    // Declared lower-case package: own repo in any case and every merged
+    // spelling stay dangling; the foreign-only target is skipped.
+    let found = dangling(Some("acme/widgets"));
+    for x in ["X1", "X2", "X4", "X5", "X6"] {
+        assert!(has(&found, x), "{x} must be dangling: {found:?}");
+    }
+    assert!(!has(&found, "X3"), "X3 must be skipped: {found:?}");
+
+    // Declared mixed-case package folds too.
+    let found = dangling(Some("Acme/Widgets"));
+    assert!(has(&found, "X2"), "{found:?}");
+    assert!(!has(&found, "X3"), "{found:?}");
+
+    // No package declared: every miss is dangling.
+    assert_eq!(dangling(None).len(), targets.len());
+
+    fs::remove_dir_all(&root).ok();
+}

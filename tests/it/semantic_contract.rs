@@ -1201,6 +1201,77 @@ fn validate_document_qualifies_under_the_bundle_package() {
     );
 }
 
+#[trace("TC-2152", "FR-076-AC-23")]
+// The own-package check folds ASCII case on both sides and lowers the target
+// in the declared package's spelling: a frontmatter relationship written in
+// that spelling is a duplicate of the row. A foreign package without an
+// import is refused as `target-not-id`.
+#[test]
+fn relationship_own_package_check_folds_ascii_case() {
+    let tmp = TempDir::new().unwrap();
+    let registry = related_registry(&tmp);
+    let entity = registry.archetype("entity").unwrap();
+    let check = |package: &str, frontmatter: &str, row_target: &str| {
+        let document =
+            related_document(&format!("| overlay | references | {row_target} | 1..1 |\n"))
+                .replacen(
+                    "type: FR\n",
+                    &format!(
+                "type: FR\nrelationships:\n  - target: \"{frontmatter}\"\n    type: references\n"
+            ),
+                    1,
+                );
+        relationship_findings(quire_rs::validate_document_in_bundle(
+            &registry, entity, &document, package, None,
+        ))
+        .0
+    };
+
+    // (declared package, frontmatter identity in that spelling, row cell)
+    for (package, frontmatter, cell) in [
+        ("acme/widgets", "ix://acme/widgets/FR-005", "FR-005"),
+        (
+            "acme/widgets",
+            "ix://acme/widgets/FR-005",
+            "ix://Acme/Widgets/FR-005",
+        ),
+        (
+            "Acme/Widgets",
+            "ix://Acme/Widgets/FR-005",
+            "ix://acme/widgets/FR-005",
+        ),
+        // A frontmatter identity in a different case than the declared
+        // package is normalised to the declared spelling (FR-076-AC-23).
+        ("acme/widgets", "ix://Acme/Widgets/FR-005", "FR-005"),
+        (
+            "acme/widgets",
+            "ix://Acme/Widgets/FR-005",
+            "ix://acme/widgets/FR-005",
+        ),
+        ("Acme/Widgets", "ix://acme/widgets/FR-005", "FR-005"),
+    ] {
+        let errors = check(package, frontmatter, cell);
+        assert_eq!(errors.len(), 1, "{package} / {cell}: {errors:?}");
+        assert!(
+            errors[0].starts_with("semantic.duplicate-model-entry"),
+            "{package} / {cell}: {errors:?}"
+        );
+    }
+
+    // A foreign package without an import is not an own-package target.
+    let errors = check(
+        "acme/widgets",
+        "ix://acme/widgets/FR-006",
+        "ix://other/repo/FR-005",
+    );
+    assert_eq!(errors.len(), 1, "{errors:?}");
+    assert!(
+        errors[0].starts_with("semantic.invalid-model-cell")
+            && errors[0].contains("is not a bundle artifact id"),
+        "{errors:?}"
+    );
+}
+
 #[trace("TC-1868", "FR-076-AC-15")]
 // validate_bundle qualifies relationships under the repository identity the
 // Spec declares (PLAT-48); without one the table is unavailable with

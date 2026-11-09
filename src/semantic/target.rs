@@ -78,10 +78,12 @@ pub(crate) enum Unresolved {
 /// `alphabet`.
 fn semantic_identity(cell: &str, alphabet: fn(&str) -> bool) -> Option<IxRef<'_>> {
     let identity = IxRef::parse(cell)?;
+    // Package names compare ASCII case-insensitively (FR-076-AC-23), so an
+    // uppercase spelling of the bundle's own package must parse to be matched.
     let package_ok = |s: &str| {
-        s.starts_with(|c: char| c.is_ascii_lowercase() || c.is_ascii_digit())
+        s.starts_with(|c: char| c.is_ascii_alphanumeric())
             && s.chars()
-                .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || "._-".contains(c))
+                .all(|c| c.is_ascii_alphanumeric() || "._-".contains(c))
     };
     (package_ok(identity.org()) && package_ok(identity.repo()) && alphabet(identity.path()))
         .then_some(identity)
@@ -101,7 +103,7 @@ pub(crate) fn resolve_target<'a>(
 ) -> Result<Target<'a>, Unresolved> {
     let (id, identity) = if cell.starts_with("ix://") {
         let parsed = semantic_identity(cell, alphabet).ok_or(Unresolved::Malformed)?;
-        if parsed.package() != package {
+        if !parsed.package().eq_ignore_ascii_case(package) {
             return if ctx.module.imports.contains_key(parsed.package()) {
                 Ok(Target::Imported {
                     identity: cell.to_string(),
@@ -110,7 +112,7 @@ pub(crate) fn resolve_target<'a>(
                 Err(Unresolved::UnimportedPackage)
             };
         }
-        (parsed.path(), cell.to_string())
+        (parsed.path(), format!("ix://{package}/{}", parsed.path()))
     } else if alphabet(cell) {
         (cell, format!("ix://{package}/{cell}"))
     } else {
