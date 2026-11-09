@@ -1201,6 +1201,51 @@ fn validate_document_qualifies_under_the_bundle_package() {
     );
 }
 
+#[trace("TC-2152", "FR-076-AC-23")]
+// The own-package check folds ASCII case on both sides; a foreign package
+// without an import is still refused.
+#[test]
+fn relationship_own_package_check_folds_ascii_case() {
+    let tmp = TempDir::new().unwrap();
+    let registry = related_registry(&tmp);
+    let entity = registry.archetype("entity").unwrap();
+    let check = |package: &str, target: &str| {
+        relationship_findings(quire_rs::validate_document_in_bundle(
+            &registry,
+            entity,
+            &related_document(&format!("| overlay | references | {target} | 1..1 |\n")),
+            package,
+            None,
+        ))
+    };
+
+    // Own package in either case direction: lowers with the no-bundle-index
+    // advisory, exactly as the exact-case spelling does.
+    for (package, target) in [
+        ("acme/widgets", "ix://Acme/Widgets/FR-005"),
+        ("Acme/Widgets", "ix://acme/widgets/FR-005"),
+        ("acme/widgets", "ix://acme/widgets/FR-005"),
+    ] {
+        let (errors, warnings) = check(package, target);
+        assert_eq!(errors, Vec::<String>::new(), "{package} / {target}");
+        assert_eq!(warnings.len(), 1, "{package} / {target}: {warnings:?}");
+        assert!(
+            warnings[0].starts_with("semantic.unresolved-target"),
+            "{warnings:?}"
+        );
+    }
+
+    // A foreign package with no import is refused.
+    let (errors, warnings) = check("acme/widgets", "ix://Other/Repo/FR-005");
+    assert_eq!(errors.len() + warnings.len(), 1, "{errors:?} {warnings:?}");
+    let message = errors.iter().chain(&warnings).next().unwrap();
+    assert!(message.contains("Other/Repo"), "{message}");
+    assert!(
+        !message.starts_with("semantic.unresolved-target"),
+        "{message}"
+    );
+}
+
 #[trace("TC-1868", "FR-076-AC-15")]
 // validate_bundle qualifies relationships under the repository identity the
 // Spec declares (PLAT-48); without one the table is unavailable with

@@ -314,10 +314,14 @@ pub fn validate_bundle(
         // A target under another repo's authority is cross-repo, not dangling:
         // this corpus cannot see it. Needs the bundle's own package declared
         // to tell the two apart; without one, every miss stays dangling.
-        let cross_repo = matches!(
-            (edge.authority.as_deref(), spec.bundle_package()),
-            (Some(authority), Some(package)) if !authority.eq_ignore_ascii_case(package)
-        );
+        // Any own-repo spelling (or a bare id) claims the target local.
+        let cross_repo = spec.bundle_package().is_some_and(|package| {
+            !edge.authorities.is_empty()
+                && edge
+                    .authorities
+                    .iter()
+                    .all(|authority| !authority.eq_ignore_ascii_case(package))
+        });
         if edge.resolution == Resolution::Dangling && !cross_repo {
             report.route(
                 severity,

@@ -101,7 +101,7 @@ pub(crate) fn resolve_target<'a>(
 ) -> Result<Target<'a>, Unresolved> {
     let (id, identity) = if cell.starts_with("ix://") {
         let parsed = semantic_identity(cell, alphabet).ok_or(Unresolved::Malformed)?;
-        if parsed.package() != package {
+        if !parsed.package().eq_ignore_ascii_case(package) {
             return if ctx.module.imports.contains_key(parsed.package()) {
                 Ok(Target::Imported {
                     identity: cell.to_string(),
