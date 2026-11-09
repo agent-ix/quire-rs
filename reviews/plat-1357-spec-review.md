@@ -49,6 +49,12 @@ Changes requested (two medium). The amendment matches the ticket and the planned
 | --- | --- | --- | --- |
 | FND-006 | high | FR-076-AC-23 now lowers a case-matching own-package target to `ix://<declared bundle package>/<id>` in the declared spelling, "not the cell's". The FR-076 statements it verifies were not amended and still say the opposite: "The engine SHALL carry an `ix://<org>/<repo>/<id>` target verbatim when `<org>/<repo>` is the bundle's package" (exact package match, verbatim identity), and with no bundle index "an own-package `ix://<org>/<repo>/<id>` verbatim". The frontmatter-identity paragraph also keeps `ix://<org>/<repo>/<id>` as written, so a frontmatter `ix://Acme/Widgets/X` and the lowered row `ix://acme/widgets/X` no longer compare equal for `declared-in-frontmatter`. Fix: amend those statements to the case-folded match and declared-spelling identity. | spec/functional/FR-076-relationships-extraction.md:163-169,198-200,320 |
 
+## New findings (disposition pass 3)
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-007 | low | The FR-076 summary row in `spec/tests.md` now lists AC-1..23 and TC-2152 with status "✅ Implemented", but TC-2152 (FR-076-AC-23) is planned and the code does not fold case yet (`src/semantic/target.rs:104`). The row overstates status until PR 621 lands; mark AC-23 planned (as the FR-075 row does for its planned ACs) or let 621 make it true. | spec/tests.md:115 |
+
 ## Dispositions
 
 | FND | Outcome | Reason |
@@ -58,3 +64,4 @@ Changes requested (two medium). The amendment matches the ticket and the planned
 | FND-003 | fixed | The PLAT-1357 change-history note is removed; the rationale is in FR-038-AC-10. |
 | FND-004 | fixed | FR-076-AC-23 states that a matching target lowers to `ix://<declared bundle package>/<id>` in the declared spelling, with examples in both directions. |
 | FND-005 | fixed | FR-076-AC-23 names the refusal as `semantic.invalid-model-cell` with reason `target-not-id`. |
+| FND-006 | fixed | The three FR-076 statements now match ignoring ASCII case and lower to `ix://<bundle package>/<id>`; the only remaining "verbatim" is for imported packages. AC-23 adds the frontmatter `declared-in-frontmatter` vector. |
