@@ -82,6 +82,27 @@ the scope the registrations inside it are parented to. If an adapter cannot
 parse a file, then the extractor SHALL emit a per-file diagnostic, skip the
 file, and continue.
 
+### Shell adapter (CR-213, PLAT-362)
+
+The extractor SHALL read POSIX/bash shell scripts (`.sh`) through a **line-structural**
+adapter and report them as language `shell`. Shell has no attribute syntax, so
+its tag channel is the `#` comment and nothing else. The adapter mints two
+kinds of symbol:
+
+- every **function** definition (`name() { … }`, `function name { … }`,
+  `function name() { … }`), as a `function` symbol whose qualified name is the
+  function's own name — shell functions are global, so a definition nested in
+  another function's body is still named by its own name alone;
+- one **`entry_point`** symbol per file, spanning the whole file and named
+  `entry_point` (the whole-file precedent of the Rust `fuzz_target` symbol), and
+  only for a file whose repo-relative path matches a glob the module declares
+  in a shell marker form's `entry_paths`. A production script outside every
+  declared glob mints functions but no entry point, so it can never be evidence.
+
+An `entry_point` binds `verifies` ids exactly as a test, benchmark or fuzz target
+does; it does not carry `implements` (the FR-062 complement rule). A shell function
+is a plain function and binds nothing.
+
 ## Trace-tag grammar
 
 The extractor SHALL bind symbols to spec trace ids via a **trace-tag grammar**
@@ -138,7 +159,7 @@ byte-identical JSON ordering and stable record ids.
 
 | ID | Constraint | Type | Validation |
 |----|------------|------|------------|
-| FR-051-CON-1 | The extractor SHALL classify syntax from a syntax tree that a grammar-driven parser library produces over the source text, and performs no network I/O, no service I/O, no execution of extracted code, no compilation of the analysed tree, no dependency installation, and no type resolution. | Architecture | Test |
+| FR-051-CON-1 | The extractor SHALL classify syntax from a syntax tree that a grammar-driven parser library produces over the source text, and performs no network I/O, no service I/O, no execution of extracted code, no compilation of the analysed tree, no dependency installation, and no type resolution. The shell adapter (CR-213) is the one exception to the syntax-tree clause: it is line-structural, but it is held to every other clause. | Architecture | Test |
 | FR-051-CON-2 | Adapters SHALL degrade per file: one unparseable file never aborts the tree extraction. | Operational | Test |
 | FR-051-CON-3 | Legacy textual-tag recognition SHALL be removed once the marker-normalization sweep lands (sweep gated on explicit user sign-off) — no deprecated compat path is retained after it. | Operational | Inspection |
 
@@ -177,6 +198,13 @@ byte-identical JSON ordering and stable record ids.
 | FR-051-AC-29 | A build that has no symbol adapter for a language whose source is in the tree (the `wasm` build drops all three adapter features) records that language as unavailable on the extraction, the symbol graph and the symbol-table report, with no symbols and no per-file diagnostic for those files; a tree with no file in an unavailable language is unaffected. Satisfied only when the unavailability is recorded: a zero-symbol extraction with no unavailable-language fact for a tree holding source the build cannot read fails this criterion (CR-201, PLAT-874). | Test (TC-2060) |
 | FR-051-AC-30 | Emitting FR-045 graph records from an extraction that records an unavailable language is refused with an error naming the language, not returned as an empty node and edge set (CR-201). | Test (TC-2064) |
 | FR-051-AC-31 | When two or more symbols extracted from one file share a symbol id, extraction reports one per-file diagnostic per colliding id, reason `symbol-id-collision`, at severity `warning` (as AC-28 does): it is advisory, appears on the symbol-table report with its severity, and never changes an exit code or refuses a result. The diagnostic names the kind, the qualified name, and every colliding declaration by `path:line`, followed by that declaration's `#[cfg(...)]` / `#[cfg_attr(...)]` outer attributes, whitespace-collapsed to one line, where the adapter records them (other attributes are not listed; adapters without such conditions list none). It reports shared identity and does not claim a defect: causes include mutually exclusive `#[cfg]`-gated variants, Rust trait-impl methods differing only by generics (`From<A>` / `From<B>`), a Python function defined in both branches of an `if` or a nested helper repeated across scopes, and TypeScript registrations with one title. Symbol ids are unchanged, and a file with no collision yields no such diagnostic (CR-206, PLAT-877). | Test (TC-2082) |
+| FR-051-AC-34 | A `.sh` file is opened by the extractor and every symbol it mints carries language `shell`; `SourceLanguage::Shell` serializes as `shell`; a file with another extension, and a `.sh` file in a tree, never changes how a `.rs`/`.py`/`.ts` file extracts. | Test (TC-2101) |
+| FR-051-AC-35 | Each shell function definition in the three forms (`name() {`, `function name {`, `function name() {`), at top level or nested in another function, mints one `function` symbol named by the function alone, spanning its definition through the matching close brace. A `name)` in a `case` pattern, a definition-shaped line inside a single-quoted, double-quoted or `$( … )` string, a heredoc body, or a comment mints nothing. | Test (TC-2102) |
+| FR-051-AC-36 | A `.sh` file whose repo-relative path matches a declared shell `entry_paths` glob mints exactly one `entry_point` symbol (qualified name `entry_point`, span the whole file) that binds `verifies` ids and carries no `implements`; a `.sh` file matching no declared glob mints none, and its functions bind nothing. The kind label `entry_point` is part of the symbol identity and of the FR-045 record `kind`. | Test (TC-2103) |
+| FR-051-AC-37 | A shell function reads its tag channel from the contiguous `#` comment lines immediately above its definition (a blank line ends the block), and an `entry_point` from the file's leading `#` comment block after an optional `#!` line. A `#` inside a quoted string, a heredoc body, `$#`, `${#x}` or `${x#pat}` opens no comment. | Test (TC-2104) |
+| FR-051-AC-38 | Shell tags are read only through a declared **marker** form with `language: shell` and `syntax: comment`; shell has no legacy class, so a shell binding never carries `legacy` provenance and a shell file with no declared form mints zero `verifies` relations. `entry_paths` is accepted only on a `language: shell` marker form and a non-shell form that carries it is refused at load. | Test (TC-2105) |
+| FR-051-AC-39 | An unterminated quote, heredoc, or brace in a `.sh` file yields a per-file diagnostic naming the file and the line, while the rest of the tree extracts normally; the shell adapter executes, sources and sandboxes nothing. | Test (TC-2106) |
+| FR-051-AC-40 | End to end: a fixture audit script under a declared `entry_paths` glob whose header comment carries a declared shell marker backs the `Static` matrix row it names in the coverage report, with the `verifies` relation on the `entry_point` symbol; the same marker in a script outside the glob backs nothing. | Test (TC-2107) |
 
 > **CR-206 note (2026-11-08, PLAT-877):** AC-31 is new. The id hashes
 > language, path, qualified name and kind and nothing evaluates `#[cfg]`, so
@@ -882,6 +910,26 @@ byte-identical JSON ordering and stable record ids.
 > before. A template literal is the only TS/JS string form that can span lines, so
 > it is the only one carried; a `'` or `"` left open at end of line is a malformed
 > line, not a continuation. TC-799 covers the continuation form.
+
+> **CR-213 note (2026-11-08, PLAT-362):** `language_of` read three
+> extensions, so `scripts/audits/check_no_shared_mutable.sh` (TC-502), and the
+> other shell audits that enforce a `Static` row (TC-050, TC-203), were never
+> opened and could mint no symbol; CR-061 widened what binds but could not reach
+> a language the extractor does not read. Ruled (PLAT-362 option 1; research on
+> PLAT-390): add the language rather than declare `Static` in `no_source_symbol`,
+> which would change verdicts for every repository on the module and withdraw an
+> accusation the code does not earn. The file is the entry point (AC-35) because
+> a shell audit declares no function that *is* the test; restricting that to a
+> declared glob keeps production scripts from binding, for the same reason
+> CR-061 kept plain functions out. The tag is a comment, so it is declared as a
+> `markers` entry, not `legacy`: FR-051-CON-3 retires legacy recognition, and a
+> shell marker must outlive it. The adapter is line-structural rather than
+> tree-sitter-backed (CON-1 carve-out) because the surface is two constructs.
+> **Ordering:** `SourceLanguage` is closed and the grammar is
+> `deny_unknown_fields`, so an engine that predates this change rejects a module
+> declaring a shell form at load; the engine release must precede the module
+> release. The qualified-name spelling here (function name; `entry_point`) is the
+> shell row for quoin FR-120's per-language table.
 
 ## Dependencies
 
