@@ -43,6 +43,12 @@ Changes requested (two medium). The amendment matches the ticket and the planned
 | FND-004 | medium | FR-076-AC-23 says a mixed-case own-package target "qualifies as the own package" but not which identity it lowers to. `resolve_target` keeps the cell as written (`cell.to_string()`), while a bare id lowers to `ix://{package}/{id}`. So one artifact named as `X` and as `ix://Acme/Widgets/X` would lower to two different identities under package `acme/widgets`, and two implementers could choose either spelling. Fix: state the lowered identity, e.g. `ix://<bundle package as declared>/<id>`. | spec/functional/FR-076-relationships-extraction.md:320; src/semantic/target.rs:104-114 |
 | FND-005 | low | FR-076-AC-23 names the internal Rust variant `UnimportedPackage` as the refusal. The spec's observable outcome for that row is `semantic.invalid-model-cell` with reason `target-not-id` (FR-076 Refusals table; fixture case `target-qualified-not-imported`). Name the observable code and reason. | spec/functional/FR-076-relationships-extraction.md:320 |
 
+## New findings (disposition pass 2)
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-006 | high | FR-076-AC-23 now lowers a case-matching own-package target to `ix://<declared bundle package>/<id>` in the declared spelling, "not the cell's". The FR-076 statements it verifies were not amended and still say the opposite: "The engine SHALL carry an `ix://<org>/<repo>/<id>` target verbatim when `<org>/<repo>` is the bundle's package" (exact package match, verbatim identity), and with no bundle index "an own-package `ix://<org>/<repo>/<id>` verbatim". The frontmatter-identity paragraph also keeps `ix://<org>/<repo>/<id>` as written, so a frontmatter `ix://Acme/Widgets/X` and the lowered row `ix://acme/widgets/X` no longer compare equal for `declared-in-frontmatter`. Fix: amend those statements to the case-folded match and declared-spelling identity. | spec/functional/FR-076-relationships-extraction.md:163-169,198-200,320 |
+
 ## Dispositions
 
 | FND | Outcome | Reason |
@@ -50,3 +56,5 @@ Changes requested (two medium). The amendment matches the ticket and the planned
 | FND-001 | fixed | FR-038-AC-10 now states that an own-repo spelling plus any foreign spelling is one edge that stays dangling whatever the case or byte order, with the zz/Zz/aaa vectors. |
 | FND-002 | fixed | New FR-076-AC-23 (TC-2152) folds ASCII case on both sides for the Relationships own-package check. |
 | FND-003 | fixed | The PLAT-1357 change-history note is removed; the rationale is in FR-038-AC-10. |
+| FND-004 | fixed | FR-076-AC-23 states that a matching target lowers to `ix://<declared bundle package>/<id>` in the declared spelling, with examples in both directions. |
+| FND-005 | fixed | FR-076-AC-23 names the refusal as `semantic.invalid-model-cell` with reason `target-not-id`. |
