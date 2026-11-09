@@ -408,7 +408,8 @@ fn semantic_findings(
     }
     // This surface has no document path: spans and refusals name `<document>`.
     let mut ctx = SemanticContext::new(module.clone(), "<document>", bundle)
-        .with_relation_vocabulary(RelationVocabulary::from_registry(registry, arch));
+        .with_relation_vocabulary(RelationVocabulary::from_registry(registry, arch))
+        .with_object_type(arch.name.clone());
     if let Some(references) = arch
         .construct()
         .and_then(ConstructReferences::from_construct)

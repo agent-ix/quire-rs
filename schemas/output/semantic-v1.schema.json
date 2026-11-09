@@ -285,7 +285,7 @@
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["term", "doc", "sourceSpan"],
+            "required": ["term", "sourceSpan"],
             "properties": {
               "term": { "type": "string", "minLength": 1 },
               "doc": { "type": "string" },

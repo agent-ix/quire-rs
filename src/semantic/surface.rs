@@ -233,14 +233,6 @@ pub fn extract_semantic(
     diagnostics.extend(operations.diagnostics.iter().cloned());
     diagnostics.extend(model_outcome.diagnostics.iter().cloned());
     diagnostics.extend(relations.diagnostics);
-    diagnostics.extend(record.iter().flat_map(|r| r.diagnostics.iter().cloned()));
-    diagnostics.sort_by(|a, b| {
-        (a.line.unwrap_or(0), a.column.unwrap_or(0), a.code.as_str()).cmp(&(
-            b.line.unwrap_or(0),
-            b.column.unwrap_or(0),
-            b.code.as_str(),
-        ))
-    });
 
     let missing = |mut a: KindAvailability, required: bool, what: &str| {
         if required && a.state == AvailabilityState::NotApplicable {
@@ -338,6 +330,14 @@ pub fn extract_semantic(
             keys
         });
     let record = record.unwrap_or_default();
+    diagnostics.extend(record.diagnostics.iter().cloned());
+    diagnostics.sort_by(|a, b| {
+        (a.line.unwrap_or(0), a.column.unwrap_or(0), a.code.as_str()).cmp(&(
+            b.line.unwrap_or(0),
+            b.column.unwrap_or(0),
+            b.code.as_str(),
+        ))
+    });
     SemanticExtraction {
         format_version: SEMANTIC_FORMAT_VERSION,
         contract_version: ctx.module.contract_version.clone(),

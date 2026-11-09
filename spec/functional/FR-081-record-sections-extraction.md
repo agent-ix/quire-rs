@@ -75,9 +75,10 @@ so the record a module's data schema validates is the one a document produced.
 Token and key resolution:
 
 - The engine SHALL read record-key sections only when `semantic.mappings`
-  names `record-sections` and a `data_schema` is supplied; otherwise every
-  section is prose to this mapping, with no diagnostic and no
-  `availability.recordKeys`.
+  names `record-sections` and a `data_schema` is supplied.
+- If `semantic.mappings` does not name `record-sections`, or no `data_schema`
+  is supplied, then the engine SHALL treat every section as prose to this
+  mapping, with no diagnostic and no `availability.recordKeys`.
 - The engine SHALL match a `##` heading to a property of the record by
   lowercasing both and removing spaces, hyphens and underscores, so
   `## Retry Policy` names `retryPolicy` and `## Associated Types` names
@@ -90,9 +91,20 @@ Token and key resolution:
   `featureOrder` and the FR-075 systems members; each typed relation key
   FR-076 derives; each key a declared FR-075 table locator fills (`values`,
   `states`, `transitions`, `steps`, `members`, `vocabulary`), whatever its
-  heading normalizes to; under `agent-ix/spec-objects-business` also `owner`,
-  `ubiquitous_language` and `members`, which no section fills. A heading that
-  names an owned key, or no key, is prose.
+  heading normalizes to; and, under `agent-ix/spec-objects-business`, the keys
+  quoin FR-123 lists as having no authored source: `owner` of a
+  `nested_entity`, `ubiquitous_language` of a `domain`, and `members` of a
+  `domain` or `population`. The object type is the one the surface names
+  (`SemanticContext::with_object_type`, the Python `objectType`) or the
+  relation vocabulary's.
+- The engine SHALL treat a heading that names an owned key, or no key, as
+  prose.
+- If a heading names a property whose schema shape no mapping can read (not a
+  scalar, an object, an array of scalars or of objects, nor `associated_types`
+  as a `TypeRef[]`, or a `$ref` that no supplied document resolves), then the
+  engine SHALL emit `semantic.feature-not-extractable` at the heading with
+  `reason` `schema-unreadable` and report the key `unavailable` with that
+  reason. A `$ref` to a fragment of the same document is followed.
 - If the artifact holds a second section naming the same key, then the engine
   SHALL emit `semantic.duplicate-section` at the second heading with `reason`
   `second-section`.
@@ -183,13 +195,32 @@ Model-table keys (quoin FR-123):
 
 - Where the record schema declares the key and a declared FR-075 table locator
   fills it, the engine SHALL copy the FR-075 `model` entries of `values`,
-  `states`, `transitions` and `steps` to the record key of the same name, each
-  element without its `sourceSpan`, in row order. The key is `available`
+  `states`, `transitions`, `steps`, `members` and `vocabulary` to the record
+  key of the same name, each element without its `sourceSpan`, in row order. The key is `available`
   (`[]` for a header-only table), `unavailable` with the model's reason when
   the model is, and `not_applicable` when the table is absent. Its
-  `recordSources` span runs from the first entry to the last, and from the
-  heading to the last line of a header-only section. A model entry whose key
+  `recordSources` span is the key's whole section, from its heading to its
+  last non-blank line, as for any other key; `recordSources` stays in document
+  order. A model entry whose key
   the schema does not declare stays in `model` and adds no record key.
+- The engine SHALL resolve a `Member` cell of an `aggregate_root` to a
+  `SemanticId` by the FR-075 declaration references, admitting only a
+  declaration whose object type carries a role of the construct
+  `references.members`, and SHALL copy `members` as `RelationDecl[]`. The
+  `verb` is the one composite verb of the registry that the object type's
+  `allowed_links` admit for the target's object type or role, and `category`
+  and `composite` come from that verb's registry entry. An unresolved
+  reference is `semantic.unknown-reference`, `semantic.reference-kind-mismatch`
+  or `semantic.ambiguous-reference`; if no composite verb or more than one
+  admits the target, then the engine SHALL emit `semantic.invalid-model-cell`
+  at the row with `reason` `member-verb`. With no bundle package, no bundle
+  index or no relation vocabulary the key is `unavailable` with that reason.
+- If an `## Relationships` row of an object type that declares the `members`
+  locator carries a composite verb, then the engine SHALL emit
+  `semantic.duplicate-model-entry` at the row with `reason`
+  `declared-in-members`.
+- The engine SHALL omit the `doc` of a `vocabulary` term whose `Description`
+  is empty, in `model` and in the record alike.
 - A transition `Guard` that is a clause id SHALL copy as the semantic-core
   `ClauseRef` `{ language: "quire", clauseId }` with no `sourceSpan`; an inline
   `guardExpression` is not a `Transition` field and is not copied.
@@ -206,7 +237,7 @@ Model-table keys (quoin FR-123):
 
 | ID | Criteria | Verification |
 |----|----------|--------------|
-| FR-081-AC-1 | A `hazard` fixture with a `## Assessment` table `Severity \| Likelihood \| Exposure \| Controllability \| Rationale` extracts an `assessment` object with a `recordSources` entry spanning the section, and `declaration_record` validates against the fixture module's `Hazard.json`; an axis authored `not_assessed` is that string, an empty `Exposure` cell is absent, and a hazard with no `## Assessment` has no `assessment` key and `availability.recordKeys` `not_applicable`. | Test |
+| FR-081-AC-1 | A lifecycle fixture whose `## Assessment` table has the header `Severity \| Likelihood \| Exposure \| Controllability \| Rationale` and one row extracts an `assessment` object with a `recordSources` entry spanning the section, and `declaration_record` validates against the fixture's synthetic record schema; an axis authored `not_assessed` is that string, an empty `Exposure` cell is absent, and a record with no `## Assessment` has no `assessment` key and `availability.recordKeys` `not_applicable`. The quoin criteria that name `spec-objects-safety` schemas (`HazardAssessment.json`, `Hazard.json`) are not run here: that module is not fetchable by the repository's fixture mechanism, and its schemas are never copied. | Test |
 | FR-081-AC-2 | A `failure_mode` `## Analysis` table extracts an `analysis` object; `## Status` holding `` `accepted` `` and a `## Provenance` table extract `status` and `provenance`, the same fixture without `## Provenance` extracts none, and a frontmatter `status: accepted` yields no `status`. | Test |
 | FR-081-AC-3 | A `## Evidence` table `Target \| Kind` extracts `evidence` in row order with each target resolved by the FR-076 `Target` rules (the no-index advisory included); a header-only table extracts `[]` and is `available`. | Test |
 | FR-081-AC-4 | The cases `column-unknown`, `column-duplicate`, `second-row`, `no-row`, `nested-object-cell` and `cell-type` each yield `semantic.invalid-model-cell` with that `reason` at the row or header, a second `## Assessment` yields `semantic.duplicate-section` `second-section`, and each key is `unavailable` with `entry-errors: lines <lines>`, no value and no `recordSources` entry. | Test |
@@ -220,10 +251,13 @@ Model-table keys (quoin FR-123):
 | FR-081-AC-12 | A `## Thresholds` row `per_token \| requests \| 60 \| 1m \| 429 \| true \|` extracts a `Threshold` with `on_exceeded` `{ status: 429, retry_after: true }` and no `behavior`; the same row with an empty `Status` yields `status-required` at the row. | Test |
 | FR-081-AC-13 | `semantic-v1.schema.json` admits `record`, `recordSources` and `availability.recordKeys`; every record of AC-1..AC-12 validates against it, every existing semantic case record is unchanged (FR-076-AC-9), and `declaration_record` carries the `record` keys. | Test |
 | FR-081-AC-14 | Every top-level property of every object-type record schema that `agent-ix/spec-objects-architecture` ships is owned by exactly one of quoin FR-071, FR-072, FR-104, FR-121, FR-122, or quire-rs FR-075, FR-076 or this requirement, and none is declared not-authored; a property no owner claims fails the test (quoin FR-122-AC-7, TC-2115). | Test |
-| FR-081-AC-15 | An `enumeration` `## Values` table `Value \| Description` with the rows `draft \| Not yet reviewed` and `final \|` copies to `values` as two elements, the second with no `doc`, with a `recordSources` entry and `values` `available`, and no `semantic.invalid-model-cell` `column-unknown` or second reading of the section; a header-only table copies `[]` and is `available`; a `## Values` bullet list is `semantic.feature-not-extractable` with `reason` `values`. A `state_machine` copies `states` and `transitions` with a clause-id `Guard` as `{ language: "quire", clauseId }`; a `process` copies `steps`, and its `## States` table stays in `model` and adds no `states` key to a record whose schema declares none. | Test |
+| FR-081-AC-15 | An `enumeration` `## Values` table `Value \| Description` with the rows `draft \| Not yet reviewed` and `final \|` copies to `values` as two elements, the second with no `doc`, with a `recordSources` entry spanning the section and `values` `available`, and no `semantic.invalid-model-cell` `column-unknown` or second reading of the section; a header-only table copies `[]`; a bullet list is `semantic.feature-not-extractable` `values`; a repeated `Value` and an invalid `Value` are refused and the key is `unavailable` with the model's `entry-errors` reason. A `state_machine` copies `states` and `transitions` (a clause-id `Guard` as `{ language: "quire", clauseId }`, `Emits` as one `SemanticId`); a `process` copies `steps` with `consumes` and `emits` as `SemanticId[]`, and its `## States` table stays in `model` and adds no `states` key to a record whose schema declares none; `recordSources` follows the document order of the sections. | Test |
+| FR-081-AC-16 | An `aggregate_root` `## Members` with `OrderLine \| 0..*` (a `nested_entity`) and `Money \| 3..3` (a `value_object`) copies two `RelationDecl`s, `aggregates` and `contains`, both composite with the target `SemanticId`; a member no composite verb admits yields `member-verb`, an unknown name `semantic.unknown-reference`, a member of a type the construct `references.members` does not admit `semantic.reference-kind-mismatch`, and an `aggregates` row in `## Relationships` yields `semantic.duplicate-model-entry` `declared-in-members`; with no bundle index the key is `unavailable` with reason `no-bundle-index`. A `domain` `## Ubiquitous Language` table copies `vocabulary` with an empty `Description` as an absent `doc` (record validation refuses it), and reads no `ubiquitous_language`; a `nested_entity` `## Parent` and `## Owner` yield no `owner` and no diagnostic; a `repository` `persists` row extracts `persists` while `## Persists` and `## Emits` sections are prose; an `event` `## Source` inline id extracts `source`. | Test |
+| FR-081-AC-17 | A property whose schema is a `#/$defs` fragment `$ref` is read; a property whose shape no mapping reads (an array of arrays, a `TypeRef[]` other than `associated_types`) named by a heading yields `semantic.feature-not-extractable` `schema-unreadable` and the key `unavailable`; a `## Associated Types` table in a module other than the architecture module is read; a `thresholds` row with an invalid `Status` is refused once, as `cell-type`. | Test |
 
 ## Dependencies
 
 - **Upstream**: [FR-070](./FR-070-typed-properties-extraction.md), [FR-072](./FR-072-semantic-extraction-surface.md), [FR-075](./FR-075-model-feature-extraction.md), [FR-076](./FR-076-relationships-extraction.md); `agent-ix/quoin` FR-121, FR-122, FR-123
-- **Not yet implemented here** (`agent-ix/quoin` FR-123, PLAT-1370): copying `vocabulary` and `members` (its upstream item 1 for those two keys), the empty-`Description` omission of `read_vocabulary` (item 5), `aggregate_root` `Member` resolution by declaration references with the composite verb (`member-verb`, `declared-in-members`; item 3), and the FR-075 CR-192 note correction (item 6). Both keys stay owned by their table locators, so they are never read as record-key sections.
+- **Quoin FR-123 coverage**: AC-1 and AC-9 by FR-081-AC-15, AC-2 by FR-081-AC-15, AC-3 and AC-5 by FR-081-AC-15, AC-4 and AC-6 and AC-7 by FR-081-AC-16, and AC-8 only in part: the ownership audit runs over `spec-objects-architecture` (FR-081-AC-14) but not over `spec-objects-business`, whose package the fixture mechanism does not fetch and whose schemas this repository never copies. Quoin's business-module schema validations (`EnumValue.json`, `Enumeration.json`, `Transition.json`, ...) are likewise not run here; the cases validate against synthetic roots.
+- **FR-075 CR-192 note**: corrected to say `owner` is never extracted and `Event.source` is read by this requirement.
 - **Downstream**: `agent-ix/spec-objects-architecture`, `agent-ix/spec-objects-safety`, `agent-ix/quoin`

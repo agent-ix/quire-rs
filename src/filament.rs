@@ -1149,6 +1149,7 @@ fn attach_semantic(
         input.semantic_bundle.clone().unwrap_or_default(),
     )
     .with_source_identity(format!("ix://{}/{}/spec", input.org, input.repo_name))
+    .with_object_type(object_name)
     .with_data_schema(&object_type.schema)
     .with_record_schema(&object_type.schema, &BTreeMap::new());
     let ctx = match &snapshot.construct_references {

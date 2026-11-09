@@ -19,10 +19,14 @@ bumps; once 1.0 ships, semver is strict.
   `associated_types`, the `## Layout` fence to `records` and `endianness` with
   `size-unknown-field` and `size-ambiguous`, `thresholds` with
   `status-required`) and the copy of `values`, `states`, `transitions` and
-  `steps` to their record keys follow quoin FR-122 and FR-123. **Additive for
+  `steps`, `members` (as `RelationDecl[]` with the composite verb: `member-verb`,
+  `declared-in-members`) and `vocabulary` to their record keys follow quoin
+  FR-122 and FR-123. A property no mapping can read is refused as
+  `schema-unreadable`, never silently prose. **Additive for
   `semantic-v1`:** the three keys are new and absent unless the token is named,
   so every existing record is unchanged (FR-076-AC-9). **Breaking for Rust
-  struct-literal construction:** `Availability`, `SemanticExtraction`,
+  struct-literal construction:** `TermDecl.doc` is now `Option<String>` (an empty
+  `Description` is omitted, not `""`), and `Availability`, `SemanticExtraction`,
   `DeclarationRecord` and `CompiledArchetype` gain fields.
   `SemanticContext::with_record_schema` supplies the schema; the Python entry
   takes `schemaDocuments`. Golden cases: `quire-fixtures`

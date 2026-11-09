@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/quire-fixtures/0.1.0/Workflow.json",
+  "$comment": "Synthetic fixture root for the record-sections cases; not a module schema.",
+  "type": "object",
+  "properties": {
+    "steps": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "$ref": "https://schemas.agent-ix.org/semantic-core/0.3.3/Identifier.json"
+          },
+          "kind": {
+            "enum": [
+              "command",
+              "event",
+              "decision",
+              "compensation",
+              "wait"
+            ]
+          },
+          "consumes": {
+            "type": "array",
+            "items": {
+              "$ref": "https://schemas.agent-ix.org/semantic-core/0.3.3/SemanticId.json"
+            }
+          },
+          "emits": {
+            "type": "array",
+            "items": {
+              "$ref": "https://schemas.agent-ix.org/semantic-core/0.3.3/SemanticId.json"
+            }
+          },
+          "doc": {
+            "type": "string"
+          }
+        },
+        "unevaluatedProperties": {
+          "not": {}
+        },
+        "required": [
+          "name",
+          "kind"
+        ]
+      }
+    }
+  },
+  "unevaluatedProperties": {
+    "not": {}
+  }
+}

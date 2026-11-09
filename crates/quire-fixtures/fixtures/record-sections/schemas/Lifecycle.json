@@ -1,6 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://schemas.agent-ix.org/agent-ix/quire-fixtures/0.1.0/Hazard.json",
+  "$id": "https://schemas.agent-ix.org/agent-ix/quire-fixtures/0.1.0/Lifecycle.json",
+  "$comment": "Synthetic fixture root for the record-sections cases; not a module schema.",
   "type": "object",
   "properties": {
     "status": {
@@ -11,10 +12,47 @@
       ]
     },
     "assessment": {
-      "$ref": "https://schemas.agent-ix.org/agent-ix/quire-fixtures/0.1.0/HazardAssessment.json"
+      "type": "object",
+      "properties": {
+        "severity": {
+          "type": "string"
+        },
+        "likelihood": {
+          "type": "string"
+        },
+        "exposure": {
+          "type": "string"
+        },
+        "controllability": {
+          "type": "string"
+        },
+        "rationale": {
+          "type": "string"
+        }
+      },
+      "unevaluatedProperties": {
+        "not": {}
+      }
     },
     "provenance": {
-      "$ref": "https://schemas.agent-ix.org/agent-ix/quire-fixtures/0.1.0/Provenance.json"
+      "type": "object",
+      "properties": {
+        "assertedBy": {
+          "type": "string"
+        },
+        "assertedAt": {
+          "type": "string"
+        },
+        "revision": {
+          "type": "integer"
+        },
+        "signature": {
+          "$ref": "https://schemas.agent-ix.org/agent-ix/quire-fixtures/0.1.0/Signature.json"
+        }
+      },
+      "unevaluatedProperties": {
+        "not": {}
+      }
     },
     "evidence": {
       "type": "array",
@@ -43,6 +81,9 @@
         "backoff": {
           "type": "string"
         }
+      },
+      "unevaluatedProperties": {
+        "not": {}
       }
     }
   },
@@ -67,6 +108,5 @@
   ],
   "unevaluatedProperties": {
     "not": {}
-  },
-  "description": "Fixture: a hazard record with lifecycle keys. An accepted status requires a provenance."
+  }
 }

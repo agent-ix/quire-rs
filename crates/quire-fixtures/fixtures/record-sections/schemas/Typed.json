@@ -1,0 +1,20 @@
+{
+  "type": "object",
+  "properties": {
+    "associated_types": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/semantic-core/0.3.3/TypeRef.json"
+      }
+    },
+    "other_types": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/semantic-core/0.3.3/TypeRef.json"
+      }
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/quire-fixtures/0.1.0/Typed.json",
+  "$comment": "Synthetic fixture root for the record-sections cases; not a module schema."
+}

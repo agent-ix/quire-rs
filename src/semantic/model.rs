@@ -796,7 +796,9 @@ pub struct FeatureOrderDecl {
 #[serde(rename_all = "camelCase")]
 pub struct TermDecl {
     pub term: String,
-    pub doc: String,
+    /// The `Description` cell; absent when empty.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub doc: Option<String>,
     pub source_span: SourceLocus,
 }
 
@@ -1912,7 +1914,7 @@ fn read_vocabulary(r: &mut TableRead<'_>) {
         }
         entries.push(TermDecl {
             term: term.to_string(),
-            doc: r.cell(cells, "Description").to_string(),
+            doc: optional(r.cell(cells, "Description")),
             source_span: r.span(*line),
         });
     }

@@ -18,11 +18,15 @@ use super::clauses::{declared_operation_names, SourceLocus};
 use super::context::SemanticContext;
 use super::contract::SemanticSeverity;
 use super::embedded::{semantic_core_bundle, SEMANTIC_CORE_BASE};
-use super::model::{entry_errors, line_span, ModelDeclarations, ModelFeature};
+use super::model::{entry_errors, line_span, MemberDecl, ModelDeclarations, ModelFeature};
 use super::properties::{map_multiplicity, map_type, strip_ticks, RowInput};
 use super::relations::bundle_package;
+use super::relations::RelationDecl;
 use super::scan::{blocks_in, level2_headings, lines, Block, Fence, Table};
-use super::target::{is_id_segment, resolve_target, OwnArtifact, Target};
+use super::target::{
+    is_id_segment, resolve_reference, resolve_target, Admission, Declarations, OwnArtifact,
+    OwnDeclaration, ReferenceRefusal, Target,
+};
 use super::{AvailabilityState, KindAvailability, SemanticDiagnostic};
 
 /// The `semantic.mappings` token that declares record-sections extraction.
@@ -164,18 +168,28 @@ impl Documents<'_> {
         serde_json::from_str(text).ok()
     }
 
-    fn classify(&self, node: &Value, depth: u8) -> Typed {
+    /// Type `node` of the document `doc`. A `$ref` to a fragment of `doc`
+    /// (`#/$defs/X`, or `doc`'s own `$id` with a fragment) is followed in
+    /// place; any other is followed through the supplied documents.
+    fn classify(&self, node: &Value, doc: &Value, depth: u8) -> Typed {
         if depth > MAX_REF_DEPTH {
             return Typed::Unknown;
         }
         if let Some(reference) = node.get("$ref").and_then(Value::as_str) {
-            let url = reference.split('#').next().unwrap_or("");
+            let (url, fragment) = reference.split_once('#').unwrap_or((reference, ""));
+            if url.is_empty() || doc.get("$id").and_then(Value::as_str) == Some(url) {
+                return doc.pointer(fragment).map_or(Typed::Unknown, |target| {
+                    self.classify(target, doc, depth + 1)
+                });
+            }
             return match core_name(url) {
                 Some("SemanticId.json") => Typed::Scalar(Scalar::SemanticId),
                 Some("TypeRef.json") => Typed::TypeRef,
-                _ => self
-                    .lookup(url)
-                    .map_or(Typed::Unknown, |doc| self.classify(&doc, depth + 1)),
+                _ => self.lookup(url).map_or(Typed::Unknown, |other| {
+                    other.pointer(fragment).map_or(Typed::Unknown, |target| {
+                        self.classify(target, &other, depth + 1)
+                    })
+                }),
             };
         }
         if let Some(branches) = node
@@ -183,7 +197,7 @@ impl Documents<'_> {
             .or_else(|| node.get("oneOf"))
             .and_then(Value::as_array)
         {
-            return self.classify_branches(branches, depth);
+            return self.classify_branches(branches, doc, depth);
         }
         if let Some(values) = node.get("enum").and_then(Value::as_array) {
             return Self::classify_enum(values);
@@ -193,20 +207,20 @@ impl Documents<'_> {
             Some("integer") => Typed::Scalar(Scalar::Integer),
             Some("number") => Typed::Scalar(Scalar::Number),
             Some("boolean") => Typed::Scalar(Scalar::Boolean),
-            Some("object") => Typed::Object(self.columns(node, depth)),
+            Some("object") => Typed::Object(self.columns(node, doc, depth)),
             Some("array") => node.get("items").map_or(Typed::Unknown, |items| {
-                Typed::Array(Box::new(self.classify(items, depth + 1)))
+                Typed::Array(Box::new(self.classify(items, doc, depth + 1)))
             }),
-            _ if node.get("properties").is_some() => Typed::Object(self.columns(node, depth)),
+            _ if node.get("properties").is_some() => Typed::Object(self.columns(node, doc, depth)),
             _ => Typed::Unknown,
         }
     }
 
     /// An `anyOf`: all strings, or an integer and a string.
-    fn classify_branches(&self, branches: &[Value], depth: u8) -> Typed {
+    fn classify_branches(&self, branches: &[Value], doc: &Value, depth: u8) -> Typed {
         let scalars: Option<Vec<Scalar>> = branches
             .iter()
-            .map(|branch| match self.classify(branch, depth + 1) {
+            .map(|branch| match self.classify(branch, doc, depth + 1) {
                 Typed::Scalar(scalar) => Some(scalar),
                 _ => None,
             })
@@ -240,13 +254,13 @@ impl Documents<'_> {
         }
     }
 
-    fn columns(&self, node: &Value, depth: u8) -> Vec<Column> {
+    fn columns(&self, node: &Value, doc: &Value, depth: u8) -> Vec<Column> {
         node.get("properties")
             .and_then(Value::as_object)
             .into_iter()
             .flatten()
             .map(
-                |(name, property)| match self.classify(property, depth + 1) {
+                |(name, property)| match self.classify(property, doc, depth + 1) {
                     Typed::Scalar(scalar) => Column {
                         name: name.clone(),
                         scalar: Some(scalar),
@@ -280,7 +294,7 @@ impl RecordSchema {
             .flatten()
             .map(|(name, property)| RecordProperty {
                 name: name.clone(),
-                node: match documents.classify(property, 0) {
+                node: match documents.classify(property, root, 0) {
                     Typed::Scalar(scalar) => Node::Scalar(scalar),
                     Typed::Object(columns) => Node::Object(columns),
                     Typed::Array(items) => match *items {
@@ -313,9 +327,14 @@ impl RecordSchema {
         {
             return Some(KeyOwner::ModelTable);
         }
-        if package == BUSINESS_PACKAGE
-            && matches!(name, "owner" | "ubiquitous_language" | "members")
-        {
+        // quoin FR-123: no section fills these keys of the business module.
+        let unmapped = matches!(
+            (ctx.object_type_name(), name),
+            (Some("nested_entity"), "owner")
+                | (Some("domain"), "ubiquitous_language")
+                | (Some("domain" | "population"), "members")
+        );
+        if package == BUSINESS_PACKAGE && unmapped {
             return Some(KeyOwner::Unmapped);
         }
         if SYSTEMS_MEMBERS.contains(&name) {
@@ -332,7 +351,7 @@ impl RecordSchema {
         }
         let readable = match property.node {
             Node::Unreadable => false,
-            Node::TypeRefArray => package == ARCHITECTURE_PACKAGE && name == "associated_types",
+            Node::TypeRefArray => name == "associated_types",
             Node::Scalar(_) | Node::ScalarArray(_) | Node::Object(_) | Node::ObjectArray(_) => true,
         };
         readable.then_some(KeyOwner::RecordSections)
@@ -469,6 +488,7 @@ pub(crate) fn extract_record(raw: &str, ctx: &SemanticContext) -> Option<RecordO
     let mut outcome = RecordOutcome::default();
     let mut seen: BTreeSet<String> = BTreeSet::new();
     let mut ambiguous: BTreeSet<String> = BTreeSet::new();
+    let mut unreadable: BTreeSet<String> = BTreeSet::new();
     let mut reads: Vec<(String, Read)> = Vec::new();
     let mut duplicates: BTreeMap<String, Vec<SemanticDiagnostic>> = BTreeMap::new();
     for (text, line, end) in level2_headings(&all_lines) {
@@ -508,6 +528,21 @@ pub(crate) fn extract_record(raw: &str, ctx: &SemanticContext) -> Option<RecordO
                 continue;
             }
             let [property] = readable.as_slice() else {
+                // A key no mapping can read is refused, never silently prose.
+                for p in group.iter().filter(|p| schema.owner(ctx, p).is_none()) {
+                    if unreadable.insert(p.name.clone()) {
+                        outcome.diagnostics.push(reader.finding(
+                            "semantic.feature-not-extractable",
+                            "schema-unreadable",
+                            sec,
+                            line,
+                            format!(
+                                "record key `{}` has a schema shape record-sections cannot read: it is not a scalar, an object, an array of scalars or of objects, or a `$ref` resolves to no supplied document",
+                                p.name
+                            ),
+                        ));
+                    }
+                }
                 continue;
             };
             Source::Key(property)
@@ -560,6 +595,12 @@ pub(crate) fn extract_record(raw: &str, ctx: &SemanticContext) -> Option<RecordO
             outcome.availability.insert(key, state);
         }
         outcome.diagnostics.extend(diagnostics);
+    }
+    for key in &unreadable {
+        outcome.availability.insert(
+            key.clone(),
+            KindAvailability::unavailable("schema-unreadable"),
+        );
     }
     for property in &schema.properties {
         let readable = schema.owner(ctx, property) == Some(KeyOwner::RecordSections)
@@ -884,6 +925,7 @@ impl Reader<'_> {
         state: &mut State,
     ) -> Map<String, Value> {
         let mut row = Map::new();
+        let before = state.diagnostics.len();
         for (position, index) in matched.iter().enumerate() {
             let target = &targets[*index];
             let cell = strip_ticks(cells.get(position).map_or("", String::as_str));
@@ -925,7 +967,8 @@ impl Reader<'_> {
             }
         }
         if self.ctx.module.package == ARCHITECTURE_PACKAGE {
-            self.row_rules(sec, name, line, &row, state);
+            let clean = state.diagnostics.len() == before;
+            self.row_rules(sec, name, line, &row, clean, state);
         }
         row
     }
@@ -937,6 +980,7 @@ impl Reader<'_> {
         name: &str,
         line: usize,
         row: &Map<String, Value>,
+        clean: bool,
         state: &mut State,
     ) {
         match name {
@@ -957,7 +1001,8 @@ impl Reader<'_> {
             }
             "thresholds" => {
                 let status = row.get("on_exceeded").and_then(|o| o.get("status"));
-                if status.is_none() {
+                // A cell that already failed is refused once (first failing check).
+                if status.is_none() && clean {
                     state.diagnostics.push(
                         self.finding(
                             "semantic.invalid-model-cell",
@@ -1176,27 +1221,22 @@ impl Reader<'_> {
         let Some(fence) = fence else {
             return self.read(sec, &FENCE_KEYS, state, none);
         };
-        let document = match parse_layout(&fence.body) {
-            Ok(document) => document,
+        let (endianness, records) = match parse_layout(&fence.body) {
+            Ok(parsed) => parsed,
             Err(why) => {
                 state.diagnostics.push(self.finding(
                     "semantic.feature-not-extractable",
                     "layout",
                     sec,
                     fence.open_line,
-                    format!("the `## Layout` fence is not a YAML mapping: {why}"),
+                    format!("the `## Layout` fence is not a YAML mapping of the layout: {why}"),
                 ));
                 return self.read(sec, &FENCE_KEYS, state, none);
             }
         };
-        let records = document
-            .get("record_types")
-            .and_then(Value::as_array)
-            .map(|types| lower_records(types));
         if let Some(records) = &records {
             self.check_sizes(sec, fence.open_line, records, &mut state);
         }
-        let endianness = document.get("endianness").cloned();
         self.read(
             sec,
             &FENCE_KEYS,
@@ -1264,58 +1304,59 @@ fn decimal_integer(text: &str) -> Option<i64> {
     text.parse().ok()
 }
 
-/// Parse the `## Layout` fence body as a YAML mapping, with every `tag`
-/// value kept as its authored text (`0x21` is not the integer 33).
-fn parse_layout(body: &str) -> Result<Map<String, Value>, String> {
-    static TAG: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
-    let tag = TAG.get_or_init(|| {
-        regex::Regex::new(
-            r#"(?m)^(\s*(?:-\s+)?tag:[ \t]+)([^\s"'#\[{&*!|>%@`][^#\n]*?)([ \t]*(?:#.*)?)$"#,
-        )
-        .expect("the tag pattern is valid")
-    });
-    let quoted = tag.replace_all(body, |caps: &regex::Captures<'_>| {
-        let text = caps[2].replace('\\', "\\\\").replace('"', "\\\"");
-        format!("{}\"{text}\"{}", &caps[1], &caps[3])
-    });
-    let yaml: serde_yaml::Value = serde_yaml::from_str(&quoted).map_err(|e| e.to_string())?;
-    match serde_json::to_value(&yaml).map_err(|e| e.to_string())? {
-        Value::Object(map) => Ok(map),
-        _ => Err("the top level is not a mapping".to_string()),
-    }
+/// The `## Layout` fence as authored. A `tag` deserializes as a string, so a
+/// plain scalar keeps its authored text in block and flow style alike
+/// (`0x21` is not the integer 33).
+#[derive(Deserialize)]
+struct LayoutDoc {
+    endianness: Option<Value>,
+    record_types: Option<Vec<RecordDoc>>,
 }
 
-/// `record_types[]` to `RecordLayout[]`, each `fields[]` entry to a
-/// `LayoutField`; keys with no counterpart stay out.
-fn lower_records(types: &[Value]) -> Vec<Value> {
-    let pick = |source: &Value, keys: &[&str]| -> Map<String, Value> {
-        keys.iter()
-            .filter_map(|k| source.get(*k).map(|v| (k.to_string(), v.clone())))
-            .collect()
-    };
-    types
-        .iter()
-        .map(|record| {
-            let mut out = pick(record, &["name", "tag", "size"]);
-            if let Some(tag) = out.get_mut("tag") {
-                if !tag.is_string() {
-                    *tag = Value::String(tag.to_string());
-                }
-            }
-            if let Some(fields) = record.get("fields").and_then(Value::as_array) {
-                out.insert(
-                    "fields".to_string(),
-                    Value::Array(
-                        fields
-                            .iter()
-                            .map(|f| Value::Object(pick(f, &["name", "offset", "size", "type"])))
-                            .collect(),
-                    ),
+#[derive(Deserialize)]
+struct RecordDoc {
+    name: Option<Value>,
+    tag: Option<String>,
+    size: Option<Value>,
+    fields: Option<Vec<Map<String, Value>>>,
+}
+
+/// `endianness` and `record_types[]` lowered to `RecordLayout[]`, each
+/// `fields[]` entry to a `LayoutField`; keys with no counterpart (`format`,
+/// `magic`) stay out.
+fn parse_layout(body: &str) -> Result<(Option<Value>, Option<Vec<Value>>), String> {
+    let doc: LayoutDoc = serde_yaml::from_str(body).map_err(|e| e.to_string())?;
+    let records = doc.record_types.map(|types| {
+        types
+            .into_iter()
+            .map(|record| {
+                let mut out = Map::new();
+                let scalars = [
+                    ("name", record.name),
+                    ("tag", record.tag.map(Value::String)),
+                    ("size", record.size),
+                ];
+                out.extend(
+                    scalars
+                        .into_iter()
+                        .filter_map(|(key, value)| Some((key.to_string(), value?))),
                 );
-            }
-            Value::Object(out)
-        })
-        .collect()
+                if let Some(fields) = record.fields {
+                    let fields = fields.into_iter().map(|field| {
+                        Value::Object(
+                            ["name", "offset", "size", "type"]
+                                .iter()
+                                .filter_map(|k| field.get(*k).map(|v| (k.to_string(), v.clone())))
+                                .collect(),
+                        )
+                    });
+                    out.insert("fields".to_string(), Value::Array(fields.collect()));
+                }
+                Value::Object(out)
+            })
+            .collect()
+    });
+    Ok((doc.endianness, records))
 }
 
 /// A model entry as a record element: the entry without its `sourceSpan`
@@ -1332,29 +1373,69 @@ fn record_element(entry: &impl Serialize, drop: &[&str]) -> Value {
     value
 }
 
-/// The elements of model key `key` and their spans, when the model holds it.
-fn model_elements(model: &ModelDeclarations, key: &str) -> Option<(Vec<Value>, Vec<SourceLocus>)> {
+/// What copying one model key produced.
+struct Copied {
+    elements: Vec<Value>,
+    /// The span of the entries, used when the key's section is not found.
+    entries: Vec<SourceLocus>,
+    diagnostics: Vec<SemanticDiagnostic>,
+    /// Why the bundle cannot resolve the key's references at all.
+    unresolved: Option<&'static str>,
+}
+
+impl Copied {
     fn of<T: Serialize>(
-        entries: &Option<Vec<T>>,
+        entries: &[T],
         span: impl Fn(&T) -> SourceLocus,
         drop: &[&str],
         lower: impl Fn(Value, &T) -> Value,
-    ) -> Option<(Vec<Value>, Vec<SourceLocus>)> {
-        let entries = entries.as_ref()?;
-        Some((
-            entries
+    ) -> Self {
+        Self {
+            elements: entries
                 .iter()
                 .map(|e| lower(record_element(e, drop), e))
                 .collect(),
-            entries.iter().map(span).collect(),
-        ))
+            entries: entries.iter().map(span).collect(),
+            diagnostics: Vec::new(),
+            unresolved: None,
+        }
     }
+}
+
+/// The copy of model key `key`, when the model holds it.
+fn model_elements(
+    raw: &str,
+    ctx: &SemanticContext,
+    model: &ModelDeclarations,
+    key: &str,
+) -> Option<Copied> {
     match key {
-        "values" => of(&model.values, |e| e.source_span.clone(), &[], |v, _| v),
-        "states" => of(&model.states, |e| e.source_span.clone(), &[], |v, _| v),
-        "steps" => of(&model.steps, |e| e.source_span.clone(), &[], |v, _| v),
-        "transitions" => of(
-            &model.transitions,
+        "values" => Some(Copied::of(
+            model.values.as_deref()?,
+            |e| e.source_span.clone(),
+            &[],
+            |v, _| v,
+        )),
+        "states" => Some(Copied::of(
+            model.states.as_deref()?,
+            |e| e.source_span.clone(),
+            &[],
+            |v, _| v,
+        )),
+        "steps" => Some(Copied::of(
+            model.steps.as_deref()?,
+            |e| e.source_span.clone(),
+            &[],
+            |v, _| v,
+        )),
+        "vocabulary" => Some(Copied::of(
+            model.vocabulary.as_deref()?,
+            |e| e.source_span.clone(),
+            &[],
+            |v, _| v,
+        )),
+        "transitions" => Some(Copied::of(
+            model.transitions.as_deref()?,
             |e| e.source_span.clone(),
             &["guardExpression"],
             |mut v, e| {
@@ -1368,14 +1449,126 @@ fn model_elements(model: &ModelDeclarations, key: &str) -> Option<(Vec<Value>, V
                 }
                 v
             },
-        ),
+        )),
+        "members" => Some(copy_members(raw, ctx, model.members.as_deref()?)),
         _ => None,
     }
 }
 
+/// The `Member | Multiplicity` rows as `RelationDecl[]` (quoin FR-123): each
+/// `Member` resolves by declaration references admitted by the construct
+/// `references.members`, and its `verb` is the one composite verb the object
+/// type's `allowed_links` admit for the target's object type or role.
+fn copy_members(raw: &str, ctx: &SemanticContext, members: &[MemberDecl]) -> Copied {
+    let mut out = Copied::of(members, |m| m.source_span.clone(), &[], |v, _| v);
+    out.elements.clear();
+    let section = ctx
+        .declared_tables
+        .section_of("members")
+        .unwrap_or("Members");
+    let at = |code: &str, reason: Option<&str>, member: &MemberDecl, detail: String| {
+        let mut d = SemanticDiagnostic::new(
+            code,
+            SemanticSeverity::Error,
+            member.source_span.start_line,
+            format!(
+                "artifact {} declares members in `## {section}` at line {}: {detail}",
+                ctx.path, member.source_span.start_line
+            ),
+        );
+        d.reason = reason.map(str::to_string);
+        d.source_span = Some(member.source_span.clone());
+        d.section = Some(section.to_string());
+        d
+    };
+    let Some(package) = bundle_package(ctx) else {
+        out.unresolved = Some("no-bundle-package");
+        return out;
+    };
+    if ctx.bundle.artifacts.is_empty() {
+        out.unresolved = Some("no-bundle-index");
+        return out;
+    }
+    let Some(vocabulary) = ctx.relation_vocabulary.as_ref() else {
+        out.unresolved = Some("no-relation-vocabulary");
+        return out;
+    };
+    let own = OwnDeclaration::from_raw(raw);
+    let declarations = Declarations::new(ctx, &own);
+    let admission = match ctx
+        .construct_references
+        .as_ref()
+        .and_then(|c| c.roles("members"))
+    {
+        Some(roles) => Admission::Construct { roles, vocabulary },
+        None => Admission::Any,
+    };
+    for member in members {
+        let item = member.target.as_str();
+        let identity = match resolve_reference(ctx, package, &own, &declarations, item, admission) {
+            Ok(identity) => identity,
+            Err(refusal) => {
+                let (code, reason, detail) = match refusal {
+                    ReferenceRefusal::UnknownName => (
+                        "semantic.unknown-reference",
+                        Some("unknown-name"),
+                        format!("Member item {item:?} names no declaration of the bundle"),
+                    ),
+                    ReferenceRefusal::KindMismatch => (
+                        "semantic.reference-kind-mismatch",
+                        None,
+                        format!("Member item {item:?} names no declaration the members reference admits"),
+                    ),
+                    ReferenceRefusal::Ambiguous(ids) => (
+                        "semantic.ambiguous-reference",
+                        None,
+                        format!("Member item {item:?} names more than one declaration: {}", ids.join(", ")),
+                    ),
+                };
+                out.diagnostics.push(at(code, reason, member, detail));
+                continue;
+            }
+        };
+        let id = identity.rsplit('/').next().unwrap_or_default();
+        let object = if own.id.as_deref() == Some(id) {
+            own.object.as_deref()
+        } else {
+            ctx.bundle
+                .artifacts
+                .iter()
+                .find(|a| a.id == id)
+                .and_then(|a| a.object.as_deref())
+        };
+        let verbs = vocabulary.composite_verbs_admitting(object);
+        let [(verb, entry)] = verbs.as_slice() else {
+            out.diagnostics.push(at(
+                "semantic.invalid-model-cell",
+                Some("member-verb"),
+                member,
+                format!(
+                    "{} composite verbs admit {item:?}; exactly one must",
+                    verbs.len()
+                ),
+            ));
+            continue;
+        };
+        let decl = RelationDecl {
+            verb: (*verb).to_string(),
+            category: entry.category,
+            composite: entry.composite,
+            target: identity,
+            multiplicity: member.multiplicity.clone(),
+        };
+        out.elements
+            .push(serde_json::to_value(decl).unwrap_or(Value::Null));
+    }
+    out
+}
+
 /// Copy the FR-075 `model` entries to the record keys of the same name, only
 /// where the record schema declares the key and a table locator fills it
-/// (quoin FR-123). The key's span runs from its first entry to its last.
+/// (quoin FR-123). Each key's span is its whole section; `recordSources`
+/// stays in document order.
 pub(crate) fn copy_model_keys(
     raw: &str,
     outcome: &mut RecordOutcome,
@@ -1386,53 +1579,62 @@ pub(crate) fn copy_model_keys(
     let Some(schema) = ctx.record_schema.as_ref() else {
         return;
     };
+    let all_lines = lines(raw);
+    let headings = level2_headings(&all_lines);
     for property in &schema.properties {
         let name = property.name.as_str();
         if schema.owner(ctx, property) != Some(KeyOwner::ModelTable) {
             continue;
         }
-        let state = match model.and_then(|m| model_elements(m, name)) {
-            Some((elements, spans)) => {
-                let span = match (spans.first(), spans.last()) {
+        let state = match model.and_then(|m| model_elements(raw, ctx, m, name)) {
+            Some(copied) if copied.unresolved.is_some() => {
+                KindAvailability::unavailable(copied.unresolved.unwrap_or_default())
+            }
+            Some(copied) if copied.diagnostics.iter().any(SemanticDiagnostic::is_error) => {
+                let state = entry_errors(&copied.diagnostics);
+                outcome.diagnostics.extend(copied.diagnostics);
+                state
+            }
+            Some(copied) => {
+                let section = ctx.declared_tables.section_of(name).and_then(|heading| {
+                    headings
+                        .iter()
+                        .find(|(text, _, _)| text == heading)
+                        .map(|(text, line, end)| {
+                            let sec = Sec {
+                                text,
+                                heading: *line,
+                                end: *end,
+                            };
+                            section_span(ctx, &all_lines, sec)
+                        })
+                });
+                let entries = match (copied.entries.first(), copied.entries.last()) {
                     (Some(first), Some(last)) => {
                         let mut span = first.clone();
                         span.end_line = last.end_line;
                         span.end_column = last.end_column;
                         Some(span)
                     }
-                    // A header-only table has no entry: its section is the span.
-                    _ => ctx.declared_tables.section_of(name).and_then(|heading| {
-                        let lines = lines(raw);
-                        level2_headings(&lines)
-                            .into_iter()
-                            .find(|(text, _, _)| text == heading)
-                            .map(|(text, line, end)| {
-                                let sec = Sec {
-                                    text: &text,
-                                    heading: line,
-                                    end,
-                                };
-                                section_span(ctx, &lines, sec)
-                            })
-                    }),
+                    _ => None,
                 };
-                outcome.sources.extend(span.map(|source_span| RecordSource {
-                    key: name.to_string(),
-                    source_span,
-                }));
+                outcome
+                    .sources
+                    .extend(section.or(entries).map(|source_span| RecordSource {
+                        key: name.to_string(),
+                        source_span,
+                    }));
                 outcome
                     .record
-                    .insert(name.to_string(), Value::Array(elements));
+                    .insert(name.to_string(), Value::Array(copied.elements));
                 KindAvailability::available(false)
             }
             None => match model_state {
                 Some(state) if state.state == AvailabilityState::Unavailable => state.clone(),
-                _ if matches!(name, "values" | "states" | "steps" | "transitions") => {
-                    KindAvailability::not_applicable()
-                }
-                _ => continue,
+                _ => KindAvailability::not_applicable(),
             },
         };
         outcome.availability.insert(name.to_string(), state);
     }
+    outcome.sources.sort_by_key(|s| s.source_span.start_line);
 }

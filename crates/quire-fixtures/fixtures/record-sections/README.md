@@ -6,15 +6,18 @@ them from this crate.
 
 | File | Requirement |
 |---|---|
-| `schemas/*.json` | The small record schemas the cases extract against. `Hazard.json` carries the lifecycle keys (an accepted status requires a provenance); `ArchitectureKeys.json` declares every record key of quoin FR-122 in one root. |
-| `cases.json` | FR-081-AC-1..AC-12 (quoin FR-121-AC-1..9, FR-122-AC-1..6). |
+| `schemas/*.json` | Synthetic record roots the cases extract against (`Lifecycle.json` carries the lifecycle keys: an accepted status requires a provenance). No module schema is copied here: the architecture cases run against the published `spec-objects-architecture` schemas, fetched by `spec-objects-architecture-fixture`. |
+| `cases.json` | The FR-081 cases (quoin FR-121-AC-1..9, FR-122-AC-1..6, FR-123-AC-1..7 and AC-9); each case names its criterion in `ac`. |
 
 ## `cases.json` fields
 
 | Field | Meaning |
 |---|---|
 | `id`, `ac` | Case name and the FR-081 criterion it backs. |
-| `schema` | The root schema file under `schemas/`. |
+| `schema` | The root schema file: under `schemas/`, or in the architecture module when `module` is `architecture`. |
+| `objectType`, `constructReferences` | The extracting object type and its construct `references`. |
+| `validates` | Key to module schema (`Name`, `Name[]`, `core:Name[]`) each extracted key must validate against. |
+| `availabilitySubset` | Compare only the listed `availability` keys. |
 | `artifact` | The full artifact. |
 | `package` | The module package; default `acme/safety`. The architecture forms apply to `agent-ix/spec-objects-architecture`. |
 | `mappings` | Replaces the default `["record-sections"]`. |

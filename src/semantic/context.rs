@@ -226,6 +226,9 @@ pub struct SemanticContext {
     /// The record schema FR-081 reads record-key sections against; `None`
     /// reads no record key.
     pub(crate) record_schema: Option<RecordSchema>,
+    /// The extracting object type's name; scopes the keys quoin FR-123 lists
+    /// as unmapped. Falls back to the relation vocabulary's.
+    pub object_type: Option<String>,
 }
 
 impl SemanticContext {
@@ -242,6 +245,7 @@ impl SemanticContext {
             construct_references: None,
             relation_schema: None,
             record_schema: None,
+            object_type: None,
         }
     }
 
@@ -268,6 +272,21 @@ impl SemanticContext {
     ) -> Self {
         self.record_schema = Some(RecordSchema::new(root, documents));
         self
+    }
+
+    /// Name the extracting object type.
+    pub fn with_object_type(mut self, object_type: impl Into<String>) -> Self {
+        self.object_type = Some(object_type.into());
+        self
+    }
+
+    /// The extracting object type's name, when a surface supplies it.
+    pub(crate) fn object_type_name(&self) -> Option<&str> {
+        self.object_type.as_deref().or_else(|| {
+            self.relation_vocabulary
+                .as_ref()
+                .and_then(|v| v.object_type())
+        })
     }
 
     /// Check relationship rows against `vocabulary` (FR-076).

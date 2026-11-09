@@ -69,6 +69,8 @@ struct Request {
     /// The documents the `data_schema` `$ref`s name, keyed by `$ref` url
     /// (FR-081 reads property types through them).
     #[serde(default)]
+    object_type: Option<String>,
+    #[serde(default)]
     schema_documents: std::collections::BTreeMap<String, Value>,
 }
 
@@ -106,6 +108,9 @@ pub fn extract_semantic_json(request: &Value) -> Result<SemanticExtraction, Stri
     }
     ctx.relation_vocabulary = req.relation_vocabulary;
     ctx.construct_references = req.construct_references;
+    if let Some(object_type) = req.object_type {
+        ctx = ctx.with_object_type(object_type);
+    }
     if let Some(schema) = &req.data_schema {
         ctx = ctx
             .with_data_schema(schema)

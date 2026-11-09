@@ -13,23 +13,59 @@ use quire_rs::semantic::{
 };
 use serde_json::{json, Value};
 
-/// `$id` base of the fixture schemas.
-const BASE: &str = "https://schemas.agent-ix.org/agent-ix/quire-fixtures/0.1.0/";
-
-fn schema_root(name: &str) -> Value {
-    quire_fixtures::record_sections_json(&format!("schemas/{name}.json"))
+/// Where a case's schemas come from: this crate's synthetic roots, or the
+/// published architecture module, fetched and never copied.
+struct Schemas {
+    dir: std::path::PathBuf,
 }
 
-fn siblings(name: &str) -> Option<Result<Value, String>> {
-    let path = quire_fixtures::record_sections_dir()
-        .join("schemas")
-        .join(name);
-    let text = std::fs::read_to_string(path).ok()?;
-    Some(serde_json::from_str(&text).map_err(|e| e.to_string()))
+impl Schemas {
+    fn of(case: &Value) -> Self {
+        let dir = if case["module"] == "architecture" {
+            assert!(
+                spec_objects_architecture_fixture::is_available(),
+                "the architecture module is not fetched: {:?}",
+                spec_objects_architecture_fixture::unavailable_reason()
+            );
+            spec_objects_architecture_fixture::module_dir().join("schemas")
+        } else {
+            quire_fixtures::record_sections_dir().join("schemas")
+        };
+        Self { dir }
+    }
+
+    fn root(&self, name: &str) -> Value {
+        self.sibling(&format!("{name}.json"))
+            .unwrap_or_else(|| panic!("no schema {name}"))
+            .unwrap()
+    }
+
+    fn sibling(&self, name: &str) -> Option<Result<Value, String>> {
+        let text = std::fs::read_to_string(self.dir.join(name)).ok()?;
+        Some(serde_json::from_str(&text).map_err(|e| e.to_string()))
+    }
+
+    fn documents(&self, root: &Value) -> BTreeMap<String, Value> {
+        let id = root["$id"].as_str().unwrap();
+        let base = &id[..=id.rfind('/').unwrap()];
+        module_schema_documents(root, &|name| self.sibling(name), base).unwrap()
+    }
 }
 
-fn documents(root: &Value) -> BTreeMap<String, Value> {
-    module_schema_documents(root, &siblings, BASE).unwrap()
+/// A validator for one semantic-core document.
+fn core_gate(name: &str) -> Validator {
+    let core = quire_rs::semantic::embedded::embedded_semantic_core_version();
+    let schema = json!({
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://schemas.agent-ix.org/agent-ix/quire-rs/0.1.0/Gate.json",
+        "$ref": format!("https://schemas.agent-ix.org/semantic-core/{core}/{name}.json")
+    });
+    compile_module_schema(
+        &schema,
+        &|_| None,
+        "https://schemas.agent-ix.org/agent-ix/quire-rs/",
+    )
+    .unwrap()
 }
 
 fn semantic_v1() -> Validator {
@@ -73,7 +109,12 @@ fn request(case: &Value, root: &Value, docs: &BTreeMap<String, Value>) -> Value 
         "schemaDocuments": docs,
     });
     let map = request.as_object_mut().unwrap();
-    for key in ["relationVocabulary", "bodyExtraction"] {
+    for key in [
+        "relationVocabulary",
+        "bodyExtraction",
+        "constructReferences",
+        "objectType",
+    ] {
         if let Some(value) = case.get(key) {
             map.insert(key.to_string(), value.clone());
         }
@@ -161,8 +202,9 @@ fn run_cases(ac: &str) {
         ran += 1;
         let id = case["id"].as_str().unwrap();
         let markdown = case["artifact"].as_str().unwrap();
-        let root = schema_root(case["schema"].as_str().unwrap());
-        let docs = documents(&root);
+        let schemas = Schemas::of(case);
+        let root = schemas.root(case["schema"].as_str().unwrap());
+        let docs = schemas.documents(&root);
         let extraction = extract_semantic_json(&request(case, &root, &docs)).unwrap();
         let record = serde_json::to_value(&extraction).unwrap();
         let errors: Vec<String> = v1
@@ -194,14 +236,21 @@ fn run_cases(ac: &str) {
             .map(|k| k.as_str().unwrap())
             .collect();
         assert_eq!(sources, expected_sources, "{id}: recordSources");
-        assert_eq!(
-            record["availability"]
-                .get("recordKeys")
-                .cloned()
-                .unwrap_or(Value::Null),
-            expected_availability(markdown, &case["availability"]),
-            "{id}: availability.recordKeys"
-        );
+        let actual_keys = record["availability"]
+            .get("recordKeys")
+            .cloned()
+            .unwrap_or(Value::Null);
+        let expected_keys = expected_availability(markdown, &case["availability"]);
+        if case["availabilitySubset"] == json!(true) {
+            for (key, state) in expected_keys.as_object().into_iter().flatten() {
+                assert_eq!(
+                    &actual_keys[key], state,
+                    "{id}: availability.recordKeys.{key}"
+                );
+            }
+        } else {
+            assert_eq!(actual_keys, expected_keys, "{id}: availability.recordKeys");
+        }
         for (key, identities) in case["typedRelations"].as_object().into_iter().flatten() {
             assert_eq!(&record[key], identities, "{id}: typed relation {key}");
         }
@@ -209,18 +258,52 @@ fn run_cases(ac: &str) {
             assert!(record["model"]["values"].is_array(), "{id}: model.values");
         }
 
+        let declaration = extraction.declaration_record().unwrap();
         // The declaration record validates against the case schema exactly
         // when the case says so.
-        let declaration = extraction.declaration_record().unwrap();
-        let validator = compile_documents(&root, &docs).unwrap();
-        assert_eq!(
-            validator.is_valid(&declaration),
-            case["recordValid"] == json!(true),
-            "{id}: declaration record {declaration:#}"
-        );
+        if let Some(valid) = case.get("recordValid").and_then(Value::as_bool) {
+            let validator = compile_documents(&root, &docs).unwrap();
+            assert_eq!(
+                validator.is_valid(&declaration),
+                valid,
+                "{id}: declaration record {declaration:#}"
+            );
+        }
         // Every extracted key rides in the declaration record.
         for (key, value) in record["record"].as_object().into_iter().flatten() {
             assert_eq!(&declaration[key], value, "{id}: declaration key {key}");
+        }
+        // Each key validates against the module schema the case names.
+        for (key, name) in case["validates"].as_object().into_iter().flatten() {
+            let name = name.as_str().unwrap();
+            let (name, many) = name.strip_suffix("[]").map_or((name, false), |n| (n, true));
+            let validator = match name.strip_prefix("core:") {
+                Some(core) => core_gate(core),
+                None => {
+                    let schema = schemas.root(name);
+                    compile_documents(&schema, &schemas.documents(&schema)).unwrap()
+                }
+            };
+            let value = &record["record"][key];
+            let items: Vec<&Value> = if many {
+                value.as_array().unwrap().iter().collect()
+            } else {
+                vec![value]
+            };
+            assert!(!items.is_empty(), "{id}: nothing to validate for {key}");
+            for item in items {
+                assert!(
+                    validator.is_valid(item),
+                    "{id}: {key} fails {name}: {item:#}"
+                );
+            }
+        }
+        if case["modelStatesAbsentFromRecord"] == json!(true) {
+            assert!(record["model"]["states"].is_array(), "{id}: model.states");
+            assert!(
+                record["record"].get("states").is_none(),
+                "{id}: record.states"
+            );
         }
     }
     assert!(ran > 0, "no case backs {ac}");
@@ -264,8 +347,9 @@ fn token_gating_and_owned_keys() {
         .iter()
         .find(|c| c["id"] == "no-token")
         .unwrap();
-    let root = schema_root("Hazard");
-    let docs = documents(&root);
+    let schemas = Schemas::of(case);
+    let root = schemas.root("Lifecycle");
+    let docs = schemas.documents(&root);
     let with_schema = extract_semantic_json(&request(case, &root, &docs)).unwrap();
     let mut bare = request(case, &root, &docs);
     let map = bare.as_object_mut().unwrap();
@@ -338,6 +422,18 @@ fn every_case_record_validates_against_semantic_v1() {
     }
 }
 
+#[trace("TC-2181", "FR-081-AC-16")]
+#[test]
+fn members_vocabulary_and_unmapped_keys() {
+    run_cases("FR-081-AC-16");
+}
+
+#[trace("TC-2182", "FR-081-AC-17")]
+#[test]
+fn unreadable_schema_shapes_are_refused_not_prose() {
+    run_cases("FR-081-AC-17");
+}
+
 #[trace("TC-2180", "FR-081-AC-15")]
 #[test]
 fn model_table_entries_copy_to_record_keys() {
@@ -351,10 +447,11 @@ fn model_table_entries_copy_to_record_keys() {
 #[test]
 fn architecture_record_keys_are_all_owned() {
     use quire_rs::semantic::{record_key_owners, RelationVocabulary};
-    if let Some(reason) = spec_objects_architecture_fixture::unavailable_reason() {
-        eprintln!("skipped: the architecture module is not fetched: {reason}");
-        return;
-    }
+    assert!(
+        spec_objects_architecture_fixture::is_available(),
+        "the architecture module is not fetched, so nothing was audited: {:?}",
+        spec_objects_architecture_fixture::unavailable_reason()
+    );
     let registry =
         quire_rs::Registry::load_module(spec_objects_architecture_fixture::module_dir()).unwrap();
     let module = registry
