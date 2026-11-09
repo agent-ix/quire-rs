@@ -69,14 +69,14 @@ test.
 These are known shortfalls, stated so that no conformance is claimed that the
 package cannot meet.
 
-- **Deviation from E-4 and FR-120-AC-5 (FR-120 amendment pending, PLAT-334).** A
-  test that never reaches its `trace(...)` call (skipped by a modifier, or
-  throwing before the call) has no declared ids at run time. It is reported with
-  the runner's outcome and no `trace` property. E-4 requires a throwing test to be
-  recorded `fail` with its ids, and FR-120-AC-5 requires a skipped tagged test to
-  carry its ids; this package meets both only for a test that calls `trace` before
-  it throws or skips. Such an entry has no ids known at record time and discharges
-  nothing. Declaring ids at registration is outside this requirement.
+- **Amended E-4 exception.** A test whose ids are supplied by a `trace(...)` call
+  inside its body, and which never reaches that call (skipped by a modifier, or
+  throwing before the call), is recorded with the runner's outcome and no `trace`
+  property. This is the exception to E-4 and to FR-120-AC-5 as amended in
+  [Quoin FR-120](ix://agent-ix/quoin/FR-120), and this package conforms to it. Such
+  an entry has no ids known at record time and discharges nothing. A test that calls
+  `trace` before it throws or skips is recorded with its ids. Declaring ids at
+  registration is outside this requirement.
 - **jest is unsupported.** jest runs test bodies in worker processes and hands its
   reporter an `AssertionResult` that has no user metadata field, so no channel
   carries a `trace()` call to the reporter. The requirement is revisited by
@@ -86,7 +86,7 @@ package cannot meet.
   concurrency limit, so with concurrent tests another test can overwrite the slot
   and the ids would land on the wrong test. While emission is enabled, `trace()`
   called in a test whose `concurrent` flag is true (`it.concurrent`, or a test in
-  `describe.concurrent`) throws an error naming that test. No call in a concurrent
+  `describe.concurrent`) throws an error stating that the call was made in a concurrent test and naming the test the helper observed as running, which may be another concurrent test. No call in a concurrent
   test is attributed.
 
 ## Rationale
@@ -107,7 +107,7 @@ renames every case.
 | FR-080-AC-5 | While enabled, an `it` inside two nested `describe` blocks reports its bare title, and an `it.each` with two cases yields two `<testcase>` elements both named by the template title; for each, `name` equals `classname`, `file` is the repo-relative path, and all three equal what `quire coverage --json` reports for the same fixture. | Test |
 | FR-080-AC-6 | While enabled, `it.skipIf(true)(…)`, `it.only` and `it.skip` registrations each report their registered title once with the runner's outcome (`skip` for a skipped one), and a skipped test carries no ids and discharges nothing. | Test |
 | FR-080-AC-7 | A test that calls `trace` and then throws or fails an assertion is recorded `fail` with its ids; the outcome written is always the runner's. | Test |
-| FR-080-AC-8 | Under vitest's default parallel execution across files, each tagged test appears once with exactly its own ids, none mixed with another test's; while enabled, `trace()` called in an `it.concurrent` test throws an error naming that test. | Test |
+| FR-080-AC-8 | Under vitest's default parallel execution across files, each tagged test appears once with exactly its own ids, none mixed with another test's; while enabled, `trace()` called in an `it.concurrent` test throws an error stating the call was made in a concurrent test. | Test |
 | FR-080-AC-9 | The result file is written by the reporter during the run; no sidecar file is merged and no step after vitest exits rewrites names or ids. | Test |
 | FR-080-AC-10 | While enabled, a 500-test tagged suite adds under 5% to the median wall-clock time of the same suite with emission disabled, over at least five runs. | Test |
 | FR-080-AC-11 | A real vitest suite run with emission enabled produces a result file that `quoin evidence record` accepts and whose obligation is bound; the same suite with its tagged test made to fail yields a failing entry and binds nothing. | Test |
