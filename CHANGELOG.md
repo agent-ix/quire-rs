@@ -26,6 +26,11 @@ bumps; once 1.0 ships, semver is strict.
 
 ### Changed
 
+- Semantic refusal reasons now carry their manifest location:
+  `<code>: <path>: <message>` (for example
+  `semantic.export-undeclared: semantic.exports.ghost: ...`), or
+  `<code>: <message>` when a refusal has no locus (PLAT-1299, FR-069-AC-14).
+
 - **Breaking (Rust API), PLAT-316:** `TraceTarget.id_column` is replaced by
   `TraceTarget.source: TraceTargetSource`; `TraceTarget::id_column()` returns
   the column for a `table_row` target. Module manifests are unchanged for
