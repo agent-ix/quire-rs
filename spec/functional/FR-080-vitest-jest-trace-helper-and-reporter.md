@@ -99,5 +99,5 @@ renames every case.
 ## Dependencies
 
 - **Upstream**: [Quoin FR-120](ix://agent-ix/quoin/FR-120) (the mark and the Emitter contract), [FR-051](./FR-051-source-symbol-extraction.md) (the marker form and the `qualified_name` the reporter must equal).
-- **Package home**: the repository and package name are open (`plan/Plan-001-ac-grammar-coverage/plan.md`, EXT-4c, owner: user decision). The criteria bind the package wherever it lives; they are tested against this repository's extractor.
+- **Package home**: the `agent-ix/ix-trace-ts` repository, a sibling of `ix-trace-rs`. The criteria bind that package and are tested against this repository's extractor.
 - **Sibling**: [FR-079](./FR-079-pytest-trace-marker-plugin.md), the pytest binding of the same contract.

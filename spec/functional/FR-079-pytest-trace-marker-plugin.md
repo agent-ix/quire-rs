@@ -96,5 +96,5 @@ without the rename the static and execution views never join.
 ## Dependencies
 
 - **Upstream**: [Quoin FR-120](ix://agent-ix/quoin/FR-120) (the mark and the Emitter contract), [FR-051](./FR-051-source-symbol-extraction.md) (the marker form and the `qualified_name` the plugin must equal).
-- **Package home**: the repository and package name of the plugin are open (`plan/Plan-001-ac-grammar-coverage/plan.md`, EXT-4a, owner: user decision). The criteria bind the package wherever it lives; they are tested against this repository's extractor.
+- **Package home**: the `agent-ix/ix-trace-py` repository, a sibling of `ix-trace-rs`. The criteria bind that package and are tested against this repository's extractor.
 - **Sibling**: [FR-080](./FR-080-vitest-jest-trace-helper-and-reporter.md), the vitest/jest binding of the same contract.
