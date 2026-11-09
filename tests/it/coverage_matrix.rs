@@ -523,11 +523,10 @@ fn tc1936_a_marker_range_binds_nothing_and_is_reported() {
 }
 
 #[trace("TC-1937", "FR-050-AC-50", "FR-051-AC-28")]
-// a legacy range (same-prefix, differing-prefix, and short-suffix
-// forms) binds no id at all — not even the left endpoint, which the legacy
-// form used to bind alone.
+// a range in a marker (same-prefix, differing-prefix, and short-suffix
+// forms) binds no id at all — not even the left endpoint.
 #[test]
-fn tc1937_a_legacy_range_binds_neither_endpoint() {
+fn tc1937_a_marker_range_binds_neither_endpoint() {
     let root = tmpdir("1937");
     write(
         &root,
@@ -550,9 +549,9 @@ fn tc1937_a_legacy_range_binds_neither_endpoint() {
         &root,
         "src/lib.rs",
         "//! fixture\n\n#[cfg(test)]\nmod tests {\n\
-         \x20   // Trace: FR-034-AC-1..FR-034-AC-5\n    #[test]\n    fn same_prefix() {\n        let _ = 1;\n    }\n\n\
-         \x20   // Trace: FR-034-AC-1..FR-035-AC-2\n    #[test]\n    fn differing_prefix() {\n        let _ = 1;\n    }\n\n\
-         \x20   // Trace: FR-034-AC-1..5\n    #[test]\n    fn short_suffix() {\n        let _ = 1;\n    }\n}\n",
+         \x20   #[trace(\"FR-034-AC-1..FR-034-AC-5\")]\n    #[test]\n    fn same_prefix() {\n        let _ = 1;\n    }\n\n\
+         \x20   #[trace(\"FR-034-AC-1..FR-035-AC-2\")]\n    #[test]\n    fn differing_prefix() {\n        let _ = 1;\n    }\n\n\
+         \x20   #[trace(\"FR-034-AC-1..5\")]\n    #[test]\n    fn short_suffix() {\n        let _ = 1;\n    }\n}\n",
     );
     let report = report_over(&root, "iso-obligations");
 
@@ -572,8 +571,7 @@ fn tc1937_a_legacy_range_binds_neither_endpoint() {
     assert!(ranges.contains(&"FR-034-AC-1..FR-035-AC-2"), "{ranges:?}");
     assert!(ranges.contains(&"FR-034-AC-1..5"), "{ranges:?}");
 
-    // FR-034-AC-1 must not be bound by any of the three — the legacy form
-    // used to bind its left endpoint alone; that stops.
+    // FR-034-AC-1 must not be bound by any of the three.
     let status = |id: &str| {
         report
             .coverage_matrix

@@ -27,7 +27,7 @@ fn attribute_form(name: &str, template: Option<&str>) -> Value {
 
 /// Load a module declaring exactly `forms` as its implements forms, run
 /// coverage over `files` and return the graph's implements count and report.
-fn run(forms: Vec<Value>, files: &[(&str, &str)]) -> (usize, usize, CoverageReport) {
+fn run(forms: Vec<Value>, files: &[(&str, &str)]) -> (usize, CoverageReport) {
     let dir = tempfile::tempdir().unwrap();
     let module = dir.path().join("module");
     std::fs::create_dir_all(&module).unwrap();
@@ -53,7 +53,7 @@ fn run(forms: Vec<Value>, files: &[(&str, &str)]) -> (usize, usize, CoverageRepo
     );
     let spec = quire_rs::Spec::from_path(&src);
     let report = quire_rs::coverage::compute(&spec, &registry, &graph, &src).unwrap();
-    (graph.implements.len(), graph.rewrites.len(), report)
+    (graph.implements.len(), report)
 }
 
 fn findings(report: &CoverageReport) -> Vec<&CoverageDiagnostic> {
@@ -79,7 +79,7 @@ fn a_legacy_use_warns_with_the_canonical_text_and_changes_nothing_else() {
         legacy_form("textual", "rust", LEGACY_PATTERN),
         attribute_form("attr", Some("#[implements({ids})]")),
     ];
-    let (bound, rewrites, report) = run(forms, &[("lib.rs", LEGACY_SOURCE)]);
+    let (bound, report) = run(forms, &[("lib.rs", LEGACY_SOURCE)]);
 
     let found = findings(&report);
     assert_eq!(found.len(), 2, "{found:?}");
@@ -96,11 +96,10 @@ fn a_legacy_use_warns_with_the_canonical_text_and_changes_nothing_else() {
         Some(r#"#[implements("FR-007-AC-1", "FR-007-AC-2")]"#)
     );
     assert!(found[1].message.contains("parse_both"));
-    assert_eq!(rewrites, 0, "diagnostic-only: no RewriteSuggestion");
 
     // The same source under a module without the attribute form: identical
     // binding and counts, no finding.
-    let (control_bound, _, control) = run(
+    let (control_bound, control) = run(
         vec![legacy_form("textual", "rust", LEGACY_PATTERN)],
         &[("lib.rs", LEGACY_SOURCE)],
     );
@@ -119,7 +118,7 @@ fn renaming_every_form_changes_no_finding() {
             legacy_form(legacy, "rust", LEGACY_PATTERN),
             attribute_form(attr, Some("#[implements({ids})]")),
         ];
-        run(forms, &[("lib.rs", LEGACY_SOURCE)]).2
+        run(forms, &[("lib.rs", LEGACY_SOURCE)]).1
     };
     let original = run_named("textual", "attr");
     let renamed = run_named("zzz-one", "zzz-two");
@@ -140,7 +139,7 @@ fn an_attribute_form_without_a_template_yields_no_finding() {
         legacy_form("textual", "rust", LEGACY_PATTERN),
         attribute_form("attr", None),
     ];
-    let (bound, _, report) = run(forms, &[("lib.rs", LEGACY_SOURCE)]);
+    let (bound, report) = run(forms, &[("lib.rs", LEGACY_SOURCE)]);
     assert_eq!(bound, 3, "the legacy use still binds");
     assert!(findings(&report).is_empty());
 }
@@ -154,7 +153,7 @@ fn the_first_declared_template_renders_the_replacement() {
         attribute_form("first", Some("#[implements({ids})]")),
         attribute_form("second", Some("#[other({ids})]")),
     ];
-    let (_, _, report) = run(forms, &[("lib.rs", LEGACY_SOURCE)]);
+    let (_, report) = run(forms, &[("lib.rs", LEGACY_SOURCE)]);
     assert_eq!(
         findings(&report)[0].value.as_deref(),
         Some(r#"#[implements("FR-007-AC-2")]"#)
@@ -169,7 +168,7 @@ fn an_attribute_binding_yields_no_finding() {
         attribute_form("attr", Some("#[implements({ids})]")),
     ];
     let source = "#[implements(\"FR-007-AC-2\")]\npub fn parse() {}\n";
-    let (bound, _, report) = run(forms, &[("lib.rs", source)]);
+    let (bound, report) = run(forms, &[("lib.rs", source)]);
     assert_eq!(bound, 1);
     assert!(findings(&report).is_empty());
 }
@@ -186,7 +185,7 @@ fn non_rust_source_yields_no_finding() {
         attribute_form("attr", Some("#[implements({ids})]")),
     ];
     let source = "# Implements: FR-007-AC-2\ndef parse():\n    pass\n";
-    let (bound, _, report) = run(forms, &[("lib.py", source)]);
+    let (bound, report) = run(forms, &[("lib.py", source)]);
     assert!(bound > 0, "the Python use still binds");
     assert!(findings(&report).is_empty());
 }
@@ -224,7 +223,7 @@ pub mod spaced {\n\
         legacy_form("textual", "rust", LEGACY_PATTERN),
         attribute_form("attr", Some("#[implements({ids})]")),
     ];
-    let (_, _, report) = run(forms, &[("lib.rs", source)]);
+    let (_, report) = run(forms, &[("lib.rs", source)]);
     let found = findings(&report);
     let at: Vec<(Option<usize>, bool)> = found
         .iter()

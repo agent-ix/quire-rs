@@ -11,7 +11,7 @@ use crate::traceability::{StatusClass, TraceTargetEvidence, TraceabilityModel};
 
 use super::binding_diagnostics::{
     binding_diagnostics, legacy_implements_diagnostics, minted_child_diagnostics,
-    near_miss_diagnostics, non_binding_tag_diagnostics,
+    near_miss_diagnostics, outside_marker_diagnostics,
 };
 use super::{
     relative, CoverageDiagnostic, CoverageReport, CoverageTotals, GroupCounts, ImplementsRecord,
@@ -468,12 +468,11 @@ pub(super) fn reconcile(
     // declaration selects.
     diagnostics.extend(binding_diagnostics(&graph.binding_census));
 
-    // #312: a tag that was written and reached no channel at all. Ordered
-    // immediately after the census diagnostics because it is the case they
-    // cannot see: `no-symbol-bound` and `low-symbol-binding` both read a
-    // denominator this defect is missing from, so a repository whose tags are
-    // all on the wrong symbols reports a flawless 100% and says nothing.
-    diagnostics.extend(non_binding_tag_diagnostics(&graph.non_binding_tags));
+    // CR-215: an id written in a comment or docstring, which never binds.
+    // Ordered immediately after the census diagnostics: they read a
+    // denominator this is the explanation for, since a repository still on
+    // textual tags reports its tests as unbound.
+    diagnostics.extend(outside_marker_diagnostics(&graph.outside_marker, model));
 
     // PLAT-2: a criterion tag on a test whose declared matrix row does not
     // reference that criterion is visible, but is not evidence for it.
@@ -514,8 +513,8 @@ pub(super) fn reconcile(
         guidance: None,
     }));
 
-    // CR-187, FR-050-AC-50: a range written inside any source trace tag —
-    // marker or legacy alike — binds no id and is reported once per
+    // CR-187, FR-050-AC-50: a range written inside a source marker or a
+    // textual `implements` use binds no id and is reported once per
     // occurrence, advisory (FR-057 `warning`), naming the file, the line, the
     // qualified symbol and the literal range text.
     diagnostics.extend(

@@ -265,9 +265,6 @@ fn guarded_registry(
         "name": "declared-attribute", "language": language, "pattern": pattern,
         "template": "#[implements({ids})]"
     });
-    if section == "legacy" {
-        form.as_object_mut().unwrap().remove("template");
-    }
     if let Some(syntax) = syntax {
         form["syntax"] = syntax.into();
     }
@@ -371,7 +368,6 @@ fn invalid_attribute_guards_refuse_the_named_module_form() {
         ("rust_attribute", "python", "implements"),
         ("rust_attribute", "typescript", "implements"),
         ("rust_attribute", "rust", "markers"),
-        ("rust_attribute", "rust", "legacy"),
     ] {
         let dir = tempfile::tempdir().unwrap();
         let error = guarded_registry(dir.path(), GUARDED_PATTERN, Some(syntax), language, section)

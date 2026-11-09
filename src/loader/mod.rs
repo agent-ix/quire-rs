@@ -1515,16 +1515,6 @@ fn merge_traceability(modules: &[LoadedModule]) -> crate::traceability::Traceabi
                 merged.trace_tags.markers.push(marker.clone());
             }
         }
-        for legacy in &m.trace_tags.legacy {
-            if !merged
-                .trace_tags
-                .legacy
-                .iter()
-                .any(|x| x.name == legacy.name)
-            {
-                merged.trace_tags.legacy.push(legacy.clone());
-            }
-        }
         // CR-081: FR-062's forms merge like the other two lists. Omitting them
         // here made the whole relation inert through the loader — the only path
         // a consumer has — while the engine tests, which build the model in

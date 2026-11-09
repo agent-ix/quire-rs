@@ -179,7 +179,7 @@ impl Symbol {
 
     /// The source text attached to this symbol: its annotation block, its
     /// declaration, and its body. This is the span the trace-tag binder
-    /// (FR-051 markers + legacy forms) matches against.
+    /// (FR-051 markers) matches against.
     pub fn attached_source<'s>(&self, source: &'s str) -> String {
         source
             .lines()

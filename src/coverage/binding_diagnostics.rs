@@ -2,7 +2,9 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use crate::symbols::trace::{quoted_id_list, BindingCensus, LegacyImplementsUse, NonBindingTag};
+use crate::symbols::trace::{
+    quoted_id_list, BindingCensus, LegacyImplementsUse, OutsideMarkerId, OutsideMarkerOwner,
+};
 use crate::traceability::{SourceLanguage, TraceMarkerSyntax, TraceabilityModel};
 
 use super::{CoverageDiagnostic, UnbackedRow, UntrackedSymbol};
@@ -168,28 +170,87 @@ pub(super) fn near_miss_diagnostics(
     out
 }
 
-/// Diagnostics for a trace tag written where it cannot bind (#312).
+/// A warning per id written in a comment or docstring attached to a declaration,
+/// naming what to write instead (FR-051-AC-49, AC-22; CR-215).
 ///
-/// Report the exact tag and symbol kind without changing binding or census
-/// semantics: production symbols are not evidence (FR-051-AC-22, CR-061).
-pub(super) fn non_binding_tag_diagnostics(tags: &[NonBindingTag]) -> Vec<CoverageDiagnostic> {
-    tags.iter()
-        .map(|tag| CoverageDiagnostic {
-            declaration: "traceability.trace_tags".to_string(),
-            reason: "tag-on-non-binding-symbol".to_string(),
-            message: format!(
-                "trace id `{}` is written on `{}` at {}:{}, a {} — a kind that does not bind \
-                 trace ids (CR-061), so the tag reached no channel and the row it names is \
-                 reported unbacked, indistinguishable from a test nobody wrote. The form `{}` \
-                 matched, so this is an authored tag rather than prose. A production symbol \
-                 records what it is about with `Implements:`; a trace id binds on an evidence \
-                 symbol — a test, a benchmark or a fuzz target",
-                tag.trace_id, tag.symbol, tag.path, tag.line, tag.kind, tag.form
-            ),
-            path: Some(tag.path.clone()),
-            line: Some(tag.line),
-            value: Some(tag.trace_id.clone()),
-            guidance: None,
+/// Diagnostic only: nothing binds and no total moves. The text is rendered
+/// from the loaded module's declared `template`, never from a form the engine
+/// carries. A module declaring no marker form for the file's language gets no
+/// finding, because there is nothing to write. An evidence symbol is told the
+/// marker; a production function or container is told the `implements`
+/// attribute when the module declares one with a template (FR-050-AC-62's
+/// rendering), and its kind alone otherwise; a file header is named by kind
+/// alone, because no marker of either relation can sit on it.
+pub(super) fn outside_marker_diagnostics(
+    found: &[OutsideMarkerId],
+    model: &TraceabilityModel,
+) -> Vec<CoverageDiagnostic> {
+    let implements_template = model
+        .trace_tags
+        .implements
+        .iter()
+        .filter(|form| {
+            form.language == SourceLanguage::Rust
+                && form.syntax == Some(TraceMarkerSyntax::RustAttribute)
+        })
+        .find_map(|form| form.template.as_deref());
+    found
+        .iter()
+        .filter_map(|finding| {
+            let marker = model
+                .trace_tags
+                .markers
+                .iter()
+                .find(|form| form.language == finding.language)?;
+            let ids = quoted_id_list(std::slice::from_ref(&finding.trace_id));
+            let render = |template: &str| template.replace("{ids}", &ids);
+            let here = format!(
+                "`{}` is written in a comment or docstring on `{}` at {}:{}",
+                finding.trace_id, finding.symbol, finding.path, finding.line
+            );
+            let (instruction, value) = match finding.owner {
+                OutsideMarkerOwner::Evidence => match marker.template.as_deref().map(render) {
+                    Some(text) => (
+                        format!("a comment never binds; write `{text}` on the test instead"),
+                        text,
+                    ),
+                    None => (
+                        format!(
+                            "a comment never binds; write the module's `{}` marker on the test                              instead",
+                            marker.name
+                        ),
+                        marker.name.clone(),
+                    ),
+                },
+                OutsideMarkerOwner::Production(kind) => {
+                    let kind = kind.as_str();
+                    match implements_template.map(render) {
+                        Some(text) => (
+                            format!(
+                                "a {kind} binds no trace id, so a `trace` marker would bind                                  nothing; to say what it implements write `{text}`"
+                            ),
+                            text,
+                        ),
+                        None => (
+                            format!("a {kind} binds no trace id, so a `trace` marker would bind nothing"),
+                            kind.to_string(),
+                        ),
+                    }
+                }
+                OutsideMarkerOwner::Module => (
+                    "a module binds no trace id, so a `trace` marker would bind nothing".to_string(),
+                    "module".to_string(),
+                ),
+            };
+            Some(CoverageDiagnostic {
+                declaration: "traceability.trace_tags.markers".to_string(),
+                reason: "trace-id-outside-marker".to_string(),
+                message: format!("{here}; {instruction}"),
+                path: Some(finding.path.clone()),
+                line: Some(finding.line),
+                value: Some(value),
+                guidance: None,
+            })
         })
         .collect()
 }
@@ -242,7 +303,7 @@ pub(super) fn legacy_implements_diagnostics(
 }
 
 pub(super) fn binding_diagnostics(census: &[BindingCensus]) -> Vec<CoverageDiagnostic> {
-    let mut diagnostics: Vec<CoverageDiagnostic> = census
+    census
         .iter()
         .filter(|entry| entry.candidates > 0)
         .filter_map(|entry| {
@@ -305,31 +366,7 @@ pub(super) fn binding_diagnostics(census: &[BindingCensus]) -> Vec<CoverageDiagn
                 guidance: None,
             })
         })
-        .collect();
-    diagnostics.extend(census.iter().filter_map(|entry| {
-        if entry.self_named == 0 || entry.self_named_bound > 0 {
-            return None;
-        }
-        let example = entry.self_named_unbound_example.as_ref()?;
-        Some(CoverageDiagnostic {
-            declaration: "traceability.trace_tags".to_string(),
-            reason: "marker-form-mismatch".to_string(),
-            message: format!(
-                "{} {} evidence symbols carry an id in their own name and no declared name form read one; for example `{}` at {}:{} (declared forms: {}). Other tag forms may bind in the same language, so the aggregate binding census cannot clear this subpopulation",
-                entry.self_named,
-                entry.language,
-                example.symbol,
-                example.path,
-                example.line,
-                entry.forms.join(", ")
-            ),
-            path: Some(example.path.clone()),
-            line: Some(example.line),
-            value: Some(entry.language.clone()),
-            guidance: None,
-        })
-    }));
-    diagnostics
+        .collect()
 }
 
 #[cfg(test)]

@@ -62,7 +62,7 @@ pub struct SearchResult {
     /// evidence (CR-061) — reported here for the same reason it is reported
     /// anywhere: so a reader can see it without re-deriving it.
     pub implements: Vec<ImplementsRelation>,
-    /// Non-claim mentions — near-miss tags, orphaned legacy tags, and plain
+    /// Non-claim mentions — near-miss tags, ids a comment puts on a production symbol, and plain
     /// citations in comments/docstrings/string literals (FR-077-AC-2).
     pub citations: Vec<Mention>,
     /// `path#qualified_name` for every candidate, populated only when a

@@ -58,11 +58,6 @@ pub(super) fn guidance_for(diagnostic: &CoverageDiagnostic) -> crate::finding::F
             locus,
             "inspect the unbound example and declared trace-tag forms to distinguish sparse tagging from a marker-form mismatch",
         ),
-        "marker-form-mismatch" => FindingGuidance::remedy(
-            format!("{value} self-named evidence-symbol binding"),
-            locus,
-            "align the declared test-name form with the authored symbol-name convention, without widening unrelated annotation channels",
-        ),
         "model-mints-nothing" => FindingGuidance::remedy(
             "the traceability model",
             "traceability.trace_targets in the module manifest",
@@ -106,10 +101,10 @@ pub(super) fn guidance_for(diagnostic: &CoverageDiagnostic) -> crate::finding::F
             locus,
             "compare the configured status column with the observed table headers; rename the document column or change the configuration, and do not guess when both are plausible",
         ),
-        "tag-on-non-binding-symbol" => FindingGuidance::remedy(
-            format!("trace id `{value}`"),
+        "trace-id-outside-marker" => FindingGuidance::remedy(
+            "a trace id written in a comment or docstring",
             locus,
-            "move the trace id to an evidence symbol, or use an Implements marker when the production symbol is the intended subject",
+            "write the id in the marker named in the finding and remove it from the comment; a comment never binds, and the finding goes quiet once every occurrence is retagged",
         ),
         "untracked-id-near-miss" => FindingGuidance::remedy(
             format!("trace id `{value}`"),

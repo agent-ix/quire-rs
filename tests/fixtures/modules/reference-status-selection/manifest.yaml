@@ -30,7 +30,7 @@ traceability:
     pending: [planned]
     failed: [failed]
   trace_tags:
-    legacy:
-      - name: rust-case-comment
+    markers:
+      - name: rust-trace-attribute
         language: rust
-        pattern: 'Trace:\s*(TC-[0-9]+)'
+        pattern: '#\[trace\(((?:\s*"[^"]*"\s*,?)+)\)\]'

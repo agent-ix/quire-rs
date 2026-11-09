@@ -1676,7 +1676,6 @@ roles:
             .markers
             .iter()
             .any(|m| m.language == crate::traceability::SourceLanguage::Python));
-        assert!(!model.trace_tags.legacy.is_empty());
 
         // The non-ISO fixture declares an entirely different vocabulary.
         let alt = Registry::load_module(&fixture_modules().join("alt"))

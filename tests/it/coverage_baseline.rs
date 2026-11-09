@@ -176,6 +176,7 @@ fn tc824_the_baseline_corpus_still_exercises_the_surface() {
             d.reason != "catch-all-universal"
                 && d.reason != "range-in-trace-tag"
                 && d.reason != "criterion-tagged-outside-row"
+                && d.reason != "trace-id-outside-marker"
         })
         .collect();
     assert!(
