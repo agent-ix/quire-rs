@@ -37,6 +37,6 @@ Must-Have
 
 ## Acceptance
 
-- **StR-004-AC-1**: `quire-rs/clippy.toml`, `deny.toml`, `rustfmt.toml`, `rust-toolchain.toml`, and `scripts/check_unsafe_comments.sh` match the rust-lib-cookiecutter baseline at the time of scaffold.
+- **StR-004-AC-1**: RETIRED (PLAT-362) — a point-in-time baseline match whose only check was a byte-equality audit against an external repository, and whose `scripts/check_unsafe_comments.sh` no longer exists. Originally: `quire-rs/clippy.toml`, `deny.toml`, `rustfmt.toml`, `rust-toolchain.toml`, and `scripts/check_unsafe_comments.sh` match the rust-lib-cookiecutter baseline at the time of scaffold.
 - **StR-004-AC-2**: `make ci` enforces the full suite (fmt-check, clippy `-D warnings`, test, deny, audit-unsafe) — same gates as the cookiecutter ships.
-- **StR-004-AC-3**: When `agent-ix/ecaz` or `rust-lib-cookiecutter` updates a safety file, a backport issue is opened against `quire-rs` referencing the upstream commit.
+- **StR-004-AC-3**: RETIRED (PLAT-362) — a backport-issue process with no verifiable artifact; the byte-equality inheritance audit that stood in for it is removed. Originally: When `agent-ix/ecaz` or `rust-lib-cookiecutter` updates a safety file, a backport issue is opened against `quire-rs` referencing the upstream commit.
