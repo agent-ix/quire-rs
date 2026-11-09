@@ -171,23 +171,37 @@ bounds say so.
 ### Reproducible by hand, or it has regressed to what it replaced
 
 A case reproduces with the invocation recorded in its own `case.yaml`, with no harness
-and no generator. It runs **from the corpus root**:
+and no generator. It runs **from the corpus root**.
+
+An **ecosystem** case's invocation names no module:
 
 ```
-IX_FILAMENT_MODULES_PATH=modules/ecosystem \
-  quire coverage --scope cases/<mode>/<case>/input --json
+quire coverage --scope cases/<mode>/<case>/input --json
 ```
 
-Naming the module is not optional decoration: without it no traceability model loads,
-the run reports `0/0 rows backed`, and the case cannot exhibit the declaration defect it
-exists for. If the only way to see a case fail is to run the runner, the corpus is code
-again and the contract has bought nothing.
+It resolves the provider modules, `spec-artifacts-process` and `spec-artifacts-iso`,
+from the consumer's installed registry. The corpus holds no copy of them, so there is
+nothing in the corpus for the invocation to name; selecting any other module would test a
+different declaration while crediting the ecosystem cell. A **non-ecosystem** case still
+names its corpus module, by `--module modules/<module>` or by
+`IX_FILAMENT_MODULES_PATH=modules/<module>`, because without a loaded module no
+traceability model loads, the run reports `0/0 rows backed`, and the case cannot exhibit
+the declaration defect it exists for. If the only way to see a case fail is to run the
+runner, the corpus is code again and the contract has bought nothing.
+
+**Two runners, two sources for the same providers.** The cargo harness in this crate loads
+the providers from the `VALIDATION_PROCESS_ROOT` and `VALIDATION_ISO_ROOT` checkouts
+(defaults: the sibling `../spec-artifacts-process` and `../spec-artifacts-iso`) through
+the closed-set loader, so a developer's installed set cannot change its result.
+`reproduce` and the `qa-corpus` `make verify` use the installed registry. Both read the
+providers' own declarations, never a corpus copy.
 
 **The ecosystem declaration is a module PATH, not one module** (CR-108). It is
 `spec-artifacts-process` *and* `spec-artifacts-iso`: the first carries the traceability
 model, the second declares `FR`, `NFR` and `TestMatrix`. `--module` takes a single
-directory, so a path is selected with `IX_FILAMENT_MODULES_PATH`. A case binding one
-module still uses `--module`, and the runner reads whichever shape the case declares.
+directory, so a path of several modules is selected with `IX_FILAMENT_MODULES_PATH`. A
+non-ecosystem case binding one module uses `--module`, and the runner reads whichever
+shape the case declares.
 
 **Why from the root and not from inside `input/`.** The first draft of this requirement
 documented `cd input && … --module ../../../../modules/ecosystem`, which **the CLI
@@ -195,7 +209,7 @@ rejects**: `--module` refuses a path containing `..` under
 [FR-005](./FR-005-parse-document-api.md) path safety, and the refusal is correct — a module
 argument that can climb out of the tree it was given is the traversal that guard exists
 for. Written that way, no case could bind a shared module at all, AC-16 was unreachable
-by construction rather than deferred, and the vendored declaration was decorative. Found
+by construction rather than deferred, and the shared declaration was decorative. Found
 by running it.
 
 ## Inputs
@@ -205,10 +219,9 @@ by running it.
 - A case directory `cases/<mode>/<case>/[<language>/]`: `case.yaml`, an `input/` tree of
   static files, `expect.yaml`, and — for a case declaring `pending` —
   `expect-pending.yaml`.
-- `modules/ecosystem/`: the real declaration, vendored **whole** — both
-  `spec-artifacts-process` and `spec-artifacts-iso`.
-  Whole directories rather than manifests, because archetypes reference their schema
-  files relative to the module root. `modules/variants/<id>/`: intentionally varied declarations.
+- The ecosystem declaration: the real `spec-artifacts-process` and `spec-artifacts-iso`
+  modules, supplied by the consumer from the provider repositories and **never held by
+  the corpus** (FR-065-AC-49). `modules/variants/<id>/`: intentionally varied declarations.
 - `labels/`, `config/metrics.json`, `baselines/{quire-rs,quoin}.json`: ground truth,
   the metric dictionary, and per-runner baselines, versioned with the corpus.
 
@@ -382,11 +395,11 @@ credited in the first place, which is a different thing from one that lost its c
 
 This is not hypothetical and it is what `agent-ix/quire-rs#285` left behind. Eleven
 fixtures bound a relaxation variant — nine `modules/variants/bench-legacy/` and two
-`modules/variants/bench-no-symbol-vocab/`, counted from `bounds.py --json`. **Ten** migrated onto the vendored declaration and both variants were deleted.
+`modules/variants/bench-no-symbol-vocab/`, counted from `bounds.py --json`. **Ten** migrated onto the ecosystem declaration and both variants were deleted.
 The eleventh, `cases/provenance/implements-never-asked`, asserts `coverage.implements` is
 `state: not_computed` — the `#226` distinction between *computed and found none* and
 *never asked* — which the engine reaches only when the loaded module declares no
-`implements` forms, and the vendored ecosystem declares three. It is a `regression` pin
+`implements` forms, and the ecosystem declaration declares three. It is a `regression` pin
 (`#226` landed, nothing reproduces) bound to a variant relaxing exactly that one axis, so
 it is a `regression` case whose cell reads `GAP`. Under the unqualified rule it was a
 counterexample to this document.
@@ -531,7 +544,7 @@ inventory and the fixtures present, and SHALL NOT read them from a stored value.
 derived one cannot disagree with the tree it describes, and adding a fixture then moves
 the count with no edit to any central file.
 
-Only a case of kind `failure` or `regression`, bound to the vendored ecosystem module,
+Only a case of kind `failure` or `regression`, bound to the ecosystem declaration,
 SHALL mark a cell `covered`. A control asserts that healthy input stays silent and
 measures nothing about the mode; a variant-bound case exercises no ecosystem mode at all.
 This sentence read "only a case of kind `failure`" until CR-123 and had been false since
@@ -559,7 +572,7 @@ declaration minted nothing; omitting the key says this case is not about what mi
 The distinction is what lets one fixture assert the absence of a row another asserts
 the presence of, which is the only thing separating the two minting cases.
 
-A case SHALL bind to the vendored ecosystem module by default. Where a case binds a
+A case SHALL bind to the ecosystem declaration by default. Where a case binds a
 variant module, `case.yaml` SHALL name the relaxation ticket that variant sizes.
 
 > **CR-190 note (STD-227):** The QA corpus reader moved from `bounds.py` to
@@ -597,7 +610,7 @@ against neither; it now renders `Level::ALL` and compares that.
 |----|------------|------|------------|
 | FR-065-CON-1 | Case data SHALL NOT be embedded in runner code or generated at runtime. A case that cannot be read without executing something is not data. The one exception is stated in the Behavior section: a mutating case operates on a copy and never writes the checked-in tree. | Architecture | Test |
 | FR-065-CON-2 | Every surface reporting `bounds.gap_count` SHALL render it as an absolute count, never normalised into a ratio or a percentage. This is FR-063-AC-6 applied to this metric, not a second rule. | Architecture | Test |
-| FR-065-CON-3 | A case SHALL bind the vendored ecosystem module unless it declares exactly one variant class: `relaxation_ticket` for a temporary departure, or `declaration_under_test` when the declaration is the measured condition. A corpus whose manifest always matches cannot exhibit a declaration defect. | Architecture | Test |
+| FR-065-CON-3 | A case SHALL bind the ecosystem declaration unless it declares exactly one variant class: `relaxation_ticket` for a temporary departure, or `declaration_under_test` when the declaration is the measured condition. A corpus whose manifest always matches cannot exhibit a declaration defect. | Architecture | Test |
 
 ## Acceptance Criteria
 
@@ -618,9 +631,9 @@ against neither; it now renders `Level::ALL` and compares that.
 | FR-065-AC-13 | A failure case whose `control_for` partner is absent is rejected, naming the missing control. | Test (TC-1017) |
 | FR-065-AC-14 | A control case over healthy input produces no finding for the mode its partner asserts. | Test (TC-1017) |
 | FR-065-AC-15 | A variant-bound case is rejected unless it declares exactly one of `relaxation_ticket` or `declaration_under_test`; an ecosystem-bound case declaring either is rejected. | Test (TC-1018) |
-| FR-065-AC-16 | A case binding the vendored ecosystem module loads without naming a ticket. | Test (TC-1018) |
+| FR-065-AC-16 | A case binding the ecosystem declaration loads without naming a ticket. | Test (TC-1018) |
 | FR-065-AC-17 | Two runs of one case over unchanged input produce a byte-identical engine report. | Test (TC-1019) |
-| FR-065-AC-18 | Each case's `case.yaml` carries the invocation that reproduces it, and that invocation names a module. | Test (TC-1020) |
+| FR-065-AC-18 | Each case's `case.yaml` carries the invocation that reproduces it. For a non-ecosystem case that invocation names the case's corpus module; for an ecosystem case it names no module, and the provider modules resolve from the consumer. | Test (TC-1020) |
 | FR-065-AC-19 | `qa_corpus::bounds` derives its per-state counters and its sum invariant from `corpus.yaml`'s `bounds_states`, and rejects a cell graded into a state the declaration does not name. | Test (TC-1021, `qa-corpus` bounds tests) |
 | FR-065-AC-20 | The compiled grading ladder and `corpus.yaml`'s `grading_levels` agree in name and in order, and a gate fails on disagreement. The runner is not required to accept a ladder change without a code edit: the ladder is the grading rule, not a vocabulary (CR-129). | Test (TC-1021) |
 | FR-065-AC-21 | The runner reads the mode families from `corpus.yaml`, and a case naming an undeclared family is rejected. | Test (TC-1021) |
@@ -651,6 +664,7 @@ against neither; it now renders `Level::ALL` and compares that.
 | FR-065-AC-46 | A failure case whose `expect.yaml`, restricted to the `witness_channels` its mode declares, holds against its control's payload is rejected **by every reader** — as is one naming no witness channel at all. | Test (TC-1028; `qa-corpus` `src/verify.rs` tests) |
 | FR-065-AC-47 | A `witness_channels` entry naming a channel a reader cannot restrict on is rejected **by every reader**, rather than dropped; so is one that is not a list, and a declared `mode_family` with no entry at all. | Test (TC-1028; `qa-corpus` `src/verify.rs` tests) |
 | FR-065-AC-48 | Every emitted diagnostic reason has at least one live expectation requiring it and at least one healthy-input expectation requiring its absence, enforced by both corpus readers. | Test (TC-1026; `qa-corpus` Rust corpus tests) |
+| FR-065-AC-49 | The corpus carries no copy of the provider modules: it holds no `modules/ecosystem` directory, and both provider manifests (`spec-artifacts-process`, `spec-artifacts-iso`) resolve from their own checkouts. | Test (TC-1021) |
 
 ## Dependencies
 
