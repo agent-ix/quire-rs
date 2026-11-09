@@ -27,3 +27,19 @@ Id collisions: CR-211, TC-2091, TC-2092 and FR-051-AC-32/33 are unused on `main`
 ## Verdict
 
 Examined: FR-051-AC-32 (naming rule correct against `src/symbols/rust.rs` and identical to FR-120's Rust row), FR-051-AC-33 (the marker, `emit` run, JUnit attributes, `quoin evidence record` and bound-obligation clauses match FR-120 E-9/E-10), the CR-211 note, the FR-051 summary row, the TC-2091/TC-2092 rows and both audit rows. The audit rows and the `AC-1..33` range agree with the new ACs. PR 614 edits the same FR-051 summary line (`AC-1..31, 34..40`), so whichever PR lands second has a textual conflict and must resolve the range to `AC-1..40` (or `AC-1..33, 34..40`) and merge both test lists. Not mergeable until FND-001 is fixed; FND-002 and FND-003 should be fixed in the same round.
+
+## New findings (disposition pass 1)
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-005 | low | FR-051-AC-33's failing run "binds no obligation, provided no other passing test carries the same ids" is a precondition, not a fixture fact, and it does not say whether the second run is recorded into a fresh evidence store or into the store holding run 1's binding (where that binding persists and FR-032-AC-17 governs a failing newest run). State that the panicking test's ids are carried by no other fixture test and that the second run's entries discharge nothing (FR-120-AC-5), or that it is recorded into a fresh store. | spec/functional/FR-051-source-symbol-extraction.md:181, spec/tests.md:1141 |
+| FND-006 | low | The fixture's `#[rstest]` function `param` does not state its attribute order. ix-trace-rs FR-005 supports only `#[trace]` written above `#[rstest]`; the other order registers per-case symbols, so AC-33's name equality would fail for a reason outside quire-rs. Say `#[trace]` is written above `#[rstest]`. | spec/functional/FR-051-source-symbol-extraction.md:180 |
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | Commit c38df62 deletes the staleness clause from FR-051-AC-33 and TC-2092. |
+| FND-002 | fixed | Commit c38df62 makes the failing variant a second run, with the panic driven by `IX_TRACE_E2E_FAIL`, over a fixture crate rather than the real suite. |
+| FND-003 | fixed | The FR-051 summary row now reads `✅ Implemented except AC-32..33 (🚧, TC-2091/TC-2092 unimplemented)`. |
+| FND-004 | fixed | TC-2091 is now extractor-only; the `name`/`classname`/`file` comparison moved to AC-33 and TC-2092, which name all three. |

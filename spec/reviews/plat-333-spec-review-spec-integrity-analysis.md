@@ -20,3 +20,9 @@ Ticket: PLAT-333. Completeness, consistency and atomicity of FR-051-AC-32, FR-05
 ## Verdict
 
 Examined: FR-051-AC-32, FR-051-AC-33, the CR-211 note, TC-2091, TC-2092, the FR-051 summary row and the two audit rows. Consistency with quoin FR-120 holds for the naming rule (same container list, crate name and file stem excluded, `impl` target not trait) and for the JUnit shape (E-9). AC-33's staleness clause and its failing-variant wording are reported in SR-16350 and not repeated here.
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | Commit c38df62 lists the four `(path, qualified_name)` pairs literally in AC-32 and TC-2091, including `(tests/x.rs, param)` for the rstest source function, and moves the runner comparison to AC-33. |
