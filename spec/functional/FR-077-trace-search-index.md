@@ -34,13 +34,13 @@ reimplements the trace-tag grammar the binder already owns.
 
 ### What is new versus what is reused
 
-Reused, unmodified: `VerifiesRelation`, `ImplementsRelation`, the canonical-marker and legacy-form
+Reused, unmodified: `VerifiesRelation`, `ImplementsRelation`, the canonical-marker
 matching in `bind()`, `normalized_trace_id()`, `Symbol::attached_source()`. This requirement adds no
 second copy of any of that.
 
 New: a `Mention`/`MentionBucket` pair (`SymbolGraph.mentions`) recording every generic id-shaped token
 found across a symbol's full attached source that is not itself a claim, whether that is a near-miss
-tag on a test, an orphaned legacy tag on production code, or a plain-language citation in a comment,
+tag on a test, an id in a comment on production code, or a plain-language citation in a comment,
 docstring, or string literal that matches no declared form at all. And a query layer
 (`src/symbols/trace_search.rs`) that indexes `verifies`/`implements`/`mentions` by trace id and by
 `path`/`qualified_name` — pure lookup over already-computed data, no regex.
@@ -93,7 +93,7 @@ a Python hit with the same evidentiary weight as a Rust one.
 |----|-----------|------|------------|
 | FR-077-CON-1 | The query/index layer (`src/symbols/trace_search.rs`) SHALL NOT declare or match any trace-tag-shaped regex; it reads only the data `src/symbols/trace.rs` already computed. No trace-form regex lives outside `trace.rs`. | Design | Inspection |
 | FR-077-CON-2 | This requirement SHALL NOT execute, build, or type-resolve the extracted code, inheriting FR-051-CON-1. | Design | Inspection |
-| FR-077-CON-3 | The `mentions` scan SHALL NOT mask string-literal content — an id-shaped token inside a string literal is reported as a citation, not hidden. This is deliberately narrower than the existing legacy-form masking on the `verifies`/`non_binding_tags` claim paths, which stays unchanged: hiding an id the caller asked about is the failure mode this scan exists to avoid. | Design | Test (TC-1894) |
+| FR-077-CON-3 | The `mentions` scan SHALL NOT mask string-literal content — an id-shaped token inside a string literal is reported as a citation, not hidden. This is deliberately narrower than the advisory masking of FR-051-AC-24, which stays unchanged: hiding an id the caller asked about is the failure mode this scan exists to avoid. | Design | Test (TC-1894) |
 
 ## Dependencies
 

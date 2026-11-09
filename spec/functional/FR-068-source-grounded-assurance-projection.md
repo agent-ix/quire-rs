@@ -70,7 +70,7 @@ The projection SHALL preserve these meanings:
 - Corpus relations copy `(source, target, edge_type, resolution)` directly from
   `Spec::edges()`. `resolved` and `dangling` remain distinct.
 - Test evidence copies `VerifiesRelation` as relation kind `verifies`, including
-  its symbol identity, trace id, form, provenance, path, and declaration line.
+  its symbol identity, trace id, form, path, and declaration line.
 - Production scope copies `ImplementsRelation` as relation kind `implements`.
   It SHALL NOT be counted or labelled as test evidence.
 - The relation-kind catalog SHALL include declared kinds even when their
