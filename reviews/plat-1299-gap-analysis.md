@@ -31,3 +31,15 @@ Ticket: PLAT-1299. Frozen PR head: `baa7cb0`. This is a planless gap analysis sc
 | TC-2081 → FR-069-AC-14 binding | examined | Correct |
 | FR-069 Outputs no-locus clause | examined | Unasserted (FND-001) |
 | Production code with no owning requirement | examined | None |
+
+## New findings (disposition pass 1)
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-002 | low | The "path appears once" check slices `r[0]`, not the reason that matched `prefix`. When a case yields more than one reason, it checks the wrong string, and `&r[0][prefix.len()..]` can mis-slice. Bind the matched reason from `find` instead. | tests/it/semantic_contract.rs:1449-1454 |
+
+## Dispositions
+
+| FND | Outcome | Reason |
+| --- | --- | --- |
+| FND-001 | fixed | 10a2506 asserts `SemanticFailure::error("semantic.x", "", "msg").reason() == "semantic.x: msg"` |

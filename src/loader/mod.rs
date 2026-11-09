@@ -527,7 +527,12 @@ pub fn load_inline_module(manifest_yaml: &[u8], schemas: &BTreeMap<String, Strin
         )));
     }
 
-    if let Some(reason) = duplicate_authority(&module_name, inline_semantic.as_ref(), &archetypes) {
+    if let Some(reason) = duplicate_authority(
+        &module_name,
+        inline_semantic.as_ref(),
+        &archetypes,
+        &manifest,
+    ) {
         for at in manifest.all_archetypes() {
             failures.push(failure(
                 &module_name,
@@ -768,7 +773,9 @@ fn load_one_module(
             Err(f) => failures.push(f),
         }
     }
-    if let Some(reason) = duplicate_authority(&module_name, semantic.as_ref(), &archetypes) {
+    if let Some(reason) =
+        duplicate_authority(&module_name, semantic.as_ref(), &archetypes, &manifest)
+    {
         for at in manifest.all_archetypes() {
             failures.push(failure(
                 &module_name,
@@ -911,6 +918,7 @@ fn duplicate_authority(
     module: &str,
     semantic: Option<&crate::semantic::SemanticModule>,
     archetypes: &[Arc<CompiledArchetype>],
+    manifest: &Manifest,
 ) -> Option<String> {
     use crate::extract::locator::{Locator, LocatorPrimitive};
     let names_relationships = semantic.is_some_and(|s| {
@@ -945,7 +953,14 @@ fn duplicate_authority(
         Some(
             crate::semantic::SemanticFailure::error(
                 "semantic.duplicate-authority",
-                format!("object_types[{}].body_extraction", arch.name),
+                format!(
+                    "{}[{}].body_extraction",
+                    manifest
+                        .all_archetypes()
+                        .find(|a| a.name == arch.name)
+                        .map_or("archetypes", |a| manifest.section_of(a)),
+                    arch.name
+                ),
                 format!(
                     "module {module}: object type {} declares a table_row locator keyed `{key}`, a typed relation key its `## Relationships` rows declare",
                     arch.name

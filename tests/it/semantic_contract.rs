@@ -1447,7 +1447,7 @@ fn refusals_carry_their_manifest_path() {
             "{name} ({code}) carries its path: {r:?}"
         );
         let path = prefix.trim_start_matches(code).trim_matches([':', ' ']);
-        let tail = &r[0][prefix.len()..];
+        let tail = &r.iter().find(|x| x.starts_with(prefix)).unwrap()[prefix.len()..];
         assert!(
             !tail.contains(path) || path == "semantic",
             "{name}: path appears once: {r:?}"
@@ -1457,4 +1457,26 @@ fn refusals_carry_their_manifest_path() {
         quire_rs::semantic::SemanticFailure::error("semantic.x", "", "msg").reason(),
         "semantic.x: msg"
     );
+}
+
+#[trace("TC-2081", "FR-069-AC-14")]
+// The duplicate-authority path names the section the type is declared in.
+#[test]
+fn duplicate_authority_path_names_its_section() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = process_module(&tmp, "dup-artifact-types", true, true, true);
+    let manifest_path = root.join("manifest.yaml");
+    let mut manifest: serde_yaml::Value =
+        serde_yaml::from_slice(&fs::read(&manifest_path).unwrap()).unwrap();
+    manifest["artifact_types"] = manifest["object_types"].clone();
+    manifest["object_types"] = serde_yaml::Value::Sequence(Vec::new());
+    fs::write(&manifest_path, serde_yaml::to_string(&manifest).unwrap()).unwrap();
+    let r = reasons(&load(&root));
+    assert!(
+        r.iter().all(|x| x.starts_with(
+            "semantic.duplicate-authority: artifact_types[process].body_extraction: "
+        )),
+        "{r:?}"
+    );
+    assert!(!r.is_empty());
 }

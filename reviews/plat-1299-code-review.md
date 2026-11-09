@@ -36,3 +36,17 @@ I checked the consumers. The other `reason()` methods (model.rs:891, relations.r
 | Consumers of `ArchetypeLoadFailure.reason` (src/assurance.rs, src/registry.rs tests, tests/it/*) | examined | No parser of the old `<code>: <message>` shape |
 | `schemas/output/*` | examined | Unchanged |
 | `refusals_carry_their_manifest_path` test | examined | Asserts locus prefix per case; passes |
+
+## New findings (disposition pass 1)
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-004 | medium | The duplicate-authority path is hard-coded as `object_types[<type>].body_extraction`. `duplicate_authority` runs over every compiled archetype of the module, and that includes `artifact_types` and `archetypes` entries. So a type declared outside `object_types` gets a wrong manifest locus. Artifact types are the usual holders of `## Relationships` rows. `Manifest::section_of` already names the section; both callers (loader/mod.rs:530, 771) have the manifest in hand. | src/loader/mod.rs:945-955 |
+
+## Dispositions
+
+| FND | Outcome | Reason |
+| --- | --- | --- |
+| FND-001 | fixed | 10a2506 routes duplicate-authority through `SemanticFailure::error(..).reason()`; the AC-13 test asserts the path prefix |
+| FND-002 | fixed | 10a2506 drops the restated locus from the contract_version and export-undeclared messages |
+| FND-003 | fixed | 10a2506 adds a `### Changed` entry under `[Unreleased]` |

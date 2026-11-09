@@ -32,3 +32,9 @@ Ticket: PLAT-1299. Frozen PR head: `baa7cb0`. This review covers the CR-205 note
 | CR-205 note | examined | Accurate |
 | TC-2081 row, coverage-summary row, audit row | examined | Present and consistent |
 | FR-069-AC-13 | context_only | Its `semantic.duplicate-authority` reason shape is unaffected |
+
+## Dispositions
+
+| FND | Outcome | Reason |
+| --- | --- | --- |
+| FND-001 | fixed | 10a2506 rewords FR-069-AC-14 over every `semantic.*` refusal reason, adds the single-occurrence rule and the no-locus `<code>: <message>` clause, and covers duplicate-authority |
