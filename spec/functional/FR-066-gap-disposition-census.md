@@ -45,7 +45,10 @@ Strict precedence applies and the first matching disposition wins:
    row's archetype, section, or id column. Owner: declaration or repository, as
    named by the diagnostic.
 3. `marker-form-mismatch` — the row is minted and unbacked, and its id occurs in
-   P2 but no declared tag form bound it. Owner: module declaration.
+   P2 but no declared tag form bound it. Owner: repository, which retags the test
+   with a marker (a row backed only by a comment or docstring id lands here after
+   CR-215); module declaration only where the id is already written in a marker
+   form the module does not declare.
 4. `id-class-unminted` — the row's id class has no active trace-target
    declaration. A matching `untracked_symbols` record supplies a source locus
    when one exists, but is not required: requiring a tag would classify the
@@ -95,7 +98,7 @@ workflow. It SHALL NOT be a push or pull-request prerequisite.
 |---|---|---|
 | `instrument-unread` | `filament-ide-rs` offered 1,292 Rust evidence symbols and bound zero before the binding-census repair. | Engine: the binder could not read its input. |
 | `declaration-unreached` | The pre-CR-117 scan found 3,514 TC-shaped ids behind unmatched matrix sections; changing the declaration later realised only +83 rows, proving the candidate population must remain visible and separately diagnosed. | Declaration or repository, according to the section/id-column diagnostic. |
-| `marker-form-mismatch` | Legacy comma-list forms dropped 205 ids across 17 repositories while the rows were minted. | Module trace-tag grammar. |
+| `marker-form-mismatch` | Legacy comma-list forms dropped 205 ids across 17 repositories while the rows were minted; after CR-215 a row backed only by a comment or docstring id is the same shape (192 backed ids in quire-rs, PLAT-912). | Repository: retag with a marker (the FR-051-AC-49 warning names the text); module trace-tag grammar only for an undeclared marker form. |
 | `id-class-unminted` | The #69 sweep found 572 untracked entries in id classes the model did not mint. | Module trace-target declaration. |
 | `method-exempt` | Quoin's review found 40 of 55 apparent status lies were Eval/Manual/Inspection/Analysis rows whose method cannot mint a source symbol. | Nobody; report as explained absence. |
 | `authoring-absent` | The current report contains 90 readable repositories with 3,077 evidence symbols and no authored trace-tag line. | Repository authoring backlog, never an instrument bucket. |

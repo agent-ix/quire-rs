@@ -78,6 +78,11 @@ pub(super) fn guidance_for(diagnostic: &CoverageDiagnostic) -> crate::finding::F
             locus,
             "fill the declared statement cell or remove the row if it states no obligation",
         ),
+        "legacy-implements-form" => FindingGuidance::remedy(
+            declaration,
+            locus,
+            "replace the textual implements line with the attribute named in the finding value; the textual form keeps binding until then",
+        ),
         "partial-implements-attribute-match" => FindingGuidance::remedy(
             declaration, locus, "make the declared implements pattern match the complete outer attribute; a substring never creates a relation",
         ),

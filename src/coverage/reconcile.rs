@@ -10,8 +10,8 @@ use crate::symbols::trace::{SymbolGraph, VerifiesRelation};
 use crate::traceability::{StatusClass, TraceTargetEvidence, TraceabilityModel};
 
 use super::binding_diagnostics::{
-    binding_diagnostics, minted_child_diagnostics, near_miss_diagnostics,
-    non_binding_tag_diagnostics,
+    binding_diagnostics, legacy_implements_diagnostics, minted_child_diagnostics,
+    near_miss_diagnostics, non_binding_tag_diagnostics,
 };
 use super::{
     relative, CoverageDiagnostic, CoverageReport, CoverageTotals, GroupCounts, ImplementsRecord,
@@ -544,6 +544,11 @@ pub(super) fn reconcile(
         path: Some(finding.path.clone()), line: Some(finding.line),
         value: Some(finding.attribute.clone()), guidance: None,
     }));
+
+    diagnostics.extend(legacy_implements_diagnostics(
+        &graph.legacy_implements,
+        model,
+    ));
 
     // ── Shared trace ids: one id bound by several distinct symbols ──
     // (FR-050-AC-23, CR-087). Scoped to ids that are row ids of

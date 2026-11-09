@@ -32,10 +32,11 @@ pub struct Edge {
     pub edge_type: String,
     /// Whether the target is present in the loaded set.
     pub resolution: Resolution,
-    /// `<org>/<repo>` authority of an `ix://` target that did not resolve in
-    /// this corpus; `None` for resolved edges and for bare-id targets. Lets a
+    /// Sorted, deduplicated `<org>/<repo>` authorities of the `ix://`
+    /// spellings of a target that did not resolve in this corpus. Empty for
+    /// resolved edges and for targets also spelled as a bare id. Lets a
     /// consumer tell a foreign-repo reference from a broken local one.
-    pub authority: Option<String>,
+    pub authorities: Vec<String>,
 }
 
 /// Whether an [`Edge`]'s target was found in the corpus.
@@ -73,23 +74,30 @@ pub(crate) fn resolve(
     // Harvest into a sorted, deduplicated stub map: identical
     // (source, target, type) triples from any source collapse to one
     // (FR-026-AC-8/AC-11); same-pair-different-type stay distinct. The value
-    // is the foreign authority of an unresolved target; it never takes part in
-    // the key, so one absent target written several ways is still one edge.
-    let mut stubs: BTreeMap<(ArtifactId, ArtifactId, String), Option<String>> = BTreeMap::new();
+    // is the set of foreign authorities of an unresolved target (`None` once a
+    // bare id claims it local); it never takes part in the key, so one absent
+    // target written several ways is still one edge.
+    let mut stubs: BTreeMap<(ArtifactId, ArtifactId, String), Option<BTreeSet<String>>> =
+        BTreeMap::new();
     let mut add_target =
         |source: &ArtifactId, target: &str, authority: Option<String>, edge_type: String| {
+            let authority = authority.map(|a| BTreeSet::from([a]));
             match stubs.entry((source.clone(), target.to_string(), edge_type)) {
                 Entry::Vacant(v) => {
                     v.insert(authority);
                 }
-                // A bare-id spelling claims the target is local, so it wins; two
-                // different foreign authorities settle on the smaller, stably.
+                // A bare-id spelling claims the target is local, so it wins;
+                // ix:// spellings accumulate every authority, which the
+                // consumer compares with its own package.
                 Entry::Occupied(mut o) => {
-                    let merged = match (o.get().as_ref(), authority) {
-                        (Some(a), Some(b)) => Some(a.min(&b).to_string()),
+                    let merged = match (o.get_mut().take(), authority) {
+                        (Some(mut a), Some(b)) => {
+                            a.extend(b);
+                            Some(a)
+                        }
                         _ => None,
                     };
-                    o.insert(merged);
+                    *o.get_mut() = merged;
                 }
             }
         };
@@ -129,7 +137,7 @@ pub(crate) fn resolve(
     let mut incoming: BTreeMap<ArtifactId, Vec<usize>> = BTreeMap::new();
     let mut diagnostics = Vec::new();
 
-    for ((source, target, edge_type), authority) in stubs {
+    for ((source, target, edge_type), authorities) in stubs {
         let resolution = if by_id.contains_key(&target) {
             Resolution::Resolved
         } else {
@@ -152,7 +160,7 @@ pub(crate) fn resolve(
             target,
             edge_type,
             resolution,
-            authority,
+            authorities: authorities.into_iter().flatten().collect(),
         });
     }
 
@@ -321,7 +329,8 @@ pub(crate) fn extract_target_id(target: &str) -> &str {
 }
 
 /// The `<org>/<repo>` authority of an `ix://` URI: its first two path
-/// segments, compared exactly. Only a URI with a third segment names a repo
+/// segments, kept as written (comparison to a package is ASCII
+/// case-insensitive, FR-038-AC-10). Only a URI with a third segment names a repo
 /// that way; `ix://<org>/<id>` has no repo segment, so it has no authority.
 /// `None` for a bare id.
 fn ix_authority(target: &str) -> Option<String> {
@@ -499,7 +508,7 @@ mod tests {
         let out = resolve(&docs, &index(&docs));
         assert_eq!(out.edges.len(), 1);
         assert_eq!(out.diagnostics.len(), 1);
-        assert_eq!(out.edges[0].authority, None);
+        assert!(out.edges[0].authorities.is_empty());
     }
 
     #[test]

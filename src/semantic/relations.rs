@@ -648,7 +648,14 @@ fn frontmatter_edges(
                 .unwrap_or("references");
             let identity = if target.starts_with("ix://") {
                 let parsed = IxRef::parse(target)?;
-                format!("ix://{}/{}", parsed.package(), parsed.last_segment())
+                // The bundle package's spelling stands for its own package
+                // under any ASCII case; an imported package stays verbatim.
+                let owner = if parsed.package().eq_ignore_ascii_case(package) {
+                    package
+                } else {
+                    parsed.package()
+                };
+                format!("ix://{owner}/{}", parsed.last_segment())
             } else {
                 format!("ix://{package}/{target}")
             };

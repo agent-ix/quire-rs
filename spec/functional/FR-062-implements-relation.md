@@ -55,8 +55,8 @@ Point 3 is what makes a mis-declared pattern harmless: an `implements` marker on
 nothing, and a `trace` marker on a production function binds nothing. Getting it wrong yields *no*
 relation rather than the *wrong* one.
 
-`ImplementsRelation` carries no `provenance`, because there is no legacy `implements` form to migrate
-from and inventing the field would suggest one exists.
+Neither `ImplementsRelation` nor `VerifiesRelation` carries a `provenance` field: a relation does not
+record how it was written (FR-051-CON-3).
 
 ### It answers more than mutation scoping
 
