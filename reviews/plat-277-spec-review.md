@@ -40,3 +40,11 @@ The review examined FR-013-AC-20, FR-013-AC-21, the TC-2211 and TC-2212 rows, an
 | TC-2212 row (spec/tests.md) | examined | Clean |
 | FR-031 Description, AC-3, AC-5, AC-7 | context_only | Used to establish FND-001 |
 | FR-013 CR notes | context_only | FND-003 |
+
+## Dispositions
+
+| FND | Outcome | Reason |
+| --- | --- | --- |
+| FND-001 | fixed | Round 1 (25a0495): FR-013-AC-21 now defines quire-owned keys as validation parts plus FR-031 carry-over keys plus retired fields, and says a retired-field row is still refused (FR-031-AC-5). It no longer contradicts FR-031. |
+| FND-002 | fixed | Round 1 (25a0495): FR-013-AC-20 now states that a same-named `archetypes:` row with a quire-owned key emits DuplicateArchetype naming the module twice, with the `artifact_types:`/`object_types:` entry active. |
+| FND-003 | fixed | Round 1 (25a0495): CR note "presentation rows are not types — 2026-11-09, PLAT-277 F4" added to FR-013. FR-031's Description is still unqualified, but AC-21 now refers back to FR-031-AC-5, so the two do not conflict. |

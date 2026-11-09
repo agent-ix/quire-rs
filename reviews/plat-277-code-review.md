@@ -68,3 +68,12 @@ Suggested fix for FND-001 and FND-002: treat a row as presentation-only only whe
 - A scratch probe example run over the fresh origin/main spec-artifacts-process (b935498) and spec-artifacts-iso (a6c09a2) gives 0 DuplicateArchetype on the PR and 5 on main.
 - `spec_validate` (`make validate`) with those fresh roots: 199 documents, 0 failed.
 - Builds used `locked-build.sh` with `CARGO_PROFILE_DEV_DEBUG=0`. The full aggregate gate was not run by this reviewer.
+
+## Dispositions
+
+| FND | Outcome | Reason |
+| --- | --- | --- |
+| FND-001 | fixed | Round 1 (25a0495): `all_archetypes` filters on `declares_quire_key`, which includes the retired fields, so a retired-field row reaches `compile_archetype` and is refused. Probe re-run: `Retired` (required_sections) and `Tmpl` (template_ref) each give an ArchetypeLoadFailure. TC-2213 fails on the round-0 predicate. |
+| FND-002 | fixed | Round 1 (25a0495): `declares_quire_key` covers `allowed_links`, `roles`, `has_plugin`, `construct` and `defaults.id_pattern`. Probe re-run: the LinksOnly, RolesOnly, IdOnly, ConstructOnly and GrammarOnly rows stay registered; the kind/doc_backed-only row is dropped. |
+| FND-003 | fixed | Round 1 (25a0495): the doc comment now cites FR-013-AC-21. |
+| FND-004 | fixed | Round 1 (25a0495): the CHANGELOG entry is labelled **Breaking** and names the affected documents (`type: Spec` in quire-wasm and filament-view-standard, Test Matrix, Application Spec, the EA display names). |

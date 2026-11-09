@@ -42,3 +42,10 @@ The grammar_ref keep path is covered indirectly: TC-981 (tests/it/plain_language
 | FR-031-AC-5 coverage for the `archetypes:` section | examined | FND-001 |
 | grammar_ref keep path (TC-981) | examined | Covered |
 | spec/tests.md TC-2211/TC-2212 rows and mapping rows | examined | Consistent with the tags |
+
+## Dispositions
+
+| FND | Outcome | Reason |
+| --- | --- | --- |
+| FND-001 | fixed | Round 1 (25a0495): TC-2213 checks that a `required_sections` `archetypes:` row gives an ArchetypeLoadFailure and that the allowed_links/roles rows stay registered. It fails on the round-0 predicate and passes at 25a0495. |
+| FND-002 | fixed | Round 1 (25a0495): TC-2211 now covers the `object_types:` case (no duplicate) and the same-module row with its own schema (DuplicateArchetype naming the module twice). |
