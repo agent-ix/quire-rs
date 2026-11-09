@@ -179,7 +179,7 @@ nothing, and the binder SHALL NOT scan them with a second lexer.
 the call binds is exactly what the module's declared `pattern` matches against the
 candidate text. A renamed import (`import ix_trace_py as t`, `import {
 implementing as impl }`) therefore binds nothing unless a module pattern names it,
-and yields no finding because it matches no pattern. The shipped patterns accept
+and yields no finding because it matches no pattern; a module pattern SHALL be anchored at the start of the candidate, because an unanchored one would find `implementing("X")` inside `t.implementing("X")` and raise a partial-match finding. The shipped patterns accept
 the unqualified spelling and the package-qualified one (`ix_trace_py.implements`,
 `ixTrace.implementing`), as `spec-artifacts-process` FR-004 pins them.
 
