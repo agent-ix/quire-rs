@@ -78,10 +78,12 @@ pub(crate) enum Unresolved {
 /// `alphabet`.
 fn semantic_identity(cell: &str, alphabet: fn(&str) -> bool) -> Option<IxRef<'_>> {
     let identity = IxRef::parse(cell)?;
+    // Package names compare ASCII case-insensitively (FR-076-AC-23), so an
+    // uppercase spelling of the bundle's own package must parse to be matched.
     let package_ok = |s: &str| {
-        s.starts_with(|c: char| c.is_ascii_lowercase() || c.is_ascii_digit())
+        s.starts_with(|c: char| c.is_ascii_alphanumeric())
             && s.chars()
-                .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || "._-".contains(c))
+                .all(|c| c.is_ascii_alphanumeric() || "._-".contains(c))
     };
     (package_ok(identity.org()) && package_ok(identity.repo()) && alphabet(identity.path()))
         .then_some(identity)

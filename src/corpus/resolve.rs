@@ -329,7 +329,8 @@ pub(crate) fn extract_target_id(target: &str) -> &str {
 }
 
 /// The `<org>/<repo>` authority of an `ix://` URI: its first two path
-/// segments, compared exactly. Only a URI with a third segment names a repo
+/// segments, kept as written (comparison to a package is ASCII
+/// case-insensitive, FR-038-AC-10). Only a URI with a third segment names a repo
 /// that way; `ix://<org>/<id>` has no repo segment, so it has no authority.
 /// `None` for a bare id.
 fn ix_authority(target: &str) -> Option<String> {

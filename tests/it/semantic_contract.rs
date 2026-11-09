@@ -1240,6 +1240,15 @@ fn relationship_own_package_check_folds_ascii_case() {
             "ix://Acme/Widgets/FR-005",
             "ix://acme/widgets/FR-005",
         ),
+        // A frontmatter identity in a different case than the declared
+        // package is normalised to the declared spelling (FR-076-AC-23).
+        ("acme/widgets", "ix://Acme/Widgets/FR-005", "FR-005"),
+        (
+            "acme/widgets",
+            "ix://Acme/Widgets/FR-005",
+            "ix://acme/widgets/FR-005",
+        ),
+        ("Acme/Widgets", "ix://acme/widgets/FR-005", "FR-005"),
     ] {
         let errors = check(package, frontmatter, cell);
         assert_eq!(errors.len(), 1, "{package} / {cell}: {errors:?}");
@@ -1253,7 +1262,7 @@ fn relationship_own_package_check_folds_ascii_case() {
     let errors = check(
         "acme/widgets",
         "ix://acme/widgets/FR-006",
-        "ix://Other/Repo/FR-005",
+        "ix://other/repo/FR-005",
     );
     assert_eq!(errors.len(), 1, "{errors:?}");
     assert!(
