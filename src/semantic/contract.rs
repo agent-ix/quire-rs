@@ -124,12 +124,7 @@ pub fn reference_form(value: &Value) -> DataSchemaForm {
 fn block_validator() -> Validator {
     let schema: Value = serde_json::from_str(embedded::MODULE_MANIFEST_SCHEMA)
         .expect("embedded module-manifest schema is JSON");
-    let mut block = schema["properties"]["semantic"].clone();
-    // The embedded bundle is the only semantic-core there is, so a module
-    // declares no version: an absent `semantic_core` is not a missing key.
-    if let Some(required) = block["required"].as_array_mut() {
-        required.retain(|key| key != "semantic_core");
-    }
+    let block = schema["properties"]["semantic"].clone();
     schema_options(&block)
         .build(&block)
         .expect("embedded semantic block schema compiles")
