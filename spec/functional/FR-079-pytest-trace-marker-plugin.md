@@ -35,7 +35,7 @@ result file.
 
 ### Emission
 
-Emission is enabled by the environment variable `QUIRE_TRACE_EMIT=1` and by
+Emission is enabled by the environment variable `QUIRE_TRACE_EMIT=1`, the one enable name shared by every trace emitter (the Rust emitter uses it too), and by
 nothing else; installing the plugin or writing the marker never enables it.
 While enabled, each collected test whose item carries `trace` markers (on the
 function, its class, or its module) gets one JUnit `<property name="trace"

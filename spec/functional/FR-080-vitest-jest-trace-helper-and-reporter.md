@@ -40,7 +40,7 @@ writes the JUnit file itself, one `<testcase>` per test, with the runner's own
 outcome, and adds `<property name="trace" value="…"/>` to each test that declared
 ids.
 
-Emission is enabled by the environment variable `QUIRE_TRACE_EMIT=1` and by nothing
+Emission is enabled by the environment variable `QUIRE_TRACE_EMIT=1`, the one enable name shared by every trace emitter (the Rust emitter uses it too), and by nothing
 else.
 
 ### The symbol
