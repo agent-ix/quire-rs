@@ -90,6 +90,24 @@ pub struct ImplementsRelation {
     pub form: String,
 }
 
+/// One textual `implements` use in Rust: a binding made by a Rust implements
+/// form that declares no `syntax` (FR-050-AC-62).
+///
+/// One record per authored occurrence, carrying every id it binds, so a
+/// two-id line yields one finding rather than one per id.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LegacyImplementsUse {
+    pub path: String,
+    pub symbol: String,
+    /// 1-based line the legacy text sits on.
+    pub line: usize,
+    /// The ids this occurrence binds, in authored order.
+    pub trace_ids: Vec<String>,
+    /// `leading_line` of the symbol that read it; an enclosing container reads
+    /// the same text, and the greatest value is the innermost owner.
+    pub owner_leading_line: usize,
+}
+
 /// A mechanical marker-rewrite suggestion for a legacy binding (FR-051-AC-11).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RewriteSuggestion {
@@ -363,6 +381,10 @@ pub struct SymbolGraph {
     /// back an acceptance criterion is exactly the coverage backdoor CR-061
     /// closed.
     pub implements: Vec<ImplementsRelation>,
+    /// Textual Rust `implements` uses, for the FR-050-AC-62 coverage warning.
+    /// Diagnostic input only: the same occurrences also bind in
+    /// [`Self::implements`].
+    pub legacy_implements: Vec<LegacyImplementsUse>,
     /// `(symbol id, symbol qualified name, file path)`.
     pub defined_in: Vec<(String, String, String)>,
     /// `(container qualified name, member qualified name, file path)`.
@@ -853,6 +875,27 @@ pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolG
         (&a.path, &a.symbol, &a.trace_id, &a.form).cmp(&(&b.path, &b.symbol, &b.trace_id, &b.form))
     });
     graph.implements.dedup();
+    // An authored line is one use, owned by the innermost symbol that reads
+    // it: sort the innermost owner first within each (path, line) and keep it.
+    graph.legacy_implements.sort_by(|a, b| {
+        (
+            &a.path,
+            a.line,
+            std::cmp::Reverse(a.owner_leading_line),
+            &a.symbol,
+            &a.trace_ids,
+        )
+            .cmp(&(
+                &b.path,
+                b.line,
+                std::cmp::Reverse(b.owner_leading_line),
+                &b.symbol,
+                &b.trace_ids,
+            ))
+    });
+    graph
+        .legacy_implements
+        .dedup_by(|later, kept| later.path == kept.path && later.line == kept.line);
     graph.tagged_not_bound.sort_by(|a, b| {
         (&a.language, &a.path, a.line, &a.symbol).cmp(&(&b.language, &b.path, b.line, &b.symbol))
     });
@@ -1274,18 +1317,37 @@ fn bind_implements(
                     continue;
                 }
                 let Some(args) = caps.get(1) else { continue };
+                let mut bound_ids = Vec::new();
                 for trace_id in marker_ids(args.as_str()) {
                     if let Some(mut range) = marker_range(symbol, candidate, &caps, &trace_id) {
                         range.line = line + range.line.saturating_sub(symbol.leading_line);
                         ranges.push(range);
                         continue;
                     }
+                    bound_ids.push(trace_id.clone());
                     graph.implements.push(ImplementsRelation {
                         symbol_id: symbol.id.clone(),
                         symbol: symbol.qualified_name.clone(),
                         path: symbol.path.clone(),
                         trace_id,
                         form: marker.name.clone(),
+                    });
+                }
+                if marker.syntax.is_none()
+                    && marker.language == SourceLanguage::Rust
+                    && !bound_ids.is_empty()
+                {
+                    // The authored line of the ids, not of the match: a pattern
+                    // opening with `^\s*` starts on a preceding blank line.
+                    let offset = caps
+                        .get(1)
+                        .map_or(0, |ids| candidate[..ids.start()].matches('\n').count());
+                    graph.legacy_implements.push(LegacyImplementsUse {
+                        path: symbol.path.clone(),
+                        symbol: symbol.qualified_name.clone(),
+                        line: line + offset,
+                        trace_ids: bound_ids,
+                        owner_leading_line: symbol.leading_line,
                     });
                 }
             }
@@ -2008,11 +2070,7 @@ fn bind_symbol(
                         + legacy_span[..caps.get(0).map_or(0, |m| m.start())]
                             .matches('\n')
                             .count();
-                    let ids = trace_ids
-                        .iter()
-                        .map(|id| format!("\"{id}\""))
-                        .collect::<Vec<_>>()
-                        .join(", ");
+                    let ids = quoted_id_list(&trace_ids);
                     graph.rewrites.push(RewriteSuggestion {
                         path: symbol.path.clone(),
                         symbol: symbol.qualified_name.clone(),
@@ -2054,6 +2112,15 @@ fn bind_symbol(
             graph.verifies.push(winner.clone());
         }
     }
+}
+
+/// Ids as quoted literals joined by `, `, the argument list of a rendered
+/// marker (`"FR-1-AC-1", "FR-1-AC-2"`).
+pub(crate) fn quoted_id_list(ids: &[String]) -> String {
+    ids.iter()
+        .map(|id| format!("\"{id}\""))
+        .collect::<Vec<_>>()
+        .join(", ")
 }
 
 /// The trace ids inside a marker's argument list. Quoted arguments are the

@@ -2,7 +2,8 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use crate::symbols::trace::{BindingCensus, NonBindingTag};
+use crate::symbols::trace::{quoted_id_list, BindingCensus, LegacyImplementsUse, NonBindingTag};
+use crate::traceability::{SourceLanguage, TraceMarkerSyntax, TraceabilityModel};
 
 use super::{CoverageDiagnostic, UnbackedRow, UntrackedSymbol};
 
@@ -189,6 +190,53 @@ pub(super) fn non_binding_tag_diagnostics(tags: &[NonBindingTag]) -> Vec<Coverag
             line: Some(tag.line),
             value: Some(tag.trace_id.clone()),
             guidance: None,
+        })
+        .collect()
+}
+
+/// A warning per textual Rust `implements` use, naming the attribute form the
+/// loaded module declares instead (FR-050-AC-62, CR-209).
+///
+/// Diagnostic only: the use keeps binding. Forms are identified by their
+/// declared `syntax` and `template`, never by name. With no
+/// `syntax: rust_attribute` implements form carrying a template there is
+/// nothing to name, so nothing is reported.
+pub(super) fn legacy_implements_diagnostics(
+    uses: &[LegacyImplementsUse],
+    model: &TraceabilityModel,
+) -> Vec<CoverageDiagnostic> {
+    let Some(template) = model
+        .trace_tags
+        .implements
+        .iter()
+        .filter(|form| {
+            form.language == SourceLanguage::Rust
+                && form.syntax == Some(TraceMarkerSyntax::RustAttribute)
+        })
+        .find_map(|form| form.template.as_deref())
+    else {
+        return Vec::new();
+    };
+    uses.iter()
+        .map(|found| {
+            let replacement = template.replace("{ids}", &quoted_id_list(&found.trace_ids));
+            CoverageDiagnostic {
+                declaration: "traceability.trace_tags.implements".to_string(),
+                reason: "legacy-implements-form".to_string(),
+                message: format!(
+                    "`{}` at {}:{} implements {} through a textual comment form; it still \
+                     binds, but the module declares an attribute form, so write `{replacement}` \
+                     instead",
+                    found.symbol,
+                    found.path,
+                    found.line,
+                    found.trace_ids.join(", ")
+                ),
+                path: Some(found.path.clone()),
+                line: Some(found.line),
+                value: Some(replacement),
+                guidance: None,
+            }
         })
         .collect()
 }
