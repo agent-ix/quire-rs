@@ -24,3 +24,13 @@ Ticket: PLAT-362. This pass checked CR-213 for consistency with the FR-051 text 
 ## Verdict
 
 Examined: the Shell adapter section, FR-051-CON-1, FR-051-AC-34..40 and the CR-213 note, against FR-051's Symbols, Language adapters and Trace-tag grammar sections, AC-19, AC-22, AC-23, AC-29 and FR-062. Confirmed: an `entry_point` that is listed in `binds_trace_ids` and not in `carries_implements` is the FuzzTarget precedent (src/symbols/rust.rs:79 and :183) and satisfies FR-062. The release-order note is correct. `SourceLanguage` is a closed enum (src/traceability.rs:25), and the `TraceMarkerForm` wire struct is `deny_unknown_fields` and guards `syntax` by language. An older engine would therefore refuse `language: shell`, `syntax: comment` and `entry_paths` at load, so the engine must ship first. FND-001..003 must be fixed in this PR. Choosing tree-sitter-bash (SR-16360 FND-001) removes FND-001 and most of FND-002.
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | The Language adapters statement names four adapters with `shell-symbols` and says the shell adapter parses with `tree-sitter-bash` through `quire-code-extraction`. AC-29 says four adapter features. AC-45 defines an unparseable `.sh` file by the grammar tree. |
+| FND-002 | fixed | The Trace-tag grammar lists the shell form (`# trace: FR-007-AC-01`, `language: shell`, `syntax: comment`) as canonical, read from comment nodes and not retired by CON-3. The legacy line-comment class is narrowed to Rust, Python and TypeScript. |
+| FND-003 | fixed | AC-37 mints an `entry_point` for every `.sh` file with or without a module, and the Shell adapter text cites AC-19 and AC-23. `entry_paths` decides only eligibility to bind, at the binding stage (AC-38). |
+| FND-004 | fixed | A shell function "binds no `verifies`, and carries `implements` only through a `language: shell` form the module declares in `trace_tags.implements`". FR-062 point 3 now lists `EntryPoint` among the evidence kinds. |
+| FND-005 | fixed | AC-43 rejects `syntax: comment` off a shell form or in `trace_tags.legacy`, and rejects `entry_paths` off a shell `markers` form, each naming the key. It accepts a shell `implements` form, which carries no `entry_paths` and binds no `entry_point`. |

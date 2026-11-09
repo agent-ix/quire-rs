@@ -24,3 +24,19 @@ Ticket: PLAT-362. This pass looked for unstated failure modes in the shell adapt
 ## Verdict
 
 Examined: the Shell adapter section, FR-051-AC-34..40 and TC-2101..2107. Identity holds. Functions are named by bare name, so a redefinition or a same-named nested helper collides under AC-31's existing advisory diagnostic. `entry_point` differs from a function named `entry_point` by kind. Fail-per-file holds (AC-39). FND-002 is the main cost of the line-structural choice. With tree-sitter-bash (SR-16360 FND-001) it reduces to grammar coverage.
+
+## New findings (disposition pass 1)
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-006 | medium | A shell marker in a function's comment block binds nothing and is reported nowhere. AC-38 says a shell function binds no `verifies`. AC-22 hands shell markers to AC-44. AC-44 reports only a header outside every glob (`outside-entry-paths`) and a comment that is "neither a function's block nor a header" (`not-in-tag-channel`), so a function's block is excluded. Tagging the function an audit script runs is the most likely authoring mistake, and it leaves the `Static` row unbacked in silence (AP-201). Add a reason for this case, for example `function-not-evidence`. | spec/functional/FR-051-source-symbol-extraction.md:232, spec/functional/FR-051-source-symbol-extraction.md:226, spec/functional/FR-051-source-symbol-extraction.md:209 |
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | AC-35 mints a function for every `function_definition` node: the three spellings, `{` on the next line, a subshell body, names with `-`, `.` or `:`, and nested definitions. |
+| FND-002 | fixed | AC-36 covers `$'…'`, backticks, `$( )`, `<<<`, `<<EOF`/`<<'EOF'`/`<<-EOF`, `case` patterns, brace groups, `${x:-}}`, `$(( ))` and CRLF. AC-41 covers `$#`, `${#x}`, `${x#pat}` and word-internal `#`. Reading comments from tree-sitter-bash comment nodes removes the line-lexer failure class. |
+| FND-003 | fixed | AC-44 reports a non-binding shell marker with reason `outside-entry-paths` or `not-in-tag-channel`, naming the id, path and line, and AC-46 asserts the report end to end. The residual function-block case is new finding FND-006. |
+| FND-004 | fixed | AC-39 states the `source_exclude` dialect and compile check, matching relative to the code root, a union across all forms and modules, `source_exclude` applied first, rejection at load naming `entry_paths`, and a diagnostic for uncompiled globs. |
+| FND-005 | fixed | AC-40 defines the header as the first run of consecutive `#` lines before the first command, skipping a `#!` line and blank lines. A comment after `set -euo pipefail` is not header. |

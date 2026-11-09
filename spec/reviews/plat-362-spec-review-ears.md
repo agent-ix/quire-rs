@@ -22,3 +22,11 @@ Ticket: PLAT-362. This pass checked the new Shell adapter statement and FR-051-A
 ## Verdict
 
 Examined: the Shell adapter section and FR-051-AC-34..40. AC-35, AC-36, AC-37 and AC-40 use event and state forms that a test can fail. The findings are wording only. They change no behaviour.
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | "The adapter SHALL mint two kinds of symbol", and the extractor "SHALL mint it without consulting module data". The rules AC-35 and AC-37 test are now modal. |
+| FND-002 | fixed | Old AC-38 is split into AC-38 (eligibility), AC-39 (glob semantics), AC-42 (marker-only binding) and AC-43 (load-time refusal). Old AC-39 is split into AC-45 (unparseable-file diagnostic), and its no-execution clause moved to FR-051-CON-1. |
+| FND-003 | fixed | AC-34 is rewritten as one event clause, and it states that `.bash` and extension-less `#!/bin/sh` files are not read. |

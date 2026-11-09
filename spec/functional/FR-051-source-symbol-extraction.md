@@ -229,7 +229,7 @@ byte-identical JSON ordering and stable record ids.
 | FR-051-AC-41 | Only a syntax-tree comment node opens a shell comment: a `#` inside a quoted string, a heredoc body, `$#`, `${#x}`, `${x#pat}`, or a word (`a#b`, a URL fragment) is content and carries no tag. | Test (TC-2108) |
 | FR-051-AC-42 | Shell tags are read only through a declared `markers` form with `language: shell` and `syntax: comment`; a shell binding carries no `legacy` provenance, and a shell file under a model that declares no such form mints zero `verifies` relations. | Test (TC-2109) |
 | FR-051-AC-43 | Module load rejects `syntax: comment` on a form that is not `language: shell` or that sits in `trace_tags.legacy`, and rejects `entry_paths` on a form that is not a `language: shell` form in `trace_tags.markers`, each with an error naming the key at fault; a `language: shell` form in `trace_tags.implements` is accepted, and neither carries `entry_paths` nor binds an `entry_point`. | Test (TC-2110) |
-| FR-051-AC-44 | A declared shell marker that matches in a comment but binds nothing is reported in `CoverageReport.diagnostics`, naming the id, the repo-relative path and the line, with the reason `outside-entry-paths` when it sits in an `entry_point` header whose file matches no glob, and `not-in-tag-channel` when it sits in a comment that is neither a function's block nor a header; no census count moves. | Test (TC-2111) |
+| FR-051-AC-44 | A declared shell marker that matches in a comment but binds nothing is reported in `CoverageReport.diagnostics`, naming the id, the repo-relative path and the line, with the reason `outside-entry-paths` when it sits in an `entry_point` header whose file matches no glob, `function-not-evidence` when it sits in a shell function's comment block (a shell function binds no `verifies`, AC-38), and `not-in-tag-channel` when it sits in a comment that is neither a function's block nor a header; no census count moves. | Test (TC-2111) |
 | FR-051-AC-45 | An unparseable `.sh` file (a tree carrying an error over its declaration structure) yields a per-file diagnostic naming the file and the line the error sits at, while the rest of the tree extracts normally. | Test (TC-2112) |
 | FR-051-AC-46 | A fixture audit script matching a declared `entry_paths` glob whose header comment carries a declared shell marker backs the `Static` matrix row it names in the coverage report, with the `verifies` relation on its `entry_point`; the same marker in a script matching no glob backs nothing and is reported by AC-44. | Test (TC-2113) |
 
@@ -974,6 +974,10 @@ byte-identical JSON ordering and stable record ids.
 > glob typo would otherwise leave its `Static` row unbacked in silence. The tag
 > is a comment, so it is declared as a `markers` entry, not `legacy`:
 > FR-051-CON-3 retires legacy recognition, and a shell marker must outlive it.
+>
+> **Cross-repo.** The implementation also needs a change in `quire-code-rs`:
+> `quire-code-parse` must add the `bash` feature (tree-sitter-bash) before
+> `quire-code-extraction` can forward it under `shell-symbols`.
 >
 > **Ordering.** `SourceLanguage` is closed and the grammar is
 > `deny_unknown_fields`, so an engine that predates this change rejects a module

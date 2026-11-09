@@ -22,3 +22,17 @@ Ticket: PLAT-362. This is the base checklist pass over CR-213: the shell adapter
 ## Verdict
 
 Examined: the Shell adapter section (FR-051:85-104), FR-051-CON-1, FR-051-AC-34..40, the CR-213 note, TC-2101..2107, the FR-051 coverage row and its traceability rows, and the TC-502 row. Ids are clean: CR-213, FR-051-AC-34..40 and TC-2101..2107 appear nowhere on main, #612 or #613. The coverage range `AC-1..31, 34..40` correctly leaves AC-32/33 to #612, and it becomes `AC-1..40` when both land. The spec does not contradict the approved shell ruling (PLAT-390 research comment). Option 4 (port audits to in-language tests) is left as a choice each repo can still make, not reversed. The diff adds no vendoring, compat layer or tracking record. The branch is behind main (#609 merged) and conflicts textually in spec/tests.md, so it needs a rebase. FND-001 needs a decision before merge.
+
+## New findings (disposition pass 1)
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-004 | medium | The fix round remapped NFR-003-AC-3 ("A grep `rg 'unsafe\s*\{' src/` returns zero matches") to TC-582. TC-582 tests the compile-time `forbid(unsafe_code)`, and that forbid applies only to the default feature set. It is scoped off under `python`, so it never sees `src/python/` and proves nothing about the grep over all of `src/`. The test that runs that grep is TC-506 (`rg 'unsafe {' src/`, `--features python`). Since a grep ignores Cargo features, AC-3 and AC-4 are the same check. Map NFR-003-AC-3 to TC-506. | spec/tests.md:2296, spec/tests.md:536, spec/tests.md:538, spec/non-functional/NFR-003-zero-unsafe.md:44 |
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | FR-051-CON-1 now holds for every adapter, shell included, through `tree-sitter-bash`. The grammar enters through a `bash` feature of `quire-code-parse`, which `quire-code-extraction` forwards under `shell-symbols` (Language adapters statement and CR-213 note "Parser" paragraph). The exception is removed. |
+| FND-002 | fixed | The CR-213 note now counts four `.sh` files (three in `scripts/audits/` plus `scripts/check_property_purity.sh`). It cites the entry point as AC-37, which is correct after renumbering. TC-050 and TC-203 are removed, with the reason recorded. |
+| FND-003 | fixed | The TC-502 status now names AC-42 (marker form), AC-38 (glob) and AC-46 (end to end). It also records that the script header must carry the marker. |

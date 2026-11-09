@@ -20,3 +20,9 @@ Ticket: PLAT-362. This pass checked the verification method of each new AC again
 ## Verdict
 
 Examined: FR-051-AC-34..40 and TC-2101..2107. Methods and priorities are consistent. AC-40/TC-2107 is a true end-to-end check through the coverage report and includes the negative control (same marker outside the glob backs nothing). That control is the evidence the declaration-driven design needs.
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | The no-execution clause left the AC. FR-051-CON-1 now says "the shell adapter never executes or sources the script it reads", verified by the TC-756 static boundary audit, whose row now says "shell adapter included". AC-45 holds only the observable diagnostic. |
