@@ -430,6 +430,7 @@ mod cr136_near_miss {
         assert_ne!(normalized_id("TC-000"), normalized_id("TC-"));
     }
 
+    #[trace("TC-1")]
     #[trace("TC-1051", "FR-050-AC-37")]
     // a near miss is reported naming BOTH spellings, and an
     // EXACT match is not reported at all.

@@ -3906,15 +3906,16 @@ fn fn_plain_mention() {\n\
 #[cfg(test)]
 mod mask_tests {
     use super::*;
+    use ix_trace_rs::trace;
 
     /// The masked span, for a language whose strings hide tag-shaped data.
     fn masked(src: &str, language: SourceLanguage) -> String {
         legacy_match_span(src, language)
     }
 
+    #[trace("TC-1055")]
     #[test]
     fn tc1055_a_legacy_form_inside_a_string_is_masked_in_every_language() {
-        // TC-1055
         // `agent-ix/quire-rs#323`. The mask was gated on `SourceLanguage::Rust`
         // and every other language fell through to the RAW span, so a Python or
         // TypeScript test carrying tag-shaped text as DATA bound it. Measured on
@@ -3938,9 +3939,9 @@ mod mask_tests {
         );
     }
 
+    #[trace("TC-1056")]
     #[test]
     fn tc1056_each_language_keeps_its_own_declared_tag_channel() {
-        // TC-1056
         // THE TWO EXEMPTIONS, AND WHY THEY ARE NOT AD HOC. A blanket mask is
         // right for Rust — its legacy forms all read comments, and
         // `rust-test-name-id` reads an identifier — and WRONG for the other two,
@@ -3980,9 +3981,9 @@ mod mask_tests {
         );
     }
 
+    #[trace("TC-1057")]
     #[test]
     fn tc1057_comments_survive_and_offsets_do_not_shift() {
-        // TC-1057
         // Comments are where legacy tags live, so masking them would suppress
         // the very form being matched. And byte length is preserved, because
         // the rewrite-suggestion pass matches against this span and reports

@@ -1867,6 +1867,7 @@ fn check_capturing_pattern(section: &str, name: &str, pattern: &str) -> Result<(
 
 #[cfg(test)]
 mod cr118_props {
+    use ix_trace_rs::trace;
     use proptest::prelude::*;
 
     use super::SectionNames;
@@ -1894,7 +1895,7 @@ mod cr118_props {
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(2000))]
 
-        /// TC-1038 (FR-050-AC-34, CR-118, Property): a declared name carrying no
+        /// (FR-050-AC-34, CR-118, Property): a declared name carrying no
         /// `*` selects a section exactly when [`crate::query::section`] — the
         /// lookup every `section:` has gone through since FR-010 — finds it.
         ///
@@ -1902,6 +1903,7 @@ mod cr118_props {
         /// Asserted against the real parser and the real query rather than
         /// against a restatement of the matcher.
         #[test]
+        #[trace("TC-1038")]
         fn tc1038_a_star_free_name_agrees_with_the_engines_own_section_lookup(
             declared in headingish(),
             authored in headingish(),
@@ -2154,10 +2156,11 @@ document_references:
         }
     }
 
-    /// TC-829, FR-050-AC-7 (CR-062): `archetype` is the only origin, and it is
+    /// (CR-062): `archetype` is the only origin, and it is
     /// required. A `document:` key — the deleted form — is now an unknown field,
     /// which `deny_unknown_fields` rejects rather than silently ignores: a module
     /// carrying the old declaration fails load instead of minting nothing.
+    #[trace("FR-050-AC-7", "TC-829")]
     #[test]
     fn tc829_archetype_is_the_only_origin() {
         let m = model(
@@ -2196,16 +2199,18 @@ document_references:
         );
     }
 
+    #[trace("FR-050-AC-7")]
     #[test]
     fn exclude_defaults_to_empty_and_is_omitted_when_unset() {
         let m = model(FULL);
         assert!(m.target("test-case").unwrap().exclude.is_empty());
-        // FR-050-AC-7: a model declaring no exclusions must serialize exactly
+        // a model declaring no exclusions must serialize exactly
         // as it did before the field existed.
         let yaml = serde_yaml::to_string(&m).expect("serialize");
         assert!(!yaml.contains("exclude"), "{yaml}");
     }
 
+    #[trace("FR-050-AC-7")]
     #[trace("TC-826")]
     // the model-level `exclude:` is a repository fact, so it (CR-060)
     // is not what makes a model *declared* — a module that says only "these
@@ -2217,7 +2222,7 @@ document_references:
         assert!(m.is_empty());
         m.validate().expect("valid");
 
-        // FR-050-AC-7: unset, it serializes exactly as before the field.
+        // unset, it serializes exactly as before the field.
         let yaml = serde_yaml::to_string(&model(FULL)).expect("serialize");
         assert!(!yaml.contains("exclude"), "{yaml}");
     }

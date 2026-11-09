@@ -383,7 +383,8 @@ mod tests {
     use super::*;
     use ix_trace_rs::trace;
 
-    // TC-491, FR-026-AC-6: target-id extraction is a pure function.
+    // target-id extraction is a pure function.
+    #[trace("FR-026-AC-6", "TC-491")]
     #[test]
     fn extract_target_id_handles_uri_and_bare() {
         assert_eq!(
@@ -425,7 +426,8 @@ mod tests {
             .collect()
     }
 
-    // TC-486, FR-026-AC-1: frontmatter relationship to a present id -> Resolved.
+    // frontmatter relationship to a present id -> Resolved.
+    #[trace("FR-026-AC-1", "TC-486")]
     #[test]
     fn frontmatter_relationship_resolves() {
         let docs = vec![
@@ -443,7 +445,8 @@ mod tests {
         assert_eq!(edge.resolution, Resolution::Resolved);
     }
 
-    // TC-487, FR-026-AC-2: ix:// body link to a present id -> Resolved, type "references".
+    // ix:// body link to a present id -> Resolved, type "references".
+    #[trace("FR-026-AC-2", "TC-487")]
     #[test]
     fn body_link_resolves() {
         let docs = vec![
@@ -460,7 +463,8 @@ mod tests {
         assert_eq!(edge.resolution, Resolution::Resolved);
     }
 
-    // TC-488, FR-026-AC-3: absent target -> Dangling + diagnostic; no failure.
+    // absent target -> Dangling + diagnostic; no failure.
+    #[trace("FR-026-AC-3", "TC-488")]
     #[test]
     fn absent_target_is_dangling() {
         let docs = vec![loaded(
@@ -481,7 +485,8 @@ mod tests {
         );
     }
 
-    // TC-489, FR-026-AC-4: cross-spec target (absent from loaded set) -> Dangling.
+    // cross-spec target (absent from loaded set) -> Dangling.
+    #[trace("FR-026-AC-4", "TC-489")]
     #[test]
     fn cross_spec_target_is_dangling_not_resolved() {
         // Target lives only in a *different* spec — not in this index.
@@ -495,9 +500,10 @@ mod tests {
         assert_eq!(out.edges[0].resolution, Resolution::Dangling);
     }
 
-    // FR-026-AC-8/AC-11: one absent target spelled as a bare id and as a
+    // AC-11: one absent target spelled as a bare id and as a
     // foreign ix:// link is one edge, one diagnostic, and the bare spelling
     // keeps it local (no authority).
+    #[trace("FR-026-AC-8")]
     #[test]
     fn spellings_of_one_absent_target_dedup_without_splitting_on_authority() {
         let docs = vec![loaded(
@@ -519,7 +525,8 @@ mod tests {
         assert_eq!(ix_authority("StR-1"), None);
     }
 
-    // TC-490, FR-026-AC-5: a Resolved edge is in both outgoing(src) and incoming(tgt).
+    // a Resolved edge is in both outgoing(src) and incoming(tgt).
+    #[trace("FR-026-AC-5", "TC-490")]
     #[test]
     fn resolved_edge_is_bidirectional() {
         let docs = vec![
@@ -538,8 +545,9 @@ mod tests {
         assert_eq!(from[0], to[0]); // same edge slot
     }
 
-    // TC-501, FR-026-AC-8: identical (src,target,type) from both sources -> one edge;
+    // identical (src,target,type) from both sources -> one edge;
     // same pair, different type -> two.
+    #[trace("FR-026-AC-8", "TC-501")]
     #[test]
     fn dedup_collapses_identical_triples() {
         // frontmatter `references` StR-005 AND a body ix:// link to StR-005
@@ -594,8 +602,9 @@ mod tests {
         )
     }
 
-    // TC-620, FR-026-AC-9: relative-path body link resolves via the path index
+    // relative-path body link resolves via the path index
     // (independent of link text and file slug); an unmatched relative link dangles.
+    #[trace("FR-026-AC-9", "TC-620")]
     #[test]
     fn relative_path_link_resolves_and_dangles() {
         let docs = vec![
@@ -632,8 +641,9 @@ mod tests {
         assert_eq!(out2.edges[0].resolution, Resolution::Dangling);
     }
 
-    // TC-620, FR-026-AC-9: a relative link to an id-less (path-keyed) document
+    // a relative link to an id-less (path-keyed) document
     // resolves to its path key, and an unresolved nested path is reported whole.
+    #[trace("FR-026-AC-9", "TC-620")]
     #[test]
     fn relative_link_to_id_less_doc_resolves_and_nested_miss_keeps_full_path() {
         let idless = LoadedDocument::from_parsed(
@@ -666,8 +676,9 @@ mod tests {
         assert_eq!(out.edges.len(), 2);
     }
 
-    // TC-621, FR-026-AC-10: relative links in index.md are not harvested;
+    // relative links in index.md are not harvested;
     // the same link in an ordinary artifact is.
+    #[trace("FR-026-AC-10", "TC-621")]
     #[test]
     fn nav_documents_excluded_as_relative_source() {
         let docs = vec![
@@ -698,8 +709,9 @@ mod tests {
         assert_eq!(refs_to_fr002[0].source, "FR-001");
     }
 
-    // TC-622, FR-026-AC-11: identical (source, target, references) from a
+    // identical (source, target, references) from a
     // relative-path link and an ix:// link / frontmatter entry dedups to one.
+    #[trace("FR-026-AC-11", "TC-622")]
     #[test]
     fn relative_and_ix_link_dedup_to_one() {
         let docs = vec![
@@ -728,11 +740,12 @@ mod tests {
         assert_eq!(edges[0].edge_type, "references");
     }
 
-    // TC-880, FR-026-AC-12 (CR-067): every `ix://` shape the ecosystem
+    // (CR-067): every `ix://` shape the ecosystem
     // actually authors still matches. The counts are occurrences across the
     // 237 `~/dev` spec bundles at the time of the change — this test exists so
     // that a future tightening of the grammar has to argue with real usage
     // rather than with an invented example.
+    #[trace("FR-026-AC-12", "TC-880")]
     #[test]
     fn tc880_grammar_accepts_every_authored_shape() {
         let re = ix_link_regex();
@@ -806,10 +819,11 @@ mod tests {
         );
     }
 
-    // TC-881, FR-026-AC-13 (CR-067, agent-ix/quire-rs#89): the bare protocol
+    // (CR-067, agent-ix/quire-rs#89): the bare protocol
     // and every malformed form the corpus contains mint nothing. The reported
     // defect is the first case: `` `ix://` `` matched as ``ix://` `` and the
     // harvested target was the closing backtick.
+    #[trace("FR-026-AC-13", "TC-881")]
     #[test]
     fn tc881_grammar_rejects_the_bare_protocol_and_placeholders() {
         let re = ix_link_regex();
@@ -851,9 +865,10 @@ mod tests {
         assert!(out.diagnostics.is_empty(), "got {:?}", out.diagnostics);
     }
 
-    // TC-882 / FR-026-CON-1 (CR-067): `harvest_edges` — the single-document
+    // (FR-026-CON-1, CR-067): `harvest_edges` — the single-document
     // surface behind the Python binding — reads the same grammar as corpus
     // resolution, because both go through `harvest_body_links`.
+    #[trace("TC-882")]
     #[test]
     fn tc882_single_doc_harvest_reads_the_same_grammar() {
         let doc = loaded(

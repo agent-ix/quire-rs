@@ -19,8 +19,9 @@ SPEC_DIR = REPO_ROOT / "spec"
 MODULES_DIR = REPO_ROOT / "tests" / "fixtures" / "modules"
 
 
+@pytest.mark.trace("TC-461")
 def test_parse_document_returns_structured_object():
-    """TC-461/467: parse returns a native dict, not a JSON string."""
+    """parse returns a native dict, not a JSON string."""
     md = "---\nid: FR-023\ntype: FR\n---\n# Behavior {#blk-1}\n\nbody\n"
     doc = quire.parse_document(md)
 
@@ -39,8 +40,9 @@ def test_parse_document_malformed_frontmatter_is_tolerant():
     assert doc["frontmatter"] is None  # malformed -> None (FR-006)
 
 
+@pytest.mark.trace("TC-666")
 def test_check_grammar_ears_findings_cross_boundary():
-    """TC-666 (FR-042-AC-10): the EARS grammar entry point is exposed via PyO3
+    """(FR-042-AC-10): the EARS grammar entry point is exposed via PyO3
     and returns the same findings as the in-process Rust call for a fixture."""
     md = (
         "---\nid: FR-001\ntype: FR\n---\n"
@@ -63,8 +65,9 @@ def test_check_grammar_ears_findings_cross_boundary():
     assert quire.check_grammar("nonexistent", "FR", md) == []
 
 
+@pytest.mark.trace("TC-673")
 def test_check_grammar_applies_module_lexicon(tmp_path):
-    """TC-673 (FR-043-AC-7): check_grammar applies a module's concrete lexicon
+    """(FR-043-AC-7): check_grammar applies a module's concrete lexicon
     when given module_root; without one it uses an empty lexicon."""
     md = (
         "---\nid: FR-001\ntype: FR\n---\n"
@@ -84,8 +87,9 @@ def test_check_grammar_applies_module_lexicon(tmp_path):
     assert not any(f["check"] == "vague-response" for f in findings2)
 
 
+@pytest.mark.trace("FR-047-AC-12", "TC-715")
 def test_check_grammar_ac_findings_cross_boundary(tmp_path):
-    """TC-715 (FR-047-AC-9): the `ac` grammar is exposed through the same PyO3
+    """(FR-047-AC-9): the `ac` grammar is exposed through the same PyO3
     surface and returns the same findings as the in-process Rust call."""
     md = (
         "---\nid: FR-001\ntype: FR\n---\n"
@@ -117,7 +121,7 @@ def test_check_grammar_ac_findings_cross_boundary(tmp_path):
     assert {f["check"] for f in gwt} == {"non-canonical-shape"}
     assert all(f["pattern"] == "given-when-then" for f in gwt)
 
-    # FR-047-AC-12 / FR-048: module data reaches the binding. Declaring `work`
+    # Module data reaches the binding. Declaring `work`
     # as an observable verb makes the cell carry signal, which suppresses
     # `vacuous-outcome` (CR-014 demoted `observable_verbs` to a suppressor);
     # mapping `ac:unclassifiable` to `off` removes that check entirely.
@@ -138,8 +142,9 @@ def test_check_grammar_ac_findings_cross_boundary(tmp_path):
     assert "unclassifiable" not in scoped_checks
 
 
+@pytest.mark.trace("FR-052-AC-8", "TC-789")
 def test_classify_properties_cross_boundary(tmp_path):
-    """TC-789 (FR-052-AC-11): the property classifier is exposed through PyO3
+    """(FR-052-AC-11): the property classifier is exposed through PyO3
     and returns the same records, field for field, as the in-process Rust call
     over the same fixture (the values asserted here are the ones TC-779 /
     TC-783 / TC-787 assert in Rust).
@@ -203,7 +208,7 @@ def test_classify_properties_cross_boundary(tmp_path):
     # An unknown bundle is a silent no-op, exactly as it is for check_grammar.
     assert quire.classify_properties("no-such-bundle", "FR", md) == []
 
-    # FR-052-AC-8: a module `property_idioms` registry reaches the binding and
+    # a module `property_idioms` registry reaches the binding and
     # boosts the label — while `extractable` stays put (FR-052-CON-4).
     mod = tmp_path / "m"
     mod.mkdir(parents=True)
@@ -225,8 +230,9 @@ def test_classify_properties_cross_boundary(tmp_path):
     assert scoped[1]["extraction"] == "not-extractable"
 
 
+@pytest.mark.trace("TC-463")
 def test_load_repo_returns_documents(tmp_path):
-    """TC-463: load_repo yields one structured doc per markdown file."""
+    """load_repo yields one structured doc per markdown file."""
     (tmp_path / "FR-001.md").write_text(
         "---\nid: FR-001\ntype: FR\nuuid: 0190b6a0-0000-7000-8000-000000000001\n---\n# H\n"
     )
@@ -256,8 +262,9 @@ def test_spec_queries_on_real_spec():
     assert rec is not None and rec["type"] == "FR"
 
 
+@pytest.mark.trace("TC-462")
 def test_validate_accepts_valid_and_flags_violations():
-    """TC-462: schema validation across the FFI boundary, with the same
+    """schema validation across the FFI boundary, with the same
     dotted field path the Rust validator produces (NFR-005)."""
     reg = quire.Registry.load_from([str(MODULES_DIR)])
     assert "demo-item" in reg.archetype_names()
@@ -311,16 +318,18 @@ CONFORMANT_FR = (
 )
 
 
+@pytest.mark.trace("TC-528", "TC-533")
 def test_validate_document_conformant_is_valid():
-    """TC-528, TC-533 (binding happy path): a conformant FR markdown
+    """(binding happy path): a conformant FR markdown
     document validates through the wheel."""
     result = quire.validate_document("FR", str(REQ_MODULE), CONFORMANT_FR)
     assert result["is_valid"] is True
     assert result["errors"] == []
 
 
+@pytest.mark.trace("TC-529", "TC-533")
 def test_validate_document_flags_missing_section_with_reason_and_line():
-    """TC-529, TC-533 (binding sad path): a missing required section is
+    """(binding sad path): a missing required section is
     flagged with a reason and a line-numbered error shape."""
     mutated = CONFORMANT_FR.replace(
         "## Specification\n"
@@ -382,8 +391,9 @@ def test_validate_sad_path_raises_validation_error_with_field_path():
     assert "id" in str(exc.value)
 
 
+@pytest.mark.trace("TC-512")
 def test_validate_manifest_happy_and_sad(tmp_path):
-    """TC-512: schema-load happy, validation happy + sad, schema-missing → QuireSchemaError."""
+    """schema-load happy, validation happy + sad, schema-missing → QuireSchemaError."""
     schema_path = tmp_path / "s.json"
     schema_path.write_text(
         '{"type":"object","required":["name"],'
@@ -454,8 +464,9 @@ def test_validate_document_column_choices_enforced(tmp_path):
     assert any("huge" in e["message"] for e in res2["errors"])
 
 
+@pytest.mark.trace("TC-1868")
 def test_validate_document_bundle_package_qualifies_relationship_targets(tmp_path):
-    """TC-1868 (FR-076-AC-15): the optional `bundle_package` kwarg routes to
+    """(FR-076-AC-15): the optional `bundle_package` kwarg routes to
     `validate_document_in_bundle`: a bare row target qualifies under it, so a
     frontmatter `ix://` duplicate is refused. Without it the relationships
     table is `no-bundle-package`, one advisory warning and no row error."""
@@ -542,8 +553,9 @@ def test_validate_document_scalar_choices_enforced(tmp_path):
     assert "assert" in {e["reason"] for e in res["errors"]}
 
 
+@pytest.mark.trace("TC-513")
 def test_extract_envelope_returns_extraction_and_edges(tmp_path):
-    """TC-513: extract returns {extraction, edges}. demo-item has no body_extraction,
+    """extract returns {extraction, edges}. demo-item has no body_extraction,
     so we use a manifest with one. For a clean test, build a tiny module on the fly."""
     mod = tmp_path / "m"
     (mod / "schemas").mkdir(parents=True)
@@ -671,8 +683,9 @@ def test_extraction_context_errors_on_required_per_match_miss():
         ctx.extract("api_endpoint", {}, "## Endpoints\n### Get User\nNo code here\n")
 
 
+@pytest.mark.trace("TC-514")
 def test_extract_frontmatter_returns_dict_or_none():
-    """TC-514: FR-006 parity — Rust returns frontmatter and body."""
+    """FR-006 parity — Rust returns frontmatter and body."""
     result = quire.extract_frontmatter("---\nid: X\ntype: FR\n---\n# H\n")
     assert result == {
         "frontmatter": {"id": "X", "type": "FR"},
@@ -699,8 +712,9 @@ def test_extract_frontmatter_body_matches_rust_bom_and_crlf_parity():
     assert crlf["body"] == "# H\r\n"
 
 
+@pytest.mark.trace("TC-515")
 def test_harvest_edges_string_and_dict_equal():
-    """TC-515: harvest_edges accepts raw string or parsed dict; outputs equal."""
+    """harvest_edges accepts raw string or parsed dict; outputs equal."""
     md = (
         "---\nid: X\nrelationships:\n"
         "  - target: StR-1\n    type: implements\n"
@@ -722,8 +736,9 @@ def test_harvest_edges_string_and_dict_equal():
     assert ("FR-2", "requires") in dict_targets
 
 
+@pytest.mark.trace("TC-516")
 def test_exception_hierarchy_importable():
-    """TC-516: the exception hierarchy is importable and properly nested;
+    """the exception hierarchy is importable and properly nested;
     QuireRenderError is not exported (render removed, FR-028-AC-7)."""
     assert issubclass(quire.QuireValidationError, quire.QuireBaseError)
     assert issubclass(quire.QuireSchemaError, quire.QuireBaseError)
@@ -732,8 +747,9 @@ def test_exception_hierarchy_importable():
     assert not hasattr(quire, "QuireRenderError")
 
 
+@pytest.mark.trace("TC-517")
 def test_new_functions_release_gil():
-    """TC-517: concurrent calls to validate complete without serializing."""
+    """concurrent calls to validate complete without serializing."""
 
     def work(_):
         for _ in range(20):
@@ -748,8 +764,9 @@ def test_new_functions_release_gil():
         assert all(ex.map(work, range(4)))
 
 
+@pytest.mark.trace("NFR-016-AC-2")
 def test_gil_released_under_concurrency():
-    """NFR-016-AC-2: two threads each loading the spec run concurrently
+    """two threads each loading the spec run concurrently
     (GIL released during the Rust work), so they don't serialize."""
 
     def load():
@@ -783,8 +800,9 @@ def _filament_input(markdown):
     }
 
 
+@pytest.mark.trace("TC-686")
 def test_extract_filament_core_tier1_binding():
-    """TC-686 (Python half): the binding returns native core-data JSON, not a
+    """(Python half): the binding returns native core-data JSON, not a
     string, with a validated graph node carrying frontmatter id/title."""
     result = quire.extract_filament_core(
         _filament_input("---\nid: FR-001\ntitle: Pay vendors\nobject: capability\n---\n# Body\n")
@@ -802,8 +820,9 @@ def test_extract_filament_core_tier1_binding():
     assert data["title"] == "Pay vendors"
 
 
+@pytest.mark.trace("TC-686")
 def test_extract_filament_core_malformed_frontmatter_reports_parse_failure():
-    """TC-686/#127: a complete-but-unparsable frontmatter block surfaces a
+    """a complete-but-unparsable frontmatter block surfaces a
     `parse_failed` error through the binding (reaches Filament index_errors)."""
     result = quire.extract_filament_core(_filament_input("---\nid: : bad\n---\n# Body\n"))
     assert result["nodes"] == []

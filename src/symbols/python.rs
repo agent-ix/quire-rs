@@ -965,7 +965,7 @@ mod tests {
         })
     }
 
-    /// TC-800, FR-051-AC-13 (CR-037): a signature black-wrapped over
+    /// (CR-037): a signature black-wrapped over
     /// multiple lines still reaches its docstring — `function_definition`'s
     /// own node span already covers the full signature, so no bespoke
     /// paren-depth walk (the pre-port scanner's `block_end`/`paren_delta`,
@@ -974,6 +974,7 @@ mod tests {
     /// `test_multi_line`'s wrapped signature binds `TC-029` exactly as
     /// `test_single_line`'s single-line spelling binds `TC-028` — the
     /// single-line form is the control.
+    #[trace("FR-051-AC-13", "TC-800")]
     #[trace("TC-1880", "FR-051-AC-25")]
     #[test]
     fn tc800_wrapped_signature_span_reaches_the_docstring() {
@@ -1191,7 +1192,7 @@ mod tests {
         );
     }
 
-    /// FR-051-AC-1/AC-2: a `def` nested inside another `def` is never its
+    /// A `def` nested inside another `def` is never its
     /// own container — matches the pre-port scanner exactly (only a `class`
     /// pushes a scope), so two nested helpers of the same name, under two
     /// differently-named outer functions with no enclosing class, collide on
@@ -1199,6 +1200,7 @@ mod tests {
     /// byte-for-byte preserved quirk, not something this port is free to
     /// fix (PLAT-845 made the opposite call for Rust; Python's own identity
     /// surface is pinned separately by PLAT-868).
+    #[trace("FR-051-AC-1")]
     #[test]
     fn a_nested_def_is_never_a_container_for_its_own_nested_defs() {
         let source = concat!(
@@ -1229,10 +1231,11 @@ mod tests {
         );
     }
 
-    /// FR-051-AC-3, #407: the bounded unittest `TestCase` base detection —
+    /// #407: the bounded unittest `TestCase` base detection —
     /// a direct import, an aliased import, a comma-separated base list, and
     /// the documented non-inference cases (a rebound import, a non-`unittest`
     /// module, and a multi-line base list).
+    #[trace("FR-051-AC-3")]
     #[test]
     fn unittest_test_case_base_is_bounded_and_import_gated() {
         let source = concat!(

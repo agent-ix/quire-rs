@@ -728,6 +728,7 @@ fn glob_case_files(cases: &std::path::Path) -> Vec<std::path::PathBuf> {
 /// `bounds.py` crediting the cell as ecosystem-covered. That is #266's defect
 /// ("the field named one thing and the file loaded another") relocated rather
 /// than removed.
+#[trace("FR-065-CON-3")]
 #[trace("TC-1018", "FR-065-AC-15")]
 // a variant binding names its relaxation ticket.
 #[trace("TC-1020", "FR-065-AC-18")]
@@ -768,7 +769,7 @@ fn tc1020_the_documented_invocation_names_the_module_that_loads() {
             case.meta.id,
         );
 
-        // FR-065-CON-3 / AC-15: a variant says whether it is temporary or is
+        // AC-15: a variant says whether it is temporary or is
         // itself the subject. Exactly one classification is allowed.
         if case.meta.module != "ecosystem" {
             assert!(

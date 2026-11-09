@@ -206,6 +206,7 @@ fn tc866_quoted_term_is_a_mention_not_a_use() {
     );
 }
 
+#[trace("FR-048-AC-9")]
 #[trace("TC-867", "FR-056-AC-7")]
 // advisory on arrival, and individually silenceable.
 #[test]
@@ -225,7 +226,7 @@ fn tc867_advisory_and_individually_addressable() {
     assert!(!checks(&registry, &doc).is_empty());
     assert_eq!(GrammarSeverity::Warning, GrammarSeverity::Warning);
 
-    // FR-048-AC-9: mapped `off`, the check is removed entirely — addressable
+    // mapped `off`, the check is removed entirely — addressable
     // on its own key.
     let silenced = registry.with_grammar_severity(
         [(

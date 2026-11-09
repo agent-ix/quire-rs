@@ -6,6 +6,8 @@
 //! or embeddings. This asserts that statically over the module source so the
 //! constraint cannot silently regress.
 
+use ix_trace_rs::trace;
+
 const FILAMENT_SRC: &str = include_str!("../../src/filament.rs");
 
 /// Tokens that would indicate the extraction boundary reaching into a runtime
@@ -27,6 +29,7 @@ const FORBIDDEN: &[&str] = &[
     "tokio",
 ];
 
+#[trace("TC-690")]
 #[test]
 fn tc690_extraction_module_has_no_forbidden_runtime_surface() {
     for needle in FORBIDDEN {

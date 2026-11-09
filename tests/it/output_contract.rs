@@ -578,6 +578,7 @@ fn tc858_added_fields_are_rejected_at_every_level() {
     }
 }
 
+#[trace("FR-050-AC-39")]
 #[trace("TC-859", "FR-055-AC-6")]
 // the optional/required split matches the engine's
 // skip-when-empty behaviour, in both directions.
@@ -603,7 +604,7 @@ fn tc859_optional_and_required_split_matches_the_engine() {
         // CR-093: present whenever the walk found an evidence symbol, so a
         // corpus with no source tree at all omits it.
         "binding_census",
-        // FR-050-AC-39: absent when every annotation id bound or no generic
+        // absent when every annotation id bound or no generic
         // annotation id was authored.
         "unmatched_tags",
         // CR-094: the engine always emits it, but the contract stays additive

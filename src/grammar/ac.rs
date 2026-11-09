@@ -1752,6 +1752,7 @@ mod tests {
 
 #[cfg(test)]
 mod props_metamorphic {
+    use ix_trace_rs::trace;
     use proptest::prelude::*;
 
     /// Backtick-dense strings, so runs of every length and unbalanced tails are
@@ -1770,24 +1771,26 @@ mod props_metamorphic {
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(4000))]
 
-        /// TC-894, FR-047-AC-18 (CR-017/CR-026, CR-069, Property): masking is
+        /// (CR-017/CR-026, CR-069, Property): masking is
         /// idempotent — a masked span masks to itself.
         #[test]
+        #[trace("FR-047-AC-18", "TC-894")]
         fn tc894_mask_code_spans_is_idempotent(s in tickish()) {
             let once = super::mask_code_spans(&s);
             prop_assert_eq!(super::mask_code_spans(&once), once.clone(), "input={:?}", s);
         }
 
-        /// TC-894, FR-047-AC-18 (CR-069, Property): masking preserves byte
+        /// (CR-069, Property): masking preserves byte
         /// length. `outcome_clause` locates a keyword in the masked copy and
         /// slices the *original* with that offset, so any drift here would
         /// silently mis-slice rather than fail loudly.
         #[test]
+        #[trace("FR-047-AC-18", "TC-894")]
         fn tc894_mask_code_spans_preserves_byte_length(s in tickish()) {
             prop_assert_eq!(super::mask_code_spans(&s).len(), s.len(), "input={:?}", s);
         }
 
-        /// TC-894, FR-047-AC-18 (CR-069, Property): masking never *introduces* a
+        /// (CR-069, Property): masking never *introduces* a
         /// backtick, and every backtick it keeps is at the offset it already
         /// occupied — the output's backtick positions are a subset of the
         /// input's. Equality would be wrong: a backtick inside a span is span
@@ -1796,6 +1799,7 @@ mod props_metamorphic {
         /// could synthesize a delimiter would change which spans a second pass
         /// sees, and idempotence would be luck rather than structure.
         #[test]
+        #[trace("FR-047-AC-18", "TC-894")]
         fn tc894_mask_code_spans_never_introduces_a_backtick(s in tickish()) {
             let out = super::mask_code_spans(&s);
             let positions = |t: &str| -> std::collections::BTreeSet<usize> {

@@ -848,6 +848,7 @@ mod tests {
 
 #[cfg(test)]
 mod props_metamorphic {
+    use ix_trace_rs::trace;
     use proptest::prelude::*;
 
     /// Strings built from the tokens `normalize` rewrites, so the generator
@@ -871,18 +872,20 @@ mod props_metamorphic {
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(4000))]
 
-        /// TC-891, FR-042 (CR-069, Property): EARS normalization is idempotent.
+        /// (CR-069, Property): EARS normalization is idempotent.
         /// Its counterexample before the fixpoint loop was `[]**()`, which
         /// normalized to `[]()` and then to `""`.
         #[test]
+        #[trace("FR-042", "TC-891")]
         fn tc891_ears_normalize_is_idempotent(s in markdownish()) {
             let once = super::normalize(&s);
             prop_assert_eq!(super::normalize(&once), once.clone(), "input={:?}", s);
         }
 
-        /// TC-891, FR-042 (CR-069, Property): and it never lengthens its input,
+        /// (CR-069, Property): and it never lengthens its input,
         /// which is what makes the fixpoint loop terminate.
         #[test]
+        #[trace("FR-042", "TC-891")]
         fn tc891_ears_normalize_never_grows(s in markdownish()) {
             prop_assert!(super::normalize(&s).len() <= s.len(), "input={:?}", s);
         }
@@ -891,10 +894,12 @@ mod props_metamorphic {
 
 #[cfg(test)]
 mod cr069_regressions {
-    /// TC-891: regression (FR-042, CR-069) — the generator's minimized witness.
+    use ix_trace_rs::trace;
+    /// regression (FR-042, CR-069) — the generator's minimized witness.
     /// Stripping `**` synthesized a link the link pass had already run past, so
     /// one pass left `[]()` — raw markdown link syntax in the text the grammar
     /// reads as prose — and a second pass reduced it to `""`.
+    #[trace("TC-891")]
     #[test]
     fn tc891_bold_removal_can_synthesize_a_link() {
         assert_eq!(super::normalize("[]**()"), "");

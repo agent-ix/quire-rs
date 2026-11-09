@@ -22,6 +22,7 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
+use ix_trace_rs::trace;
 use quire_rs::{parse_body, parse_document, parse_header};
 
 fn fixture_dir() -> PathBuf {
@@ -55,11 +56,12 @@ fn render(dir: &Path, names: &[String], parse: impl Fn(&str) -> serde_json::Valu
     )
 }
 
-/// TC-821, FR-005-AC-8: the corpus still carries the byte shapes it exists
+/// the corpus still carries the byte shapes it exists
 /// to cover. A checkout that normalized line endings would rewrite the
 /// fixtures, and the snapshot mismatch that follows would read as parser
 /// drift; this says what actually happened. (`.gitattributes` in the fixture
 /// directory marks them `-text` to prevent it.)
+#[trace("FR-005-AC-8", "TC-821")]
 #[test]
 fn tc821_golden_corpus_keeps_its_byte_shapes() {
     let dir = fixture_dir();
@@ -76,8 +78,9 @@ fn tc821_golden_corpus_keeps_its_byte_shapes() {
     );
 }
 
-/// TC-821, FR-005-AC-8: `parse_document` over the golden corpus is
+/// `parse_document` over the golden corpus is
 /// byte-identical to the snapshot captured from the pre-CR-046 engine.
+#[trace("FR-005-AC-8", "TC-821")]
 #[test]
 fn tc821_parse_document_matches_the_pre_cr046_snapshot() {
     let dir = fixture_dir();
@@ -97,10 +100,11 @@ fn tc821_parse_document_matches_the_pre_cr046_snapshot() {
     );
 }
 
-/// TC-821, FR-005-AC-8: and the two-tier path lands on the same **bytes**,
+/// and the two-tier path lands on the same **bytes**,
 /// not merely on a `PartialEq`-equal value — which is the composition claim
 /// CR-046 actually made. Fixtures that are not documents (`parse_header` is
 /// `None`) have no two-tier path and are covered by the test above.
+#[trace("FR-005-AC-8", "TC-821")]
 #[test]
 fn tc821_tier_composition_is_byte_identical_on_the_golden_corpus() {
     let dir = fixture_dir();

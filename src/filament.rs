@@ -1216,6 +1216,7 @@ fn attach_semantic(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ix_trace_rs::trace;
 
     fn base_input(markdown: &str) -> FilamentExtractionInput {
         FilamentExtractionInput {
@@ -1240,6 +1241,7 @@ mod tests {
         }
     }
 
+    #[trace("TC-681")]
     #[test]
     fn tc681_tier1_frontmatter_extracts_core_node() {
         let result = extract_filament_core(base_input(
@@ -1287,6 +1289,7 @@ mod tests {
         );
     }
 
+    #[trace("TC-682")]
     #[test]
     fn tc682_tier2_uses_rust_dsl_records_and_edges() {
         let mut input = base_input(
@@ -1338,6 +1341,7 @@ mod tests {
         ));
     }
 
+    #[trace("TC-683")]
     #[test]
     fn tc683_error_fixtures_are_reported_without_panic() {
         let no_frontmatter = extract_filament_core(base_input("# Body\n"));
@@ -1383,6 +1387,7 @@ mod tests {
             .any(|d| d.code == "ix_uri_malformed"));
     }
 
+    #[trace("TC-705")]
     #[test]
     fn tc705_malformed_frontmatter_is_a_parse_failure_but_absent_is_clean() {
         // Complete `---` … `---` fence block with unparseable YAML → parse
@@ -1414,6 +1419,7 @@ mod tests {
             .any(|d| d.code == "no_frontmatter"));
     }
 
+    #[trace("TC-684")]
     #[test]
     fn tc684_relationship_sugar_and_body_ix_links_have_metadata() {
         let result = extract_filament_core(base_input(
@@ -1434,6 +1440,7 @@ mod tests {
                 && edge.data_json.contains("original_uri")));
     }
 
+    #[trace("TC-706")]
     #[test]
     fn tc706_identified_document_without_object_mints_primary_artifact_node() {
         let result = extract_filament_core(base_input(
@@ -1456,6 +1463,7 @@ mod tests {
         }
     }
 
+    #[trace("TC-707")]
     #[test]
     fn tc707_document_without_id_keeps_document_fallback_source() {
         let result = extract_filament_core(base_input(
@@ -1470,6 +1478,7 @@ mod tests {
         );
     }
 
+    #[trace("TC-708")]
     #[test]
     fn tc708_object_typed_document_does_not_mint_extra_artifact_node() {
         let result = extract_filament_core(base_input(
@@ -1480,6 +1489,7 @@ mod tests {
         assert_eq!(result.nodes[0].object_type, "capability");
     }
 
+    #[trace("TC-709")]
     #[test]
     fn tc709_non_scalar_or_blank_ids_do_not_mint_a_primary_node() {
         for markdown in [
@@ -1502,6 +1512,7 @@ mod tests {
         assert_eq!(numeric.nodes[0].name, "123");
     }
 
+    #[trace("TC-685")]
     #[test]
     fn tc685_repeated_extraction_is_byte_identical() {
         let input = base_input(

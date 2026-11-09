@@ -257,10 +257,11 @@ roles:
     Registry::from_inline_parts(manifest, &schemas).expect("inline registry")
 }
 
-/// TC-642, FR-040-AC-9: a resolved edge whose target object type satisfies
+/// a resolved edge whose target object type satisfies
 /// no token in the verb's target list yields a `disallowed-edge-target`
 /// warning; the same verb to a target carrying the required role passes —
 /// across object-type boundaries. Warn-tier: the bundle stays valid.
+#[trace("FR-040-AC-9", "TC-642")]
 #[test]
 fn tc642_disallowed_edge_target_is_warning() {
     let root = tmpdir("edge_target");
@@ -304,12 +305,13 @@ fn tc642_disallowed_edge_target_is_warning() {
     assert!(report.is_valid(), "errors: {:?}", report.errors);
 }
 
-/// TC-820, FR-024-AC-12: the CR-048 walk→bundle bridge. A frontmatter-less
+/// the CR-048 walk→bundle bridge. A frontmatter-less
 /// file and a malformed-frontmatter file under the document root each become
 /// exactly one `BundleReport` **warning** naming the path — in both postures,
 /// never an error — and the two flavors carry distinct machine reasons so a
 /// consumer can triage "not meant to be a document" apart from "someone wrote
 /// a front block and it does not parse" (CR-051).
+#[trace("FR-024-AC-12", "TC-820")]
 #[test]
 fn tc820_frontmatter_less_files_bridge_into_bundle_warnings() {
     for posture in [BundlePosture::Strict, BundlePosture::Okf] {

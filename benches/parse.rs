@@ -7,6 +7,7 @@
 use std::path::Path;
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use ix_trace_rs::trace;
 use quire_rs::{parse_document, validate_document, Registry};
 
 const SMALL: &str = "## A\nfoo\n## B\nbar\n";
@@ -82,14 +83,11 @@ fn bench_parse(c: &mut Criterion) {
     group.finish();
 }
 
-/// TC-577, NFR-002-AC-4, NFR-007-AC-1: `validate_document` on a typical
-/// FR-sized artifact against a **warm** Registry (load cost excluded).
-/// Target: median below 1 ms on the canonical baseline runner, which is the
-/// `quire-perf-gate` baseline this bench is compared against.
-///
-/// The ids are a **comma list**, not `NFR-002-AC-4 / TC-577`: the declared
-/// legacy form's list separator is a comma only, so a `/`-separated pair binds
-/// the first id and drops the second in silence (agent-ix/quire-rs#126).
+/// `validate_document` on a typical FR-sized artifact against a **warm**
+/// Registry (load cost excluded). Target: median below 1 ms on the canonical
+/// baseline runner, which is the `quire-perf-gate` baseline this bench is
+/// compared against.
+#[trace("NFR-002-AC-4", "NFR-007-AC-1", "TC-577")]
 fn bench_validate_document(c: &mut Criterion) {
     let module = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/modules/req-fixture");
     let registry = Registry::load_module(&module).expect("load req-fixture module");

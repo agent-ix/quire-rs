@@ -10,6 +10,7 @@
 //! inverse). The classifier is not wrong to label it; the generator is not
 //! obliged to take the label literally.
 
+use ix_trace_rs::trace;
 use proptest::prelude::*;
 use quire_rs::vocab::{normalize_allowed_links, AllowedLinks};
 use serde_json::{json, Value};
@@ -24,6 +25,7 @@ proptest! {
     /// whose every verb allows any target.
     /// spec-correctness: row=FR-040-AC-4 property=round-trip extraction=extractable origin=regex review=none
     #[test]
+    #[trace("FR-040-AC-4")]
     fn fr_040_ac_4_array_form_allows_any_target(verbs in prop::collection::vec(verb(), 0..16)) {
         let value = Value::Array(verbs.iter().map(|v| json!(v)).collect());
         let normalized = normalize_allowed_links(Some(&value));
@@ -42,6 +44,7 @@ proptest! {
     /// lists included.
     /// spec-correctness: row=FR-040-AC-4 property=round-trip extraction=extractable origin=regex review=none
     #[test]
+    #[trace("FR-040-AC-4")]
     fn fr_040_ac_4_map_form_preserves_target_lists(
         pairs in prop::collection::vec((verb(), prop::collection::vec(verb(), 0..4)), 0..12)
     ) {
@@ -69,6 +72,7 @@ proptest! {
     /// an empty map rather than a partial one.
     /// spec-correctness: row=FR-040-AC-4 property=round-trip extraction=extractable origin=regex review=none
     #[test]
+    #[trace("FR-040-AC-4")]
     fn fr_040_ac_4_other_shapes_yield_empty(scalar in prop_oneof![
         Just(Value::Null),
         Just(Value::Bool(true)),
@@ -81,6 +85,7 @@ proptest! {
 
 /// Trace: FR-040-AC-4 — an absent `allowed_links` yields an empty map.
 /// spec-correctness: row=FR-040-AC-4 property=round-trip extraction=extractable origin=regex review=none
+#[trace("FR-040-AC-4")]
 #[test]
 fn fr_040_ac_4_absent_yields_empty() {
     assert!(normalize_allowed_links(None).is_empty());
@@ -93,6 +98,7 @@ fn fr_040_ac_4_absent_yields_empty() {
 /// rather than merely *a* form.
 mod props_metamorphic {
     use super::*;
+    use ix_trace_rs::trace;
 
     /// The map form of an already-normalized `AllowedLinks`.
     fn to_value(links: &AllowedLinks) -> Value {
@@ -114,6 +120,7 @@ mod props_metamorphic {
 
         /// spec-correctness: row=FR-040-AC-4 property=fixpoint extraction=extractable origin=manual review=none
         #[test]
+        #[trace("TC-895")]
         fn tc895_normalization_reaches_a_fixpoint(verbs in prop::collection::vec(verb(), 0..12)) {
             // Array form is the lossier spelling; normalizing it once must land
             // on a value that normalizes to itself.
@@ -125,6 +132,7 @@ mod props_metamorphic {
 
         /// spec-correctness: row=FR-040-AC-4 property=fixpoint extraction=extractable origin=manual review=none
         #[test]
+        #[trace("TC-895")]
         fn tc895_map_form_is_already_a_fixpoint(
             pairs in prop::collection::vec((verb(), prop::collection::vec(verb(), 0..4)), 0..10)
         ) {

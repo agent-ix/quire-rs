@@ -2068,6 +2068,7 @@ mod tests {
         assert_eq!(outcome.modules[0].archetypes[0].name, "foo");
     }
 
+    #[trace("FR-013-AC-3")]
     #[test]
     fn aggregates_failure_for_missing_schema() {
         let parent = tmpdir("fail");
@@ -2080,7 +2081,7 @@ mod tests {
         .unwrap();
         let outcome = load_modules(&[&parent]);
         assert_eq!(outcome.failures.len(), 1);
-        // FR-013-AC-3: continues — module loads (with zero archetypes).
+        // continues — module loads (with zero archetypes).
         assert_eq!(outcome.modules.len(), 1);
         assert!(outcome.modules[0].archetypes.is_empty());
     }
@@ -2505,6 +2506,7 @@ artifact_types:
         );
     }
 
+    #[trace("TC-526")]
     #[trace("TC-526c", "FR-031-AC-5")]
     // `template_ref` is a hard ArchetypeLoadFailure
     // (render removed — no backward-compatibility layer).
@@ -2537,6 +2539,7 @@ artifact_types:
         );
     }
 
+    #[trace("TC-526")]
     #[trace("TC-526b")]
     // `variants` is likewise a hard failure (no-compat rule).
     #[test]
@@ -2630,8 +2633,9 @@ object_types:
 
     // ---- FR-013 closed module set (agent-ix/quire-rs#405) ----
 
+    #[trace("FR-013-AC-15")]
     #[trace("TC-1651")]
-    // FR-013-AC-15: an exact set emits no duplicate-module or
+    // an exact set emits no duplicate-module or
     // duplicate-archetype diagnostic for a module declared once. The failing
     // case this replaces is not exotic: a module materialized at its pinned
     // revision AND installed in the ambient root was loaded from both, and
@@ -2682,8 +2686,9 @@ object_types:
         assert_eq!(twice.modules.len(), 2);
     }
 
+    #[trace("FR-013-AC-16")]
     #[trace("TC-1652")]
-    // FR-013-AC-16: the set is CLOSED, not merely preferred. Removing a
+    // the set is CLOSED, not merely preferred. Removing a
     // module changes the outcome of a document that depends on it — the
     // archetype it contributed stops resolving, rather than being answered
     // from somewhere the caller did not name.
@@ -2716,8 +2721,9 @@ object_types:
         );
     }
 
+    #[trace("FR-013-AC-17")]
     #[trace("TC-1653")]
-    // FR-013-AC-17: a module reachable only from the ambient install root is
+    // a module reachable only from the ambient install root is
     // not consulted when an exact set is declared, and an empty declared set
     // loads nothing rather than falling back. `load_module_set` never calls
     // `resolve_search_paths`, which is where the env var and the default root

@@ -366,6 +366,7 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::{load_provider_registry, parse_provider_roots, ProviderRoots};
+    use ix_trace_rs::trace;
     use std::ffi::OsString;
     use std::path::Path;
 
@@ -381,6 +382,7 @@ mod tests {
     }
 
     /// Trace: FR-013-AC-17. The gate loads only its two named providers.
+    #[trace("FR-013-AC-17")]
     #[test]
     fn spec_validation_uses_only_declared_provider_modules() {
         let scratch = tempfile::tempdir().expect("scratch providers");

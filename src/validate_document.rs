@@ -1478,6 +1478,7 @@ yield_pattern:
     // The same archetype: when every unit carries its required child, the
     // document validates (distinct `#### Detail N` headings avoid the
     // per-level uniqueness rule, FR-035).
+    #[trace("TC-561")]
     #[test]
     fn tc561_multi_yield_missing_dsl_conformant_validates() {
         let a = archetype(None, Some(MULTI_DSL_MISSING));
@@ -1763,6 +1764,7 @@ yield_pattern:
     // when the section is absent. (Value-shaped asserts already
     // no-opped on zero values; the level assert checked the section by
     // name and reported the miss.)
+    #[trace("TC-576")]
     #[test]
     fn tc576_level_assert_on_absent_optional_section_is_silent() {
         const DSL: &str = r#"
@@ -2011,6 +2013,7 @@ edge_types:
         );
     }
 
+    #[trace("TC-641")]
     #[trace("TC-641b", "FR-040-AC-8")]
     // when `object:` is unknown, the vocabulary
     // falls back to the artifact axis alone and Tier-1 still runs.

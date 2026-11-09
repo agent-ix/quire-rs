@@ -2034,6 +2034,7 @@ fn tc822_declarations_that_select_nothing_are_reported() {
     assert_eq!(report.diagnostics, again.diagnostics);
 }
 
+#[trace("TC-822")]
 #[test]
 fn tc822_model_that_mints_nothing_points_to_traceability_declaration() {
     let module = tmpdir("822-model-origin-module");
@@ -3378,6 +3379,7 @@ fn tc1038_the_section_finding_names_every_declared_section() {
     );
 }
 
+#[trace("FR-053")]
 #[trace("TC-1878", "FR-053-AC-1")]
 // agent-ix/quire-rs#460: an "object" archetype whose own id joins KIND and
 // NUMBER with an underscore (`interface_004`) rather than the requirement
@@ -3448,7 +3450,7 @@ fn tc1878_interface_acceptance_criteria_register_as_obligations() {
         report.untracked_symbols
     );
 
-    // FR-053: the same registration mints obligation records for both rows.
+    // the same registration mints obligation records for both rows.
     let obligation_ids: Vec<&str> = report.obligations.iter().map(|o| o.id.as_str()).collect();
     assert_eq!(
         obligation_ids,

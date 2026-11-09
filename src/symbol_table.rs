@@ -265,6 +265,7 @@ mod tests {
     use super::*;
     use crate::symbols::extract_file;
     use crate::traceability::SourceLanguage;
+    use ix_trace_rs::trace;
 
     /// A Python file whose test class holds one tagged method and one bare one.
     fn python_tree() -> SymbolExtraction {
@@ -280,9 +281,9 @@ mod tests {
         )
     }
 
+    #[trace("TC-1052")]
     #[test]
     fn tc1052_reports_the_qualified_name_the_engine_built() {
-        // TC-1052
         // THE FIELD THE PORTS DISAGREED ON. Two reimplementations of
         // `python.rs` produced 386 and 5,263 lost declarations over the same
         // tree, because they qualified nested names differently — and that is
@@ -305,9 +306,9 @@ mod tests {
         assert_eq!(covered.path, "tests/test_thing.py");
     }
 
+    #[trace("TC-1053")]
     #[test]
     fn tc1053_kind_capability_is_reported_beside_the_symbol() {
-        // TC-1053
         // The first thing to check when a row will not bind, and previously
         // only inferable from a coverage rollup two layers away. Tagging harder
         // never helps a `Container`, which is the whole of #312 — and the two
@@ -334,9 +335,9 @@ mod tests {
         assert!(method.binds_trace_ids);
     }
 
+    #[trace("TC-1054")]
     #[test]
     fn tc1054_no_graph_means_not_asked_rather_than_not_tagged() {
-        // TC-1054
         // An unbound run and a repository nobody tagged produce the SAME empty
         // `trace_ids`. Telling them apart is the point of the surface, so the
         // per-language census reports `binding_kinds` — the population a rate
@@ -362,10 +363,11 @@ mod tests {
         assert!(unasked.symbols.iter().all(|s| s.trace_ids.is_empty()));
     }
 
-    /// TC-1943 (FR-051-AC-27): `ignored` is serialized only when `true` — a
+    /// (FR-051-AC-27): `ignored` is serialized only when `true` — a
     /// corpus with no ignored symbol carries no `ignored` key at all, and a
     /// corpus with one ignored symbol emits `ignored: true` on that record
     /// alone.
+    #[trace("TC-1943")]
     #[test]
     fn tc1943_ignored_is_serialized_only_when_true() {
         let report = build(&python_tree(), None);

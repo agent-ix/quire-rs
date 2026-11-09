@@ -1070,7 +1070,7 @@ mod tests {
         assert!(span.contains("Trace: FR-025-AC-9"), "{span}");
     }
 
-    /// TC-799, FR-051-AC-12 (CR-036): the same `/*`, on a **continuation** line
+    /// (CR-036): the same `/*`, on a **continuation** line
     /// of a multi-line template literal.
     ///
     /// A per-line scanner re-entered each line believing it was in code, so it
@@ -1080,6 +1080,7 @@ mod tests {
     /// to lose. Asserted at the `parse` outcome level (PLAT-882) — the old
     /// mechanism-level `lex_line`/`ScanState` carry-across-lines assertions no
     /// longer apply.
+    #[trace("FR-051-AC-12", "TC-799")]
     #[test]
     fn tc799_template_literal_state_carries_across_lines() {
         let source = concat!(
@@ -1119,6 +1120,7 @@ mod tests {
     /// brace-depth counter left to desync in the first place). Asserted at
     /// the `parse` outcome level; the old mechanism-level `lex_line`
     /// assertion this test used to end with no longer applies.
+    #[trace("TC-799")]
     #[test]
     fn tc799_braces_inside_a_multiline_literal_do_not_unbalance() {
         let source = concat!(
@@ -1136,7 +1138,7 @@ mod tests {
         );
     }
 
-    /// TC-803, FR-051-AC-14 (CR-039): **successor to the retired
+    /// (CR-039): **successor to the retired
     /// `tc803_one_lex_serves_every_consumer`** (PLAT-882). That test asserted
     /// the internal state of the deleted single-pass lexer (`lex`,
     /// `check_balanced`, `LexedLine.delta`) — mechanism, not outcome, and
@@ -1163,6 +1165,7 @@ mod tests {
     /// (PLAT-882 review finding F3), with all three decoys placed in **one**
     /// file immediately before the target registration, so a wrong span
     /// contributed by any one decoy cannot hide behind the other two.
+    #[trace("FR-051-AC-14", "TC-803")]
     #[test]
     fn tc803_one_reading_decides_whether_delimiters_are_code() {
         let source = concat!(
@@ -1465,9 +1468,10 @@ mod tests {
         );
     }
 
-    /// FR-051-AC-1 (PLAT-882 port audit item): `impl`-equivalent structure —
+    /// (PLAT-882 port audit item): `impl`-equivalent structure —
     /// a class's methods qualify under it, and the class itself mints a
     /// container, not two symbols for one declaration.
+    #[trace("FR-051-AC-1")]
     #[test]
     fn a_class_qualifies_its_methods_and_a_suite_does_not() {
         let source = concat!(
@@ -1681,7 +1685,7 @@ mod tests {
         assert_eq!(test_symbol.leading_line, 2, "{test_symbol:?}");
     }
 
-    /// FR-051-AC-14 (PLAT-897 PR #485 review F1): two annotation-kind
+    /// (PLAT-897 PR #485 review F1): two annotation-kind
     /// siblings sharing one physical line — a block comment then a line
     /// comment, both trailing on the real code before them — must both be
     /// excluded, not just the nearer one. `// y`'s own immediate
@@ -1693,6 +1697,7 @@ mod tests {
     /// pipeline against a one-hop version of the shared helper's guard:
     /// `test_symbol.leading_line` regressed from `2` (this repo's own
     /// pre-#485 `main`) to `1`.
+    #[trace("FR-051-AC-14")]
     #[test]
     fn two_trailing_annotation_siblings_on_one_line_are_both_excluded() {
         let source = concat!(

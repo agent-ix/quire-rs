@@ -902,6 +902,7 @@ fn fuzz_target(root: Node, source: &str) -> Option<RawSymbol> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ix_trace_rs::trace;
 
     #[test]
     fn kani_proof_attributes_classify_top_level_and_conditional_proofs_only() {
@@ -1017,13 +1018,14 @@ mod tests {
         );
     }
 
-    /// TC-804, FR-051-AC-15 (CR-040, PLAT-843): a file is not rejected for
+    /// (CR-040, PLAT-843): a file is not rejected for
     /// braces that live in a raw string, a lifetime, a char literal or a
     /// nested comment. This is the test the 33-file whole-file-rejection
     /// incident is pinned by (see this module's own docs); it must go on
     /// passing against the AST with no edit, because it asserts an outcome
     /// (extracted symbols and their spans), not the deleted lexer's own
     /// intermediate state.
+    #[trace("FR-051-AC-15", "TC-804")]
     #[test]
     fn tc804_rust_lexing_is_string_and_lifetime_aware() {
         let source = concat!(
@@ -1073,6 +1075,7 @@ mod tests {
     /// each of these adversarial fixtures reports an *imbalance*, which is
     /// exactly the false rejection this property forbids — so this test is
     /// not satisfiable by an implementation that regresses to text scanning.
+    #[trace("TC-804")]
     #[test]
     fn tc804_delimiters_in_string_and_comment_content_do_not_move_symbols() {
         // Each fixture is `fn kept() { <one line holding the adversarial
@@ -1117,6 +1120,7 @@ mod tests {
     /// being counted, asserted through `parse`'s outcome (a function
     /// spanning both lines extracts with the right `end_line`) rather than
     /// through `ScanState` fields that no longer exist.
+    #[trace("TC-804")]
     #[test]
     fn tc804_a_delimiter_carried_across_lines_does_not_move_symbols() {
         let source = concat!(
@@ -1135,10 +1139,11 @@ mod tests {
         assert_eq!(f.end_line, 5);
     }
 
-    /// TC-827, FR-051-AC-17 (CR-061): a criterion bench carries no
+    /// (CR-061): a criterion bench carries no
     /// attribute — it is an ordinary `fn` that `criterion_group!`
     /// registers — so the registration is what classifies it. Both
     /// invocation forms, wrapped or not, and `#[bench]` directly.
+    #[trace("FR-051-AC-17", "TC-827")]
     #[test]
     fn tc827_criterion_registrations_classify_benchmarks() {
         let source = concat!(
@@ -1202,9 +1207,10 @@ mod tests {
         assert_eq!(attribute[0].kind, SymbolKind::Benchmark);
     }
 
-    /// TC-827, FR-051-AC-17 (CR-061): the registration is read from the
+    /// (CR-061): the registration is read from the
     /// macro's own argument nodes, not from a trimmed-line offset, so a
     /// trailing comment beside the invocation cannot hide it.
+    #[trace("FR-051-AC-17", "TC-827")]
     #[test]
     fn tc827_a_trailing_comment_does_not_hide_the_registration() {
         let symbols = parse(concat!(
@@ -1217,10 +1223,11 @@ mod tests {
         assert_eq!(symbols[0].kind, SymbolKind::Benchmark);
     }
 
-    /// TC-827, FR-051-AC-17 (CR-061): `targets` is matched as a whole
+    /// (CR-061): `targets` is matched as a whole
     /// identifier token immediately followed by `=`, so a bench or group
     /// whose *name* merely starts with it is still registered rather than
     /// eaten by the long-form parse.
+    #[trace("FR-051-AC-17", "TC-827")]
     #[test]
     fn tc827_a_name_beginning_with_targets_is_not_the_targets_clause() {
         let symbols =
@@ -1232,11 +1239,12 @@ mod tests {
         );
     }
 
-    /// TC-827, FR-051-AC-17 (CR-061): `fuzz_target!` declares no `fn`, so
+    /// (CR-061): `fuzz_target!` declares no `fn`, so
     /// before this a fuzz-target file yielded **no symbol at all** and its
     /// tag bound to nothing. The symbol's span starts at line 1: the file's
     /// `//!` module header is the invocation's annotation block, and it is
     /// where the tag is naturally written.
+    #[trace("FR-051-AC-17", "TC-827")]
     #[test]
     fn tc827_a_fuzz_target_is_one_symbol_spanning_its_file() {
         let source = concat!(
@@ -1308,10 +1316,11 @@ mod tests {
         assert_eq!(target.qualified_name, "fuzz_target");
     }
 
-    /// FR-051-AC-1: `impl` blocks are scopes, not symbols — the highest-risk
+    /// `impl` blocks are scopes, not symbols — the highest-risk
     /// identity behaviour in this port (PLAT-843's own audit). The block
     /// itself mints nothing, and a method qualifies under the target type
     /// named after `for`, never the trait.
+    #[trace("FR-051-AC-1")]
     #[test]
     fn impl_blocks_are_scopes_not_symbols() {
         let source = concat!(
@@ -1336,8 +1345,9 @@ mod tests {
         assert_eq!(method.container.as_deref(), Some("Foo"));
     }
 
-    /// FR-051 (PLAT-843 audit item d): `type`/`static`/`const`/`union` mint
+    /// (PLAT-843 audit item d): `type`/`static`/`const`/`union` mint
     /// no symbols — only fn/mod/struct/enum/trait/impl are recognised.
+    #[trace("FR-051")]
     #[test]
     fn type_static_const_union_mint_no_symbols() {
         let source = concat!(
@@ -1353,7 +1363,7 @@ mod tests {
         );
     }
 
-    /// FR-051-AC-2 (PLAT-845): a `fn` **is** a container for its own body —
+    /// (PLAT-845): a `fn` **is** a container for its own body —
     /// the same mechanism `mod`/`struct`/`trait`/`impl` already use, plain
     /// `::`, no new separator — so two same-named functions nested in two
     /// differently-named enclosing functions qualify (and therefore differ in id)
@@ -1363,6 +1373,7 @@ mod tests {
     /// c) — a test that fails once the code becomes right is the sharpest
     /// version of the defect this campaign keeps finding, so it is rewritten
     /// in place rather than left beside its replacement.
+    #[trace("FR-051-AC-2")]
     #[test]
     fn nested_functions_in_different_outer_functions_receive_distinct_identities() {
         let source = concat!(
@@ -1553,6 +1564,7 @@ mod tests {
     /// Asserts `leading_line` directly, not only that the classification
     /// survives — a fixture checking binding alone can pass for the wrong
     /// reason.
+    #[trace("TC-1885")]
     #[test]
     fn tc1885_a_split_attribute_does_not_truncate_the_leading_span() {
         let source = concat!(
@@ -1573,6 +1585,7 @@ mod tests {
     /// `TC-1886` (`FR-051-AC-25`), PLAT-846: a block doc comment (`/** ...
     /// */`) joins the leading span, the same defect class as PLAT-69.
     /// Asserts `leading_line`.
+    #[trace("TC-1886")]
     #[test]
     fn tc1886_a_block_doc_comment_joins_the_leading_span() {
         let source = "/** doc */\n#[test]\nfn documented() {\n}\n";
@@ -1587,6 +1600,7 @@ mod tests {
     /// `TC-1879` (`FR-051-AC-25`), PLAT-305 regression pin (already passing
     /// on `main`, fixed by CR-061 — not a demonstrated improvement of this
     /// port): `#[ignore]` before `#[test]` is still found.
+    #[trace("TC-1879")]
     #[test]
     fn tc1879_ignore_before_test_is_still_found() {
         let source = "#[ignore]\n#[test]\nfn t() {\n}\n";
@@ -1628,11 +1642,12 @@ mod tests {
         );
     }
 
-    /// FR-051-AC-9: a genuinely truncated file (nothing after the point of
+    /// a genuinely truncated file (nothing after the point of
     /// truncation for tree-sitter to resync against) still fails loudly,
     /// naming a line — the exact fixture `tests/fixtures/symbols/broken/
     /// truncated.rs` is, and what `tc749_unparseable_file_degrades_per_file`
     /// (`src/symbols/mod.rs`) pins through the full `extract_tree` path.
+    #[trace("FR-051-AC-9", "TC-1884")]
     #[test]
     fn tc1884_a_truncated_file_fails_loudly_naming_a_line() {
         let source = "pub fn truncated() {\n    if true {\n        let x = 1;\n";
@@ -1806,7 +1821,7 @@ mod tests {
         );
     }
 
-    /// TC-1924, FR-051-AC-14 (PLAT-897): a comment trailing on the same
+    /// (PLAT-897): a comment trailing on the same
     /// line as the declaration *before* it must not join the *next*
     /// declaration's leading span. This adapter had no such check before
     /// PLAT-897 hoisted `leading_span` into a shared helper both
@@ -1814,6 +1829,7 @@ mod tests {
     /// (PLAT-868 PR #479 F4, PLAT-882 PR #481) — confirmed as a real,
     /// live regression here first: before this fix, `b.leading_line` read
     /// `1` (`// note`'s own line, which is `a`'s line), not `2`.
+    #[trace("FR-051-AC-14", "TC-1924")]
     #[test]
     fn tc1924_a_trailing_comment_on_the_previous_line_is_not_a_leading_annotation() {
         let source = "fn a() {}  // note\nfn b() {}\n";
@@ -1840,10 +1856,11 @@ mod tests {
         );
     }
 
-    /// TC-1939, FR-051-AC-27 (CR-187): `#[ignore]`, with or without a reason
+    /// (CR-187): `#[ignore]`, with or without a reason
     /// string, before or after `#[test]`, marks the symbol ignored.
     /// `#[cfg_attr(test, ignore)]`'s conditional form is a control and does
     /// not mark it ignored — its own outer path is `cfg_attr`, never `ignore`.
+    #[trace("FR-051-AC-27", "TC-1939")]
     #[test]
     fn tc1939_ignore_attribute_marks_the_symbol_ignored() {
         let before = parse("#[ignore]\n#[test]\nfn t() {\n}\n").expect("valid");
@@ -1864,10 +1881,11 @@ mod tests {
         );
     }
 
-    /// FR-051-AC-27: a `proptest!`-declared test carries
+    /// a `proptest!`-declared test carries
     /// `#[ignore]` the same as a real `function_item` does — AC-27 marks it
     /// ignored "on any function AC-3 already classifies as a test", and
     /// `proptest!`'s own flat-token scan is one such classification path.
+    #[trace("FR-051-AC-27", "TC-1939")]
     #[test]
     fn tc1939_ignore_on_a_proptest_declared_test_marks_it_ignored() {
         let source = concat!(
@@ -1906,6 +1924,7 @@ mod tests {
     /// `#[ignore]` marks only a function AC-3 classifies as a test: a plain
     /// `fn` carrying the attribute, top-level or inside `proptest!`, is a
     /// `Function` and stays `ignored: false`.
+    #[trace("TC-1939")]
     #[test]
     fn tc1939_ignore_on_a_non_test_fn_is_a_control() {
         let source = concat!(
