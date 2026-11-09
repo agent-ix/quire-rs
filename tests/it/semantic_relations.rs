@@ -62,11 +62,10 @@ fn request(fixture: &Value, markdown: &str, path: &str, case: Option<&Value>) ->
         .iter()
         .map(|p| (p.as_str().unwrap().to_string(), json!("*")))
         .collect();
-    // The fixture predates `BundleArtifact.operations` (FR-075 Inputs) and
-    // is not edited in place (PLAT-901: it is quoin's own fixture, moved
-    // not owned-for-editing), so this backfills the now-required field here
-    // instead; none of these fixture cases exercise systems-model
-    // operations, so every artifact declares none.
+    // The fixture predates `BundleArtifact.operations` (FR-075 Inputs), so
+    // this backfills the now-required field here; none of these fixture
+    // cases exercise systems-model operations, so every artifact declares
+    // none.
     let artifacts: Vec<Value> = bundle["artifacts"]
         .as_array()
         .unwrap()
@@ -940,6 +939,7 @@ fn entry_error_reasons_are_stated_by_locus() {
     run(&[two_rows["id"].as_str().unwrap()]);
 }
 
+#[trace("TC-2150", "FR-076-AC-22")]
 #[test]
 #[should_panic(expected = "reason lines")]
 fn reason_lines_differing_from_resolved_loci_fail() {

@@ -246,6 +246,10 @@ fn assert_case(case: &Value) {
             assert_eq!(got, *want, "{id}");
             return;
         };
+        assert!(
+            want.get("reason").is_none(),
+            "{id}: reason beside reasonLoci"
+        );
         // The expected loci resolve to lines of the case's artifact; the
         // engine's `entry-errors` reason lists the lines it found.
         let resolved: Vec<String> = loci
@@ -646,4 +650,12 @@ fn operation_params_and_returns_carry_source_loci() {
         }
     }
     assert!(seen_param && seen_returns);
+}
+
+#[test]
+#[should_panic(expected = "reason beside reasonLoci")]
+fn reason_beside_reason_loci_is_refused() {
+    let mut case = cases("fence-no-language").remove(0);
+    case["availability"]["clauses"]["reason"] = json!("entry-errors: lines 3");
+    assert_case(&case);
 }
