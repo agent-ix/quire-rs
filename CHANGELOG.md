@@ -7,12 +7,93 @@ bumps; once 1.0 ships, semver is strict.
 
 ## [Unreleased]
 
+## [0.55.0] — 2026-11-09
+
 ### Changed
 
+- **Breaking, PLAT-847 (CR-215, #627):** only explicit marker forms bind a
+  `verifies` relation: `#[trace]`, `@pytest.mark.trace`, `trace(...)` and
+  `#[implements]`. The legacy textual trace forms (comment, docstring and
+  test-name ids) no longer bind, so a repository not yet retagged reports lower
+  coverage. A module that declares `trace_tags.legacy` is now refused at load
+  with `unknown field legacy`; the `marker-form-mismatch` and
+  `tag-on-non-binding-symbol` diagnostics are gone, replaced by the advisory
+  `trace-id-outside-marker` (see Added and Removed).
+- **Breaking, PLAT-866 (FR-062, #628, #630):** a Python or TypeScript
+  `implements` relation is written as a structural form, `@implements("FR-1")`
+  or `@implementing(...)`, instead of a comment. The spec-artifacts-process
+  module replaces its Python and TypeScript textual forms with no coexistence
+  window, so a comment form then binds nothing and is reported by the
+  `trace-id-outside-marker` advisory, whose replacement text now names the
+  structural form of the symbol's language and position (kind alone for a
+  TypeScript `function` declaration).
 - **Breaking, PLAT-277 (F4):** documents that validated before are now refused as unknown types. An `archetypes:` entry that declares no quire-owned key (no validation part, FR-031 carry-over key or retired field) is a Filament presentation row and is no longer registered as an accept-anything type. Real affected documents are `type:` rows with no validation part, such as `type: Spec` in quire-wasm/spec/spec.md and filament-view-standard/spec/spec.md, `Test Matrix`, `Application Spec` and the engineering-assurance display names; the real types are the CamelCase names in `artifact_types`. A name in both `archetypes:` and `artifact_types:` of one module is now one registry entry and no longer reports `DuplicateArchetype`; a name from two different modules still does (FR-013-AC-20, FR-013-AC-21).
 - **Breaking, PLAT-214 (quoin#338):** a module set that loaded before is now refused: two loaded modules that export one semantic type
   name no longer resolve by load order. The later sorted root is refused with
   `semantic.duplicate-export` naming the type and both modules (FR-069-AC-15).
+
+### Added
+
+- `trace-id-outside-marker`: one warning per id-shaped token in a comment or
+  docstring attached to a declaration in Rust, Python or TypeScript, naming the
+  file, line, qualified symbol, the id and the text to write instead, rendered
+  from the module's declared marker `template`
+  (`SymbolGraph.outside_marker`; PLAT-847, FR-051-AC-22, AC-24, AC-49, AC-50).
+  String contents are masked in every language; a Python docstring is the
+  annotation channel there.
+- Record-sections extraction (PLAT-1370, FR-081, quoin FR-121/FR-122/FR-123):
+  when `semantic.mappings` names `record-sections`, a `##` section whose heading
+  matches a record key of the object type's `data_schema` (ignoring case, space,
+  hyphen and underscore) extracts to the new `record`, with a span per key in
+  `recordSources` and a state per key in `availability.recordKeys`. A table, a
+  bullet list or one inline value is read by the key's schema type; the single
+  `## Provider`/`## Exposes` id, the architecture forms (`routes`,
+  `associated_types`, the `## Layout` fence to `records` and `endianness` with
+  `size-unknown-field` and `size-ambiguous`, `thresholds` with
+  `status-required`) and the copy of `values`, `states`, `transitions` and
+  `steps`, `members` (as `RelationDecl[]` with the composite verb: `member-verb`,
+  `declared-in-members`) and `vocabulary` to their record keys follow quoin
+  FR-122 and FR-123. A property no mapping can read is refused as
+  `schema-unreadable`, never silently prose. **Additive for
+  `semantic-v1`:** the three keys are new and absent unless the token is named,
+  so every existing record is unchanged (FR-076-AC-9). **Breaking for Rust
+  struct-literal construction:** `TermDecl.doc` is now `Option<String>` (an empty
+  `Description` is omitted, not `""`), and `Availability`, `SemanticExtraction`,
+  `DeclarationRecord` and `CompiledArchetype` gain fields.
+  `SemanticContext::with_record_schema` supplies the schema; the Python entry
+  takes `schemaDocuments`. Golden cases: `quire-fixtures`
+  `fixtures/record-sections`. `record_key_owners` backs the FR-122-AC-7
+  ownership audit.
+- Shell source symbols: a `.sh` file mints a `function` per definition and one
+  `entry_point` spanning the file, parsed with `tree-sitter-bash` under the new
+  `shell-symbols` feature (default on). A `language: shell`, `syntax: comment`
+  `markers` form reads `#` comment nodes; its `entry_paths` globs gate which
+  entry points bind, and a marker that binds nothing is reported as
+  `outside-entry-paths`, `function-not-evidence` or `not-in-tag-channel`
+  (PLAT-362, FR-051-AC-34..46, CR-213).
+- Structural `implements` syntax (PLAT-866, FR-062-AC-18..27, FR-051-AC-51,
+  #628, #630): `trace_tags.implements` `syntax` takes `python_decorator`,
+  `typescript_decorator` and `typescript_wrapper`. The adapters match exact
+  decorator node text and wrapper-chain callee calls, with no import
+  resolution. A TypeScript `const`/`let`/`var` declarator initialised by a
+  wrapper chain mints a `Function` symbol, and both links of a nested chain bind
+  to it. An unknown value, a wrong-language form or use under `markers` is
+  refused at load naming the form. New warnings `implements-syntax-unattached`
+  and `partial-implements-syntax-match`.
+
+### Removed
+
+- Only a marker form binds a `verifies` relation (PLAT-847, FR-051-CON-3,
+  FR-051-AC-11, CR-215). The textual trace forms are gone: a model's
+  `trace_tags.legacy` list (a module that still declares it now fails to load),
+  `TraceLegacyForm`, `id_format` reconstruction from captures, `rewrite_to` and
+  `RewriteSuggestion`, `SymbolGraph.rewrites`, `TraceProvenance` and the
+  `provenance` field of `VerifiesRelation` and of the assurance export's
+  `verifies` relation, `SymbolGraph.non_binding_tags` and the
+  `tag-on-non-binding-symbol` reason, and the census fields and diagnostic for a
+  test's own name (`self_named*`, `marker-form-mismatch`, FR-050-AC-44). Coverage
+  falls for a repository not yet retagged: the evidence standard changed, not the
+  tests.
 
 ## [0.54.0] — 2026-11-08
 
@@ -60,43 +141,6 @@ bumps; once 1.0 ships, semver is strict.
 
 ### Added
 
-- `trace-id-outside-marker`: one warning per id-shaped token in a comment or
-  docstring attached to a declaration in Rust, Python or TypeScript, naming the
-  file, line, qualified symbol, the id and the text to write instead, rendered
-  from the module's declared marker `template`
-  (`SymbolGraph.outside_marker`; PLAT-847, FR-051-AC-22, AC-24, AC-49, AC-50).
-  String contents are masked in every language; a Python docstring is the
-  annotation channel there.
-- Record-sections extraction (PLAT-1370, FR-081, quoin FR-121/FR-122/FR-123):
-  when `semantic.mappings` names `record-sections`, a `##` section whose heading
-  matches a record key of the object type's `data_schema` (ignoring case, space,
-  hyphen and underscore) extracts to the new `record`, with a span per key in
-  `recordSources` and a state per key in `availability.recordKeys`. A table, a
-  bullet list or one inline value is read by the key's schema type; the single
-  `## Provider`/`## Exposes` id, the architecture forms (`routes`,
-  `associated_types`, the `## Layout` fence to `records` and `endianness` with
-  `size-unknown-field` and `size-ambiguous`, `thresholds` with
-  `status-required`) and the copy of `values`, `states`, `transitions` and
-  `steps`, `members` (as `RelationDecl[]` with the composite verb: `member-verb`,
-  `declared-in-members`) and `vocabulary` to their record keys follow quoin
-  FR-122 and FR-123. A property no mapping can read is refused as
-  `schema-unreadable`, never silently prose. **Additive for
-  `semantic-v1`:** the three keys are new and absent unless the token is named,
-  so every existing record is unchanged (FR-076-AC-9). **Breaking for Rust
-  struct-literal construction:** `TermDecl.doc` is now `Option<String>` (an empty
-  `Description` is omitted, not `""`), and `Availability`, `SemanticExtraction`,
-  `DeclarationRecord` and `CompiledArchetype` gain fields.
-  `SemanticContext::with_record_schema` supplies the schema; the Python entry
-  takes `schemaDocuments`. Golden cases: `quire-fixtures`
-  `fixtures/record-sections`. `record_key_owners` backs the FR-122-AC-7
-  ownership audit.
-- Shell source symbols: a `.sh` file mints a `function` per definition and one
-  `entry_point` spanning the file, parsed with `tree-sitter-bash` under the new
-  `shell-symbols` feature (default on). A `language: shell`, `syntax: comment`
-  `markers` form reads `#` comment nodes; its `entry_paths` globs gate which
-  entry points bind, and a marker that binds nothing is reported as
-  `outside-entry-paths`, `function-not-evidence` or `not-in-tag-channel`
-  (PLAT-362, FR-051-AC-34..46, CR-213).
 - Type cells `Clock` (the `SemanticId` `ix://quire/native/Clock`) and
   `Quantity<u>` (the identity of the unit artifact `u`), unit and dimension
   tokens bare or `<org>/<repo>::name`, and the optional `importedArtifacts` of
@@ -222,20 +266,6 @@ bumps; once 1.0 ships, semver is strict.
 - Contract and glossary unit tests use `tempfile::TempDir` guards instead of
   hand-rolled `std::env::temp_dir()` trees, so a failed assertion no longer
   leaks the tree (PLAT-320).
-
-### Removed
-
-- Only a marker form binds a `verifies` relation (PLAT-847, FR-051-CON-3,
-  FR-051-AC-11, CR-215). The textual trace forms are gone: a model's
-  `trace_tags.legacy` list (a module that still declares it now fails to load),
-  `TraceLegacyForm`, `id_format` reconstruction from captures, `rewrite_to` and
-  `RewriteSuggestion`, `SymbolGraph.rewrites`, `TraceProvenance` and the
-  `provenance` field of `VerifiesRelation` and of the assurance export's
-  `verifies` relation, `SymbolGraph.non_binding_tags` and the
-  `tag-on-non-binding-symbol` reason, and the census fields and diagnostic for a
-  test's own name (`self_named*`, `marker-form-mismatch`, FR-050-AC-44). Coverage
-  falls for a repository not yet retagged: the evidence standard changed, not the
-  tests.
 
 ## [0.53.0] — 2026-11-07
 
