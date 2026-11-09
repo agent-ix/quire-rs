@@ -33,3 +33,11 @@ Pass with low findings. No id collision, no broken row.
 | FR-038-AC-10 | examined | Unique; FND-001 |
 | TC-2151 | examined | Unique; rows agree |
 | FR-038-AC-9 | examined | FND-002 |
+
+## Dispositions
+
+| FND | Outcome | Reason |
+| --- | --- | --- |
+| FND-001 | fixed | AC-9 now defers the comparison to AC-10, and AC-10 no longer repeats the no-package clause. |
+| FND-002 | fixed | AC-9 no longer states the case fold itself; the fold lives in AC-10, verified by TC-2151, which is marked planned. TC-1992 marked passing no longer covers an unimplemented clause. |
+| FND-003 | accepted-no-change | Coordinator relays that the repo gate requires every AC to have a mapping row, so the row stays in this PR. The ledger and the gate that requires it remain ceremony; their removal is noted to the lead as separate work. |
