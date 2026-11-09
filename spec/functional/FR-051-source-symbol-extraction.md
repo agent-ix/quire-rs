@@ -232,6 +232,8 @@ byte-identical JSON ordering and stable record ids.
 | FR-051-AC-44 | A declared shell marker that matches in a comment but binds nothing is reported in `CoverageReport.diagnostics`, naming the id, the repo-relative path and the line, with the reason `outside-entry-paths` when it sits in an `entry_point` header whose file matches no glob, `function-not-evidence` when it sits in a shell function's comment block (a shell function binds no `verifies`, AC-38), and `not-in-tag-channel` when it sits in a comment that is neither a function's block nor a header; no census count moves. | Test (TC-2111) |
 | FR-051-AC-45 | An unparseable `.sh` file (a tree carrying an error over its declaration structure) yields a per-file diagnostic naming the file and the line the error sits at, while the rest of the tree extracts normally. | Test (TC-2112) |
 | FR-051-AC-46 | A fixture audit script matching a declared `entry_paths` glob whose header comment carries a declared shell marker backs the `Static` matrix row it names in the coverage report, with the `verifies` relation on its `entry_point`; the same marker in a script matching no glob backs nothing and is reported by AC-44. | Test (TC-2113) |
+| FR-051-AC-47 | A Python test symbol's `qualified_name` is its bare function name for a module-level function and `Class.method` (nested classes dot-joined) for a method, the file stem never a prefix; a parametrized test is one symbol named by its source function; a TypeScript test symbol's `qualified_name` is the registered title exactly as written in source, an enclosing `describe` never qualifying it, and an `it.each`/`test.each` registration is one symbol named by its template title as written. For a fixture tree, `quire coverage --json` reports exactly these `(path, qualified_name)` pairs for its tagged tests: `(tests/test_x.py, test_top)` for a module-level pytest function, `(tests/test_x.py, TestC.test_m)` for a method of class `TestC`, `(tests/test_x.py, test_param)` for a `@pytest.mark.parametrize` function, `(tests/x.test.ts, adds)` for an `it('adds', …)` inside two nested `describe` blocks, and `(tests/x.test.ts, adds %s)` for an `it.each([…])('adds %s', …)` registration (PLAT-334, PLAT-335; `ix://agent-ix/quoin/FR-120`, emitter rule E-2). | Test (TC-2152) |
+| FR-051-AC-48 | One emitter chain per language over the fixture tree of FR-051-AC-47 demonstrates `ix://agent-ix/quoin/FR-120` (E-10) with the `ix-trace-py` pytest plugin (`ix-trace-py` FR-001) and the `ix-trace-ts` vitest reporter (`ix-trace-ts` FR-001): a run with `QUIRE_TRACE_EMIT=1` writes JUnit whose `<testcase>` for each tagged test carries `name` and `classname` equal to that test's `qualified_name`, a `file` attribute equal to its `path`, and the `trace` property with its ids; `quoin evidence record` over that file; and an obligation bound by the recorded ids. A **second run** of the same suite in which one tagged test fails records that test as `fail` into a fresh evidence store and binds no obligation (PLAT-334, PLAT-335). | Test (TC-2153) |
 
 > **CR-206 note (2026-11-08, PLAT-877):** AC-31 is new. The id hashes
 > language, path, qualified name and kind and nothing evaluates `#[cfg]`, so
@@ -250,6 +252,15 @@ byte-identical JSON ordering and stable record ids.
 > disagrees with the rule. FR-051-AC-33 is the end-to-end demonstration (E-10)
 > that quoin's emitter contract requires one repository to host, and it is where
 > the runner's output is compared with the extractor's.
+
+> **PLAT-334 / PLAT-335 note:** the pytest plugin and the vitest reporter are
+> specified in their own repositories, `agent-ix/ix-trace-py` and
+> `agent-ix/ix-trace-ts`, as `ix-trace-rs` is for Rust. FR-051-AC-47 pins, as a
+> requirement, the Python and TypeScript `qualified_name` rules that
+> `ix://agent-ix/quoin/FR-120` binds those emitters to; FR-051-AC-48 is the
+> end-to-end demonstration (E-10) in which each emitter's output is compared with
+> the extractor's. A divergence found by the fixture is a defect in whichever side
+> disagrees with the rule.
 
 > **CR-201 note (2026-11-08, PLAT-874):** the build-configuration diagnostic
 > `rust-symbols`-off builds emitted per Rust file (and its Python and
