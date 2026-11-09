@@ -35,16 +35,16 @@ jobs:
       matrix:
         include:
           - label: apple (arm64)
-            runner: macos-14
+            runner: macos-15
             target: aarch64-apple-darwin
             smoke: true
-          # apple-intel: cross-built from the macos-14 arm64 runner
+          # apple-intel: cross-built from the macos-15 arm64 runner
           # (GitHub-hosted macos-13 Intel runners are scarce/being
           # deprecated). cargo cross-compiles to x86_64-apple-darwin
           # cleanly on Apple Silicon. Smoke skipped — the arm64 runner
           # can't natively run the x86_64 wheel without Rosetta plumbing.
           - label: apple-intel (x86_64, cross-built)
-            runner: macos-14
+            runner: macos-15
             target: x86_64-apple-darwin
             smoke: false
           - label: intel + amd / luna (linux x86_64)
