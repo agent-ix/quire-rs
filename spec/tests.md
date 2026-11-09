@@ -784,7 +784,7 @@ Reserved withdrawn IDs (not active test cases): TC-834, TC-842, TC-871, TC-1089,
 | TC-1092 | Obligation projection is field-for-field equal to FR-053 and its row locator selects the verbatim statement | Integration | P0 | FR-068-AC-2 | ✅ |
 | TC-1093 | Symbol projection preserves FR-051 identity, qualified name, language, kind, path, line and capabilities; same-named symbols in different paths or containers remain distinct | Integration | P0 | FR-068-AC-3 | ✅ |
 | TC-1094 | Exported corpus relations form a bijection with `Spec::edges()` including resolution state; the relation-kind catalog retains every module-declared, trace-binding and observed kind, including a supported kind with zero observed edges | Property | P0 | FR-068-AC-4 | ✅ |
-| TC-1095 | A verifies binding retains evidence provenance while an implements binding remains production scope with no invented provenance or evidence count | Unit | P0 | FR-068-AC-5 | ✅ |
+| TC-1095 | A verifies binding names the marker form that bound it while an implements binding remains production scope with no evidence count | Unit | P0 | FR-068-AC-5 | ✅ |
 | TC-1096 | Required-relation fixtures produce four distinct availability states — available, missing, not_applicable, unknown — and unknown alone requires a reason | Integration | P0 | FR-068-AC-6, StR-007-VC-3 | ✅ |
 | TC-1097 | Quire emits freshness unknown for evidence and not_applicable for non-evidence, never current or suspect; Quoin's auditor verdict remains a separate input | Unit | P0 | FR-068-AC-7 | ✅ |
 | TC-1098 | Repeated projections are byte-identical and editing one unrelated document changes no other projected identity or relation | Property | P0 | FR-068-AC-8 | ✅ |
