@@ -1189,6 +1189,16 @@ in this specification is not runtime or coverage evidence.
 | TC-1988 | Existing unguarded Rust and Python/TypeScript comment forms remain module-driven and unchanged | Integration | P0 | FR-062-AC-16 | 🚧 Planned |
 | TC-1989 | Unknown guard, non-Rust guarded form and use outside implements are invalid module input, never an unguarded fallback | Integration | P0 | FR-062-AC-12 | 🚧 Planned |
 | TC-1990 | Guarded forms preserve identities, range-finding locations, parse-failure isolation, deterministic outputs and the scope/evidence separation | Integration | P0 | FR-062-AC-17 | 🚧 Planned |
+| TC-2200 | Load and round-trip the three module-declared syntax values; omission keeps the text form; unknown value, wrong-language form and a `markers` form are refused at load naming the form | Integration | P0 | FR-062-AC-18 | 🚧 Planned |
+| TC-2201 | Python decorator with two ids mints two `implements` and no `verifies`; wrapped, stacked and `async def` spellings bind as the single-line one; a substring-only pattern binds nothing | Integration | P0 | FR-062-AC-19 | 🚧 Planned |
+| TC-2202 | Python decorator-shaped comment, docstring and string bind nothing; class decorator binds the class only; nested def isolation; decorator on a test binds nothing | Integration | P0 | FR-062-AC-20 | 🚧 Planned |
+| TC-2203 | TypeScript decorator on a class and on a static, async or abstract method binds, before or after `export` and wrapped; property, accessor and parameter decorators bind nothing | Integration | P0 | FR-062-AC-21 | 🚧 Planned |
+| TC-2204 | TypeScript decorator-shaped comment, string and template literal bind nothing; class and method ownership; decorator on a test registration or suite binds nothing | Integration | P0 | FR-062-AC-22 | 🚧 Planned |
+| TC-2205 | `implementing(...)(fn)` as a const, exported const and multi-declarator arrow initializer binds the declarator's symbol through the inner-call candidate; a `function` declaration binds through no form | Integration | P0 | FR-062-AC-23 | 🚧 Planned |
+| TC-2206 | Unattached wrapper (bare statement, call argument, default export, symbol-less declarator) binds nothing and yields one `implements-marker-unattached` warning; attached control and decorator forms yield none | Integration | P0 | FR-062-AC-24 | 🚧 Planned |
+| TC-2207 | Substring-only match of a decorator or wrapper candidate yields no relation and one `partial-implements-syntax-match` warning; unrelated decorators yield neither | Integration | P0 | FR-062-AC-25 | 🚧 Planned |
+| TC-2208 | Under structural-only Python and TypeScript forms, `# Implements:` and `// Implements:` bind nothing and the advisory names the rendered `@implements(...)` or `@implementing(...)`; a module still declaring a textual form binds as before | Integration | P0 | FR-062-AC-26 | 🚧 Planned |
+| TC-2209 | Structural forms preserve identities, range refusal, parse-failure isolation, determinism and the scope/evidence separation | Integration | P0 | FR-062-AC-27 | 🚧 Planned |
 | TC-1991 | A `columns` assert whose header conforms still fails with reason `row-width` for each row whose cell count differs from the header's, at the row's own line with its `row_id`; a uniformly wide table fires nothing (PLAT-217) | Unit | P0 | FR-033-AC-17 | ✅ |
 | TC-1992 | An `ix://` reference under a foreign `<org>/<repo>` authority is not `dangling-reference` when the bundle declares a different package (Strict and Okf), while the same id under the declared package, with no package declared, or as a bare id, still is (PLAT-1056) | Integration | P0 | FR-038-AC-9 | ✅ |
 | TC-2151 | The authority-versus-package comparison folds ASCII case: a mixed-case link to the bundle's own repo is still dangling, a mixed-case foreign authority is still skipped, and with no package declared every miss is dangling (PLAT-1357) | Integration | P0 | FR-038-AC-10 | ✅ |
@@ -2158,6 +2168,16 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-062-AC-15 | TC-1987 |
 | FR-062-AC-16 | TC-1988 |
 | FR-062-AC-17 | TC-1990 |
+| FR-062-AC-18 | TC-2200 |
+| FR-062-AC-19 | TC-2201 |
+| FR-062-AC-20 | TC-2202 |
+| FR-062-AC-21 | TC-2203 |
+| FR-062-AC-22 | TC-2204 |
+| FR-062-AC-23 | TC-2205 |
+| FR-062-AC-24 | TC-2206 |
+| FR-062-AC-25 | TC-2207 |
+| FR-062-AC-26 | TC-2208 |
+| FR-062-AC-27 | TC-2209 |
 | FR-067-AC-1 | TC-1084 |
 | FR-067-AC-2 | TC-1085 |
 | FR-067-AC-3 | TC-1086 |
