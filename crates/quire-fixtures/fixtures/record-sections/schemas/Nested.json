@@ -11,7 +11,7 @@
           "type": "string"
         },
         "target": {
-          "$ref": "https://schemas.agent-ix.org/semantic-core/0.3.3/SemanticId.json"
+          "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.0/SemanticId.json"
         }
       },
       "unevaluatedProperties": {

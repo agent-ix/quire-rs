@@ -2668,13 +2668,13 @@
             "relations": {
               "type": "array",
               "items": {
-                "$ref": "https://schemas.agent-ix.org/semantic-core/0.3.3/RelationDecl.json"
+                "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.0/RelationDecl.json"
               }
             },
             "emits": {
               "type": "array",
               "items": {
-                "$ref": "https://schemas.agent-ix.org/semantic-core/0.3.3/SemanticId.json"
+                "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.0/SemanticId.json"
               }
             }
           }
@@ -2788,13 +2788,13 @@
             "relations": {
               "type": "array",
               "items": {
-                "$ref": "https://schemas.agent-ix.org/semantic-core/0.3.3/RelationDecl.json"
+                "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.0/RelationDecl.json"
               }
             },
             "emits": {
               "type": "array",
               "items": {
-                "$ref": "https://schemas.agent-ix.org/semantic-core/0.3.3/SemanticId.json"
+                "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.0/SemanticId.json"
               }
             }
           }
@@ -2913,13 +2913,13 @@
             "relations": {
               "type": "array",
               "items": {
-                "$ref": "https://schemas.agent-ix.org/semantic-core/0.3.3/RelationDecl.json"
+                "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.0/RelationDecl.json"
               }
             },
             "emits": {
               "type": "array",
               "items": {
-                "$ref": "https://schemas.agent-ix.org/semantic-core/0.3.3/SemanticId.json"
+                "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.0/SemanticId.json"
               }
             }
           }
@@ -3041,7 +3041,7 @@
             "emits": {
               "type": "array",
               "items": {
-                "$ref": "https://schemas.agent-ix.org/semantic-core/0.3.3/SemanticId.json"
+                "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.0/SemanticId.json"
               }
             }
           }
@@ -3160,7 +3160,7 @@
             "emits": {
               "type": "array",
               "items": {
-                "$ref": "https://schemas.agent-ix.org/semantic-core/0.3.3/SemanticId.json"
+                "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.0/SemanticId.json"
               }
             }
           }
@@ -3280,7 +3280,7 @@
             "emits": {
               "type": "array",
               "items": {
-                "$ref": "https://schemas.agent-ix.org/semantic-core/0.3.3/SemanticId.json"
+                "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.0/SemanticId.json"
               }
             }
           }
@@ -3401,7 +3401,7 @@
             "persists": {
               "type": "array",
               "items": {
-                "$ref": "https://schemas.agent-ix.org/semantic-core/0.3.3/SemanticId.json"
+                "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.0/SemanticId.json"
               }
             }
           }
@@ -3517,7 +3517,7 @@
             "persists": {
               "type": "array",
               "items": {
-                "$ref": "https://schemas.agent-ix.org/semantic-core/0.3.3/SemanticId.json"
+                "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.0/SemanticId.json"
               }
             }
           }
@@ -3637,7 +3637,7 @@
             "persists": {
               "type": "array",
               "items": {
-                "$ref": "https://schemas.agent-ix.org/semantic-core/0.3.3/SemanticId.json"
+                "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.0/SemanticId.json"
               }
             }
           }

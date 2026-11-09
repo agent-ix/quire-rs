@@ -100,8 +100,8 @@
         "unique": { "type": "boolean" }
       }
     },
-    "typeRef": { "$ref": "https://schemas.agent-ix.org/semantic-core/0.3.3/TypeRef.json" },
-    "constraint": { "$ref": "https://schemas.agent-ix.org/semantic-core/0.3.3/ConstraintDecl.json" },
+    "typeRef": { "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.0/TypeRef.json" },
+    "constraint": { "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.0/ConstraintDecl.json" },
     "fieldDecl": {
       "type": "object",
       "additionalProperties": false,

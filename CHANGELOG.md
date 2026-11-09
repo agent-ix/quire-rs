@@ -7,6 +7,10 @@ bumps; once 1.0 ships, semver is strict.
 
 ## [Unreleased]
 
+### Changed
+
+- PLAT-1377: relocks `agent-ix-semantic-schema` (filament-core-data semantic-core 0.4.0) and repoints the fixture, test and output-schema `$ref`s from `semantic-core/0.3.3/` to `semantic-core/0.4.0/`. There is no `{kind, value}` wire change in quire-rs. The relock brings the FCD contract changes: the manifest `semantic` block drops `semantic_core`, `PACKAGE_LOCK` leaves `SCHEMAS`, and the manifest gains the FR-149 keys.
+
 ## [0.55.0] — 2026-11-09
 
 ### Changed
