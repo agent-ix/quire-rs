@@ -26,3 +26,9 @@ After the deletions the tables are consistent. Every new AC has one TC and one a
 Id collisions: none. FR-051-AC-47/48 and TC-2154/2155 appear nowhere on main or in open PRs 609, 611, 615, 616, 617, 618, 620, 621 and 623. PR 623 uses FR-051-AC-49/50, CR-215 and TC-2160..TC-2164. PR 620 uses TC-2150..TC-2152.
 
 Merge-order note, not a defect: PR 623 edits the same FR-051 summary row (`AC-1..46` to `AC-1..50`) and the same AC table end. A trial merge shows 4 conflict hunks. Whichever PR lands second must write the union, `AC-1..50` with both TC sets and both 🚧 exceptions. The PR merges cleanly with main and with PR 620. FR-051-AC-48 has no staleness clause.
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | deferred | Commit f043565 rewords FR-051-AC-47 to cite `ix://agent-ix/quoin/FR-120` E-2 only for the emitters' name equality with the pairs, and names `ix-trace-py` FR-001 and `ix-trace-ts` FR-001 as the owners. AC-47 no longer depends on FR-120's wrong vitest/jest row. That row (`a class qualifies as Class.method`) is still on quoin main, and the fix belongs in agent-ix/quoin, outside this PR. No quoin PR is open for it. |

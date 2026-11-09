@@ -21,3 +21,10 @@ Tickets: PLAT-334, PLAT-335. This review checks whether the verification authore
 ## Verdict
 
 Examined: FR-051-AC-47 with TC-2154 (Integration, `quire coverage --json` pairs), and FR-051-AC-48 with TC-2155 (E2E). FR-051-AC-32/33 with TC-2091/2092 were read as context. Test is the right method for both ACs, and the Integration/E2E split matches the Rust pair. AC-47's five named pairs are concrete and each can fail against the extractor (the nested-class gap is SR-16430 FND-002). AC-48's first run can fail on `name`, `classname`, `file` and the `trace` property. Its weak point is the second run, as described in FND-001 and FND-002.
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | Commit f043565: FR-051-AC-48 now requires the failing test to call `trace()` (vitest) or carry its marker (pytest) before it fails, so its recorded entry carries its ids. TC-2155 now reads `failing after it has declared its ids ... records it fail, with its ids` (spec/functional/FR-051-source-symbol-extraction.md:236, spec/tests.md:1154). |
+| FND-002 | fixed | Commit f043565: FR-051-AC-48 requires the failing second run `for each language`, names the trigger `IX_TRACE_E2E_FAIL` for both runners, and restores `No other test of the fixture carries the failing test's ids`. TC-2155 matches. |

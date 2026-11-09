@@ -27,3 +27,10 @@ Relocation completeness: nothing is lost. ix-trace-py FR-001-AC-1..11 and CON-1 
 Dangling references: a grep of `spec/`, `src/`, `tests/`, `crates/` and `docs/` for `FR-079`, `FR-080` and `TC-2120..TC-2141` finds none. The exceptions are the untouched `spec/reviews/plat-334-335-*`, unrelated fixture JSON in `tests/fixtures/filament_core`, and old bench measurements. The new ids are unique on main and in every open PR. `quire validate` over all requirement documents and `spec/tests.md` exits 0, and `quoin matrix` lists FR-051-AC-47 and AC-48. The diff adds no hash, pin or tracking record. Two medium findings, no high: mergeable once FND-001 and FND-002 are fixed.
 
 FR-051-AC-47's other clauses match the real extractors. Python: bare name at module level, `Class.method`, the module never a prefix, and a parametrized test named by its `def`. TypeScript: `describe` never qualifies (typescript.rs:57-65), and `it.each` gives the template title as written (typescript.rs tc943 asserts `TC-119 each case %i`). AC-47 correctly gives no class form for vitest.
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | Commit f043565: the FR-051 summary row status now reads `✅ Implemented except AC-32..33 and AC-47..48 (🚧, TC-2091/TC-2092 and TC-2154/TC-2155 unimplemented)` (spec/tests.md:149). |
+| FND-002 | fixed | Commit f043565 adds `(tests/test_x.py, TestOuter.TestInner.test_n)` to FR-051-AC-47 (both classes `Test`-prefixed) and to TC-2154 (spec/functional/FR-051-source-symbol-extraction.md:235, spec/tests.md:1153). The extractor produces that name (src/symbols/python.rs `qualify`). |
