@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 
 use super::spec::Spec;
 use crate::ast::QuireDocument;
-use crate::traceability::{SectionNames, TraceTarget, TraceTargetSource};
+use crate::traceability::{IdColumns, SectionNames, TraceTarget, TraceTargetSource};
 
 /// One scanned table row: the document it lives in, its cells keyed by the
 /// table's own column headers (trimmed, as authored), and the 1-based document
@@ -19,6 +19,9 @@ use crate::traceability::{SectionNames, TraceTarget, TraceTargetSource};
 pub(crate) struct ScannedRow {
     pub path: PathBuf,
     pub cells: BTreeMap<String, String>,
+    /// The table's headers in column order; `cells` is keyed by them but does
+    /// not keep their order.
+    pub columns: Vec<String>,
     /// 1-based line of the row in its document, frontmatter included — the
     /// same numbering `validate` findings use, so a consumer can render
     /// `path:line:` and an editor can jump to the authored row.
@@ -33,6 +36,22 @@ impl ScannedRow {
             .find(|(header, _)| header.eq_ignore_ascii_case(column))
             .map(|(_, value)| value.as_str())
             .filter(|v| !v.is_empty())
+    }
+
+    /// The distinct non-empty ids held by every column `columns` selects, in
+    /// column order (FR-050-AC-63). A row whose matched columns hold the same
+    /// id yields it once.
+    pub fn ids(&self, columns: &IdColumns) -> Vec<&str> {
+        let mut out: Vec<&str> = Vec::new();
+        for header in self.columns.iter().filter(|h| columns.matches(h)) {
+            let Some(value) = self.cells.get(header).map(String::as_str) else {
+                continue;
+            };
+            if !value.is_empty() && !out.contains(&value) {
+                out.push(value);
+            }
+        }
+        out
     }
 }
 
@@ -71,7 +90,7 @@ pub(crate) struct DeclaredScope<'a> {
     /// declaration selects the document for, and an archetype-matching
     /// document without it mints nothing. Optional targets may have no
     /// matching documents and may omit the section on selected documents.
-    pub mints: Option<&'a str>,
+    pub mints: Option<&'a IdColumns>,
     /// Explicit or model-default status column checked on a reference table
     /// exposing a status-shaped header. Tables with no status axis remain out of
     /// scope; a near-miss such as `Coverage Status` is no longer silent (#341).
@@ -224,7 +243,7 @@ pub(crate) enum ScanDiagnostic {
         headings: Vec<String>,
         /// The id column this scan could not reach; `None` for a target that
         /// mints from list items or headings and so has no column.
-        id_column: Option<String>,
+        id_columns: Option<Vec<String>>,
     },
 
     /// The section was found and the declared **id column** is not among the
@@ -268,8 +287,8 @@ pub(crate) enum ScanDiagnostic {
         /// sections declared, "the table under `*Test Case Summary*`" names no
         /// table a reader can open.
         section: String,
-        /// The id column the declaration asked for.
-        id_column: String,
+        /// EVERY id column entry the declaration asked for (AC-63).
+        id_columns: Vec<String>,
         /// The headers the table actually has, as authored.
         columns: Vec<String>,
     },
@@ -454,7 +473,7 @@ pub(crate) fn scan(
         }
         if scanned.is_empty() {
             if scope.target_required {
-                let id_column = scope
+                let id_columns = scope
                     .mints
                     .expect("only a minting declaration can require its section");
                 ctx.note(
@@ -464,7 +483,7 @@ pub(crate) fn scan(
                         archetype: scope.archetype.to_string(),
                         sections: sections.names().to_vec(),
                         headings: document_headings(doc.body()),
-                        id_column: Some(id_column.to_string()),
+                        id_columns: Some(id_columns.names().to_vec()),
                     },
                 );
             }
@@ -515,14 +534,14 @@ pub(crate) fn scan(
             // scope)` table names the wrong column has one working table and
             // one broken one, and a check over "the" table can only describe
             // one of them.
-            if let Some(id_column) = scope.mints {
-                if !headers.iter().any(|h| h.eq_ignore_ascii_case(id_column)) {
+            if let Some(id_columns) = scope.mints {
+                if !headers.iter().any(|h| id_columns.matches(h)) {
                     ctx.note(
                         scope.name,
                         ScanDiagnostic::IdColumnMatchesNothing {
                             document: relative_path(root, &doc.path),
                             section: heading.clone(),
-                            id_column: id_column.to_string(),
+                            id_columns: id_columns.names().to_vec(),
                             columns: headers.clone(),
                         },
                     );
@@ -591,20 +610,22 @@ pub(crate) fn mint(
         archetype: &target.archetype,
         exclude: &exclude,
         model_exclude,
-        mints: target.id_column(),
+        mints: target.id_columns(),
         status_column: None,
         target_required: target.required,
     };
     match &target.source {
         TraceTargetSource::TableRow { id_column } => scan(spec, root, scope, &target.section, ctx)
             .into_iter()
-            .filter_map(|row| {
-                let id = row.cell(id_column)?.to_string();
-                Some(MintedId {
-                    id,
-                    path: row.path,
-                    line: row.line,
-                })
+            .flat_map(|row| {
+                row.ids(id_column)
+                    .into_iter()
+                    .map(|id| MintedId {
+                        id: id.to_string(),
+                        path: row.path.clone(),
+                        line: row.line,
+                    })
+                    .collect::<Vec<_>>()
             })
             .collect(),
         TraceTargetSource::ListItem { pattern } => scan_text(
@@ -687,7 +708,7 @@ fn scan_text(
                         archetype: scope.archetype.to_string(),
                         sections: sections.names().to_vec(),
                         headings: document_headings(body),
-                        id_column: None,
+                        id_columns: None,
                     },
                 );
             }
@@ -859,6 +880,7 @@ fn table_in(doc: &QuireDocument, path: &Path, sec: &crate::ast::QuireSection) ->
             ScannedRow {
                 path: path.to_path_buf(),
                 cells,
+                columns: headers.clone(),
                 // `validate_document::to_doc_line` arithmetic over the row's
                 // body line: content index `rel` sits `rel + 1` lines below
                 // the 0-based heading line, and `+ 1` converts to 1-based.
@@ -1014,6 +1036,16 @@ pub(crate) fn scan_reason(diagnostic: &ScanDiagnostic) -> &'static str {
 /// `agent-ix/identity`'s matrix carries roughly thirty headings.
 const NAMES_SHOWN: usize = 12;
 
+/// Every declared entry as `'a', 'b'`, never truncated: a message naming some of
+/// the entries a declaration lists leaves its reader to guess the rest (AC-63).
+fn declared_list(names: &[String]) -> String {
+    names
+        .iter()
+        .map(|n| format!("'{n}'"))
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
 /// `'a', 'b', 'c'`, capped, with the remainder counted rather than dropped.
 fn quoted_list(names: &[String]) -> String {
     if names.is_empty() {
@@ -1059,23 +1091,24 @@ pub(crate) fn scan_finding(
             archetype,
             sections,
             headings,
-            id_column,
+            id_columns,
         } => (
             root.join(document),
-            match id_column {
-                Some(id_column) => format!(
+            match id_columns {
+                Some(id_columns) => format!(
                     "declaration '{declaration}' selected {document} by archetype \
                      '{archetype}' and found no section matching {} in it — the headings the \
                      document has are {}. The declared table is never reached, so every id \
                      under it is stranded and the document mints nothing. The declared id \
-                     column '{id_column}' could NOT be checked either: fix the heading first, \
+                     column(s) {} could NOT be checked either: fix the heading first, \
                      then confirm that column exists, or the same rows come back unminted \
                      for the second reason",
                     // EVERY declared name (CR-118). A declaration naming three
                     // headings and a message naming one leaves its reader to guess
                     // which of the three to spell like the document.
                     quoted_list(sections),
-                    quoted_list(headings)
+                    quoted_list(headings),
+                    declared_list(id_columns)
                 ),
                 None => format!(
                     "declaration '{declaration}' selected {document} by archetype \
@@ -1102,16 +1135,17 @@ pub(crate) fn scan_finding(
         ScanDiagnostic::IdColumnMatchesNothing {
             document,
             section,
-            id_column,
+            id_columns,
             columns,
         } => (
             root.join(document),
             format!(
-                "declaration '{declaration}' declares id column '{id_column}', which the \
-                 table under '{section}' in {document} does not have — the columns it has \
+                "declaration '{declaration}' declares id column(s) {}, none of which the \
+                 table under '{section}' in {document} has — the columns it has \
                  are {}. The rows are read and none of them yields an id, so the document \
                  mints nothing and every row it should have minted reports with no \
                  identity",
+                declared_list(id_columns),
                 quoted_list(columns)
             ),
         ),
@@ -1184,6 +1218,36 @@ mod props_metamorphic {
         fn tc892_no_flags_is_the_identity(s in cellish()) {
             prop_assert_eq!(super::normalize_reference_cell(&s, false, false), s.clone());
         }
+    }
+}
+
+#[cfg(test)]
+mod ac63_id_column_order {
+    use std::collections::BTreeMap;
+    use std::path::PathBuf;
+
+    use ix_trace_rs::trace;
+
+    use super::ScannedRow;
+    use crate::traceability::IdColumns;
+
+    /// `cells` is a `BTreeMap` (key order), and a coverage report sorts minted
+    /// ids, so only the row itself can show column order.
+    #[trace("TC-2095", "FR-050-AC-63")]
+    #[test]
+    fn ids_run_in_column_order_not_declaration_or_lexical_order() {
+        let row = ScannedRow {
+            path: PathBuf::from("t.md"),
+            cells: BTreeMap::from([
+                ("Alpha".to_string(), "T-1".to_string()),
+                ("Zeta".to_string(), "T-9".to_string()),
+            ]),
+            // Table order is the reverse of key order and of id order.
+            columns: vec!["Zeta".to_string(), "Alpha".to_string()],
+            line: 1,
+        };
+        let declared = IdColumns::new(vec!["Alpha".to_string(), "Zeta".to_string()]);
+        assert_eq!(row.ids(&declared), ["T-9", "T-1"]);
     }
 }
 
@@ -1409,6 +1473,7 @@ mod cr135_archetype_matches_nothing {
 
     use super::{scan, DeclaredScope, ExcludeSet, ScanContext, ScanDiagnostic};
     use crate::corpus::spec::Spec;
+    use crate::traceability::IdColumns;
     use crate::traceability::SectionNames;
 
     #[trace("TC-1048", "FR-050-AC-36")]
@@ -1470,7 +1535,7 @@ mod cr135_archetype_matches_nothing {
                 archetype: "TestMatrix",
                 exclude: &empty,
                 model_exclude: &empty,
-                mints: Some("Test ID"),
+                mints: Some(&IdColumns::from("Test ID")),
                 status_column: None,
                 target_required: true,
             },
@@ -1517,12 +1582,13 @@ mod cr135_archetype_matches_nothing {
         std::fs::create_dir_all(&spec_dir).expect("spec dir");
         let empty = ExcludeSet::default();
         let sections = SectionNames::from("Acceptance Criteria");
+        let id = IdColumns::from("ID");
         let scope = |required| DeclaredScope {
             name: "acceptance-criterion",
             archetype: "FR",
             exclude: &empty,
             model_exclude: &empty,
-            mints: Some("ID"),
+            mints: Some(&id),
             status_column: None,
             target_required: required,
         };

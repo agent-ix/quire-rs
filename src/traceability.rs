@@ -203,41 +203,139 @@ impl Serialize for SectionNames {
     /// round-trips through JSON — every published payload does — must not
     /// rewrite every module's `section:` into a one-element list.
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        match self.names.as_slice() {
-            [one] => serializer.serialize_str(one),
-            many => serializer.collect_seq(many),
-        }
+        serialize_scalar_or_sequence(&self.names, serializer)
     }
 }
 
 impl<'de> Deserialize<'de> for SectionNames {
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        struct ScalarOrSequence;
+        deserialize_scalar_or_sequence(deserializer, "a section heading, or a sequence of them")
+            .map(SectionNames::new)
+    }
+}
 
-        impl<'de> serde::de::Visitor<'de> for ScalarOrSequence {
-            type Value = SectionNames;
+/// One name serializes as the scalar it was authored as, several as a list.
+fn serialize_scalar_or_sequence<S: serde::Serializer>(
+    names: &[String],
+    serializer: S,
+) -> Result<S::Ok, S::Error> {
+    match names {
+        [one] => serializer.serialize_str(one),
+        many => serializer.collect_seq(many),
+    }
+}
 
-            fn expecting(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                f.write_str("a section heading, or a sequence of them")
-            }
+/// A declared string, or a sequence of them, as the names it carries.
+fn deserialize_scalar_or_sequence<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+    expecting: &'static str,
+) -> Result<Vec<String>, D::Error> {
+    struct ScalarOrSequence(&'static str);
 
-            fn visit_str<E: serde::de::Error>(self, value: &str) -> Result<Self::Value, E> {
-                Ok(SectionNames::new(vec![value.to_string()]))
-            }
+    impl<'de> serde::de::Visitor<'de> for ScalarOrSequence {
+        type Value = Vec<String>;
 
-            fn visit_seq<A: serde::de::SeqAccess<'de>>(
-                self,
-                mut seq: A,
-            ) -> Result<Self::Value, A::Error> {
-                let mut names = Vec::new();
-                while let Some(name) = seq.next_element::<String>()? {
-                    names.push(name);
-                }
-                Ok(SectionNames::new(names))
-            }
+        fn expecting(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            f.write_str(self.0)
         }
 
-        deserializer.deserialize_any(ScalarOrSequence)
+        fn visit_str<E: serde::de::Error>(self, value: &str) -> Result<Self::Value, E> {
+            Ok(vec![value.to_string()])
+        }
+
+        fn visit_seq<A: serde::de::SeqAccess<'de>>(
+            self,
+            mut seq: A,
+        ) -> Result<Self::Value, A::Error> {
+            let mut names = Vec::new();
+            while let Some(name) = seq.next_element::<String>()? {
+                names.push(name);
+            }
+            Ok(names)
+        }
+    }
+
+    deserializer.deserialize_any(ScalarOrSequence(expecting))
+}
+
+/// The declared id column(s) of a `table_row` trace target (FR-050-AC-63).
+///
+/// One name or several. Each entry is compared with a table header ignoring
+/// ASCII case, and `*` in an entry matches any run of characters (the
+/// [`SectionNames`] grammar, no other metacharacter). Unlike a section heading,
+/// a column header is compared as written (trimmed): no section-number
+/// normalization.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IdColumns {
+    /// As authored: what a diagnostic names and what serializes back out.
+    names: Vec<String>,
+    /// One lowercased matcher per name.
+    matchers: Vec<(String, bool)>,
+}
+
+impl IdColumns {
+    /// Build from authored names. Empty and blank names are kept as authored so
+    /// [`TraceabilityModel::validate`] reports them against the declaration.
+    pub fn new(names: Vec<String>) -> Self {
+        let matchers = names
+            .iter()
+            .map(|n| {
+                let lowered = n.trim().to_ascii_lowercase();
+                let wildcard = lowered.contains('*');
+                (lowered, wildcard)
+            })
+            .collect();
+        Self { names, matchers }
+    }
+
+    /// The declared entries, as authored.
+    pub fn names(&self) -> &[String] {
+        &self.names
+    }
+
+    /// True when nothing was declared (an empty sequence, rejected at load).
+    pub fn is_empty(&self) -> bool {
+        self.names.is_empty()
+    }
+
+    /// The one column name, when the declaration is a single name without `*`.
+    pub fn single_name(&self) -> Option<&str> {
+        match (self.names.as_slice(), self.matchers.as_slice()) {
+            ([name], [(_, false)]) => Some(name),
+            _ => None,
+        }
+    }
+
+    /// True when `header` matches any declared entry.
+    pub fn matches(&self, header: &str) -> bool {
+        let header = header.trim().to_ascii_lowercase();
+        self.matchers.iter().any(|(pattern, wildcard)| {
+            if *wildcard {
+                wildcard_match(pattern, &header)
+            } else {
+                *pattern == header
+            }
+        })
+    }
+}
+
+impl From<&str> for IdColumns {
+    fn from(name: &str) -> Self {
+        Self::new(vec![name.to_string()])
+    }
+}
+
+impl Serialize for IdColumns {
+    /// A one-name declaration round-trips back out as the scalar.
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serialize_scalar_or_sequence(&self.names, serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for IdColumns {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        deserialize_scalar_or_sequence(deserializer, "a column name, or a sequence of them")
+            .map(IdColumns::new)
     }
 }
 
@@ -634,7 +732,7 @@ fn is_true(value: &bool) -> bool {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TraceTargetSource {
     /// One id per table row, read from `id_column`.
-    TableRow { id_column: String },
+    TableRow { id_column: IdColumns },
     /// One id per list item: capture group 1 of `pattern` over the item text.
     ListItem { pattern: String },
     /// One id per heading nested in the section: capture group 1 of `pattern`
@@ -678,7 +776,7 @@ struct TraceTargetWire {
     #[serde(default, skip_serializing_if = "TraceTargetFrom::is_table_row")]
     from: TraceTargetFrom,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    id_column: Option<String>,
+    id_column: Option<IdColumns>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pattern: Option<String>,
     #[serde(default = "default_true", skip_serializing_if = "is_true")]
@@ -801,9 +899,18 @@ pub struct TraceTarget {
 
 impl TraceTarget {
     /// The table column holding the minted id, for a `table_row` target.
-    pub fn id_column(&self) -> Option<&str> {
+    pub fn id_columns(&self) -> Option<&IdColumns> {
         match &self.source {
             TraceTargetSource::TableRow { id_column } => Some(id_column),
+            TraceTargetSource::ListItem { .. } | TraceTargetSource::Heading { .. } => None,
+        }
+    }
+
+    /// The id column of a `table_row` target declaring one plain name — the
+    /// only shape a consumer that reads the target as one column accepts.
+    pub fn id_column(&self) -> Option<&str> {
+        match &self.source {
+            TraceTargetSource::TableRow { id_column } => id_column.single_name(),
             TraceTargetSource::ListItem { .. } | TraceTargetSource::Heading { .. } => None,
         }
     }
@@ -1194,6 +1301,36 @@ impl TraceabilityModel {
         self.trace_targets.iter().find(|t| t.name == name)
     }
 
+    /// A target-bound obligation reads its statement and id from the minting
+    /// row, so the target it names must mint from table rows by ONE plain
+    /// column name (AC-63): a list or `*` is refused rather than narrowed.
+    ///
+    /// Also run on the merged model at load, because modules merge targets
+    /// first-wins by name and the binding can end up on another module's target.
+    pub fn check_bound_target(&self, source: &str, target: &str) -> Result<(), String> {
+        let Some(declared) = self.trace_targets.iter().find(|t| t.name == target) else {
+            return Err(format!(
+                "traceability: obligations entry '{source}' references undeclared target \
+                 '{target}'"
+            ));
+        };
+        let Some(columns) = declared.id_columns() else {
+            return Err(format!(
+                "traceability: obligations entry '{source}' references target '{target}', \
+                 which does not mint from table rows; a target-bound obligation reads its \
+                 statement column from the minting row"
+            ));
+        };
+        if columns.single_name().is_none() {
+            return Err(format!(
+                "traceability: obligations entry '{source}' references target '{target}', \
+                 whose `id_column` is a list or contains `*`; a target-bound obligation \
+                 reads one named id column"
+            ));
+        }
+        Ok(())
+    }
+
     /// Shape-validate the declaration. Returns a caller-facing reason on the
     /// first problem, which the manifest loader turns into a module-load
     /// failure (FR-050-AC-2).
@@ -1224,7 +1361,16 @@ impl TraceabilityModel {
             check_sections("trace_targets", &target.name, &target.section)?;
             match &target.source {
                 TraceTargetSource::TableRow { id_column } => {
-                    check_field("trace_targets", &target.name, "id_column", id_column)?;
+                    if id_column.is_empty() {
+                        return Err(format!(
+                            "traceability: trace_targets entry '{}' declares an empty \
+                             `id_column` list, so it reads no column",
+                            target.name
+                        ));
+                    }
+                    for value in id_column.names() {
+                        check_field("trace_targets", &target.name, "id_column", value)?;
+                    }
                 }
                 TraceTargetSource::ListItem { pattern }
                 | TraceTargetSource::Heading { pattern } => {
@@ -1232,12 +1378,6 @@ impl TraceabilityModel {
                 }
             }
         }
-        let table_targets: BTreeSet<&str> = self
-            .trace_targets
-            .iter()
-            .filter(|target| target.id_column().is_some())
-            .map(|target| target.name.as_str())
-            .collect();
 
         let mut reference_names: BTreeSet<&str> = BTreeSet::new();
         for reference in &self.document_references {
@@ -1336,16 +1476,7 @@ impl TraceabilityModel {
                             source.name
                         ));
                     }
-                    // A target-bound obligation reads its statement from a
-                    // column of the row that minted its id.
-                    if !table_targets.contains(target.as_str()) {
-                        return Err(format!(
-                            "traceability: obligations entry '{}' references target '{target}', \
-                             which does not mint from table rows; a target-bound obligation \
-                             reads its statement column from the minting row",
-                            source.name
-                        ));
-                    }
+                    self.check_bound_target(&source.name, target)?;
                 }
                 (None, Some(archetype)) => {
                     check_field("obligations", &source.name, "archetype", archetype)?;
