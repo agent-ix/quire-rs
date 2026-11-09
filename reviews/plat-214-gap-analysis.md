@@ -29,3 +29,10 @@ The implementation has an owning requirement (FR-069-AC-15). It contains no stub
 | FND-004 | low | Load-order independence ("later sorted root", "no load order selects a definition") is never exercised: both modules sit in one temp dir, and the test has only one `load_from` order. A probe with two directories passed in both orders gave the same outcome. Add it so a later change to `order` is caught. | tests/it/semantic_contract.rs:646-650 |
 
 ## Dispositions
+
+| FND | Outcome | Reason |
+| --- | --- | --- |
+| FND-001 | fixed | aea891f: three-module case a-first `[entity]`, b-second `[entity, enumeration]`, c-third `[enumeration]`. It asserts that c-third loads, b-second is refused, and there are 2 failures. The test fails against the old insert logic (mutation-checked). |
+| FND-002 | fixed | aea891f: the test asserts that no `Diagnostic::DuplicateArchetype` is emitted in the refusal case. |
+| FND-003 | fixed | aea891f: the disjoint control now has b-second export `["enumeration"]` and asserts that both modules load with no failures. |
+| FND-004 | fixed | aea891f: the two modules sit under separate search roots r1 and r2, loaded in both orders. Both orders assert that a-first loads and b-second is refused. |

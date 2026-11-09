@@ -56,3 +56,11 @@ The probes ran as uncommitted tests in a review worktree, with `CARGO_PROFILE_DE
 - Non-empty disjoint control (b exports `[enumeration]`): both modules load and there are no failures.
 
 `tc1026` was run on a separate `origin/main` worktree with its own target directory and the submodule initialised. It failed with the same three missing ids: `function-not-evidence`, `not-in-tag-channel` and `outside-entry-paths`.
+
+## Dispositions
+
+| FND | Outcome | Reason |
+| --- | --- | --- |
+| FND-001 | fixed | aea891f: clashes are collected first, and a module's names are inserted into `exported` only when `clashes.is_empty()` ("A refused module claims no export name"). The new three-module case asserts that c-third loads. A mutation that restores the old insert makes that assertion fail (tests/it/semantic_contract.rs:688). |
+| FND-002 | fixed | aea891f: the CHANGELOG entry now reads "**Breaking, PLAT-214 (quoin#338):** a module set that loaded before is now refused". |
+| FND-003 | fixed | aea891f: the doc comment now lists "a duplicated `semantic.package` or a type name exported by two modules (`semantic.duplicate-export`) refuses the later module". |

@@ -27,3 +27,8 @@ Ticket: PLAT-214. PR head `accd773`. This review covers the new FR-069 cross-mod
 | FND-002 | low | The names are compared as exact strings (`semantic.exports` entries are declared type names). The pair that motivated the ticket is `master-requirements` in iso and `MasterRequirements` in app, and that pair would not be refused. This is acceptable if the canonical spelling is enforced elsewhere (spec-artifacts-app#28). The spec should say that equality is exact, so the gap is deliberate. | spec/functional/FR-069-semantic-module-contract-at-load.md:221 |
 
 ## Dispositions
+
+| FND | Outcome | Reason |
+| --- | --- | --- |
+| FND-001 | fixed | aea891f: the rule adds "a refused module's exports do not count against later modules", and AC-15 adds "a refused module's other exports do not count, so a third module exporting one of them loads". |
+| FND-002 | fixed | aea891f: the rule adds "type names are compared exactly, so spelling variants are a module concern", and AC-15 adds "type names are compared exactly". |
