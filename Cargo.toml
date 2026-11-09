@@ -26,7 +26,7 @@ undocumented_unsafe_blocks = "deny"
 [package]
 name = "quire-rs"
 publish = false
-version = "0.53.0"
+version = "0.54.0"
 edition = "2021"
 rust-version = "1.98.1"
 description = "High-performance Rust templating + parsing engine for the Filament/Quire ecosystem."
@@ -150,7 +150,7 @@ loom = "^0.7"
 # now use their grammar unconditionally (PLAT-843, PLAT-868, PLAT-882), so a
 # default `cargo build`/`cargo test` must keep extracting every language the
 # pre-port line-structural scanners always did.
-default = ["resolve-file", "rust-symbols", "python-symbols", "typescript-symbols"]
+default = ["resolve-file", "rust-symbols", "python-symbols", "typescript-symbols", "shell-symbols"]
 python = ["dep:pyo3"]
 # The Rust symbol adapter (FR-051, PLAT-843), gated so the `wasm` build can
 # opt out — see `quire-code-extraction`'s own dependency comment above for
@@ -179,6 +179,11 @@ python-symbols = ["dep:quire-code-extraction", "quire-code-extraction/python"]
 # PLAT-882 has landed, so a default build must keep extracting TypeScript
 # the way it always did.
 typescript-symbols = ["dep:quire-code-extraction", "quire-code-extraction/typescript"]
+# The shell symbol adapter (FR-051 shell adapter, PLAT-362), gated exactly like
+# the other three: `tree-sitter-bash`'s `cc`-crate build script cannot
+# cross-compile to `wasm32-unknown-unknown` here either, and a build without it
+# records `SourceLanguage::Shell` as unavailable (FR-051-AC-29).
+shell-symbols = ["dep:quire-code-extraction", "quire-code-extraction/bash"]
 # Measurement-only. Re-enables the `ac:no-observable-outcome` check CR-014
 # retired, so it can be re-measured over the corpus with the mechanical fixes
 # CR-014/CR-017 applied (agent-ix/quire-rs#18). NEVER enabled in a shipping

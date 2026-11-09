@@ -125,6 +125,9 @@ fn assertions_for(language: SourceLanguage) -> &'static [&'static str] {
         SourceLanguage::Rust => RUST_ASSERTIONS,
         SourceLanguage::Typescript => TYPESCRIPT_ASSERTIONS,
         SourceLanguage::Python => PYTHON_ASSERTIONS,
+        // A shell `entry_point` is evidence by declaration (FR-051-AC-37); the
+        // suspicion scan reads no shell assertion vocabulary.
+        SourceLanguage::Shell => &[],
     }
 }
 
@@ -157,7 +160,9 @@ const NO_MEASURED_GUARDS: &[&str] = &[];
 fn narrowing_guards_for(language: SourceLanguage) -> &'static [&'static str] {
     match language {
         SourceLanguage::Rust => RUST_NARROWING_GUARDS,
-        SourceLanguage::Typescript | SourceLanguage::Python => NO_MEASURED_GUARDS,
+        SourceLanguage::Typescript | SourceLanguage::Python | SourceLanguage::Shell => {
+            NO_MEASURED_GUARDS
+        }
     }
 }
 
@@ -173,7 +178,7 @@ fn narrowing_guards_for(language: SourceLanguage) -> &'static [&'static str] {
 pub fn vacuous_property_suites(extraction: &SymbolExtraction) -> Vec<Suspicion> {
     let mut out = Vec::new();
     for symbol in &extraction.symbols {
-        if !symbol.kind.binds_trace_ids() {
+        if !symbol.kind.binds_trace_ids() || symbol.language == SourceLanguage::Shell {
             continue;
         }
         let Some(source) = extraction.source_of(&symbol.path) else {
@@ -236,7 +241,7 @@ pub fn vacuous_property_suites(extraction: &SymbolExtraction) -> Vec<Suspicion> 
 fn strip_comment(line: &str, language: SourceLanguage) -> &str {
     let marker = match language {
         SourceLanguage::Rust | SourceLanguage::Typescript => "//",
-        SourceLanguage::Python => "#",
+        SourceLanguage::Python | SourceLanguage::Shell => "#",
     };
     match line.find(marker) {
         Some(at) => &line[..at],
@@ -350,7 +355,7 @@ pub fn oracle_copies_in(extraction: &SymbolExtraction) -> Vec<Suspicion> {
     let mut function_tokens: Option<HashMap<String, Vec<usize>>> = None;
     let mut helpers_by_file_and_name: Option<HashMap<(String, String), Vec<usize>>> = None;
     for test in &extraction.symbols {
-        if !test.kind.binds_trace_ids() {
+        if !test.kind.binds_trace_ids() || test.language == SourceLanguage::Shell {
             continue;
         }
         let Some(source) = extraction.source_of(&test.path) else {
@@ -662,6 +667,7 @@ fn oracle_candidate_counting_scans(
             Regex::new(r"(?m)^\s*(expected|oracle)(?:\s*:[^=\n]+)?\s*=\s*(.+?)\s*$")
                 .expect("Python oracle-binding pattern compiles")
         }),
+        SourceLanguage::Shell => return None,
     };
     let assertion_re = match language {
         SourceLanguage::Rust => RUST_ASSERTION.get_or_init(|| {
@@ -682,6 +688,7 @@ fn oracle_candidate_counting_scans(
             )
             .expect("Python oracle-assertion pattern compiles")
         }),
+        SourceLanguage::Shell => return None,
     };
 
     // PLAT-182: scan assertions at most once per binding name (`expected` /
@@ -775,6 +782,7 @@ fn simple_name(qualified_name: &str) -> &str {
 
 fn implementation_expression(span: &str, language: SourceLanguage) -> Option<String> {
     match language {
+        SourceLanguage::Shell => None,
         SourceLanguage::Rust => {
             let body = span.split_once('{')?.1.rsplit_once('}')?.0.trim();
             if let Some(returned) = body.strip_prefix("return ") {
@@ -789,7 +797,7 @@ fn implementation_expression(span: &str, language: SourceLanguage) -> Option<Str
             let body = match language {
                 SourceLanguage::Python => span.split_once('\n')?.1,
                 SourceLanguage::Typescript => span.split_once('{')?.1.rsplit_once('}')?.0,
-                SourceLanguage::Rust => unreachable!(),
+                SourceLanguage::Rust | SourceLanguage::Shell => return None,
             };
             let returns: Vec<&str> = body
                 .lines()

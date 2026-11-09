@@ -1025,10 +1025,11 @@ dependencies = [
 [[package]]
 name = "quire-code-parse"
 version = "0.2.2"
-source = "git+https://github.com/agent-ix/quire-code-rs?rev=b58164a8cf4e6543d7bc5f5f2042ea792612ed16#b58164a8cf4e6543d7bc5f5f2042ea792612ed16"
+source = "git+https://github.com/agent-ix/quire-code-rs?rev=108ddda6bdeab1dd97e5c638d41b6df8167b1fa1#108ddda6bdeab1dd97e5c638d41b6df8167b1fa1"
 dependencies = [
  "thiserror",
  "tree-sitter",
+ "tree-sitter-bash",
  "tree-sitter-python",
  "tree-sitter-rust",
  "tree-sitter-typescript",
@@ -1043,7 +1044,7 @@ dependencies = [
 
 [[package]]
 name = "quire-rs"
-version = "0.53.0"
+version = "0.54.0"
 dependencies = [
  "agent-ix-semantic-schema",
  "criterion",
@@ -1577,6 +1578,16 @@ dependencies = [
  "regex-syntax",
  "serde_json",
  "streaming-iterator",
+ "tree-sitter-language",
+]
+
+[[package]]
+name = "tree-sitter-bash"
+version = "0.25.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9e5ec769279cc91b561d3df0d8a5deb26b0ad40d183127f409494d6d8fc53062"
+dependencies = [
+ "cc",
  "tree-sitter-language",
 ]
 

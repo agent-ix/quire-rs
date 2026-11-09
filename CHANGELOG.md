@@ -7,6 +7,50 @@ bumps; once 1.0 ships, semver is strict.
 
 ## [Unreleased]
 
+## [0.54.0] — 2026-11-08
+
+### Changed
+
+- **Breaking (Rust API), PLAT-874 (#596):** coverage, trace, search, export and
+  graph entry points return `Result`: a build that cannot extract a requested
+  language is refused with `ExtractionUnavailable` instead of reporting an empty
+  measurement (`SymbolExtraction::require_available`).
+- **Breaking (crate rename), PLAT-876 (#605):** the workspace crate
+  `quire-rust-extraction` is now `quire-code-extraction`; the `rust-symbols`,
+  `python-symbols` and `typescript-symbols` features are unchanged.
+- **Breaking, PLAT-35/PLAT-55 (#593):** transition `Emits` and step
+  `Consumes`/`Emits` cells resolve through the bundle index (by id or declared
+  name) to `SemanticId`s, and relationship rows whose verb is a typed relation
+  key of the object type's data schema lower into that `SemanticId[]` key.
+  Unknown, unadmitted, ambiguous, repeated and empty items are refused; a typed
+  key in frontmatter is `semantic.duplicate-authority`, and a rejected verb on a
+  typed-only type is `verb-not-typed-key`. Without a bundle index or package the
+  rows advise and the model is unavailable, with no error.
+- **Breaking, FR-075, PLAT-8 (#591):** a population has one `extent`, `closed`
+  or `open`, read from frontmatter; the retired `Type | Extent` table is refused
+  under any manifest.
+- Module-path environment roots are unioned with the default module root, and
+  every unreadable manifest is a hard load failure; unknown top-level manifest
+  keys are denied (PLAT-106, PLAT-323, #589).
+- Criterion tags bind to their declared matrix rows; a tag with no declared row
+  is rejected (#587).
+- `ix-trace-rs` is pinned by rev, like the other consumers (PLAT-116, #584).
+
+### Fixed
+
+- A `columns` assert also checks each row's cell count (reason `row-width`,
+  FR-033-AC-17), and bundle validation no longer reports `ix://` targets under
+  a foreign org/repo authority as `dangling-reference` (PLAT-217, PLAT-1056,
+  #590).
+- Bundle validation folds ASCII case when comparing an `ix://` authority to the
+  declared package (PLAT-1357, FR-038-AC-10, #621).
+- Skeptic-oracle detection scans assertions once per binding name, so it is
+  linear instead of quadratic (PLAT-182, #608).
+- Extraction warns on the legacy `Implements:` doc-comment form, one finding
+  per authored line at the innermost owner (PLAT-1170, FR-050-AC-61/62, #615).
+- Semantic fixture mappings state entry-error reasons by locus (PLAT-58,
+  FR-076-AC-22, #619).
+
 ### Added
 
 - Record-sections extraction (PLAT-1370, FR-081, quoin FR-121/FR-122/FR-123):
@@ -32,6 +76,13 @@ bumps; once 1.0 ships, semver is strict.
   takes `schemaDocuments`. Golden cases: `quire-fixtures`
   `fixtures/record-sections`. `record_key_owners` backs the FR-122-AC-7
   ownership audit.
+- Shell source symbols: a `.sh` file mints a `function` per definition and one
+  `entry_point` spanning the file, parsed with `tree-sitter-bash` under the new
+  `shell-symbols` feature (default on). A `language: shell`, `syntax: comment`
+  `markers` form reads `#` comment nodes; its `entry_paths` globs gate which
+  entry points bind, and a marker that binds nothing is reported as
+  `outside-entry-paths`, `function-not-evidence` or `not-in-tag-channel`
+  (PLAT-362, FR-051-AC-34..46, CR-213).
 - Type cells `Clock` (the `SemanticId` `ix://quire/native/Clock`) and
   `Quantity<u>` (the identity of the unit artifact `u`), unit and dimension
   tokens bare or `<org>/<repo>::name`, and the optional `importedArtifacts` of

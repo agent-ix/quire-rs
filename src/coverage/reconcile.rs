@@ -11,7 +11,7 @@ use crate::traceability::{StatusClass, TraceTargetEvidence, TraceabilityModel};
 
 use super::binding_diagnostics::{
     binding_diagnostics, legacy_implements_diagnostics, minted_child_diagnostics,
-    near_miss_diagnostics, non_binding_tag_diagnostics,
+    near_miss_diagnostics, non_binding_tag_diagnostics, shell_finding_diagnostics,
 };
 use super::{
     relative, CoverageDiagnostic, CoverageReport, CoverageTotals, GroupCounts, ImplementsRecord,
@@ -474,6 +474,9 @@ pub(super) fn reconcile(
     // denominator this defect is missing from, so a repository whose tags are
     // all on the wrong symbols reports a flawless 100% and says nothing.
     diagnostics.extend(non_binding_tag_diagnostics(&graph.non_binding_tags));
+
+    // FR-051-AC-39, AC-44: a shell marker that matched and bound nothing.
+    diagnostics.extend(shell_finding_diagnostics(&graph.shell_findings));
 
     // PLAT-2: a criterion tag on a test whose declared matrix row does not
     // reference that criterion is visible, but is not evidence for it.
