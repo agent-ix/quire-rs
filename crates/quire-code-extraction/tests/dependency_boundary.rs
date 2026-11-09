@@ -29,7 +29,7 @@ fn tree_sitter_is_reachable_only_through_the_quire_code_parse_pin() {
     let packages = metadata["packages"].as_array().expect("packages");
     // The in-scope set is *every current workspace member*, read from
     // `workspace_members` rather than hardcoded by name (review F2): a gate
-    // that names "quire-rs" and "quire-rust-extraction" literally checks
+    // that names "quire-rs" and "quire-code-extraction" literally checks
     // nothing about a third workspace member added later, which is the same
     // defect class as a criterion too weak to fail. `workspace_members` is a
     // list of package ids; cross-reference against each package's own `id`
@@ -43,7 +43,7 @@ fn tree_sitter_is_reachable_only_through_the_quire_code_parse_pin() {
         .collect();
     assert!(
         workspace_members.len() >= 2,
-        "expected at least quire-rs and quire-rust-extraction as workspace members, got {}",
+        "expected at least quire-rs and quire-code-extraction as workspace members, got {}",
         workspace_members.len()
     );
 
@@ -63,7 +63,7 @@ fn tree_sitter_is_reachable_only_through_the_quire_code_parse_pin() {
                 !dep_name.starts_with("tree-sitter"),
                 "crate `{name}` depends on `{dep_name}` directly; the \
                  tree-sitter boundary must live behind the quire-code-parse pin \
-                 in crates/quire-rust-extraction"
+                 in crates/quire-code-extraction"
             );
         }
     }
@@ -72,7 +72,7 @@ fn tree_sitter_is_reachable_only_through_the_quire_code_parse_pin() {
     let quire_code_parse = packages
         .iter()
         .find(|package| package["name"].as_str() == Some("quire-code-parse"))
-        .expect("quire-code-parse is pinned by crates/quire-rust-extraction");
+        .expect("quire-code-parse is pinned by crates/quire-code-extraction");
     assert!(
         quire_code_parse["dependencies"]
             .as_array()

@@ -9,7 +9,7 @@
 //! dependency installation, and never any execution of the extracted code
 //! (FR-051-CON-1, amended by PLAT-842). The Rust (PLAT-843), Python
 //! (PLAT-868), and TypeScript (PLAT-882) adapters all parse over a
-//! tree-sitter syntax tree, through `quire-rust-extraction` ->
+//! tree-sitter syntax tree, through `quire-code-extraction` ->
 //! `quire-code-parse` — CON-1's grammar-driven-parser clause now covers
 //! every language the FR names. "Syntax level" is what the constraint
 //! actually buys either way: no build, no type resolution, no execution —
@@ -22,13 +22,13 @@
 //! non-identity attribute, alongside the span the trace-tag binder reads.
 
 // Gated by `python-symbols` (on by default; off under `wasm` — see that
-// feature's own Cargo.toml comment): `quire-rust-extraction` pulls in a
+// feature's own Cargo.toml comment): `quire-code-extraction` pulls in a
 // tree-sitter grammar with a C build script that cannot cross-compile for
 // `wasm32-unknown-unknown` here (PLAT-843, widened to Python by PLAT-868).
 #[cfg(feature = "python-symbols")]
 pub mod python;
 // Gated by `rust-symbols` (on by default; off under `wasm` — see that
-// feature's own Cargo.toml comment): `quire-rust-extraction` pulls in a
+// feature's own Cargo.toml comment): `quire-code-extraction` pulls in a
 // tree-sitter grammar with a C build script that cannot cross-compile for
 // `wasm32-unknown-unknown` here (PLAT-843).
 #[cfg(feature = "rust-symbols")]
@@ -678,8 +678,8 @@ pub(crate) fn stable_id(parts: &[&str]) -> String {
     feature = "typescript-symbols"
 ))]
 pub(crate) fn leading_span(
-    node: quire_rust_extraction::tree_sitter::Node,
-    is_annotation: fn(quire_rust_extraction::tree_sitter::Node) -> bool,
+    node: quire_code_extraction::tree_sitter::Node,
+    is_annotation: fn(quire_code_extraction::tree_sitter::Node) -> bool,
 ) -> usize {
     let mut boundary_row = node.start_position().row;
     let mut current = node;

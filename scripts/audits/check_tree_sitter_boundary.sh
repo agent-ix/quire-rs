@@ -6,7 +6,7 @@
 # it does not assert TC-1883's compiler/package-manager/type-resolution
 # clauses, so it does not move that row to done).
 #
-# `crates/quire-rust-extraction/Cargo.toml` describes itself as "the only
+# `crates/quire-code-extraction/Cargo.toml` describes itself as "the only
 # place in the quire-rs workspace that names quire-code-parse/tree-sitter"
 # (PLAT-843, widened PLAT-851). Nothing checked that claim — `grep -rln
 # 'quire-code-parse\|tree.sitter' scripts/` returned no matches — so a second
@@ -40,7 +40,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$ROOT"
 
-EXEMPT="crates/quire-rust-extraction/Cargo.toml"
+EXEMPT="crates/quire-code-extraction/Cargo.toml"
 
 # The dependency name this boundary admits exactly one namer for: the crate
 # itself (`quire-code-parse`) and its grammars (`tree-sitter`, bare, or

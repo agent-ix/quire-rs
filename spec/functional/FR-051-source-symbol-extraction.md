@@ -196,6 +196,12 @@ byte-identical JSON ordering and stable record ids.
 > `rust-symbols` yields "a build-configuration diagnostic" is superseded by
 > this note. Coverage, trace search and the assurance export refuse the same way: FR-050-AC-59, FR-077-AC-7 and FR-067-AC-8 own those behaviours; AC-29 and AC-30 own the extraction and graph-record halves, and the statement above now says a build may lack an adapter instead of promising all three unconditionally.
 
+> **CR-204 note (2026-11-08, PLAT-876):** the boundary crate
+> `crates/quire-rust-extraction` is renamed `crates/quire-code-extraction`
+> (lib `quire_code_extraction`): it has wrapped all three grammars since
+> PLAT-851 and is no longer Rust-specific. Every reference in this document,
+> ADR-0013 and the boundary gates follows the new name; no behaviour changes.
+
 > **CR-189 note (2026-09-28):** three corrections to AC-27 and AC-28, found
 > by the code review of CR-187's implementation. None changes what an AC
 > requires of a correct engine; each states a clause precisely enough that
@@ -353,7 +359,7 @@ byte-identical JSON ordering and stable record ids.
 > so every consumer (`quire-code-rs`, `quire-rs`, `filament-ide-rs`, and
 > later a daemon) reaches the grammar through the same crate rather than
 > vendoring their own. This repository reaches that path through exactly one
-> dependency, `crates/quire-rust-extraction`'s `quire-code-parse` git-rev
+> dependency, `crates/quire-code-extraction`'s `quire-code-parse` git-rev
 > dependency (`ADR-0013`), and `tests/dependency_boundary.rs`'s first test is
 > what keeps a second, independently-versioned grammar from reappearing
 > anywhere else in this workspace. One path does not by itself mean one
@@ -376,7 +382,7 @@ byte-identical JSON ordering and stable record ids.
 > **CR-179 note (2026-09-20, `PLAT-868`):** Phase 2's Python leg of `PLAT-851`
 > lands — `src/symbols/python.rs` parses over the same `tree-sitter`/
 > `quire-code-parse` boundary CR-176/CR-177 adopted for Rust, through the
-> same `crates/quire-rust-extraction` crate. `CON-1`'s grammar-driven-parser
+> same `crates/quire-code-extraction` crate. `CON-1`'s grammar-driven-parser
 > clause now holds for two of the FR's three languages; TypeScript's own
 > port (`PLAT-869`) is unaffected by this change and lands separately, under
 > serial merge windows to keep coverage movement attributable to one

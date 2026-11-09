@@ -79,7 +79,7 @@ check-python:
 # quietly carries is never proven to compile *in isolation* from the other
 # default features (`rust-symbols`, `resolve-file`). This leg is the minimal
 # build: no default features, `python-symbols` alone, so a break in
-# `src/symbols/python.rs` or its `quire-rust-extraction`/`python` dependency
+# `src/symbols/python.rs` or its `quire-code-extraction`/`python` dependency
 # edge fails here even if some other default feature happened to mask it.
 # Own `CARGO_TARGET_DIR`, same reason `check-python` above has one: a
 # `--no-default-features` resolve is a different feature set, and sharing the
@@ -146,7 +146,7 @@ deny:
 # gate, only present. `--features typescript-symbols` (added to the default
 # set, not replacing it) is what makes `cargo deny`'s own dependency
 # resolution see it as *activated*, which is what its license check reads
-# (mirrors `crates/quire-rust-extraction/tests/dependency_boundary.rs`'s own
+# (mirrors `crates/quire-code-extraction/tests/dependency_boundary.rs`'s own
 # `cargo_metadata()` reasoning for the equivalent problem).
 #
 # Deliberately NOT `--all-features`: that also activates this crate's
