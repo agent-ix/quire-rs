@@ -120,8 +120,8 @@
       "required": ["id", "language", "kind", "qualified_name", "container", "capabilities", "locator"],
       "properties": {
         "id": { "type": "string", "minLength": 1 },
-        "language": { "enum": ["rust", "python", "typescript"] },
-        "kind": { "enum": ["function", "test_function", "container", "benchmark", "fuzz_target"] },
+        "language": { "enum": ["rust", "python", "typescript", "shell"] },
+        "kind": { "enum": ["function", "test_function", "container", "benchmark", "fuzz_target", "entry_point"] },
         "qualified_name": { "type": "string", "minLength": 1 },
         "container": { "type": ["string", "null"] },
         "capabilities": {

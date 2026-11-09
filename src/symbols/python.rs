@@ -157,6 +157,7 @@ pub(crate) fn parse(path: &str, source: &str) -> Result<Vec<RawSymbol>, String> 
         leading_line: 1,
         end_line: lines.len().max(1),
         container: None,
+        tag_comments: Vec::new(),
         ignored: false,
     }];
 
@@ -416,6 +417,7 @@ impl<'a> Walk<'a> {
                     leading_line: leading_span(span_node, is_annotation_node),
                     end_line: def_node.end_position().row + 1,
                     container: Some(container),
+                    tag_comments: Vec::new(),
                     ignored: class_ignored && is_suite,
                 });
                 self.class_stack.push(ClassScope {
@@ -463,6 +465,7 @@ impl<'a> Walk<'a> {
                     leading_line: leading_span(span_node, is_annotation_node),
                     end_line: def_node.end_position().row + 1,
                     container: Some(container),
+                    tag_comments: Vec::new(),
                     ignored,
                 });
                 // A `def` is never a container for its own nested `def`s (see

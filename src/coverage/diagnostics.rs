@@ -43,6 +43,21 @@ pub(super) fn guidance_for(diagnostic: &CoverageDiagnostic) -> crate::finding::F
             locus,
             "correct the matrix reference or tag a test whose declared row references this criterion",
         ),
+        "function-not-evidence" => FindingGuidance::remedy(
+            format!("trace id `{value}`"),
+            locus,
+            "move the marker to the header comment block of the script, whose entry point is the evidence; a shell function is production and binds no verifies",
+        ),
+        "not-in-tag-channel" => FindingGuidance::remedy(
+            format!("trace id `{value}`"),
+            locus,
+            "move the marker into the script's header comment block, before its first command; a comment elsewhere is not a tag channel",
+        ),
+        "outside-entry-paths" => FindingGuidance::remedy(
+            format!("trace id `{value}`"),
+            locus,
+            "add the script's path to an `entry_paths` glob of the declared shell marker form, or remove the marker",
+        ),
         "hollow-denominator" => FindingGuidance::diagnostic(
             format!("metric `{value}`"),
             "the source binding census or declared trace-tag forms",

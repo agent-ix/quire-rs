@@ -367,6 +367,9 @@ pub struct SymbolGraph {
     /// token this engine finds is ever silently absent from all of
     /// `verifies`, `implements` and `mentions` at once.
     pub mentions: Vec<Mention>,
+    /// Shell markers that matched a comment and bound nothing, and an
+    /// `entry_paths` list that did not compile (FR-051-AC-39, AC-44).
+    pub shell_findings: Vec<super::shell_trace::ShellFinding>,
 }
 
 /// What a comment or docstring id sits on, which decides what the advisory can
@@ -512,8 +515,9 @@ impl CompiledTracePatterns {
 /// an acceptance criterion into backing for it (CR-061).
 ///
 /// If you are here because a row will not bind: check the symbol's *kind*
-/// first. Tagging harder never helps, and a shell audit mints no symbol at all
-/// — `language_of` reads Rust, Python and TypeScript.
+/// first. Tagging harder never helps. A shell script's evidence symbol is its
+/// `entry_point`, and it binds only under a declared `entry_paths` glob
+/// ([`super::shell_trace`]).
 pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolGraph {
     let patterns = CompiledTracePatterns::new(model);
     let mut graph = SymbolGraph {
@@ -525,6 +529,7 @@ pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolG
     // the stable language label so the census order is a property of the data
     // rather than of the walk (NFR-006).
     let mut census: BTreeMap<&'static str, CensusAccumulator> = BTreeMap::new();
+    let shell = super::shell_trace::ShellBinder::new(model, &mut graph);
     // Ranges read on a production symbol, with what decides which symbol an
     // occurrence is reported against: a container's span covers every symbol
     // in its file, so the same occurrence is read more than once.
@@ -542,6 +547,11 @@ pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolG
                 symbol.qualified_name.clone(),
                 symbol.path.clone(),
             ));
+        }
+        // Shell reads comment nodes, not the attached source text (PLAT-362).
+        if symbol.language == SourceLanguage::Shell {
+            shell.bind_symbol(symbol, &mut graph);
+            continue;
         }
         let Some(source) = extraction.source_of(&symbol.path) else {
             continue;
@@ -646,6 +656,8 @@ pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolG
         .iter()
         .map(range_occurrence)
         .collect();
+
+    shell.report_unbound(extraction, &mut graph);
 
     graph.suspicions = crate::skeptic::vacuous_property_suites(extraction);
     graph
@@ -938,7 +950,9 @@ fn outside_marker_ids(extraction: &SymbolExtraction, graph: &SymbolGraph) -> Vec
 
     let mut found = Vec::new();
     for file in &extraction.files {
-        let channel = annotation_channel(&file.source, file.language);
+        let Some(channel) = annotation_channel(&file.source, file.language) else {
+            continue;
+        };
         let channel_lines: Vec<&str> = channel.lines().collect();
         let code = (file.language == SourceLanguage::Python)
             .then(|| mask_source_string_contents(&file.source, file.language));
@@ -1264,7 +1278,9 @@ fn bind_implements(
                 .iter()
                 .map(|attribute| (attribute.text.as_str(), attribute.line))
                 .collect(),
-            None => vec![(span.as_str(), symbol.leading_line)],
+            None | Some(crate::traceability::TraceMarkerSyntax::Comment) => {
+                vec![(span.as_str(), symbol.leading_line)]
+            }
         };
         for (candidate, line) in candidates {
             let mut partial = false;
@@ -1651,12 +1667,16 @@ fn mask_script_string_contents(
 /// docstrings, with every other character blanked (FR-051-AC-24). Byte length
 /// and line count are preserved, so a line in the result is the line in the
 /// original.
-fn annotation_channel(source: &str, language: SourceLanguage) -> String {
+///
+/// `None` for shell: its tags are read from comment nodes and its comments are
+/// FR-051-AC-44's, not this advisory's.
+fn annotation_channel(source: &str, language: SourceLanguage) -> Option<String> {
     match language {
-        SourceLanguage::Rust => mask_rust_string_contents(source, false),
+        SourceLanguage::Rust => Some(mask_rust_string_contents(source, false)),
         SourceLanguage::Typescript | SourceLanguage::Python => {
-            mask_script_string_contents(source, language, true, false)
+            Some(mask_script_string_contents(source, language, true, false))
         }
+        SourceLanguage::Shell => None,
     }
 }
 
@@ -1669,6 +1689,7 @@ pub(crate) fn mask_source_string_contents(span: &str, language: SourceLanguage) 
         SourceLanguage::Typescript | SourceLanguage::Python => {
             mask_script_string_contents(span, language, false, true)
         }
+        SourceLanguage::Shell => span.to_string(),
     }
 }
 
@@ -1722,7 +1743,7 @@ fn verifies_form_ids(
 /// `..` and a bare short-suffix number. Anchored, because it tests a single
 /// token a grammar has already isolated — a marker's own id — never a raw
 /// span.
-fn range_pattern() -> &'static Regex {
+pub(crate) fn range_pattern() -> &'static Regex {
     static R: OnceLock<Regex> = OnceLock::new();
     R.get_or_init(|| {
         Regex::new(
@@ -1833,7 +1854,7 @@ pub(crate) fn quoted_id_list(ids: &[String]) -> String {
 /// The trace ids inside a marker's argument list. Quoted arguments are the
 /// authored form (`trace("TC-1", "FR-2-AC-3")`); an unquoted argument list is
 /// taken whole, so a bare-identifier marker form still binds.
-fn marker_ids(args: &str) -> Vec<String> {
+pub(crate) fn marker_ids(args: &str) -> Vec<String> {
     let quoted: Vec<String> = re_quoted()
         .captures_iter(args)
         .filter_map(|c| (1..=2).find_map(|g| c.get(g)))
@@ -3176,6 +3197,7 @@ mod tests {
             language: SourceLanguage::Rust,
             pattern: r"(?m)^\s*//\s*Implements:\s*(.+)$".to_string(),
             template: None,
+            entry_paths: None,
         });
 
         let source = "\
@@ -3255,6 +3277,7 @@ fn fn_plain_mention() {\n\
             language: SourceLanguage::Rust,
             pattern: r#"#\[implements\(((?:\s*"[^"]*"\s*,?)+)\)\]"#.to_string(),
             template: None,
+            entry_paths: None,
         });
         let graph = bind(
             &rs("#[implements(\"FR-001..FR-003\")]\nfn resolve_scope() {\n}\n"),
@@ -3510,6 +3533,7 @@ fn fn_plain_mention() {\n\
             language: SourceLanguage::Rust,
             pattern: r"(?m)^\s*///\s*Implements:\s*([^\n]+)".to_string(),
             template: None,
+            entry_paths: None,
         });
         model.trace_tags.implements.push(TraceMarkerForm {
             syntax: None,
@@ -3517,6 +3541,7 @@ fn fn_plain_mention() {\n\
             language: SourceLanguage::Python,
             pattern: r"(?m)^\s*#\s*Implements:\s*([^\n]+)".to_string(),
             template: None,
+            entry_paths: None,
         });
         for (label, extraction) in [
             (
@@ -3561,7 +3586,7 @@ mod mask_tests {
     /// The annotation channel of `src`: comments and Python docstrings kept,
     /// strings and code blanked.
     fn channel(src: &str, language: SourceLanguage) -> String {
-        annotation_channel(src, language)
+        annotation_channel(src, language).expect("not shell")
     }
 
     #[trace("TC-1055", "FR-051-AC-24")]

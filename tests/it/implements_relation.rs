@@ -18,6 +18,7 @@ fn model() -> TraceabilityModel {
         language: SourceLanguage::Rust,
         pattern: r#"#\[trace\("([^"]+)"\)\]"#.to_string(),
         template: None,
+        entry_paths: None,
     });
     model.trace_tags.implements.push(TraceMarkerForm {
         syntax: None,
@@ -25,6 +26,7 @@ fn model() -> TraceabilityModel {
         language: SourceLanguage::Rust,
         pattern: r#"#\[implements\("([^"]+)"\)\]"#.to_string(),
         template: None,
+        entry_paths: None,
     });
     model
 }
@@ -173,6 +175,7 @@ fn tc939_implements_reaches_the_report_without_moving_a_total() {
         language: SourceLanguage::Rust,
         pattern: r#"#\[implements\("([^"]+)"\)\]"#.to_string(),
         template: None,
+        entry_paths: None,
     });
     let graph = trace::bind(&quire_rs::symbols::extract_tree(&src), &model);
     let report = quire_rs::coverage::compute(&spec, &registry, &graph, &scope).expect("report");

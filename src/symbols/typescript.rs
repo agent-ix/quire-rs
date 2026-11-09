@@ -216,6 +216,7 @@ pub(crate) fn parse(path: &str, source: &str) -> Result<Vec<RawSymbol>, String> 
         leading_line: 1,
         end_line: line_count,
         container: None,
+        tag_comments: Vec::new(),
         ignored: false,
     }];
 
@@ -732,6 +733,7 @@ fn symbol_at(
         leading_line: leading_span(anchor, is_annotation_node),
         end_line: anchor.end_position().row + 1,
         container,
+        tag_comments: Vec::new(),
         ignored,
     }
 }

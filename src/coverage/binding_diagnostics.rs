@@ -2,6 +2,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
+use crate::symbols::shell_trace::{ShellFinding, FUNCTION_NOT_EVIDENCE, OUTSIDE_ENTRY_PATHS};
 use crate::symbols::trace::{
     quoted_id_list, BindingCensus, LegacyImplementsUse, OutsideMarkerId, OutsideMarkerOwner,
 };
@@ -216,7 +217,7 @@ pub(super) fn outside_marker_diagnostics(
                     ),
                     None => (
                         format!(
-                            "a comment never binds; write the module's `{}` marker on the test                              instead",
+                            "a comment never binds; write the module's `{}` marker on the test instead",
                             marker.name
                         ),
                         marker.name.clone(),
@@ -227,7 +228,7 @@ pub(super) fn outside_marker_diagnostics(
                     match implements_template.map(render) {
                         Some(text) => (
                             format!(
-                                "a {kind} binds no trace id, so a `trace` marker would bind                                  nothing; to say what it implements write `{text}`"
+                                "a {kind} binds no trace id, so a `trace` marker would bind nothing; to say what it implements write `{text}`"
                             ),
                             text,
                         ),
@@ -251,6 +252,42 @@ pub(super) fn outside_marker_diagnostics(
                 value: Some(value),
                 guidance: None,
             })
+        })
+        .collect()
+}
+
+/// One diagnostic per shell marker that matched a comment and bound nothing,
+/// (FR-051-AC-44).
+pub(super) fn shell_finding_diagnostics(findings: &[ShellFinding]) -> Vec<CoverageDiagnostic> {
+    findings
+        .iter()
+        .map(|finding| {
+            let message = match finding.reason {
+                OUTSIDE_ENTRY_PATHS => format!(
+                    "trace id `{}` sits in the header of {}:{}, but that path matches no \
+                     `entry_paths` glob of a declared shell marker form, so it binds nothing",
+                    finding.value, finding.path, finding.line
+                ),
+                FUNCTION_NOT_EVIDENCE => format!(
+                    "trace id `{}` sits in a shell function's comment block at {}:{}; a shell \
+                     function is production and binds no verifies",
+                    finding.value, finding.path, finding.line
+                ),
+                _ => format!(
+                    "trace id `{}` sits in a comment at {}:{} that is neither a shell \
+                     function's block nor the file header, so it binds nothing",
+                    finding.value, finding.path, finding.line
+                ),
+            };
+            CoverageDiagnostic {
+                declaration: "traceability.trace_tags".to_string(),
+                reason: finding.reason.to_string(),
+                message,
+                path: Some(finding.path.clone()),
+                line: Some(finding.line),
+                value: Some(finding.value.clone()),
+                guidance: None,
+            }
         })
         .collect()
 }

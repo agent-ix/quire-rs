@@ -110,6 +110,12 @@ check-no-adapters:
 check-typescript-symbols:
 	CARGO_TARGET_DIR=target/typescript-symbols-check $(CARGO) check --locked --no-default-features --features typescript-symbols --quiet
 
+# PLAT-362: the shell adapter's `shell-symbols` feature builds in isolation, for
+# the reason `check-typescript-symbols` does.
+.PHONY: check-shell-symbols
+check-shell-symbols:
+	CARGO_TARGET_DIR=target/shell-symbols-check $(CARGO) check --locked --no-default-features --features shell-symbols --quiet
+
 # Auxiliary Rust tooling tests. `check-python` is a cargo type-check of the
 # PyO3 binding and collects no Python tests.
 .PHONY: check-tools
@@ -358,7 +364,7 @@ check-wasm:
 	CARGO_TARGET_DIR=target/wasm-check $(CARGO) check --locked --target wasm32-unknown-unknown --no-default-features --features wasm --quiet
 	$(CARGO) test --locked --no-default-features --features wasm --quiet --test it -- semantic_contract:: semantic_properties:: semantic_clauses:: semantic_surface:: semantic_relations::
 
-ci: fmt-check lint check-python check-python-symbols check-typescript-symbols check-no-adapters check-wasm check-tools test deny deny-grammars audit-property audit-static validate
+ci: fmt-check lint check-python check-python-symbols check-typescript-symbols check-shell-symbols check-no-adapters check-wasm check-tools test deny deny-grammars audit-property audit-static validate
 
 # =============================================================================
 # Python wheel / sdist + local-publish (pypi.ix)

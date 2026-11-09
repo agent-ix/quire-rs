@@ -33,6 +33,12 @@ pub mod python;
 // `wasm32-unknown-unknown` here (PLAT-843).
 #[cfg(feature = "rust-symbols")]
 pub mod rust;
+// Gated by `shell-symbols` (on by default; off under `wasm`), the same shape as
+// the other adapters: `tree-sitter-bash`'s C build script cannot cross-compile
+// for `wasm32-unknown-unknown` here either (PLAT-362).
+#[cfg(feature = "shell-symbols")]
+pub mod shell;
+pub mod shell_trace;
 pub mod trace;
 pub mod trace_search;
 // Gated by `typescript-symbols` (on by default; off under `wasm` — see that
@@ -66,6 +72,11 @@ pub enum SymbolKind {
     /// (CR-061). The macro invocation declares no `fn`, so this is the one
     /// symbol whose span is the whole file — see the Rust adapter.
     FuzzTarget,
+    /// The whole-file entry point of a shell script (FR-051-AC-37, PLAT-362).
+    /// Minted for every `.sh` file; it spans the file, is evidence like a fuzz
+    /// target, and binds ids only where the binding stage finds its path under
+    /// a declared `entry_paths` glob (AC-38).
+    EntryPoint,
 }
 
 impl SymbolKind {
@@ -77,6 +88,7 @@ impl SymbolKind {
             Self::Container => "container",
             Self::Benchmark => "benchmark",
             Self::FuzzTarget => "fuzz_target",
+            Self::EntryPoint => "entry_point",
         }
     }
 
@@ -96,7 +108,7 @@ impl SymbolKind {
     pub fn binds_trace_ids(self) -> bool {
         matches!(
             self,
-            Self::TestFunction | Self::Benchmark | Self::FuzzTarget
+            Self::TestFunction | Self::Benchmark | Self::FuzzTarget | Self::EntryPoint
         )
     }
 
@@ -152,6 +164,11 @@ pub struct Symbol {
     pub end_line: usize,
     /// Qualified name of the containing symbol, when nested.
     pub container: Option<String>,
+    /// The `#` comment nodes of a shell symbol's tag channel (FR-051-AC-40):
+    /// a function's contiguous block above its definition, or an `entry_point`'s
+    /// header block. Empty for every other language, which reads its tags from
+    /// [`Self::attached_source`] or [`Self::attributes`].
+    pub tag_comments: Vec<SourceAttribute>,
     /// The identity itself (FR-045 record-id convention): language, path,
     /// qualified name, kind.
     pub id: String,
@@ -205,6 +222,9 @@ impl Symbol {
         let separator = match self.language {
             SourceLanguage::Rust => "::",
             SourceLanguage::Python | SourceLanguage::Typescript => ".",
+            // A shell function is named by its own name alone, and the name
+            // may itself contain `.` (FR-051-AC-35).
+            SourceLanguage::Shell => return self.qualified_name.as_str(),
         };
         match self.qualified_name.rsplit_once(separator) {
             Some((_, tail)) => tail,
@@ -224,6 +244,9 @@ pub struct SourceFile {
     pub path: String,
     pub language: SourceLanguage,
     pub source: String,
+    /// Every `#` comment node of a shell script, in source order (FR-051-AC-41,
+    /// AC-44). Empty for other languages.
+    pub comments: Vec<SourceAttribute>,
 }
 
 /// A per-file problem. Extraction degrades per file: one unreadable or
@@ -254,7 +277,7 @@ pub enum DiagnosticSeverity {
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 #[error(
     "this build cannot extract symbols for: {}; the result would silently omit those files \
-     (rebuild with the matching `rust-symbols` / `python-symbols` / `typescript-symbols` \
+     (rebuild with the matching `rust-symbols` / `python-symbols` / `typescript-symbols` / `shell-symbols` \
      Cargo feature)",
     languages.iter().map(|l| l.as_str()).collect::<Vec<_>>().join(", ")
 )]
@@ -306,6 +329,7 @@ pub(crate) struct RawSymbol {
     pub leading_line: usize,
     pub end_line: usize,
     pub container: Option<String>,
+    pub tag_comments: Vec<SourceAttribute>,
     pub ignored: bool,
 }
 
@@ -317,6 +341,9 @@ pub fn language_of(path: &Path) -> Option<SourceLanguage> {
         Some("rs") => Some(SourceLanguage::Rust),
         Some("py") => Some(SourceLanguage::Python),
         Some("ts") | Some("tsx") => Some(SourceLanguage::Typescript),
+        // Only `.sh` (FR-051-AC-34): not `.bash`, and not an extension-less
+        // file with a `#!` line.
+        Some("sh") => Some(SourceLanguage::Shell),
         _ => None,
     }
 }
@@ -495,7 +522,8 @@ impl SymbolExtraction {
     #[cfg(any(
         not(feature = "rust-symbols"),
         not(feature = "python-symbols"),
-        not(feature = "typescript-symbols")
+        not(feature = "typescript-symbols"),
+        not(feature = "shell-symbols")
     ))]
     fn record_unavailable(&mut self, language: SourceLanguage) {
         if !self.unavailable_languages.contains(&language) {
@@ -517,6 +545,8 @@ impl SymbolExtraction {
         // language's adapter. That is a fact about the binary, not about this
         // file, so it is recorded once per language — never as a per-file
         // diagnostic (AC-9's channel) and never as a silent zero.
+        #[cfg_attr(not(feature = "shell-symbols"), allow(unused_mut))]
+        let mut file_comments: Vec<SourceAttribute> = Vec::new();
         let parsed: Option<Result<Vec<RawSymbol>, String>> = match language {
             #[cfg(feature = "rust-symbols")]
             SourceLanguage::Rust => Some(rust::parse(&source)),
@@ -536,6 +566,16 @@ impl SymbolExtraction {
             SourceLanguage::Typescript => Some(typescript::parse(path, &source)),
             #[cfg(not(feature = "typescript-symbols"))]
             SourceLanguage::Typescript => {
+                self.record_unavailable(language);
+                None
+            }
+            #[cfg(feature = "shell-symbols")]
+            SourceLanguage::Shell => Some(shell::parse(&source).map(|parsed| {
+                file_comments = parsed.comments;
+                parsed.symbols
+            })),
+            #[cfg(not(feature = "shell-symbols"))]
+            SourceLanguage::Shell => {
                 self.record_unavailable(language);
                 None
             }
@@ -566,6 +606,7 @@ impl SymbolExtraction {
                 leading_line: r.leading_line,
                 end_line: r.end_line,
                 container: r.container,
+                tag_comments: r.tag_comments,
                 ignored: r.ignored,
             });
         }
@@ -579,6 +620,7 @@ impl SymbolExtraction {
             path: path.to_string(),
             language,
             source,
+            comments: file_comments,
         });
         self.files.sort_by(|a, b| a.path.cmp(&b.path));
     }

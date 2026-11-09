@@ -60,6 +60,13 @@ bumps; once 1.0 ships, semver is strict.
   (`SymbolGraph.outside_marker`; PLAT-847, FR-051-AC-22, AC-24, AC-49, AC-50).
   String contents are masked in every language; a Python docstring is the
   annotation channel there.
+- Shell source symbols: a `.sh` file mints a `function` per definition and one
+  `entry_point` spanning the file, parsed with `tree-sitter-bash` under the new
+  `shell-symbols` feature (default on). A `language: shell`, `syntax: comment`
+  `markers` form reads `#` comment nodes; its `entry_paths` globs gate which
+  entry points bind, and a marker that binds nothing is reported as
+  `outside-entry-paths`, `function-not-evidence` or `not-in-tag-channel`
+  (PLAT-362, FR-051-AC-34..46, CR-213).
 - Type cells `Clock` (the `SemanticId` `ix://quire/native/Clock`) and
   `Quantity<u>` (the identity of the unit artifact `u`), unit and dimension
   tokens bare or `<org>/<repo>::name`, and the optional `importedArtifacts` of
