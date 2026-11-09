@@ -43,3 +43,4 @@ Ticket: PLAT-1299. Frozen PR head: `baa7cb0`. This is a planless gap analysis sc
 | FND | Outcome | Reason |
 | --- | --- | --- |
 | FND-001 | fixed | 10a2506 asserts `SemanticFailure::error("semantic.x", "", "msg").reason() == "semantic.x: msg"` |
+| FND-002 | fixed | 4a50d3b binds the matched reason with `find(|x| x.starts_with(prefix))` before slicing |

@@ -50,3 +50,4 @@ I checked the consumers. The other `reason()` methods (model.rs:891, relations.r
 | FND-001 | fixed | 10a2506 routes duplicate-authority through `SemanticFailure::error(..).reason()`; the AC-13 test asserts the path prefix |
 | FND-002 | fixed | 10a2506 drops the restated locus from the contract_version and export-undeclared messages |
 | FND-003 | fixed | 10a2506 adds a `### Changed` entry under `[Unreleased]` |
+| FND-004 | fixed | 4a50d3b names the section via `Manifest::section_of` (both callers pass the manifest); `duplicate_authority_path_names_its_section` asserts `artifact_types[process].body_extraction` |
