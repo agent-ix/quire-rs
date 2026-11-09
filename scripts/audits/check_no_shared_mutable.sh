@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # check_no_shared_mutable.sh — FR-024-AC-9 (amended CR-047, hardened CR-053)
+# trace: TC-502, FR-024-AC-9
 #
 # TC-502: this script IS the enforcement identity of FR-024-AC-9's
 # "Inspection" verification — it runs in `make audit-static`, in `make ci`,
