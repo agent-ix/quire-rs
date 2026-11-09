@@ -1301,9 +1301,6 @@ impl TraceabilityModel {
         self.trace_targets.iter().find(|t| t.name == name)
     }
 
-    /// Shape-validate the declaration. Returns a caller-facing reason on the
-    /// first problem, which the manifest loader turns into a module-load
-    /// failure (FR-050-AC-2).
     /// A target-bound obligation reads its statement and id from the minting
     /// row, so the target it names must mint from table rows by ONE plain
     /// column name (AC-63): a list or `*` is refused rather than narrowed.
@@ -1334,6 +1331,9 @@ impl TraceabilityModel {
         Ok(())
     }
 
+    /// Shape-validate the declaration. Returns a caller-facing reason on the
+    /// first problem, which the manifest loader turns into a module-load
+    /// failure (FR-050-AC-2).
     pub fn validate(&self) -> Result<(), String> {
         check_excludes("model-level", "exclude", &self.exclude)?;
         check_excludes("model-level", "source_exclude", &self.source_exclude)?;

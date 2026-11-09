@@ -1269,6 +1269,18 @@ pub fn flatten_into_registry(mut outcome: LoadOutcome) -> RegistryShape {
             continue;
         };
         if let Err(reason) = traceability.check_bound_target(&source.name, target) {
+            // First-wins: the earliest module declaring the target is the one
+            // whose declaration the other modules' sources were bound to.
+            let winner = outcome
+                .modules
+                .iter()
+                .find(|m| {
+                    m.traceability
+                        .trace_targets
+                        .iter()
+                        .any(|t| &t.name == target)
+                })
+                .map_or("?", |m| m.name.as_str());
             for module in &outcome.modules {
                 if module
                     .traceability
@@ -1280,7 +1292,10 @@ pub fn flatten_into_registry(mut outcome: LoadOutcome) -> RegistryShape {
                         module: module.name.clone(),
                         archetype: "<manifest>".to_string(),
                         path: module.root.join("manifest.yaml"),
-                        reason: format!("merged selected traceability model: {reason}"),
+                        reason: format!(
+                            "merged selected traceability model: {reason} (target \
+                             '{target}' was declared first by module '{winner}')"
+                        ),
                     });
                 }
             }
@@ -1984,10 +1999,9 @@ mod tests {
             .unwrap();
             let shape = flatten_into_registry(load_modules(&[&parent]));
             assert!(
-                shape
-                    .failures
-                    .iter()
-                    .any(|f| f.module == "mod-b" && f.reason.contains(expected)),
+                shape.failures.iter().any(|f| f.module == "mod-b"
+                    && f.reason.contains(expected)
+                    && f.reason.contains("declared first by module 'mod-a'")),
                 "{a_target}: {:?}",
                 shape.failures
             );

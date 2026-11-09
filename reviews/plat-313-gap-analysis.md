@@ -1,5 +1,5 @@
 ---
-id: SR-16361
+id: SR-16391
 title: "Gap analysis — PLAT-313 id_column as one name or a list (quire-rs PR 616)"
 type: SpecReview
 analysis: base
@@ -50,3 +50,11 @@ A header matching two entries cannot be told apart from within-row dedup by any 
 | TC-2099 | examined | Clean |
 | TC-2100 | examined | FND-002 |
 | FR-050-AC-60 | context_only | table_row-only scope consistent |
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | `ac63_id_column_order::ids_run_in_column_order_not_declaration_or_lexical_order` (declared_tables.rs, TC-2095) builds a row with columns `[Zeta, Alpha]` holding `T-9`, `T-1` and declares `[Alpha, Zeta]`. It expects `["T-9", "T-1"]`. Declaration order, BTreeMap key order and lexical id order would each give `["T-1", "T-9"]`, so the test fails for all three wrong orders. |
+| FND-002 | fixed | `row_binding_never_joins_a_list_target_while_a_single_name_target_joins` now loops over `[ID, Other]` and `'I*'` and asserts no row-binding diagnostic for each. |
+| FND-003 | fixed | `TraceabilityModel::check_bound_target` (an undeclared target, a non-table target, or a list or `*` target) is called from `validate` and, in `flatten_into_registry`, on the merged model. On failure it records an `ArchetypeLoadFailure` against every module declaring that obligations source and resets the merged model to default. This mirrors the existing merged-model `validate_retirement` failure directly above it ("must never expose a contradictory coverage model"), and other capabilities stay loaded. `loader::tests::an_obligation_bound_to_another_modules_unreadable_target_fails_load` loads two real modules through `load_modules` (sorted, so mod-a deterministically wins) and covers list, `*` and `list_item`. It asserts the failure on mod-b and an empty model. A single-module load is unchanged because per-module `validate` already refused these. |

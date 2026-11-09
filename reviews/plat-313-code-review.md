@@ -1,5 +1,5 @@
 ---
-id: SR-16360
+id: SR-16390
 title: "Code review — PLAT-313 id_column as one name or a list (quire-rs PR 616)"
 type: SpecReview
 analysis: base
@@ -30,7 +30,7 @@ Mergeable after one small fix round: FND-001 (medium) and the three low findings
 
 What holds. Every AC-63 clause is implemented. `IdColumns::matches` lowercases and trims both sides and uses `wildcard_match` from `section:`, with `*` the only metacharacter and no `normalize_heading`. `ScannedRow::ids` walks headers in column order, reads each header once and dedups ids within the row. `scan` fires `IdColumnMatchesNothing` only when no header matches any entry, and `declared_list` names every entry without truncation. An empty list or a blank entry fails load. Serialization uses the scalar for one name. Load fails when an `obligations:` source binds a list or `*` target, and the message names the source and the target.
 
-The callers are safe. `id_column()` now returns `Some` only for a single plain name. `row_binding.rs:43` therefore never joins a list or wildcard target. `obligation::resolve`, `inventory.rs` and `reconcile.rs:883` reach a target only through an `obligations:` binding, which validation already refuses for a list or wildcard. `evidence.rs` and `trace_refs.rs` go through `mint`, which handles lists. No JSON schema in `schemas/` or under `quire schema` describes `TraceTarget`. `SelectionIdentity` serializes the target through the new `Serialize`, so lists round-trip. The one cross-module gap is recorded in SR-16361.
+The callers are safe. `id_column()` now returns `Some` only for a single plain name. `row_binding.rs:43` therefore never joins a list or wildcard target. `obligation::resolve`, `inventory.rs` and `reconcile.rs:883` reach a target only through an `obligations:` binding, which validation already refuses for a list or wildcard. `evidence.rs` and `trace_refs.rs` go through `mint`, which handles lists. No JSON schema in `schemas/` or under `quire schema` describes `TraceTarget`. `SelectionIdentity` serializes the target through the new `Serialize`, so lists round-trip. The one cross-module gap is recorded in SR-16391.
 
 The serde refactor keeps `section:` parsing and its error text: the "a section heading, or a sequence of them" expecting string survives. Existing scalar manifests parse unchanged.
 
@@ -54,3 +54,20 @@ Rust style is fine: public items are documented, there is no `unwrap` on input, 
 | tests/it/id_column_lists.rs trace tags | examined | Clean |
 | spec/tests.md TC-2095..TC-2100 status | examined | FND-004 |
 | FR-050-AC-33, FR-050-AC-34 | context_only | Consistent |
+
+## New findings (disposition pass 1)
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-005 | low | The fix round repeats FND-002's defect in a new place. `check_bound_target` was inserted under `validate`'s doc paragraph. `check_bound_target`'s rustdoc now opens with "Shape-validate the declaration. Returns a caller-facing reason on the first problem…", and `pub fn validate` has no doc at all. Fix: move those three lines back onto `validate`. | src/traceability.rs:1304 |
+| FND-006 | low | The merged-model failure does not name the module whose target won the merge. It is recorded against the module that declares the `obligations:` source (mod-b), with the text "obligations entry 'o' references target 'x', whose `id_column` is a list or contains `*`". That module's own `x` is a single name, so the message describes a declaration the reader cannot find in their manifest. Fix: add which module's `x` shadowed theirs (the first-wins winner, available from `outcome.modules` order), e.g. "… target 'x' (declared first by module 'mod-a') …". | src/loader/mod.rs:1271 |
+| FND-007 | low | SR id collision. Open PR #614 (`plat-362-spec`, PLAT-362) adds `spec/reviews/plat-362-spec-review-*.md` with `id: SR-16390`, `SR-16391`, `SR-16362`, `SR-16363` and `SR-16364`. #614 was pushed after this review allocated SR-16390/16361 and posted them to Linear. Whichever PR lands second has duplicate SpecReview ids. Fix: #614 renumbers (these ids were allocated and published first). If #616 lands second, renumber this file and `reviews/plat-313-gap-analysis.md` to the next free ids; the Linear comments are keyed by path. | reviews/plat-313-code-review.md:2 |
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | `docs/USAGE.md` is no longer in the diff against `origin/main`. The FR-033 locator row is back to "Which column holds the id." and no wrong doc remains. |
+| FND-002 | fixed | `declared_list` has its own doc ("Every declared entry as `'a', 'b'`, never truncated …"), and the "capped" line is back on `quoted_list` (declared_tables.rs:1039-1049). |
+| FND-003 | fixed | CHANGELOG `[Unreleased]` has an Added entry (FR-050-AC-63) and a "Breaking (Rust API), PLAT-313" entry covering `IdColumns`, `id_column()` returning `None`, and `id_columns()`. |
+| FND-004 | fixed | TC-2095..TC-2100 now read ✅ in spec/tests.md. The diff against `origin/main` changes only those six rows. |
