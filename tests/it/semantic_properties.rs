@@ -687,3 +687,310 @@ fn each_field_carries_its_row_locus() {
         assert_eq!(locus.path, "config-version.table.md");
     }
 }
+
+/// The `fields` of one `## Properties` table or fence body under `bundle`.
+fn extract_body(body: &str, bundle: BundleIndex) -> quire_rs::semantic::FieldsOutcome {
+    extract_fields(&artifact(body), &context("FR-900.md", bundle))
+}
+
+/// As [`extract_body`], for a module that imports `acme/time-units`,
+/// `acme/other-units` and `acme/missing`.
+fn extract_importing(body: &str, bundle: BundleIndex) -> quire_rs::semantic::FieldsOutcome {
+    let mut ctx = context("FR-900.md", bundle);
+    for package in ["acme/time-units", "acme/other-units", "acme/missing"] {
+        ctx.module
+            .imports
+            .insert(package.to_string(), "1".to_string());
+    }
+    extract_fields(&artifact(body), &ctx)
+}
+
+fn table_of(type_cell: &str) -> String {
+    format!("| Field | Type | Multiplicity | Constraints |\n|---|---|---|---|\n| c | {type_cell} | 1 | |")
+}
+
+fn fence_of(type_cell: &str, keyword: &str) -> String {
+    format!("```sysml\n{keyword} c : {type_cell}[1]\n```")
+}
+
+fn error_codes(outcome: &quire_rs::semantic::FieldsOutcome) -> Vec<&str> {
+    outcome
+        .diagnostics
+        .iter()
+        .filter(|d| d.is_error())
+        .map(|d| d.code.as_str())
+        .collect()
+}
+
+fn unit_bundle(value: Value) -> BundleIndex {
+    serde_json::from_value(value).unwrap()
+}
+
+/// FR-070-AC-11: `Clock` is a native target beside the kernel scalars.
+#[trace("TC-1945", "FR-070-AC-11")]
+#[test]
+fn clock_is_a_native_type_with_no_unit_or_decimal() {
+    let hostile = unit_bundle(json!({
+        "package": "agent-ix/shop",
+        "objects": [{ "id": "Clock", "names": ["Clock"] }],
+        "artifacts": [{ "id": "Clock", "object": "entity", "operations": [] }]
+    }));
+    let table = extract_body(&table_of("Clock"), hostile.clone());
+    let fence = extract_body(&fence_of("Clock", "attribute"), hostile);
+    assert_eq!(
+        error_codes(&table),
+        Vec::<&str>::new(),
+        "{:?}",
+        table.diagnostics
+    );
+    let fields = fields_json(&table);
+    assert_eq!(
+        fields[0]["type"],
+        json!({
+            "target": { "kind": "SemanticId", "value": "ix://quire/native/Clock" },
+            "multiplicity": { "lower": 1, "upper": 1, "ordered": false, "unique": false }
+        })
+    );
+    assert_eq!(fields, fields_json(&fence));
+
+    let unit = extract_body(&table_of("Clock [ms]"), bundle());
+    assert_eq!(
+        error_codes(&unit),
+        ["agent-ix.semantic-core.UNIT_NOT_ALLOWED"]
+    );
+    let params = extract_body(&table_of("Clock(1,2)"), bundle());
+    assert_eq!(error_codes(&params), ["semantic.invalid-type-token"]);
+    let reference = extract_body(&fence_of("Clock", "ref item"), bundle());
+    assert_eq!(error_codes(&reference), ["semantic.sysml-outside-subset"]);
+}
+
+fn quantity_bundle() -> BundleIndex {
+    unit_bundle(json!({
+        "package": "agent-ix/shop",
+        "objects": [
+            { "id": "ms", "names": ["ms", "Millisecond"] },
+            { "id": "Span", "names": ["Span"] }
+        ],
+        "artifacts": [
+            { "id": "ms", "object": "unit", "operations": [] },
+            { "id": "Span", "object": "entity", "operations": [] }
+        ]
+    }))
+}
+
+fn target_of(outcome: &quire_rs::semantic::FieldsOutcome) -> String {
+    fields_json(outcome)[0]["type"]["target"]["value"]
+        .as_str()
+        .unwrap()
+        .to_string()
+}
+
+fn reasons(outcome: &quire_rs::semantic::FieldsOutcome) -> Vec<&str> {
+    outcome
+        .diagnostics
+        .iter()
+        .filter(|d| d.code == "semantic.unresolved-type")
+        .filter_map(|d| d.reason.as_deref())
+        .collect()
+}
+
+/// FR-070-AC-12: a quantity resolves to the unit artifact's identity.
+#[trace("TC-1946", "FR-070-AC-12")]
+#[test]
+fn quantity_resolves_to_the_unit_artifact_by_id_and_title() {
+    for cell in ["Quantity<ms>", "Quantity<Millisecond>"] {
+        let outcome = extract_body(&table_of(cell), quantity_bundle());
+        assert_eq!(target_of(&outcome), "ix://agent-ix/shop/type/ms", "{cell}");
+        assert!(outcome.diagnostics.is_empty(), "{:?}", outcome.diagnostics);
+        let fence = extract_body(&fence_of(cell, "attribute"), quantity_bundle());
+        assert_eq!(fields_json(&fence), fields_json(&outcome));
+    }
+    let fixture = "agent-ix/spec-objects-fixture";
+    for (cell, package, bundle, reason) in [
+        (
+            "Quantity<hour>",
+            "agent-ix/shop",
+            quantity_bundle(),
+            "unknown-token",
+        ),
+        (
+            "Quantity<Span>",
+            "agent-ix/shop",
+            quantity_bundle(),
+            "unknown-token",
+        ),
+        (
+            "Quantity<ms>",
+            fixture,
+            BundleIndex::default(),
+            "no-bundle-index",
+        ),
+    ] {
+        let outcome = extract_body(&table_of(cell), bundle);
+        let token = cell.trim_start_matches("Quantity<").trim_end_matches('>');
+        assert_eq!(
+            target_of(&outcome),
+            format!("ix://{package}/unresolved/{token}"),
+            "{cell}"
+        );
+        assert_eq!(reasons(&outcome), [reason], "{cell}");
+    }
+
+    let twin = unit_bundle(json!({
+        "package": "agent-ix/shop",
+        "objects": [
+            { "id": "ms", "names": ["Millisecond"] },
+            { "id": "msec", "names": ["Millisecond"] }
+        ],
+        "artifacts": [
+            { "id": "ms", "object": "unit", "operations": [] },
+            { "id": "msec", "object": "unit", "operations": [] }
+        ]
+    }));
+    let outcome = extract_body(&table_of("Quantity<Millisecond>"), twin);
+    assert_eq!(error_codes(&outcome), ["semantic.ambiguous-type"]);
+    let message = &outcome.diagnostics[0].message;
+    assert!(
+        message.contains("ms") && message.contains("msec"),
+        "{message}"
+    );
+
+    let bare = extract_body(&table_of("Quantity"), quantity_bundle());
+    assert_eq!(reasons(&bare), ["unknown-token"]);
+}
+
+/// FR-070-AC-13: malformed quantity tokens and the cells that refuse them.
+#[trace("TC-1947", "FR-070-AC-13")]
+#[test]
+fn malformed_quantity_tokens_are_refused_at_the_row() {
+    for cell in [
+        "Quantity<>",
+        "Quantity< ms >",
+        "Quantity<m-s>",
+        "Quantity<Quantity<ms>>",
+        "Quantity<ms>x",
+        "Quantity<ms>(1,2)",
+        "Quantity<a::b::c>",
+        "Quantity<::ms>",
+        "Quantity<acme::ms>",
+        "Quantity<acme/rpc::>",
+    ] {
+        let outcome = extract_body(&table_of(cell), quantity_bundle());
+        assert_eq!(
+            error_codes(&outcome),
+            ["semantic.invalid-type-token"],
+            "{cell}"
+        );
+        assert_eq!(
+            outcome.availability.state,
+            AvailabilityState::Unavailable,
+            "{cell}"
+        );
+        assert!(
+            outcome
+                .availability
+                .reason
+                .as_deref()
+                .is_some_and(|r| r.starts_with("row-errors")),
+            "{cell}"
+        );
+    }
+    let unit = extract_body(&table_of("Quantity<ms> [s]"), quantity_bundle());
+    assert_eq!(
+        error_codes(&unit),
+        ["agent-ix.semantic-core.UNIT_NOT_ALLOWED"]
+    );
+    for type_cell in ["Quantity<ms>", "Clock"] {
+        let body = fence_of(type_cell, "ref item");
+        let reference = extract_body(&body, quantity_bundle());
+        assert_eq!(error_codes(&reference), ["semantic.sysml-outside-subset"]);
+        let fence_line = artifact(&body)
+            .lines()
+            .position(|l| l.starts_with("ref item"))
+            .unwrap()
+            + 1;
+        assert_eq!(reference.diagnostics[0].line, Some(fence_line));
+    }
+}
+
+/// FR-070-AC-14 end to end: qualified, bare and imported unit cells resolve
+/// to owner-qualified identities in one record.
+#[trace("TC-1952", "FR-070-AC-14")]
+#[test]
+fn qualified_quantity_cells_resolve_through_imported_artifacts() {
+    let bundle = || {
+        unit_bundle(json!({
+            "package": "agent-ix/shop",
+            "artifacts": [{ "id": "s", "object": "unit", "operations": [] }],
+            "importedArtifacts": [
+                { "package": "acme/time-units", "id": "ms", "names": ["Millisecond"], "object": "unit" },
+                { "package": "acme/other-units", "id": "ms", "names": [], "object": "unit" }
+            ]
+        }))
+    };
+    let body = "| Field | Type | Multiplicity | Constraints |\n|---|---|---|---|\n\
+| a | Quantity<s> | 1 | |\n\
+| b | Quantity<Millisecond> | 1 | |\n\
+| c | Quantity<acme/time-units::ms> | 1 | |\n\
+| d | Quantity<acme/other-units::ms> | 1 | |";
+    let outcome = extract_importing(body, bundle());
+    let targets: Vec<String> = fields_json(&outcome)
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|f| f["type"]["target"]["value"].as_str().unwrap().to_string())
+        .collect();
+    assert_eq!(
+        targets,
+        [
+            "ix://agent-ix/shop/type/s",
+            "ix://acme/time-units/type/ms",
+            "ix://acme/time-units/type/ms",
+            "ix://acme/other-units/type/ms"
+        ]
+    );
+
+    let bare = extract_importing(&table_of("Quantity<ms>"), bundle());
+    assert_eq!(error_codes(&bare), ["semantic.ambiguous-type"]);
+    let message = &bare.diagnostics[0].message;
+    assert!(message.contains("acme/time-units") && message.contains("acme/other-units"));
+
+    let placeholders = |cell: &str, bundle: BundleIndex| {
+        let outcome = extract_importing(&table_of(cell), bundle);
+        (target_of(&outcome), reasons(&outcome).join(","))
+    };
+    assert_eq!(
+        placeholders("Quantity<acme/none::ms>", bundle()),
+        (
+            "ix://agent-ix/shop/unresolved/ms".to_string(),
+            "unknown-token".to_string()
+        )
+    );
+    assert_eq!(
+        placeholders("Quantity<acme/time-units::Time>", bundle()),
+        (
+            "ix://agent-ix/shop/unresolved/Time".to_string(),
+            "unknown-token".to_string()
+        )
+    );
+    let without_imports = unit_bundle(json!({
+        "package": "agent-ix/shop",
+        "artifacts": [{ "id": "s", "object": "unit", "operations": [] }]
+    }));
+    assert_eq!(
+        placeholders("Quantity<acme/time-units::ms>", without_imports),
+        (
+            "ix://agent-ix/shop/unresolved/ms".to_string(),
+            "import-unresolved".to_string()
+        )
+    );
+    for cell in [
+        "Quantity<acme/time-units::ms>",
+        "Quantity<acme/none::ms>",
+        "Quantity<ms>",
+    ] {
+        let (target, reason) = placeholders(cell, BundleIndex::default());
+        assert!(target.ends_with("/unresolved/ms"), "{cell}: {target}");
+        assert_eq!(reason, "no-bundle-index", "{cell}");
+    }
+}

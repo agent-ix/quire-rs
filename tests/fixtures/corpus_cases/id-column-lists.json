@@ -1,0 +1,329 @@
+[
+  {
+    "name": "id-column-list-python",
+    "issue_ref": "https://linear.app/agent-ix/issue/PLAT-313",
+    "tags": [
+      "TC-2095"
+    ],
+    "input": {
+      "module": "name: id-column-list\nversion: 0.1.0\nartifact_types:\n- name: TestMatrix\ntraceability:\n  trace_targets:\n  - name: test-case\n    archetype: TestMatrix\n    section: Test Cases\n    id_column: [TC *, test id]\n  trace_tags:\n    markers:\n    - name: pytest-trace\n      language: python\n      pattern: '@pytest\\.mark\\.trace\\(([^)]*)\\)'\n",
+      "documents": {
+        "tests.md": "---\nid: TM-001\ntype: TestMatrix\n---\n\n## Test Cases\n\n| ID | Test ID | TC Ref | Status |\n|----|---------|--------|--------|\n| X-1 | T-1 | T-2 | done |\n| X-2 | T-3 |  | done |\n"
+      },
+      "sources": {
+        "test_ids.py": "import pytest\n\n\n@pytest.mark.trace(\"T-2\")\ndef test_wildcard_column_id():\n    pass\n\n\n@pytest.mark.trace(\"T-3\")\ndef test_exact_column_id():\n    pass\n"
+      }
+    },
+    "expect": {
+      "minted": [
+        [
+          "test-case",
+          "T-1",
+          "tests.md",
+          10,
+          false
+        ],
+        [
+          "test-case",
+          "T-2",
+          "tests.md",
+          10,
+          true
+        ],
+        [
+          "test-case",
+          "T-3",
+          "tests.md",
+          11,
+          true
+        ]
+      ]
+    }
+  },
+  {
+    "name": "id-column-scalar-control-python",
+    "issue_ref": "https://linear.app/agent-ix/issue/PLAT-313",
+    "tags": [
+      "TC-2095"
+    ],
+    "input": {
+      "module": "name: id-column-list\nversion: 0.1.0\nartifact_types:\n- name: TestMatrix\ntraceability:\n  trace_targets:\n  - name: test-case\n    archetype: TestMatrix\n    section: Test Cases\n    id_column: Test ID\n  trace_tags:\n    markers:\n    - name: pytest-trace\n      language: python\n      pattern: '@pytest\\.mark\\.trace\\(([^)]*)\\)'\n",
+      "documents": {
+        "tests.md": "---\nid: TM-001\ntype: TestMatrix\n---\n\n## Test Cases\n\n| ID | Test ID | TC Ref | Status |\n|----|---------|--------|--------|\n| X-1 | T-1 | T-2 | done |\n| X-2 | T-3 |  | done |\n"
+      },
+      "sources": {
+        "test_ids.py": "import pytest\n\n\n@pytest.mark.trace(\"T-2\")\ndef test_wildcard_column_id():\n    pass\n\n\n@pytest.mark.trace(\"T-3\")\ndef test_exact_column_id():\n    pass\n"
+      }
+    },
+    "expect": {
+      "minted": [
+        [
+          "test-case",
+          "T-1",
+          "tests.md",
+          10,
+          false
+        ],
+        [
+          "test-case",
+          "T-3",
+          "tests.md",
+          11,
+          true
+        ]
+      ]
+    }
+  },
+  {
+    "name": "id-column-one-column-reads-no-others-python",
+    "issue_ref": "https://linear.app/agent-ix/issue/PLAT-313",
+    "tags": [
+      "TC-2095"
+    ],
+    "input": {
+      "module": "name: id-column-list\nversion: 0.1.0\nartifact_types:\n- name: TestMatrix\ntraceability:\n  trace_targets:\n  - name: test-case\n    archetype: TestMatrix\n    section: Test Cases\n    id_column: [Test ID]\n  trace_tags:\n    markers:\n    - name: pytest-trace\n      language: python\n      pattern: '@pytest\\.mark\\.trace\\(([^)]*)\\)'\n",
+      "documents": {
+        "tests.md": "---\nid: TM-001\ntype: TestMatrix\n---\n\n## Test Cases\n\n| ID | Test ID | TC Ref | Status |\n|----|---------|--------|--------|\n| X-1 | T-1 | T-2 | done |\n| X-2 | T-3 |  | done |\n"
+      },
+      "sources": {
+        "test_ids.py": "import pytest\n\n\n@pytest.mark.trace(\"T-2\")\ndef test_wildcard_column_id():\n    pass\n\n\n@pytest.mark.trace(\"T-3\")\ndef test_exact_column_id():\n    pass\n"
+      }
+    },
+    "expect": {
+      "minted": [
+        [
+          "test-case",
+          "T-1",
+          "tests.md",
+          10,
+          false
+        ],
+        [
+          "test-case",
+          "T-3",
+          "tests.md",
+          11,
+          true
+        ]
+      ]
+    }
+  },
+  {
+    "name": "id-column-list-typescript",
+    "issue_ref": "https://linear.app/agent-ix/issue/PLAT-313",
+    "tags": [
+      "TC-2096"
+    ],
+    "input": {
+      "module": "name: id-column-list\nversion: 0.1.0\nartifact_types:\n- name: TestMatrix\ntraceability:\n  trace_targets:\n  - name: test-case\n    archetype: TestMatrix\n    section: Test Cases\n    id_column: [TC *, test id]\n  trace_tags:\n    markers:\n    - name: ts-trace\n      language: typescript\n      pattern: '\\btrace\\(([^)]*)\\)'\n",
+      "documents": {
+        "tests.md": "---\nid: TM-001\ntype: TestMatrix\n---\n\n## Test Cases\n\n| ID | Test ID | TC Ref | Status |\n|----|---------|--------|--------|\n| X-1 | T-1 | T-2 | done |\n| X-2 | T-3 |  | done |\n"
+      },
+      "sources": {
+        "ids.test.ts": "// trace(\"T-2\")\nit(\"wildcard column id\", () => {});\n\n// trace(\"T-3\")\nit(\"exact column id\", () => {});\n"
+      }
+    },
+    "expect": {
+      "minted": [
+        [
+          "test-case",
+          "T-1",
+          "tests.md",
+          10,
+          false
+        ],
+        [
+          "test-case",
+          "T-2",
+          "tests.md",
+          10,
+          true
+        ],
+        [
+          "test-case",
+          "T-3",
+          "tests.md",
+          11,
+          true
+        ]
+      ]
+    }
+  },
+  {
+    "name": "id-column-scalar-control-typescript",
+    "issue_ref": "https://linear.app/agent-ix/issue/PLAT-313",
+    "tags": [
+      "TC-2096"
+    ],
+    "input": {
+      "module": "name: id-column-list\nversion: 0.1.0\nartifact_types:\n- name: TestMatrix\ntraceability:\n  trace_targets:\n  - name: test-case\n    archetype: TestMatrix\n    section: Test Cases\n    id_column: Test ID\n  trace_tags:\n    markers:\n    - name: ts-trace\n      language: typescript\n      pattern: '\\btrace\\(([^)]*)\\)'\n",
+      "documents": {
+        "tests.md": "---\nid: TM-001\ntype: TestMatrix\n---\n\n## Test Cases\n\n| ID | Test ID | TC Ref | Status |\n|----|---------|--------|--------|\n| X-1 | T-1 | T-2 | done |\n| X-2 | T-3 |  | done |\n"
+      },
+      "sources": {
+        "ids.test.ts": "// trace(\"T-2\")\nit(\"wildcard column id\", () => {});\n\n// trace(\"T-3\")\nit(\"exact column id\", () => {});\n"
+      }
+    },
+    "expect": {
+      "minted": [
+        [
+          "test-case",
+          "T-1",
+          "tests.md",
+          10,
+          false
+        ],
+        [
+          "test-case",
+          "T-3",
+          "tests.md",
+          11,
+          true
+        ]
+      ]
+    }
+  },
+  {
+    "name": "id-column-one-column-reads-no-others-typescript",
+    "issue_ref": "https://linear.app/agent-ix/issue/PLAT-313",
+    "tags": [
+      "TC-2096"
+    ],
+    "input": {
+      "module": "name: id-column-list\nversion: 0.1.0\nartifact_types:\n- name: TestMatrix\ntraceability:\n  trace_targets:\n  - name: test-case\n    archetype: TestMatrix\n    section: Test Cases\n    id_column: [Test ID]\n  trace_tags:\n    markers:\n    - name: ts-trace\n      language: typescript\n      pattern: '\\btrace\\(([^)]*)\\)'\n",
+      "documents": {
+        "tests.md": "---\nid: TM-001\ntype: TestMatrix\n---\n\n## Test Cases\n\n| ID | Test ID | TC Ref | Status |\n|----|---------|--------|--------|\n| X-1 | T-1 | T-2 | done |\n| X-2 | T-3 |  | done |\n"
+      },
+      "sources": {
+        "ids.test.ts": "// trace(\"T-2\")\nit(\"wildcard column id\", () => {});\n\n// trace(\"T-3\")\nit(\"exact column id\", () => {});\n"
+      }
+    },
+    "expect": {
+      "minted": [
+        [
+          "test-case",
+          "T-1",
+          "tests.md",
+          10,
+          false
+        ],
+        [
+          "test-case",
+          "T-3",
+          "tests.md",
+          11,
+          true
+        ]
+      ]
+    }
+  },
+  {
+    "name": "id-column-list-rust",
+    "issue_ref": "https://linear.app/agent-ix/issue/PLAT-313",
+    "tags": [
+      "TC-2097"
+    ],
+    "input": {
+      "module": "name: id-column-list\nversion: 0.1.0\nartifact_types:\n- name: TestMatrix\ntraceability:\n  trace_targets:\n  - name: test-case\n    archetype: TestMatrix\n    section: Test Cases\n    id_column: [TC *, test id]\n  trace_tags:\n    markers:\n    - name: rust-trace\n      language: rust\n      pattern: '#\\[trace\\(([^)]*)\\)\\]'\n",
+      "documents": {
+        "tests.md": "---\nid: TM-001\ntype: TestMatrix\n---\n\n## Test Cases\n\n| ID | Test ID | TC Ref | Status |\n|----|---------|--------|--------|\n| X-1 | T-1 | T-2 | done |\n| X-2 | T-3 |  | done |\n"
+      },
+      "sources": {
+        "lib.rs": "#[cfg(test)]\nmod tests {\n    #[trace(\"T-2\")]\n    #[test]\n    fn wildcard_column_id() {}\n\n    #[trace(\"T-3\")]\n    #[test]\n    fn exact_column_id() {}\n}\n"
+      }
+    },
+    "expect": {
+      "minted": [
+        [
+          "test-case",
+          "T-1",
+          "tests.md",
+          10,
+          false
+        ],
+        [
+          "test-case",
+          "T-2",
+          "tests.md",
+          10,
+          true
+        ],
+        [
+          "test-case",
+          "T-3",
+          "tests.md",
+          11,
+          true
+        ]
+      ]
+    }
+  },
+  {
+    "name": "id-column-scalar-control-rust",
+    "issue_ref": "https://linear.app/agent-ix/issue/PLAT-313",
+    "tags": [
+      "TC-2097"
+    ],
+    "input": {
+      "module": "name: id-column-list\nversion: 0.1.0\nartifact_types:\n- name: TestMatrix\ntraceability:\n  trace_targets:\n  - name: test-case\n    archetype: TestMatrix\n    section: Test Cases\n    id_column: Test ID\n  trace_tags:\n    markers:\n    - name: rust-trace\n      language: rust\n      pattern: '#\\[trace\\(([^)]*)\\)\\]'\n",
+      "documents": {
+        "tests.md": "---\nid: TM-001\ntype: TestMatrix\n---\n\n## Test Cases\n\n| ID | Test ID | TC Ref | Status |\n|----|---------|--------|--------|\n| X-1 | T-1 | T-2 | done |\n| X-2 | T-3 |  | done |\n"
+      },
+      "sources": {
+        "lib.rs": "#[cfg(test)]\nmod tests {\n    #[trace(\"T-2\")]\n    #[test]\n    fn wildcard_column_id() {}\n\n    #[trace(\"T-3\")]\n    #[test]\n    fn exact_column_id() {}\n}\n"
+      }
+    },
+    "expect": {
+      "minted": [
+        [
+          "test-case",
+          "T-1",
+          "tests.md",
+          10,
+          false
+        ],
+        [
+          "test-case",
+          "T-3",
+          "tests.md",
+          11,
+          true
+        ]
+      ]
+    }
+  },
+  {
+    "name": "id-column-one-column-reads-no-others-rust",
+    "issue_ref": "https://linear.app/agent-ix/issue/PLAT-313",
+    "tags": [
+      "TC-2097"
+    ],
+    "input": {
+      "module": "name: id-column-list\nversion: 0.1.0\nartifact_types:\n- name: TestMatrix\ntraceability:\n  trace_targets:\n  - name: test-case\n    archetype: TestMatrix\n    section: Test Cases\n    id_column: [Test ID]\n  trace_tags:\n    markers:\n    - name: rust-trace\n      language: rust\n      pattern: '#\\[trace\\(([^)]*)\\)\\]'\n",
+      "documents": {
+        "tests.md": "---\nid: TM-001\ntype: TestMatrix\n---\n\n## Test Cases\n\n| ID | Test ID | TC Ref | Status |\n|----|---------|--------|--------|\n| X-1 | T-1 | T-2 | done |\n| X-2 | T-3 |  | done |\n"
+      },
+      "sources": {
+        "lib.rs": "#[cfg(test)]\nmod tests {\n    #[trace(\"T-2\")]\n    #[test]\n    fn wildcard_column_id() {}\n\n    #[trace(\"T-3\")]\n    #[test]\n    fn exact_column_id() {}\n}\n"
+      }
+    },
+    "expect": {
+      "minted": [
+        [
+          "test-case",
+          "T-1",
+          "tests.md",
+          10,
+          false
+        ],
+        [
+          "test-case",
+          "T-3",
+          "tests.md",
+          11,
+          true
+        ]
+      ]
+    }
+  }
+]

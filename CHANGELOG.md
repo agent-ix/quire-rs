@@ -9,6 +9,13 @@ bumps; once 1.0 ships, semver is strict.
 
 ### Added
 
+- Type cells `Clock` (the `SemanticId` `ix://quire/native/Clock`) and
+  `Quantity<u>` (the identity of the unit artifact `u`), unit and dimension
+  tokens bare or `<org>/<repo>::name`, and the optional `importedArtifacts` of
+  the `BundleIndex` they resolve through; the `Base`, `Dimension | Exponent` and
+  `Dimension | Target | Scale | Offset` tables are refused with
+  `semantic.feature-not-extractable`, declared or not, until their readers land
+  (PLAT-1356, FR-070-AC-11..14, FR-075-AC-19, CR-214).
 - Extraction reports a `symbol-id-collision` warning when two symbols in a
   file share an id (cfg-gated variants, generic trait-impl methods,
   branch redefinitions), naming each declaration; ids are unchanged
@@ -23,6 +30,12 @@ bumps; once 1.0 ships, semver is strict.
   the advisory `semantic.expression-unchecked` (the owning kind is lossy) and
   the error `semantic.empty-expression` for an empty `Pre:`/`Post:` line.
   quire-rs does not parse expressions.
+- A `table_row` trace target's `id_column` takes one column name or a list
+  (PLAT-313, FR-050-AC-63). `*` in an entry matches any run of characters,
+  entries match headers ignoring ASCII case, and a table contributes the ids
+  of every matched column in column order, once per row. A list or `*` target
+  fails module load when an `obligations:` source binds it by `target:`, and
+  never joins a row-binding declaration.
 - Trace targets mint from list items and headings (PLAT-316, FR-050-AC-60):
   a `trace_targets` entry takes `from: table_row | list_item | heading`
   (omitted means `table_row`). `list_item` and `heading` declare a `pattern`
@@ -32,6 +45,12 @@ bumps; once 1.0 ships, semver is strict.
 
 - **Breaking (Rust API), PLAT-877:** `SymbolDiagnostic` and `FileDiagnostic` gain a
   `severity: DiagnosticSeverity` field.
+
+- **Breaking (Rust API), PLAT-313:** `TraceTargetSource::TableRow.id_column` is
+  now `IdColumns` (new), not `String`; `TraceTarget::id_column()` returns
+  `None` for a list or a name containing `*`, and the new
+  `TraceTarget::id_columns()` returns the declaration. Module manifests with a
+  scalar `id_column` are unchanged.
 
 - Semantic refusal reasons now carry their manifest location:
   `<code>: <path>: <message>` (for example

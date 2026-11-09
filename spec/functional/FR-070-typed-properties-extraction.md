@@ -33,8 +33,8 @@ When the engine extracts an object artifact whose module carries a
 The engine SHALL leave the existing `properties` string yielded by
 `section_body` unchanged beside the new array.
 
-The engine SHALL resolve a `Type` cell reading `Clock` to the native name
-`Clock`, and a `Type` cell reading `Quantity<u>` to the bundle identity of the
+The engine SHALL resolve a `Type` cell reading `Clock` to the native
+identity `ix://quire/native/Clock`, and a `Type` cell reading `Quantity<u>` to the bundle identity of the
 unit artifact `u` (Type cells, below). The same token resolution serves the
 dimension and unit tokens of [FR-075](./FR-075-model-feature-extraction.md)
 "Dimension and unit tables", so a consumer classifies every one of these
@@ -119,15 +119,24 @@ Type cells, resolved in this precedence:
 
 Native names and quantities, resolved before steps 2..5 as step 1 is:
 
-- The native name `Clock` maps to the target `Clock`, beside the kernel
-  scalar names. It takes no `decimal` and no `unit`: `Clock [ms]` is
+- The native name `Clock` maps to the `SemanticId` target
+  `ix://quire/native/Clock`, the identity every native type lowers to. It
+  takes no `decimal` and no `unit`: `Clock [ms]` is
   `agent-ix.semantic-core.UNIT_NOT_ALLOWED`, and `Clock(1,2)` is
   `semantic.invalid-type-token`. A bundle object or enumeration named `Clock`
   never resolves from a `Type` cell, exactly as one named `UUID` never does.
-  Because semantic-core's `TypeRef.target` admits a `SemanticId` or a kernel
-  scalar, the engine validates a `Clock` entry against `FieldDecl.json` with
-  its `target` read as the `SemanticId` `ix://quire/native/Clock`, and
-  `semantic-v1.schema.json` admits the target `Clock`.
+  The target is a plain `SemanticId`, so a `Clock` entry validates against
+  `FieldDecl.json` and `OperationDecl.json` and the record against
+  `semantic-v1.schema.json` unmodified, wherever a `Type` cell is read
+  (Properties, operation parameters and `Returns:`).
+
+> **CR-214 note (PLAT-1356):** FR-070 first mapped `Clock` to the target
+> `Clock` beside the kernel scalars and read it as `ix://quire/native/Clock`
+> only for validation. semantic-core's `TypeRefTarget` `KernelScalar` branch is
+> a closed enum with no `Clock`, so that shape needed a rewrite on one path and
+> failed on the others. `Clock` now maps to the `SemanticId`
+> `ix://quire/native/Clock` directly.
+
 - A token of the form `Quantity<u>`, with no space inside the angle brackets,
   is a quantity token, and `u` is a *unit token*. The engine resolves a unit
   token (and a dimension token, [FR-075](./FR-075-model-feature-extraction.md)
@@ -270,7 +279,7 @@ with `semantic.internal-invalid-decl`, never be dropped.
 | FR-070-AC-8 | The pinned `FR-006-config-version-entity.md` copy, `legacy-bullets.md`, and `legacy-mixed.md` yield the form, line, and warning of `legacy.expected.json`, with `properties` unchanged and `fields` `unavailable` (`legacy-form`); under `legacy_forms: error` the same finding is an error. | Test |
 | FR-070-AC-9 | An artifact of a module without a `semantic` block yields a record equal to the checked-in baseline byte-for-byte, with no `semantic` key and no semantic diagnostic. | Test |
 | FR-070-AC-10 | A row error in any one row yields `fields` `unavailable` with reason `row-errors` naming every erroring locus and no partial array; a typed header with zero rows yields `available` and empty. | Test |
-| FR-070-AC-11 | A `Type` cell `Clock` yields the `FieldDecl` target `Clock` with no `decimal` and no `unit`, in the typed table and as `attribute c : Clock` in the fence with identical normalized entries; the entry validates against `FieldDecl.json` with its target read as `ix://quire/native/Clock`, and the record validates against `semantic-v1.schema.json`; `Clock [ms]` yields `agent-ix.semantic-core.UNIT_NOT_ALLOWED`, `Clock(1,2)` yields `semantic.invalid-type-token`, and a bundle object titled `Clock` does not change the verdict. | Test |
+| FR-070-AC-11 | A `Type` cell `Clock` yields the `FieldDecl` target `{ kind: SemanticId, value: ix://quire/native/Clock }` with no `decimal` and no `unit`, in the typed table and as `attribute c : Clock` in the fence with identical normalized entries, and as an operation `Param` or `Returns:` type; the entry validates against `FieldDecl.json` and `OperationDecl.json`, and the record validates against `semantic-v1.schema.json`; `Clock [ms]` yields `agent-ix.semantic-core.UNIT_NOT_ALLOWED`, `Clock(1,2)` yields `semantic.invalid-type-token`, and a bundle object titled `Clock` does not change the verdict. | Test |
 | FR-070-AC-12 | Under a bundle whose artifact `ms` has `object: unit` and whose artifact `Span` has `object: entity`, a `Type` cell `Quantity<ms>` yields the target `ix://<org>/<repo>/type/ms`; a unit artifact whose title is `Millisecond` resolves from `Quantity<Millisecond>` to the same target; `Quantity<hour>` (no artifact), `Quantity<Span>` (an entity) and `Quantity<ms>` under an empty index yield the placeholder `ix://<org>/<repo>/unresolved/hour`, `.../Span` and `.../ms` with `semantic.unresolved-type` reasons `unknown-token`, `unknown-token` and `no-bundle-index`; two unit artifacts both named `Millisecond` yield `semantic.ambiguous-type` naming both; a bare `Quantity` cell resolves by steps 2..5. | Test |
 | FR-070-AC-13 | Each of these `Type` cells yields exactly the stated verdict at the row, with `fields` `unavailable` (`row-errors`): `Quantity<>`, `Quantity< ms >`, `Quantity<m-s>`, `Quantity<Quantity<ms>>`, `Quantity<ms>x`, `Quantity<ms>(1,2)`, `Quantity<a::b::c>`, `Quantity<::ms>`, `Quantity<acme::ms>` and `Quantity<acme/rpc::>` yield `semantic.invalid-type-token`; `Quantity<ms> [s]` yields `agent-ix.semantic-core.UNIT_NOT_ALLOWED`; a `ref item r : Clock` and a `ref item r : Quantity<ms>` yield `semantic.sysml-outside-subset` at the fence line; the resolution reads only the `BundleIndex`, with no filesystem or network read. | Test |
 | FR-070-AC-14 | Under a module whose `imports` name `acme/time-units` and `acme/other-units`, and a `BundleIndex` whose `importedArtifacts` hold unit `ms` of package `acme/time-units` (title `Millisecond`), unit `ms` of package `acme/other-units`, and dimension `Time` of `acme/time-units`, and whose own bundle holds unit `s`: `Quantity<s>` yields `ix://<org>/<repo>/type/s`; `Quantity<Millisecond>` yields `ix://acme/time-units/type/ms`; `Quantity<acme/time-units::ms>` yields `ix://acme/time-units/type/ms` and `Quantity<acme/other-units::ms>` yields `ix://acme/other-units/type/ms`; the bare `Quantity<ms>` yields `semantic.ambiguous-type` naming both packages; once the own bundle also holds a unit `ms`, bare `Quantity<ms>` yields the own identity; `Quantity<acme/time-units::Time>` (a dimension) and `Quantity<acme/none::ms>` (package not in `imports`) yield the placeholder with `unknown-token`, and a package in `imports` (for example `acme/missing`) that no corpus provides yields `import-unresolved`; a dimension token `Time` yields `ix://acme/time-units/type/Time`, and a dimension `Time` also held by the own bundle yields the own identity, distinct from the imported one in the same record; with `importedArtifacts` absent and a non-empty own bundle, `Quantity<acme/time-units::ms>` yields the placeholder with `import-unresolved`; under an entirely empty index every unresolved token, qualified or bare, has the single reason `no-bundle-index`: `Quantity<acme/time-units::ms>` (package in `imports`), `Quantity<acme/none::ms>` (package not in `imports`) and `Quantity<ms>` each yield the placeholder with `no-bundle-index` and never `unknown-token` or `import-unresolved`. | Test |
