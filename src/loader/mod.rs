@@ -1793,6 +1793,41 @@ fn semantic_cross_module_checks(outcome: &mut LoadOutcome) {
             seen.insert(package, i);
         }
     }
+    // Exports: one type name has one exporting module. The later sorted root
+    // is refused rather than letting load order pick a definition.
+    let mut exported: BTreeMap<String, usize> = BTreeMap::new();
+    for &i in &order {
+        if refusals.contains_key(&i) {
+            continue;
+        }
+        let exports = outcome.modules[i]
+            .semantic
+            .as_ref()
+            .unwrap()
+            .exports
+            .clone();
+        let mut clashes = Vec::new();
+        for name in exports {
+            match exported.get(&name) {
+                Some(&first) if first != i => clashes.push((name, first)),
+                Some(_) => {}
+                None => {
+                    exported.insert(name, i);
+                }
+            }
+        }
+        for (name, first) in clashes {
+            refusals.entry(i).or_default().push(SemanticFailure::error(
+                "semantic.duplicate-export",
+                format!("semantic.exports.{name}"),
+                format!(
+                    "type {name} is also exported by module {} ({}); later sorted root refused",
+                    outcome.modules[first].name,
+                    outcome.modules[first].root.display()
+                ),
+            ));
+        }
+    }
     // Imports: provided at exactly that version by a non-refused module?
     let providers: BTreeMap<String, Vec<(usize, String)>> = {
         let mut map: BTreeMap<String, Vec<(usize, String)>> = BTreeMap::new();

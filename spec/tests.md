@@ -930,6 +930,7 @@ Reserved withdrawn IDs (not active test cases): TC-834, TC-842, TC-871, TC-1089,
 | TC-1642 | A static audit finds no `std::net`, `std::process`, or filesystem write on the semantic path | Static | P0 | NFR-021-AC-2 | ✅ |
 | TC-1644 | The semantic fixture suite yields identical JSON values across repeated runs and between Rust and Python under `make ci-python`, including diagnostic order and loci; WASM external via `agent-ix/quire-wasm#3` | Integration | P0 | NFR-021-AC-4 | ✅ |
 | TC-1645 | Two loaded modules with one `semantic.package` fail the later sorted root with `semantic.duplicate-package` naming both; an unprovided import warns `semantic.import-unresolved` and loads; a two-module import cycle fails both with `semantic.import-cycle` | Unit | P0 | FR-069-AC-10 | ✅ |
+| TC-2190 | Two modules with different packages exporting one type: the later sorted root fails with `semantic.duplicate-export` naming both, the first loads; disjoint exports load both | Unit | P0 | FR-069-AC-15 | ✅ |
 | TC-1646 | `Registry::from_inline_parts` resolves a reference-form `data_schema` from the `schemas` map with the same `$id`, escape, and `$ref` rules, and refuses a key with a `..` segment | Unit | P0 | FR-069-AC-11 | ✅ |
 | TC-1647 | A single row error yields `fields` `unavailable` (`row-errors`) naming every erroring locus and no partial array; a typed header with zero rows yields `available` and empty | Unit | P0 | FR-070-AC-10 | ✅ |
 | TC-1945 | A `Clock` Type cell yields the `SemanticId` target `ix://quire/native/Clock` with no `decimal` or `unit` in the table, the fence and an operation `Param` and `Returns:`, validates against `FieldDecl.json`, `OperationDecl.json` and `semantic-v1.schema.json`; `Clock [ms]` is `UNIT_NOT_ALLOWED`, `Clock(1,2)` is `semantic.invalid-type-token`, and a bundle object titled `Clock` changes nothing | Unit | P0 | FR-070-AC-11 | ✅ |
@@ -2230,6 +2231,7 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-069-AC-12 | TC-1848 |
 | FR-069-AC-13 | TC-2005 |
 | FR-069-AC-14 | TC-2081 |
+| FR-069-AC-15 | TC-2190 |
 | FR-070-AC-1 | TC-1610 |
 | FR-070-AC-2 | TC-1611 |
 | FR-070-AC-3 | TC-1612 |

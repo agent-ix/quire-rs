@@ -158,6 +158,10 @@ module-root order:
 
 - If two loaded modules declare one `semantic.package`, then the loader SHALL
   refuse the later module with `semantic.duplicate-package` naming both.
+- If two loaded modules export one semantic type name, then the loader SHALL
+  refuse the later module with `semantic.duplicate-export` naming the type and
+  both modules; no load order selects a definition (`agent-ix/quoin#338`,
+  PLAT-214).
 - If a `semantic.imports` entry names a package that no loaded module provides
   at that exact version, then the loader SHALL emit the warning
   `semantic.import-unresolved` naming the package and the loaded versions;
@@ -214,6 +218,7 @@ stricter of the two.
 | FR-069-AC-12 | A module whose `semantic` block lists `mappings` loads with those tokens recorded on its `SemanticModule`, in order; a block without `mappings` records an empty list. | Test |
 | FR-069-AC-13 | A module naming `relationships` whose `process` type declares a `table_row` locator keyed `emits` (a typed relation key of its `data_schema`), under `yield_pattern.match` or `yield_pattern.per_match`, is refused: every archetype of the module fails with a reason starting `semantic.duplicate-authority` and naming the module, `process` and `emits`; the same module with the locator removed loads; a locator keyed `emits` on a type whose schema has no `emits`, and the same locator in a module not naming `relationships`, load. | Test |
 | FR-069-AC-14 | Every `semantic.*` refusal reason has the form `<code>: <path>: <message>`, where `<path>` is the refusal's manifest locus and appears once (the message does not repeat it), or `<code>: <message>` when the refusal has no manifest locus (empty path). Covered kinds: an unknown block key names `semantic`, an undeclared export names `semantic.exports.<type>`, a mixed `data_schema` and a reference-form `data_schema` without a `semantic` block name `<section>[<type>].data_schema`, a missing schema file names `<section>[<type>].data_schema.schema`, and `semantic.duplicate-authority` names `<section>[<type>].body_extraction`. | Test |
+| FR-069-AC-15 | Two loaded modules with different `semantic.package` values that both list one type in `semantic.exports` fail every archetype of the later sorted root with a reason starting `semantic.duplicate-export` naming the type and both modules, and the earlier module loads; the same two modules with disjoint exports both load. | Test |
 
 ## Dependencies
 

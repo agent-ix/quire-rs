@@ -637,6 +637,38 @@ fn filament_snapshot_unsupported_versions_are_refused() {
     );
 }
 
+#[trace("TC-2190", "FR-069-AC-15")]
+// two packages exporting one type: the later sorted root is refused; disjoint
+// exports load both.
+#[test]
+fn duplicate_export_refuses_the_later_module() {
+    let tmp = tempfile::tempdir().unwrap();
+    module(&tmp, "a-first", |m, _| retarget(m, "agent-ix/a-first"));
+    module(&tmp, "b-second", |m, _| retarget(m, "agent-ix/b-second"));
+    let registry = Registry::load_from(&[tmp.path()]).unwrap();
+    let r = reasons(&registry);
+    assert!(
+        r.iter().any(|x| x.starts_with("semantic.duplicate-export")
+            && x.contains("entity")
+            && x.contains("a-first")),
+        "{r:?}"
+    );
+    assert!(registry.semantic_module("a-first").is_some());
+    assert!(registry.semantic_module("b-second").is_none());
+    assert!(registry.archetype_in_module("b-second", "entity").is_none());
+
+    let tmp = tempfile::tempdir().unwrap();
+    module(&tmp, "a-first", |m, _| retarget(m, "agent-ix/a-first"));
+    module(&tmp, "b-second", |m, _| {
+        retarget(m, "agent-ix/b-second");
+        semantic(m).insert("exports".into(), serde_yaml::Value::Sequence(vec![]));
+    });
+    let registry = Registry::load_from(&[tmp.path()]).unwrap();
+    assert!(registry.semantic_module("a-first").is_some());
+    assert!(registry.semantic_module("b-second").is_some());
+    assert!(reasons(&registry).is_empty(), "{:?}", reasons(&registry));
+}
+
 #[trace("TC-1645", "FR-069-AC-10")]
 // cross-module: duplicate package, unresolved import, import cycle.
 #[test]
@@ -687,6 +719,7 @@ fn cross_module_checks() {
     });
     module(&tmp, "y-cycle", |m, _| {
         retarget(m, "agent-ix/y");
+        semantic(m).insert("exports".into(), serde_yaml::Value::Sequence(vec![]));
         semantic(m).insert(
             "imports".into(),
             serde_yaml::from_str("{ 'agent-ix/x': '0.1.0' }").unwrap(),
