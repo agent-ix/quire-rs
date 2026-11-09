@@ -75,7 +75,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | FR-010 Query API | AC-1..4 | TC-027, TC-028, TC-029, TC-589 (CR-007 escaped pipes + separator/bullet characterization) | ✅ Complete |
 | FR-011 DSL (6 locators + yields + asserts) | AC-1..2, 4..8, 13..21 | TC-018, TC-019, TC-040, TC-070, TC-072, TC-073, TC-563, TC-564, TC-565 (regex), TC-566 (under_section:None), TC-567 ({{…}}), TC-568 (unclosed fence), TC-569 (emit_edges), TC-583 (multiple:true) | ✅ |
 | ~~FR-012 Corpus parity suite~~ | — | — | ⛔ RETIRED (render removal) |
-| FR-013 Archetype loader | AC-1..6; AC-15..17 (closed module set) | TC-080 (empty env), TC-081 (load iso), TC-082 (bad schema_ref), TC-083 (bench), TC-084 (no IO post-load), TC-085 (no net deps), TC-1651..TC-1653 (closed set) | ✅ Complete |
+| FR-013 Archetype loader | AC-1..6; AC-15..17 (closed module set); AC-20..21 (presentation rows) | TC-080 (empty env), TC-081 (load iso), TC-082 (bad schema_ref), TC-083 (bench), TC-084 (no IO post-load), TC-085 (no net deps), TC-1651..TC-1653 (closed set), TC-2211..TC-2212 | ✅ Complete |
 | FR-014 Module activation | AC-1..5 | TC-090 (multi-module), TC-091 (collision), TC-092 (strict), TC-093 (version), TC-094 (17-baseline union) | ✅ Complete |
 | FR-016 Fallback locators | AC-1..4 | TC-110 (legacy path), TC-111 (canonical path), TC-112 (optional miss), TC-113 (domain parity) | ✅ Complete |
 | FR-019 Stable block identifiers | AC-1..3; CON-1 | TC-400 (block_id parsed; no attribute → None), TC-402 (attribute stripped from heading text), TC-443 (id survives write-back + reparse), TC-403 (negative) | ✅ Complete (document authored, CR-042) |
@@ -1118,6 +1118,8 @@ Reserved withdrawn IDs (not active test cases): TC-834, TC-842, TC-871, TC-1089,
 | TC-1962 | Compare legacy derive/classification/coverage healthy, skipped and tolerant bad-root outputs; execute public-boundary regression tests for no evidence/freshness verdict, GrammarFinding, copied IR schema or caller-authored revision/hash ledger (PLAT-1165) | Integration | P0 | FR-053-AC-23 | 🚧 |
 | TC-2050 | `IX_FILAMENT_MODULES_PATH` roots, then `IX_SCHEMA_PATH` roots, then the default module root are searched in that order; neither variable replaces the others or the default | Unit | P0 | FR-013-AC-18 | ✅ |
 | TC-2051 | A manifest carrying an unknown key makes every `Registry` constructor fail with `ManifestError` naming module, version and key | Unit | P0 | FR-013-AC-19 | ✅ |
+| TC-2211 | Same name in `archetypes:` and `artifact_types:` of one module: one registry entry, no `DuplicateArchetype`; two modules declaring the name still collide | Unit | P0 | FR-013-AC-20 | ✅ |
+| TC-2212 | A presentation-only `archetypes:` row and an undeclared name are both unknown to the registry; the real `artifact_types` entry still validates | Unit | P0 | FR-013-AC-21 | ✅ |
 | TC-2052 | `quire-bench` refuses a `require_clean` corpus entry whose checkout is dirty, absent or not a checkout, and scores a clean one | Integration | P0 | FR-050-AC-52 | ✅ |
 | TC-2053 | Declared retired rows keep exact identity and live gaps; retirement vocabularies are validated after module selection; the status-marker form retires identically and repeats byte-identically | Integration | P0 | FR-050-AC-53, FR-050-AC-55, FR-050-AC-56, FR-050-AC-57 | ✅ |
 | TC-2054 | A nonempty all-retired scope passes `--strict`; no declared targets still fails the empty-population premise; live unbacked rows still fail | Integration | P0 | FR-050-AC-54 | 🚧 |
@@ -1907,6 +1909,8 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-006-AC-7 | TC-706 |
 | FR-013-AC-18 | TC-2050 |
 | FR-013-AC-19 | TC-2051 |
+| FR-013-AC-20 | TC-2211 |
+| FR-013-AC-21 | TC-2212 |
 | FR-045-AC-1 | TC-681, TC-691 |
 | FR-045-AC-2 | TC-682, TC-692, TC-700 |
 | FR-045-AC-3 | TC-683, TC-697, TC-698, TC-699, TC-700, TC-701, TC-703 |

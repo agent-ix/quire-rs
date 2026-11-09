@@ -2787,4 +2787,75 @@ object_types:
         assert!(load_module_set(&[]).modules.is_empty());
         assert!(load_module_set(&[]).path_diagnostics.is_empty());
     }
+
+    fn write_f4_module(root: &Path, name: &str, manifest_tail: &str) {
+        fs::create_dir_all(root.join("schemas")).unwrap();
+        fs::write(
+            root.join("manifest.yaml"),
+            format!("name: {name}\n{manifest_tail}"),
+        )
+        .unwrap();
+        fs::write(
+            root.join("schemas/adr.schema.json"),
+            r#"{"type":"object","required":["id"],"properties":{"id":{"type":"string"}}}"#,
+        )
+        .unwrap();
+    }
+
+    const F4_TYPED: &str =
+        "artifact_types:\n- name: ADR\n  frontmatter_schema_ref: schemas/adr.schema.json\n";
+    const F4_PRESENTATION: &str =
+        "archetypes:\n- name: ADR\n  kind: navigation\n- name: Board\n  kind: composition\n";
+
+    fn duplicate_archetypes(r: &crate::Registry) -> Vec<&Diagnostic> {
+        r.diagnostics()
+            .iter()
+            .filter(|d| matches!(d, Diagnostic::DuplicateArchetype { .. }))
+            .collect()
+    }
+
+    #[trace("FR-013-AC-20", "TC-2211")]
+    // the same name in `archetypes:` and `artifact_types:` of ONE module is one
+    // registry entry and no collision; the same name from two modules still is.
+    #[test]
+    fn tc2211_same_module_presentation_row_is_merged_not_a_duplicate() {
+        let parent = tmpdir("f4-same-module");
+        let only = parent.join("only");
+        write_f4_module(&only, "only", &format!("{F4_TYPED}{F4_PRESENTATION}"));
+        let r = crate::Registry::load_module_set(&[&only]).expect("loads");
+        assert!(duplicate_archetypes(&r).is_empty(), "{:?}", r.diagnostics());
+        assert_eq!(r.archetype("ADR").expect("ADR").module, "only");
+
+        // Control: two modules each really declaring ADR still collide.
+        let other = parent.join("other");
+        write_f4_module(&other, "other", F4_TYPED);
+        let r = crate::Registry::load_module_set(&[&only, &other]).expect("loads");
+        let dups = duplicate_archetypes(&r);
+        assert_eq!(dups.len(), 1, "{:?}", r.diagnostics());
+        assert!(matches!(
+            dups[0],
+            Diagnostic::DuplicateArchetype { name, modules }
+                if name == "ADR" && modules.len() == 2
+        ));
+    }
+
+    #[trace("FR-013-AC-21", "TC-2212")]
+    // an `archetypes:` row with no validation part registers nothing, so it
+    // is not an accept-anything type; a real artifact type still validates.
+    #[test]
+    fn tc2212_presentation_only_row_is_not_a_type() {
+        let parent = tmpdir("f4-presentation-only");
+        let m = parent.join("m");
+        write_f4_module(&m, "m", &format!("{F4_TYPED}{F4_PRESENTATION}"));
+        let r = crate::Registry::load_module_set(&[&m]).expect("loads");
+        assert!(r.archetype("NoSuchType").is_none());
+        assert!(r.archetype("Board").is_none(), "presentation-only row");
+        let adr = r.archetype("ADR").expect("real type");
+        assert!(
+            crate::validate_document::validate_document(adr, "---\nid: A-1\n---\n# T\n").is_valid
+        );
+        assert!(
+            !crate::validate_document::validate_document(adr, "---\nother: 1\n---\n# T\n").is_valid
+        );
+    }
 }

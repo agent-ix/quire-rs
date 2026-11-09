@@ -9,6 +9,7 @@ bumps; once 1.0 ships, semver is strict.
 
 ### Changed
 
+- **Behaviour change, PLAT-277 (F4):** an `archetypes:` entry that declares no validation part (no `frontmatter_schema_ref`, `data_schema`, `body_extraction` or `grammar_ref`) is no longer registered as an accept-anything type, so a document typed with its name is now unknown. A name in both `archetypes:` and `artifact_types:` of one module is one registry entry and no longer reports `DuplicateArchetype`; a name from two different modules still does (FR-013-AC-20, FR-013-AC-21).
 - **Breaking, PLAT-214 (quoin#338):** a module set that loaded before is now refused: two loaded modules that export one semantic type
   name no longer resolve by load order. The later sorted root is refused with
   `semantic.duplicate-export` naming the type and both modules (FR-069-AC-15).

@@ -427,12 +427,21 @@ impl Manifest {
     /// two blocks, and is yielded once; registering it twice would report the
     /// module as a duplicate of itself. Two entries that share a name but
     /// differ are both yielded, so the collision stays visible.
+    ///
+    /// An `archetypes` entry that declares no validation part is a Filament
+    /// presentation row, not a type (FR-013-AC-16): it is never yielded, so it
+    /// neither registers an accept-anything type nor collides with the
+    /// same-named `artifact_types`/`object_types` entry it presents.
     pub fn all_archetypes(&self) -> impl Iterator<Item = &Archetype> {
         let mut seen: Vec<&Archetype> = Vec::new();
         self.artifact_types
             .iter()
             .chain(self.object_types.iter())
-            .chain(self.archetypes.iter())
+            .chain(
+                self.archetypes
+                    .iter()
+                    .filter(|a| a.declares_validation_part()),
+            )
             .filter(move |a| {
                 let repeat = seen.contains(a);
                 if !repeat {
@@ -478,6 +487,16 @@ pub struct Archetype {
 }
 
 impl Archetype {
+    /// Whether the entry declares anything the engine validates or extracts
+    /// against: a frontmatter schema, a data schema, a body extraction
+    /// (locators and constraints) or a grammar.
+    pub fn declares_validation_part(&self) -> bool {
+        self.frontmatter_schema_ref.is_some()
+            || self.data_schema.is_some()
+            || self.body_extraction.is_some()
+            || self.extras.contains_key("grammar_ref")
+    }
+
     /// Reject the retired `required_sections` / `variants` / `template_ref`
     /// fields with a caller-facing reason (no backward-compatibility layer
     /// — ADR 0003, render removed). Returns the offending field name on
