@@ -1757,7 +1757,8 @@ pub struct RegistryShape {
 }
 
 /// FR-069 cross-module checks, after every module of a load has been read,
-/// in sorted module-root order: a duplicated `semantic.package` refuses the
+/// in sorted module-root order: a duplicated `semantic.package` or a type
+/// name exported by two modules (`semantic.duplicate-export`) refuses the
 /// later module, an unprovided import warns, an import cycle refuses every
 /// module on it. A refused module keeps its vocabulary and loses its
 /// archetypes, each recorded as a failure.
@@ -1806,14 +1807,17 @@ fn semantic_cross_module_checks(outcome: &mut LoadOutcome) {
             .unwrap()
             .exports
             .clone();
-        let mut clashes = Vec::new();
-        for name in exports {
-            match exported.get(&name) {
-                Some(&first) if first != i => clashes.push((name, first)),
-                Some(_) => {}
-                None => {
-                    exported.insert(name, i);
-                }
+        let clashes: Vec<(String, usize)> = exports
+            .iter()
+            .filter_map(|name| match exported.get(name) {
+                Some(&first) if first != i => Some((name.clone(), first)),
+                _ => None,
+            })
+            .collect();
+        if clashes.is_empty() {
+            // A refused module claims no export name.
+            for name in exports {
+                exported.insert(name, i);
             }
         }
         for (name, first) in clashes {
