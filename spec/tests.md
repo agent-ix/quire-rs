@@ -115,6 +115,8 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | FR-076 Relationships extraction to RelationDecl[] | AC-1..21; CON-1..4 | TC-1852..TC-1868, TC-1999..TC-2004 | ✅ Implemented |
 | FR-077 Trace search index (structural forward/inverse lookup) | AC-1..7; CON-1..3 | TC-1887..TC-1894, TC-2062 | ✅ Implemented |
 | FR-078 Qualified retained evidence | AC-1..20; CON-1..4 | TC-1963..TC-1982 | 🚧 Planned — spec-first, no execution claim |
+| FR-079 pytest trace-marker plugin | AC-1..11; CON-1 | TC-2120..TC-2130 | 🚧 Planned — not run |
+| FR-080 vitest trace helper and reporter | AC-1..11; CON-1 | TC-2131..TC-2141 | 🚧 Planned — not run |
 
 ### Integration Requirement Coverage
 
@@ -1130,27 +1132,28 @@ Reserved withdrawn IDs (not active test cases): TC-834, TC-842, TC-871, TC-1089,
 | TC-2056 | Audit-table completeness (CR-200): deleting an audit row, including a mixed-case `StR-` row, is one error naming the criterion and every declaration of it; a document-defined criterion with no row, a coverage-range or audit-row id no document defines, and an unreadable or runaway criteria cell are each an error; tombstones (`RETIRED`, `Removed:`, bare `Withdrawn.`), struck-through or RETIRED-status coverage rows, parenthetical notes, a `RETIRED` word in a live row's test cell and a `###` gaps table are not; and this repository's own matrix passes | Integration | P0 | FR-050-AC-58 | ✅ |
 | TC-2080 | Module-loaded `table_row` targets with omitted `from` preserve existing ids; `list_item` and `heading` targets mint ids from capture group 1 only within their selected section; invalid patterns and patterns without capture group 1 are rejected without partial ids (CR-203) | Integration | P0 | FR-050-AC-60 | ✅ |
 | TC-2081 | Semantic refusals carry their manifest path in `reason` as `<code>: <path>: <message>`: unknown key, export undeclared, ambiguous, reference-without-block, and missing schema file and duplicate-authority each assert the locus once, and an empty path yields `<code>: <message>` (CR-205) | Integration | P0 | FR-069-AC-14 | ✅ |
-| TC-2120 | Plugin registers `trace`: marked test collects warning-free and passes `--strict-markers`, emission on and off (CR-212) | Integration | P1 | FR-079-AC-1 | 🚧 Planned — not run |
-| TC-2121 | Emission off: JUnit equals the no-plugin run apart from timing, no `trace` property, no non-stdlib import (CR-212) | Integration | P1 | FR-079-AC-2 | 🚧 Planned — not run |
-| TC-2122 | Emission on: function/class/module markers accumulate into one `trace` property in order; unmarked case has none (CR-212) | Integration | P1 | FR-079-AC-3 | 🚧 Planned — not run |
-| TC-2123 | Emission on: ids are only marker arguments, none inferred from names, a non-literal argument fails the run naming the test (CR-212) | Integration | P1 | FR-079-AC-4 | 🚧 Planned — not run |
-| TC-2124 | Symbols: module-level bare name, `Class.method`, parametrized `[case]` stripped to two cases; `name`==`classname`, `file` set, equal to `quire coverage --json` (CR-212) | Integration | P1 | FR-079-AC-5 | 🚧 Planned — not run |
-| TC-2125 | Outcomes: fail, setup error, skip and xfail keep pytest's own outcome and their ids (CR-212) | Integration | P1 | FR-079-AC-6 | 🚧 Planned — not run |
-| TC-2126 | xdist with two workers: each marked test once with its own ids (CR-212) | Integration | P1 | FR-079-AC-7 | 🚧 Planned — not run |
-| TC-2127 | Result file written by pytest's own writer, no sidecar or post-run step; a `junit_family` that cannot carry the mark fails the run naming it (CR-212) | Integration | P1 | FR-079-AC-8 | 🚧 Planned — not run |
-| TC-2128 | Cost: 500-test marked suite under 5% median overhead with emission on (CR-212) | Integration | P1 | FR-079-AC-9 | 🚧 Planned — not run |
-| TC-2129 | End to end: real pytest suite -> `quoin evidence record` binds; failing variant binds nothing; requirement edit marks stale (CR-212) | Integration | P1 | FR-079-AC-10 | 🚧 Planned — not run |
-| TC-2130 | `trace` helper type-checks string ids and rejects a non-string at compile time (CR-212) | Integration | P1 | FR-080-AC-1 | 🚧 Planned — not run |
-| TC-2131 | Emission off: helper is a no-op, no `trace` property, results equal a no-package run, no extra runtime dependency (CR-212) | Integration | P1 | FR-080-AC-2 | 🚧 Planned — not run |
-| TC-2132 | Emission on: several ids or repeated calls accumulate in call order; an uncalled test carries none (CR-212) | Integration | P1 | FR-080-AC-3 | 🚧 Planned — not run |
-| TC-2133 | Emission on: ids are only `trace` call arguments, none inferred from titles (CR-212) | Integration | P1 | FR-080-AC-4 | 🚧 Planned — not run |
-| TC-2134 | Symbols for vitest and jest: nested `describe` gives bare title, `Class.method`, `it.each` yields two cases named by the template title; `name`==`classname`, `file` set, equal to `quire coverage --json` (CR-212) | Integration | P1 | FR-080-AC-5 | 🚧 Planned — not run |
-| TC-2135 | Modifier registrations (`skipIf`, `only`, `concurrent`, `skip`) report the registered title once with the runner's outcome; skipped carries no ids (CR-212) | Integration | P1 | FR-080-AC-6 | 🚧 Planned — not run |
-| TC-2136 | A test that calls `trace` then throws is `fail` with its ids (CR-212) | Integration | P1 | FR-080-AC-7 | 🚧 Planned — not run |
-| TC-2137 | Default parallel execution: each tagged test once with its own ids (CR-212) | Integration | P1 | FR-080-AC-8 | 🚧 Planned — not run |
-| TC-2138 | Result file written by the reporter during the run, no sidecar or post-run rewrite (CR-212) | Integration | P1 | FR-080-AC-9 | 🚧 Planned — not run |
-| TC-2139 | Cost: 500-test tagged suite under 5% median overhead with emission on, each runner (CR-212) | Integration | P1 | FR-080-AC-10 | 🚧 Planned — not run |
-| TC-2140 | End to end: real vitest and jest suites -> `quoin evidence record` binds; failing variant binds nothing; requirement edit marks stale (CR-212) | Integration | P1 | FR-080-AC-11 | 🚧 Planned — not run |
+| TC-2120 | Plugin registers `trace`: marked test collects warning-free and passes `--strict-markers`, emission on and off | Integration | P1 | FR-079-AC-1 | 🚧 Planned — not run |
+| TC-2121 | Emission off: JUnit equals the no-plugin run apart from timing, no `trace` property, no non-stdlib import | Integration | P1 | FR-079-AC-2 | 🚧 Planned — not run |
+| TC-2122 | Emission on: a function's markers give one `trace` property with each id once; class and module markers add nothing | Integration | P1 | FR-079-AC-3 | 🚧 Planned — not run |
+| TC-2123 | Emission on: ids are only marker arguments, none inferred from names, a non-`str` argument fails the run naming the test | Integration | P1 | FR-079-AC-4 | 🚧 Planned — not run |
+| TC-2124 | Symbols: module-level bare name, `Class.method`, parametrized `[case]` stripped to two cases; `name`==`classname`, `file` set, equal to `quire coverage --json` | Integration | P1 | FR-079-AC-5 | 🚧 Planned — not run |
+| TC-2125 | Outcomes: fail, setup error, skip and xfail keep pytest's own outcome and their ids | Integration | P1 | FR-079-AC-6 | 🚧 Planned — not run |
+| TC-2126 | xdist with two workers: each marked test once with its own ids | Integration | P1 | FR-079-AC-7 | 🚧 Planned — not run |
+| TC-2127 | Result file written by pytest's own writer, no sidecar or post-run step | Integration | P1 | FR-079-AC-8 | 🚧 Planned — not run |
+| TC-2128 | `junit_family=xunit2` fails the enabled run naming the family and `-o junit_family=xunit1`; xunit1 carries `trace`, `name`, `classname`, `file` | Integration | P1 | FR-079-AC-9 | 🚧 Planned — not run |
+| TC-2129 | Cost: 500-test marked suite under 5% median overhead with emission on | Integration | P1 | FR-079-AC-10 | 🚧 Planned — not run |
+| TC-2130 | End to end: real pytest suite -> `quoin evidence record` binds; failing variant binds nothing | Integration | P1 | FR-079-AC-11 | 🚧 Planned — not run |
+| TC-2131 | `trace` helper type-checks string ids and rejects a non-string at compile time | Integration | P1 | FR-080-AC-1 | 🚧 Planned — not run |
+| TC-2132 | Emission off: helper is a no-op, no `trace` property, results equal a no-package run, no extra runtime dependency | Integration | P1 | FR-080-AC-2 | 🚧 Planned — not run |
+| TC-2133 | Emission on: several ids or repeated calls give each distinct id once; an uncalled test carries none | Integration | P1 | FR-080-AC-3 | 🚧 Planned — not run |
+| TC-2134 | Emission on: ids are only `trace` call arguments, none inferred from titles | Integration | P1 | FR-080-AC-4 | 🚧 Planned — not run |
+| TC-2135 | Symbols for vitest: nested `describe` gives bare title, `it.each` yields two cases named by the template title; `name`==`classname`, `file` set, equal to `quire coverage --json` | Integration | P1 | FR-080-AC-5 | 🚧 Planned — not run |
+| TC-2136 | Modifier registrations (`skipIf`, `only`, `skip`) report the registered title once with the runner's outcome; skipped carries no ids | Integration | P1 | FR-080-AC-6 | 🚧 Planned — not run |
+| TC-2137 | A test that calls `trace` then throws is `fail` with its ids | Integration | P1 | FR-080-AC-7 | 🚧 Planned — not run |
+| TC-2138 | Default parallel execution across files: each tagged test once with its own ids | Integration | P1 | FR-080-AC-8 | 🚧 Planned — not run |
+| TC-2139 | Result file written by the reporter during the run, no sidecar or post-run rewrite | Integration | P1 | FR-080-AC-9 | 🚧 Planned — not run |
+| TC-2140 | Cost: 500-test tagged suite under 5% median overhead with emission on | Integration | P1 | FR-080-AC-10 | 🚧 Planned — not run |
+| TC-2141 | End to end: real vitest suite -> `quoin evidence record` binds; failing variant binds nothing | Integration | P1 | FR-080-AC-11 | 🚧 Planned — not run |
 
 ---
 
@@ -2245,6 +2248,30 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-079-CON-1 | TC-2127 |
 | FR-080-CON-1 | TC-2138 |
 | FR-078-CON-4 | TC-1981 |
+| FR-079-AC-1 | TC-2120 |
+| FR-079-AC-2 | TC-2121 |
+| FR-079-AC-3 | TC-2122 |
+| FR-079-AC-4 | TC-2123 |
+| FR-079-AC-5 | TC-2124 |
+| FR-079-AC-6 | TC-2125 |
+| FR-079-AC-7 | TC-2126 |
+| FR-079-AC-8 | TC-2127 |
+| FR-079-AC-9 | TC-2128 |
+| FR-079-AC-10 | TC-2129 |
+| FR-079-AC-11 | TC-2130 |
+| FR-080-AC-1 | TC-2131 |
+| FR-080-AC-2 | TC-2132 |
+| FR-080-AC-3 | TC-2133 |
+| FR-080-AC-4 | TC-2134 |
+| FR-080-AC-5 | TC-2135 |
+| FR-080-AC-6 | TC-2136 |
+| FR-080-AC-7 | TC-2137 |
+| FR-080-AC-8 | TC-2138 |
+| FR-080-AC-9 | TC-2139 |
+| FR-080-AC-10 | TC-2140 |
+| FR-080-AC-11 | TC-2141 |
+| FR-079-CON-1 | Inspection — no post-write rewrite step in the plugin; not performed |
+| FR-080-CON-1 | Inspection — no post-write rewrite step in the package; not performed |
 
 ### Non-Functional Requirements
 
