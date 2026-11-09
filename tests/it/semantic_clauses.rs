@@ -241,22 +241,31 @@ fn assert_case(case: &Value) {
         );
     }
     if let Some(want) = case["availability"].get("clauses") {
-        // An `entry-errors` reason names lines of the case's artifact;
-        // this harness's artifact puts the erroring fence at its own line.
-        let mut want = want.clone();
-        if let Some(reason) = want["reason"].as_str() {
-            if reason.starts_with("entry-errors: lines ") {
-                want["reason"] = json!(format!(
-                    "entry-errors: lines {}",
-                    expected_line(&md, "fence")
-                ));
-            }
-        }
+        let got = serde_json::to_value(&clauses.availability).unwrap();
+        let Some(loci) = want.get("reasonLoci") else {
+            assert_eq!(got, *want, "{id}");
+            return;
+        };
+        assert!(
+            want.get("reason").is_none(),
+            "{id}: reason beside reasonLoci"
+        );
+        // The expected loci resolve to lines of the case's artifact; the
+        // engine's `entry-errors` reason lists the lines it found.
+        let resolved: Vec<String> = loci
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|locus| expected_line(&md, locus.as_str().unwrap()).to_string())
+            .collect();
         assert_eq!(
-            serde_json::to_value(&clauses.availability).unwrap(),
-            want,
+            got["reason"],
+            format!("entry-errors: lines {}", resolved.join(", ")),
             "{id}"
         );
+        for key in ["state", "lossy"] {
+            assert_eq!(got[key], want[key], "{id}: {key}");
+        }
     }
 }
 
@@ -641,4 +650,12 @@ fn operation_params_and_returns_carry_source_loci() {
         }
     }
     assert!(seen_param && seen_returns);
+}
+
+#[test]
+#[should_panic(expected = "reason beside reasonLoci")]
+fn reason_beside_reason_loci_is_refused() {
+    let mut case = cases("fence-no-language").remove(0);
+    case["availability"]["clauses"]["reason"] = json!("entry-errors: lines 3");
+    assert_case(&case);
 }
