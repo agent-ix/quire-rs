@@ -1346,6 +1346,13 @@ fn locator_on_a_typed_relation_key_is_duplicate_authority() {
             "{}",
             f.reason
         );
+        assert!(
+            f.reason.starts_with(
+                "semantic.duplicate-authority: object_types[process].body_extraction: "
+            ),
+            "{}",
+            f.reason
+        );
         for needle in ["dup", "process", "emits"] {
             assert!(f.reason.contains(needle), "{needle}: {}", f.reason);
         }
@@ -1382,4 +1389,94 @@ fn locator_on_a_typed_relation_key_is_duplicate_authority() {
         );
         assert!(registry.archetype("process").is_some(), "{name}");
     }
+}
+
+#[trace("TC-2081", "FR-069-AC-14")]
+// PLAT-1299: a semantic refusal's reason names its manifest location.
+#[test]
+fn refusals_carry_their_manifest_path() {
+    let tmp = tempfile::tempdir().unwrap();
+    let cases: Vec<(&str, Mutate, &str, &str)> = vec![
+        (
+            "unknown-key",
+            Box::new(|m, _| {
+                semantic(m).insert("extra".into(), 1.into());
+            }),
+            "semantic.unknown-key",
+            "semantic.unknown-key: semantic: ",
+        ),
+        (
+            "export-undeclared",
+            Box::new(|m, _| {
+                semantic(m).insert(
+                    "exports".into(),
+                    serde_yaml::Value::Sequence(vec!["entity".into(), "ghost".into()]),
+                );
+            }),
+            "semantic.export-undeclared",
+            "semantic.export-undeclared: semantic.exports.ghost: ",
+        ),
+        (
+            "ambiguous",
+            Box::new(|m, _| {
+                entity_schema_ref(m).insert("type".into(), "object".into());
+            }),
+            "semantic.data-schema-ambiguous",
+            "semantic.data-schema-ambiguous: object_types[entity].data_schema: ",
+        ),
+        (
+            "no-block",
+            Box::new(|m, _| {
+                m.as_mapping_mut().unwrap().remove("semantic");
+            }),
+            "semantic.data-schema-reference-without-block",
+            "semantic.data-schema-reference-without-block: object_types[entity].data_schema: ",
+        ),
+        (
+            "missing-file",
+            Box::new(|_, root| fs::remove_file(root.join("schemas/Entity.json")).unwrap()),
+            "semantic.data-schema-missing",
+            "semantic.data-schema-missing: object_types[entity].data_schema.schema: ",
+        ),
+    ];
+    for (name, mutate, code, prefix) in cases {
+        let root = module(&tmp, name, mutate);
+        let r = reasons(&load(&root));
+        assert!(
+            r.iter().any(|x| x.starts_with(prefix)),
+            "{name} ({code}) carries its path: {r:?}"
+        );
+        let path = prefix.trim_start_matches(code).trim_matches([':', ' ']);
+        let tail = &r.iter().find(|x| x.starts_with(prefix)).unwrap()[prefix.len()..];
+        assert!(
+            !tail.contains(path) || path == "semantic",
+            "{name}: path appears once: {r:?}"
+        );
+    }
+    assert_eq!(
+        quire_rs::semantic::SemanticFailure::error("semantic.x", "", "msg").reason(),
+        "semantic.x: msg"
+    );
+}
+
+#[trace("TC-2081", "FR-069-AC-14")]
+// The duplicate-authority path names the section the type is declared in.
+#[test]
+fn duplicate_authority_path_names_its_section() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = process_module(&tmp, "dup-artifact-types", true, true, true);
+    let manifest_path = root.join("manifest.yaml");
+    let mut manifest: serde_yaml::Value =
+        serde_yaml::from_slice(&fs::read(&manifest_path).unwrap()).unwrap();
+    manifest["artifact_types"] = manifest["object_types"].clone();
+    manifest["object_types"] = serde_yaml::Value::Sequence(Vec::new());
+    fs::write(&manifest_path, serde_yaml::to_string(&manifest).unwrap()).unwrap();
+    let r = reasons(&load(&root));
+    assert!(
+        r.iter().all(|x| x.starts_with(
+            "semantic.duplicate-authority: artifact_types[process].body_extraction: "
+        )),
+        "{r:?}"
+    );
+    assert!(!r.is_empty());
 }
