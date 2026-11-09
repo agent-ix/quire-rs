@@ -23,6 +23,12 @@ bumps; once 1.0 ships, semver is strict.
   the advisory `semantic.expression-unchecked` (the owning kind is lossy) and
   the error `semantic.empty-expression` for an empty `Pre:`/`Post:` line.
   quire-rs does not parse expressions.
+- A `table_row` trace target's `id_column` takes one column name or a list
+  (PLAT-313, FR-050-AC-63). `*` in an entry matches any run of characters,
+  entries match headers ignoring ASCII case, and a table contributes the ids
+  of every matched column in column order, once per row. A list or `*` target
+  fails module load when an `obligations:` source binds it by `target:`, and
+  never joins a row-binding declaration.
 - Trace targets mint from list items and headings (PLAT-316, FR-050-AC-60):
   a `trace_targets` entry takes `from: table_row | list_item | heading`
   (omitted means `table_row`). `list_item` and `heading` declare a `pattern`
@@ -32,6 +38,12 @@ bumps; once 1.0 ships, semver is strict.
 
 - **Breaking (Rust API), PLAT-877:** `SymbolDiagnostic` and `FileDiagnostic` gain a
   `severity: DiagnosticSeverity` field.
+
+- **Breaking (Rust API), PLAT-313:** `TraceTargetSource::TableRow.id_column` is
+  now `IdColumns` (new), not `String`; `TraceTarget::id_column()` returns
+  `None` for a list or a name containing `*`, and the new
+  `TraceTarget::id_columns()` returns the declaration. Module manifests with a
+  scalar `id_column` are unchanged.
 
 - Semantic refusal reasons now carry their manifest location:
   `<code>: <path>: <message>` (for example
