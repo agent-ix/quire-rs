@@ -20,3 +20,9 @@ Ticket: PLAT-1170. This review checked that FR-050-AC-61's verification method, 
 ## Verdict
 
 Examined: FR-050-AC-61 → TC-2083. The method is right. The listed negative controls (canonical attribute, module without the form, non-Rust source) and the unchanged-counts check can each fail. Add a renamed-form control and a multi-id occurrence to TC-2083.
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | TC-2090 adds a renamed-form control ("the same fixture with every form renamed yields the same findings"), a two-id rendering case, a template-less control and a no-`RewriteSuggestion` check. |

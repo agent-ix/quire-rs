@@ -23,3 +23,12 @@ Ticket: PLAT-1170. This review checked FR-050-AC-61 for consistency against FR-0
 ## Verdict
 
 Examined: FR-050-AC-61 and the CR-207 note. The AC does not hard-code form names. It states that the finding moves no total and adds no binding path, and that a module without the attribute form, a canonical occurrence and non-Rust source yield nothing. FND-001 must be fixed by dropping the provenance clause, or by amending FR-062 in the same PR. FND-002 and FND-003 should be tightened in the AC text.
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | AC-62 drops the `legacy` provenance clause and now says only "its relations and counts are unchanged". |
+| FND-002 | fixed | AC-62 keys on `syntax: rust_attribute`, and defines a legacy use as a binding made by a Rust `trace_tags.implements` form of the same module that declares no `syntax`. |
+| FND-003 | fixed | AC-62 uses the template of the first declared `syntax: rust_attribute` form that has one. It renders the ids as quoted literals joined by `, `, which matches `src/symbols/trace.rs` rewrite rendering. When no such template exists, no finding is emitted. |
+| FND-004 | fixed | AC-62 says the finding is diagnostic-only and emits no FR-051-AC-11 `RewriteSuggestion`, and links FR-051. |

@@ -21,3 +21,10 @@ Ticket: PLAT-1170. PR head `9581b22`. Base checklist over the PR's spec-only dif
 ## Verdict
 
 Examined: FR-050-AC-61 (testable: it names a reason, a severity, four fields and three negative controls, and each can fail), the CR-207 note, and the tests.md summary, TC and audit rows. The audit row and the summary range (AC-1..61) agree with the new AC. Not mergeable until FND-001 is resolved by renumbering in whichever PR lands second.
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | Commit 606a83c renumbers the PR to CR-209, FR-050-AC-62 and TC-2090. PR 609 now uses CR-208, FR-050-AC-61 and TC-2084..2089. PRs 606, 607, 608 and 611 and `main` use none of the three ids. |
+| FND-002 | fixed | The FR-050 summary row now reads `AC-1..60, 62` with status `✅ Implemented except AC-62 (🚧, TC-2090 unimplemented)`. The `, 62` continuation is in the `audit_table` bare-range grammar. |
