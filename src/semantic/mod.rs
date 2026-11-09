@@ -19,6 +19,7 @@ pub mod embedded;
 pub mod model;
 pub mod properties;
 pub mod python_entry;
+pub mod record;
 pub mod relations;
 pub mod resolver;
 pub mod scan;
@@ -50,10 +51,13 @@ pub use model::{
     UnknownFeatureKind, UnknownStepKind,
 };
 pub use properties::{extract_fields, FieldsForm, FieldsOutcome};
+pub use record::{record_key_owners, KeyOwner, RecordSource, RECORD_SECTIONS_TOKEN};
 pub use relations::{
     EdgeVerb, RelationDecl, RelationSource, RelationVocabulary, RELATIONSHIPS_TOKEN,
 };
-pub use resolver::{compile_module_schema, ResolvedSchema, SchemaSource};
+pub use resolver::{
+    compile_documents, compile_module_schema, module_schema_documents, ResolvedSchema, SchemaSource,
+};
 pub use surface::{
     extract_semantic, Availability, DeclarationError, DeclarationRecord, RequiredSections,
     SemanticExtraction, SystemsRecord, SEMANTIC_FORMAT_VERSION, SEMANTIC_V1_SCHEMA,

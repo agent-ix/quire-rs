@@ -545,10 +545,11 @@ General:
 > (a `agent-ix/filament-core-data` / `filament-core-service` dependency, with
 > `agent-ix/filament-core-service#32` for the vocabulary), and ownership of the
 > admitted types moves from the FCD frontend to this engine. Deferred, not specified here:
-> `Event.source` and `NestedEntity.owner`. No module declares a `Source`
-> locator, and `owner` is a `RelationDecl` read from the required `## Parent`
-> section under the `composite-owner` role, so both wait for a module-side
-> locator.
+> `Event.source` and `NestedEntity.owner`. Superseded by quoin FR-123 and
+> quire-rs FR-081 (PLAT-1370): an `event`'s `source` is read from a `## Source`
+> section holding one inline id under the `record-sections` token, and `owner`
+> is not extracted at all. It is the bundle-level single inbound composite edge
+> of the artifact, and no `## Parent` section is read as its source.
 
 ## Constraints
 

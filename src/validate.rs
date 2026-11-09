@@ -240,6 +240,7 @@ mod tests {
             frontmatter_validator: Some(v),
             data_schema: None,
             data_validator: None,
+            data_schema_documents: None,
             body_extraction: None,
             carry_over: Default::default(),
         }

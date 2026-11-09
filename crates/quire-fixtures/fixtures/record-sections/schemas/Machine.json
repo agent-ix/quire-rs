@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/quire-fixtures/0.1.0/Machine.json",
+  "$comment": "Synthetic fixture root for the record-sections cases; not a module schema.",
+  "type": "object",
+  "properties": {
+    "states": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/agent-ix/quire-fixtures/0.1.0/EnumValue.json"
+      }
+    },
+    "transitions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "from": {
+            "$ref": "https://schemas.agent-ix.org/semantic-core/0.3.3/Identifier.json"
+          },
+          "to": {
+            "$ref": "https://schemas.agent-ix.org/semantic-core/0.3.3/Identifier.json"
+          },
+          "trigger": {
+            "$ref": "https://schemas.agent-ix.org/semantic-core/0.3.3/Identifier.json"
+          },
+          "guard": {
+            "$ref": "https://schemas.agent-ix.org/semantic-core/0.3.3/ClauseRef.json"
+          },
+          "emits": {
+            "$ref": "https://schemas.agent-ix.org/semantic-core/0.3.3/SemanticId.json"
+          }
+        },
+        "unevaluatedProperties": {
+          "not": {}
+        },
+        "required": [
+          "from",
+          "to",
+          "trigger"
+        ]
+      }
+    },
+    "clauses": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/semantic-core/0.3.3/ClauseRef.json"
+      }
+    },
+    "operations": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/semantic-core/0.3.3/OperationDecl.json"
+      }
+    }
+  },
+  "unevaluatedProperties": {
+    "not": {}
+  }
+}

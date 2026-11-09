@@ -51,6 +51,7 @@ mod semantic_features;
 mod semantic_fixtures;
 mod semantic_model;
 mod semantic_properties;
+mod semantic_record_sections;
 mod semantic_relations;
 mod semantic_surface;
 mod semantic_systems;

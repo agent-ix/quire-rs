@@ -66,6 +66,13 @@ struct Request {
     /// properties are the FR-076 typed relation keys.
     #[serde(default)]
     data_schema: Option<Value>,
+    /// The object type's name (FR-081 scopes unmapped keys by it).
+    #[serde(default)]
+    object_type: Option<String>,
+    /// The documents the `data_schema` `$ref`s name, keyed by `$ref` url
+    /// (FR-081 reads property types through them).
+    #[serde(default)]
+    schema_documents: std::collections::BTreeMap<String, Value>,
 }
 
 /// Run FR-072 for a JSON request; the error is a deserialization message.
@@ -102,8 +109,13 @@ pub fn extract_semantic_json(request: &Value) -> Result<SemanticExtraction, Stri
     }
     ctx.relation_vocabulary = req.relation_vocabulary;
     ctx.construct_references = req.construct_references;
+    if let Some(object_type) = req.object_type {
+        ctx = ctx.with_object_type(object_type);
+    }
     if let Some(schema) = &req.data_schema {
-        ctx = ctx.with_data_schema(schema);
+        ctx = ctx
+            .with_data_schema(schema)
+            .with_record_schema(schema, &req.schema_documents);
     }
     let required = req
         .required

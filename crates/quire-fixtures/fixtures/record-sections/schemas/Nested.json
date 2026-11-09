@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/quire-fixtures/0.1.0/Nested.json",
+  "$comment": "Synthetic fixture root for the record-sections cases; not a module schema.",
+  "type": "object",
+  "properties": {
+    "owner": {
+      "type": "object",
+      "properties": {
+        "verb": {
+          "type": "string"
+        },
+        "target": {
+          "$ref": "https://schemas.agent-ix.org/semantic-core/0.3.3/SemanticId.json"
+        }
+      },
+      "unevaluatedProperties": {
+        "not": {}
+      }
+    }
+  },
+  "unevaluatedProperties": {
+    "not": {}
+  }
+}

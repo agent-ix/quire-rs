@@ -1,0 +1,21 @@
+{
+  "type": "object",
+  "properties": {
+    "retryPolicy": {
+      "$ref": "#/$defs/policy"
+    }
+  },
+  "$defs": {
+    "policy": {
+      "type": "object",
+      "properties": {
+        "attempts": {
+          "type": "integer"
+        }
+      }
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/quire-fixtures/0.1.0/Fragment.json",
+  "$comment": "Synthetic fixture root for the record-sections cases; not a module schema."
+}
