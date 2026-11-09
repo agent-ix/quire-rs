@@ -1212,16 +1212,15 @@ fn relationship_own_package_check_folds_ascii_case() {
     let registry = related_registry(&tmp);
     let entity = registry.archetype("entity").unwrap();
     let check = |package: &str, frontmatter: &str, row_target: &str| {
-        let document = related_document(&format!(
-            "| overlay | references | {row_target} | 1..1 |\n"
-        ))
-        .replacen(
-            "type: FR\n",
-            &format!(
+        let document =
+            related_document(&format!("| overlay | references | {row_target} | 1..1 |\n"))
+                .replacen(
+                    "type: FR\n",
+                    &format!(
                 "type: FR\nrelationships:\n  - target: \"{frontmatter}\"\n    type: references\n"
             ),
-            1,
-        );
+                    1,
+                );
         relationship_findings(quire_rs::validate_document_in_bundle(
             &registry, entity, &document, package, None,
         ))
