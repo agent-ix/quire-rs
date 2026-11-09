@@ -550,6 +550,7 @@ pub const COVERAGE_DIAGNOSTIC_REASONS: &[&str] = &[
     "criterion-tagged-outside-row",
     "hollow-denominator",
     "id-column-matches-nothing",
+    "legacy-implements-form",
     "low-symbol-binding",
     "marker-form-mismatch",
     "model-mints-nothing",
