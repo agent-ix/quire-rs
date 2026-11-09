@@ -69,3 +69,10 @@ only the coverage byte clause has an existing test to tag. One low stale referen
 | FR-070-AC-8 / TC-1617 → semantic_properties.rs legacy_forms | examined | Reads legacy.expected.json, whose first case is legacy-free-table.md; correct |
 | FR-070-AC-1/2, FR-071-AC-1 fixtures | examined | Read via quire_fixtures::mapping_fixture from crates/quire-fixtures/fixtures/mapping/; correct |
 | References to semantic-v1.json (Makefile, docs, CHANGELOG, schemas, scripts, src, tests) | examined | None except plan Task-020 (FND-002) and historical reviews/2026-09-03-plan-003-… |
+
+## Dispositions
+
+| FND | Outcome | Reason |
+| --- | --- | --- |
+| FND-001 | still-open | In b31e4ea, `quire trace --id FR-072-AC-9` binds four tests: assurance_export.rs:191 (new byte golden), filament_core_fixtures.rs:108 (new severity sweep), output_contract.rs:443 (tc857) and semantic_surface.rs:435. The coverage clause is not bound. `tests/it/coverage_baseline.rs:59` uses the alias `#[trace_tag("TC-2055", "FR-072-AC-9")]` (`use ix_trace_rs::trace as trace_tag`, to avoid clashing with `quire_rs::symbols::trace`). The binder does not recognise the alias and reports it as `evidence_near_miss`, a citation and not verification evidence. TC-2055 is marked ✅ while the coverage byte clause has no bound test. Fix: import the symbols function under another name and write `#[trace(...)]`. The properties clause is handled in spec-review FND-003. |
+| FND-002 | fixed | b31e4ea Task-020:41 now reads "`tests/fixtures/semantic/cases.expected.json` expected records"; `grep semantic-v1.json` outside historical reviews/ is empty |

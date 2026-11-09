@@ -62,3 +62,16 @@ gets rewritten. It is outside this PR.
 | NFR-021, IT-001 | examined | Stale "vendored" (FND-002) |
 | FR-065 "vendored ecosystem module" | examined | Accurate; the copy is a qa-corpus antipattern outside this PR |
 | TC-1606 "sourced from the published @agent-ix/semantic-core package" | context_only | Bytes match the npm package, but the source is now the git dependency; not this ticket's kind |
+
+## New findings (disposition pass 1)
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-003 | medium | The properties change to FR-072-AC-9 is accurate about ownership, since quire-cli builds the envelope, but it weakens the requirement. "Emitted criterion records validate against the properties-v1 `Criterion` definition" cannot fail when a value or the order changes. FR-072-CON-1 (:148) still says no properties-v1 key may change "meaning, order, value set, or bytes". So CON-1's properties clause now has no AC that could detect a violation. FR-072 Inputs (:64) still lists "the existing ... properties-v1 fixture outputs", and none exist in quire-rs. quire-rs owns the record values (`classify_document_criteria` → `AcClassification`). The honest fix is a checked-in golden of those records, for example the tc857 document's records through `record_json`, compared byte for byte, with AC-9 and TC-2055 saying "emitted criterion records equal their checked-in fixture". Narrowing CON-1 and Inputs to schema conformance instead would be an explicit weakening and needs the owner's decision. | spec/functional/FR-072-semantic-extraction-surface.md:164, spec/functional/FR-072-semantic-extraction-surface.md:148, spec/functional/FR-072-semantic-extraction-surface.md:64, spec/tests.md:1131 |
+
+## Dispositions
+
+| FND | Outcome | Reason |
+| --- | --- | --- |
+| FND-001 | fixed | b31e4ea TC-1608 reads "outside the embedded bundle"; TC-1621 reads "the semantic-core `FieldDecl.json`" |
+| FND-002 | fixed | b31e4ea NFR-021 :27 "embedded schema bundles", :60 "with the semantic-core bundle embedded"; IT-001 :25/:45 drop "vendored"; :34 now "Quoin takes the assurance schema from the `quire_rs` dependency and holds no copy", matching quoin-quire/src/schema.rs:77-80 |

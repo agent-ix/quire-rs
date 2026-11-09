@@ -61,7 +61,7 @@ verbatim `clauseText` and the byte-identity constraints below.
   cases, each with `name`, `issue_ref`, `tags`, `input`, and `expect`; the
   attribution test that governs `tests/fixtures/corpus_cases/` SHALL also
   govern this file.
-- The existing coverage-v1, properties-v1, and assurance-v1 fixture outputs.
+- The checked-in coverage-v1 baseline (`tests/fixtures/coverage_baseline/expected.json`), assurance-v1 export (`tests/fixtures/assurance/export.json`), and properties-v1 criterion records (`tests/fixtures/properties/criterion-records.json`).
 
 ## Outputs
 
@@ -161,7 +161,7 @@ verbatim `clauseText` and the byte-identity constraints below.
 | FR-072-AC-6 | The Python binding's `extract_filament_core` and `extract_semantic` return JSON values equal to the Rust output for every fixture case under `make ci-python`; the WASM leg is verified by `agent-ix/quire-wasm#3` against the same fixture file. | Test |
 | FR-072-AC-7 | Two extractions over identical input serialize byte-identically; editing an unrelated section changes no declaration, span, or diagnostic. | Test |
 | FR-072-AC-8 | `semantic-v1.schema.json` is valid 2020-12 with `additionalProperties: false` on every object except the record's top level (exactly a `SemanticId[]` for typed relation keys) and `clauseText` (exactly a string map), and the checked-in `cases.expected.json` records pin every field and state token; removing or renaming a pinned field fails the fixture test. | Test |
-| FR-072-AC-9 | Coverage-v1 and assurance-v1 outputs equal their checked-in fixtures byte-for-byte, the criterion records `quire-rs` emits validate against the `properties-v1` `Criterion` definition (the envelope is `quire-cli`'s), and `CoreExtractionDiagnostic.severity` values remain within `info`, `warning`, `error`. | Test |
+| FR-072-AC-9 | Coverage-v1 and assurance-v1 outputs, and the properties-v1 criterion records `quire-rs` produces (values and order; the envelope is `quire-cli`'s), equal their checked-in fixtures byte-for-byte, and `CoreExtractionDiagnostic.severity` values remain within `info`, `warning`, `error`. | Test |
 
 ## Dependencies
 
