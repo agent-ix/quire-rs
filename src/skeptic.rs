@@ -632,6 +632,16 @@ fn helper_oracle_candidate(span: &str) -> Option<HelperOracleCandidate> {
 }
 
 fn oracle_candidate(span: &str, language: SourceLanguage) -> Option<OracleCandidate> {
+    oracle_candidate_counting_scans(span, language, &mut 0)
+}
+
+/// [`oracle_candidate`], also counting how many assertion scans over the span
+/// ran, so a test can observe that the scan is not repeated per binding.
+fn oracle_candidate_counting_scans(
+    span: &str,
+    language: SourceLanguage,
+    assertion_scans: &mut usize,
+) -> Option<OracleCandidate> {
     static RUST_BINDING: OnceLock<Regex> = OnceLock::new();
     static TS_BINDING: OnceLock<Regex> = OnceLock::new();
     static PYTHON_BINDING: OnceLock<Regex> = OnceLock::new();
@@ -674,19 +684,33 @@ fn oracle_candidate(span: &str, language: SourceLanguage) -> Option<OracleCandid
         }),
     };
 
+    // PLAT-182: scan assertions at most once per binding name (`expected` /
+    // `oracle`) instead of rescanning the span for every binding; each scan
+    // stops at the first assertion naming that binding.
+    let mut first_assertion: [Option<Option<String>>; 2] = [None, None];
     for assignment in binding_re.captures_iter(span) {
         let binding = assignment.get(1)?.as_str();
-        let Some(assertion) = assertion_re.captures_iter(span).find(|capture| {
-            capture
-                .get(2)
-                .is_some_and(|found| found.as_str() == binding)
-        }) else {
+        let slot = &mut first_assertion[usize::from(binding == "oracle")];
+        let function = slot.get_or_insert_with(|| {
+            *assertion_scans += 1;
+            assertion_re
+                .captures_iter(span)
+                .find(|capture| {
+                    capture
+                        .get(2)
+                        .is_some_and(|found| found.as_str() == binding)
+                })
+                .and_then(|assertion| {
+                    Some(assertion.get(1)?.as_str().rsplit("::").next()?.to_string())
+                })
+        });
+        let Some(function) = function.clone() else {
             continue;
         };
         return Some(OracleCandidate {
             binding: binding.to_string(),
             expression: assignment.get(2)?.as_str().trim().to_string(),
-            function: assertion.get(1)?.as_str().rsplit("::").next()?.to_string(),
+            function,
             line_offset: span[..assignment.get(0)?.start()].matches('\n').count(),
         });
     }
@@ -1374,6 +1398,29 @@ assert_eq!(normalize(value), expected);"#;
             vec![],
             "similarity does not authorize guessing between two subjects"
         );
+    }
+
+    /// PLAT-182: many non-asserted bindings must not rescan the span's
+    /// assertions per binding, and the candidate is the first asserted binding.
+    #[test]
+    fn plat182_oracle_candidate_scans_assertions_once_per_binding_name() {
+        let mut body = String::new();
+        for i in 0..4000 {
+            body.push_str(&format!("    let expected = f{i}(x);\n"));
+        }
+        body.push_str("    let oracle = g(x);\n    assert_eq!(h(x), oracle);\n");
+        let mut scans = 0;
+        let found = oracle_candidate_counting_scans(&body, SourceLanguage::Rust, &mut scans)
+            .expect("candidate");
+        assert_eq!(
+            scans, 2,
+            "one assertion scan per binding name, not per binding"
+        );
+        assert_eq!(found.binding, "oracle");
+        assert_eq!(found.function, "h");
+        assert_eq!(found.expression, "g(x)");
+        assert_eq!(found.line_offset, 4000);
+        assert!(oracle_candidate("let expected = f(x);\n", SourceLanguage::Rust).is_none());
     }
 
     #[trace("TC-1000", "FR-064-AC-3")]
