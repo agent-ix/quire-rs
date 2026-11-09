@@ -55,3 +55,19 @@ Ticket: PLAT-847. PR head: `6f257a9`. This is a planless gap analysis. Plan comp
 | FR-066 | context_only | No code dependency on removed names |
 | FR-068-AC-5 | examined | FND-002 |
 | FR-051-AC-1..10, 12..21, 23, 25..27, 29..42, 44..48 | context_only | Not changed by this PR |
+
+## New findings (disposition pass 1)
+
+Pass 1 reviewed fix head `2648663` against the amended FR-051 Advisory narrative and CR-215 kind-test note, AC-22, AC-49, FR-050-AC-39, FR-077-AC-2 and FR-077-CON-1, and TC-2183, TC-2184 and TC-2185. TC-2183 asserts that the advisory reports exactly `FR-001-AC-1` and `TC-001` from a comment that also names `CR-215`, `PLAT-847` and `AC-3`; that is a real control. TC-2184 covers `unmatched_tags` and the fallback that filters nothing when no id was minted. The coder measured the advisory falling from 2045 to 1345 findings on quire-rs; this review did not re-measure it.
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-004 | medium | FR-077-AC-2 as amended says `SymbolGraph.mentions` records only tokens "of a minted kind", as an unconditional property. The code applies the kind test to mentions only when a caller opts in through `SymbolGraph::retain_id_kinds`. `bind()` has no corpus and returns every token, and no production path calls the filter: `trace_search::search` and quire-cli's `quire trace` read `graph.mentions` unfiltered. TC-2184 itself states "after `retain_id_kinds`". **Judgement: the opt-in design is acceptable.** `bind` cannot know the minted ids, and a citation index queried by id (`quire trace --id CR-215`) arguably should not hide a CR id. The AC text, however, claims a property the shipped graph does not have. Fix: reword FR-077-AC-2 so the kind test applies when the consumer supplies the corpus's minted kinds through `retain_id_kinds`, which matches TC-2184. Wiring quire-cli is a separate decision and is not required for this PR. | spec/functional/FR-077-trace-search-index.md (AC-2); src/symbols/trace.rs:514-518; src/symbols/trace_search.rs:196-248 |
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | `tc2110_load_refusals` now loads `trace_tags.legacy` and asserts that the error names `legacy` (shell_symbols.rs:424-428); it passes. |
+| FND-002 | fixed | TC-1095 now asserts `AssuranceRelation::Verifies { form, .. } if form == "rust-trace"` (assurance_export.rs:394-404); it passes. |
+| FND-003 | deferred | The PR body edit for the per-repository coverage delta and the name-only count is not yet applied. The coordinator asked that it not be judged this round; recheck it before merge. |

@@ -47,3 +47,22 @@ Ticket: PLAT-847. PR head: `6f257a9`. This is a code review with the rust-review
 | retag commit 2ad3e38 (49 files) | examined | FND-002, FND-004 |
 | src/symbols/shell_trace.rs, shell adapter merge (#624) | context_only | shell excluded from the advisory per AC-49 |
 | corpus submodule pointer | context_only | points at qa-corpus#49 head, expected |
+
+## New findings (disposition pass 1)
+
+Pass 1 reviewed fix head `2648663`: commit `369d89a` (review fixes, the CR-215 kind test and the AC-22 language fix), the main merge `6a09d57` (#626), and the corpus bump to `8d24c93`. The new code reviewed is `IdKinds::from_minted`, `IdKinds::admits`, `id_kind`, `SymbolGraph::retain_id_kinds`, the `reconcile` filter over `outside_marker` and `unmatched_tags`, and the fallback that admits every token when nothing was minted. The code is correct and idiomatic: a `BTreeSet` newtype, no panics, deterministic. Bound relations are untouched. The kind is the leading alphabetic run of an id, upper-cased, so `StR-14` and `STR-14` compare equal. The fallback matches the amended Advisory narrative. Checks run at `2648663` (locked-build.sh, debug=0, jobs 4): `cargo test --lib -- symbols:: coverage:: traceability:: lint::` gave 175 ok, and `cargo test --test it -- outside_marker trace_dogfood shell_symbols assurance_export markdown_validation corpus_case coverage_baseline semantic_systems` gave 90 ok.
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-006 | low | TC-2185 (`a_production_function_is_told_an_implements_form_of_its_own_language_only`) asserts only negatives: `assert_ne!(by_path("m.py"), Some(rust attribute))` and `!by_path("m.ts").unwrap_or_default().contains("#[implements")`. Both pass when no finding is emitted for the file, so the test would also pass if the advisory dropped production findings outside Rust. Assert the positive value, `Some("function")`, for both files. | tests/it/outside_marker_advisory.rs:463-476 |
+| FND-007 | low | The kind test filters `unmatched_tags` and the advisory, but not the binding census. `generic_tags` still feeds `tagged`, `unmatched_example` and `tagged_not_bound` from every id-shaped token, so a test whose only annotation is `// see CR-215` counts as tagged-but-unbound. `unmatched_example` can then name a symbol that has no `unmatched_tags` record. This conforms to FR-051-AC-19, which is unchanged ("a generic id-shaped token"), but the census and `unmatched_tags` now disagree about what counts as a tag. Apply the same kinds to the census in `reconcile`, or note the difference in the AC-19 text. | src/symbols/trace.rs:596-641; src/coverage/reconcile.rs:477-484 |
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | `implements_template` is now a closure taking `finding.language` (binding_diagnostics.rs:192-201); AC-22 was amended to "whose `language` is the symbol's own"; TC-2185 was added (see FND-006). |
+| FND-002 | fixed | `#[trace("TC-1")]` was removed from binding_diagnostics.rs and `#[trace("FR-152")]` from semantic_systems.rs. |
+| FND-003 | fixed | trace.rs:818 now reads "already used for the advisory"; trace_dogfood.rs:12 now reads "matches no declared marker form". |
+| FND-004 | fixed | No added comment line in the PR diff now opens with a dangling `(…)`; the 7 remaining matches are mid-sentence continuation lines. No added `#[trace]` sits next to an existing one, because adjacent markers were merged. |
+| FND-005 | fixed | The marker moved from `fn shall_rule` to `tc609_section_body_pattern_match_yields_no_finding` (lint.rs:512). `TC-562`/`FR-033-AC-4` moved from the const to the two registry-assert tests (markdown_validation.rs:163, 176). |
