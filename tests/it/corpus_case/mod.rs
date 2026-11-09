@@ -26,7 +26,7 @@ mod loading;
 
 pub use execution::run;
 pub use grading::{grade, grade_against, grade_with, ValidateSource};
-pub use loading::{corpus_root, ecosystem_module_dirs, load_cases};
+pub use loading::{corpus_root, ecosystem_registry, load_cases};
 
 /// The detection ladder. `L1 < L2 < L3`, so the first level lost is the
 /// minimum over the failures a case produced.

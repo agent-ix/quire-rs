@@ -26,7 +26,7 @@ pub(super) fn load_module_path(path: &Path, case_id: &str) -> quire_rs::Registry
 /// loader is used on purpose: it never consults `IX_FILAMENT_MODULES_PATH` or
 /// `~/.ix/filament/modules`, so the answer is attributable to exactly these two
 /// checkouts and a developer's installed set cannot change a result.
-pub(super) fn ecosystem_registry(case_id: &str) -> quire_rs::Registry {
+pub fn ecosystem_registry(case_id: &str) -> quire_rs::Registry {
     let (process, iso) = ecosystem_module_dirs();
     quire_rs::Registry::load_module_set(&[&iso, &process]).unwrap_or_else(|e| {
         panic!(

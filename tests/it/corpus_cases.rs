@@ -371,6 +371,8 @@ fn tc1058_corpus_execution_grading_and_rendering_are_stable() {
 #[trace("TC-1021", "FR-065-AC-21")]
 // so do the mode families, and a case naming an
 // undeclared one is rejected.
+#[trace("TC-1021", "FR-065-AC-49")]
+// the corpus carries no copy of the provider modules.
 #[test]
 fn tc1021_the_vocabularies_come_from_the_corpus_not_from_this_file() {
     let declared: serde_yaml::Value = serde_yaml::from_str(
@@ -485,8 +487,7 @@ fn tc1021_the_vocabularies_come_from_the_corpus_not_from_this_file() {
                 case.meta.id,
                 module.display(),
             );
-            let (process, iso) = corpus_case::ecosystem_module_dirs();
-            assert!(process.join("manifest.yaml").is_file() && iso.join("manifest.yaml").is_file());
+            let _ = corpus_case::ecosystem_registry(&case.meta.id);
         } else {
             // One module, or a PATH of them.
             let resolves = module.join("manifest.yaml").is_file()
@@ -746,7 +747,7 @@ fn glob_case_files(cases: &std::path::Path) -> Vec<std::path::PathBuf> {
 #[trace("FR-065-CON-3", "TC-1018", "FR-065-AC-15")]
 // a variant binding names its relaxation ticket.
 #[trace("TC-1020", "FR-065-AC-18")]
-// the documented invocation names the module that loads.
+// the documented invocation names the module that loads (none for ecosystem).
 #[test]
 fn tc1020_the_documented_invocation_names_the_module_that_loads() {
     for case in &load_cases() {
@@ -755,9 +756,10 @@ fn tc1020_the_documented_invocation_names_the_module_that_loads() {
         // deserialization, naming the file rather than reaching this loop.
         let reproduce = case.meta.reproduce.as_str();
 
-        // FR-065-AC-18: the invocation names a module. Without one no model
-        // loads, the run reports 0/0, and the case cannot exhibit the
-        // declaration defect it exists for.
+        // FR-065-AC-18: a non-ecosystem invocation names its module. Without
+        // one no model loads, the run reports 0/0, and the case cannot exhibit
+        // the declaration defect it exists for. An ecosystem invocation names
+        // none: the provider modules resolve from the consumer.
         // A single module is selected with `--module`; a module PATH with
         // `IX_FILAMENT_MODULES_PATH`, because `--module` takes one directory.
         // Either way the invocation must NAME the module the case declares, or
