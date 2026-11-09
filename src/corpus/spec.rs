@@ -319,7 +319,7 @@ mod tests {
         assert_eq!(body.sections[0].heading, "FR-023");
     }
 
-    // (CR-047): the header-tier query surface — len,
+    // CR-047: the header-tier query surface — len,
     // by_id, by_type, diagnostics, and the FR-026/FR-027 edge queries —
     // completes with ZERO body parses; touching one body then parses
     // exactly that one document and no other.

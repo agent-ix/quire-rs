@@ -117,8 +117,7 @@ fn frontmatter_violation_fails() {
         .any(|e| e.reason == ValidationReason::Frontmatter));
 }
 
-#[trace("TC-562", "FR-033-AC-4")]
-// an archetype that carries an (registry path)
+// An archetype that carries an (registry path)
 // `assert` facet (AC table `columns` + interpolated `id_pattern`),
 // loaded via `Registry`, is wired manifest → load → `validate_document`.
 // This proves the assert path travels the whole pipeline, not just the
@@ -161,6 +160,7 @@ id: FR-700\n\
 | FR-700-AC-1 | First criterion | Integration Test |\n\
 | FR-700-AC-2 | Second criterion | Unit Test |\n";
 
+#[trace("TC-562", "FR-033-AC-4")]
 #[test]
 fn registry_assert_path_passes_conformant() {
     let r = assert_registry();
@@ -173,6 +173,7 @@ fn registry_assert_path_passes_conformant() {
     assert!(result.is_valid, "expected valid, got: {:?}", result.errors);
 }
 
+#[trace("TC-562", "FR-033-AC-4")]
 #[test]
 fn registry_assert_path_fails_on_bad_id_prefix() {
     let r = assert_registry();

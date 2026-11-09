@@ -2509,8 +2509,7 @@ artifact_types:
         );
     }
 
-    #[trace("TC-526")]
-    #[trace("TC-526c", "FR-031-AC-5")]
+    #[trace("TC-526", "TC-526c", "FR-031-AC-5")]
     // `template_ref` is a hard ArchetypeLoadFailure
     // (render removed — no backward-compatibility layer).
     #[test]
@@ -2542,8 +2541,7 @@ artifact_types:
         );
     }
 
-    #[trace("TC-526")]
-    #[trace("TC-526b")]
+    #[trace("TC-526", "TC-526b")]
     // `variants` is likewise a hard failure (no-compat rule).
     #[test]
     fn tc526_variants_is_hard_load_failure() {
@@ -2636,8 +2634,7 @@ object_types:
 
     // ---- FR-013 closed module set (agent-ix/quire-rs#405) ----
 
-    #[trace("FR-013-AC-15")]
-    #[trace("TC-1651")]
+    #[trace("FR-013-AC-15", "TC-1651")]
     // an exact set emits no duplicate-module or
     // duplicate-archetype diagnostic for a module declared once. The failing
     // case this replaces is not exotic: a module materialized at its pinned
@@ -2689,8 +2686,7 @@ object_types:
         assert_eq!(twice.modules.len(), 2);
     }
 
-    #[trace("FR-013-AC-16")]
-    #[trace("TC-1652")]
+    #[trace("FR-013-AC-16", "TC-1652")]
     // the set is CLOSED, not merely preferred. Removing a
     // module changes the outcome of a document that depends on it — the
     // archetype it contributed stops resolving, rather than being answered
@@ -2724,8 +2720,7 @@ object_types:
         );
     }
 
-    #[trace("FR-013-AC-17")]
-    #[trace("TC-1653")]
+    #[trace("FR-013-AC-17", "TC-1653")]
     // a module reachable only from the ambient install root is
     // not consulted when an exact set is declared, and an empty declared set
     // loads nothing rather than falling back. `load_module_set` never calls

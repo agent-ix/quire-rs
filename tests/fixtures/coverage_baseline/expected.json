@@ -386,28 +386,6 @@
     {
       "declaration": "traceability.trace_tags.markers",
       "reason": "trace-id-outside-marker",
-      "message": "`CR-187` is written in a comment or docstring on `tests` at src/lib.rs:3; a container binds no trace id, so a `trace` marker would bind nothing",
-      "path": "src/lib.rs",
-      "line": 3,
-      "value": "container",
-      "subject": "a trace id written in a comment or docstring",
-      "change_target": "src/lib.rs:3",
-      "remedy": "write the id in the marker named in the finding and remove it from the comment; a comment never binds, and the finding goes quiet once every occurrence is retagged"
-    },
-    {
-      "declaration": "traceability.trace_tags.markers",
-      "reason": "trace-id-outside-marker",
-      "message": "`PLAT-1077` is written in a comment or docstring on `tests` at src/lib.rs:3; a container binds no trace id, so a `trace` marker would bind nothing",
-      "path": "src/lib.rs",
-      "line": 3,
-      "value": "container",
-      "subject": "a trace id written in a comment or docstring",
-      "change_target": "src/lib.rs:3",
-      "remedy": "write the id in the marker named in the finding and remove it from the comment; a comment never binds, and the finding goes quiet once every occurrence is retagged"
-    },
-    {
-      "declaration": "traceability.trace_tags.markers",
-      "reason": "trace-id-outside-marker",
       "message": "`FR-003` is written in a comment or docstring on `tests` at src/lib.rs:4; a container binds no trace id, so a `trace` marker would bind nothing",
       "path": "src/lib.rs",
       "line": 4,

@@ -41,7 +41,7 @@ def test_extract_semantic_matches_rust_for_every_case():
 
 @pytest.mark.trace("TC-1644")
 def test_extract_semantic_is_deterministic():
-    """(Python half): repeated runs agree including diagnostic order."""
+    """Python half: repeated runs agree including diagnostic order."""
     for case in _cases():
         first = quire.extract_semantic(case["input"])
         second = quire.extract_semantic(case["input"])

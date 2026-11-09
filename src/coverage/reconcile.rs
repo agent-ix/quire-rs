@@ -6,7 +6,7 @@ use std::path::Path;
 use crate::corpus::declared_tables;
 use crate::corpus::spec::Spec;
 use crate::registry::Registry;
-use crate::symbols::trace::{SymbolGraph, VerifiesRelation};
+use crate::symbols::trace::{IdKinds, OutsideMarkerId, SymbolGraph, VerifiesRelation};
 use crate::traceability::{StatusClass, TraceTargetEvidence, TraceabilityModel};
 
 use super::binding_diagnostics::{
@@ -472,7 +472,16 @@ pub(super) fn reconcile(
     // Ordered immediately after the census diagnostics: they read a
     // denominator this is the explanation for, since a repository still on
     // textual tags reports its tests as unbound.
-    diagnostics.extend(outside_marker_diagnostics(&graph.outside_marker, model));
+    // Only a kind the declared targets mint is a trace id (CR-215): `CR-`,
+    // `PLAT-` and a bare `AC-` in a comment are not.
+    let id_kinds = IdKinds::from_minted(&declared_ids);
+    let outside_marker: Vec<OutsideMarkerId> = graph
+        .outside_marker
+        .iter()
+        .filter(|found| id_kinds.admits(&found.trace_id))
+        .cloned()
+        .collect();
+    diagnostics.extend(outside_marker_diagnostics(&outside_marker, model));
 
     // FR-051-AC-39, AC-44: a shell marker that matched and bound nothing.
     diagnostics.extend(shell_finding_diagnostics(&graph.shell_findings));
@@ -668,7 +677,12 @@ pub(super) fn reconcile(
         // FR-050-AC-39 (#362): engine-owned annotation parsing, exposed so a
         // census can join an unread authored id to its matrix row without
         // reimplementing the language adapters.
-        unmatched_tags: graph.unmatched_tags.clone(),
+        unmatched_tags: graph
+            .unmatched_tags
+            .iter()
+            .filter(|tag| id_kinds.admits(&tag.trace_id))
+            .cloned()
+            .collect(),
         // FR-063: filled by `compute`, which is where the criteria totals one
         // of these metrics describes are set.
         metrics: Vec::new(),

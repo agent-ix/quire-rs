@@ -462,7 +462,61 @@ pub struct Mention {
     pub excerpt: String,
 }
 
+/// The id kinds a loaded corpus can mint: the leading alphabetic prefix of
+/// every id the declared trace targets minted (`TC` for `TC-001`, `FR` for
+/// `FR-001-AC-1`), compared case-insensitively (CR-215, FR-051-AC-49).
+///
+/// The traceability model declares *which documents mint* ids, not what the ids
+/// look like, so the kinds are read off the minted ids themselves: a prefix no
+/// target mints (`CR-`, `PLAT-`, a bare `AC-`, `AGPL-`) is not a trace id and is
+/// not advised, recorded as unmatched or reported as a mention. A corpus that
+/// minted nothing declares no kind, and then every id-shaped token is admitted
+/// (the generic pattern, unfiltered), because there is nothing to tell a trace
+/// id from any other.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct IdKinds(BTreeSet<String>);
+
+impl IdKinds {
+    /// The kinds of the given minted ids.
+    pub fn from_minted<I, S>(ids: I) -> Self
+    where
+        I: IntoIterator<Item = S>,
+        S: AsRef<str>,
+    {
+        Self(
+            ids.into_iter()
+                .filter_map(|id| id_kind(id.as_ref()))
+                .collect(),
+        )
+    }
+
+    /// Whether `token` may be a trace id: its kind is minted, or no kind is
+    /// declared at all.
+    pub fn admits(&self, token: &str) -> bool {
+        self.0.is_empty() || id_kind(token).is_some_and(|kind| self.0.contains(&kind))
+    }
+}
+
+/// The leading alphabetic run of an id, upper-cased: `FR` for `FR-001-AC-1`.
+fn id_kind(id: &str) -> Option<String> {
+    let kind: String = id
+        .trim()
+        .chars()
+        .take_while(char::is_ascii_alphabetic)
+        .collect();
+    (!kind.is_empty()).then(|| kind.to_ascii_uppercase())
+}
+
 impl SymbolGraph {
+    /// Drop every generic id-shaped record (`unmatched_tags`, `mentions`,
+    /// `outside_marker`) whose kind the corpus does not mint (CR-215). Bound
+    /// relations are untouched: a marker binds whatever it names.
+    pub fn retain_id_kinds(&mut self, kinds: &IdKinds) {
+        self.unmatched_tags.retain(|t| kinds.admits(&t.trace_id));
+        self.mentions.retain(|m| kinds.admits(&m.trace_id));
+        self.outside_marker.retain(|o| kinds.admits(&o.trace_id));
+    }
+
     /// Trace ids backed by at least one symbol.
     pub fn backed_trace_ids(&self) -> BTreeSet<&str> {
         self.verifies.iter().map(|v| v.trace_id.as_str()).collect()
@@ -761,7 +815,7 @@ pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolG
 /// attribution itself instead).
 /// Each match is attributed to the innermost symbol in that file whose span
 /// contains it, using the same "highest `leading_line` wins, a `Container`
-/// loses ties" rule already proven for [`NonBindingTag`] — or to no symbol at
+/// loses ties" rule already used for the advisory — or to no symbol at
 /// all, when the token sits outside every declared span (a file header, a
 /// trailing comment after the last item).
 ///

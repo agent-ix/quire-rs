@@ -496,7 +496,6 @@ mod tests {
         assert_eq!(rules[0].severity(), LintSeverity::Warning);
     }
 
-    #[trace("TC-609", "FR-036-AC-6")]
     // `section_body_pattern` advisory rule.
     fn shall_rule(severity: LintSeverity) -> LintRule {
         LintRule::SectionBodyPattern {
@@ -510,7 +509,7 @@ mod tests {
     }
 
     // (a) a body containing the pattern produces NO finding.
-    #[trace("TC-609")]
+    #[trace("TC-609", "FR-036-AC-6")]
     #[test]
     fn tc609_section_body_pattern_match_yields_no_finding() {
         let doc = parse_document("## Statement\nThe system shall do the thing.\n");

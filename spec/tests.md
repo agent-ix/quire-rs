@@ -1171,6 +1171,9 @@ Reserved withdrawn IDs (not active test cases): TC-834, TC-842, TC-871, TC-1089,
 | TC-2180 | `## Values`, `## States`, `## Transitions`, `## Workflow` entries copy to the record keys the schema declares (guard as ClauseRef, step and transition references, header-only `[]`, list refused, duplicate and invalid `Value` leave the key unavailable, sources in document order) | Integration | P0 | FR-081-AC-15 | ✅ |
 | TC-2181 | `## Members` copies `RelationDecl[]` with the composite verb and the `member-verb`, `declared-in-members` and reference refusals; `vocabulary` omits an empty Description; unmapped `owner` and `ubiquitous_language` yield nothing; `## Persists`/`## Emits` are prose; `## Source` extracts `source` | Integration | P0 | FR-081-AC-16 | ✅ |
 | TC-2182 | A fragment `$ref` property is read; an unreadable shape named by a heading is refused with `schema-unreadable`; `associated_types` is read in another module; an invalid `Status` is refused once | Integration | P0 | FR-081-AC-17 | ✅ |
+| TC-2183 | A comment naming `CR-215`, `PLAT-847` and a bare `AC-3` beside `FR-001-AC-1` and `TC-001` yields `trace-id-outside-marker` findings for the last two only, because only `FR` and `TC` are kinds the corpus mints (CR-215) | Integration | P0 | FR-051-AC-49 | ✅ |
+| TC-2184 | The same kind test applies to the report's `unmatched_tags` and to `SymbolGraph.mentions` after `retain_id_kinds`; a corpus that minted nothing declares no kind and filters nothing (CR-215) | Integration | P0 | FR-050-AC-39, FR-077-AC-2 | ✅ |
+| TC-2185 | A production Python or TypeScript function is never given a Rust `rust_attribute` replacement: the replacement text comes from an `implements` form of the symbol's own language, else the kind alone (CR-215) | Integration | P0 | FR-051-AC-22 | ✅ |
 
 ---
 
@@ -1603,7 +1606,7 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-050-AC-36 | TC-1048, TC-1049 |
 | FR-050-AC-37 | TC-1050, TC-1051 |
 | FR-050-AC-38 | TC-1073 |
-| FR-050-AC-39 | TC-1074 |
+| FR-050-AC-39 | TC-1074, TC-2184 |
 | FR-050-AC-40 | TC-1075 |
 | FR-050-AC-41 | TC-1076 |
 | FR-050-AC-42 | TC-1077 |
@@ -1985,7 +1988,7 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-051-AC-19 | TC-982, TC-1006, TC-1060 |
 | FR-051-AC-20 | TC-1029, TC-1030, TC-1031 |
 | FR-051-AC-21 | TC-1039, TC-1040, TC-1940 |
-| FR-051-AC-22 | TC-1044, TC-1046, TC-1081, TC-2165 |
+| FR-051-AC-22 | TC-1044, TC-1046, TC-1081, TC-2165, TC-2185 |
 | FR-051-AC-23 | TC-1052, TC-1053, TC-1054 |
 | FR-051-AC-24 | TC-1055, TC-1056, TC-1057 |
 | FR-051-AC-25 | TC-1879, TC-1880, TC-1881 |
@@ -2011,7 +2014,7 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-051-AC-46 | TC-2113 |
 | FR-051-AC-47 | TC-2154 |
 | FR-051-AC-48 | TC-2155 |
-| FR-051-AC-49 | TC-2161, TC-2162, TC-2165 |
+| FR-051-AC-49 | TC-2161, TC-2162, TC-2165, TC-2183, TC-2184 |
 | FR-051-AC-50 | TC-2163 |
 | FR-051-AC-28 | TC-1936, TC-1937, TC-2166 |
 | FR-052-AC-1 | TC-779 |
@@ -2236,7 +2239,7 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-074-AC-11 | TC-980 |
 | FR-074-AC-12 | TC-981 |
 | FR-077-AC-1 | TC-1887 |
-| FR-077-AC-2 | TC-1888 |
+| FR-077-AC-2 | TC-1888, TC-2184 |
 | FR-077-AC-3 | TC-1889 |
 | FR-077-AC-4 | TC-1890, TC-1891 |
 | FR-077-AC-5 | TC-1892 |

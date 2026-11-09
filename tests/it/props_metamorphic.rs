@@ -68,7 +68,7 @@ fn is_unambiguous(doc: &quire_rs::QuireDocument, heading: &str) -> bool {
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(2_000))]
 
-    /// (FR-022-AC-1/AC-4, CR-069, Property): writing a section's own
+    /// FR-022-AC-1/AC-4, CR-069, Property: writing a section's own
     /// content back is the **identity** on the whole document, byte for byte —
     /// frontmatter, heading lines and every other section included.
     ///
@@ -99,7 +99,7 @@ proptest! {
         }
     }
 
-    /// (CR-069, Property): after replacing one section's
+    /// CR-069, Property: after replacing one section's
     /// content, re-parsing yields the same heading structure and the new content
     /// under that heading — the write is readable back through the parser, which
     /// is the fixpoint the byte-splice has to hit for a round-trip edit to be

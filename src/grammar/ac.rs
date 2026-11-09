@@ -1771,7 +1771,7 @@ mod props_metamorphic {
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(4000))]
 
-        /// (CR-017/CR-026, CR-069, Property): masking is
+        /// CR-017/CR-026, CR-069, Property: masking is
         /// idempotent — a masked span masks to itself.
         #[test]
         #[trace("FR-047-AC-18", "TC-894")]
@@ -1780,7 +1780,7 @@ mod props_metamorphic {
             prop_assert_eq!(super::mask_code_spans(&once), once.clone(), "input={:?}", s);
         }
 
-        /// (CR-069, Property): masking preserves byte
+        /// CR-069, Property: masking preserves byte
         /// length. `outcome_clause` locates a keyword in the masked copy and
         /// slices the *original* with that offset, so any drift here would
         /// silently mis-slice rather than fail loudly.
@@ -1790,7 +1790,7 @@ mod props_metamorphic {
             prop_assert_eq!(super::mask_code_spans(&s).len(), s.len(), "input={:?}", s);
         }
 
-        /// (CR-069, Property): masking never *introduces* a
+        /// CR-069, Property: masking never *introduces* a
         /// backtick, and every backtick it keeps is at the offset it already
         /// occupied — the output's backtick positions are a subset of the
         /// input's. Equality would be wrong: a backtick inside a span is span

@@ -227,7 +227,7 @@ mod tests {
     }
 
     proptest! {
-        // (Property): round-trip stitch is
+        // Property: round-trip stitch is
         // byte-exact for any body. 10 000 cases matches the parse-document
         // no-panic budget; this property is load-bearing for writeback.
         //

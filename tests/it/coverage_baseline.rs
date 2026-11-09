@@ -54,10 +54,9 @@ fn render_report() -> String {
     format!("{}\n", report.to_json())
 }
 
-/// (CR-057): the coverage report over the baseline corpus
+/// CR-057: the coverage report over the baseline corpus
 /// is byte-identical to the checked-in snapshot.
-#[trace("FR-050-AC-7", "TC-824")]
-#[trace("TC-2055", "FR-072-AC-9")]
+#[trace("FR-050-AC-7", "TC-824", "TC-2055", "FR-072-AC-9")]
 #[test]
 fn tc824_coverage_report_matches_the_checked_in_baseline() {
     let actual = render_report();
@@ -82,7 +81,7 @@ fn tc824_coverage_report_matches_the_checked_in_baseline() {
     );
 }
 
-/// (CR-057): and the baseline corpus still exercises what
+/// CR-057: and the baseline corpus still exercises what
 /// it was chosen to exercise. A gate over a corpus that has quietly stopped
 /// producing findings passes forever while measuring nothing — the failure
 /// mode of every baseline nobody re-reads.
@@ -200,7 +199,7 @@ fn tc824_the_baseline_corpus_still_exercises_the_surface() {
         report.groups
     );
 
-    // (CR-060): and the model-level `exclude:` holds on the criteria
+    // CR-060: and the model-level `exclude:` holds on the criteria
     // axis too. Until #124, the CR-028 walk had no exclusion to apply, so
     // deliberately malformed fixture data inflated the criteria denominator
     // and was body-parsed despite the declaration saying it is not corpus

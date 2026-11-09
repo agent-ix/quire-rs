@@ -9,7 +9,7 @@
 //! Two ways to silently un-back them again, both of which this test catches:
 //! rewriting the bench tag as `NFR-002-AC-4 / TC-577` (the declared list
 //! separator is a comma, so the second id is dropped), or moving the fuzz tag
-//! into the `//!` module header (which matches no declared legacy form).
+//! into the `//!` module header (which matches no declared marker form).
 //!
 //! The fixture `iso` module is used rather than a real `spec-artifacts-process`
 //! checkout, so this runs in CI, where there is neither network nor a module.

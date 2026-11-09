@@ -3323,8 +3323,7 @@ fn tc1038_the_section_finding_names_every_declared_section() {
     );
 }
 
-#[trace("FR-053")]
-#[trace("TC-1878", "FR-053-AC-1")]
+#[trace("FR-053", "TC-1878", "FR-053-AC-1")]
 // agent-ix/quire-rs#460: an "object" archetype whose own id joins KIND and
 // NUMBER with an underscore (`interface_004`) rather than the requirement
 // archetypes' hyphen (`FR-001`) registers as an obligation-bearing kind

@@ -123,7 +123,7 @@ mod props_metamorphic {
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(4000))]
 
-        /// (FR-009, CR-069, Property): slugging is idempotent — a slug is
+        /// FR-009, CR-069, Property: slugging is idempotent — a slug is
         /// already a slug. Block ids are minted from this, so a non-idempotent
         /// slug would make an id depend on how it was reached.
         #[test]
@@ -133,7 +133,7 @@ mod props_metamorphic {
             prop_assert_eq!(super::slug(&once), once.clone(), "input={:?}", s);
         }
 
-        /// (FR-009, CR-069, Property): the output alphabet is closed —
+        /// FR-009, CR-069, Property: the output alphabet is closed —
         /// lowercase ASCII alphanumerics and `-` only, for any input including
         /// non-ASCII (FR-009-AC-6).
         #[test]
@@ -146,7 +146,7 @@ mod props_metamorphic {
             );
         }
 
-        /// (CR-069, Property): surrounding whitespace on a
+        /// CR-069, Property: surrounding whitespace on a
         /// heading is formatting, not content — it cannot change the id. This is
         /// the ticket's "content invariance under formatting-only edits"
         /// relation at the level where the engine actually claims it.

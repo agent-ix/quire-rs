@@ -186,15 +186,19 @@ pub(super) fn outside_marker_diagnostics(
     found: &[OutsideMarkerId],
     model: &TraceabilityModel,
 ) -> Vec<CoverageDiagnostic> {
-    let implements_template = model
-        .trace_tags
-        .implements
-        .iter()
-        .filter(|form| {
-            form.language == SourceLanguage::Rust
-                && form.syntax == Some(TraceMarkerSyntax::RustAttribute)
-        })
-        .find_map(|form| form.template.as_deref());
+    // The first `rust_attribute` implements form declaring a template, for the
+    // finding's own language (FR-051-AC-22): a Python or TypeScript function is
+    // never told a Rust attribute.
+    let implements_template = |language: SourceLanguage| {
+        model
+            .trace_tags
+            .implements
+            .iter()
+            .filter(|form| {
+                form.language == language && form.syntax == Some(TraceMarkerSyntax::RustAttribute)
+            })
+            .find_map(|form| form.template.as_deref())
+    };
     found
         .iter()
         .filter_map(|finding| {
@@ -225,7 +229,7 @@ pub(super) fn outside_marker_diagnostics(
                 },
                 OutsideMarkerOwner::Production(kind) => {
                     let kind = kind.as_str();
-                    match implements_template.map(render) {
+                    match implements_template(finding.language).map(render) {
                         Some(text) => (
                             format!(
                                 "a {kind} binds no trace id, so a `trace` marker would bind nothing; to say what it implements write `{text}`"
@@ -504,7 +508,6 @@ mod cr136_near_miss {
         assert_ne!(normalized_id("TC-000"), normalized_id("TC-"));
     }
 
-    #[trace("TC-1")]
     #[trace("TC-1051", "FR-050-AC-37")]
     // a near miss is reported naming BOTH spellings, and an
     // EXACT match is not reported at all.

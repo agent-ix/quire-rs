@@ -7,6 +7,7 @@ use ix_trace_rs::trace;
 use quire_rs::coverage::{CoverageDiagnostic, CoverageReport};
 use quire_rs::symbols::trace;
 use serde_json::{json, Value};
+use std::collections::BTreeSet;
 
 const REASON: &str = "trace-id-outside-marker";
 
@@ -329,5 +330,148 @@ fn an_id_in_a_test_name_adds_nothing_and_raises_no_name_diagnostic() {
                     && d.value.as_deref().is_some_and(|v| v.contains("self_named")))),
         "{:?}",
         run.report.diagnostics
+    );
+}
+
+/// A one-FR, one-matrix bundle minting `FR-001-AC-1` and `TC-001`, a Rust
+/// source whose test carries the given comment block, and the graph bound over
+/// it. Only `FR` and `TC` are kinds this bundle mints.
+fn minted_bundle(comment: &str) -> (CoverageReport, trace::SymbolGraph) {
+    let dir = tempfile::tempdir().unwrap();
+    let scope = dir.path().join("spec");
+    let src = dir.path().join("src");
+    std::fs::create_dir_all(&scope).unwrap();
+    std::fs::create_dir_all(&src).unwrap();
+    std::fs::write(
+        scope.join("FR-001.md"),
+        "---\nid: FR-001\ntype: FR\ntitle: A requirement\n---\n\n## Acceptance Criteria\n\n\
+         | ID | Criteria | Verification |\n|----|----------|--------------|\n\
+         | FR-001-AC-1 | The system shall do it. | Test (TC-001) |\n",
+    )
+    .unwrap();
+    std::fs::write(
+        scope.join("tests.md"),
+        "---\nid: TM-001\ntype: TestMatrix\ntitle: Test Matrix\n---\n\n# Test Matrix\n\n\
+         ## Test Cases\n\n| ID | Traces To | Status |\n|----|-----------|--------|\n\
+         | TC-001 | FR-001-AC-1 | ✅ |\n",
+    )
+    .unwrap();
+    std::fs::write(
+        src.join("lib.rs"),
+        format!("#[cfg(test)]\nmod tests {{\n{comment}    #[test]\n    fn covers() {{}}\n}}\n"),
+    )
+    .unwrap();
+    let module =
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/traceability/iso");
+    let registry = quire_rs::Registry::load_module(&module).unwrap();
+    let spec = quire_rs::Spec::from_path(&scope);
+    let graph = trace::bind(
+        &quire_rs::symbols::extract_tree(&src),
+        registry.traceability().unwrap(),
+    );
+    let report = quire_rs::coverage::compute(&spec, &registry, &graph, &scope).unwrap();
+    (report, graph)
+}
+
+const KIND_COMMENT: &str = "    // CR-215 and PLAT-847 name the change, AC-3 a criterion; FR-001-AC-1 and TC-001\n    // are the ids this test is about.\n";
+
+#[trace("TC-2183", "FR-051-AC-49")]
+#[test]
+fn only_a_kind_the_corpus_mints_is_advised() {
+    let (report, _) = minted_bundle(KIND_COMMENT);
+    let advised: Vec<_> = findings(&report)
+        .iter()
+        .map(|d| d.message.split('`').nth(1).unwrap_or_default().to_string())
+        .collect();
+    assert_eq!(
+        advised,
+        vec!["FR-001-AC-1", "TC-001"],
+        "CR-, PLAT- and a bare AC- are not trace ids: {:?}",
+        report.diagnostics
+    );
+}
+
+#[trace("TC-2184", "FR-050-AC-39", "FR-077-CON-1")]
+#[test]
+fn the_same_kinds_filter_unmatched_tags_and_mentions() {
+    let (report, mut graph) = minted_bundle(KIND_COMMENT);
+    let tags: BTreeSet<_> = report
+        .unmatched_tags
+        .iter()
+        .map(|t| t.trace_id.as_str())
+        .collect();
+    assert_eq!(
+        tags,
+        BTreeSet::from(["FR-001-AC-1", "TC-001"]),
+        "the report's unmatched_tags drops CR-, PLAT- and AC-"
+    );
+
+    assert!(
+        graph.mentions.iter().any(|m| m.trace_id == "CR-215"),
+        "bound without a corpus, the graph reads every id-shaped token"
+    );
+    graph.retain_id_kinds(&trace::IdKinds::from_minted(
+        report.minted_targets.iter().map(|m| m.id.as_str()),
+    ));
+    let mentioned: BTreeSet<_> = graph.mentions.iter().map(|m| m.trace_id.as_str()).collect();
+    assert!(
+        mentioned
+            .iter()
+            .all(|id| id.starts_with("FR-") || id.starts_with("TC-")),
+        "mentions keep only minted kinds: {mentioned:?}"
+    );
+    assert!(!mentioned.is_empty());
+
+    // A corpus that minted nothing declares no kind: nothing is filtered.
+    let mut open = trace::bind(
+        &quire_rs::symbols::extract_tree(&{
+            let dir = tempfile::tempdir().unwrap().keep();
+            std::fs::write(dir.join("lib.rs"), "// CR-215\n#[test]\nfn t() {}\n").unwrap();
+            dir
+        }),
+        &Default::default(),
+    );
+    let before = open.mentions.len();
+    open.retain_id_kinds(&trace::IdKinds::from_minted(Vec::<String>::new()));
+    assert_eq!(
+        open.mentions.len(),
+        before,
+        "no declared kind: the generic pattern stands"
+    );
+}
+
+#[trace("TC-2185", "FR-051-AC-22")]
+#[test]
+fn a_production_function_is_told_an_implements_form_of_its_own_language_only() {
+    let python_attr = json!({
+        "name": "python-implements", "language": "python",
+        "pattern": r"(?m)^#\s*Implements:\s*(.+)$", "template": "# Implements: {ids}",
+    });
+    // A Rust `rust_attribute` form must not supply the replacement for Python
+    // or TypeScript code.
+    let python_source = "# FR-007-AC-1 prose\ndef parse():\n    pass\n";
+    let ts_source = "// FR-007-AC-1 prose\nexport function parse() {}\n";
+    let run = run(
+        vec![
+            rust_marker(Some("#[trace({ids})]")),
+            python_marker(),
+            typescript_marker(),
+        ],
+        vec![attribute_form(Some("#[implements({ids})]")), python_attr],
+        &[("m.py", python_source), ("m.ts", ts_source)],
+    );
+    let by_path = |p: &str| {
+        findings(&run.report)
+            .into_iter()
+            .find(|d| d.path.as_deref() == Some(p))
+            .and_then(|d| d.value.clone())
+    };
+    assert_ne!(
+        by_path("m.py").as_deref(),
+        Some(r#"#[implements("FR-007-AC-1")]"#)
+    );
+    assert!(
+        !by_path("m.ts").unwrap_or_default().contains("#[implements"),
+        "a TypeScript function is never told a Rust attribute"
     );
 }

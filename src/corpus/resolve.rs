@@ -740,7 +740,7 @@ mod tests {
         assert_eq!(edges[0].edge_type, "references");
     }
 
-    // (CR-067): every `ix://` shape the ecosystem
+    // CR-067: every `ix://` shape the ecosystem
     // actually authors still matches. The counts are occurrences across the
     // 237 `~/dev` spec bundles at the time of the change — this test exists so
     // that a future tightening of the grammar has to argue with real usage
@@ -819,7 +819,7 @@ mod tests {
         );
     }
 
-    // (CR-067, agent-ix/quire-rs#89): the bare protocol
+    // CR-067, agent-ix/quire-rs#89: the bare protocol
     // and every malformed form the corpus contains mint nothing. The reported
     // defect is the first case: `` `ix://` `` matched as ``ix://` `` and the
     // harvested target was the closing backtick.
@@ -865,7 +865,7 @@ mod tests {
         assert!(out.diagnostics.is_empty(), "got {:?}", out.diagnostics);
     }
 
-    // (FR-026-CON-1, CR-067): `harvest_edges` — the single-document
+    // FR-026-CON-1, CR-067: `harvest_edges` — the single-document
     // surface behind the Python binding — reads the same grammar as corpus
     // resolution, because both go through `harvest_body_links`.
     #[trace("TC-882")]

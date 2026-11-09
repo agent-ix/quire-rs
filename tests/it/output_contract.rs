@@ -578,8 +578,7 @@ fn tc858_added_fields_are_rejected_at_every_level() {
     }
 }
 
-#[trace("FR-050-AC-39")]
-#[trace("TC-859", "FR-055-AC-6")]
+#[trace("FR-050-AC-39", "TC-859", "FR-055-AC-6")]
 // the optional/required split matches the engine's
 // skip-when-empty behaviour, in both directions.
 #[test]

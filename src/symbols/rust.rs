@@ -1022,7 +1022,7 @@ mod tests {
         );
     }
 
-    /// (CR-040, PLAT-843): a file is not rejected for
+    /// CR-040, PLAT-843: a file is not rejected for
     /// braces that live in a raw string, a lifetime, a char literal or a
     /// nested comment. This is the test the 33-file whole-file-rejection
     /// incident is pinned by (see this module's own docs); it must go on
@@ -1143,7 +1143,7 @@ mod tests {
         assert_eq!(f.end_line, 5);
     }
 
-    /// (CR-061): a criterion bench carries no
+    /// CR-061: a criterion bench carries no
     /// attribute — it is an ordinary `fn` that `criterion_group!`
     /// registers — so the registration is what classifies it. Both
     /// invocation forms, wrapped or not, and `#[bench]` directly.
@@ -1211,7 +1211,7 @@ mod tests {
         assert_eq!(attribute[0].kind, SymbolKind::Benchmark);
     }
 
-    /// (CR-061): the registration is read from the
+    /// CR-061: the registration is read from the
     /// macro's own argument nodes, not from a trimmed-line offset, so a
     /// trailing comment beside the invocation cannot hide it.
     #[trace("FR-051-AC-17", "TC-827")]
@@ -1227,7 +1227,7 @@ mod tests {
         assert_eq!(symbols[0].kind, SymbolKind::Benchmark);
     }
 
-    /// (CR-061): `targets` is matched as a whole
+    /// CR-061: `targets` is matched as a whole
     /// identifier token immediately followed by `=`, so a bench or group
     /// whose *name* merely starts with it is still registered rather than
     /// eaten by the long-form parse.
@@ -1243,7 +1243,7 @@ mod tests {
         );
     }
 
-    /// (CR-061): `fuzz_target!` declares no `fn`, so
+    /// CR-061: `fuzz_target!` declares no `fn`, so
     /// before this a fuzz-target file yielded **no symbol at all** and its
     /// tag bound to nothing. The symbol's span starts at line 1: the file's
     /// `//!` module header is the invocation's annotation block, and it is
@@ -1349,7 +1349,7 @@ mod tests {
         assert_eq!(method.container.as_deref(), Some("Foo"));
     }
 
-    /// (PLAT-843 audit item d): `type`/`static`/`const`/`union` mint
+    /// PLAT-843 audit item d: `type`/`static`/`const`/`union` mint
     /// no symbols — only fn/mod/struct/enum/trait/impl are recognised.
     #[trace("FR-051")]
     #[test]
@@ -1367,7 +1367,7 @@ mod tests {
         );
     }
 
-    /// (PLAT-845): a `fn` **is** a container for its own body —
+    /// PLAT-845: a `fn` **is** a container for its own body —
     /// the same mechanism `mod`/`struct`/`trait`/`impl` already use, plain
     /// `::`, no new separator — so two same-named functions nested in two
     /// differently-named enclosing functions qualify (and therefore differ in id)
@@ -1825,7 +1825,7 @@ mod tests {
         );
     }
 
-    /// (PLAT-897): a comment trailing on the same
+    /// PLAT-897: a comment trailing on the same
     /// line as the declaration *before* it must not join the *next*
     /// declaration's leading span. This adapter had no such check before
     /// PLAT-897 hoisted `leading_span` into a shared helper both
@@ -1860,7 +1860,7 @@ mod tests {
         );
     }
 
-    /// (CR-187): `#[ignore]`, with or without a reason
+    /// CR-187: `#[ignore]`, with or without a reason
     /// string, before or after `#[test]`, marks the symbol ignored.
     /// `#[cfg_attr(test, ignore)]`'s conditional form is a control and does
     /// not mark it ignored — its own outer path is `cfg_attr`, never `ignore`.

@@ -1194,7 +1194,7 @@ mod props_metamorphic {
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(3000))]
 
-        /// (FR-049, CR-069, Property): cell normalization is idempotent
+        /// FR-049, CR-069, Property: cell normalization is idempotent
         /// under every combination of the two opt-in flags. Its counterexample
         /// before the fixpoint loop was the chained range
         /// `FR-375..FR-432..FR-432`, which left a `..` the pattern rejects.
@@ -1213,7 +1213,7 @@ mod props_metamorphic {
             );
         }
 
-        /// (FR-049, CR-069, Property): with both flags off the cell is
+        /// FR-049, CR-069, Property: with both flags off the cell is
         /// returned unchanged — normalization is opt-in (CR-015), so the
         /// no-declaration path must be the identity.
         #[test]

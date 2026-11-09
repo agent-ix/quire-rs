@@ -2021,8 +2021,7 @@ edge_types:
         );
     }
 
-    #[trace("TC-641")]
-    #[trace("TC-641b", "FR-040-AC-8")]
+    #[trace("TC-641", "TC-641b", "FR-040-AC-8")]
     // when `object:` is unknown, the vocabulary
     // falls back to the artifact axis alone and Tier-1 still runs.
     #[test]

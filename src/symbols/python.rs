@@ -968,7 +968,7 @@ mod tests {
         })
     }
 
-    /// (CR-037): a signature black-wrapped over
+    /// CR-037: a signature black-wrapped over
     /// multiple lines still reaches its docstring — `function_definition`'s
     /// own node span already covers the full signature, so no bespoke
     /// paren-depth walk (the pre-port scanner's `block_end`/`paren_delta`,
@@ -977,8 +977,7 @@ mod tests {
     /// `test_multi_line`'s wrapped signature binds `TC-029` exactly as
     /// `test_single_line`'s single-line spelling binds `TC-028` — the
     /// single-line form is the control.
-    #[trace("FR-051-AC-13", "TC-800")]
-    #[trace("TC-1880", "FR-051-AC-25")]
+    #[trace("FR-051-AC-13", "TC-800", "TC-1880", "FR-051-AC-25")]
     #[test]
     fn tc800_wrapped_signature_span_reaches_the_docstring() {
         let source = concat!(

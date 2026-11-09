@@ -872,7 +872,7 @@ mod props_metamorphic {
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(4000))]
 
-        /// (CR-069, Property): EARS normalization is idempotent.
+        /// CR-069, Property: EARS normalization is idempotent.
         /// Its counterexample before the fixpoint loop was `[]**()`, which
         /// normalized to `[]()` and then to `""`.
         #[test]
@@ -882,7 +882,7 @@ mod props_metamorphic {
             prop_assert_eq!(super::normalize(&once), once.clone(), "input={:?}", s);
         }
 
-        /// (CR-069, Property): and it never lengthens its input,
+        /// CR-069, Property: and it never lengthens its input,
         /// which is what makes the fixpoint loop terminate.
         #[test]
         #[trace("FR-042", "TC-891")]

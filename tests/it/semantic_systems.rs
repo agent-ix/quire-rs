@@ -536,14 +536,13 @@ fn systems_references_resolve_qualified_and_imported_names_of_the_admitted_kind(
     );
 }
 
-/// (TC-197 Y01, Sys/Pump/sys_pump/pump_alloc): a Part `Owner`
+/// TC-197 Y01, Sys/Pump/sys_pump/pump_alloc: a Part `Owner`
 /// names the owning composite type, refusing only a `part`, `port`,
 /// `connection`, `allocation`, or a declarer with no declared type. An
 /// allocation `Source` `<id>/<member>` admits any declared kind but a
 /// systems record (the same four), and only when `<id>` actually declares
 /// the operation `<member>`. A Port `Owner` and an
 /// allocation `Target` still admit only a `part`.
-#[trace("FR-152")]
 #[trace("TC-1872", "FR-075-AC-12")]
 #[test]
 fn part_owner_and_allocation_operation_source_admit_any_declared_kind() {

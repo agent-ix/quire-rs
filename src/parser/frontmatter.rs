@@ -161,7 +161,7 @@ mod tests {
         Value::String(s.to_string())
     }
 
-    // (no-FM half)
+    // no-FM half
     #[trace("FR-006-AC-1", "TC-012")]
     #[test]
     fn no_frontmatter_returns_input_as_body() {
@@ -172,7 +172,7 @@ mod tests {
         assert_eq!(r.status, FrontmatterStatus::Absent);
     }
 
-    // (happy path)
+    // happy path
     #[trace("FR-006-AC-2", "TC-012")]
     #[test]
     fn happy_path_parses_yaml_and_strips_fences() {
@@ -261,7 +261,7 @@ mod tests {
         assert_eq!(r.status, FrontmatterStatus::Malformed);
     }
 
-    // (empty/null → Absent half of the status classification)
+    // empty/null → Absent half of the status classification
     #[trace("FR-006-AC-7", "TC-706")]
     #[test]
     fn empty_or_comment_only_frontmatter_is_absent_not_malformed() {

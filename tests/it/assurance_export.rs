@@ -391,13 +391,17 @@ fn tc1094_tc1097_relation_variants_preserve_graph_meaning() {
             ..
         } if edge_type == "satisfies"
     )));
-    assert!(export.relations.iter().any(|relation| matches!(
-        relation,
-        AssuranceRelation::Verifies {
-            freshness: AssuranceFreshness::Unknown,
-            ..
-        }
-    )));
+    assert!(
+        export.relations.iter().any(|relation| matches!(
+            relation,
+            AssuranceRelation::Verifies {
+                freshness: AssuranceFreshness::Unknown,
+                form,
+                ..
+            } if form == "rust-trace"
+        )),
+        "FR-068-AC-5: a test binding names the marker form that bound it"
+    );
     assert!(export.relations.iter().any(|relation| matches!(
         relation,
         AssuranceRelation::Implements {

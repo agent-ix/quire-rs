@@ -363,7 +363,7 @@ mod tests {
         assert!(unasked.symbols.iter().all(|s| s.trace_ids.is_empty()));
     }
 
-    /// (FR-051-AC-27): `ignored` is serialized only when `true` — a
+    /// FR-051-AC-27: `ignored` is serialized only when `true` — a
     /// corpus with no ignored symbol carries no `ignored` key at all, and a
     /// corpus with one ignored symbol emits `ignored: true` on that record
     /// alone.

@@ -728,8 +728,7 @@ fn glob_case_files(cases: &std::path::Path) -> Vec<std::path::PathBuf> {
 /// `bounds.py` crediting the cell as ecosystem-covered. That is #266's defect
 /// ("the field named one thing and the file loaded another") relocated rather
 /// than removed.
-#[trace("FR-065-CON-3")]
-#[trace("TC-1018", "FR-065-AC-15")]
+#[trace("FR-065-CON-3", "TC-1018", "FR-065-AC-15")]
 // a variant binding names its relaxation ticket.
 #[trace("TC-1020", "FR-065-AC-18")]
 // the documented invocation names the module that loads.

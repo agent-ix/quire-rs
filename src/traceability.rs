@@ -1884,7 +1884,7 @@ mod cr118_props {
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(2000))]
 
-        /// (FR-050-AC-34, CR-118, Property): a declared name carrying no
+        /// FR-050-AC-34, CR-118, Property: a declared name carrying no
         /// `*` selects a section exactly when [`crate::query::section`] — the
         /// lookup every `section:` has gone through since FR-010 — finds it.
         ///
@@ -2140,7 +2140,7 @@ document_references:
         }
     }
 
-    /// (CR-062): `archetype` is the only origin, and it is
+    /// CR-062: `archetype` is the only origin, and it is
     /// required. A `document:` key — the deleted form — is now an unknown field,
     /// which `deny_unknown_fields` rejects rather than silently ignores: a module
     /// carrying the old declaration fails load instead of minting nothing.
@@ -2194,8 +2194,7 @@ document_references:
         assert!(!yaml.contains("exclude"), "{yaml}");
     }
 
-    #[trace("FR-050-AC-7")]
-    #[trace("TC-826")]
+    #[trace("FR-050-AC-7", "TC-826")]
     // the model-level `exclude:` is a repository fact, so it (CR-060)
     // is not what makes a model *declared* — a module that says only "these
     // paths are not corpus data" has declared no model to reconcile against.
