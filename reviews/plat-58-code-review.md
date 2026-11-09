@@ -29,3 +29,10 @@ No files were copied or vendored. The fixture was edited in place in the `quire-
 | --- | --- | --- | --- |
 | FND-001 | low | A comment in `request()` still says the fixture "is not edited in place (PLAT-901: it is quoin's own fixture, moved not owned-for-editing)". This PR edits it in place, and FR-076 now calls it derived and owned by quire-rs. The comment justifies the `operations` backfill with a premise that is no longer true | tests/it/semantic_relations.rs:66-71 |
 | FND-002 | low | `assert_reason_loci` in the relationships harness refuses a `reason` next to `reasonLoci`. The clauses harness has no such check, so a clause case carrying both passes and its stale `reason` is never read | tests/it/semantic_clauses.rs:245-264 |
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | Commit a859f1d removes the "not edited in place (PLAT-901: it is quoin's own fixture …)" clause from the `request()` comment (tests/it/semantic_relations.rs:65-68). |
+| FND-002 | fixed | Commit a859f1d adds `assert!(want.get("reason").is_none(), "{id}: reason beside reasonLoci")` to the clauses harness (tests/it/semantic_clauses.rs:249-252). The new should_panic test `reason_beside_reason_loci_is_refused` passes at a859f1d. |
