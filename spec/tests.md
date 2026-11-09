@@ -1130,6 +1130,27 @@ Reserved withdrawn IDs (not active test cases): TC-834, TC-842, TC-871, TC-1089,
 | TC-2056 | Audit-table completeness (CR-200): deleting an audit row, including a mixed-case `StR-` row, is one error naming the criterion and every declaration of it; a document-defined criterion with no row, a coverage-range or audit-row id no document defines, and an unreadable or runaway criteria cell are each an error; tombstones (`RETIRED`, `Removed:`, bare `Withdrawn.`), struck-through or RETIRED-status coverage rows, parenthetical notes, a `RETIRED` word in a live row's test cell and a `###` gaps table are not; and this repository's own matrix passes | Integration | P0 | FR-050-AC-58 | ✅ |
 | TC-2080 | Module-loaded `table_row` targets with omitted `from` preserve existing ids; `list_item` and `heading` targets mint ids from capture group 1 only within their selected section; invalid patterns and patterns without capture group 1 are rejected without partial ids (CR-203) | Integration | P0 | FR-050-AC-60 | ✅ |
 | TC-2081 | Semantic refusals carry their manifest path in `reason` as `<code>: <path>: <message>`: unknown key, export undeclared, ambiguous, reference-without-block, and missing schema file and duplicate-authority each assert the locus once, and an empty path yields `<code>: <message>` (CR-205) | Integration | P0 | FR-069-AC-14 | ✅ |
+| TC-2084 | Plugin registers `trace`: marked test collects warning-free and passes `--strict-markers`, emission on and off (CR-208) | Integration | P1 | FR-079-AC-1 | 🚧 Planned — not run |
+| TC-2085 | Emission off: JUnit equals the no-plugin run apart from timing, no `trace` property, no non-stdlib import (CR-208) | Integration | P1 | FR-079-AC-2 | 🚧 Planned — not run |
+| TC-2086 | Emission on: function/class/module markers accumulate into one `trace` property in order; unmarked case has none (CR-208) | Integration | P1 | FR-079-AC-3 | 🚧 Planned — not run |
+| TC-2087 | Emission on: ids are only marker arguments, none inferred from names, a non-literal argument fails the run naming the test (CR-208) | Integration | P1 | FR-079-AC-4 | 🚧 Planned — not run |
+| TC-2088 | Symbols: module-level bare name, `Class.method`, parametrized `[case]` stripped to two cases; `name`==`classname`, `file` set, equal to `quire coverage --json` (CR-208) | Integration | P1 | FR-079-AC-5 | 🚧 Planned — not run |
+| TC-2089 | Outcomes: fail, setup error, skip and xfail keep pytest's own outcome and their ids (CR-208) | Integration | P1 | FR-079-AC-6 | 🚧 Planned — not run |
+| TC-2090 | xdist with two workers: each marked test once with its own ids (CR-208) | Integration | P1 | FR-079-AC-7 | 🚧 Planned — not run |
+| TC-2091 | Result file written by pytest's own writer, no sidecar or post-run step; a `junit_family` that cannot carry the mark fails the run naming it (CR-208) | Integration | P1 | FR-079-AC-8 | 🚧 Planned — not run |
+| TC-2092 | Cost: 500-test marked suite under 5% median overhead with emission on (CR-208) | Integration | P1 | FR-079-AC-9 | 🚧 Planned — not run |
+| TC-2093 | End to end: real pytest suite -> `quoin evidence record` binds; failing variant binds nothing; requirement edit marks stale (CR-208) | Integration | P1 | FR-079-AC-10 | 🚧 Planned — not run |
+| TC-2094 | `trace` helper type-checks string ids and rejects a non-string at compile time (CR-208) | Integration | P1 | FR-080-AC-1 | 🚧 Planned — not run |
+| TC-2095 | Emission off: helper is a no-op, no `trace` property, results equal a no-package run, no extra runtime dependency (CR-208) | Integration | P1 | FR-080-AC-2 | 🚧 Planned — not run |
+| TC-2096 | Emission on: several ids or repeated calls accumulate in call order; an uncalled test carries none (CR-208) | Integration | P1 | FR-080-AC-3 | 🚧 Planned — not run |
+| TC-2097 | Emission on: ids are only `trace` call arguments, none inferred from titles (CR-208) | Integration | P1 | FR-080-AC-4 | 🚧 Planned — not run |
+| TC-2098 | Symbols for vitest and jest: nested `describe` gives bare title, `Class.method`, `it.each` yields two cases named by the template title; `name`==`classname`, `file` set, equal to `quire coverage --json` (CR-208) | Integration | P1 | FR-080-AC-5 | 🚧 Planned — not run |
+| TC-2099 | Modifier registrations (`skipIf`, `only`, `concurrent`, `skip`) report the registered title once with the runner's outcome; skipped carries no ids (CR-208) | Integration | P1 | FR-080-AC-6 | 🚧 Planned — not run |
+| TC-2100 | A test that calls `trace` then throws is `fail` with its ids (CR-208) | Integration | P1 | FR-080-AC-7 | 🚧 Planned — not run |
+| TC-2101 | Default parallel execution: each tagged test once with its own ids (CR-208) | Integration | P1 | FR-080-AC-8 | 🚧 Planned — not run |
+| TC-2102 | Result file written by the reporter during the run, no sidecar or post-run rewrite (CR-208) | Integration | P1 | FR-080-AC-9 | 🚧 Planned — not run |
+| TC-2103 | Cost: 500-test tagged suite under 5% median overhead with emission on, each runner (CR-208) | Integration | P1 | FR-080-AC-10 | 🚧 Planned — not run |
+| TC-2104 | End to end: real vitest and jest suites -> `quoin evidence record` binds; failing variant binds nothing; requirement edit marks stale (CR-208) | Integration | P1 | FR-080-AC-11 | 🚧 Planned — not run |
 
 ---
 
@@ -2200,6 +2221,29 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-078-CON-1 | Inspection — shared owner contract/dependency use; not performed |
 | FR-078-CON-2 | TC-1982 |
 | FR-078-CON-3 | TC-1974, TC-1975 |
+| FR-079-AC-1 | TC-2084 |
+| FR-079-AC-2 | TC-2085 |
+| FR-079-AC-3 | TC-2086 |
+| FR-079-AC-4 | TC-2087 |
+| FR-079-AC-5 | TC-2088 |
+| FR-079-AC-6 | TC-2089 |
+| FR-079-AC-7 | TC-2090 |
+| FR-079-AC-8 | TC-2091 |
+| FR-079-AC-9 | TC-2092 |
+| FR-079-AC-10 | TC-2093 |
+| FR-080-AC-1 | TC-2094 |
+| FR-080-AC-2 | TC-2095 |
+| FR-080-AC-3 | TC-2096 |
+| FR-080-AC-4 | TC-2097 |
+| FR-080-AC-5 | TC-2098 |
+| FR-080-AC-6 | TC-2099 |
+| FR-080-AC-7 | TC-2100 |
+| FR-080-AC-8 | TC-2101 |
+| FR-080-AC-9 | TC-2102 |
+| FR-080-AC-10 | TC-2103 |
+| FR-080-AC-11 | TC-2104 |
+| FR-079-CON-1 | TC-2091 |
+| FR-080-CON-1 | TC-2102 |
 | FR-078-CON-4 | TC-1981 |
 
 ### Non-Functional Requirements
