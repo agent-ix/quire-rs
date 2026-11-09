@@ -615,14 +615,6 @@ struct HelperOracleCandidate {
     line_offset: usize,
 }
 
-/// Newline bytes before `end`, i.e. the zero-based line of a match start.
-fn newline_count_before(span: &str, end: usize) -> usize {
-    span.as_bytes()[..end]
-        .iter()
-        .filter(|&&b| b == b'\n')
-        .count()
-}
-
 fn helper_oracle_candidate(span: &str) -> Option<HelperOracleCandidate> {
     static RUST_HELPER_ASSERTION: OnceLock<Regex> = OnceLock::new();
     let assertion = RUST_HELPER_ASSERTION.get_or_init(|| {
@@ -635,11 +627,21 @@ fn helper_oracle_candidate(span: &str) -> Option<HelperOracleCandidate> {
     let whole = found.get(0)?;
     Some(HelperOracleCandidate {
         function: found.get(1)?.as_str().rsplit("::").next()?.to_string(),
-        line_offset: newline_count_before(span, whole.start()),
+        line_offset: span[..whole.start()].matches('\n').count(),
     })
 }
 
 fn oracle_candidate(span: &str, language: SourceLanguage) -> Option<OracleCandidate> {
+    oracle_candidate_counting_scans(span, language, &mut 0)
+}
+
+/// [`oracle_candidate`], also counting how many assertion scans over the span
+/// ran, so a test can observe that the scan is not repeated per binding.
+fn oracle_candidate_counting_scans(
+    span: &str,
+    language: SourceLanguage,
+    assertion_scans: &mut usize,
+) -> Option<OracleCandidate> {
     static RUST_BINDING: OnceLock<Regex> = OnceLock::new();
     static TS_BINDING: OnceLock<Regex> = OnceLock::new();
     static PYTHON_BINDING: OnceLock<Regex> = OnceLock::new();
@@ -690,6 +692,7 @@ fn oracle_candidate(span: &str, language: SourceLanguage) -> Option<OracleCandid
         let binding = assignment.get(1)?.as_str();
         let slot = &mut first_assertion[usize::from(binding == "oracle")];
         let function = slot.get_or_insert_with(|| {
+            *assertion_scans += 1;
             assertion_re
                 .captures_iter(span)
                 .find(|capture| {
@@ -708,7 +711,7 @@ fn oracle_candidate(span: &str, language: SourceLanguage) -> Option<OracleCandid
             binding: binding.to_string(),
             expression: assignment.get(2)?.as_str().trim().to_string(),
             function,
-            line_offset: newline_count_before(span, assignment.get(0)?.start()),
+            line_offset: span[..assignment.get(0)?.start()].matches('\n').count(),
         });
     }
     None
@@ -1397,21 +1400,22 @@ assert_eq!(normalize(value), expected);"#;
         );
     }
 
-    #[trace("TC-1000", "FR-064-AC-3")]
-    // similarity is over tokens, so reordering does not (CR-100)
-    // disguise a copy and reformatting does not manufacture one.
-    /// PLAT-182: many non-asserted bindings must not make detection quadratic,
-    /// and the candidate is the first binding that has an assertion.
+    /// PLAT-182: many non-asserted bindings must not rescan the span's
+    /// assertions per binding, and the candidate is the first asserted binding.
     #[test]
-    fn plat182_oracle_candidate_scales_and_picks_first_asserted_binding() {
+    fn plat182_oracle_candidate_scans_assertions_once_per_binding_name() {
         let mut body = String::new();
         for i in 0..4000 {
             body.push_str(&format!("    let expected = f{i}(x);\n"));
         }
         body.push_str("    let oracle = g(x);\n    assert_eq!(h(x), oracle);\n");
-        let started = std::time::Instant::now();
-        let found = oracle_candidate(&body, SourceLanguage::Rust).expect("candidate");
-        assert!(started.elapsed() < std::time::Duration::from_secs(2));
+        let mut scans = 0;
+        let found = oracle_candidate_counting_scans(&body, SourceLanguage::Rust, &mut scans)
+            .expect("candidate");
+        assert_eq!(
+            scans, 2,
+            "one assertion scan per binding name, not per binding"
+        );
         assert_eq!(found.binding, "oracle");
         assert_eq!(found.function, "h");
         assert_eq!(found.expression, "g(x)");
@@ -1419,6 +1423,9 @@ assert_eq!(normalize(value), expected);"#;
         assert!(oracle_candidate("let expected = f(x);\n", SourceLanguage::Rust).is_none());
     }
 
+    #[trace("TC-1000", "FR-064-AC-3")]
+    // similarity is over tokens, so reordering does not (CR-100)
+    // disguise a copy and reformatting does not manufacture one.
     #[test]
     fn tc1000_similarity_reads_tokens_not_layout() {
         let a = "normalized.components().all(|c| c != Component::ParentDir)";
