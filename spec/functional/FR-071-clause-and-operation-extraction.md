@@ -120,7 +120,7 @@ Operations:
   emit `semantic.dangling-clause-ref` at that line. If a second operation
   carries a name already declared, then the engine SHALL emit
   `semantic.duplicate-operation` at the second heading.
-- If any clause or operation in a section carries an `error`, then the engine SHALL set that kind `unavailable` with reason `entry-errors` listing the loci, emitting no partial array.
+- If any clause or operation in a section carries an `error`, then the engine SHALL set that kind `unavailable` with reason `entry-errors` listing the loci, emitting no partial array. A fixture case states those loci as `reasonLoci` (FR-076-AC-22).
 
 Inline expressions (CR-199, PLAT-57):
 

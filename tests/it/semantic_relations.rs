@@ -226,10 +226,58 @@ fn assert_case(file: &Value, case: &Value) {
             record["availability"].get("relations").is_none(),
             "{id}: availability.relations present"
         ),
-        Some(want) => assert_eq!(
-            &record["availability"]["relations"], want,
-            "{id}: availability.relations"
+        Some(want) => assert_reason_loci(
+            id,
+            &record["availability"]["relations"],
+            want,
+            case["diagnostics"].as_array().unwrap(),
         ),
+    }
+}
+
+/// The lines an `entry-errors: lines <lines>` reason lists.
+fn reason_lines(reason: &str) -> Vec<u64> {
+    reason
+        .strip_prefix("entry-errors: lines ")
+        .unwrap_or_else(|| panic!("not an entry-errors reason: {reason:?}"))
+        .split(", ")
+        .map(|n| n.parse().unwrap())
+        .collect()
+}
+
+/// Compare an availability to the expectation. An expected `reasonLoci` is
+/// resolved to lines through the case's own diagnostics (each `locus` names
+/// the `line` it sits on) and compared with the lines of the actual reason;
+/// every other field compares verbatim.
+fn assert_reason_loci(id: &str, got: &Value, want: &Value, diagnostics: &[Value]) {
+    let Some(loci) = want.get("reasonLoci") else {
+        assert_eq!(got, want, "{id}: availability.relations");
+        return;
+    };
+    assert!(
+        want.get("reason").is_none(),
+        "{id}: reason beside reasonLoci"
+    );
+    let resolved: Vec<u64> = loci
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|locus| {
+            diagnostics
+                .iter()
+                .find(|d| d["locus"] == *locus)
+                .unwrap_or_else(|| panic!("{id}: no diagnostic at locus {locus}"))["line"]
+                .as_u64()
+                .unwrap()
+        })
+        .collect();
+    assert_eq!(
+        reason_lines(got["reason"].as_str().unwrap_or_default()),
+        resolved,
+        "{id}: availability.relations reason lines"
+    );
+    for key in ["state", "lossy"] {
+        assert_eq!(got[key], want[key], "{id}: availability.relations {key}");
     }
 }
 
@@ -865,4 +913,38 @@ fn typed_rows_share_identity_and_index_states() {
     assert_eq!(record["relations"], fixture["relations"]);
     assert_eq!(record["relationSources"], fixture["relationSources"]);
     assert_eq!(record["diagnostics"], fixture["diagnostics"]);
+}
+
+#[trace("TC-2150", "FR-076-AC-22")]
+#[test]
+fn entry_error_reasons_are_stated_by_locus() {
+    for name in ["relationships-cases.json", "operations-cases.json"] {
+        for case in mapping_json(name)["cases"].as_array().unwrap() {
+            for (kind, availability) in case["availability"].as_object().into_iter().flatten() {
+                let reason = availability["reason"].as_str().unwrap_or_default();
+                assert!(
+                    !reason.starts_with("entry-errors"),
+                    "{name} {}: {kind} states a string entry-errors reason",
+                    case["id"]
+                );
+            }
+        }
+    }
+    let two_rows = cases()["cases"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|c| c["availability"]["relations"]["reasonLoci"] == json!(["row", "second-row"]))
+        .expect("a case with two erroring rows")
+        .clone();
+    run(&[two_rows["id"].as_str().unwrap()]);
+}
+
+#[test]
+#[should_panic(expected = "reason lines")]
+fn reason_lines_differing_from_resolved_loci_fail() {
+    let got = json!({ "state": "unavailable", "reason": "entry-errors: lines 20", "lossy": false });
+    let want = json!({ "state": "unavailable", "reasonLoci": ["second-row"], "lossy": false });
+    let diagnostics = [json!({ "locus": "second-row", "line": 21 })];
+    assert_reason_loci("synthetic", &got, &want, &diagnostics);
 }

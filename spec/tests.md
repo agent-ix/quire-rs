@@ -112,7 +112,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | FR-072 Semantic extraction surface | AC-1..9; CON-1..3 | TC-1630..TC-1640, TC-1650 (TC-1636 external: quire-wasm#3) | ✅ Implemented; WASM leg external |
 | FR-073 Generic rights-aware clause sets | AC-1..6 | TC-1806..TC-1809 | ✅ Implemented |
 | FR-075 Model feature extraction | AC-1..30; CON-1..2 | TC-1840..TC-1847, TC-1849, TC-1869, TC-1870, TC-1872..TC-1875, TC-1948..TC-1951, TC-1953, TC-1993..TC-1998, TC-2040, TC-2043 | ✅ AC-1..15, AC-22..30 Implemented; AC-16..21 🚧 |
-| FR-076 Relationships extraction to RelationDecl[] | AC-1..21; CON-1..4 | TC-1852..TC-1868, TC-1999..TC-2004 | ✅ Implemented |
+| FR-076 Relationships extraction to RelationDecl[] | AC-1..22; CON-1..4 | TC-1852..TC-1868, TC-1999..TC-2004, TC-2150 | ✅ Implemented |
 | FR-077 Trace search index (structural forward/inverse lookup) | AC-1..7; CON-1..3 | TC-1887..TC-1894, TC-2062 | ✅ Implemented |
 | FR-078 Qualified retained evidence | AC-1..20; CON-1..4 | TC-1963..TC-1982 | 🚧 Planned — spec-first, no execution claim |
 
@@ -1174,6 +1174,7 @@ in this specification is not runtime or coverage evidence.
 | TC-2043 | Transition `Guard` cases (`issue_ref` PLAT-57): an expression cell yields `guardExpression` with span and no `guard`; a cell containing `\|` yields text with the pipe unescaped and a span over the source bytes; a comma stays unsplit; a dangling bare identifier yields `semantic.dangling-clause-ref` only; a declared clause id yields `guard` only; an empty cell yields neither; with no bundle index the `Emits` outcome of AC-26 is unchanged; the Python binding and Rust library return equal JSON | Integration | P0 | FR-075-AC-28, FR-075-AC-29 | ✅ |
 | TC-2003 | No-index typed row lowers unchecked with the advisory; one identity for one declaration across FR-075 items and FR-076 targets; title row stays `target-not-id`; untyped types byte-identical | Unit | P0 | FR-076-AC-20 | ✅ |
 | TC-2004 | Semantic cases per typed key with `issue_ref` `PLAT-55`: lowered identity, refusal and control | Integration | P0 | FR-076-AC-21 | ✅ |
+| TC-2150 | Mapping fixture cases state entry-error reasons as `reasonLoci`: no string `entry-errors` reason remains in `relationships-cases.json` or `operations-cases.json`; the `row`/`second-row` case compares both resolved lines; a reason whose lines differ from the resolved loci fails | Integration | P0 | FR-076-AC-22 | ✅ |
 
 Procedures use the public module-load-to-bind path, not a manually patched
 `TraceabilityModel`. Each form declares its pattern and template in the
@@ -1665,6 +1666,7 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-076-AC-19 | TC-2002 |
 | FR-076-AC-20 | TC-2003 |
 | FR-076-AC-21 | TC-2004 |
+| FR-076-AC-22 | TC-2150 |
 | FR-076-CON-3 | TC-1999 |
 | FR-076-CON-4 | TC-2002 |
 | FR-073-AC-1 | TC-1807, TC-1809 |
