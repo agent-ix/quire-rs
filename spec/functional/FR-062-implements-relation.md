@@ -176,6 +176,15 @@ string or template literal and an undecorated line are never nodes of these
 kinds, so text in them binds nothing; the binder SHALL NOT scan them as a second
 lexer.
 
+**Spellings.** The engine resolves no import and no alias: which spelling of the
+call binds is exactly what the module's declared `pattern` matches against the
+candidate text. A renamed import (`import ix_trace_py as t`, `import { implementing
+as impl }`) therefore binds nothing unless a module pattern names it, and yields no
+finding because it matches no pattern. The shipped patterns accept the unqualified
+spelling and the package-qualified one (`ix_trace_py.implements`,
+`ixTrace.implementing`), as `spec-artifacts-process` FR-004 pins them. A pattern
+SHALL match the complete candidate for a relation to bind (partial-match rule below).
+
 **Attachment.** The syntax tree attaches a decorator to the one declaration it
 decorates, so ownership is by node and not by line span: a decorator binds to its
 own declaration only, a class decorator binds the class container and none of its
@@ -257,7 +266,7 @@ waive any normative criterion.
 | FR-062-AC-16 | Unguarded Rust comment forms and Python/TypeScript declared comment forms retain their existing relations; syntax-guard adoption supplies no implicit pattern and does not change the module's declared ids or templates. | Test (TC-1988) |
 | FR-062-AC-17 | Guarded binding preserves symbol identity, actual finding source locations, existing range refusal and per-file syntax-failure behavior, and deterministic relation/diagnostic ordering. It changes no `verifies` edge or coverage backing count. | Test (TC-1990) |
 | FR-062-AC-18 | A module-loaded Python or TypeScript `implements` form retains `syntax: python_decorator`, `typescript_decorator` or `typescript_wrapper` through the traceability model and serialization; omission preserves the declared-text behaviour. An unknown syntax value, a syntax on a form of another language, and any of the three on a `trace_tags.markers` form are refused at module load, each identifying the form, with no text-matching fallback. | Test (TC-2200) |
-| FR-062-AC-19 | A Python production function, method or class carrying a decorator that a declared `python_decorator` form matches, with two declared ids, mints exactly those two `implements` relations and no `verifies` relation; a decorator a formatter has wrapped across lines, one stacked with other decorators in any order, and one on an `async def` each bind exactly as the single-line adjacent spelling does. The candidate is the exact decorator node text, so a pattern matching only a substring of a decorator's payload binds nothing. | Test (TC-2201) |
+| FR-062-AC-19 | A Python production function, method or class carrying a decorator that a declared `python_decorator` form matches, with two declared ids, mints exactly those two `implements` relations and no `verifies` relation; a decorator a formatter has wrapped across lines, one stacked with other decorators in any order, and one on an `async def` each bind exactly as the single-line adjacent spelling does. The candidate is the exact decorator node text, so a pattern matching only a substring of a decorator's payload binds nothing, and a renamed import binds nothing unless the module pattern names it. | Test (TC-2201) |
 | FR-062-AC-20 | Decorator-shaped text in a Python comment, docstring or string literal binds nothing and the real decorator control binds. A class decorator binds the class container and none of its methods; a decorated nested function binds neither its parent nor its siblings; the same decorator on a test function or fixture binds nothing. | Test (TC-2202) |
 | FR-062-AC-21 | A TypeScript class declaration and a method (including `static`, `async` and `abstract`), each carrying a decorator that a declared `typescript_decorator` form matches, mint the declared `implements` relations and no `verifies` relation, including a decorator written before or after `export`, and one wrapped across lines. A property, accessor or parameter decorator, and a decorator on a class that is not a production container, bind nothing. | Test (TC-2203) |
 | FR-062-AC-22 | Decorator-shaped text in a TypeScript comment, string literal or template literal binds nothing, and the real decorator control binds; a class decorator binds the class and none of its methods, and a decorator on a method binds only that method. A `typescript_decorator` form on a test registration or on a `describe`/`suite` container binds nothing. | Test (TC-2204) |
