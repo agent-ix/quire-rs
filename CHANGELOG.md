@@ -9,6 +9,7 @@ bumps; once 1.0 ships, semver is strict.
 
 ### Changed
 
+- **Breaking, PLAT-277 (F4):** documents that validated before are now refused as unknown types. An `archetypes:` entry that declares no quire-owned key (no validation part, FR-031 carry-over key or retired field) is a Filament presentation row and is no longer registered as an accept-anything type. Real affected documents are `type:` rows with no validation part, such as `type: Spec` in quire-wasm/spec/spec.md and filament-view-standard/spec/spec.md, `Test Matrix`, `Application Spec` and the engineering-assurance display names; the real types are the CamelCase names in `artifact_types`. A name in both `archetypes:` and `artifact_types:` of one module is now one registry entry and no longer reports `DuplicateArchetype`; a name from two different modules still does (FR-013-AC-20, FR-013-AC-21).
 - **Breaking, PLAT-214 (quoin#338):** a module set that loaded before is now refused: two loaded modules that export one semantic type
   name no longer resolve by load order. The later sorted root is refused with
   `semantic.duplicate-export` naming the type and both modules (FR-069-AC-15).

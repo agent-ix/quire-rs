@@ -427,12 +427,17 @@ impl Manifest {
     /// two blocks, and is yielded once; registering it twice would report the
     /// module as a duplicate of itself. Two entries that share a name but
     /// differ are both yielded, so the collision stays visible.
+    ///
+    /// An `archetypes` entry that declares no quire-owned key is a Filament
+    /// presentation row, not a type (FR-013-AC-21): it is never yielded, so it
+    /// neither registers an accept-anything type nor collides with the
+    /// same-named `artifact_types`/`object_types` entry it presents.
     pub fn all_archetypes(&self) -> impl Iterator<Item = &Archetype> {
         let mut seen: Vec<&Archetype> = Vec::new();
         self.artifact_types
             .iter()
             .chain(self.object_types.iter())
-            .chain(self.archetypes.iter())
+            .chain(self.archetypes.iter().filter(|a| a.declares_quire_key()))
             .filter(move |a| {
                 let repeat = seen.contains(a);
                 if !repeat {
@@ -478,6 +483,35 @@ pub struct Archetype {
 }
 
 impl Archetype {
+    /// Whether the entry declares any key the engine owns: a validation part
+    /// (`frontmatter_schema_ref`, `data_schema`, `body_extraction`,
+    /// `grammar_ref`), an FR-031 carry-over key (`allowed_links`, `roles`,
+    /// `defaults.id_pattern`, `has_plugin`, `construct`) or a retired field
+    /// (`required_sections`, `variants`, `template_ref`). An entry with none is
+    /// a Filament presentation row.
+    pub fn declares_quire_key(&self) -> bool {
+        const OWNED: [&str; 8] = [
+            "grammar_ref",
+            "allowed_links",
+            "roles",
+            "has_plugin",
+            "construct",
+            "required_sections",
+            "variants",
+            "template_ref",
+        ];
+        let defaults_id_pattern = self
+            .extras
+            .get("defaults")
+            .and_then(|d| d.get("id_pattern"))
+            .is_some();
+        self.frontmatter_schema_ref.is_some()
+            || self.data_schema.is_some()
+            || self.body_extraction.is_some()
+            || OWNED.iter().any(|k| self.extras.contains_key(*k))
+            || defaults_id_pattern
+    }
+
     /// Reject the retired `required_sections` / `variants` / `template_ref`
     /// fields with a caller-facing reason (no backward-compatibility layer
     /// — ADR 0003, render removed). Returns the offending field name on
