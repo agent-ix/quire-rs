@@ -76,7 +76,29 @@
         "unique": { "type": "boolean" }
       }
     },
-    "typeRef": { "$ref": "https://schemas.agent-ix.org/semantic-core/0.3.3/TypeRef.json" },
+    "typeRef": {
+      "anyOf": [
+        { "$ref": "https://schemas.agent-ix.org/semantic-core/0.3.3/TypeRef.json" },
+        { "$ref": "#/$defs/clockTypeRef" }
+      ]
+    },
+    "clockTypeRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["target"],
+      "properties": {
+        "target": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "value"],
+          "properties": {
+            "kind": { "const": "KernelScalar" },
+            "value": { "const": "Clock" }
+          }
+        },
+        "multiplicity": { "$ref": "https://schemas.agent-ix.org/semantic-core/0.3.3/Multiplicity.json" }
+      }
+    },
     "constraint": { "$ref": "https://schemas.agent-ix.org/semantic-core/0.3.3/ConstraintDecl.json" },
     "fieldDecl": {
       "type": "object",

@@ -18,7 +18,17 @@ use super::decl::{
 use super::model::{line_span, not_extractable, FieldFeatureDecl, ModelFeature, Presence, Section};
 use super::resolver::compile_module_schema;
 use super::scan::{blocks_in, comma_list, level2_sections, lines, Block, Fence, Table};
+use super::units::{resolve_token, Resolution, UnitToken};
 use super::{KindAvailability, SemanticDiagnostic};
+
+/// The native name `Clock`, a `Type` cell beside the kernel scalar names.
+const NATIVE_CLOCK: &str = "Clock";
+/// The `SemanticId` a `Clock` target is read as when a produced entry is
+/// validated against `FieldDecl.json`, whose `TypeRef.target` admits only a
+/// `SemanticId` or a kernel scalar.
+const NATIVE_CLOCK_ID: &str = "ix://quire/native/Clock";
+/// A `Type` cell opening a quantity token, `Quantity<u>`.
+const QUANTITY_PREFIX: &str = "Quantity<";
 
 pub const TYPED_HEADER: [&str; 4] = ["Field", "Type", "Multiplicity", "Constraints"];
 pub const PARAM_HEADER: [&str; 4] = ["Param", "Type", "Multiplicity", "Constraints"];
@@ -594,6 +604,9 @@ pub(crate) fn map_type(
     diagnostics: &mut Vec<SemanticDiagnostic>,
 ) -> (Option<TypeRef>, bool) {
     let line = row.line;
+    if let Some(rest) = cell.trim().strip_prefix(QUANTITY_PREFIX) {
+        return map_quantity(cell, rest, row, ctx, diagnostics);
+    }
     let mut text = cell.trim().to_string();
     // ` [unit]` suffix
     let mut unit = None;
@@ -684,6 +697,28 @@ pub(crate) fn map_type(
                 unit,
                 decimal,
             }),
+            false,
+        );
+    }
+    if token == NATIVE_CLOCK {
+        if unit.is_some() {
+            diagnostics.push(err(
+                "agent-ix.semantic-core.UNIT_NOT_ALLOWED",
+                line,
+                format!("a unit applies to Integer, Decimal, or Duration, not {token}"),
+            ));
+            return (None, false);
+        }
+        if row.reference_only {
+            diagnostics.push(err(
+                "semantic.sysml-outside-subset",
+                line,
+                format!("`ref item` targets an object or import, not the native name {token}"),
+            ));
+            return (None, false);
+        }
+        return (
+            Some(plain_type_ref(TypeRefTarget::KernelScalar(token))),
             false,
         );
     }
@@ -811,6 +846,97 @@ pub(crate) fn map_type(
         }),
         true,
     )
+}
+
+fn plain_type_ref(target: TypeRefTarget) -> TypeRef {
+    TypeRef {
+        target,
+        multiplicity: None,
+        unit: None,
+        decimal: None,
+    }
+}
+
+/// `Quantity<u>`: `rest` is the cell after `Quantity<`. The unit token `u`
+/// resolves from the `BundleIndex` to the identity of a unit artifact; the
+/// quantity takes no `decimal` and no `unit`.
+fn map_quantity(
+    cell: &str,
+    rest: &str,
+    row: &RowInput,
+    ctx: &SemanticContext,
+    diagnostics: &mut Vec<SemanticDiagnostic>,
+) -> (Option<TypeRef>, bool) {
+    let line = row.line;
+    let invalid = |diagnostics: &mut Vec<SemanticDiagnostic>, why: &str| {
+        diagnostics.push(err(
+            "semantic.invalid-type-token",
+            line,
+            format!("type {cell:?}: {why}"),
+        ));
+        (None, false)
+    };
+    let Some((inner, tail)) = rest.split_once('>') else {
+        return invalid(diagnostics, "the quantity bracket is never closed");
+    };
+    let Some(token) = UnitToken::parse(inner) else {
+        return invalid(
+            diagnostics,
+            "the unit is not an Identifier or <org>/<repo>::Identifier",
+        );
+    };
+    let tail = tail.trim();
+    if let Some(unit) = tail.strip_prefix('[').and_then(|t| t.strip_suffix(']')) {
+        if unit.trim().is_empty() {
+            return invalid(diagnostics, "empty unit brackets");
+        }
+        diagnostics.push(err(
+            "agent-ix.semantic-core.UNIT_NOT_ALLOWED",
+            line,
+            "a unit applies to Integer, Decimal, or Duration, not a quantity",
+        ));
+        return (None, false);
+    }
+    if !tail.is_empty() {
+        return invalid(diagnostics, "text after the closing bracket");
+    }
+    if row.reference_only {
+        diagnostics.push(err(
+            "semantic.sysml-outside-subset",
+            line,
+            format!("`ref item` targets an object or import, not the quantity {cell:?}"),
+        ));
+        return (None, false);
+    }
+    match resolve_token(ctx, "unit", token) {
+        Resolution::Resolved(identity) => (
+            Some(plain_type_ref(TypeRefTarget::SemanticId(identity))),
+            false,
+        ),
+        Resolution::Ambiguous(message) => {
+            diagnostics.push(err("semantic.ambiguous-type", line, message));
+            (None, false)
+        }
+        Resolution::Unresolved { reason } => {
+            let package = ctx.identity_package();
+            let name = token.name();
+            diagnostics.push(
+                SemanticDiagnostic::new(
+                    "semantic.unresolved-type",
+                    SemanticSeverity::Advisory,
+                    line,
+                    format!("unit {inner:?} resolves to no unit artifact ({reason})"),
+                )
+                .with_reason(reason),
+            );
+            (
+                Some(plain_type_ref(TypeRefTarget::SemanticId(format!(
+                    "ix://{package}/unresolved/{name}"
+                )))),
+                true,
+            )
+        }
+    }
 }
 
 pub(crate) fn map_multiplicity(
@@ -1141,7 +1267,10 @@ fn validate_decls(fields: &[FieldDecl], diagnostics: &mut Vec<SemanticDiagnostic
     }
     let validator = field_decl_validator();
     for field in fields {
-        let value = serde_json::to_value(field).unwrap_or(Value::Null);
+        let mut value = serde_json::to_value(field).unwrap_or(Value::Null);
+        if field.type_ref.target == TypeRefTarget::KernelScalar(NATIVE_CLOCK.to_string()) {
+            value["type"]["target"] = json!({ "kind": "SemanticId", "value": NATIVE_CLOCK_ID });
+        }
         if !validator.is_valid(&value) {
             diagnostics.push(err(
                 "semantic.internal-invalid-decl",

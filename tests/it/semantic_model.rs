@@ -1533,3 +1533,56 @@ fn unresolvable_bundle_advises_and_keeps_validating() {
         )]
     );
 }
+
+/// FR-075-AC-19: a manifest declaring none of the dimension, terms and unit
+/// locators refuses each table with the feature as the `reason`, and an
+/// artifact with none of the tables carries no such member.
+#[trace("TC-1950", "FR-075-AC-19")]
+#[test]
+fn undeclared_dimension_tables_are_refused_and_absent_ones_leave_no_member() {
+    let md = "---\nid: FR-100\ntitle: Order\nobject: entity\n---\n# FR-100: Order\n\n\
+## Basis\n\n| Base |\n|---|\n| true |\n\n\
+## Powers\n\n| Dimension | Exponent |\n|---|---|\n| Length | 1 |\n\n\
+## Scales\n\n| Dimension | Target | Scale | Offset |\n|---|---|---|---|\n| Time | s | 1 | 0 |\n";
+    let record = extract(md, &[], dsl(json!({})));
+    for (reason, section, header) in [
+        ("dimension", "Basis", "| Base |"),
+        ("terms", "Powers", "| Dimension | Exponent |"),
+        ("unit", "Scales", "| Dimension | Target |"),
+    ] {
+        let d = diagnostic(&record, "semantic.feature-not-extractable", reason);
+        assert_eq!(d["line"], line_of(md, header), "{record:#}");
+        assert_eq!(d["section"], section, "{record:#}");
+        assert_eq!(d["sourceSpan"]["startLine"], d["line"], "{record:#}");
+    }
+    assert_model_unavailable(&record);
+
+    let plain = "---\nid: FR-100\ntitle: Order\nobject: entity\n---\n# FR-100: Order\n\nProse.\n";
+    let record = extract(plain, &[], dsl(json!({})));
+    assert!(record.get("model").is_none(), "{record:#}");
+    for member in ["dimension", "terms", "unit"] {
+        assert!(record.get(member).is_none(), "{member}: {record:#}");
+    }
+    assert!(
+        codes(&record)
+            .iter()
+            .all(|(c, _)| c != "semantic.feature-not-extractable"),
+        "{record:#}"
+    );
+}
+
+/// FR-070-AC-11: a `Clock` field validates against semantic-v1 and carries
+/// the target `Clock`.
+#[trace("TC-1945", "FR-070-AC-11")]
+#[test]
+fn clock_field_record_validates_against_semantic_v1() {
+    let md = "---\nid: FR-100\ntitle: Order\nobject: entity\n---\n# FR-100: Order\n\n\
+## Properties\n\n| Field | Type | Multiplicity | Constraints |\n|---|---|---|---|\n| c | Clock | 1 | |\n";
+    let record = extract(md, &[], dsl(json!({})));
+    assert_eq!(
+        record["fields"][0]["type"]["target"],
+        json!({ "kind": "KernelScalar", "value": "Clock" }),
+        "{record:#}"
+    );
+    assert_eq!(record["availability"]["fields"]["state"], "available");
+}

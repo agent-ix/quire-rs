@@ -25,12 +25,16 @@ pub mod scan;
 pub mod surface;
 pub mod systems;
 pub(crate) mod target;
+pub(crate) mod units;
 
 pub use clauses::{
     extract_clauses, extract_operations, ClauseRef, ClausesOutcome, OperationDecl, OperationSource,
     OperationsOutcome, SourceLocus,
 };
-pub use context::{BundleArtifact, BundleEntry, BundleIndex, ConstructReferences, SemanticContext};
+pub use context::{
+    BundleArtifact, BundleEntry, BundleIndex, ConstructReferences, ImportedArtifact,
+    SemanticContext,
+};
 pub use contract::{
     read_semantic_block, reference_form, DataSchemaRef, SemanticFailure, SemanticModule,
     SemanticSeverity,

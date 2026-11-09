@@ -49,6 +49,9 @@ pub(crate) enum ModelFeature {
     Connection,
     Allocation,
     Features,
+    Dimension,
+    Terms,
+    Unit,
 }
 
 impl ModelFeature {
@@ -74,6 +77,9 @@ impl ModelFeature {
             Self::Connection => "connection",
             Self::Allocation => "allocation",
             Self::Features => "features",
+            Self::Dimension => "dimension",
+            Self::Terms => "terms",
+            Self::Unit => "unit",
         }
     }
 
@@ -98,7 +104,10 @@ impl ModelFeature {
             | Self::Port
             | Self::Connection
             | Self::Allocation
-            | Self::Features => false,
+            | Self::Features
+            | Self::Dimension
+            | Self::Terms
+            | Self::Unit => false,
         };
         is_mapping && ctx.module.mappings.iter().any(|m| m == self.name())
     }
@@ -120,7 +129,10 @@ impl ModelFeature {
             | Self::Steps
             | Self::Members
             | Self::Vocabulary
-            | Self::Features => false,
+            | Self::Features
+            | Self::Dimension
+            | Self::Terms
+            | Self::Unit => false,
         }
     }
 }
@@ -132,64 +144,65 @@ struct TableSpec {
     columns: &'static [&'static str],
     /// Columns a declaring locator may not mark optional.
     required: &'static [&'static str],
-    read: fn(&mut TableRead<'_>),
+    /// The reader; `None` for a table the engine recognises only to refuse.
+    read: Option<fn(&mut TableRead<'_>)>,
 }
 
 /// The single source of truth for the model tables (FR-075 Outputs).
-const TABLE_SPECS: [TableSpec; 12] = [
+const TABLE_SPECS: [TableSpec; 15] = [
     TableSpec {
         feature: ModelFeature::Population,
         columns: &["Type"],
         required: &["Type"],
-        read: read_population,
+        read: Some(read_population),
     },
     TableSpec {
         feature: ModelFeature::Values,
         columns: &["Value", "Description"],
         required: &["Value"],
-        read: read_values,
+        read: Some(read_values),
     },
     TableSpec {
         feature: ModelFeature::States,
         columns: &["State", "Description"],
         required: &["State"],
-        read: read_states,
+        read: Some(read_states),
     },
     TableSpec {
         feature: ModelFeature::Transitions,
         columns: &["From", "To", "Trigger", "Guard", "Emits"],
         required: &["From", "To", "Trigger"],
-        read: read_transitions,
+        read: Some(read_transitions),
     },
     TableSpec {
         feature: ModelFeature::Steps,
         columns: &["Step", "Kind", "Consumes", "Emits", "Description"],
         required: &["Step", "Kind"],
-        read: read_steps,
+        read: Some(read_steps),
     },
     TableSpec {
         feature: ModelFeature::Members,
         columns: &["Member", "Multiplicity"],
         required: &["Member", "Multiplicity"],
-        read: read_members,
+        read: Some(read_members),
     },
     TableSpec {
         feature: ModelFeature::Vocabulary,
         columns: &["Term", "Description"],
         required: &["Term"],
-        read: read_vocabulary,
+        read: Some(read_vocabulary),
     },
     TableSpec {
         feature: ModelFeature::Part,
         columns: &["Owner", "Declared Type", "Multiplicity"],
         required: &["Owner", "Declared Type", "Multiplicity"],
-        read: systems::read_part,
+        read: Some(systems::read_part),
     },
     TableSpec {
         feature: ModelFeature::Port,
         columns: &["Owner", "Direction", "Interface", "Multiplicity"],
         required: &["Owner", "Direction", "Interface", "Multiplicity"],
-        read: systems::read_port,
+        read: Some(systems::read_port),
     },
     TableSpec {
         feature: ModelFeature::Connection,
@@ -201,19 +214,37 @@ const TABLE_SPECS: [TableSpec; 12] = [
             "Direction",
         ],
         required: &["Source", "Target", "Direction"],
-        read: systems::read_connection,
+        read: Some(systems::read_connection),
     },
     TableSpec {
         feature: ModelFeature::Allocation,
         columns: &["Source", "Target"],
         required: &["Source", "Target"],
-        read: systems::read_allocation,
+        read: Some(systems::read_allocation),
     },
     TableSpec {
         feature: ModelFeature::Features,
         columns: &["Feature", "Kind"],
         required: &["Feature", "Kind"],
-        read: read_features,
+        read: Some(read_features),
+    },
+    TableSpec {
+        feature: ModelFeature::Dimension,
+        columns: &["Base"],
+        required: &["Base"],
+        read: None,
+    },
+    TableSpec {
+        feature: ModelFeature::Terms,
+        columns: &["Dimension", "Exponent"],
+        required: &["Dimension", "Exponent"],
+        read: None,
+    },
+    TableSpec {
+        feature: ModelFeature::Unit,
+        columns: &["Dimension", "Target", "Scale", "Offset"],
+        required: &["Dimension", "Scale", "Offset"],
+        read: None,
     },
 ];
 
@@ -1374,7 +1405,10 @@ fn table_features(
                 continue;
             };
             let before = out.diagnostics.len();
-            (spec.read)(&mut TableRead {
+            let Some(read) = spec.read else {
+                continue;
+            };
+            read(&mut TableRead {
                 feature: spec.feature,
                 table,
                 section: heading,
