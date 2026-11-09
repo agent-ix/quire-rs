@@ -44,3 +44,13 @@ Plan completion: not assessed
 | FR-075-AC-16..18, 20, 21 | untagged | none | out of scope (PLAT-287 later slice), `🚧`, not claimed |
 
 Plan completion: not assessed
+
+## Dispositions
+
+Round 1, fix commit `e20a773`.
+
+| FND | Outcome | Reason |
+| --- | --- | --- |
+| FND-001 | fixed | `qualified_quantity_cells_resolve_through_imported_artifacts` (tests/it/semantic_properties.rs:920) drives bare, title, and two qualified `Quantity<>` cells through `extract_fields` in one record and asserts the owner-qualified identities, the cross-package ambiguity, and the placeholders with `unknown-token`, `import-unresolved` and `no-bundle-index` |
+| FND-002 | fixed | TC-1950 now compares the serialized record of an artifact with none of the tables against the record extracted with no body extraction, byte for byte (tests/it/semantic_model.rs:1562-1567) |
+| FND-003 | fixed | The `ref item` refusal test asserts the diagnostic line equals the fence line for both `Quantity<ms>` and `Clock` |

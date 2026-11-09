@@ -130,7 +130,7 @@ Native names and quantities, resolved before steps 2..5 as step 1 is:
   `semantic-v1.schema.json` unmodified, wherever a `Type` cell is read
   (Properties, operation parameters and `Returns:`).
 
-> **CR-211 note (PLAT-1356):** FR-070 first mapped `Clock` to the target
+> **CR-214 note (PLAT-1356):** FR-070 first mapped `Clock` to the target
 > `Clock` beside the kernel scalars and read it as `ix://quire/native/Clock`
 > only for validation. semantic-core's `TypeRefTarget` `KernelScalar` branch is
 > a closed enum with no `Clock`, so that shape needed a rewrite on one path and

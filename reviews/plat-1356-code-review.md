@@ -49,3 +49,22 @@ No AC/TC id is added, so there is no id collision with #606 (TC-2081) or #607 (T
 | `schemas/output/semantic-v1.schema.json` `typeRef`/`clockTypeRef` | examined | Admits the emitted shape; see FND-002 |
 | FR-075-AC-16..18, AC-20, AC-21 | context_only | Unimplemented, `🚧`, untagged, not claimed |
 | Open PRs #606/#607 | context_only | Merged; no id collision; `spec/tests.md` text conflict |
+
+## New findings (disposition pass 1)
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-007 | high | The FR-070 amendment is numbered CR-211, but CR-211 is already taken on `main` by #612 (PLAT-333, merged as `6898739`, the FR-051 "CR-211 note"). Two different change records now share one id, so a trace or review citing CR-211 is ambiguous. CR-212 (#613) and CR-213 (#614) are claimed by open PRs; the next free id is CR-214. The FR-070 note and the CHANGELOG entry both need renumbering. | spec/functional/FR-070-typed-properties-extraction.md:133, CHANGELOG.md:18 |
+
+## Dispositions
+
+Round 1, fix commit `e20a773` (rebased onto `5dd1407`; `origin/main` has since moved to `6898739`, which merges with no textual conflict). Re-checked on that head: `cargo fmt --check` clean; `cargo clippy --locked --all-targets -- -D warnings` clean; `cargo test --lib semantic::` 10 pass; `cargo test --test it semantic_` 129 pass. A probe crate reran the round-0 reproductions against the new head. Committed `reviews/plat-1356-*.md` are byte-identical to the round-0 SR files.
+
+| FND | Outcome | Reason |
+| --- | --- | --- |
+| FND-001 | fixed | `Clock` now lowers to `TypeRefTarget::SemanticId("ix://quire/native/Clock")` (properties.rs:719-723) on every `map_type` path; the probe's operation `Param` and `Returns:` typed `Clock` extract with `operations` available and no diagnostic; `clock_operation_params_and_returns_extract` (tests/it/semantic_clauses.rs:649) asserts both |
+| FND-002 | fixed | Emitted shape is `{kind: SemanticId, value: ix://quire/native/Clock}`, which semantic-core 0.3.3 (`6f3da0f`, unchanged in Cargo.lock) admits through its `SemanticId` branch; the validation rewrite is deleted (properties.rs:1274), `schemas/` is identical to `main`, and FR-070 is amended by a CR note and AC-11/TC-1945 text (CR id collides; see FND-007) |
+| FND-003 | fixed | A declared locator whose reader is `None` now emits `semantic.feature-not-extractable` with reason, span and section and fails the model (model.rs:1408-1423); probe shows `model` `unavailable`; `declared_dimension_tables_without_a_reader_are_refused` asserts it |
+| FND-004 | fixed | `is_empty` adds only `importedArtifacts` (FR-070 rule 5's "imported artifact"); `resolve_token` separately treats non-empty `artifacts` as non-empty (units.rs:200). Probe: a plain Type cell under an artifacts-only index keeps `no-bundle-index`, as on `main` |
+| FND-005 | fixed | `TokenKind` and `UnresolvedReason` enums replace the strings (units.rs:48-83). The `#[cfg_attr(not(test), allow(dead_code))]` on `TokenKind::Dimension` passes the value test: FR-070-AC-14 specifies dimension-token resolution and its test needs the variant; it gains production use with FR-075-AC-17/18 |
+| FND-006 | fixed | CHANGELOG `[Unreleased]` `### Added` entry names the `Clock` SemanticId, `Quantity<u>`, unit/dimension tokens, `importedArtifacts` and the dimension-table refusals |

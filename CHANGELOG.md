@@ -15,7 +15,7 @@ bumps; once 1.0 ships, semver is strict.
   the `BundleIndex` they resolve through; the `Base`, `Dimension | Exponent` and
   `Dimension | Target | Scale | Offset` tables are refused with
   `semantic.feature-not-extractable`, declared or not, until their readers land
-  (PLAT-1356, FR-070-AC-11..14, FR-075-AC-19, CR-211).
+  (PLAT-1356, FR-070-AC-11..14, FR-075-AC-19, CR-214).
 - Extraction reports a `symbol-id-collision` warning when two symbols in a
   file share an id (cfg-gated variants, generic trait-impl methods,
   branch redefinitions), naming each declaration; ids are unchanged
