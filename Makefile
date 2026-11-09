@@ -124,7 +124,7 @@ check-tools:
 
 .PHONY: test
 test:
-	$(CARGO) test --locked
+	VALIDATION_PROCESS_ROOT=$(VALIDATION_PROCESS_ROOT) VALIDATION_ISO_ROOT=$(VALIDATION_ISO_ROOT) $(CARGO) test --locked
 
 .PHONY: build
 build:

@@ -2,7 +2,7 @@
 
 use std::path::Path;
 
-use super::loading::{corpus_root, load_module_path};
+use super::loading::{corpus_root, ecosystem_registry, load_module_path};
 use super::Case;
 
 /// Run the real coverage path over a case's `input/`, **in place**.
@@ -20,7 +20,10 @@ pub fn run(case: &Case) -> quire_rs::CoverageReport {
     let module = corpus_root().join("modules").join(&case.meta.module);
     // A module id names either one module (`manifest.yaml`) or a search path
     // containing several modules (FR-065-AC-18; history in #292).
-    let registry = if module.join("manifest.yaml").is_file() {
+    let registry = if case.meta.module == "ecosystem" {
+        // The real provider modules, not a corpus copy (PLAT-866).
+        ecosystem_registry(&case.meta.id)
+    } else if module.join("manifest.yaml").is_file() {
         quire_rs::Registry::load_module(&module).unwrap_or_else(|e| {
             panic!(
                 "{}: module `{}` failed to load from {}: {e}",
@@ -54,7 +57,9 @@ pub fn run(case: &Case) -> quire_rs::CoverageReport {
 pub(super) fn validate_report(case: &Case) -> String {
     let input = case.input();
     let module = corpus_root().join("modules").join(&case.meta.module);
-    let registry = if module.join("manifest.yaml").is_file() {
+    let registry = if case.meta.module == "ecosystem" {
+        Ok(ecosystem_registry(&case.meta.id))
+    } else if module.join("manifest.yaml").is_file() {
         quire_rs::Registry::load_module(&module)
     } else {
         quire_rs::Registry::load_from(&[&module])

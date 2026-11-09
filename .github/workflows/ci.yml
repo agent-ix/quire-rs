@@ -76,6 +76,10 @@ jobs:
           cargo clippy --locked -p quire-bench --all-targets -- -D warnings
 
       - name: Test
+        env:
+          # The corpus resolves `module: ecosystem` from these provider checkouts.
+          VALIDATION_PROCESS_ROOT: ${{ github.workspace }}/.ci/spec-artifacts-process
+          VALIDATION_ISO_ROOT: ${{ github.workspace }}/.ci/spec-artifacts-iso
         run: |
           cargo test --locked
           cargo test --locked -p quire-bench

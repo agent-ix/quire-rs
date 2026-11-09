@@ -474,20 +474,35 @@ fn tc1021_the_vocabularies_come_from_the_corpus_not_from_this_file() {
         let module = corpus_case::corpus_root()
             .join("modules")
             .join(&case.meta.module);
-        // One module, or a PATH of them — `ecosystem` is the second.
-        let resolves = module.join("manifest.yaml").is_file()
-            || std::fs::read_dir(&module).is_ok_and(|entries| {
-                entries
-                    .filter_map(Result::ok)
-                    .any(|e| e.path().join("manifest.yaml").is_file())
-            });
-        assert!(
-            resolves,
-            "{}: module `{}` names no manifest under {}",
-            case.meta.id,
-            case.meta.module,
-            module.display(),
-        );
+        // `ecosystem` is the REAL provider modules, resolved from their own
+        // checkouts, never a directory of this corpus (PLAT-866). Assert both
+        // halves: the corpus holds no copy, and the providers resolve.
+        if case.meta.module == "ecosystem" {
+            assert!(
+                !module.exists(),
+                "{}: the corpus carries a vendored `modules/ecosystem` copy at {}; \
+                 the ecosystem declaration is the provider repositories' own modules",
+                case.meta.id,
+                module.display(),
+            );
+            let (process, iso) = corpus_case::ecosystem_module_dirs();
+            assert!(process.join("manifest.yaml").is_file() && iso.join("manifest.yaml").is_file());
+        } else {
+            // One module, or a PATH of them.
+            let resolves = module.join("manifest.yaml").is_file()
+                || std::fs::read_dir(&module).is_ok_and(|entries| {
+                    entries
+                        .filter_map(Result::ok)
+                        .any(|e| e.path().join("manifest.yaml").is_file())
+                });
+            assert!(
+                resolves,
+                "{}: module `{}` names no manifest under {}",
+                case.meta.id,
+                case.meta.module,
+                module.display(),
+            );
+        }
         assert!(
             case.meta.tags.iter().any(|t| t.starts_with("TC-")),
             "{}: at least one tracking id, got {:?}",
@@ -747,15 +762,27 @@ fn tc1020_the_documented_invocation_names_the_module_that_loads() {
         // `IX_FILAMENT_MODULES_PATH`, because `--module` takes one directory.
         // Either way the invocation must NAME the module the case declares, or
         // two runners test different things and neither notices (#266).
-        let by_flag = format!("--module modules/{}", case.meta.module);
-        let by_path = format!("IX_FILAMENT_MODULES_PATH=modules/{}", case.meta.module);
-        assert!(
-            reproduce.contains(&by_flag) || reproduce.contains(&by_path),
-            "{}: declares `module: {}` but its invocation says `{reproduce}`. \
-             Two runners would test different modules and neither would notice.",
-            case.meta.id,
-            case.meta.module,
-        );
+        if case.meta.module == "ecosystem" {
+            // The ecosystem declaration is the installed provider modules: the
+            // invocation must select NO other module, or two runners would test
+            // different declarations while crediting the ecosystem cell.
+            assert!(
+                !reproduce.contains("--module") && !reproduce.contains("IX_FILAMENT_MODULES_PATH"),
+                "{}: declares `module: ecosystem` but its invocation selects a module: \
+                 `{reproduce}`",
+                case.meta.id,
+            );
+        } else {
+            let by_flag = format!("--module modules/{}", case.meta.module);
+            let by_path = format!("IX_FILAMENT_MODULES_PATH=modules/{}", case.meta.module);
+            assert!(
+                reproduce.contains(&by_flag) || reproduce.contains(&by_path),
+                "{}: declares `module: {}` but its invocation says `{reproduce}`. \
+                 Two runners would test different modules and neither would notice.",
+                case.meta.id,
+                case.meta.module,
+            );
+        }
         assert!(
             reproduce.contains(&format!(
                 "--scope {}",

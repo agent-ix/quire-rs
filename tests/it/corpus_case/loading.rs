@@ -17,6 +17,61 @@ pub(super) fn load_module_path(path: &Path, case_id: &str) -> quire_rs::Registry
         .unwrap_or_else(|e| panic!("{case_id}: module path {} failed: {e}", path.display()))
 }
 
+/// The ecosystem declaration: the REAL `spec-artifacts-process` and
+/// `spec-artifacts-iso` modules, never a copy held by the corpus.
+///
+/// Roots come from `VALIDATION_PROCESS_ROOT` / `VALIDATION_ISO_ROOT` (the same
+/// variables `make validate` takes; defaults are the sibling checkouts), each a
+/// provider repository whose module directory sits beneath it. The closed-set
+/// loader is used on purpose: it never consults `IX_FILAMENT_MODULES_PATH` or
+/// `~/.ix/filament/modules`, so the answer is attributable to exactly these two
+/// checkouts and a developer's installed set cannot change a result.
+pub(super) fn ecosystem_registry(case_id: &str) -> quire_rs::Registry {
+    let (process, iso) = ecosystem_module_dirs();
+    quire_rs::Registry::load_module_set(&[&iso, &process]).unwrap_or_else(|e| {
+        panic!(
+            "{case_id}: the ecosystem modules failed to load from {} and {}: {e}",
+            iso.display(),
+            process.display()
+        )
+    })
+}
+
+/// Module directories of the two ecosystem providers; panics naming the variable
+/// to set when one is missing.
+pub fn ecosystem_module_dirs() -> (PathBuf, PathBuf) {
+    let provider = |var: &str, sibling: &str, dir: &str| {
+        let root = std::env::var_os(var).map_or_else(
+            || {
+                PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                    .join("..")
+                    .join(sibling)
+            },
+            PathBuf::from,
+        );
+        let module = root.join(dir);
+        assert!(
+            module.join("manifest.yaml").is_file(),
+            "ecosystem module not found at {}. Check out agent-ix/{sibling} and set {var} \
+             to its root (as for `make validate`).",
+            module.display()
+        );
+        module
+    };
+    (
+        provider(
+            "VALIDATION_PROCESS_ROOT",
+            "spec-artifacts-process",
+            "spec_artifacts_process",
+        ),
+        provider(
+            "VALIDATION_ISO_ROOT",
+            "spec-artifacts-iso",
+            "spec_artifacts_iso",
+        ),
+    )
+}
+
 /// Deserialize a merged declaration, naming the directory on failure.
 fn parse_meta(value: &serde_yaml::Value, dir: &Path) -> CaseMeta {
     let meta: CaseMeta = serde_yaml::from_value(value.clone())
