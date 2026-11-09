@@ -1195,6 +1195,7 @@ in this specification is not runtime or coverage evidence.
 | TC-1991 | A `columns` assert whose header conforms still fails with reason `row-width` for each row whose cell count differs from the header's, at the row's own line with its `row_id`; a uniformly wide table fires nothing (PLAT-217) | Unit | P0 | FR-033-AC-17 | ✅ |
 | TC-1992 | An `ix://` reference under a foreign `<org>/<repo>` authority is not `dangling-reference` when the bundle declares a different package (Strict and Okf), while the same id under the declared package, with no package declared, or as a bare id, still is (PLAT-1056) | Integration | P0 | FR-038-AC-9 | ✅ |
 | TC-2151 | The authority-versus-package comparison folds ASCII case: a mixed-case link to the bundle's own repo is still dangling, a mixed-case foreign authority is still skipped, and with no package declared every miss is dangling (PLAT-1357) | Integration | P0 | FR-038-AC-10 | 🚧 |
+| TC-2152 | A `## Relationships` target under the bundle package compares ASCII case-insensitively: mixed-case own-package target qualifies in either direction, a foreign package without an import is still refused (PLAT-1357) | Unit | P0 | FR-076-AC-23 | 🚧 |
 | TC-1993 | Transition `Emits` resolves to one `SemanticId` and step `Consumes`/`Emits` to ordered `SemanticId[]` by id or title; every value is an `ix://` identity differing from its cell text; empty cell absent; schema-valid | Unit | P0 | FR-075-AC-22, FR-075-CON-2 | ✅ |
 | TC-1994 | Unknown name and admitted-type mismatch (construct `references` role first, then `allowed_links`, then admit any; a `Transitions` `Emits` cell naming an entity under `state_machine` is refused) refuse with `semantic.unknown-reference` / `semantic.reference-kind-mismatch`, omit `model`; the all-resolving control is silent | Unit | P0 | FR-075-AC-23 | ✅ |
 | TC-1995 | Ambiguity over distinct ids (including id-versus-title), type filter, one declaration in two forms, `ix://` never name-matched, self-reference by title | Unit | P0 | FR-075-AC-24 | ✅ |
@@ -1701,6 +1702,7 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-076-AC-19 | TC-2002 |
 | FR-076-AC-20 | TC-2003 |
 | FR-076-AC-21 | TC-2004 |
+| FR-076-AC-23 | TC-2152 |
 | FR-076-CON-3 | TC-1999 |
 | FR-076-CON-4 | TC-2002 |
 | FR-073-AC-1 | TC-1807, TC-1809 |

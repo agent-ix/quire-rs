@@ -1,0 +1,37 @@
+---
+id: SR-20261103118133
+title: "spec-review (base) — PLAT-1357 FR-038-AC-9/AC-10 (quire-rs PR 620)"
+type: SpecReview
+analysis: base
+scope: "agent-ix/quire-rs PR620 head 65437a4; spec/functional/FR-038-okf-bundle-validation.md; spec/tests.md"
+review_set: subset
+relationships:
+  - target: ix://agent-ix/quire-rs/FR-038
+    type: references
+---
+
+## Summary
+
+Ticket: PLAT-1357. Base spec-review over `git diff origin/main...65437a4`: FR-038-AC-9 amended from exact to ASCII case-insensitive authority-versus-package comparison, new FR-038-AC-10, new TC-2151 row and its coverage-mapping row, and a PLAT-1357 note. Checked against the code on origin/main (`src/corpus/validate.rs:317-320` compares `authority != package`; `src/corpus/resolve.rs:85-91` merges multiple foreign spellings of one absent target with a byte-order `min`), quire-cli origin/main (`src/commands/validate.rs:459` lowercases the declared package and passes it to both `with_bundle_package` and `validate_document_in_bundle`), and the semantic own-package check (`src/semantic/target.rs:104`, FR-076). FR-038 is the correct owning FR for the dangling-reference skip.
+
+## Verdict
+
+Changes requested (two medium). The amendment matches the ticket and the planned code (PR 621 uses `eq_ignore_ascii_case`). AC-9 and AC-10 leave the result for one absent target spelled under both the own authority and a foreign authority undefined, and the code makes that result depend on letter case. The same byte-exact own-package comparison remains in the FR-076 relationships path, which receives the same lowercased package from quire-cli.
+
+## Findings
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-001 | medium | FR-038-AC-9 defines the merge only for bare-id plus foreign spellings. One absent target spelled as an own-authority `ix://` link and as a foreign one from the same source is merged in `resolve.rs` by byte-order `min` of the authorities, so `ix://zz/o/X` + `ix://acme/widgets/X` (package `acme/widgets`) stays dangling while `ix://Zz/o/X` + the same own link is skipped (`'Z' < 'a'`), and `ix://aaa/b/X` + the own link is skipped at any case. AC-10's claim that case does not change the result fails on this path. Fix: state that an own-authority spelling (case-folded) claims the target local like a bare id, so the edge stays dangling. | spec/functional/FR-038-okf-bundle-validation.md:105; src/corpus/resolve.rs:85-91 |
+| FND-002 | medium | The FR-076 own-package test (`src/semantic/target.rs:104`, `parsed.package() != package`) stays byte-exact, and quire-cli passes the same lowercased package into `validate_document_in_bundle`. A mixed-case own-package `## Relationships` target such as `ix://Acme/widgets/FR-001` is then refused as `target-qualified-not-imported`. After this PR, FR-038 and FR-076 define "own package" differently. Fix: add the matching FR-076 AC (or a tracked ticket) so both paths fold ASCII case. | spec/functional/FR-076-relationships-extraction.md:164-169; src/semantic/target.rs:104 |
+| FND-003 | low | The `PLAT-1357 note` ("AC-10 is new ...") is change-history prose in a requirement and goes stale on the next edit. The lasting rationale (quire-cli lowercases the package) belongs in AC-10 or Rationale, not a ticket-dated note. | spec/functional/FR-038-okf-bundle-validation.md:114-116 |
+
+## Review Scope
+
+| Unit | Role | Result |
+| --- | --- | --- |
+| FR-038-AC-9 | examined | FND-001 |
+| FR-038-AC-10 | examined | See criterion-strength SR |
+| TC-2151 | examined | Matches AC-10; status planned |
+| FR-038 statement | context_only | Owner of dangling-reference |
+| FR-076 | context_only | FND-002 |
