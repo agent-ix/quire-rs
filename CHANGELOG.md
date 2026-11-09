@@ -7,6 +7,42 @@ bumps; once 1.0 ships, semver is strict.
 
 ## [Unreleased]
 
+## [0.54.0] — 2026-11-08
+
+### Changed
+
+- **Breaking (Rust API), PLAT-874 (#596):** coverage, trace, search, export and
+  graph entry points return `Result`: a build that cannot extract a requested
+  language is refused with `ExtractionUnavailable` instead of reporting an empty
+  measurement (`SymbolExtraction::require_available`).
+- **Breaking (crate rename), PLAT-876 (#605):** the workspace crate
+  `quire-rust-extraction` is now `quire-code-extraction`; the `rust-symbols`,
+  `python-symbols` and `typescript-symbols` features are unchanged.
+- **Breaking, PLAT-35/PLAT-55 (#593):** transition `Emits` and step
+  `Consumes`/`Emits` cells resolve through the bundle index (by id or declared
+  name) to `SemanticId`s, and relationship rows whose verb is a typed relation
+  key of the object type's data schema lower into that `SemanticId[]` key.
+  Unknown, unadmitted, ambiguous, repeated and empty items are refused; a typed
+  key in frontmatter is `semantic.duplicate-authority`, and a rejected verb on a
+  typed-only type is `verb-not-typed-key`. Without a bundle index or package the
+  rows advise and the model is unavailable, with no error.
+- **Breaking, FR-075, PLAT-8 (#591):** a population has one `extent`, `closed`
+  or `open`, read from frontmatter; the retired `Type | Extent` table is refused
+  under any manifest.
+- Module-path environment roots are unioned with the default module root, and
+  every unreadable manifest is a hard load failure; unknown top-level manifest
+  keys are denied (PLAT-106, PLAT-323, #589).
+- Criterion tags bind to their declared matrix rows; a tag with no declared row
+  is rejected (#587).
+- `ix-trace-rs` is pinned by rev, like the other consumers (PLAT-116, #584).
+
+### Fixed
+
+- A `columns` assert also checks each row's cell count (reason `row-width`,
+  FR-033-AC-17), and bundle validation no longer reports `ix://` targets under
+  a foreign org/repo authority as `dangling-reference` (PLAT-217, PLAT-1056,
+  #590).
+
 ### Added
 
 - Type cells `Clock` (the `SemanticId` `ix://quire/native/Clock`) and
