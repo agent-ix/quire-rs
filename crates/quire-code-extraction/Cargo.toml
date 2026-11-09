@@ -3,7 +3,7 @@ name = "quire-code-extraction"
 version = "0.1.0"
 edition = "2021"
 rust-version = "1.98.1"
-# This crate wraps all three `quire-code-parse` grammars (rust/python/typescript)
+# This crate wraps all four `quire-code-parse` grammars (rust/python/typescript/bash)
 # behind per-grammar features (PLAT-851); it was renamed from
 # `quire-rust-extraction` by PLAT-876.
 description = "Dependency-boundary crate: the only place in the quire-rs workspace that names quire-code-parse/tree-sitter (PLAT-843, widened PLAT-851), enforced by scripts/audits/check_tree_sitter_boundary.sh (PLAT-911)."
@@ -46,7 +46,7 @@ path = "src/lib.rs"
 # contradicting FR-013-CON-3's own stated principle: a consumer that wants one
 # grammar must not link the other two.
 [dependencies]
-quire-code-parse = { git = "https://github.com/agent-ix/quire-code-rs", rev = "b58164a8cf4e6543d7bc5f5f2042ea792612ed16", default-features = false }
+quire-code-parse = { git = "https://github.com/agent-ix/quire-code-rs", rev = "108ddda6bdeab1dd97e5c638d41b6df8167b1fa1", default-features = false }
 
 [dev-dependencies]
 serde_json = "^1"
@@ -60,6 +60,7 @@ serde_json = "^1"
 rust = ["quire-code-parse/rust"]
 python = ["quire-code-parse/python"]
 typescript = ["quire-code-parse/typescript"]
+bash = ["quire-code-parse/bash"]
 
 [lints.rust]
 unsafe_code = "forbid"

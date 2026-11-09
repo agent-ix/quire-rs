@@ -27,6 +27,8 @@ pub enum SourceLanguage {
     Python,
     #[serde(alias = "ts")]
     Typescript,
+    /// A `.sh` script (FR-051 shell adapter, PLAT-362).
+    Shell,
 }
 
 impl SourceLanguage {
@@ -36,6 +38,7 @@ impl SourceLanguage {
             Self::Rust => "rust",
             Self::Python => "python",
             Self::Typescript => "typescript",
+            Self::Shell => "shell",
         }
     }
 }
@@ -1148,6 +1151,12 @@ pub struct TraceMarkerForm {
     /// derivable", and this template is what makes it derivable.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub template: Option<String>,
+    /// Repo-relative globs (the `source_exclude` dialect, matched against a path
+    /// relative to the code root) naming the shell scripts whose `entry_point`
+    /// may bind this form's ids (FR-051-AC-38, AC-39). Declarable only on a
+    /// `language: shell` form in `trace_tags.markers`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub entry_paths: Option<Vec<String>>,
 }
 
 /// Syntax positions supported for module-declared marker forms.
@@ -1156,6 +1165,8 @@ pub struct TraceMarkerForm {
 pub enum TraceMarkerSyntax {
     /// A complete outer Rust attribute attached to a declaration.
     RustAttribute,
+    /// A `#` comment node of a shell script (FR-051-AC-42).
+    Comment,
 }
 
 // Preserve field presence: explicit null is an invalid guard, not omission.
@@ -1177,10 +1188,17 @@ impl<'de> Deserialize<'de> for TraceMarkerForm {
             template: Option<String>,
             #[serde(default, deserialize_with = "present_syntax")]
             syntax: Option<serde_json::Value>,
+            #[serde(default)]
+            entry_paths: Option<Vec<String>>,
         }
         let wire = Wire::deserialize(deserializer)?;
         let syntax = match wire.syntax.as_ref() {
             None => None,
+            Some(value)
+                if value.as_str() == Some("comment") && wire.language == SourceLanguage::Shell =>
+            {
+                Some(TraceMarkerSyntax::Comment)
+            }
             Some(value)
                 if value.as_str() == Some("rust_attribute")
                     && wire.language == SourceLanguage::Rust =>
@@ -1202,6 +1220,7 @@ impl<'de> Deserialize<'de> for TraceMarkerForm {
             pattern: wire.pattern,
             template: wire.template,
             syntax,
+            entry_paths: wire.entry_paths,
         })
     }
 }
@@ -1752,8 +1771,8 @@ impl TraceabilityModel {
         let mut marker_names: BTreeSet<&str> = BTreeSet::new();
         for marker in &self.trace_tags.markers {
             check_named("trace_tags.markers", &marker.name)?;
-            if marker.syntax.is_some() {
-                return Err(format!("trace_tags.markers form '{}' cannot declare syntax; only trace_tags.implements supports it", marker.name));
+            if marker.syntax == Some(TraceMarkerSyntax::RustAttribute) {
+                return Err(format!("trace_tags.markers form '{}' cannot declare syntax rust_attribute; only trace_tags.implements supports it", marker.name));
             }
             if !marker_names.insert(marker.name.as_str()) {
                 return Err(format!(
@@ -1762,15 +1781,41 @@ impl TraceabilityModel {
                 ));
             }
             check_capturing_pattern("trace_tags.markers", &marker.name, &marker.pattern)?;
+            if let Some(entry_paths) = &marker.entry_paths {
+                if marker.language != SourceLanguage::Shell {
+                    return Err(format!(
+                        "traceability: trace_tags.markers form '{}' cannot declare `entry_paths`; \
+                         only a `language: shell` form has an entry point",
+                        marker.name
+                    ));
+                }
+                check_excludes(
+                    &format!("trace_tags.markers form '{}'", marker.name),
+                    "entry_paths",
+                    entry_paths,
+                )?;
+            }
         }
         for marker in &self.trace_tags.implements {
             check_named("trace_tags.implements", &marker.name)?;
             check_capturing_pattern("trace_tags.implements", &marker.name, &marker.pattern)?;
-            if marker.syntax.is_some() && marker.language != SourceLanguage::Rust {
+            if marker.entry_paths.is_some() {
                 return Err(format!(
-                    "trace_tags.implements form '{}' requires Rust for rust_attribute",
+                    "traceability: trace_tags.implements form '{}' cannot declare `entry_paths`; \
+                     an `implements` form binds no `entry_point`",
                     marker.name
                 ));
+            }
+            match marker.syntax {
+                Some(TraceMarkerSyntax::RustAttribute)
+                    if marker.language != SourceLanguage::Rust =>
+                {
+                    return Err(format!(
+                        "trace_tags.implements form '{}' requires Rust for rust_attribute",
+                        marker.name
+                    ));
+                }
+                _ => {}
             }
         }
         for legacy in &self.trace_tags.legacy {

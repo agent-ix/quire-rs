@@ -52,6 +52,8 @@ mod semantic_properties;
 mod semantic_relations;
 mod semantic_surface;
 mod semantic_systems;
+#[cfg(feature = "shell-symbols")]
+mod shell_symbols;
 mod spec_dogfood;
 mod trace_dogfood;
 mod trace_references;
