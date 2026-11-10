@@ -222,10 +222,10 @@ module-root order:
   file `<T>` gives the edge `<P>#<X> -> <Q>#<T>`; edges inside a provider come
   the same way from the provider's own emitted-schema `$ref`s. Every
   package-level import cycle is refused; the type-level graph only changes how
-  the cycle is named: over the `<org>/<repo>#<Type>` nodes that form it when
-  `$ref`-derived type-level edges exist, otherwise (including when a module on
-  the cycle has no `$ref`s into it) over packages as the package graph defines
-  it. Edges come from `$ref`s between type files, not from `import_types`
+  the cycle is named: over the `<org>/<repo>#<Type>` nodes that form it only when the
+  `$ref`-derived type-level edges themselves form a cycle, otherwise (including
+  when such edges exist but form no type-level cycle, or a module on the cycle
+  has no `$ref`s into it) over packages as the package graph defines it. Edges come from `$ref`s between type files, not from `import_types`
   lists.
 
 Advisory cases:
@@ -281,7 +281,7 @@ stricter of the two.
 | FR-069-AC-17 | With the provider loaded (a module loaded without refusal, package equal to the import key, at the declared version), an `import_types` entry naming a type absent from the provider's `exports` fails the module with a reason starting `semantic.unknown-import-type` naming the package and the type at `semantic.import_types.<package>`; every listed type exported by the provider loads; with the provider not loaded, loaded at another version, or refused, the entry is unchecked and the warning `semantic.import-unresolved` is emitted where no provider matches. | Test |
 | FR-069-AC-18 | A module declaring an import that none of its own data schemas references by a `$ref` under the package's schema base loads with the warning `semantic.unused-import` naming the package; the same module with one such `$ref` emits no `semantic.unused-import`. | Test |
 | FR-069-AC-19 | A `$ref` under the schema base of a declared import is admitted without being followed or fetched, and a value that would violate the provider's schema validates against the module's own compiled validator (the `$ref` accepts any value); with the provider loaded, one whose type name (file stem without `.json` and `.schema`, `#fragment` ignored) the provider does not export fails `semantic.unknown-import-type` at `<section>[<type>].data_schema.schema`; a `$ref` under the schema base of a package not in `semantic.imports` still fails `semantic.schema-ref-unshipped` naming the `$ref`. | Test |
-| FR-069-AC-20 | Two modules whose `$ref`s give a type-level cycle (`<org>/<repo>#<Type>` nodes) fail with `semantic.import-cycle` naming the types that form the cycle; two modules whose packages import each other with no type-level edges fail naming the packages; a cycle where one module has no `$ref`s into it is still refused and named over packages. | Test |
+| FR-069-AC-20 | Two modules whose `$ref`s give a type-level cycle (`<org>/<repo>#<Type>` nodes) fail with `semantic.import-cycle` naming the types that form the cycle; two modules whose packages import each other with no type-level edges fail naming the packages; a cycle where one module has no `$ref`s into it is still refused and named over packages; a package cycle refused although the `$ref` edges form no type-level cycle is named over packages. | Test |
 
 ## Dependencies
 

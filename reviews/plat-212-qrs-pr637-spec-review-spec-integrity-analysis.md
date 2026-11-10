@@ -64,3 +64,9 @@ Round 1, against head 35ef824e (fix commit 35ef824).
 | FND-001 | fixed | - |
 | FND-002 | fixed | - |
 | FND-003 | fixed | - |
+
+Round 2, against head 25f7dbde (fix commit 25f7dbd).
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-004 | fixed | - |

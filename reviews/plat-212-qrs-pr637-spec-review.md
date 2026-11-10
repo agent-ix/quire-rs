@@ -57,3 +57,9 @@ Round 1, against head 35ef824e (fix commit 35ef824).
 | FND-001 | fixed | - |
 | FND-002 | still-open | FR-069 still names type-level nodes `<org>/<repo>#<Type>` while agent-ix/quoin PR #796 (head 6c8c1394) FR-075 still names them `<org>/<repo>:<Type>`; one of the two specs must change. |
 | FND-003 | fixed | - |
+
+Round 2, against head 25f7dbde (fix commit 25f7dbd).
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-002 | deferred | FR-069's own text is consistent (`<org>/<repo>#<Type>` throughout Behavior, AC-20 and TC-2218); the remaining divergence is Quoin PR #796 FR-075's `:` spelling (head 6c8c1394 unchanged), which the coordinator states is being aligned to FR-069 in that PR under the same ticket PLAT-212; no #637 change is needed. |

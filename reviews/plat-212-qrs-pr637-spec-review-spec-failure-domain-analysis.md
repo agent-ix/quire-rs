@@ -53,6 +53,14 @@ Mergeable after FND-001..FND-003 are fixed; each leaves the implementer to inven
 
 - **FND-005** (FR-069-AC-20): Behavior lines 214-223 vs AC-20 line 278. Quoin #796 FR-075: "Where the modules on an import cycle carry `semantic.import_types` lists, the failure SHALL name the cycle over the types"; FR-124: "one error per import cycle (named over types where type lists exist)". Fix: choose one rule and state it in both specs. Either every package cycle is refused and the type-level graph only changes how it is named, which means dropping the non-refusal clause from AC-20. Or type-level cycles alone are refused, which needs Behavior and AC-10 to say so and Quoin FR-075/FR-124 to agree. Also say whether `import_types` lists or `$ref` edges define the type-level graph, the same in both specs.
 
+## New findings (disposition pass 2)
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-006 | low | The cycle-naming rule names a refused package cycle "over the `<org>/<repo>#<Type>` nodes that form it when `$ref`-derived type-level edges exist", but leaves unnamed the case where type-level edges exist and no type-level cycle forms, so no type nodes form the cycle. That is exactly the case the round-1 AC-20 clause covered and this round removed. | spec/functional/FR-069-semantic-module-contract-at-load.md:224 |
+
+- **FND-006** (FR-069#import-cycle): Fix in one clause: name the cycle over types only when the type-level edges themselves form a cycle, otherwise over packages, and add that case to AC-20 and TC-2218.
+
 ## Dispositions
 
 Round 1, against head 35ef824e (fix commit 35ef824).
@@ -63,3 +71,9 @@ Round 1, against head 35ef824e (fix commit 35ef824).
 | FND-002 | fixed | - |
 | FND-003 | fixed | - |
 | FND-004 | fixed | - |
+
+Round 2, against head 25f7dbde (fix commit 25f7dbd).
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-005 | fixed | - |
