@@ -45,3 +45,10 @@ Checked and correct:
 | FR-050-AC-65: "`totals.strict_exempt_unbacked` (integer, omitted when zero) and `strict_exempt: true` on exactly the exempt `unbacked_rows` records, both optional keys of `schemas/output/coverage-v1.schema.json`" | examined | Correct; byte-identical when absent |
 | FR-050-AC-66: "The strict verdict and an `error`-promoted `coverage:unbacked-row` count only non-exempt unbacked rows … The exemption applies identically on the FR-078 evidence path." | examined | `strict_decision` and `non_exempt_unbacked()` correct; the shared `reconcile` serves the evidence path |
 | CHANGELOG.md PLAT-1386 entry | examined | Present and accurate |
+
+## Dispositions
+
+| FND | Outcome | Reason |
+| --- | --- | --- |
+| FND-001 | fixed | Round 1, head `250577b`. `ScannedRow::cell_raw` returns `Some("")` for a present blank cell. `cell` is now `cell_raw(..).filter(non-empty)`, so every other caller is unchanged; `cell_raw` has one caller, `own_exempt`. A blank cell yields `own_exempt = Some(false)`: the row is not exempt, is not routed to declared derivation, and vetoes the ids it references. `tc2224_blank_backed_and_retired_referencing_rows_block_the_exemption` covers the veto and the no-inherit case; both assertions would fail under the old `cell` call. |
+| FND-002 | fixed | Round 1, head `250577b`. `StatusRefs` is removed; `status_refs: BTreeMap<String, bool>` with `*entry.or_insert(true) &= exempt`, and resolution reads `.copied().unwrap_or(false)`. |

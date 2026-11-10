@@ -44,3 +44,13 @@ Covered by tests:
 | FR-050-AC-66: "The strict verdict and an `error`-promoted `coverage:unbacked-row` count only non-exempt unbacked rows … A live Complete row without evidence, an incomplete explicit evidence inventory, and the same scope with no declared targets … each still fail" | examined | Verdict exclusion untested (FND-001); severity half structural only (FND-004) |
 | TC-2219..2224 trace bindings and spec/tests.md status flips | examined | Correct |
 | Production code with no owning requirement | examined | None; every new line traces to AC-64..66 |
+
+## Dispositions
+
+| FND | Outcome | Reason |
+| --- | --- | --- |
+| FND-001 | fixed | Round 1, head `250577b`. New `tc2222_strict_decision_passes_exempt_only_rows_and_keeps_every_other_premise` uses a truly all-exempt fixture (4 unbacked rows, `non_exempt_unbacked() == 0`). It asserts `strict_decision` is `Ok` on the source and evidence paths, which fails if src/evidence.rs:685 reverts to `!unbacked_rows.is_empty()`. With exempt-only rows it asserts that ZeroTargets, ContradictedStatus and an incomplete inventory (`CauseCode::Absent`) each still fail, and that a mixed fixture yields UnbackedRows. ZeroTargets and the status lie are injected by mutating the report rather than by fixture, which is adequate for the engine's `strict_decision` unit. |
+| FND-002 | fixed | Round 1, head `250577b`. `tc2224_blank_backed_and_retired_referencing_rows_block_the_exemption` covers a blank referencing row (veto), a blank row referenced only by an exempt row (not exempt), a backed `✅` referencing row (veto) and a `⛔` retired referencing row (veto). FR-050 now states "Referencing rows count whether they are backed, retired or unbacked." |
+| FND-003 | fixed | Round 1, head `250577b`. Ruling: the engine's computed `target_ids` is truth. FR-050 now reads "an unexpanded range contributes only the ids the declaration's pattern itself captures from it (for example the range's endpoint), nothing is expanded". TC-2224 is reworded to match, and the existing assertions (AC-1 exempt; AC-2 and AC-3 not) now agree with both. |
+| FND-004 | fixed | Round 1, head `250577b`. TC-2223 is reworded to the structural claim ("`compute` takes no severity input … the severity override itself is exercised by the CLI case TC-2226"), which is what the test shows. |
+| FND-005 | fixed | Round 1, head `250577b`. The TC-856 payload now carries `"strict_exempt": true` on its unbacked row and `"strict_exempt_unbacked": 1` in `totals`, and it validates. |
