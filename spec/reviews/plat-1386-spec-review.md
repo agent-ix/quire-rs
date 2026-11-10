@@ -38,3 +38,23 @@ The matching rule itself holds up when worked by hand. `🚧 planned`, `Planned`
 Not mergeable. FND-001 (high) blocks: the strict exemption is consistent and testable as written, but over the ticket's own reproduction it leaves 40 of the 60 parked rows failing. FND-002, FND-003 and FND-004 (medium) should be fixed in the same round. FND-005 and FND-006 (low) are wording fixes.
 
 What holds: the word-boundary rule, the leading-marker strip, the blank-cell and no-column cases, and the `status_column` versus global column precedence are each unambiguous and testable. The byte-identity clause ('omitted when zero') follows the `retired` and AC-21 precedent. The exemption never touches status lies, the empty-population premise, retired rows or the census. `quire validate` on both files exits 0. Its only output is the `ac:non-canonical-shape` warning on FR-050-AC-58, which appears at line 304 on main and at line 343 on this branch, so it pre-exists.
+
+## New findings (disposition pass 1)
+
+| ID | Severity | Summary | Refs | Escape Cause |
+| --- | --- | --- | --- | --- |
+| FND-007 | medium | The Declared status rule names module data in the engine. It names the reference declarations `functional-coverage` and `traces-to`, and it uses "matrix row" and "criterion or verification row". FR-050 line 23 says the engine SHALL NOT hardcode FR/AC/TC semantics, and those names are spec-artifacts-process module declarations. "Declares" is also undefined. It could mean the row's `target_ids` after the declaration's normalizations, or the FR-050-AC-58 range reading (`AC-1..6`, `AC-1 through AC-6`). The two readings differ when a coverage row's range is the only declarer. Fix: state it generically. For example: a reference row that has no status cell of its own is exempt when it is unbacked and every reference row that has its own status cell, and whose `target_ids` contain this row's own id, has an exempt own status. Drop the declaration names, and name the `target_ids` reading. | spec/functional/FR-050-declarative-coverage-computation.md:159-164; spec/functional/FR-050-declarative-coverage-computation.md:374 | wrong-requirement |
+| FND-008 | medium | The `plannedé` vector contradicts the rule it tests. The rule says a match is `planned` followed by the end of the text or by "a character that is not an ASCII letter or digit". `é` is not an ASCII letter, so `plannedé` matches. The section, AC-64 and TC-2219 all list it as not exempt, so no implementation can satisfy both the rule and the vector. Fix: either move `plannedé` to the exempt vectors, or make the trailing boundary "not a Unicode alphanumeric", keeping the leading strip ASCII if wanted. | spec/functional/FR-050-declarative-coverage-computation.md:148-153; spec/functional/FR-050-declarative-coverage-computation.md:374; spec/tests.md:1321 | wrong-requirement |
+
+## Dispositions
+
+Round 1 at 74a4dde9. The parked rows were measured again over tl-syntax `origin/main` with the Declared status rule simulated: every `traces-to` matrix row that names each of the 40 status-less `verification`/`nfr-verification` rows of FR-015..019 and NFR-004/005 has `🚧 planned`, so all 40 are exempt and the remaining 20 rows are exempt by Own status. `quire validate` on the four changed spec files exits 0; the only warning is the pre-existing FR-050-AC-58 `ac:non-canonical-shape` (now line 369).
+
+| FND | Outcome | Reason |
+| --- | --- | --- |
+| FND-001 | fixed | Declared status paragraph added; AC-64 and TC-2224 carry the all-planned, mixed and undeclared vectors; tl-syntax 40/40 status-less parked rows exempt by simulation. |
+| FND-002 | fixed | Verdict paragraph: exempt rows are excluded from the error-promoted `coverage:unbacked-row` count; AC-66 and TC-2222/TC-2226 carry the promoted vector. |
+| FND-003 | fixed | Section names both additive keys of `coverage-v1.schema.json` (`minimum: 1`, `const: true`); AC-65 and TC-2221 require an exempt payload to validate. |
+| FND-004 | fixed | Evidence-mode paragraph now says "non-exempt unbacked rows" and that the exemption applies identically there while per-act reasons still reject; AC-66 and TC-2222 carry it. |
+| FND-005 | fixed | AC-53 now reads "fails `--strict` because of the live Complete row; the Planned row is strict-exempt". |
+| FND-006 | fixed | Boundary pinned to ASCII letters and digits. The pinned rule's own `plannedé` vector is wrong (FND-008). |

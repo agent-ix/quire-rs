@@ -34,3 +34,14 @@ Ticket: PLAT-1386. This pass checks the traceability structure the PR adds: FR-0
 ## Verdict
 
 Mergeable on structure once FND-001 (medium) is resolved in the same round as SR-20269. FND-002, FND-003 and FND-004 (low) are wording and placement fixes. The mapping is complete in both directions, and the ids are unique.
+
+## Dispositions
+
+Round 1 at 74a4dde9. TC-2224, TC-2225 and TC-2226 are each defined exactly once in `spec/tests.md`, and no other quire-rs PR is open. Audit rows: AC-64 maps to TC-2219, TC-2220 and TC-2224; AC-65 to TC-2221 and TC-2225; AC-66 to TC-2222, TC-2223 and TC-2226. Each matches its TC's `Traces To` cell and the AC's Verification cell.
+
+| FND | Outcome | Reason |
+| --- | --- | --- |
+| FND-001 | fixed | TCs split by surface. The engine cases (TC-2219..2224) are prefixed `Engine:`. The CLI cases TC-2225 and TC-2226 are `🚧 awaiting quire-cli (FR-017-AC-7 amendment)`. The Surfaces paragraph names the companion quire-cli FR-017-AC-7 amendment and the change to its error-promotion count. |
+| FND-002 | fixed | AC-64..66 Verification cells now read `Test (TC-2219, TC-2220, TC-2224)`, `Test (TC-2221, TC-2225)` and `Test (TC-2222, TC-2223, TC-2226)`. |
+| FND-003 | fixed | The FR-050 row is back to `AC-1..60, 62..63`. A separate row, `FR-050 Strict exemption ... (PLAT-1386) / AC-64..66 / 🚧 Planned (engine); CLI cases await quire-cli`, carries the new ACs. |
+| FND-004 | fixed | TC-2226 and AC-66 now say "the same scope with no declared targets (the empty-population premise)", AC-54's wording. |
