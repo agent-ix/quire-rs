@@ -73,6 +73,9 @@ pub struct SemanticModule {
     pub package: String,
     pub exports: Vec<String>,
     pub imports: BTreeMap<String, String>,
+    /// For an imported package, the names of its types this module uses.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub import_types: BTreeMap<String, Vec<String>>,
     pub targets: Vec<String>,
     pub compatibility_posture: String,
     pub legacy_forms: String,
@@ -130,6 +133,70 @@ fn block_validator() -> Validator {
         .expect("embedded semantic block schema compiles")
 }
 
+/// Shape of `semantic.import_types` (FR-069-AC-16). The locus is the
+/// unescaped package key with no index, not the schema-error pointer form.
+fn check_import_types(map: &serde_json::Map<String, Value>) -> Vec<SemanticFailure> {
+    let Some(value) = map.get("import_types") else {
+        return Vec::new();
+    };
+    let invalid =
+        |at: String, why: String| SemanticFailure::error("semantic.invalid-value", at, why);
+    let Some(entries) = value.as_object() else {
+        return vec![invalid(
+            "semantic.import_types".to_string(),
+            "import_types must be a mapping".to_string(),
+        )];
+    };
+    let imports = map.get("imports").and_then(Value::as_object);
+    let mut failures = Vec::new();
+    for (package, types) in entries {
+        let at = format!("semantic.import_types.{package}");
+        let why = if !imports.is_some_and(|i| i.contains_key(package)) {
+            Some(format!("{package} is not a key of semantic.imports"))
+        } else if let Some(list) = types.as_array() {
+            let mut seen = std::collections::BTreeSet::new();
+            list.iter()
+                .find_map(|t| match t.as_str() {
+                    None => Some(format!("type name {t} is not a string")),
+                    Some("") => Some("type name is empty".to_string()),
+                    Some(name) if !seen.insert(name) => {
+                        Some(format!("type name {name} is listed twice"))
+                    }
+                    Some(_) => None,
+                })
+                .or_else(|| list.is_empty().then(|| "type list is empty".to_string()))
+        } else {
+            Some("import_types value must be an array of type names".to_string())
+        };
+        if let Some(why) = why {
+            failures.push(invalid(at, why));
+        }
+    }
+    failures
+}
+
+fn read_import_types(map: &serde_json::Map<String, Value>) -> BTreeMap<String, Vec<String>> {
+    map.get("import_types")
+        .and_then(Value::as_object)
+        .map(|m| {
+            m.iter()
+                .map(|(package, types)| {
+                    let names = types
+                        .as_array()
+                        .map(|a| {
+                            a.iter()
+                                .filter_map(Value::as_str)
+                                .map(str::to_string)
+                                .collect()
+                        })
+                        .unwrap_or_default();
+                    (package.clone(), names)
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
 /// Read and check a `semantic` block (FR-069 Behavior, refusals in order).
 ///
 /// `declared_types` are all names declared by the manifest's type sections.
@@ -162,7 +229,16 @@ pub fn read_semantic_block(
     // 2. shape against the embedded module-manifest schema.
     let mut failures = Vec::new();
     let validator = block_validator();
+    failures.extend(check_import_types(map));
     for error in validator.iter_errors(block) {
+        // `import_types` is checked above, at the unescaped package locus.
+        if error
+            .instance_path()
+            .to_string()
+            .starts_with("/import_types")
+        {
+            continue;
+        }
         let at = format!(
             "semantic{}",
             error.instance_path().to_string().replace('/', ".")
@@ -253,6 +329,7 @@ pub fn read_semantic_block(
         package,
         exports,
         imports,
+        import_types: read_import_types(map),
         targets,
         compatibility_posture: map
             .get("compatibility_posture")

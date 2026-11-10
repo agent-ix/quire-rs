@@ -20,6 +20,8 @@ struct ModuleRequest {
     #[serde(default)]
     imports: std::collections::BTreeMap<String, String>,
     #[serde(default)]
+    import_types: std::collections::BTreeMap<String, Vec<String>>,
+    #[serde(default)]
     targets: Vec<String>,
     #[serde(default = "additive")]
     compatibility_posture: String,
@@ -90,6 +92,7 @@ pub fn extract_semantic_json(request: &Value) -> Result<SemanticExtraction, Stri
         package: req.module.package,
         exports: req.module.exports,
         imports: req.module.imports,
+        import_types: req.module.import_types,
         targets: req.module.targets,
         compatibility_posture: req.module.compatibility_posture,
         legacy_forms: req.module.legacy_forms,

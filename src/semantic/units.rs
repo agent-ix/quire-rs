@@ -255,6 +255,7 @@ mod tests {
                 .into_iter()
                 .map(|p| (p.to_string(), "1".to_string()))
                 .collect(),
+            import_types: Default::default(),
             targets: Vec::new(),
             compatibility_posture: "none".to_string(),
             legacy_forms: "warn".to_string(),
