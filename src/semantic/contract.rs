@@ -162,46 +162,42 @@ pub fn read_semantic_block(
     // 2. shape against the embedded module-manifest schema.
     let mut failures = Vec::new();
     let validator = block_validator();
-    {
-        for error in validator.iter_errors(block) {
-            let at = format!(
-                "semantic{}",
-                error.instance_path().to_string().replace('/', ".")
-            );
-            let failure = match error.kind() {
-                ValidationErrorKind::AdditionalProperties { unexpected } => SemanticFailure::error(
-                    "semantic.unknown-key",
+    for error in validator.iter_errors(block) {
+        let at = format!(
+            "semantic{}",
+            error.instance_path().to_string().replace('/', ".")
+        );
+        let failure = match error.kind() {
+            ValidationErrorKind::AdditionalProperties { unexpected } => SemanticFailure::error(
+                "semantic.unknown-key",
+                at.clone(),
+                format!("unknown key(s) {}", unexpected.join(", ")),
+            ),
+            ValidationErrorKind::Enum { .. } if at.starts_with("semantic.targets") => {
+                SemanticFailure::error(
+                    "semantic.unknown-target",
                     at.clone(),
-                    format!("unknown key(s) {}", unexpected.join(", ")),
-                ),
-                ValidationErrorKind::Enum { .. } if at.starts_with("semantic.targets") => {
-                    SemanticFailure::error(
-                        "semantic.unknown-target",
-                        at.clone(),
-                        format!(
-                            "target {} is outside the embedded target registry",
-                            error.instance()
-                        ),
-                    )
-                }
-                ValidationErrorKind::Pattern { .. } if at == "semantic.package" => {
-                    SemanticFailure::error(
-                        "semantic.invalid-package",
-                        at.clone(),
-                        format!("package {} is not <org>/<repo>", error.instance()),
-                    )
-                }
-                ValidationErrorKind::Required { property } => SemanticFailure::error(
-                    "semantic.missing-key",
+                    format!(
+                        "target {} is outside the embedded target registry",
+                        error.instance()
+                    ),
+                )
+            }
+            ValidationErrorKind::Pattern { .. } if at == "semantic.package" => {
+                SemanticFailure::error(
+                    "semantic.invalid-package",
                     at.clone(),
-                    format!("semantic block requires {property}"),
-                ),
-                _ => {
-                    SemanticFailure::error("semantic.invalid-value", at.clone(), error.to_string())
-                }
-            };
-            failures.push(failure);
-        }
+                    format!("package {} is not <org>/<repo>", error.instance()),
+                )
+            }
+            ValidationErrorKind::Required { property } => SemanticFailure::error(
+                "semantic.missing-key",
+                at.clone(),
+                format!("semantic block requires {property}"),
+            ),
+            _ => SemanticFailure::error("semantic.invalid-value", at.clone(), error.to_string()),
+        };
+        failures.push(failure);
     }
     if !failures.is_empty() {
         return Err(failures);
