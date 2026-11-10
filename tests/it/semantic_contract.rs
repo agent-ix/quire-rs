@@ -2063,3 +2063,46 @@ fn import_cycles_are_named_over_types_only_when_type_edges_cycle() {
     let (_tmp, registry) = cycle_pair(true, true, "entity", "Entity");
     assert!(!cycle(&registry).contains('#'));
 }
+
+#[trace("TC-2217", "FR-069-AC-19")]
+// A module whose imports name its OWN package (at another version) still
+// reads and validates its sibling `$ref`s.
+#[test]
+fn self_import_does_not_opaque_sibling_ref() {
+    use quire_rs::semantic::{resolver::resolve_reference, DataSchemaRef, SchemaSource};
+    let draft = "https://json-schema.org/draft/2020-12/schema";
+    let files = BTreeMap::from([
+        (
+            "Thing.json".to_string(),
+            json!({
+                "$schema": draft,
+                "$id": format!("{BASE}/agent-ix/use/0.1.0/Thing.json"),
+                "type": "object",
+                "properties": { "p": { "$ref": format!("{BASE}/agent-ix/use/0.1.0/Other.json") } }
+            })
+            .to_string(),
+        ),
+        (
+            "Other.json".to_string(),
+            json!({
+                "$schema": draft,
+                "$id": format!("{BASE}/agent-ix/use/0.1.0/Other.json"),
+                "type": "string"
+            })
+            .to_string(),
+        ),
+    ]);
+    let resolved = resolve_reference(
+        &SchemaSource::Inline { files: &files },
+        &DataSchemaRef {
+            schema: "Thing.json".into(),
+        },
+        "object_types",
+        "thing",
+        &["agent-ix/use".to_string()],
+    )
+    .unwrap_or_else(|f| panic!("{f:?}"));
+    assert!(resolved.import_refs.is_empty());
+    assert!(resolved.validator.is_valid(&json!({ "p": "ok" })));
+    assert!(!resolved.validator.is_valid(&json!({ "p": 5 })));
+}

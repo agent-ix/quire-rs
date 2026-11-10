@@ -197,6 +197,22 @@ pub fn resolve_reference(
         .and_then(Value::as_str)
         .and_then(|id| id.rfind('/').map(|i| id[..=i].to_string()))
         .unwrap_or_default();
+    // A module's own package is never an import: its sibling `$ref`s are
+    // read and validated, even when `semantic.imports` names the package at
+    // another version.
+    let imports: Vec<String> = imports
+        .iter()
+        .filter(|p| {
+            !module_base
+                .strip_prefix(embedded::MODULE_SCHEMA_BASE)
+                .is_some_and(|rest| {
+                    rest.strip_prefix(p.as_str())
+                        .is_some_and(|r| r.starts_with('/'))
+                })
+        })
+        .cloned()
+        .collect();
+    let imports = imports.as_slice();
     let dir: PathBuf = Path::new(rel)
         .parent()
         .map(Path::to_path_buf)
