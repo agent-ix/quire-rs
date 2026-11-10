@@ -67,3 +67,9 @@ Examined, clean:
 Not mergeable until FND-001 is fixed: it is the one path where opaque
 accept-any stripping weakens validation of the module's own schemas. The
 rest of the change matches FR-069 AC-16..20 and the settled design.
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | 42e944bf: `resolve_reference` drops the module's own package (taken from the root `$id` base) from `imports` before walk, compile and strip; `self_import_does_not_opaque_sibling_ref` asserts a self-import keeps a sibling `$ref` followed and validating (fails on 7f2eaf60). |
