@@ -19,21 +19,6 @@ use super::{
     UnbackedRow, UndeclaredStatus, UntrackedSymbol, COVERAGE_DIAGNOSTIC_REASONS,
 };
 
-/// Rows with their own status cell that reference one id.
-struct StatusRefs {
-    rows: usize,
-    all_exempt: bool,
-}
-
-impl Default for StatusRefs {
-    fn default() -> Self {
-        Self {
-            rows: 0,
-            all_exempt: true,
-        }
-    }
-}
-
 /// Whether a status cell is `planned`, `blocked` or `parked` (FR-050-AC-64):
 /// ASCII case-insensitive, leading non-ASCII-alphanumeric characters ignored,
 /// whole word only. The words are fixed by the engine and never consult the
@@ -157,9 +142,9 @@ pub(super) fn reconcile(
     // the defect. An id whose rows carry no status (an acceptance criterion
     // verified by several tests) is legitimately N:1 and never reported.
     let mut status_row_ids: BTreeSet<String> = BTreeSet::new();
-    // Strict exemption (FR-050-AC-64): per referenced id, how many rows with
-    // their own status cell reference it and whether all of them are exempt.
-    let mut status_refs: BTreeMap<String, StatusRefs> = BTreeMap::new();
+    // Strict exemption (FR-050-AC-64): per referenced id, whether every row
+    // with its own status cell (blank included) that references it is exempt.
+    let mut status_refs: BTreeMap<String, bool> = BTreeMap::new();
     // Unbacked rows with no status cell of their own, resolved from
     // `status_refs` once every row has been read.
     let mut declared_status_pending: Vec<usize> = Vec::new();
@@ -251,13 +236,11 @@ pub(super) fn reconcile(
             }
 
             let own_exempt = selected_status
-                .and_then(|selected| row.cell(selected.column()))
+                .and_then(|selected| row.cell_raw(selected.column()))
                 .map(is_strict_exempt_status);
             if let Some(exempt) = own_exempt {
                 for id in &answerable {
-                    let refs = status_refs.entry(id.clone()).or_default();
-                    refs.rows += 1;
-                    refs.all_exempt &= exempt;
+                    *status_refs.entry(id.clone()).or_insert(true) &= exempt;
                 }
             }
 
@@ -359,7 +342,8 @@ pub(super) fn reconcile(
             .row_id
             .as_ref()
             .and_then(|id| status_refs.get(id))
-            .is_some_and(|refs| refs.rows > 0 && refs.all_exempt);
+            .copied()
+            .unwrap_or(false);
         unbacked_rows[index].strict_exempt = exempt;
     }
     let strict_exempt_unbacked = unbacked_rows.iter().filter(|row| row.strict_exempt).count();

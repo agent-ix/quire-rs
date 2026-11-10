@@ -189,7 +189,8 @@ fn tc856_payload_carrying_every_optional_key_conforms() {
             "document": "FR-001.md",
             "row_id": "FR-001-AC-1",
             "target_ids": ["TC-001"],
-            "line": 9
+            "line": 9,
+            "strict_exempt": true
         }],
         "retired_rows": [{
             "reference": "traces-to",
@@ -407,7 +408,7 @@ fn tc856_payload_carrying_every_optional_key_conforms() {
             "engine": "0.45.0",
             "capabilities": ["binding_census", "metrics_envelope"]
         },
-        "totals": {"backed": 1, "total": 2, "retired": 1, "criteria": 2, "property_shaped": 1}
+        "totals": {"backed": 1, "total": 2, "retired": 1, "strict_exempt_unbacked": 1, "criteria": 2, "property_shaped": 1}
     });
     let errs = errors(&schema, &full);
     assert!(errs.is_empty(), "{errs:#?}");

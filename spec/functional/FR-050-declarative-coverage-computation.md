@@ -163,8 +163,13 @@ whose `target_ids` contain this row's id has an exempt status. When no such row
 exists, or any such row is not exempt, the row is not exempt. "Reference" means only
 the record's own computed `target_ids` field. Range expansion into `target_ids`
 happens only when the declaration opts into `expand_ranges` (FR-050-AC-12); an
-unexpanded or unreadable range contributes nothing, so a row it would have
-referenced simply has no referencing row and is not exempt by this rule. The
+unexpanded range contributes only the ids the declaration's pattern itself
+captures from it (for example the range's endpoint), nothing is expanded, so a
+row the range would have spanned but the pattern does not capture has no
+referencing row and is not exempt by this rule. A status cell that is present
+but blank is a status cell that does not match: such a row is not exempt and
+blocks the exemption of every row that it references. Referencing rows count
+whether they are backed, retired or unbacked. The
 engine hardcodes no archetype, section or id-prefix semantics for this rule.
 
 An exempt row SHALL remain in the spec, in the coverage census and in

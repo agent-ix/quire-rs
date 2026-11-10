@@ -3741,19 +3741,41 @@ fn tc2219_planned_blocked_parked_status_text_exempts_only_whole_words() {
     assert!(!exempt_by_row(&lone, "verification")["FR-001-AC-1"]);
 }
 
+/// The iso fixture manifest with `edits` applied, written as a module.
+fn edited_iso_module(root: &Path, edits: &[(&str, &str)]) -> PathBuf {
+    let mut manifest =
+        std::fs::read_to_string(fixture_module("iso").join("manifest.yaml")).expect("iso manifest");
+    for (needle, replacement) in edits {
+        assert!(manifest.contains(needle), "{needle}");
+        manifest = manifest.replacen(needle, replacement, 1);
+    }
+    let module = root.join("module");
+    write(&module, "manifest.yaml", &manifest);
+    module
+}
+
 /// The iso fixture manifest with `traces-to` reading `State` as its status.
 fn status_override_module(root: &Path) -> PathBuf {
-    let manifest =
-        std::fs::read_to_string(fixture_module("iso").join("manifest.yaml")).expect("iso manifest");
     let needle = "    column: Traces To\n";
-    assert!(manifest.contains(needle));
-    let module = root.join("module");
-    write(
-        &module,
-        "manifest.yaml",
-        &manifest.replacen(needle, &format!("{needle}    status_column: State\n"), 1),
+    edited_iso_module(
+        root,
+        &[(needle, &format!("{needle}    status_column: State\n"))],
+    )
+}
+
+fn report_with_module(bundle: &Bundle, module: &Path) -> CoverageReport {
+    let registry = Registry::load_module(module).expect("module");
+    let graph = trace::bind(
+        &extract_tree(&bundle.source),
+        registry.traceability().expect("model"),
     );
-    module
+    compute(
+        &Spec::from_path(&bundle.scope),
+        &registry,
+        &graph,
+        &bundle.scope,
+    )
+    .expect("model declared")
 }
 
 fn two_status_matrix(bundle: &Bundle, rows: &[(&str, &str, &str)]) {
@@ -3963,7 +3985,7 @@ fn tc2222_the_non_exempt_count_and_strict_verdict_exclude_exempt_rows() {
     assert!(flags.values().all(|f| *f));
 
     // Evidence path: exemption and the verdict count agree with the source path.
-    let registry = Registry::load_module(&fixture_module("iso")).expect("module");
+    let registry = Registry::load_module(&fixture_module("iso-obligations")).expect("module");
     let model = registry.traceability().expect("model");
     let inv = inventory(
         &all_exempt.scope,
@@ -4013,4 +4035,176 @@ fn tc2223_the_exemption_consults_no_severity_input() {
         first.strict_exempt_unbacked(),
         second.strict_exempt_unbacked()
     );
+}
+
+#[trace("TC-2224", "FR-050-AC-64")]
+#[test]
+fn tc2224_blank_backed_and_retired_referencing_rows_block_the_exemption() {
+    let root = tmpdir("2224-edges");
+    // Rows may reference each other's ids, and `⛔` classes as retired.
+    let module = edited_iso_module(
+        &root,
+        &[
+            ("'((?:StR|US|FR|NFR)-", "'((?:StR|US|FR|NFR|TC)-"),
+            (
+                "    failed: [\"❌\"]\n",
+                "    failed: [\"❌\"]\n    retired: [\"⛔\"]\n",
+            ),
+        ],
+    );
+
+    // Blank referencing row: the status cell exists and does not match.
+    let blank = iso_bundle(
+        "2224-blank",
+        &[
+            ("TC-001", "FR-001-AC-1", "🚧 planned"),
+            ("TC-002", "FR-001-AC-1", ""),
+        ],
+        &[],
+    );
+    let report = report_with_module(&blank, &module);
+    let ac = exempt_by_row(&report, "verification");
+    assert!(!ac["FR-001-AC-1"], "blank referencing row vetoes: {ac:?}");
+    let tc = exempt_by_row(&report, "traces-to");
+    assert!(tc["TC-001"] && !tc["TC-002"], "{tc:?}");
+
+    // A blank-status row referenced only by an exempt row does not inherit.
+    let inherit = iso_bundle(
+        "2224-inherit",
+        &[
+            ("TC-002", "FR-001-AC-2", ""),
+            ("TC-003", "TC-002", "🚧 planned"),
+        ],
+        &[],
+    );
+    let report = report_with_module(&inherit, &module);
+    let tc = exempt_by_row(&report, "traces-to");
+    assert!(!tc["TC-002"], "blank status is never exempt: {tc:?}");
+    assert!(tc["TC-003"], "{tc:?}");
+
+    // A backed referencing row counts, and being `✅` it vetoes.
+    let backed = iso_bundle(
+        "2224-backed",
+        &[
+            ("TC-001", "FR-001-AC-1", "🚧 planned"),
+            ("TC-002", "FR-001-AC-1", "✅"),
+        ],
+        &["TC-002"],
+    );
+    let report = report_with_module(&backed, &module);
+    assert!(
+        report
+            .unbacked_rows
+            .iter()
+            .all(|row| row.row_id.as_deref() != Some("TC-002")),
+        "TC-002 is backed"
+    );
+    let ac = exempt_by_row(&report, "verification");
+    assert!(!ac["FR-001-AC-1"], "backed referencing row vetoes: {ac:?}");
+
+    // A retired referencing row counts, and being retired it vetoes.
+    let retired = iso_bundle(
+        "2224-retired",
+        &[
+            ("TC-001", "FR-001-AC-1", "🚧 planned"),
+            ("TC-002", "FR-001-AC-1", "⛔ RETIRED"),
+        ],
+        &[],
+    );
+    let report = report_with_module(&retired, &module);
+    assert_eq!(report.retired_rows.len(), 1);
+    let ac = exempt_by_row(&report, "verification");
+    assert!(!ac["FR-001-AC-1"], "retired referencing row vetoes: {ac:?}");
+}
+
+#[trace("TC-2222", "FR-050-AC-66")]
+#[test]
+fn tc2222_strict_decision_passes_exempt_only_rows_and_keeps_every_other_premise() {
+    use quire_rs::evidence::{strict_decision, ActResult, BackingInput, CauseCode, StrictCause};
+    use quire_rs::obligation::inventory::{inventory, InventoryOptions};
+
+    // Every unbacked row is exempt: both matrix rows are planned and they are
+    // the only rows referencing the two criteria.
+    let bundle = iso_bundle(
+        "2222-strict",
+        &[
+            ("TC-001", "FR-001-AC-1", "🚧 planned"),
+            ("TC-002", "FR-001-AC-2", "Parked"),
+        ],
+        &[],
+    );
+    let report = report_for(&bundle, "iso").expect("model declared");
+    assert_eq!(report.unbacked_rows.len(), 4);
+    assert_eq!(report.non_exempt_unbacked(), 0);
+    assert!(strict_decision(&report, &[]).is_ok(), "{report:?}");
+
+    let registry = Registry::load_module(&fixture_module("iso-obligations")).expect("module");
+    let model = registry.traceability().expect("model");
+    let inv = inventory(
+        &bundle.scope,
+        model,
+        &["acceptance-criterion"],
+        InventoryOptions::default(),
+    );
+    let compute_evidence = |results: &[ActResult<'_>]| {
+        let backing = BackingInput {
+            inventory: &inv,
+            claims: &[],
+            results,
+        };
+        quire_rs::coverage::compute_with_evidence(
+            &Spec::from_path(&bundle.scope),
+            &registry,
+            &trace::SymbolGraph::default(),
+            &bundle.scope,
+            &backing,
+        )
+        .expect("evidence path")
+    };
+    let evidence = compute_evidence(&[]);
+    assert_eq!(evidence.non_exempt_unbacked(), 0);
+    assert!(strict_decision(&evidence, &[]).is_ok(), "{evidence:?}");
+
+    // An incomplete retained inventory still fails beside exempt-only rows.
+    let entry = inv.entries().next().expect("selected target");
+    let absent = [ActResult {
+        target: Some(entry.identity().into()),
+        requested_target: "FR-001-AC-1",
+        locator: None,
+        cause: CauseCode::Absent,
+        detail: "required retained act absent",
+    }];
+    let failing = compute_evidence(&absent);
+    assert_eq!(failing.non_exempt_unbacked(), 0);
+    assert!(!strict_decision(&failing, &[])
+        .unwrap_err()
+        .evidence
+        .is_empty());
+
+    // Zero targets and a status lie still fail with only exempt rows unbacked.
+    let mut zero = report.clone();
+    zero.totals.total = 0;
+    zero.totals.retired = 0;
+    let causes = strict_decision(&zero, &[]).unwrap_err().inherited;
+    assert_eq!(causes, [StrictCause::ZeroTargets]);
+
+    let mut lie = report.clone();
+    lie.status_lies.push(quire_rs::coverage::StatusLie {
+        reference: "traces-to".into(),
+        document: "tests.md".into(),
+        row_id: Some("TC-009".into()),
+        status: "✅".into(),
+        target_ids: vec!["FR-001-AC-1".into()],
+        line: None,
+    });
+    let causes = strict_decision(&lie, &[]).unwrap_err().inherited;
+    assert_eq!(causes, [StrictCause::ContradictedStatus]);
+
+    // One non-exempt unbacked row flips the verdict.
+    let mixed = exemption_bundle("2222-strict-mixed", &["🚧 planned", "In Progress"]);
+    let mixed = report_for(&mixed, "iso").expect("model declared");
+    assert!(strict_decision(&mixed, &[])
+        .unwrap_err()
+        .inherited
+        .contains(&StrictCause::UnbackedRows));
 }
