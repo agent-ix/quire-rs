@@ -47,7 +47,8 @@ as it does today.
   `Registry::from_inline_parts`, where the `schemas` map also supplies every
   reference-form `data_schema` file keyed by its manifest-relative path.
 - The `semantic` block's shape (`contract_version`/`package`/
-  `exports`/`imports`/`targets`/`mappings`, including the target enum), from
+  `exports`/`imports`/`import_types`/`targets`/`mappings`, including the target
+  enum), from
   `agent-ix/filament-core-data`'s published `module-semantic-block.schema.json`
   (`schema/semantic/v1/`); the `legacy_forms` and `compatibility_posture`
   value sets are this engine's own contract, not drawn from that schema.
@@ -63,14 +64,14 @@ as it does today.
 
 - For the Filament extraction API ([FR-045](./FR-045-filament-core-extraction-engine.md)):
   an optional `semantic` context on each `FilamentObjectType` snapshot,
-  `{ contractVersion, package, exports, imports, mappings? }`, with the
+  `{ contractVersion, package, exports, imports, importTypes?, mappings? }`, with the
   data schema already inline (producer: `agent-ix/filament-core-service#23`).
 
 ## Outputs
 
 - A `SemanticModule` record on the loaded module: `contract_version`,
-  `package`, `exports`, `imports`, `targets`,
-  `compatibility_posture`, `legacy_forms`, and `mappings` (the named
+  `package`, `exports`, `imports`, `import_types`
+  (empty when absent), `targets`, `compatibility_posture`, `legacy_forms`, and `mappings` (the named
   representation mappings, whose model feature tokens gate
   [FR-075](./FR-075-model-feature-extraction.md) extraction). The admitted key
   `sweep_report` is a Quoin install-time key; the loader accepts and ignores
@@ -123,6 +124,17 @@ Refusals, in evaluation order:
   `semantic.schema-ref-unshipped`; a cycle in the reference graph with
   `semantic.schema-ref-cycle`. A `$ref` to the
   document's own `$id` is a fragment, not a cycle.
+- A `$ref` whose URL is under the schema base
+  `https://schemas.agent-ix.org/<org>/<repo>/` of a package the module declares
+  in `semantic.imports` is a declared-import reference: the resolver admits it
+  without following it into the module bundle or fetching it.
+  When the provider of that package is loaded and the `$ref`'s type file name
+  (the final path segment without `.schema.json`) is not one of the
+  provider's `exports`, then the loader SHALL refuse with
+  `semantic.unknown-import-type` naming the package and the type. When the
+  provider is not loaded the reference is unchecked. A `$ref` outside the
+  module bundle, semantic-core and the declared imports' schema bases still
+  fails `semantic.schema-ref-unshipped`.
 - The loader SHALL NOT rewrite, normalize, or dereference a referenced schema
   before validation.
 
@@ -164,13 +176,30 @@ module-root order:
   module concern; a refused module's exports do not count against later
   modules; no load order selects a definition (`agent-ix/quoin#338`,
   PLAT-214).
+- `semantic.import_types` is an optional sibling of `imports`:
+  `{ "<org>/<repo>": ["TypeName", ...] }`, naming the types of an imported
+  package the module uses. `imports` keeps its `{ package: exact semver }`
+  shape; a manifest without `import_types` loads exactly as before. If an
+  `import_types` entry names a type that the loaded provider's `exports` does
+  not name, then the loader SHALL refuse the module with
+  `semantic.unknown-import-type` (ERROR) naming the package and the type; when
+  the provider is not loaded the entry is unchecked, in line with
+  `semantic.import-unresolved`.
 - If a `semantic.imports` entry names a package that no loaded module provides
   at that exact version, then the loader SHALL emit the warning
   `semantic.import-unresolved` naming the package and the loaded versions;
   the module loads and its tokens from that import resolve as
   `unresolved` with reason `import-unresolved` ([FR-070](./FR-070-typed-properties-extraction.md)).
+- If a package declared in `semantic.imports` is referenced by no `$ref` of
+  the module's own data schemas (a reference is a `$ref` under the package's
+  schema base), then the loader SHALL emit the warning
+  `semantic.unused-import` naming the package; the module loads.
 - If the import graph has a cycle, then the loader SHALL refuse every module
-  on the cycle with `semantic.import-cycle` naming the cycle.
+  on the cycle with `semantic.import-cycle` naming the cycle. The graph is
+  type-level when `import_types` lists exist: nodes are the imported types
+  (`<org>/<repo>#<Type>`) and the cycle named is over the types that form it;
+  a package with no type list contributes a package-level node, so a manifest
+  without `import_types` reports over packages as before.
 
 Advisory cases:
 
@@ -221,6 +250,11 @@ stricter of the two.
 | FR-069-AC-13 | A module naming `relationships` whose `process` type declares a `table_row` locator keyed `emits` (a typed relation key of its `data_schema`), under `yield_pattern.match` or `yield_pattern.per_match`, is refused: every archetype of the module fails with a reason starting `semantic.duplicate-authority` and naming the module, `process` and `emits`; the same module with the locator removed loads; a locator keyed `emits` on a type whose schema has no `emits`, and the same locator in a module not naming `relationships`, load. | Test |
 | FR-069-AC-14 | Every `semantic.*` refusal reason has the form `<code>: <path>: <message>`, where `<path>` is the refusal's manifest locus and appears once (the message does not repeat it), or `<code>: <message>` when the refusal has no manifest locus (empty path). Covered kinds: an unknown block key names `semantic`, an undeclared export names `semantic.exports.<type>`, a mixed `data_schema` and a reference-form `data_schema` without a `semantic` block name `<section>[<type>].data_schema`, a missing schema file names `<section>[<type>].data_schema.schema`, and `semantic.duplicate-authority` names `<section>[<type>].body_extraction`. | Test |
 | FR-069-AC-15 | Two loaded modules with different `semantic.package` values that both list one type in `semantic.exports` fail every archetype of the later sorted root with a reason starting `semantic.duplicate-export` naming the type and both modules, and the earlier module loads; type names are compared exactly; a refused module's other exports do not count, so a third module exporting one of them loads; the same modules with disjoint exports all load. | Test |
+| FR-069-AC-16 | A manifest whose `semantic.imports` is `{ pkg: "1.0.0" }` with no `import_types` loads exactly as before; one adding `import_types: { pkg: ["T"] }` loads and records the list on its `SemanticModule`; a non-array list or a non-string entry is refused as a manifest-schema violation naming the path. | Test |
+| FR-069-AC-17 | With the provider loaded, an `import_types` entry naming a type absent from the provider's `exports` fails the module with a reason starting `semantic.unknown-import-type` naming the package and the type; every listed type exported by the provider loads; with the provider not loaded the entry is unchecked and the warning `semantic.import-unresolved` is emitted. | Test |
+| FR-069-AC-18 | A module declaring an import that none of its own data schemas references by a `$ref` under the package's schema base loads with the warning `semantic.unused-import` naming the package; the same module with one such `$ref` emits no `semantic.unused-import`. | Test |
+| FR-069-AC-19 | A `$ref` under the schema base of a declared import is admitted without being followed or fetched; with the provider loaded, one naming a type the provider does not export fails `semantic.unknown-import-type`; a `$ref` under the schema base of a package not in `semantic.imports` still fails `semantic.schema-ref-unshipped` naming the `$ref`. | Test |
+| FR-069-AC-20 | Two modules whose `import_types` lists form a type-level cycle fail with `semantic.import-cycle` naming the types that form the cycle; two modules whose packages import each other with no type lists fail naming the packages; a package-level back edge with no type-level cycle (the types used do not depend on each other) is not refused when type lists exist. | Test |
 
 ## Dependencies
 
