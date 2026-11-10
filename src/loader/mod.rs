@@ -18,7 +18,7 @@ pub mod manifest;
 pub mod paths;
 pub(crate) mod vocabulary_refs;
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -33,6 +33,17 @@ use crate::loader::paths::{
 };
 use crate::vocab::{EdgeTypeDef, LexiconTermDef, RoleDef};
 
+/// A declared-import `$ref` and the object type whose `data_schema` carries
+/// it (FR-069 import checks).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ModuleImportRef {
+    /// The manifest section holding the object type.
+    pub section: String,
+    /// The object type whose `data_schema` reaches the `$ref`.
+    pub object_type: String,
+    pub reference: crate::semantic::resolver::ImportRef,
+}
+
 /// Module-level entry produced by [`load_modules`].
 #[derive(Debug)]
 pub struct LoadedModule {
@@ -42,6 +53,8 @@ pub struct LoadedModule {
     pub archetypes: Vec<Arc<CompiledArchetype>>,
     /// The loaded `semantic` block, when the manifest carries one (FR-069).
     pub semantic: Option<crate::semantic::SemanticModule>,
+    /// Declared-import `$ref`s of the module's own data schemas (FR-069).
+    pub import_refs: Vec<ModuleImportRef>,
     /// Validated, immutable clause sets contributed by this module.
     pub clause_sets: Vec<Arc<crate::clauses::ClauseSet>>,
     /// Advisory lint rules declared by the module (FR-036).
@@ -383,6 +396,7 @@ pub fn load_inline_module(manifest_yaml: &[u8], schemas: &BTreeMap<String, Strin
     });
 
     let mut archetypes: Vec<Arc<CompiledArchetype>> = Vec::new();
+    let mut import_refs: Vec<ModuleImportRef> = Vec::new();
 
     let inline_source = crate::semantic::SchemaSource::Inline { files: schemas };
     let inline_semantic = match read_module_semantic(&manifest) {
@@ -405,6 +419,7 @@ pub fn load_inline_module(manifest_yaml: &[u8], schemas: &BTreeMap<String, Strin
                     version: manifest.version.clone(),
                     archetypes,
                     semantic: None,
+                    import_refs: Vec::new(),
                     plain_language_profiles: Default::default(),
                     // This path returns before any clause-set file is resolved.
                     clause_sets: Vec::new(),
@@ -496,6 +511,7 @@ pub fn load_inline_module(manifest_yaml: &[u8], schemas: &BTreeMap<String, Strin
             inline_semantic.as_ref(),
             &inline_source,
             &mut diagnostics,
+            &mut import_refs,
         ) {
             Ok(parts) => parts,
             Err(f) => {
@@ -559,6 +575,7 @@ pub fn load_inline_module(manifest_yaml: &[u8], schemas: &BTreeMap<String, Strin
         version: manifest.version.clone(),
         archetypes,
         semantic: inline_semantic,
+        import_refs,
         clause_sets: Vec::new(),
         lint_rules: manifest.lint_rules.clone(),
         edge_types: manifest.edge_types.clone(),
@@ -714,6 +731,7 @@ fn load_one_module(
     });
 
     let mut archetypes: Vec<Arc<CompiledArchetype>> = Vec::new();
+    let mut import_refs: Vec<ModuleImportRef> = Vec::new();
     let mut failures: Vec<ArchetypeLoadFailure> = Vec::new();
 
     let source = crate::semantic::SchemaSource::Filesystem { module_root };
@@ -739,6 +757,7 @@ fn load_one_module(
                     version: manifest.version.clone(),
                     archetypes,
                     semantic: None,
+                    import_refs: Vec::new(),
                     plain_language_profiles: Default::default(),
                     // This path returns before any clause-set file is resolved.
                     clause_sets: Vec::new(),
@@ -769,6 +788,7 @@ fn load_one_module(
             semantic.as_ref(),
             &source,
             diagnostics,
+            &mut import_refs,
         ) {
             Ok(c) => archetypes.push(Arc::new(c)),
             Err(f) => failures.push(f),
@@ -808,6 +828,7 @@ fn load_one_module(
             version: manifest.version.clone(),
             archetypes,
             semantic,
+            import_refs,
             clause_sets,
             lint_rules: manifest.lint_rules.clone(),
             edge_types: manifest.edge_types.clone(),
@@ -840,6 +861,7 @@ fn compile_archetype(
     semantic: Option<&crate::semantic::SemanticModule>,
     source: &crate::semantic::SchemaSource<'_>,
     diagnostics: &mut Vec<Diagnostic>,
+    import_refs: &mut Vec<ModuleImportRef>,
 ) -> Result<CompiledArchetype, ArchetypeLoadFailure> {
     // No-compat rule (ADR 0003): retired fields are a hard failure.
     if let Some(field) = a.retired_field() {
@@ -873,6 +895,7 @@ fn compile_archetype(
         semantic,
         source,
         diagnostics,
+        import_refs,
     )?;
 
     // body_extraction DSL + assert facets validated at load time
@@ -990,6 +1013,7 @@ fn resolve_data_schema(
     semantic: Option<&crate::semantic::SemanticModule>,
     source: &crate::semantic::SchemaSource<'_>,
     diagnostics: &mut Vec<Diagnostic>,
+    import_refs: &mut Vec<ModuleImportRef>,
 ) -> Result<DataSchemaParts, ArchetypeLoadFailure> {
     use crate::semantic::contract::DataSchemaForm;
     let Some(schema) = &a.data_schema else {
@@ -1021,9 +1045,26 @@ fn resolve_data_schema(
                     .reason(),
                 ));
             }
-            let resolved =
-                crate::semantic::resolver::resolve_reference(source, &reference, section, &a.name)
-                    .map_err(|f| failure(module, &a.name, manifest_path.clone(), f.reason()))?;
+            let resolved = crate::semantic::resolver::resolve_reference(
+                source,
+                &reference,
+                section,
+                &a.name,
+                &semantic
+                    .map(|s| s.imports.keys().cloned().collect::<Vec<_>>())
+                    .unwrap_or_default(),
+            )
+            .map_err(|f| failure(module, &a.name, manifest_path.clone(), f.reason()))?;
+            import_refs.extend(
+                resolved
+                    .import_refs
+                    .iter()
+                    .map(|reference| ModuleImportRef {
+                        section: section.to_string(),
+                        object_type: a.name.clone(),
+                        reference: reference.clone(),
+                    }),
+            );
             Ok((
                 Some(Arc::new(resolved.schema)),
                 Some(Arc::new(resolved.validator)),
@@ -1847,15 +1888,68 @@ fn semantic_cross_module_checks(outcome: &mut LoadOutcome) {
         map
     };
     let mut edges: BTreeMap<usize, Vec<usize>> = BTreeMap::new();
+    // Type-level graph: `<org>/<repo>#<Type>` nodes, edges from `$ref`s of a
+    // module's own type files into a loaded provider's type files.
+    let mut type_edges: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
     for &i in &order {
         let m = &outcome.modules[i];
         let sem = m.semantic.as_ref().unwrap();
+        let mut own_refusals = Vec::new();
         for (package, version) in &sem.imports {
+            if !m
+                .import_refs
+                .iter()
+                .any(|r| &r.reference.package == package)
+            {
+                outcome.diagnostics.push(Diagnostic::Semantic {
+                    module: m.name.clone(),
+                    path: format!("semantic.imports.{package}"),
+                    code: "semantic.unused-import".to_string(),
+                    message: format!(
+                        "import {package} is referenced by no $ref of the module's data schemas"
+                    ),
+                });
+            }
             let found = providers
                 .get(package)
                 .and_then(|list| list.iter().find(|(_, v)| v == version).map(|(j, _)| *j));
             match found {
-                Some(j) => edges.entry(i).or_default().push(j),
+                Some(j) => {
+                    edges.entry(i).or_default().push(j);
+                    let exports = &outcome.modules[j].semantic.as_ref().unwrap().exports;
+                    let unknown = |name: &str| !exports.iter().any(|e| e == name);
+                    for name in sem.import_types.get(package).into_iter().flatten() {
+                        if unknown(name) {
+                            own_refusals.push(SemanticFailure::error(
+                                "semantic.unknown-import-type",
+                                format!("semantic.import_types.{package}"),
+                                format!("package {package} does not export type {name}"),
+                            ));
+                        }
+                    }
+                    let mut reported = BTreeSet::new();
+                    for r in m
+                        .import_refs
+                        .iter()
+                        .filter(|r| &r.reference.package == package)
+                    {
+                        let name = &r.reference.type_name;
+                        type_edges
+                            .entry(format!("{}#{}", sem.package, r.reference.from_type))
+                            .or_default()
+                            .insert(format!("{package}#{name}"));
+                        if unknown(name) && reported.insert((&r.object_type, name)) {
+                            own_refusals.push(SemanticFailure::error(
+                                "semantic.unknown-import-type",
+                                format!("{}[{}].data_schema.schema", r.section, r.object_type),
+                                format!(
+                                    "package {package} does not export type {name} ($ref {})",
+                                    r.reference.url
+                                ),
+                            ));
+                        }
+                    }
+                }
                 None => {
                     let loaded: Vec<String> = providers
                         .get(package)
@@ -1873,63 +1967,81 @@ fn semantic_cross_module_checks(outcome: &mut LoadOutcome) {
                 }
             }
         }
-    }
-    // Cycles over the import graph (Tarjan-free: DFS with colors).
-    let mut color: BTreeMap<usize, u8> = BTreeMap::new();
-    let mut stack: Vec<usize> = Vec::new();
-    let mut on_cycle: BTreeMap<usize, String> = BTreeMap::new();
-    fn visit(
-        n: usize,
-        edges: &BTreeMap<usize, Vec<usize>>,
-        color: &mut BTreeMap<usize, u8>,
-        stack: &mut Vec<usize>,
-        on_cycle: &mut BTreeMap<usize, String>,
-        names: &dyn Fn(usize) -> String,
-    ) {
-        match color.get(&n) {
-            Some(1) => {
-                let start = stack.iter().position(|&s| s == n).unwrap_or(0);
-                let cycle: Vec<usize> = stack[start..].to_vec();
-                let text = cycle
-                    .iter()
-                    .chain(std::iter::once(&n))
-                    .map(|&i| names(i))
-                    .collect::<Vec<_>>()
-                    .join(" -> ");
-                for i in cycle {
-                    on_cycle.insert(i, text.clone());
-                }
-                return;
-            }
-            Some(2) => return,
-            _ => {}
+        if !own_refusals.is_empty() {
+            refusals.entry(i).or_default().extend(own_refusals);
         }
-        color.insert(n, 1);
-        stack.push(n);
-        for &next in edges.get(&n).map(|v| v.as_slice()).unwrap_or(&[]) {
-            visit(next, edges, color, stack, on_cycle, names);
-        }
-        stack.pop();
-        color.insert(n, 2);
     }
-    let packages: BTreeMap<usize, String> = order
+    // Every package-level import cycle is refused. The type-level graph only
+    // decides the name: types when its own edges form a cycle through the
+    // module's package, otherwise packages.
+    let packages: Vec<String> = order
         .iter()
         .map(|&i| {
-            (
-                i,
-                outcome.modules[i]
-                    .semantic
-                    .as_ref()
-                    .unwrap()
-                    .package
-                    .clone(),
-            )
+            outcome.modules[i]
+                .semantic
+                .as_ref()
+                .unwrap()
+                .package
+                .clone()
         })
         .collect();
-    for &i in &order {
-        visit(i, &edges, &mut color, &mut stack, &mut on_cycle, &|i| {
-            packages[&i].clone()
-        });
+    let slot_of: BTreeMap<usize, usize> = order.iter().enumerate().map(|(s, &i)| (i, s)).collect();
+    let package_edges: Vec<Vec<usize>> = order
+        .iter()
+        .map(|i| {
+            edges
+                .get(i)
+                .map(|js| js.iter().map(|j| slot_of[j]).collect())
+                .unwrap_or_default()
+        })
+        .collect();
+    let type_nodes: Vec<String> = type_edges
+        .iter()
+        .flat_map(|(from, tos)| std::iter::once(from).chain(tos))
+        .cloned()
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect();
+    let type_slot: BTreeMap<&str, usize> = type_nodes
+        .iter()
+        .enumerate()
+        .map(|(s, n)| (n.as_str(), s))
+        .collect();
+    let type_graph: Vec<Vec<usize>> = type_nodes
+        .iter()
+        .map(|n| {
+            type_edges
+                .get(n)
+                .map(|tos| tos.iter().map(|t| type_slot[t.as_str()]).collect())
+                .unwrap_or_default()
+        })
+        .collect();
+    let describe = |cycle: &[usize], names: &dyn Fn(usize) -> String| {
+        cycle
+            .iter()
+            .chain(cycle.first())
+            .map(|&n| names(n))
+            .collect::<Vec<_>>()
+            .join(" -> ")
+    };
+    let type_cycles: Vec<Vec<usize>> = find_cycles(&type_graph);
+    let mut on_cycle: BTreeMap<usize, String> = BTreeMap::new();
+    for cycle in find_cycles(&package_edges) {
+        let text = describe(&cycle, &|s| packages[s].clone());
+        for &slot in &cycle {
+            on_cycle.insert(order[slot], text.clone());
+        }
+    }
+    for cycle in &type_cycles {
+        let text = describe(cycle, &|s| type_nodes[s].clone());
+        for node in cycle {
+            let package = type_nodes[*node].split('#').next().unwrap_or_default();
+            if let Some(slot) = packages.iter().position(|p| p == package) {
+                if on_cycle.contains_key(&order[slot]) {
+                    on_cycle.insert(order[slot], text.clone());
+                }
+            }
+        }
     }
     for (i, text) in on_cycle {
         refusals.entry(i).or_default().push(SemanticFailure::error(
@@ -1952,6 +2064,46 @@ fn semantic_cross_module_checks(outcome: &mut LoadOutcome) {
         }
         module.semantic = None;
     }
+}
+
+/// The cycles of a directed graph given as adjacency lists: one node list
+/// per back edge found by a depth-first walk in node order.
+fn find_cycles(graph: &[Vec<usize>]) -> Vec<Vec<usize>> {
+    #[derive(Clone, Copy, PartialEq)]
+    enum Mark {
+        Open,
+        Done,
+    }
+    fn visit(
+        n: usize,
+        graph: &[Vec<usize>],
+        marks: &mut BTreeMap<usize, Mark>,
+        stack: &mut Vec<usize>,
+        cycles: &mut Vec<Vec<usize>>,
+    ) {
+        match marks.get(&n) {
+            Some(Mark::Open) => {
+                let start = stack.iter().position(|&s| s == n).unwrap_or(0);
+                cycles.push(stack[start..].to_vec());
+                return;
+            }
+            Some(Mark::Done) => return,
+            None => {}
+        }
+        marks.insert(n, Mark::Open);
+        stack.push(n);
+        for &next in &graph[n] {
+            visit(next, graph, marks, stack, cycles);
+        }
+        stack.pop();
+        marks.insert(n, Mark::Done);
+    }
+    let mut marks = BTreeMap::new();
+    let mut cycles = Vec::new();
+    for n in 0..graph.len() {
+        visit(n, graph, &mut marks, &mut Vec::new(), &mut cycles);
+    }
+    cycles
 }
 
 #[cfg(test)]

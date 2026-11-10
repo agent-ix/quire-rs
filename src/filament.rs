@@ -1138,6 +1138,7 @@ fn attach_semantic(
         package: snapshot.package.clone(),
         exports: snapshot.exports.clone(),
         imports: snapshot.imports.clone(),
+        import_types: Default::default(),
         targets: Vec::new(),
         compatibility_posture: "additive".to_string(),
         legacy_forms: "warning".to_string(),

@@ -934,6 +934,7 @@ fn rust_callers_gate_model_tables_through_the_public_context() {
         package: "agent-ix/spec-objects-fixture".into(),
         exports: vec!["entity".into()],
         imports: BTreeMap::new(),
+        import_types: BTreeMap::new(),
         targets: Vec::new(),
         compatibility_posture: "additive".into(),
         legacy_forms: "warning".into(),
@@ -1617,4 +1618,448 @@ fn duplicate_authority_path_names_its_section() {
         "{r:?}"
     );
     assert!(!r.is_empty());
+}
+
+const BASE: &str = "https://schemas.agent-ix.org";
+
+/// A module `name` of `package` at the fixture version 0.1.0 with no exports.
+/// `imports` is a YAML flow map of package to version; `import_types` an
+/// optional YAML flow map written to `semantic.import_types`.
+fn importer(
+    tmp: &TempDir,
+    name: &str,
+    package: &str,
+    imports: &str,
+    import_types: Option<&str>,
+) -> PathBuf {
+    module(tmp, name, |m, _| {
+        retarget(m, package);
+        let block = semantic(m);
+        block.insert("exports".into(), serde_yaml::Value::Sequence(vec![]));
+        block.insert("imports".into(), serde_yaml::from_str(imports).unwrap());
+        if let Some(types) = import_types {
+            block.insert("import_types".into(), serde_yaml::from_str(types).unwrap());
+        }
+    })
+}
+
+/// Give the module's Entity schema a property whose `$ref` is `url`.
+fn ref_from_entity(root: &Path, url: &str) {
+    edit_entity(root, |s| {
+        s["properties"]["link"] = json!({ "$ref": url });
+    });
+}
+
+/// Name the Entity schema file `<stem>.json`, so its type-level node is
+/// `<package>#<stem>`.
+fn name_entity_file(root: &Path, package: &str, stem: &str) {
+    edit_entity(root, |s| {
+        s["$id"] = json!(format!("{BASE}/{package}/0.1.0/{stem}.json"));
+    });
+}
+
+fn provider(tmp: &TempDir, name: &str, package: &str) -> PathBuf {
+    module(tmp, name, |m, _| retarget(m, package))
+}
+
+fn has_reason(registry: &Registry, prefix: &str, needles: &[&str]) -> bool {
+    reasons(registry)
+        .iter()
+        .any(|r| r.starts_with(prefix) && needles.iter().all(|n| r.contains(n)))
+}
+
+fn has_diagnostic(registry: &Registry, code: &str, needle: &str) -> bool {
+    semantic_diagnostics(registry)
+        .iter()
+        .any(|(c, m)| c == code && m.contains(needle))
+}
+
+#[trace("TC-2214", "FR-069-AC-16")]
+// import_types is optional and recorded; each malformed shape is refused at
+// the unescaped package locus.
+#[test]
+fn import_types_shape() {
+    let tmp = tempfile::tempdir().unwrap();
+    importer(
+        &tmp,
+        "plain",
+        "agent-ix/plain",
+        "{ 'agent-ix/prov': '0.1.0' }",
+        None,
+    );
+    let registry = load(&tmp.path().join("plain"));
+    assert!(registry.failures().is_empty(), "{:?}", reasons(&registry));
+    assert!(registry
+        .semantic_module("plain")
+        .unwrap()
+        .import_types
+        .is_empty());
+
+    let tmp = tempfile::tempdir().unwrap();
+    importer(
+        &tmp,
+        "typed",
+        "agent-ix/typed",
+        "{ 'agent-ix/prov': '0.1.0' }",
+        Some("{ 'agent-ix/prov': [entity, other] }"),
+    );
+    let registry = load(&tmp.path().join("typed"));
+    assert!(registry.failures().is_empty(), "{:?}", reasons(&registry));
+    assert_eq!(
+        registry.semantic_module("typed").unwrap().import_types["agent-ix/prov"],
+        ["entity", "other"]
+    );
+
+    let at = "semantic.invalid-value: semantic.import_types.agent-ix/prov:";
+    let cases: [(&str, &str); 6] = [
+        (
+            "{ 'agent-ix/absent': [entity] }",
+            "semantic.invalid-value: semantic.import_types.agent-ix/absent:",
+        ),
+        ("{ 'agent-ix/prov': [] }", at),
+        ("{ 'agent-ix/prov': [entity, entity] }", at),
+        ("{ 'agent-ix/prov': [''] }", at),
+        ("{ 'agent-ix/prov': entity }", at),
+        ("{ 'agent-ix/prov': [1] }", at),
+    ];
+    for (types, locus) in cases {
+        let tmp = tempfile::tempdir().unwrap();
+        importer(
+            &tmp,
+            "bad",
+            "agent-ix/bad",
+            "{ 'agent-ix/prov': '0.1.0' }",
+            Some(types),
+        );
+        let registry = load(&tmp.path().join("bad"));
+        assert!(
+            reasons(&registry).iter().any(|r| r.starts_with(locus)),
+            "{types}: {:?}",
+            reasons(&registry)
+        );
+        assert!(registry.semantic_module("bad").is_none(), "{types}");
+    }
+
+    let tmp = tempfile::tempdir().unwrap();
+    importer(
+        &tmp,
+        "bad",
+        "agent-ix/bad",
+        "{ 'agent-ix/prov': '0.1.0' }",
+        Some("[entity]"),
+    );
+    let registry = load(&tmp.path().join("bad"));
+    assert!(
+        has_reason(
+            &registry,
+            "semantic.invalid-value: semantic.import_types:",
+            &[]
+        ),
+        "{:?}",
+        reasons(&registry)
+    );
+}
+
+#[trace("TC-2215", "FR-069-AC-17")]
+// import_types are checked only against a loaded provider at the declared
+// version.
+#[test]
+fn import_types_checked_against_the_loaded_provider() {
+    let imports = "{ 'agent-ix/prov': '0.1.0' }";
+    let tmp = tempfile::tempdir().unwrap();
+    provider(&tmp, "a-prov", "agent-ix/prov");
+    importer(
+        &tmp,
+        "b-use",
+        "agent-ix/use",
+        imports,
+        Some("{ 'agent-ix/prov': [entity] }"),
+    );
+    let registry = Registry::load_from(&[tmp.path()]).unwrap();
+    assert!(registry.failures().is_empty(), "{:?}", reasons(&registry));
+
+    let tmp = tempfile::tempdir().unwrap();
+    provider(&tmp, "a-prov", "agent-ix/prov");
+    importer(
+        &tmp,
+        "b-use",
+        "agent-ix/use",
+        imports,
+        Some("{ 'agent-ix/prov': [entity, Ghost] }"),
+    );
+    let registry = Registry::load_from(&[tmp.path()]).unwrap();
+    assert!(
+        has_reason(
+            &registry,
+            "semantic.unknown-import-type: semantic.import_types.agent-ix/prov:",
+            &["agent-ix/prov", "Ghost"]
+        ),
+        "{:?}",
+        reasons(&registry)
+    );
+    assert!(registry.semantic_module("b-use").is_none());
+    assert!(registry.semantic_module("a-prov").is_some());
+
+    // Provider absent, at another version, or refused: unchecked.
+    let ghost = Some("{ 'agent-ix/prov': [Ghost] }");
+    let tmp = tempfile::tempdir().unwrap();
+    importer(&tmp, "b-use", "agent-ix/use", imports, ghost);
+    let registry = Registry::load_from(&[tmp.path()]).unwrap();
+    assert!(registry.failures().is_empty(), "{:?}", reasons(&registry));
+    assert!(has_diagnostic(
+        &registry,
+        "semantic.import-unresolved",
+        "agent-ix/prov"
+    ));
+
+    let tmp = tempfile::tempdir().unwrap();
+    provider(&tmp, "a-prov", "agent-ix/prov");
+    importer(
+        &tmp,
+        "b-use",
+        "agent-ix/use",
+        "{ 'agent-ix/prov': '0.2.0' }",
+        ghost,
+    );
+    let registry = Registry::load_from(&[tmp.path()]).unwrap();
+    assert!(registry.failures().is_empty(), "{:?}", reasons(&registry));
+    assert!(has_diagnostic(
+        &registry,
+        "semantic.import-unresolved",
+        "agent-ix/prov"
+    ));
+
+    let tmp = tempfile::tempdir().unwrap();
+    module(&tmp, "a-prov", |m, _| {
+        retarget(m, "agent-ix/prov");
+        semantic(m).insert(
+            "targets".into(),
+            serde_yaml::from_str("[nonsense]").unwrap(),
+        );
+    });
+    importer(&tmp, "b-use", "agent-ix/use", imports, ghost);
+    let registry = Registry::load_from(&[tmp.path()]).unwrap();
+    assert!(registry.semantic_module("a-prov").is_none());
+    assert!(
+        registry.semantic_module("b-use").is_some(),
+        "{:?}",
+        reasons(&registry)
+    );
+    assert!(has_diagnostic(
+        &registry,
+        "semantic.import-unresolved",
+        "agent-ix/prov"
+    ));
+}
+
+#[trace("TC-2216", "FR-069-AC-18")]
+// a declared import no data schema references warns; one `$ref` silences it.
+#[test]
+fn unused_import_warns() {
+    let imports = "{ 'agent-ix/prov': '0.1.0' }";
+    let tmp = tempfile::tempdir().unwrap();
+    importer(&tmp, "use", "agent-ix/use", imports, None);
+    let registry = load(&tmp.path().join("use"));
+    assert!(registry.failures().is_empty(), "{:?}", reasons(&registry));
+    assert!(has_diagnostic(
+        &registry,
+        "semantic.unused-import",
+        "agent-ix/prov"
+    ));
+
+    let tmp = tempfile::tempdir().unwrap();
+    let root = importer(&tmp, "use", "agent-ix/use", imports, None);
+    ref_from_entity(
+        &root,
+        &format!("{BASE}/agent-ix/prov/0.1.0/entity.schema.json"),
+    );
+    let registry = load(&root);
+    assert!(registry.failures().is_empty(), "{:?}", reasons(&registry));
+    assert!(!has_diagnostic(&registry, "semantic.unused-import", ""));
+}
+
+#[trace("TC-2217", "FR-069-AC-19")]
+// a declared-import `$ref` is admitted, never followed, and accepts any
+// value; an unexported type fails at the data_schema locus; an undeclared
+// package's `$ref` stays unshipped.
+#[test]
+fn declared_import_ref_is_opaque() {
+    use quire_rs::semantic::{resolver::resolve_reference, DataSchemaRef, SchemaSource};
+    let schema = |url: &str| {
+        json!({
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "$id": format!("{BASE}/agent-ix/use/0.1.0/Thing.json"),
+            "type": "object",
+            "properties": { "p": { "$ref": url } }
+        })
+        .to_string()
+    };
+    let resolve = |url: &str, imports: &[String]| {
+        let files = BTreeMap::from([("Thing.json".to_string(), schema(url))]);
+        resolve_reference(
+            &SchemaSource::Inline { files: &files },
+            &DataSchemaRef {
+                schema: "Thing.json".into(),
+            },
+            "object_types",
+            "thing",
+            imports,
+        )
+    };
+    let url = format!("{BASE}/agent-ix/prov/0.1.0/Foo.schema.json#/$defs/x");
+    let resolved =
+        resolve(&url, &["agent-ix/prov".to_string()]).unwrap_or_else(|f| panic!("{f:?}"));
+    for value in [
+        json!({ "p": 5 }),
+        json!({ "p": null }),
+        json!({ "p": { "a": [] } }),
+    ] {
+        assert!(resolved.validator.is_valid(&value), "{value}");
+    }
+    assert!(!resolved.validator.is_valid(&json!("not an object")));
+    assert_eq!(resolved.import_refs.len(), 1);
+    assert_eq!(resolved.import_refs[0].package, "agent-ix/prov");
+    assert_eq!(resolved.import_refs[0].type_name, "Foo");
+    assert_eq!(resolved.import_refs[0].from_type, "Thing");
+
+    let err = resolve(&url, &[])
+        .err()
+        .expect("undeclared package is refused");
+    assert_eq!(err.code, "semantic.schema-ref-unshipped");
+    assert!(
+        err.message.contains(url.split('#').next().unwrap()),
+        "{err:?}"
+    );
+
+    // Loader: the provider does not export the type.
+    let tmp = tempfile::tempdir().unwrap();
+    provider(&tmp, "a-prov", "agent-ix/prov");
+    let root = importer(
+        &tmp,
+        "b-use",
+        "agent-ix/use",
+        "{ 'agent-ix/prov': '0.1.0' }",
+        None,
+    );
+    ref_from_entity(
+        &root,
+        &format!("{BASE}/agent-ix/prov/0.1.0/Ghost.schema.json"),
+    );
+    let registry = Registry::load_from(&[tmp.path()]).unwrap();
+    assert!(
+        has_reason(
+            &registry,
+            "semantic.unknown-import-type: object_types[entity].data_schema.schema:",
+            &["agent-ix/prov", "Ghost"]
+        ),
+        "{:?}",
+        reasons(&registry)
+    );
+    assert!(registry.semantic_module("b-use").is_none());
+
+    // The exported type loads.
+    let tmp = tempfile::tempdir().unwrap();
+    provider(&tmp, "a-prov", "agent-ix/prov");
+    let root = importer(
+        &tmp,
+        "b-use",
+        "agent-ix/use",
+        "{ 'agent-ix/prov': '0.1.0' }",
+        None,
+    );
+    ref_from_entity(
+        &root,
+        &format!("{BASE}/agent-ix/prov/0.1.0/entity.schema.json"),
+    );
+    let registry = Registry::load_from(&[tmp.path()]).unwrap();
+    assert!(registry.failures().is_empty(), "{:?}", reasons(&registry));
+}
+
+/// Modules x (exports `entity`) and y (exports `enumeration`), each
+/// importing the other. Each module's schema file is named by `x_file` /
+/// `y_file`; when `x_refs` / `y_refs`, that file holds a `$ref` to the other
+/// module's exported type.
+fn cycle_pair(x_refs: bool, y_refs: bool, x_file: &str, y_file: &str) -> (TempDir, Registry) {
+    let tmp = tempfile::tempdir().unwrap();
+    for (name, package, other, export, refs, file, target) in [
+        (
+            "x-mod",
+            "agent-ix/x",
+            "agent-ix/y",
+            "entity",
+            x_refs,
+            x_file,
+            "enumeration",
+        ),
+        (
+            "y-mod",
+            "agent-ix/y",
+            "agent-ix/x",
+            "enumeration",
+            y_refs,
+            y_file,
+            "entity",
+        ),
+    ] {
+        let root = module(&tmp, name, |m, _| {
+            retarget(m, package);
+            let block = semantic(m);
+            block.insert(
+                "exports".into(),
+                serde_yaml::from_str(&format!("[{export}]")).unwrap(),
+            );
+            block.insert(
+                "imports".into(),
+                serde_yaml::from_str(&format!("{{ '{other}': '0.1.0' }}")).unwrap(),
+            );
+        });
+        name_entity_file(&root, package, file);
+        if refs {
+            ref_from_entity(&root, &format!("{BASE}/{other}/0.1.0/{target}.json"));
+        }
+    }
+    let registry = Registry::load_from(&[tmp.path()]).unwrap();
+    (tmp, registry)
+}
+
+#[trace("TC-2218", "FR-069-AC-20")]
+// every package cycle is refused; types name it only when the `$ref` edges
+// themselves cycle.
+#[test]
+fn import_cycles_are_named_over_types_only_when_type_edges_cycle() {
+    let cycle = |registry: &Registry| {
+        let text = reasons(registry)
+            .into_iter()
+            .find(|r| r.starts_with("semantic.import-cycle"))
+            .unwrap_or_else(|| panic!("no cycle: {:?}", reasons(registry)));
+        assert!(
+            registry.semantic_module("x-mod").is_none()
+                && registry.semantic_module("y-mod").is_none()
+        );
+        text
+    };
+    // x#entity -> y#enumeration -> x#entity: a type-level cycle.
+    let (_tmp, registry) = cycle_pair(true, true, "entity", "enumeration");
+    let text = cycle(&registry);
+    assert!(
+        text.contains("agent-ix/x#entity") && text.contains("agent-ix/y#enumeration"),
+        "{text}"
+    );
+
+    // No `$ref`s: packages.
+    let (_tmp, registry) = cycle_pair(false, false, "entity", "enumeration");
+    let text = cycle(&registry);
+    assert!(
+        text.contains("agent-ix/x") && text.contains("agent-ix/y") && !text.contains('#'),
+        "{text}"
+    );
+
+    // One module has no `$ref`s into the cycle: still refused, over packages.
+    let (_tmp, registry) = cycle_pair(true, false, "entity", "enumeration");
+    assert!(!cycle(&registry).contains('#'));
+
+    // `$ref` edges exist (x#entity -> y#enumeration, y#Entity -> x#entity)
+    // but form no type-level cycle: named over packages.
+    let (_tmp, registry) = cycle_pair(true, true, "entity", "Entity");
+    assert!(!cycle(&registry).contains('#'));
 }

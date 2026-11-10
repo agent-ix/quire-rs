@@ -38,6 +38,66 @@ pub struct ResolvedSchema {
     pub documents: BTreeMap<String, Value>,
     /// The manifest-relative path of the schema file.
     pub path: String,
+    /// Every declared-import `$ref` the schema's module files carry.
+    pub import_refs: Vec<ImportRef>,
+}
+
+/// A `$ref` under the schema base of a declared import (FR-069), admitted
+/// without being followed.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ImportRef {
+    /// The imported package, `<org>/<repo>`.
+    pub package: String,
+    /// The provider type the `$ref` names (file stem).
+    pub type_name: String,
+    /// The module's own type file holding the `$ref` (file stem).
+    pub from_type: String,
+    /// The full `$ref` URL.
+    pub url: String,
+}
+
+/// The file-name stem of a schema URL: the final path segment with a
+/// `#fragment` dropped, then a trailing `.json`, then a trailing `.schema`.
+pub fn type_name_of(url: &str) -> String {
+    let file = url.split('#').next().unwrap_or("");
+    let file = file.rsplit('/').next().unwrap_or("");
+    let file = file.strip_suffix(".json").unwrap_or(file);
+    file.strip_suffix(".schema").unwrap_or(file).to_string()
+}
+
+/// The package a `$ref` URL belongs to, when it is under the schema base of
+/// one of `imports`.
+fn import_package<'a>(url: &str, imports: &'a [String]) -> Option<&'a str> {
+    let rest = url.strip_prefix(embedded::MODULE_SCHEMA_BASE)?;
+    imports
+        .iter()
+        .map(String::as_str)
+        .find(|p| rest.strip_prefix(*p).is_some_and(|r| r.starts_with('/')))
+}
+
+/// `schema` with every `$ref` under a declared import's schema base removed,
+/// so the module's own validator treats it as an opaque subschema that
+/// accepts any value.
+fn without_import_refs(schema: &Value, imports: &[String]) -> Value {
+    match schema {
+        Value::Object(map) => Value::Object(
+            map.iter()
+                .filter(|(k, v)| {
+                    !(k.as_str() == "$ref"
+                        && v.as_str()
+                            .is_some_and(|u| import_package(u, imports).is_some()))
+                })
+                .map(|(k, v)| (k.clone(), without_import_refs(v, imports)))
+                .collect(),
+        ),
+        Value::Array(items) => Value::Array(
+            items
+                .iter()
+                .map(|v| without_import_refs(v, imports))
+                .collect(),
+        ),
+        other => other.clone(),
+    }
 }
 
 fn escapes(rel: &str) -> bool {
@@ -89,6 +149,7 @@ pub fn resolve_reference(
     reference: &DataSchemaRef,
     section: &str,
     object_type: &str,
+    imports: &[String],
 ) -> Result<ResolvedSchema, SemanticFailure> {
     let rel = reference.schema.as_str();
     let bytes = match read_module_file(source, rel) {
@@ -152,13 +213,22 @@ pub fn resolve_reference(
         f.path = locus(section, object_type, "schema");
         f
     };
-    let documents = module_schema_documents(&schema, &siblings, &module_base).map_err(relocate)?;
-    let validator = compile_documents(&schema, &documents).map_err(relocate)?;
+    let (documents, mut import_refs) =
+        walk_documents(&schema, &siblings, &module_base, imports).map_err(relocate)?;
+    let validator = compile_with_imports(&schema, &documents, imports).map_err(relocate)?;
+    // The root document may carry no `$id`; its file name is the type then.
+    let root_name = type_name_of(rel);
+    for r in &mut import_refs {
+        if r.from_type.is_empty() {
+            r.from_type = root_name.clone();
+        }
+    }
     Ok(ResolvedSchema {
         schema,
         validator,
         documents,
         path: rel.to_string(),
+        import_refs,
     })
 }
 
@@ -190,6 +260,17 @@ pub fn module_schema_documents(
     siblings: &dyn Fn(&str) -> Option<Result<Value, String>>,
     module_base: &str,
 ) -> Result<BTreeMap<String, Value>, SemanticFailure> {
+    walk_documents(schema, siblings, module_base, &[]).map(|(documents, _)| documents)
+}
+
+/// [`module_schema_documents`] that also admits `$ref`s under the schema
+/// base of a package in `imports`, returning them without following them.
+fn walk_documents(
+    schema: &Value,
+    siblings: &dyn Fn(&str) -> Option<Result<Value, String>>,
+    module_base: &str,
+    imports: &[String],
+) -> Result<(BTreeMap<String, Value>, Vec<ImportRef>), SemanticFailure> {
     let bundle = embedded::semantic_core_bundle();
     let semantic_core = embedded::embedded_semantic_core_version();
     let core_base = format!("{}{}/", embedded::SEMANTIC_CORE_BASE, semantic_core);
@@ -200,18 +281,24 @@ pub fn module_schema_documents(
         .and_then(Value::as_str)
         .unwrap_or("<root>")
         .to_string();
-    walk(
-        schema,
-        &root_id,
+    let mut import_refs = Vec::new();
+    let ctx = Walk {
         siblings,
         bundle,
-        &core_base,
+        core_base: &core_base,
         module_base,
         semantic_core,
+        imports,
+    };
+    walk(
+        &ctx,
+        schema,
+        &root_id,
         &mut documents,
         &mut stack,
+        &mut import_refs,
     )?;
-    Ok(documents)
+    Ok((documents, import_refs))
 }
 
 /// Compile `schema` with every `$ref` resolved offline
@@ -230,6 +317,24 @@ pub fn compile_documents(
     schema: &Value,
     documents: &BTreeMap<String, Value>,
 ) -> Result<Validator, SemanticFailure> {
+    compile_with_imports(schema, documents, &[])
+}
+
+/// [`compile_documents`] where a `$ref` under the schema base of a package in
+/// `imports` accepts any value.
+fn compile_with_imports(
+    schema: &Value,
+    documents: &BTreeMap<String, Value>,
+    imports: &[String],
+) -> Result<Validator, SemanticFailure> {
+    let strip = |v: &Value| {
+        if imports.is_empty() {
+            v.clone()
+        } else {
+            without_import_refs(v, imports)
+        }
+    };
+    let schema = &strip(schema);
     let not_schema = |e: &dyn std::fmt::Display| {
         SemanticFailure::error(
             "semantic.data-schema-not-schema",
@@ -247,7 +352,7 @@ pub fn compile_documents(
         if id == "<root>" {
             continue;
         }
-        let resource = schema_draft(doc).create_resource(doc.clone());
+        let resource = schema_draft(doc).create_resource(strip(doc));
         registry = registry.add(id, resource).map_err(|e| not_schema(&e))?;
     }
     let registry = registry.prepare().map_err(|e| not_schema(&e))?;
@@ -257,18 +362,32 @@ pub fn compile_documents(
         .map_err(|e| not_schema(&e))
 }
 
-#[allow(clippy::too_many_arguments)]
+/// What `walk` needs besides the document it is on.
+struct Walk<'a> {
+    siblings: &'a dyn Fn(&str) -> Option<Result<Value, String>>,
+    bundle: &'a [(&'a str, &'a str)],
+    core_base: &'a str,
+    module_base: &'a str,
+    semantic_core: &'a str,
+    imports: &'a [String],
+}
+
 fn walk(
+    ctx: &Walk,
     doc: &Value,
     id: &str,
-    siblings: &dyn Fn(&str) -> Option<Result<Value, String>>,
-    bundle: &[(&str, &str)],
-    core_base: &str,
-    module_base: &str,
-    semantic_core: &str,
     documents: &mut BTreeMap<String, Value>,
     stack: &mut Vec<String>,
+    import_refs: &mut Vec<ImportRef>,
 ) -> Result<(), SemanticFailure> {
+    let Walk {
+        siblings,
+        bundle,
+        core_base,
+        module_base,
+        semantic_core,
+        imports,
+    } = *ctx;
     if stack.iter().any(|s| s == id) {
         let mut cycle = stack.clone();
         cycle.push(id.to_string());
@@ -289,7 +408,19 @@ fn walk(
         if url.is_empty() || url == id {
             continue; // fragment within this document
         }
-        if let Some(rest) = url.strip_prefix(embedded::SEMANTIC_CORE_BASE) {
+        if let Some(package) = import_package(url, imports) {
+            import_refs.push(ImportRef {
+                package: package.to_string(),
+                type_name: type_name_of(url),
+                // The root document may carry no `$id`: filled by the caller.
+                from_type: if id == "<root>" {
+                    String::new()
+                } else {
+                    type_name_of(id)
+                },
+                url: url.to_string(),
+            });
+        } else if let Some(rest) = url.strip_prefix(embedded::SEMANTIC_CORE_BASE) {
             // A semantic-core `$ref` resolves to the one embedded bundle by
             // file name; the version segment of the URL is not consulted.
             let name = rest.split_once('/').map_or("", |(_, name)| name);
@@ -302,17 +433,7 @@ fn walk(
             };
             let canonical = format!("{core_base}{name}");
             let child: Value = serde_json::from_str(text).expect("embedded schema is JSON");
-            walk(
-                &child,
-                &canonical,
-                siblings,
-                bundle,
-                core_base,
-                module_base,
-                semantic_core,
-                documents,
-                stack,
-            )?;
+            walk(ctx, &child, &canonical, documents, stack, import_refs)?;
             if url != canonical {
                 if let Some(doc) = documents.get(&canonical).cloned() {
                     documents.insert(url.to_string(), doc);
@@ -320,17 +441,7 @@ fn walk(
             }
         } else if let Some(name) = url.strip_prefix(module_base) {
             match siblings(name) {
-                Some(Ok(child)) => walk(
-                    &child,
-                    url,
-                    siblings,
-                    bundle,
-                    core_base,
-                    module_base,
-                    semantic_core,
-                    documents,
-                    stack,
-                )?,
+                Some(Ok(child)) => walk(ctx, &child, url, documents, stack, import_refs)?,
                 Some(Err(e)) => {
                     return Err(SemanticFailure::error(
                         "semantic.data-schema-not-json",
