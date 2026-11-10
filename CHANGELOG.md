@@ -9,6 +9,8 @@ bumps; once 1.0 ships, semver is strict.
 
 ### Changed
 
+- PLAT-1386: strict coverage exempts unbacked rows whose status is planned, blocked or parked (FR-050-AC-64..66). Adds `totals.strict_exempt_unbacked` and per-record `strict_exempt: true` (both omitted when absent), `CoverageReport::{strict_exempt_unbacked, non_exempt_unbacked}`, and `strict_decision` ignores exempt rows.
+
 - PLAT-1369: removes the `semantic_core` instance strip from the semantic block loader; the `semantic` block validates against the embedded module-manifest schema as-is.
 
 - PLAT-1377: relocks `agent-ix-semantic-schema` (filament-core-data semantic-core 0.4.0) and repoints the fixture, test and output-schema `$ref`s from `semantic-core/0.3.3/` to `semantic-core/0.4.0/`. There is no `{kind, value}` wire change in quire-rs. The relock brings the FCD contract changes: the manifest `semantic` block drops `semantic_core`, `PACKAGE_LOCK` leaves `SCHEMAS`, and the manifest gains the FR-149 keys.

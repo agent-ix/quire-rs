@@ -31,11 +31,16 @@ pub(crate) struct ScannedRow {
 impl ScannedRow {
     /// The value of `column`, case-insensitively, when non-empty.
     pub fn cell(&self, column: &str) -> Option<&str> {
+        self.cell_raw(column).filter(|v| !v.is_empty())
+    }
+
+    /// The value of `column`, case-insensitively, empty included: `Some("")`
+    /// is a cell the row carries blank, `None` is a column it lacks.
+    pub fn cell_raw(&self, column: &str) -> Option<&str> {
         self.cells
             .iter()
             .find(|(header, _)| header.eq_ignore_ascii_case(column))
             .map(|(_, value)| value.as_str())
-            .filter(|v| !v.is_empty())
     }
 
     /// The distinct non-empty ids held by every column `columns` selects, in

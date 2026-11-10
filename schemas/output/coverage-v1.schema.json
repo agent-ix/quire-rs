@@ -581,7 +581,8 @@
           "type": "integer",
           "minimum": 1,
           "description": "1-based document line of the matrix row (#210). Additive under FR-055-CON-3: absent on a payload from an engine predating the field."
-        }
+        },
+        "strict_exempt": {"const": true, "description": "FR-050-AC-64: the row's status is planned, blocked or parked, so a strict run does not count it. Omitted on every other record."}
       }
     },
     "StatusLie": {
@@ -1224,6 +1225,11 @@
           "type": "integer",
           "minimum": 1,
           "description": "Historical targets excluded from the live total; omitted when zero."
+        },
+        "strict_exempt_unbacked": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "FR-050-AC-65: unbacked rows whose status is planned, blocked or parked, exempt from the strict verdict. Omitted when zero."
         },
         "criteria": {
           "type": [
