@@ -139,41 +139,63 @@ row without evidence SHALL remain a status lie next to a retired row.
 ### Strict exemption of planned, blocked and parked rows (PLAT-1386)
 
 A spec MAY keep rows for work that is deliberately not yet verifiable
-(a parked feature set). Such a row declares that in the same status cell the
-coverage computation already reads for it (the reference's `status_column`, or
-the global `traceability.status.column`). `quire coverage --strict` SHALL
-exempt, per row, an unbacked row whose status text is **planned**, **blocked**
-or **parked**.
+(a parked feature set). Such a row declares that in a status cell. An unbacked
+row is **strict-exempt** when its status text is **planned**, **blocked** or
+**parked**, as follows.
 
-A status text matches when, ignoring case, surrounding whitespace and any
-leading non-alphanumeric marker characters (for example `🚧`), it begins with
-`planned`, `blocked` or `parked` followed by the end of the text or a
-non-alphanumeric character, so a trailing qualifier (`🚧 Planned`,
-`Blocked: awaiting PLAT-9`) matches and `plannedly`, `unplanned` or an empty
-cell do not. The three words are fixed by the engine; no manifest key, module
-change or severity override is involved. The exemption never consults the
-status vocabulary's classes, so it applies identically whether the vocabulary
-classes the value as `pending` or leaves it undeclared.
+**Own status.** A row that has a status cell the coverage computation reads
+(the reference's `status_column`, or the global `traceability.status.column`)
+takes its status from that cell. A status text matches when, ignoring case,
+surrounding whitespace and any leading characters that are not ASCII letters or
+digits (for example `🚧`), it begins with `planned`, `blocked` or `parked`
+followed by the end of the text or a character that is not an ASCII letter or
+digit. A trailing qualifier (`🚧 Planned`, `Blocked: awaiting PLAT-9`) matches;
+`plannedly`, `unplanned`, `plannedé` and an empty cell do not. The three words
+are fixed by the engine; no manifest key, module change or severity override is
+involved. The match never consults the status vocabulary's classes, so it
+applies identically whether the vocabulary classes the value as `pending` or
+leaves it undeclared.
+
+**Declared status.** A criterion or verification row whose table has no status
+column of its own (for example `| ID | Criteria | Verification |`) takes its
+exemption from the matrix: it is exempt when it is unbacked and **every**
+matrix row that declares it (traces to it, through `functional-coverage` or
+`traces-to`) has an exempt own status. A criterion declared by no matrix row,
+or by at least one row whose status is not exempt, is not exempt.
 
 An exempt row SHALL remain in the spec, in the coverage census and in
-`unbacked_rows`, with its identity, locus and target unchanged; the exemption
-changes only the strict verdict. Each exempt `unbacked_rows` record carries
-`strict_exempt: true`, a field omitted on every other record, and the report
-carries the number of exempt rows as `totals.strict_exempt_unbacked`, a count
-separate from every other total and serialized whenever the count is nonzero
-(a report with no exempt rows is byte-identical to one produced before this
-rule). The `quire coverage` text output SHALL print the same count on its own
-line, `strict-exempt unbacked rows (planned/blocked/parked): N`, whenever N is
-nonzero.
+`unbacked_rows`, with its identity, locus and target unchanged. Each exempt
+`unbacked_rows` record carries `strict_exempt: true`, a field omitted on every
+other record, and the report carries the number of exempt rows as
+`totals.strict_exempt_unbacked`, a count separate from every other total and
+serialized only when nonzero (a report with no exempt rows is byte-identical to
+one produced before this rule). Both are optional additive keys of the
+published output schema `schemas/output/coverage-v1.schema.json`, as `retired`
+is: `totals.strict_exempt_unbacked` an integer with `minimum: 1`, and the
+record's `strict_exempt` a boolean with `const: true`. The schema file is
+amended by the implementing change, not by this specification change.
 
-`--strict` SHALL fail on an unbacked row that is not exempt, which includes
-every row with any other status, a blank status and a row with no status
-column. It SHALL exit 0 when the only unbacked rows are exempt and no other
-strict premise fails. The exemption covers only the unbacked-row premise:
-status lies, the empty-population premise, incomplete explicit evidence
-inventories and every other strict failure are unchanged. A
+**Verdict.** Exempt rows are excluded from the unbacked-row count that decides
+the strict verdict and from the count that an `error`-promoted
+`coverage:unbacked-row` check ([FR-048](./FR-048-per-check-grammar-severity.md))
+tests; they still appear in `unbacked_rows` and in the separate count. A
+strict run SHALL exit 1 when at least one non-exempt unbacked row exists
+(including every row with any other status, a blank status, and a criterion
+with no exempt declaring matrix row), and SHALL exit 0 when the only unbacked
+rows are exempt and no other strict premise fails, including when
+`coverage:unbacked-row` is promoted to `error`. The exemption covers only the
+unbacked-row premise: status lies, the empty-population premise, incomplete
+explicit evidence inventories and every other strict failure are unchanged. A
 `--severity coverage:unbacked-row=off` override remains global and is neither
 required nor consulted.
+
+**Surfaces.** This crate computes the exemption and the two report keys. The
+exit code and the text line `strict-exempt unbacked rows (planned/blocked/parked): N`
+(printed on its own line when N is nonzero) belong to `quire coverage` in
+`agent-ix/quire-cli`, whose FR-017-AC-7 (`--strict` exits 1 when a row is
+unbacked) and its error-promotion count SHALL be amended in step to exclude
+exempt rows; that amendment is required companion work, outside this
+repository.
 
 ### Explicit retained-evidence mode (PLAT-1160 / FR-078)
 
@@ -193,8 +215,12 @@ absent, unevaluated, rejected qualification, invalid/ambiguous
 target, conflicting record and inventory-incomplete all reject with the
 corresponding machine-readable reason (process exit 1 in the acceptance host).
 All causes remain visible, including when source backing exists. Zero targets,
-unbacked rows, contradicted statuses and unread declared inputs retain their
-existing strict rejection behavior. An owner-recognized waiver's final strict
+non-exempt unbacked rows, contradicted statuses and unread declared inputs
+retain their existing strict rejection behavior. The strict exemption above
+applies identically on this path: an exempt unbacked row is excluded from the
+unbacked-row verdict here as on the legacy path, while a per-act reason (for
+example `absent` or `unevaluated`) recorded against a criterion still rejects
+as FR-078 specifies. An owner-recognized waiver's final strict
 disposition is blocked on Peter's policy ruling, as FR-078 specifies; unknown
 waiver input is unevaluated, not an inferred waiver or pass. This is an explicit
 conditional extension to the earlier strict premise, not a reclassification of
@@ -335,7 +361,7 @@ that failed to mint cannot erase its own gap from the population.
 
 | ID | Criteria | Verification |
 |----|----------|--------------|
-| FR-050-AC-53 | A fixture with one declared `Withdrawn` verification row, one live Complete unbacked row and one Planned unbacked row reports only the two live rows as unbacked and only the Complete row as a status lie. The retired row retains its exact id, statement/reason, authored cells and locus in `retired_rows`, and its minted record remains unbacked with `retired: true`; live totals and separate retired totals reconcile with the minted records. The mixed scope fails `--strict` because of the live rows. | Test |
+| FR-050-AC-53 | A fixture with one declared `Withdrawn` verification row, one live Complete unbacked row and one Planned unbacked row reports only the two live rows as unbacked and only the Complete row as a status lie. The retired row retains its exact id, statement/reason, authored cells and locus in `retired_rows`, and its minted record remains unbacked with `retired: true`; live totals and separate retired totals reconcile with the minted records. The mixed scope fails `--strict` because of the live Complete row; the Planned row is strict-exempt. | Test (TC-2053) |
 | FR-050-AC-54 | A nonempty all-retired fixture passes `--strict` when no other strict premise fails; the same scope with no declared targets still fails the empty-population premise. A fixture with only live unbacked rows continues to fail. An incomplete explicit evidence inventory still fails beside retired rows. | Test |
 | FR-050-AC-55 | Only module-declared exact normalized retirement values and the existing selected `retired` status class retire a row. A misspelled value, a retirement word appearing only in Criteria prose, an undeclared `Withdrawn`, and a live row sharing another document's retired id remain live. A referenced target is not retired by a retiring row. Blank retirement vocabulary values or overlap with `no_source_symbol` fail module load. | Test |
 | FR-050-AC-56 | Retired obligations remain in the computed matrix with their complete statement, authored method and actual binders, and computed status `retired`. Configured retirement markers produce no uncatalogued-verification-method warning; unknown methods still do. Retiring a row does not add a source binder or turn its backing fact true. | Test |
@@ -345,9 +371,9 @@ that failed to mint cannot erase its own gap from the population.
 | FR-050-AC-60 | A trace target's `from` selects `table_row`, `list_item`, or `heading`; when omitted it behaves as `table_row`, preserving existing table-target declarations. All sources remain limited to the target's selected archetype and `section`. `table_row` continues to read ids from its declared `id_column` using the existing table behavior. `list_item` applies its declared pattern to list-item text, and `heading` applies its declared pattern to heading text; for either source, capture group 1 supplies the id. A non-table source declaration with a pattern that does not compile or has no capture group 1 is rejected at module load rather than yielding partial ids. | Test (TC-2080) |
 | FR-050-AC-62 | When a loaded module declares a Rust `trace_tags.implements` form with `syntax: rust_attribute`, every Rust source binding made by a Rust `trace_tags.implements` form of that same module that declares no `syntax` (a textual implements use with no `syntax`) yields one finding in `CoverageReport.diagnostics` under reason `legacy-implements-form` at FR-057 severity `warning`, naming the file, the 1-based line the legacy text sits on, the qualified symbol, and the exact replacement text. The replacement text is rendered from the `template` of the first declared `syntax: rust_attribute` form that declares one, with the ids that occurrence binds as separate quoted literals joined by a comma and a space, matching ix-trace-rs (`#[implements("FR-007-AC-2")]`; two ids give `#[implements("FR-007-AC-1", "FR-007-AC-2")]`); when no `syntax: rust_attribute` form declares a template, no finding is emitted. Forms are identified only by their declared `syntax` and `template`, never by name, so renaming every form changes no finding. The legacy occurrence keeps binding exactly as before and its relations and counts are unchanged: the finding adds a record and moves no total. The finding is diagnostic-only. A module declaring no `syntax: rust_attribute` implements form, a binding made by a `syntax: rust_attribute` form, and a non-Rust binding yield no such finding, and the finding adds no binding path (CR-209, PLAT-1170). | Test (TC-2090) |
 | FR-050-AC-63 | A `table_row` trace target's `id_column` accepts **one column name or several**, on that one key: a scalar as before, or a sequence. Matching follows the `section:` grammar ([FR-050](./FR-050-declarative-coverage-computation.md)-AC-34) for `*` — an entry containing `*` matches any run of characters, including none, and no other metacharacter is introduced — but the comparison is the one `id_column` has always used: **both exact and `*` entries match a header ignoring ASCII case**, and the heading normalization that drops section numbers applies to section headings only, never to column headers (a column header is compared as written, trimmed). A table contributes the ids of every header that matches any declared entry, in column order within each row; a header matching more than one entry is read once, and a row whose matched columns hold the same id contributes that id once, while distinct ids each mint. A target declaring one exact name reads only the columns that name selects and never starts reading another. An empty sequence or a blank entry fails module load naming the declaration, and a one-name declaration round-trips back out as the scalar it was authored as. The `id-column-matches-nothing` record ([FR-050](./FR-050-declarative-coverage-computation.md)-AC-33) fires for a found table only when **no** declared entry matches any header, and its message names every entry declared. Consumers that read a target's `id_column` as one column are not widened: a target whose `id_column` is a sequence or contains `*` fails module load, naming the declaration, when an `obligations:` source binds it by `target:` (which also covers retirement reconciliation, which resolves through that same binding); and a row-binding declaration joins only a target whose `id_column` is a single name without `*`, so a sequence or wildcard target is never its join partner. This applies to the `table_row` source only; `list_item` and `heading` sources declare a pattern, not a column ([FR-050](./FR-050-declarative-coverage-computation.md)-AC-60). | Test (TC-2095, TC-2096, TC-2097, TC-2098, TC-2099, TC-2100) |
-| FR-050-AC-64 | `quire coverage --strict` exempts an unbacked row whose status text matches `planned`, `blocked` or `parked` under the Strict exemption rule: case-insensitive, leading marker characters and a trailing qualifier ignored, whole-word only. A fixture whose only unbacked rows are `Planned`, `BLOCKED`, `🚧 Parked`, `Blocked: awaiting PLAT-9` exits 0; `unplanned`, `plannedly`, `In Progress`, `Pending`, a blank status and a row with no status column are not exempt. The match reads the reference's own `status_column` when declared, else the global column, and applies whether the vocabulary classes the value as `pending` or leaves it undeclared. | Test |
-| FR-050-AC-65 | Exempt rows are counted separately: `totals.strict_exempt_unbacked` carries the number of exempt unbacked rows in `--json`, each exempt `unbacked_rows` record carries `strict_exempt: true` (absent on every other record), and the text output prints `strict-exempt unbacked rows (planned/blocked/parked): N` on its own line when N is nonzero. Exempt rows stay in `unbacked_rows` with identity, locus and target unchanged and in the census totals, never move to another list and never inflate or reduce the non-exempt unbacked count. A report with no exempt rows serializes byte-identically to one produced before this rule, and repeated runs are byte-identical. | Test |
-| FR-050-AC-66 | `--strict` still exits 1 when any non-exempt unbacked row exists, including a corpus that mixes exempt and non-exempt unbacked rows, and still exits 1 for a live Complete row without evidence (status lie), a zero-target model and an incomplete explicit evidence inventory even when every unbacked row is exempt. Without `--strict` the exit status is unchanged. No `--severity` override is needed or consulted: the same fixture with `--severity coverage:unbacked-row=off` and with default severities yields the same exempt count. | Test |
+| FR-050-AC-64 | An unbacked row is strict-exempt when its status text matches `planned`, `blocked` or `parked` under the Strict exemption rule: ASCII case-insensitive, leading non-ASCII-alphanumeric marker characters and a trailing qualifier ignored, whole-word only. Rows `Planned`, `BLOCKED`, `🚧 Parked` and `Blocked: awaiting PLAT-9` are exempt; `unplanned`, `plannedly`, `plannedé`, `In Progress`, `Pending`, a blank status and a row with no status column and no declaring matrix row are not. The match reads the reference's own `status_column` when declared, else the global column, whether the vocabulary classes the value as `pending` or leaves it undeclared. A criterion table with no status column takes its exemption from the matrix: exempt when every declaring matrix row is `🚧 planned`; not exempt when the declaring rows are mixed; not exempt when no matrix row declares it. | Test (TC-2219, TC-2220, TC-2224) |
+| FR-050-AC-65 | The report counts exempt rows separately: `totals.strict_exempt_unbacked` (integer, omitted when zero) and `strict_exempt: true` on exactly the exempt `unbacked_rows` records, both optional keys of `schemas/output/coverage-v1.schema.json`, so an exempt payload validates against it. Exempt rows stay in `unbacked_rows` with identity, locus and target unchanged and in the census totals, and never inflate or reduce the non-exempt count. A report with no exempt rows serializes byte-identically to one produced before this rule, and repeated runs are byte-identical. `quire coverage` prints `strict-exempt unbacked rows (planned/blocked/parked): N` on its own line when N is nonzero (quire-cli). | Test (TC-2221, TC-2225) |
+| FR-050-AC-66 | The strict verdict and an `error`-promoted `coverage:unbacked-row` count only non-exempt unbacked rows. `quire coverage --strict` exits 1 when a non-exempt unbacked row exists, including a corpus mixing exempt and non-exempt rows, and exits 0 when the only unbacked rows are exempt, including with `coverage:unbacked-row` promoted to `error`. A live Complete row without evidence, an incomplete explicit evidence inventory, and the same scope with no declared targets (the empty-population premise) each still fail `--strict`. The exemption applies identically on the FR-078 evidence path. Default severities and `--severity coverage:unbacked-row=off` yield the same exempt count. | Test (TC-2222, TC-2223, TC-2226) |
 | FR-050-AC-47 | The report carries a `coverage_matrix` whose population is exactly the [FR-053](./FR-053-obligation-record.md) `Obligation` records the module's declared `obligations:` sources produce (`obligation::derive` on the legacy path; the supplied FR-053 selected inventory on the explicit FR-078 evidence path) — never a `MintedTargetRecord` by itself. Each obligation becomes one criterion, grouped by its own `document` field into a `requirements[]` entry per distinct document. Its criterion population is built only from those obligations; document-reference declarations and auxiliary trace-target sources cannot add criteria. Existing criteria MAY receive retirement metadata by an exact join on their own document, row locus and own id as specified above; this join changes lifecycle status only, never population, identity, statement, method or actual binders. A fixture corpus whose module declares an `obligations:` source over its FR/NFR documents, with tagged tests and no `spec/tests.md` (or any other matrix file) at all, yields a `coverage_matrix` listing one criterion per obligation. The identical fixture with a `spec/tests.md` added — and the module declaring no `obligations:` source that reads it — yields a byte-identical `coverage_matrix`, because the matrix file mints no obligation regardless of whether it mints a `test-case` trace target. A module declaring no `obligations:` source at all yields an empty population (FR-050-AC-51). An obligation's own id — including one minted only as an obligation, such as an NFR-metric id rendered from a module's declared `id_format` (`{document}-M-{row}`, FR-053) or a combinatorial source's rendered id (FR-061), with no corresponding minted trace target — joins the population a `verifies` relation resolves against exactly as a minted trace target's id already does; a tag naming such an id is therefore never reported in `untracked_symbols` or `unmatched_tags` (R2, reversing prior behavior). | Test (TC-1930, TC-1931, TC-1942) |
 | FR-050-AC-48 | A `requirements[]` entry carries `document` (the obligation-group's scope-relative path) and `criteria[]`, ordered by `document` — the same path every other list on this report already sorts by. A criterion entry carries the obligation's own `id`, its own `statement` verbatim and untruncated (CR-188), its declared `method` when the obligation states one, a `binders` list, and the computed `status` (FR-050-AC-49); criteria within one requirement are ordered exactly as `obligation::derive` already orders its output (declaration order, document path, row ordinal), restricted to that document. A `binders` entry is one per distinct `(path, line, column)` `verifies` relation bound to the criterion's id — the binding symbol's identity as its own declaration site, not its qualified name, since [FR-051-AC-21](./FR-051-source-symbol-extraction.md) makes a TypeScript registration's qualified name ignorant of its enclosing suite, so two identically-titled `it(...)` calls in different `describe` blocks of one file are two distinct declaration sites that must not collapse into one binder. Each entry carries the binding symbol's repo-relative path, 1-based declaration line, 1-based declaration column ([FR-051-AC-23](./FR-051-source-symbol-extraction.md)), qualified name, `SymbolKind` label, and whether [FR-051-AC-27](./FR-051-source-symbol-extraction.md) marks it ignored — deterministically ordered by `(path, line, column, qualified_name, kind)`. A criterion with zero source binders carries an empty `binders` list, never an absent key. In explicit FR-078 evidence mode a separate `record_binders` list carries accepted qualified record/run locators, target identity and provenance, never source declaration sites; rejected/absent acts are exposed in the report's `evidence_results`. The additive record fields are omitted on the legacy no-evidence path. | Test (TC-1932, TC-1944) |
 | FR-050-AC-49 | Each criterion carries a computed `status`, exactly one of `retired`, `tagged`, `untagged`, `tagged-by-ignored-test`, `method-without-symbol`, or (only in explicit FR-078 evidence mode) `qualified-record` — never read from an authored column. Explicit retirement yields `retired` first, preserving every actual binder and making no qualification claim. For live criteria, one or more accepted record binders yields `qualified-record` first, preserving every source binder. Without accepted record binders, `method-without-symbol` applies when the criterion's declared `method` is in the module's declared `no_source_symbol` vocabulary (mirroring FR-050-AC-16), regardless of binder count, and wins over the three source-tag cases. Rejected records never create binders or change the source-only status rule; their strict outcomes remain separately visible. Otherwise: zero binders is `untagged`; one or more binders where every one is marked ignored (FR-051-AC-27) is `tagged-by-ignored-test`; one or more binders where at least one is not ignored is `tagged`. Status is computed independently per criterion. | Test (TC-1933, TC-1934, TC-1935) |
