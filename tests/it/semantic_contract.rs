@@ -118,34 +118,23 @@ fn semantic_diagnostics(registry: &Registry) -> Vec<(String, String)> {
 #[test]
 fn valid_block_and_reference_schema_load() {
     let tmp = tempfile::tempdir().unwrap();
-    for (module_name, semantic_core) in [
-        ("spec-objects-fixture-032", "0.3.2"),
-        ("spec-objects-fixture-033", "0.3.3"),
-        ("spec-objects-fixture-future", "99.0.0"),
-    ] {
-        let root = module(&tmp, module_name, |m, _| {
-            semantic(m).insert("semantic_core".into(), semantic_core.into());
-        });
-        let registry = load(&root);
-        assert!(
-            registry.failures().is_empty(),
-            "{semantic_core}: {:?}",
-            reasons(&registry)
-        );
-        let sem: &SemanticModule = registry.semantic_module(module_name).expect("block");
-        assert_eq!(sem.package, "agent-ix/spec-objects-fixture");
-        assert_eq!(sem.exports, vec!["entity".to_string()]);
-        assert_eq!(sem.legacy_forms, "warning");
-        let entity = registry.archetype("entity").unwrap();
-        let golden = golden();
-        let validator = entity.data_validator().expect("resolved data schema");
-        let record = json!({ "fields": golden["fields"], "clauses": golden["clauses"] });
-        assert!(
-            validator.is_valid(&record),
-            "{semantic_core}: golden declaration set validates"
-        );
-        assert!(!validator.is_valid(&json!({ "fields": [{ "name": "x" }] })));
-    }
+    let module_name = "spec-objects-fixture";
+    let root = module(&tmp, module_name, |_, _| {});
+    let registry = load(&root);
+    assert!(registry.failures().is_empty(), "{:?}", reasons(&registry));
+    let sem: &SemanticModule = registry.semantic_module(module_name).expect("block");
+    assert_eq!(sem.package, "agent-ix/spec-objects-fixture");
+    assert_eq!(sem.exports, vec!["entity".to_string()]);
+    assert_eq!(sem.legacy_forms, "warning");
+    let entity = registry.archetype("entity").unwrap();
+    let golden = golden();
+    let validator = entity.data_validator().expect("resolved data schema");
+    let record = json!({ "fields": golden["fields"], "clauses": golden["clauses"] });
+    assert!(
+        validator.is_valid(&record),
+        "golden declaration set validates"
+    );
+    assert!(!validator.is_valid(&json!({ "fields": [{ "name": "x" }] })));
 }
 
 #[trace("TC-1600", "FR-069-AC-2")]

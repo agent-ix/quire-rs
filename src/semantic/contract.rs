@@ -162,15 +162,8 @@ pub fn read_semantic_block(
     // 2. shape against the embedded module-manifest schema.
     let mut failures = Vec::new();
     let validator = block_validator();
-    // Older public manifests carry this informational key. Validate the
-    // remaining block against the embedded schema without copying a property
-    // definition from that schema into this crate.
-    let mut validation_block = block.clone();
-    if let Some(map) = validation_block.as_object_mut() {
-        map.remove("semantic_core");
-    }
     {
-        for error in validator.iter_errors(&validation_block) {
+        for error in validator.iter_errors(block) {
             let at = format!(
                 "semantic{}",
                 error.instance_path().to_string().replace('/', ".")
