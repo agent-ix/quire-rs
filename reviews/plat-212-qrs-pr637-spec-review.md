@@ -47,3 +47,13 @@ Ticket: PLAT-212 (agent-ix/quire-rs PR #637, head e2b6bc42). Scope is `git diff 
 ## Verdict
 
 Mergeable after FND-001 is fixed (medium, cross-tool divergence). Clean: the `imports` shape is unchanged, `semantic.import-unresolved` and `semantic.schema-ref-unshipped` are kept and agree with the new rules, AC-5 still holds for undeclared packages, the code names and severities match Quoin, and AC-16..20 each map to one new TC.
+
+## Dispositions
+
+Round 1, against head 35ef824e (fix commit 35ef824).
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | - |
+| FND-002 | still-open | FR-069 still names type-level nodes `<org>/<repo>#<Type>` while agent-ix/quoin PR #796 (head 6c8c1394) FR-075 still names them `<org>/<repo>:<Type>`; one of the two specs must change. |
+| FND-003 | fixed | - |

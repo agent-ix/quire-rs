@@ -44,3 +44,22 @@ Ticket: PLAT-212 (agent-ix/quire-rs PR #637, head e2b6bc42). Looked for unstated
 ## Verdict
 
 Mergeable after FND-001..FND-003 are fixed; each leaves the implementer to invent behaviour that an AC tests.
+
+## New findings (disposition pass 1)
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-005 | medium | The cycle rule contradicts itself and Quoin. Behavior says the loader SHALL refuse every module on any import-graph cycle and only changes how the cycle is named, and AC-10 agrees. AC-20 instead says a package back edge with no type-level cycle "is not refused when type-level edges exist". Quoin PR #796 FR-075/FR-124 reports an error for every import cycle and builds its type-level view from `import_types` lists, while FR-069 now builds it from `$ref` edges whatever the lists say, so the two tools refuse and name the same cycle differently. | spec/functional/FR-069-semantic-module-contract-at-load.md:278 |
+
+- **FND-005** (FR-069-AC-20): Behavior lines 214-223 vs AC-20 line 278. Quoin #796 FR-075: "Where the modules on an import cycle carry `semantic.import_types` lists, the failure SHALL name the cycle over the types"; FR-124: "one error per import cycle (named over types where type lists exist)". Fix: choose one rule and state it in both specs. Either every package cycle is refused and the type-level graph only changes how it is named, which means dropping the non-refusal clause from AC-20. Or type-level cycles alone are refused, which needs Behavior and AC-10 to say so and Quoin FR-075/FR-124 to agree. Also say whether `import_types` lists or `$ref` edges define the type-level graph, the same in both specs.
+
+## Dispositions
+
+Round 1, against head 35ef824e (fix commit 35ef824).
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | - |
+| FND-002 | fixed | - |
+| FND-003 | fixed | - |
+| FND-004 | fixed | - |

@@ -34,3 +34,11 @@ Ticket: PLAT-212 (agent-ix/quire-rs PR #637, head e2b6bc42). Checked who owns ea
 ## Verdict
 
 Mergeable after FND-001 is fixed. Clean: the FR-045 snapshot field and its producer, and CON-1 (admitted references are not fetched).
+
+## Dispositions
+
+Round 1, against head 35ef824e (fix commit 35ef824).
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | - |

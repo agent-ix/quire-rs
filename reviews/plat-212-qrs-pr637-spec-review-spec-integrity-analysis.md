@@ -46,3 +46,21 @@ Ticket: PLAT-212 (agent-ix/quire-rs PR #637, head e2b6bc42). Checked the structu
 ## Verdict
 
 Mergeable after FND-001 is fixed. Clean: AC numbering, TC uniqueness and mapping, status values.
+
+## New findings (disposition pass 1)
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-004 | low | The new `semantic.invalid-value` shape rule for `import_types` sits under "Cross-module checks", but every case it lists is a per-module block check, step 2 of the refusal order. Also, the loader's existing schema-error mapping derives the locus from the JSON pointer, which gives `semantic.import_types.<org>~1<repo>.<index>` for an entry-level error, not the `semantic.import_types.<package>` that AC-16 requires. | spec/functional/FR-069-semantic-module-contract-at-load.md:192 |
+
+- **FND-004** (FR-069#import-types-shape): `src/semantic/contract.rs:163-198` builds `at` from `error.instance_path()` with `/` replaced by `.`, so a package key `agent-ix/x` comes out as `agent-ix~1x`. Fix: move the bullet into the refusal list beside the block-schema step, and state that the locus is the unescaped package key, with no index, for every list-level and entry-level case.
+
+## Dispositions
+
+Round 1, against head 35ef824e (fix commit 35ef824).
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | - |
+| FND-002 | fixed | - |
+| FND-003 | fixed | - |
