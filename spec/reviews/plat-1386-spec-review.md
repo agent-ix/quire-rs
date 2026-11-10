@@ -58,3 +58,17 @@ Round 1 at 74a4dde9. The parked rows were measured again over tl-syntax `origin/
 | FND-004 | fixed | Evidence-mode paragraph now says "non-exempt unbacked rows" and that the exemption applies identically there while per-act reasons still reject; AC-66 and TC-2222 carry it. |
 | FND-005 | fixed | AC-53 now reads "fails `--strict` because of the live Complete row; the Planned row is strict-exempt". |
 | FND-006 | fixed | Boundary pinned to ASCII letters and digits. The pinned rule's own `plannedé` vector is wrong (FND-008). |
+
+Round 2 at e7d96549. `quire validate` on FR-050, tests.md and both committed review files exits 0. The only warning is the pre-existing FR-050-AC-58 `ac:non-canonical-shape`, now at line 371. The committed `spec/reviews/` copies matched the reviewer's round-1 files byte for byte.
+
+| FND | Outcome | Reason |
+| --- | --- | --- |
+| FND-007 | fixed | The declaration names `functional-coverage`/`traces-to` and the terms "matrix row" and "criterion or verification row" are gone from the section; the rule is stated over reference rows, status cells and `target_ids`. The new range clause in that wording is a separate defect (FND-009). |
+| FND-008 | fixed | `plannedé` moved to the exempt vectors in the section, AC-64 and TC-2219, consistent with the ASCII boundary rule. |
+
+## New findings (disposition pass 2)
+
+| ID | Severity | Summary | Refs | Escape Cause |
+| --- | --- | --- | --- | --- |
+| FND-009 | medium | The Declared status rule gives `target_ids` a second meaning. In the report, `target_ids` is the record's computed field: the ids the row is answerable for after its declaration's normalizations, where range expansion happens only if the declaration opts into `expand_ranges` (FR-050-AC-12). The rule instead says a row's `target_ids` "contain" every id inside a range "as FR-050-AC-58 reads them". AC-58 is the matrix audit check run by `examples/spec_validate.rs`. It resolves short ranges (`AC-1..28`) against the row's requirement id, which is the id-prefix semantics that the next sentence ("The engine hardcodes no ... id-prefix semantics") and FR-050 line 23 rule out. AC-58 also makes an unreadable cell an error, and the engine rule does not say what an unreadable range (for example tl-syntax's `FR-015-AC-1 through FR-015-AC-6`) does to exemption. Two implementers would build different joins. Fix: define "references" as the record's own computed `target_ids`, with no second range reading; a module that wants ranges declares `expand_ranges`. Drop the AC-58 sentence and the "an id inside a range counts as referenced" vector from TC-2224, or tie that vector to `expand_ranges`. On tl-syntax `origin/main`, all 40 status-less parked rows are already exempt through explicit `traces-to` ids, so the simpler rule still meets the ticket. | spec/functional/FR-050-declarative-coverage-computation.md:161-166; spec/tests.md:1323 | wrong-requirement |
+| FND-010 | low | AC-64 still says "a row with no status column and no declaring matrix row", after the section dropped the "matrix row" term. Its vector list also reads "`Blocked: awaiting PLAT-9` and `plannedé`" after "and" (a double "and"). Fix: "no referencing row with its own status cell", and a single list conjunction. | spec/functional/FR-050-declarative-coverage-computation.md:376 | wrong-requirement |
