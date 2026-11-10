@@ -66,6 +66,13 @@ Round 2 at e7d96549. `quire validate` on FR-050, tests.md and both committed rev
 | FND-007 | fixed | The declaration names `functional-coverage`/`traces-to` and the terms "matrix row" and "criterion or verification row" are gone from the section; the rule is stated over reference rows, status cells and `target_ids`. The new range clause in that wording is a separate defect (FND-009). |
 | FND-008 | fixed | `plannedé` moved to the exempt vectors in the section, AC-64 and TC-2219, consistent with the ASCII boundary rule. |
 
+Round 3 at d5b37245. `quire validate` on FR-050, tests.md and both committed review files exits 0. The only warning is the pre-existing FR-050-AC-58 `ac:non-canonical-shape`, now at line 373. No new defects.
+
+| FND | Outcome | Reason |
+| --- | --- | --- |
+| FND-009 | fixed | Reference is defined as the record's own computed `target_ids` only. Range expansion follows the declaration's opt-in `expand_ranges` (AC-12), and an unexpanded or unreadable range contributes nothing. The AC-58 reading is gone, and TC-2224's range vector now asserts that an unexpanded range does not exempt. |
+| FND-010 | fixed | AC-64 now reads "no referencing row", its vector list has a single conjunction, and the Verdict paragraph says "no exempt referencing row". |
+
 ## New findings (disposition pass 2)
 
 | ID | Severity | Summary | Refs | Escape Cause |
