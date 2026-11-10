@@ -93,7 +93,7 @@ Refusals, in evaluation order:
   the module with `semantic.unsupported-contract-version` and read no other
   key of the block.
 - A module declares no semantic-core version; the loader SHALL use the one
-  embedded bundle and SHALL NOT refuse a module over a `semantic_core` value.
+  embedded bundle.
 - The loader SHALL validate the block against the module-manifest
   schema. If the block carries an unknown key, then the loader SHALL refuse
   with `semantic.unknown-key` naming the key. If `exports` names an
@@ -208,7 +208,7 @@ stricter of the two.
 | ID | Criteria | Verification |
 |----|----------|--------------|
 | FR-069-AC-1 | A module with a valid `semantic` block and a reference-form `data_schema` loads with a `SemanticModule` record and a resolved schema, and `validate_document` over an artifact of that type validates the extracted record against the resolved schema. | Test |
-| FR-069-AC-2 | `contract_version: 2.0.0` fails every archetype of the module with a reason starting `semantic.unsupported-contract-version` and no other `semantic.*` reason. (The former `semantic_core` clause of this criterion is removed: a module declares no semantic-core version.) | Test |
+| FR-069-AC-2 | `contract_version: 2.0.0` fails every archetype of the module with a reason starting `semantic.unsupported-contract-version` and no other `semantic.*` reason. | Test |
 | FR-069-AC-3 | An unknown block key, an export of a type undeclared across `artifact_types`, `object_types`, and `archetypes`, `package: ix://agent-ix/x`, and `targets: [go]` each fail with their named code and value; an export declared under `artifact_types` loads. | Test |
 | FR-069-AC-4 | A missing file, a non-JSON file, a file without `$schema`, a `..` escape, and a symlink escape each fail with their named code, path, and reason; `{ schema, type }` fails with `semantic.data-schema-ambiguous`. | Test |
 | FR-069-AC-5 | A `$ref` to semantic-core `0.2.0` resolves to the embedded bundle's file with no version refusal; a `$ref` to an unshipped sibling, an `https://` `$ref` outside both bundles, and a two-file `$ref` cycle each fail naming the `$ref`; a `$ref` to the schema's own `$id` fragment loads cleanly; the same cases pass under `--no-default-features --features wasm`. | Test |
