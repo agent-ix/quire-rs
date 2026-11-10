@@ -487,6 +487,7 @@ mod cr136_near_miss {
             row_id: Some(target.to_string()),
             target_ids: vec![target.to_string()],
             line: None,
+            strict_exempt: false,
         }
     }
 

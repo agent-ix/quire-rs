@@ -76,6 +76,10 @@ pub struct UnbackedRow {
     /// a payload from an engine predating the field still deserializes.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub line: Option<usize>,
+    /// The row's status is planned, blocked or parked, so a strict run does
+    /// not count it (FR-050-AC-64). Omitted on every other record.
+    #[serde(default, skip_serializing_if = "crate::symbol_table::is_false")]
+    pub strict_exempt: bool,
 }
 
 /// An explicitly retired declaration retained as historical identity.
@@ -332,6 +336,10 @@ pub struct CoverageTotals {
     /// Historical targets excluded from the live denominator.
     #[serde(default, skip_serializing_if = "is_zero")]
     pub retired: usize,
+    /// Unbacked rows exempt from the strict verdict because their status is
+    /// planned, blocked or parked (FR-050-AC-65). Omitted when zero.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub strict_exempt_unbacked: usize,
     /// Binding criteria across the corpus (CR-028), or `None` when the corpus
     /// binds none.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -701,6 +709,21 @@ pub enum CoverageMatrixStatus {
 }
 
 impl CoverageReport {
+    /// Unbacked rows exempt from the strict verdict (FR-050-AC-65).
+    pub fn strict_exempt_unbacked(&self) -> usize {
+        self.unbacked_rows
+            .iter()
+            .filter(|row| row.strict_exempt)
+            .count()
+    }
+
+    /// Unbacked rows that decide the strict verdict and the `error`-promoted
+    /// `coverage:unbacked-row` check: every unbacked row except the
+    /// strict-exempt ones (FR-050-AC-66).
+    pub fn non_exempt_unbacked(&self) -> usize {
+        self.unbacked_rows.len() - self.strict_exempt_unbacked()
+    }
+
     /// The report as JSON — the `quire coverage` stdout payload.
     pub fn to_json(&self) -> String {
         serde_json::to_string_pretty(self).expect("coverage report serializes")

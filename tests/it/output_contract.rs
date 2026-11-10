@@ -707,6 +707,7 @@ fn tc957_line_keys_are_optional_in_both_directions() {
         row_id: Some("FR-001-AC-1".to_string()),
         target_ids: vec!["TC-001".to_string()],
         line: None,
+        strict_exempt: false,
     });
     report.untracked_symbols.push(UntrackedSymbol {
         path: "src/lib.rs".to_string(),

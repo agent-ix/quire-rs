@@ -681,7 +681,8 @@ pub fn strict_decision(
     if report.totals.total == 0 && report.totals.retired == 0 {
         inherited.push(StrictCause::ZeroTargets);
     }
-    if !report.unbacked_rows.is_empty() {
+    // FR-050-AC-66: strict-exempt rows (planned/blocked/parked) do not count.
+    if report.non_exempt_unbacked() > 0 {
         inherited.push(StrictCause::UnbackedRows);
     }
     if !report.status_lies.is_empty() {

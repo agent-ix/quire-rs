@@ -19,6 +19,41 @@ use super::{
     UnbackedRow, UndeclaredStatus, UntrackedSymbol, COVERAGE_DIAGNOSTIC_REASONS,
 };
 
+/// Rows with their own status cell that reference one id.
+struct StatusRefs {
+    rows: usize,
+    all_exempt: bool,
+}
+
+impl Default for StatusRefs {
+    fn default() -> Self {
+        Self {
+            rows: 0,
+            all_exempt: true,
+        }
+    }
+}
+
+/// Whether a status cell is `planned`, `blocked` or `parked` (FR-050-AC-64):
+/// ASCII case-insensitive, leading non-ASCII-alphanumeric characters ignored,
+/// whole word only. The words are fixed by the engine and never consult the
+/// status vocabulary.
+fn is_strict_exempt_status(status: &str) -> bool {
+    const WORDS: [&str; 3] = ["planned", "blocked", "parked"];
+    let bytes = status.trim().as_bytes();
+    let start = bytes
+        .iter()
+        .position(u8::is_ascii_alphanumeric)
+        .unwrap_or(bytes.len());
+    let rest = &bytes[start..];
+    WORDS.iter().any(|word| {
+        let n = word.len();
+        rest.len() >= n
+            && rest[..n].eq_ignore_ascii_case(word.as_bytes())
+            && rest.get(n).is_none_or(|b| !b.is_ascii_alphanumeric())
+    })
+}
+
 pub(super) fn reconcile(
     spec: &Spec,
     model: &TraceabilityModel,
@@ -122,6 +157,12 @@ pub(super) fn reconcile(
     // the defect. An id whose rows carry no status (an acceptance criterion
     // verified by several tests) is legitimately N:1 and never reported.
     let mut status_row_ids: BTreeSet<String> = BTreeSet::new();
+    // Strict exemption (FR-050-AC-64): per referenced id, how many rows with
+    // their own status cell reference it and whether all of them are exempt.
+    let mut status_refs: BTreeMap<String, StatusRefs> = BTreeMap::new();
+    // Unbacked rows with no status cell of their own, resolved from
+    // `status_refs` once every row has been read.
+    let mut declared_status_pending: Vec<usize> = Vec::new();
 
     for (declaration, scanned_rows) in model.document_references.iter().zip(&reference_rows) {
         let Some(scanned_rows) = scanned_rows else {
@@ -209,6 +250,17 @@ pub(super) fn reconcile(
                 }
             }
 
+            let own_exempt = selected_status
+                .and_then(|selected| row.cell(selected.column()))
+                .map(is_strict_exempt_status);
+            if let Some(exempt) = own_exempt {
+                for id in &answerable {
+                    let refs = status_refs.entry(id.clone()).or_default();
+                    refs.rows += 1;
+                    refs.all_exempt &= exempt;
+                }
+            }
+
             let retirement = row
                 .cell(&declaration.column)
                 .and_then(|value| {
@@ -242,12 +294,16 @@ pub(super) fn reconcile(
                 continue;
             }
 
+            if own_exempt.is_none() && row_id.is_some() {
+                declared_status_pending.push(unbacked_rows.len());
+            }
             unbacked_rows.push(UnbackedRow {
                 reference: declaration.name.clone(),
                 document: document.clone(),
                 row_id: row_id.clone(),
                 target_ids: answerable.clone(),
                 line: Some(row.line),
+                strict_exempt: own_exempt.unwrap_or(false),
             });
 
             // A method that mints no symbol leaves a factually unbacked row but
@@ -297,6 +353,16 @@ pub(super) fn reconcile(
             }
         }
     }
+
+    for index in declared_status_pending {
+        let exempt = unbacked_rows[index]
+            .row_id
+            .as_ref()
+            .and_then(|id| status_refs.get(id))
+            .is_some_and(|refs| refs.rows > 0 && refs.all_exempt);
+        unbacked_rows[index].strict_exempt = exempt;
+    }
+    let strict_exempt_unbacked = unbacked_rows.iter().filter(|row| row.strict_exempt).count();
 
     // ── Untracked symbols: a trace tag pointing at nothing declared ──
     let mut untracked_symbols: Vec<UntrackedSymbol> = graph
@@ -356,6 +422,7 @@ pub(super) fn reconcile(
         )
         .collect();
     let totals = CoverageTotals {
+        strict_exempt_unbacked,
         backed: groups.iter().map(|g| g.backed).sum(),
         total: groups.iter().map(|g| g.total).sum(),
         retired: groups.iter().map(|g| g.retired).sum(),
