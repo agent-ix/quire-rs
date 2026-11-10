@@ -27,7 +27,7 @@ use build_npm_fetch::FetchError;
 
 /// The declared npm fetch pin. `src/lib.rs`'s `VERSION` reads this same value
 /// back via `env!` at compile time — there is only one literal.
-const VERSION: &str = "0.10.1";
+const VERSION: &str = "0.10.2";
 const REGISTRY: &str = "https://registry.npmjs.org";
 
 fn main() {
