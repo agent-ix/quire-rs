@@ -7,13 +7,36 @@ bumps; once 1.0 ships, semver is strict.
 
 ## [Unreleased]
 
+## [0.56.0] — 2026-11-10
+
 ### Changed
 
-- PLAT-1386: strict coverage exempts unbacked rows whose status is planned, blocked or parked (FR-050-AC-64..66). Adds `totals.strict_exempt_unbacked` and per-record `strict_exempt: true` (both omitted when absent), `CoverageReport::{strict_exempt_unbacked, non_exempt_unbacked}`, and `strict_decision` ignores exempt rows.
+- **Breaking, PLAT-1369 (#636):** the `semantic_core` instance strip is removed
+  from the semantic block loader. A module manifest whose `semantic` block still
+  carries a `semantic_core` key is now refused as `semantic.unknown-key`; remove
+  the key. The block validates against the embedded module-manifest schema as-is.
+- PLAT-1386 (#639, #640): strict coverage exempts unbacked rows whose status is
+  planned, blocked or parked (FR-050-AC-64..66). Adds `totals.strict_exempt_unbacked`
+  and per-record `strict_exempt: true` (both omitted when absent),
+  `CoverageReport::{strict_exempt_unbacked, non_exempt_unbacked}`, and
+  `strict_decision` ignores exempt rows.
+- PLAT-1377 (#633): relocks `agent-ix-semantic-schema` (filament-core-data
+  semantic-core 0.4.0) and repoints the fixture, test and output-schema `$ref`s
+  from `semantic-core/0.3.3/` to `semantic-core/0.4.0/`. There is no
+  `{kind, value}` wire change in quire-rs. The relock brings the FCD contract
+  changes: the manifest `semantic` block drops `semantic_core`, `PACKAGE_LOCK`
+  leaves `SCHEMAS`, and the manifest gains the FR-149 keys.
 
-- PLAT-1369: removes the `semantic_core` instance strip from the semantic block loader; the `semantic` block validates against the embedded module-manifest schema as-is.
+### Added
 
-- PLAT-1377: relocks `agent-ix-semantic-schema` (filament-core-data semantic-core 0.4.0) and repoints the fixture, test and output-schema `$ref`s from `semantic-core/0.3.3/` to `semantic-core/0.4.0/`. There is no `{kind, value}` wire change in quire-rs. The relock brings the FCD contract changes: the manifest `semantic` block drops `semantic_core`, `PACKAGE_LOCK` leaves `SCHEMAS`, and the manifest gains the FR-149 keys.
+- PLAT-212 (FR-069, #637, #638): the semantic block accepts `import_types`, a
+  map from each declared import package to the type names the module uses from
+  it. Malformed values are refused as `semantic.invalid-value`. A `$ref` under a
+  declared import's schema base is admitted as an opaque subschema without
+  fetching, import-type diagnostics are reported across loaded modules, and a
+  refused package cycle is named at the type level.
+- PLAT-866 (#635): the corpus harness loads the ecosystem from provider checkouts.
+- PLAT-362 (#634): trace marker on the shared-mutable audit script.
 
 ## [0.55.0] — 2026-11-09
 
