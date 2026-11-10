@@ -13,7 +13,7 @@ bumps; once 1.0 ships, semver is strict.
 
 - **Breaking, PLAT-1369 (#636):** the `semantic_core` instance strip is removed
   from the semantic block loader. A module manifest whose `semantic` block still
-  carries a `semantic_core` key is now refused as `semantic.unknown-key`; remove
+  carries a `semantic_core` key is now refused; remove
   the key. The block validates against the embedded module-manifest schema as-is.
 - PLAT-1386 (#639, #640): strict coverage exempts unbacked rows whose status is
   planned, blocked or parked (FR-050-AC-64..66). Adds `totals.strict_exempt_unbacked`
