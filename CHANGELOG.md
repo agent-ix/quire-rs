@@ -7,6 +7,23 @@ bumps; once 1.0 ships, semver is strict.
 
 ## [Unreleased]
 
+## [0.56.1] — 2026-11-11
+
+### Fixed
+
+- PLAT-1392 (#642): criterion tags bind again in a repository that declares no
+  test-matrix rows. Row binding (PLAT-2, #587, since 0.54.0) constrained every
+  criterion even when no TestMatrix existed, so a repository with a computed
+  matrix rejected every criterion tag as `criterion-tagged-outside-row`. A
+  declaration now constrains only when the repository declares test-matrix rows
+  for it; inspection rows widen the allowed rows but never constrain
+  (CR-411, FR-050-AC-67). The rule is unchanged where a matrix exists.
+- **Symbol ids, PLAT-1393 (#643):** a method in a Rust trait impl gets a
+  trait-qualified id, `<Type as Trait>::method` (trait as written, whitespace
+  normalised), so several `impl From<X> for T` no longer collide on `T::from`.
+  Inherent-impl methods keep `Type::method`; the `contains` edge still starts
+  at the impl target type (CR-410, FR-051-AC-31/32).
+
 ## [0.56.0] — 2026-11-10
 
 ### Changed
