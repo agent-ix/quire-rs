@@ -70,7 +70,7 @@ fn tc1930_tc1931_coverage_matrix_population_is_the_obligation_set() {
         &root,
         "src/lib.rs",
         "//! fixture\n\n#[cfg(test)]\nmod tests {\n    \
-         #[trace(\"FR-001-AC-1\")]\n    #[test]\n    fn covers_0() {\n        let _ = 1;\n    }\n}\n",
+         #[trace(\"TC-001\", \"FR-001-AC-1\")]\n    #[test]\n    fn covers_0() {\n        let _ = 1;\n    }\n}\n",
     );
     let without_matrix = report_over(&root, "iso-obligations");
     assert_eq!(
@@ -83,10 +83,7 @@ fn tc1930_tc1931_coverage_matrix_population_is_the_obligation_set() {
     assert_eq!(requirement.document, "spec/FR-001.md");
     assert_eq!(requirement.criteria.len(), 1);
     assert_eq!(requirement.criteria[0].id, "FR-001-AC-1");
-    assert_eq!(
-        requirement.criteria[0].status,
-        CoverageMatrixStatus::Untagged
-    );
+    assert_eq!(requirement.criteria[0].status, CoverageMatrixStatus::Tagged);
 
     // TC-1931: add a Test Matrix that mints a `test-case` trace target but no
     // obligation (this module declares no `obligations:` source reading it).

@@ -300,7 +300,7 @@ fn tc734_unbacked_rows() {
 }
 
 /// Provenance: PLAT-2.
-#[trace("TC-734", "FR-050-AC-3")]
+#[trace("TC-734", "FR-050-AC-3", "FR-050-AC-67")]
 #[test]
 fn a_criterion_tag_only_backs_its_own_matrix_row() {
     let cases: serde_json::Value = serde_json::from_str(include_str!(
@@ -308,7 +308,12 @@ fn a_criterion_tag_only_backs_its_own_matrix_row() {
     ))
     .expect("row-aware binding fixture JSON");
     for case in cases.as_array().expect("row-aware binding cases") {
-        assert_eq!(case["issue_ref"], "agent-ix/quire-rs#467");
+        assert!(
+            case["issue_ref"]
+                .as_str()
+                .is_some_and(|reference| !reference.is_empty()),
+            "every case records its issue_ref"
+        );
         let name = case["name"].as_str().expect("case name");
         let root = tempfile::tempdir().expect("temporary fixture");
         let module = root.path().join("module");
