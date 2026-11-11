@@ -170,5 +170,34 @@
         "TC-003"
       ]
     }
+  },
+  {
+    "name": "criterion-tags-bind-when-repo-declares-no-matrix",
+    "issue_ref": "PLAT-1392",
+    "tags": [
+      "PLAT-1392",
+      "binding",
+      "coverage"
+    ],
+    "comment": "A repo with no TestMatrix rows has no matrix to bind against; criterion tags back directly. Control for the row-aware cases where a matrix exists.",
+    "input": {
+      "module": "name: row-aware-binding\nversion: 0.1.0\nartifact_types:\n- name: FR\n- name: TestMatrix\ntraceability:\n  trace_targets:\n  - name: acceptance-criterion\n    archetype: FR\n    section: Acceptance Criteria\n    id_column: ID\n  - name: test-case\n    archetype: TestMatrix\n    section: Test Cases\n    id_column: ID\n  document_references:\n  - name: verification\n    archetype: FR\n    section: Acceptance Criteria\n    row_id_column: ID\n    column: Verification\n    pattern: '\\b(TC-\\d+)\\b'\n    targets: [test-case]\n  - name: traces-to\n    archetype: TestMatrix\n    section: Test Cases\n    row_id_column: ID\n    column: Traces To\n    pattern: '\\b((?:FR|TC)-\\d+(?:-AC-\\d+)?)\\b'\n    targets: [acceptance-criterion, test-case]\n  status:\n    column: Status\n    complete: [\"✅\"]\n    pending: [\"🚧\"]\n  obligations:\n  - name: acceptance-criteria\n    target: acceptance-criterion\n    statement_column: Criteria\n    method_column: Verification\n  trace_tags:\n    markers:\n    - name: rust-trace-attribute\n      language: rust\n      pattern: '#\\[trace\\(([^)]*)\\)\\]'\n      template: '#[trace({ids})]'\n",
+      "documents": {
+        "FR-001.md": "---\nid: FR-001\ntype: FR\n---\n\n## Acceptance Criteria\n\n| ID | Criteria | Verification |\n|---|---|---|\n| FR-001-AC-1 | The first behavior shall work. | Test (TC-001) |\n| FR-001-AC-2 | The second behavior shall work. | Test (TC-002) |\n"
+      },
+      "sources": {
+        "lib.rs": "#[cfg(test)]\nmod tests {\n    #[trace(\"TC-1308\", \"FR-001-AC-1\")]\n    #[test]\n    fn tc1308_first_behavior() {}\n\n    #[trace(\"FR-001-AC-2\")]\n    #[test]\n    fn second_behavior() {}\n}\n"
+      }
+    },
+    "expect": {
+      "criterion_backed": {
+        "FR-001-AC-1": true,
+        "FR-001-AC-2": true
+      },
+      "diagnostic_reasons": [],
+      "absent_diagnostic_reasons": [
+        "criterion-tagged-outside-row"
+      ]
+    }
   }
 ]

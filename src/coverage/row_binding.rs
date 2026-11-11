@@ -63,6 +63,11 @@ impl RowBindings {
             if target_names.is_empty() {
                 continue;
             }
+            // A repo that declares no rows for this archetype has no matrix to
+            // bind against, so its targets stay unconstrained.
+            let Some(rows) = rows.as_ref().filter(|rows| !rows.is_empty()) else {
+                continue;
+            };
 
             for target_name in &target_names {
                 if let Some(ids) = minted_by_target.get(target_name) {
@@ -76,9 +81,6 @@ impl RowBindings {
                 }
             }
 
-            let Some(rows) = rows else {
-                continue;
-            };
             let Ok(pattern) = regex::Regex::new(&declaration.pattern) else {
                 continue; // invalid declarations are already rejected at load time
             };
