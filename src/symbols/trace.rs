@@ -619,8 +619,16 @@ pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolG
             symbol.path.clone(),
         ));
         if let Some(container) = &symbol.container {
+            #[cfg(feature = "rust-symbols")]
+            let container = if symbol.language == SourceLanguage::Rust {
+                super::rust::graph_parent(container)
+            } else {
+                container.clone()
+            };
+            #[cfg(not(feature = "rust-symbols"))]
+            let container = container.clone();
             graph.contains.push((
-                container.clone(),
+                container,
                 symbol.qualified_name.clone(),
                 symbol.path.clone(),
             ));

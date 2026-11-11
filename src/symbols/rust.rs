@@ -43,10 +43,11 @@
 //!
 //! - **`impl` blocks are scopes, not symbols.** `impl Display for Foo { fn
 //!   fmt(&self) {} }` mints `Container "Foo"` (from the `struct`) and
-//!   `Function "<Foo as std::fmt::Display>::fmt"`; the `impl` block itself mints nothing, and a
-//!   method of an inherent impl qualifies under its target type. A method
-//!   of a trait impl qualifies under `<Type as Trait>` (whitespace
-//!   normalised), so distinct trait impls on one type never share an id.
+//!   `Function "<Foo as Display>::fmt"`; the `impl` block itself mints
+//!   nothing, and a method of an inherent impl qualifies under its target
+//!   type. A method of a trait impl qualifies under `<Type as Trait>` (the
+//!   trait as written, whitespace normalised), so distinct trait impls on
+//!   one type never share an id.
 //! - **`type`, `static`, `const` and `union` mint no symbols.** Only
 //!   `fn`/`mod`/`struct`/`enum`/`trait`/`impl` are recognised, the same as
 //!   before; simply not matching their tree-sitter node kinds is what keeps
@@ -342,6 +343,25 @@ fn walk(
             }
         }
     }
+}
+
+/// The symbol-graph parent for a `container` of a Rust symbol. A trait-impl
+/// scope `<Type as Trait>` is not a node, so a method directly in one hangs
+/// from the impl target type's node (`Type`, qualified by any enclosing
+/// scope); every other container is returned unchanged.
+pub(crate) fn graph_parent(container: &str) -> String {
+    let start = container.rfind("::<").map_or(0, |i| i + 2);
+    let scope = &container[start..];
+    if !scope.starts_with('<') || !scope.ends_with('>') {
+        return container.to_string();
+    }
+    let Some((target, _)) = scope[1..].split_once(" as ") else {
+        return container.to_string();
+    };
+    let Some(name) = ident(target) else {
+        return container.to_string();
+    };
+    container[..start].to_string() + &name
 }
 
 /// `text` with whitespace removed except a single space between two

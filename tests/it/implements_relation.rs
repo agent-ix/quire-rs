@@ -829,3 +829,24 @@ fn trait_impl_methods_get_trait_qualified_ids() {
         }
     }
 }
+
+#[trace("FR-051-AC-32")]
+#[test]
+fn trait_impl_method_is_contained_by_its_target_type() {
+    let src = "pub struct Halt;\nimpl From<Finish> for Halt {\n    fn from(_: Finish) -> Self { Halt }\n}\nmod m {\n    pub struct W;\n    impl Drop for W {\n        fn drop(&mut self) {}\n    }\n}\n";
+    let out = quire_rs::symbols::extract_file("src/a.rs", SourceLanguage::Rust, src);
+    let graph = trace::bind(&out, &model());
+    let edges: Vec<(&str, &str)> = graph
+        .contains
+        .iter()
+        .map(|(parent, child, _)| (parent.as_str(), child.as_str()))
+        .collect();
+    assert!(
+        edges.contains(&("Halt", "<Halt as From<Finish>>::from")),
+        "{edges:?}"
+    );
+    assert!(
+        edges.contains(&("m::W", "m::<W as Drop>::drop")),
+        "{edges:?}"
+    );
+}
