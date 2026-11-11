@@ -7,7 +7,6 @@
       "comment": "Three `impl From<_> for Halt` all minted `Halt::from` and warned symbol-id-collision.",
       "source": "pub struct Halt;\nimpl From<Finish> for Halt {\n    fn from(_: Finish) -> Self { Halt }\n}\nimpl From< ModelCheckRefusal >  for Halt {\n    fn from(_: ModelCheckRefusal) -> Self { Halt }\n}\nimpl From<EncodingRefusal> for Halt {\n    fn from(_: EncodingRefusal) -> Self { Halt }\n}\nimpl Halt {\n    fn new() -> Self { Halt }\n}\n",
       "expected_names": [
-        "Halt",
         "Halt::new",
         "<Halt as From<EncodingRefusal>>::from",
         "<Halt as From<Finish>>::from",

@@ -804,7 +804,6 @@ fn trait_impl_methods_get_trait_qualified_ids() {
             .as_array()
             .unwrap()
             .iter()
-            .filter(|n| !n.as_str().unwrap().eq("Halt"))
             .map(|n| n.as_str().unwrap())
             .collect();
         expected.sort_unstable();
@@ -812,11 +811,21 @@ fn trait_impl_methods_get_trait_qualified_ids() {
         let reasons: Vec<&str> = out.diagnostics.iter().map(|d| d.reason.as_str()).collect();
         for want in case["diagnostic_reasons"].as_array().into_iter().flatten() {
             let want = want.as_str().unwrap();
-            assert!(reasons.iter().any(|r| r.starts_with(want)), "{name}: {reasons:?}");
+            assert!(
+                reasons.iter().any(|r| r.starts_with(want)),
+                "{name}: {reasons:?}"
+            );
         }
-        for absent in case["absent_diagnostic_reasons"].as_array().into_iter().flatten() {
+        for absent in case["absent_diagnostic_reasons"]
+            .as_array()
+            .into_iter()
+            .flatten()
+        {
             let absent = absent.as_str().unwrap();
-            assert!(!reasons.iter().any(|r| r.starts_with(absent)), "{name}: {reasons:?}");
+            assert!(
+                !reasons.iter().any(|r| r.starts_with(absent)),
+                "{name}: {reasons:?}"
+            );
         }
     }
 }
