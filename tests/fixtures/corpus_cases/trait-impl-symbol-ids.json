@@ -1,0 +1,31 @@
+{
+  "issue_ref": "https://linear.app/agent-ix/issue/PLAT-1393",
+  "cases": [
+    {
+      "name": "from-impls-on-one-type",
+      "issue_ref": "https://linear.app/agent-ix/issue/PLAT-1393",
+      "comment": "Three `impl From<_> for Halt` all minted `Halt::from` and warned symbol-id-collision.",
+      "source": "pub struct Halt;\nimpl From<Finish> for Halt {\n    fn from(_: Finish) -> Self { Halt }\n}\nimpl From< ModelCheckRefusal >  for Halt {\n    fn from(_: ModelCheckRefusal) -> Self { Halt }\n}\nimpl From<EncodingRefusal> for Halt {\n    fn from(_: EncodingRefusal) -> Self { Halt }\n}\nimpl Halt {\n    fn new() -> Self { Halt }\n}\n",
+      "expected_names": [
+        "Halt::new",
+        "<Halt as From<EncodingRefusal>>::from",
+        "<Halt as From<Finish>>::from",
+        "<Halt as From<ModelCheckRefusal>>::from"
+      ],
+      "absent_diagnostic_reasons": ["symbol-id-collision"]
+    },
+    {
+      "name": "genuine-duplicates-control",
+      "issue_ref": "https://linear.app/agent-ix/issue/PLAT-1393",
+      "comment": "Control: two declarations of the same fn in one impl scope still share an id and still warn.",
+      "source": "#[cfg(unix)]\nfn go() {}\n#[cfg(not(unix))]\nfn go() {}\nimpl From<A> for T {\n    #[cfg(unix)]\n    fn from(_: A) -> Self { T }\n    #[cfg(not(unix))]\n    fn from(_: A) -> Self { T }\n}\n",
+      "expected_names": [
+        "go",
+        "go",
+        "<T as From<A>>::from",
+        "<T as From<A>>::from"
+      ],
+      "diagnostic_reasons": ["symbol-id-collision"]
+    }
+  ]
+}
