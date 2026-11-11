@@ -4,7 +4,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use crate::corpus::declared_tables::ScannedRow;
 use crate::symbols::trace::{SymbolGraph, VerifiesRelation};
-use crate::traceability::TraceabilityModel;
+use crate::traceability::{DocumentReference, TraceabilityModel};
 
 use super::CoverageDiagnostic;
 
@@ -29,8 +29,14 @@ impl RowBindings {
             .filter_map(|source| source.target.as_deref())
             .collect();
 
+        let mut declared: Vec<(&DocumentReference, &str, &[ScannedRow])> = Vec::new();
         for (declaration, rows) in model.document_references.iter().zip(scanned) {
             let Some(row_id_column) = declaration.row_id_column.as_deref() else {
+                continue;
+            };
+            // A repo that declares no rows for this archetype has no matrix to
+            // bind against, so its targets stay unconstrained.
+            let Some(rows) = rows.as_deref().filter(|rows| !rows.is_empty()) else {
                 continue;
             };
             let row_targets: Vec<_> = model
@@ -47,12 +53,11 @@ impl RowBindings {
             if row_targets.is_empty() {
                 continue;
             }
-
             let row_target_names: BTreeSet<&str> = row_targets
                 .iter()
                 .map(|target| target.name.as_str())
                 .collect();
-            let target_names: BTreeSet<&str> = declaration
+            let target_names: Vec<&str> = declaration
                 .targets
                 .iter()
                 .map(String::as_str)
@@ -63,13 +68,20 @@ impl RowBindings {
             if target_names.is_empty() {
                 continue;
             }
-            // A repo that declares no rows for this archetype has no matrix to
-            // bind against, so its targets stay unconstrained.
-            let Some(rows) = rows.as_ref().filter(|rows| !rows.is_empty()) else {
-                continue;
-            };
+            declared.push((declaration, row_id_column, rows));
 
-            for target_name in &target_names {
+            // Only test-matrix rows constrain: a row id that another declaration
+            // cites (an FR's Verification cell naming a test case) is an id a
+            // test tags. Rows nothing cites, such as inspections, only widen.
+            let is_test_matrix = row_targets.iter().any(|row_target| {
+                model.document_references.iter().any(|other| {
+                    other.name != declaration.name && other.targets.contains(&row_target.name)
+                })
+            });
+            if !is_test_matrix {
+                continue;
+            }
+            for target_name in target_names {
                 if let Some(ids) = minted_by_target.get(target_name) {
                     bindings.constrained_ids.extend(ids.iter().cloned());
                     for id in ids {
@@ -80,7 +92,9 @@ impl RowBindings {
                     }
                 }
             }
+        }
 
+        for (declaration, row_id_column, rows) in declared {
             let Ok(pattern) = regex::Regex::new(&declaration.pattern) else {
                 continue; // invalid declarations are already rejected at load time
             };

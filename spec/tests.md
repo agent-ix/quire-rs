@@ -479,7 +479,7 @@ Reserved withdrawn IDs (not active test cases): TC-834, TC-842, TC-871, TC-1089,
 | TC-731 | Repeated bundle validation yields identical `dangling-trace-reference` findings in identical order | Property | P0 | FR-049-AC-8, NFR-006 | ✅ |
 | TC-732 | A manifest `traceability:` section (targets, references, status vocabulary, trace-tag grammar) loads and the `Registry` exposes the model | Unit | P0 | FR-050-AC-1 | ✅ |
 | TC-733 | A malformed `traceability:` section fails module load; an absent section loads with the model undeclared | Unit | P0 | FR-050-AC-2 | ✅ |
-| TC-734 | A reference row whose target has no backing `verifies` relation appears in unbacked rows with row and target ids | Integration | P0 | FR-050-AC-3 | ✅ |
+| TC-734 | A reference row whose target has no backing `verifies` relation appears in unbacked rows with row and target ids | Integration | P0 | FR-050-AC-3, FR-050-AC-67 | ✅ |
 | TC-735 | A `complete`-status row with no backing symbol appears in status lies; the same row with a backing symbol does not | Integration | P0 | FR-050-AC-4 | ✅ |
 | TC-736 | A symbol trace tag resolving to no declared target/row appears in untracked symbols with file and symbol name | Integration | P0 | FR-050-AC-5 | ✅ |
 | TC-737 | Per-minting-document backed/total counts sum to the bundle-wide totals | Unit | P0 | FR-050-AC-6 | ✅ |
@@ -2030,6 +2030,7 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-050-AC-64 | TC-2219, TC-2220, TC-2224 |
 | FR-050-AC-65 | TC-2221, TC-2225 |
 | FR-050-AC-66 | TC-2222, TC-2223, TC-2226 |
+| FR-050-AC-67 | TC-734 |
 | FR-051-AC-1 | TC-741, TC-1922, TC-1923, TC-1925 |
 | FR-051-AC-2 | TC-742 |
 | FR-051-AC-3 | TC-743, TC-1940 |
