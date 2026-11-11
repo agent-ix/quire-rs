@@ -778,3 +778,45 @@ fn present_invalid_syntax_values_never_become_an_unguarded_form() {
         assert!(error.to_string().contains("declared-attribute"), "{error}");
     }
 }
+
+#[trace("FR-051-AC-31", "FR-051-AC-32")]
+#[test]
+fn trait_impl_methods_get_trait_qualified_ids() {
+    let cases: serde_json::Value = serde_json::from_str(include_str!(
+        "../fixtures/corpus_cases/trait-impl-symbol-ids.json"
+    ))
+    .unwrap();
+    for case in cases["cases"].as_array().unwrap() {
+        let name = case["name"].as_str().unwrap();
+        let out = quire_rs::symbols::extract_file(
+            "src/a.rs",
+            SourceLanguage::Rust,
+            case["source"].as_str().unwrap(),
+        );
+        let mut names: Vec<&str> = out
+            .symbols
+            .iter()
+            .filter(|s| s.kind != quire_rs::symbols::SymbolKind::Container)
+            .map(|s| s.qualified_name.as_str())
+            .collect();
+        names.sort_unstable();
+        let mut expected: Vec<&str> = case["expected_names"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|n| !n.as_str().unwrap().eq("Halt"))
+            .map(|n| n.as_str().unwrap())
+            .collect();
+        expected.sort_unstable();
+        assert_eq!(names, expected, "{name}");
+        let reasons: Vec<&str> = out.diagnostics.iter().map(|d| d.reason.as_str()).collect();
+        for want in case["diagnostic_reasons"].as_array().into_iter().flatten() {
+            let want = want.as_str().unwrap();
+            assert!(reasons.iter().any(|r| r.starts_with(want)), "{name}: {reasons:?}");
+        }
+        for absent in case["absent_diagnostic_reasons"].as_array().into_iter().flatten() {
+            let absent = absent.as_str().unwrap();
+            assert!(!reasons.iter().any(|r| r.starts_with(absent)), "{name}: {reasons:?}");
+        }
+    }
+}

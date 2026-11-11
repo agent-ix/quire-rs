@@ -43,9 +43,10 @@
 //!
 //! - **`impl` blocks are scopes, not symbols.** `impl Display for Foo { fn
 //!   fmt(&self) {} }` mints `Container "Foo"` (from the `struct`) and
-//!   `Function "Foo::fmt"`; the `impl` block itself mints nothing, and a
-//!   method qualifies under the **target type after `for`**, never the
-//!   trait — read from `impl_item`'s own `type` field, never `trait`.
+//!   `Function "<Foo as std::fmt::Display>::fmt"`; the `impl` block itself mints nothing, and a
+//!   method of an inherent impl qualifies under its target type. A method
+//!   of a trait impl qualifies under `<Type as Trait>` (whitespace
+//!   normalised), so distinct trait impls on one type never share an id.
 //! - **`type`, `static`, `const` and `union` mint no symbols.** Only
 //!   `fn`/`mod`/`struct`/`enum`/`trait`/`impl` are recognised, the same as
 //!   before; simply not matching their tree-sitter node kinds is what keeps
@@ -297,20 +298,27 @@ fn walk(
                 }
             }
             "impl_item" => {
-                // The `impl` block itself mints nothing; its methods qualify
-                // under the target type named after `for` (or the plain
-                // type, for an inherent impl) — never the trait, which is
-                // why this reads the `type` field and not `trait`.
-                let target = field_text(child, "type", source).and_then(|text| ident(&text));
-                let inner_container = match target {
-                    Some(name) => Some(qualify(&container, &name)),
-                    // An unresolvable target (the old adapter's own
-                    // limitation: a target type not starting with an
-                    // identifier character, e.g. a reference or tuple type)
-                    // makes the impl transparent, exactly as before — no new
-                    // scope, methods inherit whatever container was already
-                    // in effect.
-                    None => container.clone(),
+                // The `impl` block itself mints nothing. An inherent impl's
+                // methods qualify under the plain target type; a trait impl's
+                // under `<Type as Trait>`, so `impl From<A> for T` and
+                // `impl From<B> for T` never share `T::from`.
+                let inner_container = match field_text(child, "trait", source) {
+                    Some(trait_text) => {
+                        let target = field_text(child, "type", source).unwrap_or_default();
+                        let scope = format!(
+                            "<{} as {}>",
+                            normalize_type_text(&target),
+                            normalize_type_text(&trait_text)
+                        );
+                        Some(qualify(&container, &scope))
+                    }
+                    None => match field_text(child, "type", source).and_then(|t| ident(&t)) {
+                        Some(name) => Some(qualify(&container, &name)),
+                        // An unresolvable inherent target (a reference or
+                        // tuple type) makes the impl transparent: methods
+                        // inherit whatever container was already in effect.
+                        None => container.clone(),
+                    },
                 };
                 walk(child, source, inner_container, out, registered_benches);
             }
@@ -334,6 +342,32 @@ fn walk(
             }
         }
     }
+}
+
+/// `text` with whitespace removed except a single space between two
+/// identifier characters and after a comma, so the same type or trait path
+/// spelled with any layout yields one identity.
+fn normalize_type_text(text: &str) -> String {
+    let is_word = |c: char| c.is_alphanumeric() || c == '_' || c == '\'';
+    let chars: Vec<char> = text.chars().collect();
+    let mut out = String::with_capacity(text.len());
+    for (i, &c) in chars.iter().enumerate() {
+        if !c.is_whitespace() {
+            out.push(c);
+            if c == ',' && chars[i + 1..].iter().any(|x| !x.is_whitespace()) {
+                out.push(' ');
+            }
+            continue;
+        }
+        let prev = chars[..i].iter().rev().find(|x| !x.is_whitespace());
+        let next = chars[i + 1..].iter().find(|x| !x.is_whitespace());
+        if let (Some(&p), Some(&n)) = (prev, next) {
+            if is_word(p) && is_word(n) && !out.ends_with(' ') {
+                out.push(' ');
+            }
+        }
+    }
+    out.trim_end().to_string()
 }
 
 /// `container::name`, or `name` alone when `container` is `None`.
@@ -1326,8 +1360,8 @@ mod tests {
 
     /// `impl` blocks are scopes, not symbols — the highest-risk
     /// identity behaviour in this port (PLAT-843's own audit). The block
-    /// itself mints nothing, and a method qualifies under the target type
-    /// named after `for`, never the trait.
+    /// itself mints nothing, and a trait-impl method qualifies under
+    /// `<Type as Trait>`.
     #[trace("FR-051-AC-1")]
     #[test]
     fn impl_blocks_are_scopes_not_symbols() {
@@ -1348,9 +1382,12 @@ mod tests {
         );
         let method = symbols
             .iter()
-            .find(|s| s.qualified_name == "Foo::fmt")
-            .expect("the method qualifies under the target type: {symbols:?}");
-        assert_eq!(method.container.as_deref(), Some("Foo"));
+            .find(|s| s.qualified_name == "<Foo as std::fmt::Display>::fmt")
+            .unwrap_or_else(|| panic!("the method qualifies under the impl: {symbols:?}"));
+        assert_eq!(
+            method.container.as_deref(),
+            Some("<Foo as std::fmt::Display>")
+        );
     }
 
     /// PLAT-843 audit item d: `type`/`static`/`const`/`union` mint

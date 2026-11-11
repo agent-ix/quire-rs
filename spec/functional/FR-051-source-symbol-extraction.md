@@ -313,6 +313,14 @@ byte-identical JSON ordering and stable record ids.
 > that quoin's emitter contract requires one repository to host, and it is where
 > the runner's output is compared with the extractor's.
 
+> **PLAT-1393 note:** FR-051-AC-32's "the `impl` target type (never the trait)"
+> now holds for inherent impls only. A Rust symbol declared in a trait impl
+> qualifies under `<Type as Trait>` (whitespace-normalised, generics kept), so
+> `impl From<A> for T` and `impl From<B> for T` mint distinct `from` ids
+> instead of sharing `T::from`. This amends the collision paragraph above for
+> trait-impl methods: they no longer collide. `ix-trace-rs` FR-005 must follow
+> the same rule for a `#[trace]` test declared inside a trait impl.
+
 > **PLAT-334 / PLAT-335 note:** the pytest plugin and the vitest reporter are
 > specified in their own repositories, `agent-ix/ix-trace-py` and
 > `agent-ix/ix-trace-ts`, as `ix-trace-rs` is for Rust. FR-051-AC-47 pins, as a
