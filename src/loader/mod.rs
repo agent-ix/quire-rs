@@ -131,8 +131,6 @@ impl ManifestLoadFailure {
     }
 }
 
-/// Caller-facing reason for a retired manifest field (no
-/// backward-compatibility layer — ADR 0003 / FR-031, render removed).
 /// The refusal for an archetype that authored one of its object-typed keys as
 /// an explicit `null` (PLAT-1484): `semantic.invalid-value` at
 /// `<section>[<type>].<key>`, naming the archetype.
@@ -157,6 +155,8 @@ fn null_key_failure(
     ))
 }
 
+/// Caller-facing reason for a retired manifest field (no
+/// backward-compatibility layer — ADR 0003 / FR-031, render removed).
 fn retired_field_reason(field: &str) -> String {
     match field {
         "template_ref" => "retired field `template_ref` is not supported; the render/templating \

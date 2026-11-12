@@ -939,23 +939,46 @@ fn tables_in(
         .collect()
 }
 
+/// A CommonMark fence line: up to three spaces of indent, then a run of at
+/// least three backticks or tildes. Returns the fence character, the run
+/// length and whether anything but whitespace follows the run.
+fn fence_run(line: &str) -> Option<(char, usize, bool)> {
+    let body = line.trim_start_matches(' ');
+    if line.len() - body.len() > 3 {
+        return None;
+    }
+    let marker = body.chars().next().filter(|c| matches!(c, '`' | '~'))?;
+    let length = body.chars().take_while(|c| *c == marker).count();
+    if length < 3 {
+        return None;
+    }
+    let rest = &body[length..];
+    // A backtick fence's info string holds no backtick, so a prose line that
+    // opens with an inline ```code``` span is not a fence.
+    if marker == '`' && rest.contains('`') {
+        return None;
+    }
+    Some((marker, length, !rest.trim().is_empty()))
+}
+
 /// For each line of `content`, whether it sits inside a fenced code block
-/// (the fence lines included).
+/// (the fence lines included), by the CommonMark rules: a fence closes only
+/// with a run of the same character at least as long as the one that opened it
+/// and no info string; an unclosed fence runs to the end of the section.
 fn fenced_lines(content: &str) -> Vec<bool> {
-    let mut open: Option<char> = None;
+    let mut open: Option<(char, usize)> = None;
     content
         .split('\n')
         .map(|line| {
-            let trimmed = line.trim_start();
-            let marker = ['`', '~']
-                .into_iter()
-                .find(|m| trimmed.starts_with(&m.to_string().repeat(3)));
-            match (open, marker) {
-                (None, Some(m)) => {
-                    open = Some(m);
+            let run = fence_run(line);
+            match (open, run) {
+                (None, Some((marker, length, _))) => {
+                    open = Some((marker, length));
                     true
                 }
-                (Some(o), Some(m)) if o == m => {
+                (Some((marker, length)), Some((m, l, has_info)))
+                    if m == marker && l >= length && !has_info =>
+                {
                     open = None;
                     true
                 }

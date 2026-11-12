@@ -34,3 +34,22 @@ Tickets: PLAT-1491, PLAT-1484. PR head `a120309` over merge base `51f81dd` (= or
 | FND-003 | medium | Reference rows now come from every table, but targets and obligations still mint from the first table only, so one section is read two ways. Reproduced: an FR with a second `Acceptance Criteria` table (`FR-001-AC-3 \| … \| Test (TC-003)`) adds an `unbacked_rows` entry for `FR-001-AC-3`. That id is not a minted `acceptance-criterion`, so the group total stays 2, and it is not an obligation. In the same way, the Test IDs of a second `Test Case Summary` table enter `row_binding` (`matrix_row_ids`, `rows_by_id`) but are not minted `test-case` targets, so an FR `Verification` cell citing one still dangles. FR-049 records the first-table rule for targets but not these consequences. No current `~/dev` repo is affected. Fix: either read every table for a target or obligation source that shares the declaration's section, or state the asymmetry in FR-049/FR-050 with a test that pins it. | src/coverage/reconcile.rs:152-290; src/coverage/row_binding.rs:97-127; src/corpus/declared_tables.rs:650-660 |
 | FND-004 | low | `every_table: bool` is a boolean mode flag on `DeclaredScope`. The repo's CLAUDE.md asks for enums over boolean flags, so a two-variant enum (`First` / `Every`) would name the mode at every call site. | src/corpus/declared_tables.rs:107-111 |
 | FND-005 | low | `deserialize_present` is now duplicated in `loader/manifest.rs` and `traceability.rs`, with identical bodies. One shared helper would keep the null-is-present rule in one place. | src/loader/manifest.rs:497-502; src/traceability.rs:564-569 |
+
+## New findings (disposition pass 1)
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-006 | low | fenced_lines does not track the fence length or the info-string rule. Reproduced on 356294a: inside a 4-backtick md fence, a lone 3-backtick rust line closes the fence early, so the example table after it is read (dangling L-996 at line 17). A prose line starting with an inline triple-backtick span opens a fence that never closes, so the real table after it is silently dropped (L-997 is not reported). Fix: record the opening run's char and length, close only on a bare run of the same char at least that long, and do not treat a backtick run whose info string contains a backtick as a fence. Add both cases to TC-2325. | src/corpus/declared_tables.rs:942-966 |
+| FND-007 | low | null_key_failure was inserted between retired_field_reason's doc comment and its fn. retired_field_reason's doc now opens null_key_failure's doc, and retired_field_reason has no doc. Move the two retired-field lines back above retired_field_reason. | src/loader/mod.rs:134-160 |
+
+## Dispositions
+
+Round 1, PR head `356294a`.
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | - |
+| FND-002 | fixed | - |
+| FND-003 | fixed | - |
+| FND-004 | fixed | - |
+| FND-005 | fixed | - |

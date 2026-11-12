@@ -463,6 +463,33 @@ fn tc2325_a_fenced_table_is_an_example_not_data() {
         );
         fs::remove_dir_all(&root).ok();
     }
+    // CommonMark: a 3-backtick line does not close a 4-backtick fence, so the
+    // example table after it is still inside the fence.
+    let long_fence = format!(
+        "{real}\n````markdown\n```\n| Link | Class | Target |\n|------|-------|--------|\n| K-9 | north | L-996 |\n````\n"
+    );
+    let root = kinds_bundle("2325d", &long_fence);
+    let report = validate_bundle_at(&root, &kinds_registry(), BundlePosture::Okf);
+    assert!(
+        report.errors.is_empty() && report.warnings.is_empty(),
+        "{:?} {:?}",
+        report.errors,
+        report.warnings
+    );
+    fs::remove_dir_all(&root).ok();
+
+    // A prose line opening with an inline ```code``` span is not a fence: the
+    // real table after it is still read.
+    let inline_span = format!(
+        "{LINKS_HEAD}| K-1 | north | L-1 |\n\n```inline``` span in prose.\n\n| Link | Class | Target |\n|------|-------|--------|\n| K-8 | north | L-997 |\n"
+    );
+    let root = kinds_bundle("2325e", &inline_span);
+    let report = validate_bundle_at(&root, &kinds_registry(), BundlePosture::Okf);
+    let dangling = with_reason(&report, "dangling-trace-reference");
+    assert_eq!(dangling.len(), 1, "{:?}", report.errors);
+    assert!(dangling[0].message.contains("L-997"));
+    fs::remove_dir_all(&root).ok();
+
     // Control: the same row outside a fence is a finding, after the fence too.
     let after_fence = format!("{fenced_after}\n| Link | Class | Target |\n|------|-------|--------|\n| K-8 | north | L-998 |\n");
     let root = kinds_bundle("2325c", &after_fence);
@@ -926,7 +953,16 @@ fn tc2318_record_validation_null_is_refused_naming_the_archetype() {
 #[trace("TC-2323", "FR-069-AC-30")]
 #[test]
 fn tc2323_other_object_keys_authored_null_are_refused_not_read_as_absent() {
-    for key in ["data_schema", "body_extraction", "frontmatter_schema_ref"] {
+    for key in [
+        "data_schema",
+        "body_extraction",
+        "frontmatter_schema_ref",
+        "grammar_ref",
+        "defaults",
+        "allowed_links",
+        "roles",
+        "construct",
+    ] {
         let expected = format!("semantic.invalid-value: artifact_types[Bad].{key}:");
         for (name, semantic) in [("with semantic", GOOD_SEMANTIC), ("without", "")] {
             let body = if key == "body_extraction" {
@@ -959,6 +995,43 @@ fn tc2323_other_object_keys_authored_null_are_refused_not_read_as_absent() {
     // Control: with every key omitted the archetype loads.
     let registry = refused(BAD_MATCH, "", GOOD_SEMANTIC);
     assert!(registry.failures().is_empty(), "{:?}", registry.failures());
+
+    // An `archetypes:` entry whose only owned key is null is refused, not
+    // dropped as a presentation row.
+    let registry = inline(
+        "name: m\nversion: 0.1.0\narchetypes:\n- name: P\n  data_schema: null\n",
+        &[],
+    );
+    assert!(
+        registry.failures().iter().any(|f| f
+            .reason
+            .starts_with("semantic.invalid-value: archetypes[P].data_schema:")),
+        "{:?}",
+        registry.failures()
+    );
+
+    // The directory-module path (`Registry::load_module`) refuses it too.
+    let module = bundle_dir("2323-module");
+    write(
+        &module,
+        "manifest.yaml",
+        "name: dirmod\nversion: 0.1.0\nartifact_types:\n- name: Bad\n  data_schema: null\n- name: Good\n",
+    );
+    let registry = Registry::load_module(&module).unwrap();
+    let reasons: Vec<&str> = registry
+        .failures()
+        .iter()
+        .map(|f| f.reason.as_str())
+        .collect();
+    assert!(
+        reasons
+            .iter()
+            .any(|r| r.starts_with("semantic.invalid-value: artifact_types[Bad].data_schema:")),
+        "{reasons:?}"
+    );
+    assert!(registry.archetype("Bad").is_none());
+    assert!(registry.archetype("Good").is_some());
+    fs::remove_dir_all(&module).ok();
 }
 
 #[trace("TC-2324", "FR-069-AC-31")]

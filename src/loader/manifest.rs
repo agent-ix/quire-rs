@@ -495,11 +495,16 @@ pub struct Archetype {
 /// The archetype keys whose authoritative schema type is an object (or, for
 /// `frontmatter_schema_ref`, a string), so an authored `null` is a mistake and
 /// not "absent".
-const NULL_REFUSED_KEYS: [&str; 4] = [
+const NULL_REFUSED_KEYS: [&str; 9] = [
     "data_schema",
     "body_extraction",
     "frontmatter_schema_ref",
     "record_validation",
+    "grammar_ref",
+    "defaults",
+    "allowed_links",
+    "roles",
+    "construct",
 ];
 
 impl Archetype {
@@ -529,6 +534,7 @@ impl Archetype {
             || self.data_schema.is_some()
             || self.body_extraction.is_some()
             || self.record_validation.is_some()
+            || self.null_key.is_some()
             || OWNED.iter().any(|k| self.extras.contains_key(*k))
             || defaults_id_pattern
     }

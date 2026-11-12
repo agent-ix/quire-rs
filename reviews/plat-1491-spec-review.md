@@ -23,3 +23,11 @@ Tickets: PLAT-1491 and PLAT-1484. This spec-review covers integrity and EARS on 
 | ID | Severity | Summary | Refs |
 | --- | --- | --- | --- |
 | FND-001 | high | The FR-049-AC-23 row embeds unescaped pipes: `K-1 \| north \| L-1`, `K-2 \| north \| R-1` and `K-3 \| north \| L-7` written raw. The acceptance-criteria table row therefore parses as 9 cells against a 3-column header. `spec_validate` fails with "FR-049: line 183: [FR] 'acceptance_criteria_table': FR-049-AC-23: table row has 9 cell(s) but the header declares 3", so `make validate` (part of `make ci`) is red. The row also renders broken on GitHub. Fix: escape the pipes (`\|`) or describe the rows without pipe characters, then re-run `make validate`. | spec/functional/FR-049-verification-reference-integrity.md:183 |
+
+## Dispositions
+
+Round 1, PR head `356294a`.
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | - |
