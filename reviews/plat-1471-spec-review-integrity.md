@@ -34,3 +34,12 @@ Ticket: PLAT-1471.
 ## Verdict
 
 Structure is complete in both directions, and traces bind. Two low wording fixes.
+
+## Dispositions
+
+Round 1 at d5d98b3d. TC-2240..TC-2247 are each defined once, in the non-planned Test Case Summary table. No other open quire-rs PR (#647, #648) uses those ids; #648 holds TC-2228..TC-2233. The audit rows map AC-10..18 and FR-057-AC-11 to their Verification cells, and the FR-049 coverage row reads `AC-1..18`. `quire validate --okf` output is identical to origin/main, so every cited TC resolves.
+
+| FND | Outcome | Reason |
+| --- | --- | --- |
+| FND-001 | fixed | Every new AC cites its TC: AC-10 and AC-11 `Test (TC-2240)`, AC-12 TC-2241, AC-13 TC-2242, AC-14 TC-2243, AC-15 TC-2244, AC-16 and AC-17 TC-2245, AC-18 TC-2247, FR-057-AC-11 TC-2246. |
+| FND-002 | still-open | The order key is now stated as document path, row order, then position of the id in the cell. It conflicts with the existing order: `validate_trace_references` sorts `dangling-trace-reference` findings by (path, id, message), that is, by id string within a document, not by row. To interleave mismatch findings under the new key, existing dangling findings must be re-sorted, including those of declarations without kind fields. That contradicts FR-049-AC-16 ("behaves exactly as before"). "Each id yields at most one finding" is also unclear: today the same dangling id on two rows yields two findings. Fix: keep the existing key extended with the reason, (path, id, reason, message), or drop "interleaved". Say "each id occurrence yields at most one finding". |

@@ -72,8 +72,8 @@ declared tier **is its current behaviour**:
 | `trace:archetype-matches-nothing` | warning in both postures (CR-054) |
 | `trace:kind-column-matches-nothing` | warning in both postures (FR-049-AC-18) |
 
-A corpus check introduced **after** this FR SHALL declare `warning`, with two exceptions that this FR names: `trace:reference-kind-mismatch`, a kind-narrowed form of `dangling-trace-reference` that shares its posture routing, and `trace:kind-column-matches-nothing`, which declares `warning` anyway, which restores FR-048-AC-4's
-rule for everything new and confines the exception to the enumerated list above.
+A corpus check introduced **after** this FR SHALL declare `warning`, which restores FR-048-AC-4's
+rule for everything new, with one exception this FR names: `trace:reference-kind-mismatch`, a kind-narrowed form of `dangling-trace-reference` that shares its posture routing.
 
 A configured key wins over the declared tier in both directions and in both postures: `error`
 promotes an `Okf` warning, `warning` demotes a `Strict` error, and `off` drops the finding

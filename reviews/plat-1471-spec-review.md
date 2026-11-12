@@ -31,3 +31,19 @@ Ticket: PLAT-1471. Spec-only diff `origin/main...a2e2b4c0`: FR-049 section "Kind
 ## Verdict
 
 Not mergeable yet: FND-001 (medium) is a direct contradiction between FR-057-AC-4 and the tables this PR edits. FND-002 and FND-003 are one-sentence fixes. The kind-typed design itself is clear: union first, kind subset second, no double finding, all-or-nothing load validation, and nothing hardcoded in the engine.
+
+## New findings (disposition pass 1)
+
+| ID | Severity | Summary | Refs | Escape Cause |
+| --- | --- | --- | --- | --- |
+| FND-004 | low | The rewritten line 74 calls `trace:kind-column-matches-nothing` one of "two exceptions" to the `warning` default, yet says it "declares `warning` anyway". A check that declares `warning` is not an exception. The sentence also still ends "confines the exception to the enumerated list above", which no longer matches the named-exception form. Fix: name one exception (`trace:reference-kind-mismatch`), drop the kind-column clause or say it follows the default, and end the sentence at FR-048-AC-4's rule. | spec/functional/FR-057-corpus-check-severity.md:75-76 | wrong-requirement |
+
+## Dispositions
+
+Round 1 at d5d98b3d.
+
+| FND | Outcome | Reason |
+| --- | --- | --- |
+| FND-001 | fixed | FR-057-AC-4 is now limited to the checks that existed before this FR (four posture-routed, three fixed), and checks added later are deferred to their own criteria (FR-057-AC-11). |
+| FND-002 | fixed | Line 75 names the exceptions explicitly instead of "unless the table above enumerates it", so a new check can no longer escape the default by adding a table row. The residual wording defect is recorded as FND-004. |
+| FND-003 | fixed | The FR-050 Document references bullet now names `kind_column`/`kind_targets`, says they affect FR-049 validation only (coverage ignores them), and says a declaration omitting both serializes identically (FR-050-AC-45 precedent). |

@@ -25,3 +25,11 @@ Ticket: PLAT-1471. Examined: the FR-049 frontmatter edges (`extends` FR-038, `re
 ## Verdict
 
 One low fix. No blocking ordering.
+
+## Dispositions
+
+Round 1 at d5d98b3d.
+
+| FND | Outcome | Reason |
+| --- | --- | --- |
+| FND-001 | fixed | FR-049 frontmatter gains `requires ix://agent-ix/quire-rs/spec/functional/FR-057`, and the Dependencies Upstream list now leads with FR-057 (the severity registry AC-12 relies on). |

@@ -28,3 +28,12 @@ Author point (2), union-only fallback against Strict rejection: union-only is th
 ## Verdict
 
 FND-001 (medium) should be fixed before merge: a check that an assurance consumer relies on (spec-artifacts-process FR-015-AC-6) must not turn off silently because of a header typo. FND-002 is a judgement call; recording the owner is enough.
+
+## Dispositions
+
+Round 1 at d5d98b3d.
+
+| FND | Outcome | Reason |
+| --- | --- | --- |
+| FND-001 | fixed | A table with `column` but no `kind_column` still falls back to the union, and now also yields one warning-tier `kind-column-matches-nothing` per table, naming path and declaration and registrable as `trace:kind-column-matches-nothing`. FR-049-AC-18, TC-2247, its audit row and the FR-057 pack and tier tables carry it. A table with neither header yields none. |
+| FND-002 | fixed | FR-049 now says the check does not validate Kind values: the declaring module's own table grammar or lint rules own that, so a misspelt or multi-valued kind surfaces there. This is the named-owner option the finding offered. |

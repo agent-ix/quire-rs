@@ -96,9 +96,9 @@ kind checking silently. It is registrable as
 a `-` placeholder, an empty cell — extracts no id and yields no reference and
 no finding; whether a row must carry a target is not this check's concern.
 Each id of a multi-id cell is classified independently. Findings are ordered
-by document path, then row order, then position of the id in the cell; each id
-yields at most one finding, and `kind-column-matches-nothing` sorts at its
-table's position before that table's row findings.
+by the existing key extended with the reason — document path, id, reason,
+message — so a declaration without kind fields orders exactly as before; each
+id occurrence yields at most one finding.
 
 `reference-kind-mismatch` is posture-degradable exactly like
 `dangling-trace-reference`: an error under `Strict`, a warning under `Okf`, and
@@ -134,7 +134,7 @@ declaration's `targets`. A rejected declaration is never partially applied.
 | FR-049-AC-14 | A target cell that matches no pattern (`-`, empty) extracts no id and yields no reference and no finding, whatever the row's kind; a multi-id cell classifies each id independently and reports only the mismatched ones. | Test (TC-2243) |
 | FR-049-AC-15 | Module load rejects, naming the declaration and the field at fault and applying no part of it, each malformed kind declaration: `kind_column` without `kind_targets` or the reverse, an empty `kind_column`, `kind_column` equal to `column`, an empty map, an empty or duplicate kind key, an empty target list, and a listed target not in `targets`. | Test (TC-2244) |
 | FR-049-AC-16 | A declaration without `kind_column` and `kind_targets` behaves exactly as before: the engine contains no kind name, and a fixture module declaring different kind values and column names is resolved by its own declaration. | Test (TC-2245) |
-| FR-049-AC-17 | `reference-kind-mismatch` findings are deterministic: repeated validation of the same bundle yields the same findings, interleaved with `dangling-trace-reference` findings, in the order document path, row order, position of the id in the cell. | Test (TC-2245) |
+| FR-049-AC-17 | `reference-kind-mismatch` findings are deterministic: repeated validation of the same bundle yields the same findings, interleaved with `dangling-trace-reference` findings, in the order (path, id, reason, message). | Test (TC-2245) |
 
 > **CR-045 note (2026-08-15):** `validate_bundle` gains the same two-root
 > split `compute_coverage` has always had via its `root` parameter: a

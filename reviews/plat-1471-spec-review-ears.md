@@ -25,3 +25,11 @@ Ticket: PLAT-1471. Examined these statements: the optional-feature clause (`MAY 
 ## Verdict
 
 Conformant apart from one low modal fix. Confidence is low: other prose in this repo also mixes SHALL with the indicative.
+
+## Dispositions
+
+Round 1 at d5d98b3d.
+
+| FND | Outcome | Reason |
+| --- | --- | --- |
+| FND-001 | fixed | The rules now read "Kind matching SHALL trim the cell and compare ASCII case-insensitively", "SHALL be checked against the union only", and "SHALL likewise be checked against the union only, and the engine SHALL report ...". |
