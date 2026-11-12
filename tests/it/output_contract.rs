@@ -313,6 +313,7 @@ fn tc856_payload_carrying_every_optional_key_conforms() {
         // CR-187: coverage_matrix arrived additively too.
         "coverage_matrix": [{
             "document": "FR-001.md",
+            "criticality": "high",
             "criteria": [{
                 "id": "FR-001-AC-1",
                 "statement": "The system shall do it.",

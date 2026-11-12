@@ -666,6 +666,8 @@ pub(super) fn reconcile(
     let retired_obligations =
         retired_obligation_flags(spec, root, model, &obligations, &retired_loci);
     let matrix = coverage_matrix(
+        spec,
+        root,
         &obligations,
         &verifies,
         model,
@@ -803,6 +805,8 @@ fn scan_reference_rows(
 /// become a criterion, only a module's declared `obligations:` sources decide
 /// what counts.
 fn coverage_matrix(
+    spec: &Spec,
+    root: &Path,
     obligations: &[crate::obligation::Obligation],
     verifies: &[&VerifiesRelation],
     model: &TraceabilityModel,
@@ -911,6 +915,18 @@ fn coverage_matrix(
             .push(criterion);
     }
 
+    // FR-082: each document's frontmatter criticality, joined on the same
+    // scope-relative path the obligations carry.
+    let criticality_by_document: BTreeMap<String, _> = spec
+        .documents()
+        .iter()
+        .filter_map(|doc| {
+            Some((
+                declared_tables::relative_path(root, &doc.path),
+                super::document_criticality(doc)?,
+            ))
+        })
+        .collect();
     // FR-050-AC-48: requirements ordered by `document` — the same path every
     // other list on this report already sorts by. The `BTreeMap` sorts the
     // groups themselves; each group's own `Vec` keeps the push order above,
@@ -919,6 +935,7 @@ fn coverage_matrix(
     by_document
         .into_iter()
         .map(|(document, criteria)| CoverageMatrixRequirement {
+            criticality: criticality_by_document.get(document).cloned(),
             document: document.to_string(),
             criteria,
         })
