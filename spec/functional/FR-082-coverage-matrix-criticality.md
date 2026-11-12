@@ -14,6 +14,8 @@ relationships:
 ---
 # FR-082: Requirement-level criticality in the coverage matrix
 
+> **CR note (PLAT-1413, 2026-11-11):** A frontmatter `criticality` that is present with a null value is treated as absent: the entry carries no key.
+
 ## Description
 
 The trace lookup of [FR-077](./FR-077-trace-search-index.md) is keyed by trace id (often an
@@ -24,7 +26,7 @@ one entry per source document, each with its criteria. Criticality therefore liv
 This requirement extends each `requirements[]` entry with an optional `criticality` key. The
 engine reads the value from the document's frontmatter `criticality` field
 ([spec-artifacts-iso FR-008](ix://agent-ix/spec-artifacts-iso/FR-008)) and SHALL carry it as written.
-When the document has no such field, the engine SHALL leave the key absent. The engine writes no
+When the document has no such field, or the field is present with a null value (`criticality:` with no value, or `~`), the engine SHALL leave the key absent. The engine writes no
 label, default or placeholder for a missing value; the human-readable label `unassigned` belongs
 to the renderer ([quire-cli FR-028](ix://agent-ix/quire-cli/spec/functional/FR-028)).
 

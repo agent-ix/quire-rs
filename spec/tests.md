@@ -1184,6 +1184,12 @@ Reserved withdrawn IDs (not active test cases): TC-834, TC-842, TC-871, TC-1089,
 | TC-2183 | A comment naming `CR-215`, `PLAT-847` and a bare `AC-3` beside `FR-001-AC-1` and `TC-001` yields `trace-id-outside-marker` findings for the last two only, because only `FR` and `TC` are kinds the corpus mints (CR-215) | Integration | P0 | FR-051-AC-49 | ✅ |
 | TC-2184 | The same kind test applies to the report's `unmatched_tags` and to `SymbolGraph.mentions` after `retain_id_kinds`; a corpus that minted nothing declares no kind and filters nothing (CR-215) | Integration | P0 | FR-050-AC-39, FR-077-AC-2 | ✅ |
 | TC-2185 | A production Python or TypeScript function is never given a Rust `rust_attribute` replacement: the replacement text comes from an `implements` form of the symbol's own language, else the kind alone (CR-215) | Integration | P0 | FR-051-AC-22 | ✅ |
+| TC-2228 | A `requirements[]` entry carries its document's frontmatter `criticality` as written: `low`, `medium`, `high` each on their own entry, the literal `unassigned` present, `High` and the number `3` carried verbatim, and a document without the field has no key | Integration | P0 | FR-082-AC-1, FR-082-AC-2, FR-082-AC-3, FR-082-AC-4, FR-082-AC-6 | ✅ |
+| TC-2229 | A document with no `criticality` related to a `criticality: high` document by `traces_to`, `satisfies`, `implements` and `refines` has no key under any of them | Integration | P0 | FR-082-AC-5 | ✅ |
+| TC-2230 | A frontmatter `criticality: high` with no obligation criticality leaves the obligation records without one, and an obligation-row criticality with no frontmatter value leaves the entry without the key | Integration | P0 | FR-082-AC-7 | ✅ |
+| TC-2231 | Two runs over one corpus serialize identically, with and without the key, and every requirement file is byte-identical afterwards | Integration | P0 | FR-082-AC-8, FR-082-AC-9 | ✅ |
+| TC-2232 | A present-but-null frontmatter `criticality` yields no key, as an absent field does | Integration | P0 | FR-082-AC-2 | ✅ |
+| TC-2233 | The explicit-evidence path (`compute_with_evidence`) builds the same `requirements[]` entries: the frontmatter value is carried and a document without one has no key | Integration | P0 | FR-082-AC-1, FR-082-AC-2 | ✅ |
 | TC-2240 | Kind-typed declaration: an id inside the row's kind subset is clean; the same id on a row of another kind yields one `reference-kind-mismatch` carrying path, id, kind value, allowed target names and declaration; an id absent from the union yields `dangling-trace-reference` only (PLAT-1471) | Integration | P0 | FR-049-AC-10, FR-049-AC-11 | 🚧 Open |
 | TC-2241 | The mismatch is an error under `Strict` and a warning under `Okf` (PLAT-1471) | Integration | P0 | FR-049-AC-12 | 🚧 Open |
 | TC-2242 | Empty kind cell, unknown kind value and a table lacking the kind column are checked against the union only; kind values match after trim and case fold (PLAT-1471) | Integration | P0 | FR-049-AC-13 | 🚧 Open |
@@ -2385,6 +2391,15 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-081-AC-15 | TC-2180 |
 | FR-081-AC-16 | TC-2181 |
 | FR-081-AC-17 | TC-2182 |
+| FR-082-AC-1 | TC-2228, TC-2233 |
+| FR-082-AC-2 | TC-2228, TC-2232, TC-2233 |
+| FR-082-AC-3 | TC-2228 |
+| FR-082-AC-4 | TC-2228 |
+| FR-082-AC-5 | TC-2229 |
+| FR-082-AC-6 | TC-2228 |
+| FR-082-AC-7 | TC-2230 |
+| FR-082-AC-8 | TC-2231 |
+| FR-082-AC-9 | TC-2231 |
 | FR-081-CON-1 | TC-2167 |
 | FR-081-CON-2 | TC-2171 |
 | FR-078-CON-1 | Inspection — shared owner contract/dependency use; not performed |

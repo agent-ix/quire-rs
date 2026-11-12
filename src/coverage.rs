@@ -633,10 +633,25 @@ pub struct VocabularyValueRecord {
 pub struct CoverageMatrixRequirement {
     /// The obligation group's stating document, scope-relative.
     pub document: String,
+    /// The document's frontmatter `criticality`, exactly as written (FR-082).
+    /// Absent when the document states none; never defaulted, inferred or
+    /// validated here — the module schema owns the enumeration.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub criticality: Option<serde_json::Value>,
     /// Ordered exactly as `obligation::derive` already orders its output
     /// (declaration order, document path, row ordinal), restricted to this
     /// document.
     pub criteria: Vec<CoverageMatrixCriterion>,
+}
+
+/// A document's frontmatter `criticality`, verbatim whatever its type.
+///
+/// A missing or null key is `None`.
+fn document_criticality(doc: &crate::corpus::walk::LoadedDocument) -> Option<serde_json::Value> {
+    doc.frontmatter()?
+        .get("criticality")
+        .filter(|value| !value.is_null())
+        .cloned()
 }
 
 /// One derived obligation, as a `coverage_matrix` criterion (CR-187,
