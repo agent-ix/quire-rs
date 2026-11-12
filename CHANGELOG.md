@@ -7,6 +7,8 @@ bumps; once 1.0 ships, semver is strict.
 
 ## [Unreleased]
 
+## [0.58.0] — 2026-11-12
+
 ### Added
 
 - **Located engine findings, PLAT-1478:** every locator exposes the 1-based line
