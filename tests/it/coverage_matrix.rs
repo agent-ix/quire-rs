@@ -1846,6 +1846,11 @@ fn fr082_entries_carry_their_own_value_as_written_and_absent_when_missing() {
         "spec/FR-006.md",
         &criticality_doc("FR-006", "criticality: High\n", ""),
     );
+    write(
+        &root,
+        "spec/FR-007.md",
+        &criticality_doc("FR-007", "criticality: 3\n", ""),
+    );
     write(&root, "src/lib.rs", "//! fixture\n");
     let report = report_over(&root, "obligations");
 
@@ -1865,6 +1870,7 @@ fn fr082_entries_carry_their_own_value_as_written_and_absent_when_missing() {
     );
     // AC-6: out-of-enumeration values are carried verbatim.
     assert_eq!(entry(&report, "spec/FR-006.md")["criticality"], "High");
+    assert_eq!(entry(&report, "spec/FR-007.md")["criticality"], 3);
 
     let _ = fs::remove_dir_all(&root);
 }

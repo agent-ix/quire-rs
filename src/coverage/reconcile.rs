@@ -920,7 +920,7 @@ fn coverage_matrix(
     // groups themselves; each group's own `Vec` keeps the push order above,
     // which is `obligations`' own (declaration order, row ordinal) restricted
     // to that document.
-    let criticality_by_document: BTreeMap<String, String> = spec
+    let criticality_by_document: BTreeMap<String, _> = spec
         .documents()
         .iter()
         .filter_map(|doc| {
