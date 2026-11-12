@@ -47,7 +47,7 @@ either: the CLI already merges its entries over the module map and installs the 
 | `bundle` | `no-frontmatter`, `malformed-frontmatter`, `index-incomplete`, `index-okf-version` | FR-038 |
 | `refs` | `dangling-reference` | FR-026 |
 | `edges` | `disallowed-edge-target` | FR-040 |
-| `trace` | `dangling-trace-reference`, `archetype-matches-nothing` | FR-049 |
+| `trace` | `dangling-trace-reference`, `reference-kind-mismatch`, `kind-column-matches-nothing`, `archetype-matches-nothing` | FR-049 |
 
 The **`reason` token is unchanged** by this FR. It is the machine surface consumers already read
 (`quire validate` prints `… [dangling-reference]`); the pack is a prefix applied when forming the
@@ -65,13 +65,15 @@ declared tier **is its current behaviour**:
 |---|---|
 | `refs:dangling-reference` | posture-routed — error under `Strict`, warning under `Okf` |
 | `trace:dangling-trace-reference` | posture-routed |
+| `trace:reference-kind-mismatch` | posture-routed (FR-049-AC-12) |
 | `bundle:index-incomplete`, `bundle:index-okf-version` | posture-routed |
 | `bundle:no-frontmatter`, `bundle:malformed-frontmatter` | warning in both postures (CR-048) |
 | `edges:disallowed-edge-target` | warning in both postures (FR-040-AC-10) |
 | `trace:archetype-matches-nothing` | warning in both postures (CR-054) |
+| `trace:kind-column-matches-nothing` | warning in both postures (FR-049-AC-18) |
 
 A corpus check introduced **after** this FR SHALL declare `warning`, which restores FR-048-AC-4's
-rule for everything new and confines the exception to the enumerated list above.
+rule for everything new, with one exception this FR names: `trace:reference-kind-mismatch`, a kind-narrowed form of `dangling-trace-reference` that shares its posture routing.
 
 A configured key wins over the declared tier in both directions and in both postures: `error`
 promotes an `Okf` warning, `warning` demotes a `Strict` error, and `off` drops the finding
@@ -95,13 +97,14 @@ already guarantees is preserved (NFR-006).
 | FR-057-AC-1 | Validating a bundle on disk under `Okf` with a registry mapping `refs:dangling-reference` to `error` puts the dangling-reference finding in `errors` and makes `is_valid()` false, where the same bundle with no mapping reports it as a warning. | Test (TC-883) |
 | FR-057-AC-2 | The same key mapped `warning` under `Strict` demotes a finding that is a hard error by default, and `is_valid()` becomes true — the promotion lever works in both directions. | Test (TC-883) |
 | FR-057-AC-3 | A check mapped `off` records no finding in `errors` and none in `warnings`, in either posture. | Test (TC-883) |
-| FR-057-AC-4 | With no entry for its key, every check in the pack table keeps the exact tier it had before this FR — posture-routed for the four posture-routed checks, warning-in-both-postures for the three that are fixed — verified per check rather than in aggregate. | Test (TC-884) |
+| FR-057-AC-4 | With no entry for its key, every check in the pack table keeps the exact tier it had before this FR — for the checks that existed before this FR: posture-routed for the four posture-routed checks, warning-in-both-postures for the three that are fixed — verified per check rather than in aggregate; checks added after this FR are covered by their own criteria (FR-057-AC-11). | Test (TC-884) |
 | FR-057-AC-5 | Overrides layered through `Registry::with_grammar_severity` (the path `quire validate --severity` takes, FR-048-AC-5) apply to corpus checks, and a CLI-shaped entry wins over a conflicting module-declared entry for the same key. | Test (TC-885) |
 | FR-057-AC-6 | Mapping one check `off` leaves its siblings reporting: with `refs:dangling-reference=off`, a bundle that also has a dangling **trace** reference still reports `trace:dangling-trace-reference`. | Test (TC-889) |
 | FR-057-AC-7 | Every `BundleFinding` carries the severity that was applied, so a surface renders the configured level rather than inferring it from which vector the finding landed in. | Test (TC-886) |
 | FR-057-AC-8 | The `reason` token of every check listed in the pack table is byte-identical to its pre-FR value, so a consumer matching on the machine surface is unaffected. | Test (TC-886) |
 | FR-057-AC-9 | Every corpus finding routed through the pack surface carries a well-formed `<pack>:<check>` key accepted by `is_severity_key`, so a pack cannot ship unregistrable — asserted over the packs the engine emits, not a hardcoded list. | Test (TC-886) |
 | FR-057-AC-10 | Findings appear in the same order with and without a severity map, and repeated runs over one bundle are identical (NFR-006). | Test (TC-887) |
+| FR-057-AC-11 | `trace:reference-kind-mismatch` follows the same registry rules as `trace:dangling-trace-reference`: unconfigured it is an error under `Strict` and a warning under `Okf`; `error`, `warning` and `off` override it in both postures without affecting the sibling `trace:dangling-trace-reference` count. | Test (TC-2246) |
 
 ## Constraints
 
