@@ -33,7 +33,8 @@ false.
 Clause text is loadable only when the file declares it original or explicitly
 cleared. Explicit clearance carries a review reference. A citation-only or
 structure-only module can keep titles, identifiers, and official links while
-omitting clause text.
+omitting clause text. A citation-only set that does carry clause text is loadable but
+restricted, and is refused for publication under [FR-083](./FR-083-clause-set-publishability.md).
 
 ## Acceptance Criteria
 

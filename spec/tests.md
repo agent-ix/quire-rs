@@ -114,6 +114,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | FR-075 Model feature extraction | AC-1..30; CON-1..2 | TC-1840..TC-1847, TC-1849, TC-1869, TC-1870, TC-1872..TC-1875, TC-1948..TC-1951, TC-1953, TC-1993..TC-1998, TC-2040, TC-2043 | ✅ AC-1..15, AC-19, AC-22..30 Implemented; AC-16..18, AC-20, AC-21 🚧 |
 | FR-076 Relationships extraction to RelationDecl[] | AC-1..23; CON-1..4 | TC-1852..TC-1868, TC-1999..TC-2004, TC-2150, TC-2152 | ✅ Implemented |
 | FR-077 Trace search index (structural forward/inverse lookup) | AC-1..7; CON-1..3 | TC-1887..TC-1894, TC-2062 | ✅ Implemented |
+| FR-083 Clause-set manifest declaration and publishability check | AC-1..8 | TC-2313..TC-2316 | 🚧 Pending implementation |
 | FR-078 Qualified retained evidence | AC-1..20; CON-1..4 | TC-1963..TC-1982 | 🚧 Planned — spec-first, no execution claim |
 
 ### Integration Requirement Coverage
@@ -1213,6 +1214,10 @@ Reserved withdrawn IDs (not active test cases): TC-834, TC-842, TC-871, TC-1089,
 | TC-2231 | Two runs over one corpus serialize identically, with and without the key, and every requirement file is byte-identical afterwards | Integration | P0 | FR-082-AC-8, FR-082-AC-9 | ✅ |
 | TC-2232 | A present-but-null frontmatter `criticality` yields no key, as an absent field does | Integration | P0 | FR-082-AC-2 | ✅ |
 | TC-2233 | The explicit-evidence path (`compute_with_evidence`) builds the same `requirements[]` entries: the frontmatter value is carried and a document without one has no key | Integration | P0 | FR-082-AC-1, FR-082-AC-2 | ✅ |
+| TC-2313 | The manifest schema accepts a list of path strings for `clause_sets` and rejects a non-list; a clause-set file without `rights` fails load naming the file | Integration | P0 | FR-083-AC-1, FR-083-AC-2 | 🚧 |
+| TC-2314 | `check_publishable` is empty for `text: none`, `original` and cleared-with-reference synthetic sets, and for a module with no `clause_sets` | Unit | P0 | FR-083-AC-3, FR-083-AC-8 | 🚧 |
+| TC-2315 | A synthetic `citation_only` set with clause text loads, passes `ClauseSet::validate`, and is returned with authority, id, version, path and text-clause count; `citation_only` with `text: none` is not returned | Unit | P0 | FR-083-AC-4, FR-083-AC-5 | 🚧 |
+| TC-2316 | Mixed module returns exactly the restricted sets in stable order across two runs, and no result field or `Debug` output contains the fixture's text sentinel | Unit | P0 | FR-083-AC-6, FR-083-AC-7 | 🚧 |
 | TC-2240 | Kind-typed declaration: an id inside the row's kind subset is clean; the same id on a row of another kind yields one `reference-kind-mismatch` carrying path, id, kind value, allowed target names and declaration; an id absent from the union yields `dangling-trace-reference` only (PLAT-1471) | Integration | P0 | FR-049-AC-10, FR-049-AC-11 | ✅ |
 | TC-2241 | The mismatch is an error under `Strict` and a warning under `Okf` (PLAT-1471) | Integration | P0 | FR-049-AC-12 | ✅ |
 | TC-2242 | Empty kind cell, unknown kind value and a table lacking the kind column are checked against the union only; kind values match after trim and case fold (PLAT-1471) | Integration | P0 | FR-049-AC-13 | ✅ |
@@ -2447,6 +2452,14 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-082-AC-7 | TC-2230 |
 | FR-082-AC-8 | TC-2231 |
 | FR-082-AC-9 | TC-2231 |
+| FR-083-AC-1 | TC-2313 |
+| FR-083-AC-2 | TC-2313 |
+| FR-083-AC-3 | TC-2314 |
+| FR-083-AC-4 | TC-2315 |
+| FR-083-AC-5 | TC-2315 |
+| FR-083-AC-6 | TC-2316 |
+| FR-083-AC-7 | TC-2316 |
+| FR-083-AC-8 | TC-2314 |
 | FR-081-CON-1 | TC-2167 |
 | FR-081-CON-2 | TC-2171 |
 | FR-078-CON-1 | Inspection — shared owner contract/dependency use; not performed |
