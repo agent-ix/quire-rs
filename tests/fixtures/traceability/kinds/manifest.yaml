@@ -1,0 +1,37 @@
+# Kind-typed reference fixture (FR-049-AC-10..18). Names nothing the engine
+# knows: archetypes Left/Right/Link, kind column `Class`, kinds `north`/`south`.
+name: traceability-kinds
+version: 0.1.0
+description: Kind-typed document reference fixture
+artifact_types:
+- name: Left
+  defaults:
+    id_pattern: LD-{next:03d}
+- name: Right
+  defaults:
+    id_pattern: RD-{next:03d}
+- name: Link
+  defaults:
+    id_pattern: LK-{next:03d}
+traceability:
+  trace_targets:
+  - name: lefty
+    archetype: Left
+    section: Items
+    id_column: Item
+  - name: righty
+    archetype: Right
+    section: Items
+    id_column: Item
+  document_references:
+  - name: links
+    archetype: Link
+    section: Links
+    column: Target
+    row_id_column: Link
+    pattern: '\b([LR]-\d+)\b'
+    targets: [lefty, righty]
+    kind_column: Class
+    kind_targets:
+      north: [lefty]
+      south: [righty]

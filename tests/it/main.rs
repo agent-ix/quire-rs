@@ -60,6 +60,7 @@ mod semantic_systems;
 mod shell_symbols;
 mod spec_dogfood;
 mod trace_dogfood;
+mod trace_reference_kinds;
 mod trace_references;
 mod trace_target_sources;
 mod verification_catalog;
