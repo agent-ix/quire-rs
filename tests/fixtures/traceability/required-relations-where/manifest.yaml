@@ -1,0 +1,36 @@
+# FR-058-AC-12..22 fixture: a required relation narrowed by a `where` selector.
+# The field, the values, the kinds and the verb are all manifest data.
+name: traceability-required-relations-where
+version: 0.1.0
+description: Required relations with a where selector (quire-rs FR-058)
+archetypes:
+- kind: NFR
+  name: NFR
+  frontmatter_schema_ref: schemas/nfr.schema.json
+- kind: Threat
+  name: Threat
+  frontmatter_schema_ref: schemas/threat.schema.json
+traceability:
+  required_relations:
+  - name: classified-nfr-needs-threat
+    from: NFR
+    where: { field: quality_attribute, values: [security, safety] }
+    edges: [mitigates]
+    to: [Threat]
+    direction: outgoing
+    check: unjustified-classified-nfr
+  - name: security-nfr-is-targeted
+    from: NFR
+    where: { field: quality_attribute, values: [security] }
+    edges: [mitigated_by]
+    to: [Threat]
+    direction: incoming
+    check: untargeted-security-nfr
+  - name: reliability-nfr-needs-threat
+    from: NFR
+    where: { field: quality_attribute, values: [reliability] }
+    edges: [mitigates]
+    to: [Threat]
+    direction: outgoing
+    check: reliability-nfr-orphan
+    exclude: ["legacy/**"]

@@ -485,7 +485,7 @@ pub struct VocabularyCoverage {
 /// are the same declaration read in opposite directions, so they are one type
 /// with a [`direction`](Self::direction) rather than two checks.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
+#[serde(try_from = "RawRequiredRelation")]
 pub struct RequiredRelation {
     /// Declaration name, used in the finding and in diagnostics.
     pub name: String,
@@ -510,6 +510,145 @@ pub struct RequiredRelation {
     /// relation — the same opt-out [`TraceTarget`] has (CR-038).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub exclude: Vec<String>,
+    /// Optional `where: {field, values}` narrowing the obligation to `from`
+    /// documents whose top-level frontmatter `field` holds one of `values`
+    /// (FR-058-AC-12..22). Validated once, when the declaration is
+    /// deserialized, so a malformed one never reaches the check.
+    #[serde(rename = "where", skip_serializing_if = "Option::is_none")]
+    pub selector: Option<WhereSelector>,
+}
+
+/// The authored shape of a [`RequiredRelation`], before the `where` is
+/// validated. Exists so a malformed `where` is rejected naming the relation.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RawRequiredRelation {
+    name: String,
+    from: String,
+    edges: Vec<String>,
+    #[serde(default)]
+    to: Vec<String>,
+    direction: RelationDirection,
+    check: String,
+    #[serde(default)]
+    exclude: Vec<String>,
+    /// `where: null` stays `Some(Null)` so it is rejected, not read as absent.
+    #[serde(default, rename = "where", deserialize_with = "deserialize_present")]
+    selector: Option<serde_json::Value>,
+}
+
+impl TryFrom<RawRequiredRelation> for RequiredRelation {
+    type Error = String;
+
+    fn try_from(raw: RawRequiredRelation) -> Result<Self, String> {
+        let selector = raw
+            .selector
+            .as_ref()
+            .map(|value| WhereSelector::parse(&raw.name, value))
+            .transpose()?;
+        Ok(Self {
+            name: raw.name,
+            from: raw.from,
+            edges: raw.edges,
+            to: raw.to,
+            direction: raw.direction,
+            check: raw.check,
+            exclude: raw.exclude,
+            selector,
+        })
+    }
+}
+
+/// Keeps an authored `where: null` as `Some(Null)` so validation rejects it,
+/// instead of serde folding it into "absent".
+fn deserialize_present<'de, D>(d: D) -> Result<Option<serde_json::Value>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    serde_json::Value::deserialize(d).map(Some)
+}
+
+/// A validated `where` selector (FR-058).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct WhereSelector {
+    field: String,
+    values: Vec<String>,
+    /// `values` in comparison form, folded once at parse time.
+    #[serde(skip)]
+    folded: BTreeSet<String>,
+}
+
+/// The FR-058-AC-14 comparison form: trimmed and ASCII case folded.
+pub(crate) fn fold_selector_value(value: &str) -> String {
+    value.trim().to_ascii_lowercase()
+}
+
+impl WhereSelector {
+    /// Top-level frontmatter key read from each `from` document.
+    #[must_use]
+    pub fn field(&self) -> &str {
+        &self.field
+    }
+
+    /// Accepted values, as authored.
+    #[must_use]
+    pub fn values(&self) -> &[String] {
+        &self.values
+    }
+
+    /// Parse and validate an authored `where`, naming `relation` on failure.
+    fn parse(relation: &str, raw: &serde_json::Value) -> Result<Self, String> {
+        let bad = |why: &str| {
+            format!(
+                "traceability: required_relations entry '{relation}' has an invalid `where`: {why}"
+            )
+        };
+        let map = raw
+            .as_object()
+            .ok_or_else(|| bad("it must be a mapping of `field` and `values`"))?;
+        if let Some(key) = map.keys().find(|k| *k != "field" && *k != "values") {
+            return Err(bad(&format!("unknown key '{key}'")));
+        }
+        let field = match map.get("field") {
+            Some(serde_json::Value::String(f)) if !f.trim().is_empty() => f.clone(),
+            Some(_) => return Err(bad("`field` must be a non-blank string")),
+            None => return Err(bad("`field` is missing")),
+        };
+        let items = match map.get("values") {
+            Some(serde_json::Value::Array(items)) if !items.is_empty() => items,
+            Some(serde_json::Value::Array(_)) => return Err(bad("`values` is empty")),
+            Some(_) => return Err(bad("`values` must be a list")),
+            None => return Err(bad("`values` is missing")),
+        };
+        let mut folded: BTreeSet<String> = BTreeSet::new();
+        let mut values = Vec::with_capacity(items.len());
+        for item in items {
+            let Some(text) = item.as_str().filter(|t| !t.trim().is_empty()) else {
+                return Err(bad("`values` entries must be non-blank strings"));
+            };
+            if !folded.insert(fold_selector_value(text)) {
+                return Err(bad(&format!(
+                    "`values` entry '{text}' duplicates another after trimming and ASCII case folding"
+                )));
+            }
+            values.push(text.to_string());
+        }
+        Ok(Self {
+            field,
+            values,
+            folded,
+        })
+    }
+
+    /// Whether a document's frontmatter value is selected (FR-058-AC-13/14):
+    /// only a string equal to an entry after trim and ASCII case fold.
+    #[must_use]
+    pub fn selects(&self, value: &serde_json::Value) -> bool {
+        let Some(text) = value.as_str() else {
+            return false;
+        };
+        self.folded.contains(&fold_selector_value(text))
+    }
 }
 
 /// Which way a [`RequiredRelation`]'s edge must point.
@@ -2204,6 +2343,30 @@ trace_tags:
             StatusClass::Unknown
         );
         assert_eq!(m.trace_tags.markers[0].language, SourceLanguage::Rust);
+    }
+
+    #[trace("TC-2254", "FR-058-AC-19")]
+    #[test]
+    fn where_serializes_as_authored_and_round_trips() {
+        let yaml = "required_relations:\n- name: r\n  from: NFR\n  edges: [mitigates]\n  direction: outgoing\n  check: c\n  where: { field: quality_attribute, values: [\" Security \", Safety] }\n- name: plain\n  from: NFR\n  edges: [mitigates]\n  direction: outgoing\n  check: c2\n";
+        let m = model(yaml);
+        let json = serde_json::to_value(&m).expect("serialize");
+        assert_eq!(
+            json["required_relations"][0]["where"],
+            serde_json::json!({"field": "quality_attribute", "values": [" Security ", "Safety"]}),
+            "authored shape; the folded set is not written"
+        );
+        assert!(json["required_relations"][1].get("where").is_none());
+        assert_eq!(
+            serde_json::from_value::<TraceabilityModel>(json).unwrap(),
+            m
+        );
+        let encoded = serde_yaml::to_string(&m).expect("serialize");
+        assert!(!encoded.contains("folded"), "{encoded}");
+        assert_eq!(
+            serde_yaml::from_str::<TraceabilityModel>(&encoded).unwrap(),
+            m
+        );
     }
 
     #[trace("TC-1804", "FR-050-AC-45")]

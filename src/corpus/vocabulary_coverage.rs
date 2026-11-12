@@ -101,7 +101,7 @@ fn declared_values(registry: &Registry, coverage: &VocabularyCoverage) -> Option
 /// the **shallowest** match wins, then the alphabetically-first key —
 /// `serde_json`'s `Map` is a sorted-key `BTreeMap`, so the walk is stable
 /// across runs (NFR-006) rather than merely happening to be.
-fn enum_at(schema: &Value, field: &str) -> Option<Vec<String>> {
+pub(super) fn enum_at(schema: &Value, field: &str) -> Option<Vec<String>> {
     let mut queue: VecDeque<&Value> = VecDeque::new();
     queue.push_back(schema);
     while let Some(node) = queue.pop_front() {
@@ -127,6 +127,28 @@ fn enum_at(schema: &Value, field: &str) -> Option<Vec<String>> {
         }
     }
     None
+}
+
+/// Whether `field` is a property anywhere in the schema, searched like
+/// [`enum_at`] so a wrapped schema (`allOf`, `$defs`, `oneOf`) is understood.
+pub(super) fn declares_property(schema: &Value, field: &str) -> bool {
+    let mut queue: VecDeque<&Value> = VecDeque::new();
+    queue.push_back(schema);
+    while let Some(node) = queue.pop_front() {
+        if node
+            .get("properties")
+            .and_then(Value::as_object)
+            .is_some_and(|p| p.contains_key(field))
+        {
+            return true;
+        }
+        match node {
+            Value::Object(map) => queue.extend(map.values()),
+            Value::Array(items) => queue.extend(items.iter()),
+            _ => {}
+        }
+    }
+    false
 }
 
 /// One declaration's classification: every claimed and every excused value,
