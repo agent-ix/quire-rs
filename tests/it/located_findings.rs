@@ -961,7 +961,6 @@ fn tc2323_other_object_keys_authored_null_are_refused_not_read_as_absent() {
         "defaults",
         "allowed_links",
         "roles",
-        "construct",
     ] {
         let expected = format!("semantic.invalid-value: artifact_types[Bad].{key}:");
         for (name, semantic) in [("with semantic", GOOD_SEMANTIC), ("without", "")] {

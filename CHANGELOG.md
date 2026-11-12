@@ -18,7 +18,7 @@ bumps; once 1.0 ships, semver is strict.
   declared section, not only the first, so findings for later tables are no
   longer silently dropped; tables inside fenced code blocks are not read. The
   FR-050 rollup, minting and obligations keep reading the first table
-  (FR-049-AC-23..28).
+  (FR-049-AC-23..28; follow-up PLAT-1500).
 
 ## [0.59.0] — 2026-11-12
 

@@ -494,8 +494,10 @@ pub struct Archetype {
 
 /// The archetype keys whose authoritative schema type is an object (or, for
 /// `frontmatter_schema_ref`, a string), so an authored `null` is a mistake and
-/// not "absent".
-const NULL_REFUSED_KEYS: [&str; 9] = [
+/// not "absent". `construct` is deliberately not listed: FR-031-AC-7 carries it
+/// raw (a `construct: null` is returned as `Some(Null)`), and the construct
+/// declaration is owned downstream.
+const NULL_REFUSED_KEYS: [&str; 8] = [
     "data_schema",
     "body_extraction",
     "frontmatter_schema_ref",
@@ -504,7 +506,6 @@ const NULL_REFUSED_KEYS: [&str; 9] = [
     "defaults",
     "allowed_links",
     "roles",
-    "construct",
 ];
 
 impl Archetype {

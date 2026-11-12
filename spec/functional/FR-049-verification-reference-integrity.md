@@ -146,7 +146,7 @@ that are minted and the obligations that are derived. Consequently an id that
 appears only in a later table is never minted: a reference to it dangles, and a
 row of a later table adds no `unbacked_rows` entry. This asymmetry is stated
 rather than hidden; reading every table for minting and obligations is a
-separate requirement.
+separate requirement, tracked as PLAT-1500.
 
 ### Located findings (PLAT-1476)
 
@@ -193,7 +193,7 @@ without such repeats orders as before.
 | FR-049-AC-24 | Each finding from a later table carries the 1-based document line of its own row (frontmatter lines counted), not that of the first table or the heading, and a bundle whose rows sit in one table, with or without an unrelated further table, reports exactly the findings and lines it reported with the first table alone (a single dangling row and a single kind-mismatch row yield those two findings at their own lines). | Test (TC-2320) |
 | FR-049-AC-25 | The `column` and `kind_column` headers are matched per table: a second table with the `column` header and no `kind_column` header yields one `kind-column-matches-nothing` finding for that table only, a second table with neither header yields no finding and contributes no rows, and a first table with both headers is unaffected. | Test (TC-2321) |
 | FR-049-AC-26 | The FR-050 rollup reads the first table of a declared section only: a row of a second table adds no `unbacked_rows` entry and no status-column finding (a legend grid raises none), while the same row in the first table does. | Test (TC-2322) |
-| FR-049-AC-27 | A table inside a fenced code block under a declared section, after the real table or alone, yields no row and no finding, and the real table is unaffected. | Test (TC-2325) |
+| FR-049-AC-27 | A table inside a fenced code block (CommonMark rules: a fence closes only with the same character and at least the opening length, and a backtick fence's info string holds no backtick) under a declared section, after the real table or alone, yields no row and no finding, and the real table is unaffected. | Test (TC-2325) |
 | FR-049-AC-28 | An id that appears only in a second table of a trace target's section is not minted: a reference to it from a declared cell yields `dangling-trace-reference`. | Test (TC-2326) |
 | FR-049-AC-14 | A target cell that matches no pattern (`-`, empty) extracts no id and yields no reference and no finding, whatever the row's kind; a multi-id cell classifies each id independently and reports only the mismatched ones. | Test (TC-2243) |
 | FR-049-AC-15 | Module load rejects, naming the declaration and the field at fault and applying no part of it, each malformed kind declaration: `kind_column` without `kind_targets` or the reverse, an empty `kind_column`, `kind_column` equal to `column`, an empty map, an empty or duplicate kind key, an empty target list, and a listed target not in `targets`. | Test (TC-2244) |
