@@ -790,3 +790,103 @@ fn authority_comparison_folds_ascii_case() {
 
     fs::remove_dir_all(&root).ok();
 }
+
+/// A dangling relationship edge is located at the source document's loaded
+/// path and names the edge type and the missing target; a duplicate-id second
+/// document's broken edge is reported once, at the first document's path.
+#[trace("TC-2227", "FR-038-AC-11")]
+#[test]
+fn dangling_edge_is_located_at_source_document_path() {
+    let root = tmpdir("2227");
+    write(
+        &root,
+        "a.md",
+        "---\nid: A-1\ntype: note\nrelationships:\n- target: HZ-9\n  type: mitigates\n---\n# A-1\nbody\n",
+    );
+    write(&root, "b.md", &note("B-1", "body"));
+    let report = validate_bundle_at(&root, &bundle_registry(), BundlePosture::Strict);
+    let found: Vec<_> = report
+        .errors
+        .iter()
+        .filter(|f| f.reason == "dangling-reference")
+        .collect();
+    assert_eq!(found.len(), 1, "{:?}", report.errors);
+    assert!(found[0].path.ends_with("a.md"), "{:?}", found[0].path);
+    assert!(found[0].path.starts_with(&root), "{:?}", found[0].path);
+    assert!(
+        found[0].message.contains("mitigates"),
+        "{}",
+        found[0].message
+    );
+    assert!(found[0].message.contains("HZ-9"), "{}", found[0].message);
+
+    write(
+        &root,
+        "z.md",
+        "---\nid: A-1\ntype: note\nrelationships:\n- target: HZ-9\n  type: mitigates\n---\n# A-1\nbody\n",
+    );
+    let report = validate_bundle_at(&root, &bundle_registry(), BundlePosture::Okf);
+    let found: Vec<_> = report
+        .warnings
+        .iter()
+        .filter(|f| f.reason == "dangling-reference")
+        .collect();
+    assert_eq!(found.len(), 1, "{:?}", report.warnings);
+    assert!(found[0].path.ends_with("a.md"), "{:?}", found[0].path);
+
+    // FR-057 changes only the tier: path and message are unchanged.
+    let baseline = found[0].clone();
+    let promoted = validate_bundle_at(
+        &root,
+        &severity_registry(&[("refs:dangling-reference", GrammarSeverityLevel::Error)]),
+        BundlePosture::Okf,
+    );
+    let moved: Vec<_> = promoted
+        .errors
+        .iter()
+        .filter(|f| f.reason == "dangling-reference")
+        .collect();
+    assert_eq!(moved.len(), 1);
+    assert_eq!(
+        (&moved[0].path, &moved[0].message),
+        (&baseline.path, &baseline.message)
+    );
+    let demoted = validate_bundle_at(
+        &root,
+        &severity_registry(&[("refs:dangling-reference", GrammarSeverityLevel::Warning)]),
+        BundlePosture::Strict,
+    );
+    let moved: Vec<_> = demoted
+        .warnings
+        .iter()
+        .filter(|f| f.reason == "dangling-reference")
+        .collect();
+    assert_eq!(moved.len(), 1);
+    assert_eq!(
+        (&moved[0].path, &moved[0].message),
+        (&baseline.path, &baseline.message)
+    );
+    let off = validate_bundle_at(
+        &root,
+        &severity_registry(&[("refs:dangling-reference", GrammarSeverityLevel::Off)]),
+        BundlePosture::Strict,
+    );
+    assert_eq!(
+        count(&off.errors, "dangling-reference") + count(&off.warnings, "dangling-reference"),
+        0
+    );
+
+    // A dangling relative-path link has no target id: the message names the
+    // raw destination, and the finding sits at the linking document.
+    write(&root, "c.md", &note("C-1", "see [gone](./gone.md)"));
+    let report = validate_bundle_at(&root, &bundle_registry(), BundlePosture::Strict);
+    let rel: Vec<_> = report
+        .errors
+        .iter()
+        .filter(|f| f.reason == "dangling-reference" && f.path.ends_with("c.md"))
+        .collect();
+    assert_eq!(rel.len(), 1, "{:?}", report.errors);
+    assert!(rel[0].message.contains("./gone.md"), "{}", rel[0].message);
+
+    fs::remove_dir_all(&root).ok();
+}

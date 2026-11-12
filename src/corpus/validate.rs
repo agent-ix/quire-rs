@@ -329,7 +329,13 @@ pub fn validate_bundle(
                 BundleFinding::in_pack(
                     pack::REFS,
                     "dangling-reference",
-                    PathBuf::from(&edge.source),
+                    // The edge source is a loaded document's artifact key, so it
+                    // is always indexed; the finding sits at that document's
+                    // path (first occurrence on a duplicate id, FR-025-AC-3).
+                    spec.by_id(&edge.source)
+                        .expect("edge source is a loaded document")
+                        .path
+                        .clone(),
                     format!(
                         "dangling reference '{}' (edge '{}') has no target in the bundle",
                         edge.target, edge.edge_type
