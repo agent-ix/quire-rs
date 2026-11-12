@@ -337,8 +337,8 @@ pub struct Manifest {
     pub archetypes: Vec<Archetype>,
     /// Rights-aware clause-set files, resolved relative to the module root.
     /// The files are data; no domain vocabulary is compiled into the engine.
-    #[serde(default)]
-    pub clause_sets: Vec<PathBuf>,
+    #[serde(default, deserialize_with = "clause_set_paths")]
+    pub clause_sets: Vec<String>,
     /// Declarative advisory lint rules (FR-036). Previously this key
     /// was inert; it is now typed — a malformed rule fails manifest
     /// parse like any other shape error.
@@ -601,6 +601,26 @@ pub fn parse_manifest(bytes: &[u8]) -> Result<Manifest, String> {
         profile.validate(id)?;
     }
     Ok(manifest)
+}
+
+/// Deserialize `clause_sets` as a list of strings (FR-083-AC-1). YAML
+/// stringifies a bare scalar entry (`- 1`) instead of failing, so each entry is
+/// checked to be a string node.
+fn clause_set_paths<'de, D>(deserializer: D) -> Result<Vec<String>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    use serde::de::Error;
+    let items = Vec::<serde_yaml::Value>::deserialize(deserializer)?;
+    items
+        .into_iter()
+        .map(|item| match item {
+            serde_yaml::Value::String(path) => Ok(path),
+            other => Err(D::Error::custom(format!(
+                "clause_sets entries must be path strings, found {other:?}"
+            ))),
+        })
+        .collect()
 }
 
 /// Reject a malformed `grammar_severity` key (FR-048-AC-8). The level side is

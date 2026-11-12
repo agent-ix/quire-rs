@@ -57,9 +57,9 @@ pub use assurance::{
 };
 pub use ast::{QuireDocument, QuireSection};
 pub use clauses::{
-    diff_clause_sets, ApplicabilityExpr, BindingOutcome, Clause, ClauseBinding,
+    check_publishable, diff_clause_sets, ApplicabilityExpr, BindingOutcome, Clause, ClauseBinding,
     ClauseBindingReport, ClauseForce, ClauseRef, ClauseSet, ClauseSetDiff, ClauseSetError,
-    ClauseSetKey, Crosswalk, CrosswalkRelation,
+    ClauseSetKey, Crosswalk, CrosswalkRelation, RestrictedClauseSet,
 };
 pub use parser::{
     extract_frontmatter, parse_body, parse_document, parse_header, FrontmatterResult,
