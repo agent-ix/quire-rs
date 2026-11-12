@@ -45,9 +45,9 @@ the same JSON output for the same inputs.
 
 | ID | Criteria | Verification |
 |----|----------|--------------|
-| NFR-020-AC-1 | Static inspection finds no PGlite, Electron, HTTP/auth, CloudManager sync, workspace watcher, or embedding dependencies in the extraction module or bindings. | Inspection (TC-690) |
-| NFR-020-AC-2 | A deterministic fixture suite runs the same extraction input repeatedly and observes identical output ordering and record ids. | Test (TC-685) |
-| NFR-020-AC-3 | Binding parity fixtures compare Python and WASM output as JSON values, not stringified subprocess payloads. | Test (TC-686) |
+| NFR-020-AC-1 | Static inspection finds no PGlite, Electron, HTTP/auth, CloudManager sync, workspace watcher, or embedding dependencies in the extraction module or bindings. | Inspection |
+| NFR-020-AC-2 | A deterministic fixture suite runs the same extraction input repeatedly and observes identical output ordering and record ids. | Test |
+| NFR-020-AC-3 | Binding parity fixtures compare Python and WASM output as JSON values, not stringified subprocess payloads. | Test |
 
 ## Dependencies
 

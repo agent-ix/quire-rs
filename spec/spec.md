@@ -265,7 +265,7 @@ context mode is removed.
 |---|---|
 | **[FR-013](./functional/FR-013-archetype-loader.md)** Archetype loader | Schema-only; no template parse/register; `template_ref` not read |
 | **[FR-031](./functional/FR-031-unified-archetype-shape.md)** Unified archetype shape | Drops `template_ref` + `is_renderable()`; `template_ref` is a hard-rejected deprecated field. AC-1/AC-2 recast to validate/extract |
-| **FR-021** Block edit (no FR doc — tests.md only) | Render-and-splice retired; block edit = byte-splice `update_block` (FR-022) |
+| **FR-021** Block edit (no FR doc) | Render-and-splice retired; block edit = byte-splice `update_block` (FR-022) |
 | **[FR-023](./functional/FR-023-python-binding-surface.md) / [FR-028](./functional/FR-028-expanded-python-binding-surface.md)** Python bindings | Drop `render`/`render_by_name`/`render_block` + `QuireRenderError`; keep validate/validate_document/extract/parse/load_repo/harvest_edges |
 | **[NFR-006](./non-functional/NFR-006-determinism.md)** Determinism | Names `parse_document`/`validate_document`/`extract` (render determinism retired) |
 | **Task 014** Perf gates | parse/validate/extract/load only; render bench dropped |
@@ -406,8 +406,6 @@ spec/
 ├── functional/            # System / functional requirements (FR-XXX)
 ├── non-functional/        # Non-functional requirements (NFR-XXX)
 ├── integration/           # Cross-system verification artifacts (IT-XXX)
-├── tests.md               # Bidirectional requirements ↔ tests mapping
-├── test_cases/            # Verification artifacts (TC-XXX)
 └── assets/
     ├── diagrams/          # Sequence and architecture diagrams
     └── models/            # Reference AST shapes, schema models
@@ -685,7 +683,7 @@ Bidirectional traceability SHALL be maintained between:
 - Functional Requirements → Acceptance Criteria
 - Acceptance Criteria → Test Cases
 
-Traceability is recorded in `tests.md` (produced via `/spec-matrix`).
+Traceability is computed by `quire matrix` from `#[trace("<criterion-id>")]` markers on tests; no hand-kept matrix file exists.
 
 ---
 

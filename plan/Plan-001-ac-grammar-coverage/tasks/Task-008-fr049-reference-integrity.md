@@ -10,22 +10,6 @@ relationships:
     type: depends_on
   - target: ix://agent-ix/quire-rs/FR-049
     type: references
-  - target: ix://agent-ix/quire-rs/TC-724
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-725
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-726
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-727
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-728
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-729
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-730
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-731
-    type: verifies
 ---
 # Task-008: FR-049 — verification-reference integrity in `validate_bundle`
 

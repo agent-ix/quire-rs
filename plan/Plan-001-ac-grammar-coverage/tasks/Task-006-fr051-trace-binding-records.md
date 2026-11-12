@@ -12,20 +12,6 @@ relationships:
     type: depends_on
   - target: ix://agent-ix/quire-rs/FR-051
     type: references
-  - target: ix://agent-ix/quire-rs/TC-744
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-745
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-746
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-747
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-748
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-750
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-753
-    type: verifies
 ---
 # Task-006: FR-051 — trace binding (markers + legacy) and FR-045 records
 

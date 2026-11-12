@@ -79,17 +79,17 @@ Every check SHALL run independently. Every finding SHALL carry
 
 | ID | Criteria | Verification |
 |----|----------|--------------|
-| FR-074-AC-1 | The reader view excludes valid frontmatter, fenced code, indented code, inline code and HTML comments while preserving visible prose with 1-based document lines. | Test (TC-970) |
-| FR-074-AC-2 | Nested list items, wrapped paragraphs, block quotes and alert bodies become independently located reader blocks without losing their visible text. | Test (TC-971) |
-| FR-074-AC-3 | Table header/data cells are reader blocks, delimiter rows are not, and malformed Markdown returns a deterministic view or an explicit skipped-input record without a panic. | Test (TC-972) |
-| FR-074-AC-4 | A sentence above the configured word limit reports `sentence-length`; one at and below the boundary does not, and code/link destinations do not inflate the count. | Test (TC-973) |
-| FR-074-AC-5 | A heading increase above the configured step reports `heading-skip`; equal, descending and first-heading levels do not. | Test (TC-974) |
-| FR-074-AC-6 | An unknown acronym reports `undefined-acronym` once at first use; a profile-known acronym, an inline definition and code-only text do not. | Test (TC-975) |
-| FR-074-AC-7 | A module manifest loads a typed named/versioned profile, and malformed names, versions, zero thresholds or invalid acronym entries fail module load with an actionable reason. | Test (TC-976) |
-| FR-074-AC-8 | Profiles merge first-wins by id and are available through a registry accessor; an undeclared id returns `None`, never an implicit default. | Test (TC-977) |
-| FR-074-AC-9 | A batch report distinguishes zero findings over readable blocks from zero readable blocks and lists unreadable, non-document and prose-empty inputs with stable reason tokens. | Test (TC-978) |
-| FR-074-AC-11 | Every finding carries warning severity, path, 1-based line and excerpt; the three project-owned rule ids are the only ids this feature emits. | Test (TC-980) |
-| FR-074-AC-12 | Enabling and running a profile leaves structural validation, requirement-grammar findings, extraction and a representative writeback result byte-identical. | Test (TC-981) |
+| FR-074-AC-1 | The reader view excludes valid frontmatter, fenced code, indented code, inline code and HTML comments while preserving visible prose with 1-based document lines. | Test |
+| FR-074-AC-2 | Nested list items, wrapped paragraphs, block quotes and alert bodies become independently located reader blocks without losing their visible text. | Test |
+| FR-074-AC-3 | Table header/data cells are reader blocks, delimiter rows are not, and malformed Markdown returns a deterministic view or an explicit skipped-input record without a panic. | Test |
+| FR-074-AC-4 | A sentence above the configured word limit reports `sentence-length`; one at and below the boundary does not, and code/link destinations do not inflate the count. | Test |
+| FR-074-AC-5 | A heading increase above the configured step reports `heading-skip`; equal, descending and first-heading levels do not. | Test |
+| FR-074-AC-6 | An unknown acronym reports `undefined-acronym` once at first use; a profile-known acronym, an inline definition and code-only text do not. | Test |
+| FR-074-AC-7 | A module manifest loads a typed named/versioned profile, and malformed names, versions, zero thresholds or invalid acronym entries fail module load with an actionable reason. | Test |
+| FR-074-AC-8 | Profiles merge first-wins by id and are available through a registry accessor; an undeclared id returns `None`, never an implicit default. | Test |
+| FR-074-AC-9 | A batch report distinguishes zero findings over readable blocks from zero readable blocks and lists unreadable, non-document and prose-empty inputs with stable reason tokens. | Test |
+| FR-074-AC-11 | Every finding carries warning severity, path, 1-based line and excerpt; the three project-owned rule ids are the only ids this feature emits. | Test |
+| FR-074-AC-12 | Enabling and running a profile leaves structural validation, requirement-grammar findings, extraction and a representative writeback result byte-identical. | Test |
 
 ## Dependencies
 

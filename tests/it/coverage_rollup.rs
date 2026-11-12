@@ -3407,12 +3407,7 @@ fn tc1878_interface_acceptance_criteria_register_as_obligations() {
     );
 }
 
-#[trace(
-    "FR-050-AC-53",
-    "FR-050-AC-55",
-    "FR-050-AC-56",
-    "FR-050-AC-57"
-)]
+#[trace("FR-050-AC-53", "FR-050-AC-55", "FR-050-AC-56", "FR-050-AC-57")]
 #[test]
 fn retired_declarations_keep_live_gaps_and_historical_identity() {
     let cases: serde_json::Value = serde_json::from_str(include_str!(

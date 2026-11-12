@@ -44,6 +44,6 @@ The binding surface is feature-gated; the pure-Rust crate is unaffected ([StR-00
 
 ## Performance Criteria
 
-- **US-011-PC-1**: `quire.load_repo` over a 1,000-document corpus completes in p50 < 200 ms on 8 threads on the canonical runner (the Rust leg is bounded by [NFR-015](../non-functional/NFR-015-repo-walk-throughput.md); the binding adds one crossing, not per-file overhead). Bench: **TC-455**.
+- **US-011-PC-1**: `quire.load_repo` over a 1,000-document corpus completes in p50 < 200 ms on 8 threads on the canonical runner (the Rust leg is bounded by [NFR-015](../non-functional/NFR-015-repo-walk-throughput.md); the binding adds one crossing, not per-file overhead).
 - **US-011-PC-2**: Per-FFI-crossing overhead for a single `parse_document` call is < 50 µs over the equivalent in-crate Rust call ([NFR-016](../non-functional/NFR-016-binding-overhead.md)).
-- **US-011-PC-3**: Wall-clock for the full corpus through the binding is ≥ 5× faster than the pure-Python `filament_parser` path on the same corpus ([StR-005-AC-3](../stakeholder/StR-005-native-python-bindings.md)). Bench: **TC-456**.
+- **US-011-PC-3**: Wall-clock for the full corpus through the binding is ≥ 5× faster than the pure-Python `filament_parser` path on the same corpus ([StR-005-AC-3](../stakeholder/StR-005-native-python-bindings.md)).

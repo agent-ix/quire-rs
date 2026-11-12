@@ -131,8 +131,8 @@ the Rust `quire-perf-gate` tool (10% band over a stored criterion baseline). Det
 anywhere iteration order is observable. Prefer borrowed slices over clones on hot paths; do work
 once at load time (compile-once, parse/validate-fast). The render/templating feature is removed.
 
-**Well-spec'd.** FRs precede code. `spec/tests.md` must stay at 100% AC→TC coverage (a `grep`
-integrity check is wired into that file). Honor the gates in `plan/tasks/README.md` — don't start
+**Well-spec'd.** FRs precede code. Coverage is computed, not hand-kept: run `quire matrix --scope .`
+and tag the tests of any untagged criterion with `#[trace("FR-nnn-AC-n")]`. Honor the gates in `plan/tasks/README.md` — don't start
 gated work early. **Never silently edit `spec/` from an implementation branch**: a spec error or
 change requires a CR note (see CR-002 in FR-024 for the pattern).
 

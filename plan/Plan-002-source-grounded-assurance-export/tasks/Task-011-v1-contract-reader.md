@@ -8,10 +8,6 @@ priority: P0
 relationships:
   - target: ix://agent-ix/quire-rs/FR-067
     type: references
-  - target: ix://agent-ix/quire-rs/TC-1084
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-1087
-    type: verifies
 ---
 # Task-011: FR-067 — v1 assurance contract and reader
 

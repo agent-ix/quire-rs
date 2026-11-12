@@ -12,22 +12,6 @@ relationships:
     type: references
   - target: ix://agent-ix/quire-rs/StR-007
     type: references
-  - target: ix://agent-ix/quire-rs/TC-1091
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-1092
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-1093
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-1094
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-1095
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-1096
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-1097
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-1098
-    type: verifies
 ---
 # Task-013: FR-068 — authoritative source projection
 

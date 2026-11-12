@@ -8,10 +8,6 @@ priority: P0
 relationships:
   - target: ix://agent-ix/quire-rs/FR-050
     type: references
-  - target: ix://agent-ix/quire-rs/TC-732
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-733
-    type: verifies
 ---
 # Task-004: FR-050 — `traceability:` model loading (shared dependency)
 

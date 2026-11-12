@@ -16,22 +16,6 @@ relationships:
     type: references
   - target: ix://agent-ix/quire-rs/FR-072
     type: references
-  - target: ix://agent-ix/quire-rs/TC-1619
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-1620
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-1627
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-1628
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-1640
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-1641
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-1642
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-1649
-    type: verifies
 ---
 # Task-021: NFR-021 — boundary and compatibility gates
 

@@ -8,14 +8,6 @@ priority: P0
 relationships:
   - target: ix://agent-ix/quire-rs/FR-051
     type: references
-  - target: ix://agent-ix/quire-rs/TC-741
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-742
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-743
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-749
-    type: verifies
 ---
 # Task-005: FR-051 — language adapters + stable symbol identities
 

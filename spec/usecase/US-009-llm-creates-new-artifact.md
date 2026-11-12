@@ -74,7 +74,7 @@ In v0.2 the whole-artifact case is treated as "one giant block whose type is the
 
 ## Performance Criteria
 
-- **US-009-PC-1**: `render_by_name` on a 1 KB data value into a 10 KB output completes in p50 < 1 ms (inherits [NFR-001-AC-1](../non-functional/NFR-001-render-latency.md)). Bench: **TC-042** (existing per-archetype render bench).
+- **US-009-PC-1**: `render_by_name` on a 1 KB data value into a 10 KB output completes in p50 < 1 ms (inherits [NFR-001-AC-1](../non-functional/NFR-001-render-latency.md)). (existing per-archetype render bench).
 - **US-009-PC-2**: Schema validation cost on the data value is bounded by O(data fields) — well under 100 µs for typical artifacts. Covered by the validator-choice ADR ([NFR-009](../non-functional/NFR-009-dependency-pinning.md) + TC-331).
 - **US-009-PC-3**: No parse + no writeback path on the create flow; latency strictly lower than [US-006](./US-006-llm-patches-one-block.md)/007. The output `String` is the only allocation.
 - **US-009-PC-4**: Round-trip self-consistency: `parse_document(render_by_name(data))` yields data fields equal to the original (US-009-AC-3). Property-test verified by TC-024 + TC-056.

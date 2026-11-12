@@ -124,7 +124,7 @@ blocking relationships to the tasks it gates. Do not close a gated task's
 
 ## Test Plan
 
-TC definitions live in `spec/tests.md` (TC-707..756, all 🚧). Grouped by module:
+Test cases are grouped by module:
 
 ### Grammar (`src/grammar`) — Unit
 - [ ] TC-707..711, TC-751, TC-754, TC-757 (FR-047): shape classification,

@@ -94,14 +94,14 @@ records until both stages succeed.
 
 | ID | Criteria | Verification |
 |----|----------|--------------|
-| FR-067-AC-1 | The published assurance-v1 schema is valid JSON Schema draft 2020-12, its `$id` ends in `assurance-v1.schema.json`, and a complete fixture export validates with zero errors. | Test (TC-1084) |
-| FR-067-AC-2 | Export construction refuses an unnamed module, a module with no declared version, an archetype load failure, or a document path outside the supplied corpus root; no partial payload is returned. | Test (TC-1085) |
-| FR-067-AC-3 | The envelope lists every loaded module exactly once with its declared version, in deterministic order. | Test (TC-1086) |
-| FR-067-AC-4 | Import refuses an unknown `format_version` or an unaccepted module version before returning any artifact, relation, or evidence record, naming the rejected premise. | Test (TC-1087) |
-| FR-067-AC-5 | Two exports over identical inputs are byte-identical. | Test (TC-1088) |
+| FR-067-AC-1 | The published assurance-v1 schema is valid JSON Schema draft 2020-12, its `$id` ends in `assurance-v1.schema.json`, and a complete fixture export validates with zero errors. | Test |
+| FR-067-AC-2 | Export construction refuses an unnamed module, a module with no declared version, an archetype load failure, or a document path outside the supplied corpus root; no partial payload is returned. | Test |
+| FR-067-AC-3 | The envelope lists every loaded module exactly once with its declared version, in deterministic order. | Test |
+| FR-067-AC-4 | Import refuses an unknown `format_version` or an unaccepted module version before returning any artifact, relation, or evidence record, naming the rejected premise. | Test |
+| FR-067-AC-5 | Two exports over identical inputs are byte-identical. | Test |
 | FR-067-AC-6 | Withdrawn. | — |
-| FR-067-AC-7 | Coverage-v1 and properties-v1 output remain byte-identical to their pre-export baselines and contain no assurance `format` or `format_version` key. | Test (TC-1090) |
-| FR-067-AC-8 | Export construction refuses, naming the language, when the supplied extraction records an unavailable language ([FR-051](./FR-051-source-symbol-extraction.md)-AC-29); no payload is returned, since a schema-valid export that omits that evidence would read as a complete one (CR-201, PLAT-874). | Test (TC-2063) |
+| FR-067-AC-7 | Coverage-v1 and properties-v1 output remain byte-identical to their pre-export baselines and contain no assurance `format` or `format_version` key. | Test |
+| FR-067-AC-8 | Export construction refuses, naming the language, when the supplied extraction records an unavailable language ([FR-051](./FR-051-source-symbol-extraction.md)-AC-29); no payload is returned, since a schema-valid export that omits that evidence would read as a complete one (CR-201, PLAT-874). | Test |
 
 ## Dependencies
 

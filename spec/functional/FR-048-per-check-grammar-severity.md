@@ -66,17 +66,17 @@ matching the empty-lexicon degradation documented in FR-043.
 
 | ID | Criteria | Verification |
 |----|----------|--------------|
-| FR-048-AC-1 | A manifest declaring `grammar_severity: {"ac:unclassifiable": error}` loads, and `Registry::grammar_severity()` returns the merged map containing that entry. | Test (TC-716) |
-| FR-048-AC-2 | Two modules redeclaring the same key with different levels merge first-wins and emit one `DuplicateGrammarSeverity` diagnostic; identical redeclaration emits none. | Test (TC-717) |
-| FR-048-AC-3 | With `ac:unclassifiable` mapped to `error`, an unclassifiable criteria cell produces an entry in `ValidationResult.errors` and sets `is_valid` false, while an `ears` finding with no map entry stays in `warnings`. | Test (TC-718) |
-| FR-048-AC-4 | A finding whose `<grammar>:<check>` key is absent from the merged map defaults to `warning`. | Test (TC-719) |
-| FR-048-AC-5 | `quire validate --severity ears:vague-response=error` fails a document whose only finding is a vague response, and the same CLI entry overrides a conflicting manifest entry for that key. | Test (TC-720) |
-| FR-048-AC-6 | `--strict` semantics are unchanged: with no severity map, `--strict` still exits 1 on any warning, and without `--strict` the exit code stays 0 for warning-only documents. | Test (TC-721) |
-| FR-048-AC-7 | The type-only `validate_document` path applies the all-default map: every grammar finding surfaces as a warning regardless of any module's manifest. | Test (TC-722) |
-| FR-048-AC-8 | A malformed `grammar_severity` entry (unknown level, non-string key) fails module load like any other manifest shape error. | Test (TC-723) |
-| FR-048-AC-9 | A check mapped `off` (manifest or `--severity ac:vague-response=off`) records no finding in `warnings`, `errors`, or the `--summary` histogram, while sibling checks of the same grammar still report. | Test (TC-752) |
-| FR-048-AC-10 | A malformed `--severity` entry (unknown level, missing `=`, or an unparseable `<grammar>:<check>` key) is rejected with a usage diagnostic and a non-zero exit before validation runs. | Test (TC-755) |
-| FR-048-AC-11 | Every document in this repository's own `spec/` is free of findings for the promoted checks `ac:non-singular` and `ac:vacuous-outcome`, judged on the engine's default vocabularies. | Test (TC-794) |
+| FR-048-AC-1 | A manifest declaring `grammar_severity: {"ac:unclassifiable": error}` loads, and `Registry::grammar_severity()` returns the merged map containing that entry. | Test |
+| FR-048-AC-2 | Two modules redeclaring the same key with different levels merge first-wins and emit one `DuplicateGrammarSeverity` diagnostic; identical redeclaration emits none. | Test |
+| FR-048-AC-3 | With `ac:unclassifiable` mapped to `error`, an unclassifiable criteria cell produces an entry in `ValidationResult.errors` and sets `is_valid` false, while an `ears` finding with no map entry stays in `warnings`. | Test |
+| FR-048-AC-4 | A finding whose `<grammar>:<check>` key is absent from the merged map defaults to `warning`. | Test |
+| FR-048-AC-5 | `quire validate --severity ears:vague-response=error` fails a document whose only finding is a vague response, and the same CLI entry overrides a conflicting manifest entry for that key. | Test |
+| FR-048-AC-6 | `--strict` semantics are unchanged: with no severity map, `--strict` still exits 1 on any warning, and without `--strict` the exit code stays 0 for warning-only documents. | Test |
+| FR-048-AC-7 | The type-only `validate_document` path applies the all-default map: every grammar finding surfaces as a warning regardless of any module's manifest. | Test |
+| FR-048-AC-8 | A malformed `grammar_severity` entry (unknown level, non-string key) fails module load like any other manifest shape error. | Test |
+| FR-048-AC-9 | A check mapped `off` (manifest or `--severity ac:vague-response=off`) records no finding in `warnings`, `errors`, or the `--summary` histogram, while sibling checks of the same grammar still report. | Test |
+| FR-048-AC-10 | A malformed `--severity` entry (unknown level, missing `=`, or an unparseable `<grammar>:<check>` key) is rejected with a usage diagnostic and a non-zero exit before validation runs. | Test |
+| FR-048-AC-11 | Every document in this repository's own `spec/` is free of findings for the promoted checks `ac:non-singular` and `ac:vacuous-outcome`, judged on the engine's default vocabularies. | Test |
 
 ## Dependencies
 

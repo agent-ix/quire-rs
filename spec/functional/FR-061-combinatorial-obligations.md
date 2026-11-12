@@ -96,16 +96,16 @@ rollup reports. TC-934 asserts that identity rather than just the count.
 
 | ID | Criteria | Verification |
 |----|----------|--------------|
-| FR-061-AC-1 | The t-way tuple count is the sum, over every set of `t` dimensions, of the product of their value counts. | Test (TC-925) |
-| FR-061-AC-2 | A strength of 0, or one exceeding the dimension count, yields 0 tuples rather than an error or the full product. | Test (TC-926) |
-| FR-061-AC-3 | A declared forbidden combination is excluded from the count. | Test (TC-927) |
-| FR-061-AC-4 | An exclusion forbids every wider tuple containing it, so a two-value constraint still bites at strength 3. | Test (TC-928) |
-| FR-061-AC-5 | The statement carries every declared value and the strength, so any change to the space — or to the strength — changes the statement. | Test (TC-929) |
-| FR-061-AC-6 | Declared cells parse as authored: backticks and whitespace tolerated, a repeated value counted once, a single-assignment "exclusion" rejected. | Test (TC-930) |
-| FR-061-AC-7 | `obligation::for_document` mints **one** obligation for the whole table, with its id from `id_format` and `strength`/`dimensions`/`tuples` in `parameters`. | Test (TC-931) |
-| FR-061-AC-8 | A space with fewer than two real dimensions mints nothing. | Test (TC-932) |
-| FR-061-AC-9 | A combinatorial source declaring strength 0 fails at module load, naming the source. | Test (TC-933) |
-| FR-061-AC-10 | The corpus path mints the same one obligation as the single-document path — same id, same parameters — so a binding made against one matches the other. | Test (TC-934) |
+| FR-061-AC-1 | The t-way tuple count is the sum, over every set of `t` dimensions, of the product of their value counts. | Test |
+| FR-061-AC-2 | A strength of 0, or one exceeding the dimension count, yields 0 tuples rather than an error or the full product. | Test |
+| FR-061-AC-3 | A declared forbidden combination is excluded from the count. | Test |
+| FR-061-AC-4 | An exclusion forbids every wider tuple containing it, so a two-value constraint still bites at strength 3. | Test |
+| FR-061-AC-5 | The statement carries every declared value and the strength, so any change to the space — or to the strength — changes the statement. | Test |
+| FR-061-AC-6 | Declared cells parse as authored: backticks and whitespace tolerated, a repeated value counted once, a single-assignment "exclusion" rejected. | Test |
+| FR-061-AC-7 | `obligation::for_document` mints **one** obligation for the whole table, with its id from `id_format` and `strength`/`dimensions`/`tuples` in `parameters`. | Test |
+| FR-061-AC-8 | A space with fewer than two real dimensions mints nothing. | Test |
+| FR-061-AC-9 | A combinatorial source declaring strength 0 fails at module load, naming the source. | Test |
+| FR-061-AC-10 | The corpus path mints the same one obligation as the single-document path — same id, same parameters — so a binding made against one matches the other. | Test |
 
 ## Constraints
 

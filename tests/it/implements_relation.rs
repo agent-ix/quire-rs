@@ -294,12 +294,7 @@ fn syntax_cases() -> serde_json::Value {
     .unwrap()
 }
 
-#[trace(
-    "FR-062-AC-12",
-    "FR-062-AC-13",
-    "FR-062-AC-14",
-    "FR-062-AC-15"
-)]
+#[trace("FR-062-AC-12", "FR-062-AC-13", "FR-062-AC-14", "FR-062-AC-15")]
 #[test]
 fn declared_attribute_syntax_excludes_data_and_preserves_exact_owners() {
     for case in syntax_cases()["cases"].as_array().unwrap() {

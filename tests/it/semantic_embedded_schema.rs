@@ -75,11 +75,7 @@ fn adjacent_fixture() -> Value {
     .unwrap()
 }
 
-#[trace(
-    "FR-070-AC-1",
-    "FR-070-AC-4",
-    "FR-070-AC-6"
-)]
+#[trace("FR-070-AC-1", "FR-070-AC-4", "FR-070-AC-6")]
 #[test]
 fn ir994_public_extraction_emits_every_adjacent_constraint_form() {
     use quire_rs::semantic::{extract_fields, AvailabilityState, BundleIndex, SemanticContext};

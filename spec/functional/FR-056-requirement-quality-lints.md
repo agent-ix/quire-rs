@@ -116,19 +116,19 @@ the report has to name what the author actually wrote.
 
 | ID | Criteria | Verification |
 |----|----------|--------------|
-| FR-056-AC-1 | A statement using a built-in ambiguity term reports `quality:ambiguous-term` naming the term, and the same statement with the term removed reports nothing. | Test (TC-861) |
-| FR-056-AC-2 | A statement containing `as appropriate` is reported as `as appropriate`, not as `appropriate` — the longest matching term names the finding. | Test (TC-862) |
-| FR-056-AC-3 | A module declaring `ambiguity_terms:` has its terms merged over the built-ins: the declared term fires, and every built-in still fires. | Test (TC-863) |
-| FR-056-AC-4 | `shall be validated` reports `quality:agentless-passive`, and `shall be validated by the parser` reports nothing — the check is about missing allocation, not the passive voice. | Test (TC-864) |
-| FR-056-AC-5 | A statement mixing `shall` and `should` reports `quality:mixed-modal` naming both, while a statement using one modal reports nothing. | Test (TC-865) |
-| FR-056-AC-6 | An ambiguity term inside an inline code span fires nothing, and the same statement with the term unquoted fires (CR-017 parity). | Test (TC-866) |
-| FR-056-AC-7 | Every finding the pack emits carries `Warning` severity, and each is independently addressable by an FR-048 `quality:<check>` key — set to `off`, the check contributes nothing (CON-1). | Test (TC-867) |
-| FR-056-AC-8 | A corpus checked with the quality pack reachable yields the same `ears` and `ac` findings, in the same order and with the same fields, as the same corpus checked before the pack existed (CON-4). | Test (TC-868) |
-| FR-056-AC-9 | A statement violating two checks reports two findings, one per check, rather than the first one only. | Test (TC-869) |
-| FR-056-AC-10 | A finding on a table row reports that **row's** document line, not the section heading's, so two flawed rows report two lines. | Test (TC-876) |
-| FR-056-AC-11 | A prose statement carrying any of `shall`, `should`, `may` or `must` is judged by every check in the pack; a line carrying none of the four is judged by none. The collection gate admits exactly the modals the checks read. | Test (TC-877) |
-| FR-056-AC-12 | `agentless-passive` is suppressed by a named agent and **not** by `by <deadline>`, `by <sort key>` or `by <grouping axis>`; an agent wrapped in markdown emphasis or an inline code span still counts as named. | Test (TC-878) |
-| FR-056-AC-13 | An unknown key inside an `ambiguity_terms` entry fails module load naming the key, exactly as `verification_catalog` does. | Test (TC-879) |
+| FR-056-AC-1 | A statement using a built-in ambiguity term reports `quality:ambiguous-term` naming the term, and the same statement with the term removed reports nothing. | Test |
+| FR-056-AC-2 | A statement containing `as appropriate` is reported as `as appropriate`, not as `appropriate` — the longest matching term names the finding. | Test |
+| FR-056-AC-3 | A module declaring `ambiguity_terms:` has its terms merged over the built-ins: the declared term fires, and every built-in still fires. | Test |
+| FR-056-AC-4 | `shall be validated` reports `quality:agentless-passive`, and `shall be validated by the parser` reports nothing — the check is about missing allocation, not the passive voice. | Test |
+| FR-056-AC-5 | A statement mixing `shall` and `should` reports `quality:mixed-modal` naming both, while a statement using one modal reports nothing. | Test |
+| FR-056-AC-6 | An ambiguity term inside an inline code span fires nothing, and the same statement with the term unquoted fires (CR-017 parity). | Test |
+| FR-056-AC-7 | Every finding the pack emits carries `Warning` severity, and each is independently addressable by an FR-048 `quality:<check>` key — set to `off`, the check contributes nothing (CON-1). | Test |
+| FR-056-AC-8 | A corpus checked with the quality pack reachable yields the same `ears` and `ac` findings, in the same order and with the same fields, as the same corpus checked before the pack existed (CON-4). | Test |
+| FR-056-AC-9 | A statement violating two checks reports two findings, one per check, rather than the first one only. | Test |
+| FR-056-AC-10 | A finding on a table row reports that **row's** document line, not the section heading's, so two flawed rows report two lines. | Test |
+| FR-056-AC-11 | A prose statement carrying any of `shall`, `should`, `may` or `must` is judged by every check in the pack; a line carrying none of the four is judged by none. The collection gate admits exactly the modals the checks read. | Test |
+| FR-056-AC-12 | `agentless-passive` is suppressed by a named agent and **not** by `by <deadline>`, `by <sort key>` or `by <grouping axis>`; an agent wrapped in markdown emphasis or an inline code span still counts as named. | Test |
+| FR-056-AC-13 | An unknown key inside an `ambiguity_terms` entry fails module load naming the key, exactly as `verification_catalog` does. | Test |
 
 ## Dependencies
 

@@ -10,8 +10,6 @@ relationships:
     type: depends_on
   - target: ix://agent-ix/quire-rs/FR-047
     type: references
-  - target: ix://agent-ix/quire-rs/TC-714
-    type: verifies
 ---
 # Task-009: Corpus cleanup — AC-grammar baseline sweep (user-gated promotion)
 

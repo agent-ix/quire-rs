@@ -112,17 +112,17 @@ compatibility change in its owning repository.
 
 | ID | Criteria | Verification |
 |---|---|---|
-| FR-066-AC-1 | The report states P1, P2, P3 and P4 with distinct units and never substitutes one population for another. | Test (TC-1062) |
-| FR-066-AC-2 | P3 authored rows are the denominator, scanned independently of engine minting and deduplicated by the shared corpus rules; rows selected only by a module-declared `reference-only` target are excluded because referenceability is not a source-evidence obligation. P4 and each row's backed state come from FR-050's `minted_targets` records and are cross-checked against the totals rather than inferred from `unbacked_rows`. | Test (TC-1063, TC-1073, TC-1075) |
-| FR-066-AC-3 | Every row is assigned by strict first-match precedence to exactly one of the six named dispositions, and every disposition carries its declared owner. | Test (TC-1064) |
-| FR-066-AC-4 | `backed + Σ dispositions == authored_rows` holds per repository and in aggregate; an unclassified row or sum mismatch exits non-zero and no residual bucket is emitted. | Test (TC-1065) |
-| FR-066-AC-5 | `status-lie` is emitted only as an orthogonal overlay and never changes the partition sum. | Test (TC-1066) |
-| FR-066-AC-6 | A repository with evidence symbols but no authored tags is classified as `authoring-absent` when binder readability is above the floor; the current measured zero-tag class never enters `instrument-unread`. | Test (TC-1067) |
-| FR-066-AC-7 | An absent capability envelope or a missing required capability aborts the census; the error names the missing token. | Test (TC-1068) |
-| FR-066-AC-8 | JSON and Markdown reports carry measured capabilities, enumerated/scanned populations, and exclusions, and identical inputs produce byte-identical bytes. | Test (TC-1069) |
-| FR-066-AC-9 | `make census` is exposed as a scheduled/manual operation and no push or pull-request workflow requires it. | Test (TC-1070) |
-| FR-066-AC-10 | Each disposition has a worked example tied to the measured ecosystem corpus, and the human report names the repository, row/id when available, owner, reason and next action. | Test (TC-1071) |
-| FR-066-AC-11 | The relationship to `structural-coverage.md` is recorded without changing the owning module's disposition enum. | Inspection (TC-1072) |
+| FR-066-AC-1 | The report states P1, P2, P3 and P4 with distinct units and never substitutes one population for another. | Test |
+| FR-066-AC-2 | P3 authored rows are the denominator, scanned independently of engine minting and deduplicated by the shared corpus rules; rows selected only by a module-declared `reference-only` target are excluded because referenceability is not a source-evidence obligation. P4 and each row's backed state come from FR-050's `minted_targets` records and are cross-checked against the totals rather than inferred from `unbacked_rows`. | Test |
+| FR-066-AC-3 | Every row is assigned by strict first-match precedence to exactly one of the six named dispositions, and every disposition carries its declared owner. | Test |
+| FR-066-AC-4 | `backed + Σ dispositions == authored_rows` holds per repository and in aggregate; an unclassified row or sum mismatch exits non-zero and no residual bucket is emitted. | Test |
+| FR-066-AC-5 | `status-lie` is emitted only as an orthogonal overlay and never changes the partition sum. | Test |
+| FR-066-AC-6 | A repository with evidence symbols but no authored tags is classified as `authoring-absent` when binder readability is above the floor; the current measured zero-tag class never enters `instrument-unread`. | Test |
+| FR-066-AC-7 | An absent capability envelope or a missing required capability aborts the census; the error names the missing token. | Test |
+| FR-066-AC-8 | JSON and Markdown reports carry measured capabilities, enumerated/scanned populations, and exclusions, and identical inputs produce byte-identical bytes. | Test |
+| FR-066-AC-9 | `make census` is exposed as a scheduled/manual operation and no push or pull-request workflow requires it. | Test |
+| FR-066-AC-10 | Each disposition has a worked example tied to the measured ecosystem corpus, and the human report names the repository, row/id when available, owner, reason and next action. | Test |
+| FR-066-AC-11 | The relationship to `structural-coverage.md` is recorded without changing the owning module's disposition enum. | Inspection |
 
 ## Dependencies
 

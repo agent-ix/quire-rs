@@ -42,6 +42,6 @@ This is exactly what the `spec-analysis-*` skills do today in Python by hand; ag
 
 ## Performance Criteria
 
-- **US-012-PC-1**: Constructing a corpus from a 200-artifact spec (load + resolve) completes in p50 < 50 ms on a single thread on the canonical runner (load bounded by [NFR-015](../non-functional/NFR-015-repo-walk-throughput.md); resolution O(edges)). Bench: **TC-457**.
-- **US-012-PC-2**: `by_id` / `by_type` / `referencing` queries are O(1) / O(matches) against in-memory indices — no per-query filesystem or parse cost ([FR-027](../functional/FR-027-whole-spec-query-api.md)). Bench: **TC-458**.
+- **US-012-PC-1**: Constructing a corpus from a 200-artifact spec (load + resolve) completes in p50 < 50 ms on a single thread on the canonical runner (load bounded by [NFR-015](../non-functional/NFR-015-repo-walk-throughput.md); resolution O(edges)).
+- **US-012-PC-2**: `by_id` / `by_type` / `referencing` queries are O(1) / O(matches) against in-memory indices — no per-query filesystem or parse cost ([FR-027](../functional/FR-027-whole-spec-query-api.md)).
 - **US-012-PC-3**: Repeated audits over an unchanged corpus are deterministic — identical gap/orphan/reference results across runs and threads ([NFR-006](../non-functional/NFR-006-determinism.md); corpus is `Send + Sync` per [StR-006-AC-5](../stakeholder/StR-006-whole-spec-corpus.md)).

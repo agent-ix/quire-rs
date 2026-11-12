@@ -10,30 +10,6 @@ relationships:
     type: depends_on
   - target: ix://agent-ix/quire-rs/FR-069
     type: references
-  - target: ix://agent-ix/quire-rs/TC-1599
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-1600
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-1601
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-1602
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-1603
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-1604
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-1605
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-1608
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-1609
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-1633
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-1645
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-1646
-    type: verifies
 ---
 # Task-016: FR-069 — loader semantic contract and offline resolver
 

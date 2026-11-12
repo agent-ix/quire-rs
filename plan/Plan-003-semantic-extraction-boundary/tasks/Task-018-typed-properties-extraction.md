@@ -12,28 +12,6 @@ relationships:
     type: depends_on
   - target: ix://agent-ix/quire-rs/FR-070
     type: references
-  - target: ix://agent-ix/quire-rs/TC-1610
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-1611
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-1612
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-1613
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-1614
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-1615
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-1616
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-1617
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-1618
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-1621
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-1647
-    type: verifies
 ---
 # Task-018: FR-070 — typed Properties extraction
 

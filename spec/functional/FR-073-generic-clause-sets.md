@@ -42,12 +42,12 @@ official links while omitting clause text.
 
 | ID | Criteria | Verification |
 |----|----------|--------------|
-| FR-073-AC-1 | A module may reference clause-set JSON or YAML inside its root; loading rejects path escape, malformed content, invalid rights posture, duplicate clause ids, and unresolved local output or crosswalk references. | Test (TC-1807, TC-1809) |
-| FR-073-AC-2 | The public model preserves authority, id, version, force, subjects, obligated actors, approval roles, styles, expected outputs, and directed equivalent/partial/informative crosswalks without a domain-specific enum. | Test (TC-1806) |
-| FR-073-AC-3 | `all`, `any`, `not`, `eq`, `in`, and ordered `at_least` expressions evaluate to binding, not-binding, or unresolved; missing, unknown, and incomparable context never becomes not-binding by default. | Test (TC-1806) |
-| FR-073-AC-4 | Diff requires the same authority and id and reports added, removed, and changed clauses between exact versions. | Test (TC-1808) |
-| FR-073-AC-5 | Binding and diff JSON conform to the hand-authored `clause-binding-v1` and `clause-diff-v1` schemas. | Test (TC-1809) |
-| FR-073-AC-6 | Clause text is rejected unless declared original, explicitly cleared or licensed, and explicit clearance requires a review reference; the engine and fixtures contain no external publication text. | Test (TC-1807) |
+| FR-073-AC-1 | A module may reference clause-set JSON or YAML inside its root; loading rejects path escape, malformed content, invalid rights posture, duplicate clause ids, and unresolved local output or crosswalk references. | Test |
+| FR-073-AC-2 | The public model preserves authority, id, version, force, subjects, obligated actors, approval roles, styles, expected outputs, and directed equivalent/partial/informative crosswalks without a domain-specific enum. | Test |
+| FR-073-AC-3 | `all`, `any`, `not`, `eq`, `in`, and ordered `at_least` expressions evaluate to binding, not-binding, or unresolved; missing, unknown, and incomparable context never becomes not-binding by default. | Test |
+| FR-073-AC-4 | Diff requires the same authority and id and reports added, removed, and changed clauses between exact versions. | Test |
+| FR-073-AC-5 | Binding and diff JSON conform to the hand-authored `clause-binding-v1` and `clause-diff-v1` schemas. | Test |
+| FR-073-AC-6 | Clause text is rejected unless declared original, explicitly cleared or licensed, and explicit clearance requires a review reference; the engine and fixtures contain no external publication text. | Test |
 
 ## Dependencies
 

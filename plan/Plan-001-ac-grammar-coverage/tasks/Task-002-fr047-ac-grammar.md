@@ -10,28 +10,6 @@ relationships:
     type: depends_on
   - target: ix://agent-ix/quire-rs/FR-047
     type: references
-  - target: ix://agent-ix/quire-rs/TC-707
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-708
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-709
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-710
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-711
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-712
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-713
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-715
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-751
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-754
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-757
-    type: verifies
 ---
 # Task-002: FR-047 — acceptance-criteria grammar (`ac`)
 

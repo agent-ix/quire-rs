@@ -2102,12 +2102,7 @@ mod tests {
     /// TC-1940 (FR-051-AC-3, AC-18, AC-21, AC-27): `.skip`, `xit`/`xtest`,
     /// `xdescribe` mint with `ignored: true`; a suite's ignored state is
     /// inherited by its members; `.skipIf`/`.todo`/`.fixme` are controls.
-    #[trace(
-        "FR-051-AC-3",
-        "FR-051-AC-18",
-        "FR-051-AC-21",
-        "FR-051-AC-27"
-    )]
+    #[trace("FR-051-AC-3", "FR-051-AC-18", "FR-051-AC-21", "FR-051-AC-27")]
     #[test]
     fn tc1940_skip_forms_and_x_prefixed_names_mint_ignored() {
         let source = concat!(

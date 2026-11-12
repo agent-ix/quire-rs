@@ -166,19 +166,19 @@ advises nothing.
 
 | ID | Criteria | Verification |
 |----|----------|--------------|
-| FR-054-AC-1 | A module declaring `verification_catalog:` exposes every entry through `Registry::verification_catalog()` with its name, class, definition, evidence kind, applicability rules and tooling intact. | Test (TC-844) |
-| FR-054-AC-2 | Two modules declaring the same method id merge first-wins, the later declaration is skipped, and a `DuplicateVerificationMethod` diagnostic names both modules. | Test (TC-845) |
-| FR-054-AC-3 | A module declaring no catalog yields `None` rather than an empty map, so a consumer reports the catalog as undeclared rather than as containing no methods. | Test (TC-846) |
-| FR-054-AC-4 | An entry carrying an unknown key fails module load naming the key, so a typo cannot be silently discarded. | Test (TC-847) |
-| FR-054-AC-5 | An entry whose `name`, `class` or `definition` is empty or whitespace-only fails module load naming the offending method id. | Test (TC-848) |
-| FR-054-AC-6 | `column_vocabulary("verification_method")` returns exactly the merged catalog keys in sorted order, and `column_vocabulary("verification_class")` returns each distinct class once, sorted. | Test (TC-849) |
-| FR-054-AC-7 | `column_vocabulary("test_type")` returns the declared traceability vocabulary unchanged, and an unknown name returns an empty slice rather than a default. | Test (TC-850) |
-| FR-054-AC-8 | A catalog whose entries declare no `applicability` is exposed with an empty rule map, and one declaring rules the engine has never heard of is exposed with those rules verbatim (CON-2). | Test (TC-851) |
-| FR-054-AC-9 | A corpus validated with a catalog declared produces the same findings, in the same order and with the same fields, as the same corpus with no catalog declared (CON-3). | Test (TC-852) |
-| FR-054-AC-10 | The derived vocabularies change when the catalog changes and are never read from a separate declaration: a module declaring a catalog and no vocabulary block still answers `verification_method` (CON-4). | Test (TC-853) |
-| FR-054-AC-11 | An obligation whose declared method matches neither a catalog method id nor a catalog class is reported in the coverage report as `uncatalogued-verification-method`, once per distinct (source, method) pair with the row count and an example document. A corpus whose modules declare no catalog is reported nothing, because an absent catalog cannot answer the question. | Test (TC-874, TC-875) |
-| FR-054-AC-12 | The `uncatalogued-verification-method` diagnostic carries the authored method in a structured `value` field, verbatim — the identical string the obligation records carry in `method` — so a consumer joins the two by equality rather than parsing the message; a diagnostic not about one value omits the key (CR-091). | Test (TC-967) |
-| FR-054-AC-13 | An entry declaring `cost` exposes it verbatim through `Registry::verification_catalog()` and the serialized entry; one declaring none reads `None` and serializes with no `cost` key — never `null` — so the payload the advisor reads is unchanged for every catalog that has not adopted the field (CR-092). | Test (TC-968, TC-969) |
+| FR-054-AC-1 | A module declaring `verification_catalog:` exposes every entry through `Registry::verification_catalog()` with its name, class, definition, evidence kind, applicability rules and tooling intact. | Test |
+| FR-054-AC-2 | Two modules declaring the same method id merge first-wins, the later declaration is skipped, and a `DuplicateVerificationMethod` diagnostic names both modules. | Test |
+| FR-054-AC-3 | A module declaring no catalog yields `None` rather than an empty map, so a consumer reports the catalog as undeclared rather than as containing no methods. | Test |
+| FR-054-AC-4 | An entry carrying an unknown key fails module load naming the key, so a typo cannot be silently discarded. | Test |
+| FR-054-AC-5 | An entry whose `name`, `class` or `definition` is empty or whitespace-only fails module load naming the offending method id. | Test |
+| FR-054-AC-6 | `column_vocabulary("verification_method")` returns exactly the merged catalog keys in sorted order, and `column_vocabulary("verification_class")` returns each distinct class once, sorted. | Test |
+| FR-054-AC-7 | `column_vocabulary("test_type")` returns the declared traceability vocabulary unchanged, and an unknown name returns an empty slice rather than a default. | Test |
+| FR-054-AC-8 | A catalog whose entries declare no `applicability` is exposed with an empty rule map, and one declaring rules the engine has never heard of is exposed with those rules verbatim (CON-2). | Test |
+| FR-054-AC-9 | A corpus validated with a catalog declared produces the same findings, in the same order and with the same fields, as the same corpus with no catalog declared (CON-3). | Test |
+| FR-054-AC-10 | The derived vocabularies change when the catalog changes and are never read from a separate declaration: a module declaring a catalog and no vocabulary block still answers `verification_method` (CON-4). | Test |
+| FR-054-AC-11 | An obligation whose declared method matches neither a catalog method id nor a catalog class is reported in the coverage report as `uncatalogued-verification-method`, once per distinct (source, method) pair with the row count and an example document. A corpus whose modules declare no catalog is reported nothing, because an absent catalog cannot answer the question. | Test |
+| FR-054-AC-12 | The `uncatalogued-verification-method` diagnostic carries the authored method in a structured `value` field, verbatim — the identical string the obligation records carry in `method` — so a consumer joins the two by equality rather than parsing the message; a diagnostic not about one value omits the key (CR-091). | Test |
+| FR-054-AC-13 | An entry declaring `cost` exposes it verbatim through `Registry::verification_catalog()` and the serialized entry; one declaring none reads `None` and serializes with no `cost` key — never `null` — so the payload the advisor reads is unchanged for every catalog that has not adopted the field (CR-092). | Test |
 
 ## Dependencies
 

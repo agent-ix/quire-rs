@@ -571,11 +571,7 @@ fn selected_at(scope: &Path) -> quire_rs::obligation::inventory::SelectedInvento
     )
 }
 
-#[trace(
-    "FR-053-AC-16",
-    "FR-053-AC-18",
-    "FR-053-AC-19"
-)]
+#[trace("FR-053-AC-16", "FR-053-AC-18", "FR-053-AC-19")]
 #[test]
 fn selected_inventory_declarative_controls() {
     use quire_rs::obligation::inventory::InventoryTerminal;
@@ -696,11 +692,7 @@ fn selected_inventory_validates_the_real_request() {
     );
 }
 
-#[trace(
-    "FR-053-AC-16",
-    "FR-053-AC-17",
-    "FR-053-AC-21"
-)]
+#[trace("FR-053-AC-16", "FR-053-AC-17", "FR-053-AC-21")]
 #[test]
 fn selected_inventory_borrowed_identity_changes_with_authored_source() {
     use quire_rs::obligation::inventory::{

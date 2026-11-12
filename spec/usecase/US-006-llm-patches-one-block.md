@@ -73,7 +73,7 @@ The flow is symmetric to [US-001](./US-001-llm-emits-validated-patch.md) but **s
 
 Server-side measurements only — LLM round-trip latency is outside quire-rs's control.
 
-- **US-006-PC-1**: `apply_block_patch` on a 10 KB document with a typical 5-block layout completes in p50 < 1 ms, p99 < 5 ms after `Registry::load_from` is warm. Bench: **TC-450**.
+- **US-006-PC-1**: `apply_block_patch` on a 10 KB document with a typical 5-block layout completes in p50 < 1 ms, p99 < 5 ms after `Registry::load_from` is warm.
 - **US-006-PC-2**: Per-call memory: one allocation for the output `String`, sized at `doc.len() + new_bytes.len()`. No retained intermediates after return. Verified via heap-profile sample in TC-450.
 - **US-006-PC-3**: Inherits [NFR-001](../non-functional/NFR-001-render-latency.md) (template render <1 ms) and [NFR-007](../non-functional/NFR-007-load-cost-amortized.md) (zero disk I/O after load). Schema validation amortized to load time; per-call validator cost is JSON-walk only.
 - **US-006-PC-4**: Repeated invocation against the same doc + different block_ids: linear in number of calls, no superlinear cost from re-parsing (the consumer parses once and reuses the `QuireDocument`).

@@ -8,20 +8,6 @@ priority: P0
 relationships:
   - target: ix://agent-ix/quire-rs/FR-048
     type: references
-  - target: ix://agent-ix/quire-rs/TC-716
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-717
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-718
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-719
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-722
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-723
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-752
-    type: verifies
 ---
 # Task-001: FR-048 — per-check grammar severity framework
 

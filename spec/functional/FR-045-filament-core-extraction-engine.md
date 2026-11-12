@@ -80,12 +80,12 @@ core extraction result compatible with the shared `CoreExtractionResult` contrac
 
 | ID | Criteria | Verification |
 |----|----------|--------------|
-| FR-045-AC-1 | A Tier 1 fixture emits one validated graph node whose `dataJson` includes frontmatter `id` as `code` and frontmatter `title` as `title`. | Test (TC-681) |
-| FR-045-AC-2 | A Tier 2 fixture emits graph nodes and record-derived graph edges equivalent to the existing Rust DSL extraction result for the same ObjectType snapshot. | Test (TC-682) |
-| FR-045-AC-3 | Unknown ObjectType, no-frontmatter, malformed `ix://`, duplicate-edge, and plugin-flag fixtures produce diagnostics or errors without panicking. | Test (TC-683) |
-| FR-045-AC-4 | Frontmatter relationship sugar and body `ix://` links produce deterministic graph edges with source/original-target or original-uri metadata. | Test (TC-684) |
-| FR-045-AC-5 | Repeating extraction with identical input produces byte-identical JSON output ordering and stable record ids. | Test (TC-685) |
-| FR-045-AC-6 | A document with a complete but unparsable frontmatter fence block yields a non-empty `errors` entry (`parse_failed`) and a `frontmatter_unparsable` diagnostic, while a document with no frontmatter block stays clean (`no_frontmatter` diagnostic, empty `errors`). | Test (TC-705) |
+| FR-045-AC-1 | A Tier 1 fixture emits one validated graph node whose `dataJson` includes frontmatter `id` as `code` and frontmatter `title` as `title`. | Test |
+| FR-045-AC-2 | A Tier 2 fixture emits graph nodes and record-derived graph edges equivalent to the existing Rust DSL extraction result for the same ObjectType snapshot. | Test |
+| FR-045-AC-3 | Unknown ObjectType, no-frontmatter, malformed `ix://`, duplicate-edge, and plugin-flag fixtures produce diagnostics or errors without panicking. | Test |
+| FR-045-AC-4 | Frontmatter relationship sugar and body `ix://` links produce deterministic graph edges with source/original-target or original-uri metadata. | Test |
+| FR-045-AC-5 | Repeating extraction with identical input produces byte-identical JSON output ordering and stable record ids. | Test |
+| FR-045-AC-6 | A document with a complete but unparsable frontmatter fence block yields a non-empty `errors` entry (`parse_failed`) and a `frontmatter_unparsable` diagnostic, while a document with no frontmatter block stays clean (`no_frontmatter` diagnostic, empty `errors`). | Test |
 
 > **CR-011 note:** The original behavior ("frontmatter absent **or unparsable** → empty
 > result with a `no_frontmatter` informational diagnostic") conflated two distinct cases

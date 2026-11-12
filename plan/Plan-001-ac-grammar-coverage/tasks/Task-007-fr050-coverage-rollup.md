@@ -12,22 +12,6 @@ relationships:
     type: depends_on
   - target: ix://agent-ix/quire-rs/FR-050
     type: references
-  - target: ix://agent-ix/quire-rs/TC-734
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-735
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-736
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-737
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-738
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-739
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-740
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-756
-    type: verifies
 ---
 # Task-007: FR-050 — coverage reconciliation + `quire coverage` report
 

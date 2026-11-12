@@ -15,4 +15,3 @@ okf_version: "0.1"
 * [Stakeholder](./stakeholder/index.md) - Stakeholder artifacts.
 * [Usecase](./usecase/index.md) - Usecase artifacts.
 * [Spec](./spec.md)
-* [Test Matrix](./tests.md)
