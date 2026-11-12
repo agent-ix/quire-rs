@@ -61,3 +61,23 @@ Verified true: `validate_document` validates only the declaration record, and on
 ## Coverage
 
 All 11 new ACs have a TC row (TC-2300..TC-2310) and an audit-table row, and they are marked 🚧 Open in the summary rows. `quire matrix` reports all 11 as `untagged`, which is expected for a spec-only PR.
+
+## New findings (disposition pass 1)
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-010 | low | The "one defect, one finding" rule keys on "the first path segment, a match key". A `required` error's instance path is the record root, which has no segment; the missing key is named only by the keyword. So the rule never dedups a `required` error. An `assert` failure that leaves a `required: false` value absent (for example `min_rows` on a header-only `## Safety Impact Assessment` table, if the assert fires on an empty table) could then also be reported as a conditional absence. State that a `required` error's property is the key the keyword names | spec/functional/FR-069-semantic-module-contract-at-load.md:302 |
+
+## Dispositions
+
+| FND | Outcome | Reason |
+| --- | --- | --- |
+| FND-001 | fixed | ed5519b: `record_validation` gains its own `schema` (module-relative, resolved under the AC-4/AC-5 rules). `data_schema` keeps the declaration record only, and `Anomaly.json` is untouched. |
+| FND-002 | fixed | ed5519b: "`data_schema` keeps validating the declaration record only, and the two schemas are unrelated." |
+| FND-003 | fixed | ed5519b: the check runs for the frontmatter `type:` archetype (and for `object:` when declared), in `validate_document_in_registry` and the bundle path. The type-only `validate_document` runs none (AC-23). Verified: `validate_bundle` reaches `validate_in_registry_core` (corpus/validate.rs:528-542). |
+| FND-004 | fixed | ed5519b: each located value carries its own line through regex, missing-cell, placeholder and fallback filtering (FR-033-AC-18, FR-069-AC-25). A value with no line of its own takes its property's line. |
+| FND-005 | fixed | ed5519b: FR-033-AC-18 now names the last key of `path` (flow-style included) and the `code_block` opening fence. |
+| FND-006 | fixed | ed5519b: new AC-26. A required-locator abort gives no record finding, and an assert plus a schema error on the same key gives the assert finding only. Residual edge: FND-010. |
+| FND-007 | fixed | ed5519b: AC-27 runs through `validate_document_in_registry`, and the "no Quoin" clause is gone. |
+| FND-008 | fixed | ed5519b: "in the validator's error order (identical across runs)". |
+| FND-009 | fixed | ed5519b: "in a module without a `semantic` block", and an archetype whose `yield_pattern` has no `match` (absent, or `iterate_over` only) is refused explicitly. |

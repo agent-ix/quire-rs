@@ -31,3 +31,9 @@ Ticket: PLAT-1476. This is a planless run over a spec-only diff. The computed ma
 | FR-033-AC-18 → TC-2300 | examined | TC + audit row present; untagged (expected) |
 | FR-049-AC-19..21 → TC-2301..TC-2303 | examined | TC + audit rows present; untagged (expected) |
 | FR-069-AC-21..27 → TC-2304..TC-2310 | examined | TC + audit rows present; untagged (expected) |
+
+## Dispositions
+
+| FND | Outcome | Reason |
+| --- | --- | --- |
+| FND-001 | accepted-no-change | Clean-review placeholder. Disposition pass 1 at 42d24a9: 12 ACs (FR-033-AC-18, FR-049-AC-19..21, FR-069-AC-21..28) each have a TC row (TC-2300..TC-2311) and an audit row. |

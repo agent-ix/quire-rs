@@ -291,7 +291,7 @@ record_validation:
   frontmatter `type:` (an `artifact_types` entry, which is how Anomaly is
   dispatched) and for the `object:` archetype when that also declares
   `record_validation`, in the registry-backed entry points
-  (`validate_document_in_registry`, and the bundle path that calls it). The
+  (`validate_document_in_registry`, and the bundle path that calls it, which bridges each finding with its line per [FR-049](./FR-049-verification-reference-integrity.md)). The
   type-only `validate_document` runs no record check, as today.
 - **When it runs.** If extraction aborts because a `required: true` locator
   located nothing, no yield record exists and no `semantic.record-invalid`
@@ -299,9 +299,8 @@ record_validation:
 - **Every error.** Each error of the validator over the yield record is one
   finding with reason `semantic.record-invalid`, naming the schema path and the
   keyword's message, in the validator's error order (identical across runs).
-- **One defect, one finding.** A record error whose property (the first path
-  segment, a match key) already has a locator finding in the same run (an
-  `assert` failure, such as `choices`, on that key) is not reported again. A
+- **One defect, one finding.** A record error whose property already has a locator finding in the same run (an
+  `assert` failure, such as `choices`, on that key) is not reported again. The property of a `required` error is the key it names (the error sits at the record root, so it has no first path segment); the property of any other error is its first path segment. Both are match keys. A
   conditional absence has no locator finding, because its locator is
   `required: false`, and is reported.
 - **Absence.** A `required` error (outright or from an `if`/`then`

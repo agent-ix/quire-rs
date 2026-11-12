@@ -52,3 +52,19 @@ Checked clean:
 | FR-011-AC-21 | context_only | Existing extract-record contract |
 | quoin FR-073 (origin/main) | context_only | Last bullet names `<Name>.json` |
 | filament-core-data module-manifest.schema.json | context_only | ArtifactTypeEntry closed, so the follow-up is valid |
+
+## New findings (disposition pass 1)
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-006 | medium | FR-049 says `line` is `None` for every bundle finding other than the two trace findings. `validate_bundle` bridges each document `ValidationError` through `BundleFinding::bridged(reason, path, message)` (corpus/validate.rs:543-562) and drops `err.line`. FR-069 names the bundle path as an entry point, so its located `semantic.record-invalid` findings, and every other located document finding, reach `validate_bundle` callers with no line. A bridged finding should carry `line: err.line` | spec/functional/FR-049-verification-reference-integrity.md:120-124 |
+
+## Dispositions
+
+| FND | Outcome | Reason |
+| --- | --- | --- |
+| FND-001 | fixed | ed5519b: the yield record is defined as `extract::extract` over `yield_pattern.match`, "a `table_row` is its `column` cell, or the row's cells joined by tabs; the first value unless `multiple: true`". This matches locator.rs:618-663 and extract/mod.rs:128-137. The required-miss abort is FR-011's (extract/mod.rs:99-104), and FR-069 now defers to it. |
+| FND-002 | fixed | ed5519b: the interface paragraph with SHALLs on quoin is removed from FR-069. The follow-ups live only in the PR body, non-normatively. |
+| FND-003 | fixed | ed5519b: `BundleFinding` gains `line: Option<usize>`, and the render clause is dropped ("how a surface renders the line is that surface's concern"). The struct is constructed only in-crate (`in_pack`, `bridged`), so the new field breaks no caller. Residual: FND-006. |
+| FND-004 | fixed | ed5519b: the line joins the sort and dedup key, and the prose says counts may rise for declarations without `row_id_column`. |
+| FND-005 | fixed | PR 652 landed (e1bca82) and was merged into the branch (42d24a9). TC-2248..TC-2257 and TC-2300..TC-2311 are disjoint, with no duplicate TC rows in spec/tests.md. |
