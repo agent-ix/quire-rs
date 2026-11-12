@@ -247,78 +247,86 @@ Filament extraction API:
 
 ### Located record validation (PLAT-1476)
 
-Today `validate_document` validates only the *declaration record*
+`validate_document` validates the *declaration record*
 ([FR-072](./FR-072-semantic-extraction-surface.md) /
 [FR-075](./FR-075-model-feature-extraction.md) /
-[FR-081](./FR-081-record-sections-extraction.md)) against the resolved data
-schema, reports the first error only, and never reads the *yield record* of
-the type's `body_extraction.yield_pattern`. A module whose emitted
-`<Name>.json` describes the artifact's own fields (a frontmatter `status`, a
-`resolution` that is required only when `status` is `closed`) therefore has
-its conditional checks run by no one inside `quire validate`, and no
-requirement gave their findings a line. This subsection closes that.
+[FR-081](./FR-081-record-sections-extraction.md)) against the archetype's
+resolved `data_schema`, reports its first error only, and does so only for a
+resolved `object:` archetype. The record that `body_extraction.yield_pattern`
+builds ([FR-011](./FR-011-body-extraction-dsl.md): `extract::extract`) is built
+by extraction and by Filament, and the validate path never builds it. A module
+that wants conditional checks over the artifact's own fields (a `resolution`
+required only when a frontmatter `status` is `closed`) has them checked by no
+one inside the engine, and no requirement gives their findings a line. Its
+`data_schema` cannot carry them: the data schema describes the *emitted*
+record (a `description` object with line spans, a computed `provenance`, rows
+with a computed `line`), which no yield record can satisfy, and the declaration
+record and the yield record have different keys and sources.
 
-An archetype under a `semantic` block MAY carry a `record_validation` object,
-a sibling of `data_schema` (not a key inside it, so the reference form of
-`data_schema` stays `{ schema }` alone):
+An archetype of a module with a `semantic` block MAY therefore carry a
+`record_validation` object, a sibling of `data_schema` and independent of it:
 
 ```yaml
 record_validation:
-  locate_absence_at: status   # a key of yield_pattern.match
+  schema: schemas/AnomalyFields.json   # the yield record's own schema
+  locate_absence_at: status            # a key of yield_pattern.match
 ```
 
-- `locate_absence_at` is required, a non-empty string, and SHALL name a key of
-  the archetype's own `yield_pattern.match`. The engine knows no archetype,
-  field or key name; the declaration carries them.
-- Where `record_validation` is declared, `validate_document` SHALL build the
-  **yield record** and validate it against the archetype's resolved data schema
-  in addition to the declaration record. The yield record is a JSON object with
-  one property per `yield_pattern.match` locator that located a value, the
-  property named by the match key verbatim: a single-valued locator gives its
-  value (a string, or the JSON value of a `frontmatter_field`), and a `table_row`
-  or `multiple` locator gives an array, a `table_row` row being an object keyed by
-  the table's headers. A locator that located nothing contributes no property.
-  The schema's property names are therefore the module's match keys.
-- The engine SHALL report **every** schema error of the yield record, one
-  finding per error, in schema order, each with reason `semantic.record-invalid`
-  naming the schema path and the keyword's message. (The declaration-record
-  check keeps its first-error behavior.)
-- *Absence.* An error whose keyword is `required` (a missing property, whether
-  required outright or by an `if`/`then` conditional) is located at the
-  document line of the value the `locate_absence_at` locator located. An
-  absence is a defect only because of some present field, and that field is the
-  one the module names (for the Anomaly archetype, the frontmatter `status:`
-  key). If that locator located nothing, the line is the first line of the
-  document.
-- *Present but invalid.* An error at a property that is present (a `const`,
-  `enum`, `pattern`, `type` or `minItems` violation) is located at the line of
-  that property's value per [FR-033](./FR-033-locator-assert-facet.md)
-  AC-18; for an array property the error at element *i* is located at the
-  line of the *i*th row or item. An error with no property of its own (the
+- `schema` is a module-relative path resolved, escape-checked and `$ref`-resolved
+  under the same rules as a reference-form `data_schema` (AC-4, AC-5, with the
+  refusal path `<section>[<type>].record_validation.schema`). Property names in
+  it are the archetype's `yield_pattern.match` keys verbatim; the engine
+  performs no name mapping. `data_schema` keeps validating the declaration
+  record only, and the two schemas are unrelated.
+- `locate_absence_at` is required and SHALL name a key of the archetype's own
+  `yield_pattern.match`. The engine knows no archetype, field or key name; the
+  declaration carries them.
+- The **yield record** is the record FR-011 defines for the document and
+  nothing else: the value of `extract::extract` over the archetype's
+  `yield_pattern.match` (strings as FR-011 projects them; a `table_row` is its
+  `column` cell, or the row's cells joined by tabs; the first value unless
+  `multiple: true`; `regex` projection and placeholder dropping as FR-011
+  defines). This requirement redefines none of it.
+- **Layer and entry points.** The check runs for the archetype resolved by the
+  frontmatter `type:` (an `artifact_types` entry, which is how Anomaly is
+  dispatched) and for the `object:` archetype when that also declares
+  `record_validation`, in the registry-backed entry points
+  (`validate_document_in_registry`, and the bundle path that calls it). The
+  type-only `validate_document` runs no record check, as today.
+- **When it runs.** If extraction aborts because a `required: true` locator
+  located nothing, no yield record exists and no `semantic.record-invalid`
+  finding is raised; the locator's own missing-value finding is the report.
+- **Every error.** Each error of the validator over the yield record is one
+  finding with reason `semantic.record-invalid`, naming the schema path and the
+  keyword's message, in the validator's error order (identical across runs).
+- **One defect, one finding.** A record error whose property (the first path
+  segment, a match key) already has a locator finding in the same run (an
+  `assert` failure, such as `choices`, on that key) is not reported again. A
+  conditional absence has no locator finding, because its locator is
+  `required: false`, and is reported.
+- **Absence.** A `required` error (outright or from an `if`/`then`
+  conditional) is located at the document line of the value the
+  `locate_absence_at` locator located (the line per
+  [FR-033](./FR-033-locator-assert-facet.md) AC-18). If that locator located
+  nothing, the line is the first line of the document.
+- **Present but invalid.** An error at a present property is located at the
+  line of the value that became that record value. A `multiple: true` array
+  element is located at the line of the value that became that element, after
+  filtering (`regex`, missing `column` cell, dropped placeholders, fallback
+  chain), because each located value carries its own line through filtering. A
+  value with no line of its own (a nested path inside an object value) takes
+  the line of its property's value. An error with no property of its own (the
   record root, `additionalProperties`, `unevaluatedProperties`) is located at
   the `locate_absence_at` line.
-- `record_validation` SHALL be refused at load, in the AC-14 reason form with
-  `semantic.invalid-value`, when it appears on an archetype with no
-  `semantic` block, no `data_schema`, or no `yield_pattern`; when it carries a
-  key other than `locate_absence_at`; or when `locate_absence_at` is absent,
-  empty, not a string, or not a key of `yield_pattern.match`. The location is
-  `<section>[<type>].record_validation` or
-  `<section>[<type>].record_validation.locate_absence_at`.
+- **Load refusals.** `record_validation` is refused with `semantic.invalid-value`,
+  in the AC-14 reason form, when it appears in a module without a `semantic`
+  block; on an archetype whose `yield_pattern` has no `match` (none, or
+  `iterate_over` only); with a key other than `schema` and
+  `locate_absence_at`; with `schema` absent or unresolvable (the AC-4/AC-5
+  codes at `<section>[<type>].record_validation.schema`); or with
+  `locate_absence_at` absent, empty, not a string, or not a key of
+  `yield_pattern.match` (at `<section>[<type>].record_validation.locate_absence_at`).
 - An archetype without `record_validation` behaves exactly as before.
-
-**Interface requirements on `agent-ix/quoin` (follow-up for the quoin lane;
-this repository does not edit quoin).** (1) The module-manifest schema
-(`agent-ix/filament-core-data`, `module-manifest.schema.json`, and quoin's
-manifest model) SHALL admit the optional `record_validation` object on an
-archetype entry, so quoin's install guard does not reject it as an unknown key.
-(2) Quoin FR-073's final bullet ("Quire SHALL validate ... the archetype's
-extracted record against the referenced `<Name>.json`") is satisfied by
-`quire validate --module <root>` through this subsection; quoin SHALL NOT run a
-second record validator and SHALL surface Quire's located findings unchanged.
-(3) The `frontmatter`, `section` and `table` mapping tokens of a module do not
-build the validated record; the yield record does. A module opting in names its
-`yield_pattern.match` keys as its schema's property names (a module whose schema
-spells `closedBy` or `safetyImpact` declares locators of those keys).
 
 Allocation note: `agent-ix/quoin` FR-070 says Quire "applies the same
 schema at artifact-validation time". This requirement applies it at
@@ -357,13 +365,14 @@ stricter of the two.
 | FR-069-AC-18 | A module declaring an import that none of its own data schemas references by a `$ref` under the package's schema base loads with the warning `semantic.unused-import` naming the package; the same module with one such `$ref` emits no `semantic.unused-import`. | Test |
 | FR-069-AC-19 | A `$ref` under the schema base of a declared import is admitted without being followed or fetched, and a value that would violate the provider's schema validates against the module's own compiled validator (the `$ref` accepts any value); with the provider loaded, one whose type name (file stem without `.json` and `.schema`, `#fragment` ignored) the provider does not export fails `semantic.unknown-import-type` at `<section>[<type>].data_schema.schema`; a `$ref` under the schema base of a package not in `semantic.imports` still fails `semantic.schema-ref-unshipped` naming the `$ref`. | Test |
 | FR-069-AC-20 | Two modules whose `$ref`s give a type-level cycle (`<org>/<repo>#<Type>` nodes) fail with `semantic.import-cycle` naming the types that form the cycle; two modules whose packages import each other with no type-level edges fail naming the packages; a cycle where one module has no `$ref`s into it is still refused and named over packages; a package cycle refused although the `$ref` edges form no type-level cycle is named over packages. | Test |
-| FR-069-AC-21 | A manifest whose archetype declares `record_validation: { locate_absence_at: status }` over a `yield_pattern.match` key `status`, under a `semantic` block with a resolved `data_schema`, loads and records the declaration on the compiled archetype; the same manifest without `record_validation` loads and validates exactly as before. | Test |
-| FR-069-AC-22 | Each of `record_validation` on an archetype with no `semantic` block, no `data_schema` or no `yield_pattern`; an unknown sibling key; and `locate_absence_at` absent, empty, non-string, or naming a key absent from `yield_pattern.match`, is refused with `semantic.invalid-value` at `<section>[<type>].record_validation[.locate_absence_at]` in the AC-14 reason form, and a valid declaration in the same module is not refused. | Test |
-| FR-069-AC-23 | `validate_document` over an artifact of an opted-in archetype builds the yield record (match keys verbatim; a located `table_row` as an array of header-keyed objects; a locator that located nothing contributes no property) and reports one `semantic.record-invalid` finding per schema error in schema order, so a document with two missing required properties yields two findings and a conforming document yields none. | Test |
-| FR-069-AC-24 | A `required` error (outright or from an `if`/`then` conditional) is located at the document line of the value the `locate_absence_at` locator located; a document whose `locate_absence_at` locator located nothing reports the absence at line 1; no archetype, field or key name appears in the engine. | Test |
-| FR-069-AC-25 | A present-but-invalid scalar property is located at its own value's line, an error inside array element *i* at the *i*th row's line, and an error with no property of its own (record root, `additionalProperties`, `unevaluatedProperties`) at the `locate_absence_at` line; no yield-record finding is reported without a line. | Test |
-| FR-069-AC-26 | A fixture module naming a different archetype, a different `locate_absence_at` key (`state`) and a different schema reports the absence at its own `state` line, proving the location comes from the declaration; repeated validation yields identical findings in identical order. | Test |
-| FR-069-AC-27 | `quire validate --module <root> <path>` over an Anomaly-shaped fixture with `status: closed` and no value for the required `closedBy` and `resolution` keys reports one located finding per missing property, each at the `status:` line, with no record supplied by a caller and no Quoin involvement. | Test |
+| FR-069-AC-21 | A module with a `semantic` block whose archetype declares `record_validation: { schema: schemas/AnomalyFields.json, locate_absence_at: status }` over a `yield_pattern.match` key `status` loads and records the declaration and its resolved schema on the compiled archetype; `data_schema` still validates the declaration record only; the same manifest without `record_validation` loads and validates exactly as before. | Test |
+| FR-069-AC-22 | Each of `record_validation` in a module without a `semantic` block; on an archetype whose `yield_pattern` has no `match` (absent, or `iterate_over` only); with an unknown sibling key; with `schema` absent or unresolvable; and with `locate_absence_at` absent, empty, non-string or naming a key absent from `yield_pattern.match`, is refused with `semantic.invalid-value` or the AC-4/AC-5 code at its manifest path in the AC-14 reason form, and a valid declaration in the same module is not refused. | Test |
+| FR-069-AC-23 | `validate_document_in_registry` over an artifact dispatched by frontmatter `type:` to an opted-in archetype validates FR-011's yield record (`extract::extract` over `yield_pattern.match`, unmodified) against `record_validation.schema` and reports one `semantic.record-invalid` finding per validator error in the validator's order, so two missing required properties give two findings and a conforming document none; the type-only `validate_document` reports none. | Test |
+| FR-069-AC-24 | A `required` error (outright or from an `if`/`then` conditional) is located at the document line of the value the `locate_absence_at` locator located; when that locator located nothing the finding is at line 1; no archetype, field or key name appears in the engine. | Test |
+| FR-069-AC-25 | A present-but-invalid scalar is located at its value's line; an error in a `multiple: true` array element at the line of the value that became that element, still correct when a `regex` filter, a missing `column` cell or a dropped placeholder removed earlier values; an error in a value with no line of its own at its property's value line; and an error with no property of its own (record root, `additionalProperties`, `unevaluatedProperties`) at the `locate_absence_at` line. | Test |
+| FR-069-AC-26 | A document whose `required: true` locator located nothing yields the locator's missing-value finding and no `semantic.record-invalid` finding; a value failing both a locator `assert: choices` and the schema `enum` yields the assert finding only; a conditional absence (locator `required: false`) yields the record finding. | Test |
+| FR-069-AC-27 | A fixture module taking the real spec-artifacts-process Anomaly `yield_pattern` (`status`, `resolution`, `safety_impact`, `description`, `assessment` with its `table_row` locator) plus a `closed_by` `frontmatter_field` locator and a `record_validation` schema carrying the closed/resolved/assessed conditionals reports, through `validate_document_in_registry`: for `status: closed` with no `closed_by` and no `resolution`, two findings both at the `status:` line; for `status: assessed` with no assessment section, one finding at the `status:` line; for a valid document, none. | Test |
+| FR-069-AC-28 | A fixture module with a different archetype, `state` as `locate_absence_at` and a different schema locates the absence at its own `state` line, and repeated validation yields identical findings in identical order. | Test |
 
 ## Dependencies
 
