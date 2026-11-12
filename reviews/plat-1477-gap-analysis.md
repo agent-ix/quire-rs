@@ -67,3 +67,13 @@ The AC-22 case where a differently-cased entry matches the enum and is not repor
 ## Verdict
 
 AC-12..22 are all implemented and tagged, and 13 of 14 mutants are killed. Fix FND-001 (medium) in this PR. FND-002 and FND-003 are small test additions.
+
+## Dispositions
+
+Round 1, checked at 7a35156. The full sweep was re-run, adding two mutants. 15 of 16 were killed. The Strict-routing mutant K is now killed by TC-903 as well as TC-2253 and TC-2257.
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | TC-903 is tagged `FR-058-AC-6` and `FR-058-AC-7` and runs under both `Okf` and `Strict`. Under both postures, a relation without `where`, a `cyclic-derives_from` cycle and an `undeclared-relation-vocabulary` dead kind all fire as warnings, and the report is valid. Mapping `trace:orphan-fr`, `trace:cyclic-derives_from` or `trace:undeclared-relation-vocabulary` to `error` promotes that finding. Mapping `orphan-fr` to `off` leaves its sibling reporting. Mutation K (old Strict routing) now fails TC-903. |
+| FND-002 | still-open | The new TC-2257 case pairs `values: [security, " SECRITY "]` with a document holding the lowercase `secrity`. Only the `values` entry needs folding there, and mutation G already covers that. A held set built from raw document values still contains `secrity`, so mutation H (no fold on the held side) survives again at 7a35156. Fix: the document must hold a value that differs from the folded form, for example `quality_attribute: " Secrity "`, against `values: [secrity]`. |
+| FND-003 | fixed | TC-2248 adds a selected NFR whose only `mitigates` edge targets an NFR (N-011, reported), one whose edge targets `T-404`, which is absent from the bundle (N-012, reported), and an incoming `mitigated_by` edge from an NFR that does not satisfy the incoming relation (N-011 reported under `untargeted-security-nfr`). |

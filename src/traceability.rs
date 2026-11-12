@@ -571,10 +571,8 @@ where
 /// A validated `where` selector (FR-058).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct WhereSelector {
-    /// Top-level frontmatter key read from each `from` document.
-    pub field: String,
-    /// Accepted values, as authored.
-    pub values: Vec<String>,
+    field: String,
+    values: Vec<String>,
     /// `values` in comparison form, folded once at parse time.
     #[serde(skip)]
     folded: BTreeSet<String>,
@@ -586,6 +584,18 @@ pub(crate) fn fold_selector_value(value: &str) -> String {
 }
 
 impl WhereSelector {
+    /// Top-level frontmatter key read from each `from` document.
+    #[must_use]
+    pub fn field(&self) -> &str {
+        &self.field
+    }
+
+    /// Accepted values, as authored.
+    #[must_use]
+    pub fn values(&self) -> &[String] {
+        &self.values
+    }
+
     /// Parse and validate an authored `where`, naming `relation` on failure.
     fn parse(relation: &str, raw: &serde_json::Value) -> Result<Self, String> {
         let bad = |why: &str| {
@@ -2333,6 +2343,30 @@ trace_tags:
             StatusClass::Unknown
         );
         assert_eq!(m.trace_tags.markers[0].language, SourceLanguage::Rust);
+    }
+
+    #[trace("TC-2254", "FR-058-AC-19")]
+    #[test]
+    fn where_serializes_as_authored_and_round_trips() {
+        let yaml = "required_relations:\n- name: r\n  from: NFR\n  edges: [mitigates]\n  direction: outgoing\n  check: c\n  where: { field: quality_attribute, values: [\" Security \", Safety] }\n- name: plain\n  from: NFR\n  edges: [mitigates]\n  direction: outgoing\n  check: c2\n";
+        let m = model(yaml);
+        let json = serde_json::to_value(&m).expect("serialize");
+        assert_eq!(
+            json["required_relations"][0]["where"],
+            serde_json::json!({"field": "quality_attribute", "values": [" Security ", "Safety"]}),
+            "authored shape; the folded set is not written"
+        );
+        assert!(json["required_relations"][1].get("where").is_none());
+        assert_eq!(
+            serde_json::from_value::<TraceabilityModel>(json).unwrap(),
+            m
+        );
+        let encoded = serde_yaml::to_string(&m).expect("serialize");
+        assert!(!encoded.contains("folded"), "{encoded}");
+        assert_eq!(
+            serde_yaml::from_str::<TraceabilityModel>(&encoded).unwrap(),
+            m
+        );
     }
 
     #[trace("TC-1804", "FR-050-AC-45")]

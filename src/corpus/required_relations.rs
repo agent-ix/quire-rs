@@ -162,7 +162,7 @@ fn check_selector_is_live(
     root: &Path,
     out: &mut Vec<(PathBuf, String, String, String)>,
 ) {
-    let field = selector.field.as_str();
+    let field = selector.field();
     let docs = spec.by_type(&relation.from);
     let schema = registry
         .archetype(&relation.from)
@@ -204,7 +204,7 @@ fn check_selector_is_live(
                 .map(fold_selector_value)
         })
         .collect();
-    for entry in &selector.values {
+    for entry in selector.values() {
         let folded = fold_selector_value(entry);
         if !members.contains(&folded) && !held.contains(&folded) {
             push(format!(
@@ -243,7 +243,7 @@ fn check_relation(
         // Selection order is `from`, then `where`, then `exclude` (FR-058).
         // The authored value is kept for the finding text (AC-20).
         let selected_value = match selector {
-            Some(sel) => match doc.frontmatter().and_then(|fm| fm.get(&sel.field)) {
+            Some(sel) => match doc.frontmatter().and_then(|fm| fm.get(sel.field())) {
                 Some(value) if sel.selects(value) => value.as_str(),
                 _ => continue,
             },
@@ -302,7 +302,10 @@ fn check_relation(
             ),
         };
         if let (Some(sel), Some(value)) = (selector, selected_value) {
-            message.push_str(&format!(", selected because `{}` is '{value}'", sel.field));
+            message.push_str(&format!(
+                ", selected because `{}` is '{value}'",
+                sel.field()
+            ));
         }
         out.push((doc.path.clone(), doc.id.clone(), check.clone(), message));
     }

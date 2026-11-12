@@ -485,14 +485,18 @@ fn tc2257_a_where_that_selects_nothing_reports_itself() {
         assert!(r.is_valid(), "{:?}", r.errors);
     }
     // Outside the enum but held by a document: live by the second route.
-    write(&root, "N-003.md", &nfr("N-003", &attr("secrity"), None));
+    write(
+        &root,
+        "N-003.md",
+        &nfr("N-003", "quality_attribute: \" Secrity \"", None),
+    );
     assert!(dead(&run(&root, &bad_value)).is_empty());
 
     // "Held" compares folded too: a padded, upper-case entry is live through a
     // document holding the lower-case value.
     let folded_held = load(
         "2257e",
-        "    where: { field: quality_attribute, values: [security, \" SECRITY \"] }\n",
+        "    where: { field: quality_attribute, values: [security, SECRITY] }\n",
     );
     assert!(dead(&run(&root, &folded_held)).is_empty());
 

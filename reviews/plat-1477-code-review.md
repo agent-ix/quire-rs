@@ -47,3 +47,26 @@ Examined and clean:
 ## Verdict
 
 No correctness defects were found. The three findings are low: one idiom, one minor efficiency issue and one CHANGELOG precision issue. The posture change is spec-correct and covered by tests.
+
+## New findings (disposition pass 1)
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-004 | low | Fix round 1 moved validation of `where` into a `#[serde(try_from = "RawRequiredRelation")]` deserialize path, while `Serialize` stays derived on `RequiredRelation` and `WhereSelector`. No test checks that the two halves agree. I measured the current shape with a throwaway test: `where` serializes as the authored `{field, values}` (padding kept, `folded` skipped), a relation without `where` serializes with no `where` key, and both JSON and YAML round-trip back to an equal model. So nothing is broken today. The rest of `traceability.rs` pins every optional field with a serialize/deserialize test (TC-1804, the FR-050-AC-7 `exclude` tests), and this one has none. Add one assertion: a model with a `where` round-trips through `serde_yaml`, and one without serializes no `where` key. | src/traceability.rs:487-562, src/traceability.rs:572-581 |
+| FND-005 | low | `WhereSelector` has public `field` and `values` beside a private `folded` cache that `selects()` reads. Code that changes `values` after load (the struct is `Clone` and reachable through the public `RequiredRelation.selector`) leaves `folded` stale, and selection silently ignores the change. Make the fields private with `field()` and `values()` accessors, or derive the folded set on demand, so the invariant cannot be broken from outside. | src/traceability.rs:572-581, src/traceability.rs:634-642 |
+
+## Dispositions
+
+Round 1, checked at 7a35156. Checks:
+
+- `cargo test --test it required_relations`: 23 passed.
+- `cargo clippy --all-targets -D warnings`: clean.
+- Lib tests for traceability, vocabulary_coverage and required_relations: 17 passed. Integration tests for vocabulary_coverage, audit_table, traceability and bundle: 49 passed.
+
+The mutation sweep was re-run, adding two new mutants (unfolded `selects` and `where: null` read as absent), and killed 15 of 16. The Strict-routing mutant is now also killed by TC-903.
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | `RequiredRelation.selector: Option<WhereSelector>` is validated once at deserialize through `RawRequiredRelation` and `TryFrom`. `selector()`, the repeated parse and the defensive return are removed. `where: null` still fails at load, naming the relation and `where` (TC-2254 and mutation N). |
+| FND-002 | fixed | `WhereSelector` folds `values` once into a `BTreeSet` in `parse`. `selects()` does one fold and one lookup per document. |
+| FND-003 | fixed | The CHANGELOG `Fixed` entry names the required-relation, cyclic `acyclic_edges` and `undeclared-relation-vocabulary` findings. |
