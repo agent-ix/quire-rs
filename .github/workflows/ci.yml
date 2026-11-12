@@ -44,7 +44,7 @@ jobs:
         shell: bash
         run: |
           rustup show active-toolchain || rustup toolchain install
-          # NFR-021-AC-2 (TC-1649): `make check-wasm` in `make ci`.
+          # NFR-021-AC-2: `make check-wasm` in `make ci`.
           rustup target add wasm32-unknown-unknown
 
       # PLAT-901: `build.rs` shells out to `npm pack` (network access, at
@@ -104,7 +104,7 @@ jobs:
       - name: TypeScript-symbols feature check
         run: make check-typescript-symbols
 
-      # NFR-021-AC-2 (TC-1649): the toolchain step above installs
+      # NFR-021-AC-2: the toolchain step above installs
       # wasm32-unknown-unknown for exactly this, but nothing ever ran it —
       # this PR (PLAT-882) is the first change to actually break the wasm
       # build (gating typescript-symbols off by default under wasm removed
