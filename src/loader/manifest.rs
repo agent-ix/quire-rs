@@ -492,9 +492,11 @@ pub struct Archetype {
     pub extras: Map<String, Value>,
 }
 
-/// The archetype keys whose authoritative schema type is an object (or, for
-/// `frontmatter_schema_ref`, a string), so an authored `null` is a mistake and
-/// not "absent". `construct` is deliberately not listed: FR-031-AC-7 carries it
+/// The archetype keys whose authoritative schema type is not null (objects for
+/// `data_schema`, `body_extraction`, `record_validation` and `defaults`;
+/// strings for `grammar_ref` and `frontmatter_schema_ref`; an array for
+/// `roles`; an array or object for `allowed_links`), so an authored `null` is
+/// a mistake and not "absent". `construct` is deliberately not listed: FR-031-AC-7 carries it
 /// raw (a `construct: null` is returned as `Some(Null)`), and the construct
 /// declaration is owned downstream.
 const NULL_REFUSED_KEYS: [&str; 8] = [

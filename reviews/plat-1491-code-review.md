@@ -53,3 +53,7 @@ Round 1, PR head `356294a`.
 | FND-003 | fixed | - |
 | FND-004 | fixed | - |
 | FND-005 | fixed | - |
+| FND-006 | fixed | - |
+| FND-007 | fixed | - |
+
+Round 2, PR head `e970b7e`: FND-006 and FND-007 (the last two rows).
