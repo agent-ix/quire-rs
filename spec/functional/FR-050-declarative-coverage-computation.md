@@ -48,6 +48,11 @@ spec-semantics-as-module-data pattern as `body_extraction`, `lint_rules`, and
   same-prefix range (`FR-001..FR-006`) into its concrete ids, and
   `strip_annotations` drops parenthetical spans so a qualifier
   (`FR-022-AC-5 (superseded by FR-030)`) contributes one reference, not two.
+  A declaration MAY also declare `kind_column` and `kind_targets`, which type
+  a reference by a sibling column; they affect only
+  [FR-049](./FR-049-verification-reference-integrity.md) validation (coverage
+  computation ignores them), and a declaration omitting both serializes
+  identically to before (the `status_column` precedent, FR-050-AC-45).
 - **Status vocabulary** — the matrix status column and which values class as
   `complete`, `pending`, `failed`, or `retired`. A cell SHALL class by its
   **leading marker**, so an authored qualifier (`✅ Complete`,

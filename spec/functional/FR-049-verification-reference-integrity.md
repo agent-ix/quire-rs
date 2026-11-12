@@ -9,6 +9,9 @@ relationships:
   - target: "ix://agent-ix/quire-rs/spec/functional/FR-050"
     type: "requires"
     cardinality: "1:1"
+  - target: "ix://agent-ix/quire-rs/spec/functional/FR-057"
+    type: "requires"
+    cardinality: "1:1"
   - target: "ix://agent-ix/quire-rs/spec/usecase/US-017"
     type: "implements"
 ---
@@ -77,14 +80,25 @@ resolves in the union but not in the kind subset SHALL yield one
 id, the row's kind value, the target names the kind allows, and the
 declaration. An id that is dangling never also yields a kind mismatch.
 
-Kind matching trims the cell and compares ASCII case-insensitively. A row
-whose kind cell is empty, or names a value absent from `kind_targets`, is
+Kind matching SHALL trim the cell and compare ASCII case-insensitively. A row
+whose kind cell is empty, or names a value absent from `kind_targets`, SHALL be
 checked against the union only: it can dangle but cannot mismatch, because no
-subset is declared for it. A table that lacks the `kind_column` header is
-likewise checked against the union only. A cell that yields no pattern match —
+subset is declared for it. This check does not validate the Kind column's
+values; that belongs to the declaring module's own table grammar or lint
+rules, and a misspelt or multi-valued kind therefore surfaces there, not here.
+A table that has the `column` header but lacks the `kind_column` header SHALL
+likewise be checked against the union only, and the engine SHALL report one
+warning-tier `kind-column-matches-nothing` finding per such table, naming the
+document path and the declaration, so a misspelt `kind_column` cannot disable
+kind checking silently. It is registrable as
+`trace:kind-column-matches-nothing`, unconfigured a warning in both postures
+(the `archetype-matches-nothing` tier). A cell that yields no pattern match —
 a `-` placeholder, an empty cell — extracts no id and yields no reference and
 no finding; whether a row must carry a target is not this check's concern.
-Each id of a multi-id cell is classified independently.
+Each id of a multi-id cell is classified independently. Findings are ordered
+by document path, then row order, then position of the id in the cell; each id
+yields at most one finding, and `kind-column-matches-nothing` sorts at its
+table's position before that table's row findings.
 
 `reference-kind-mismatch` is posture-degradable exactly like
 `dangling-trace-reference`: an error under `Strict`, a warning under `Okf`, and
@@ -112,14 +126,15 @@ declaration's `targets`. A rejected declaration is never partially applied.
 | FR-049-AC-7 | A cell bearing multiple annotations (`Test (TC-035, TC-036)`) resolves each id independently and reports only the unresolved ones. | Test (TC-730) |
 | FR-049-AC-8 | Findings are deterministic: repeated validation of the same bundle yields the same findings in the same order. | Test (TC-731) |
 | FR-049-AC-9 | With the corpus walked from a document root nested under the scope, model-declared `document:` paths and `exclude:` globs resolve against the **reference root** (the scope), not the document root: a `document: spec/tests.md` target mints when `validate_bundle` receives the two roots separately, and un-mints — every reference to it dangling — when the roots are conflated (CR-045). | Test (TC-814) |
-| FR-049-AC-10 | A declaration with `kind_column` and `kind_targets` and a row whose id resolves inside the row's kind subset yields no finding; the same id on a row whose kind maps to a different target set yields exactly one `reference-kind-mismatch` finding carrying the document path, the id, the kind value, the allowed target names and the declaration. | Test |
-| FR-049-AC-11 | An id absent from the union of targets yields `dangling-trace-reference` only, never also `reference-kind-mismatch`, in a kind-typed declaration. | Test |
-| FR-049-AC-12 | `reference-kind-mismatch` is posture-degradable like FR-049-AC-3: the same mismatch is an error under `Strict` and a warning under `Okf`, and `trace:reference-kind-mismatch` is registrable per FR-057. | Test |
-| FR-049-AC-13 | A row whose kind cell is empty or names a value absent from `kind_targets`, and a table lacking the `kind_column` header, is checked against the union only: a resolvable id yields no finding and an unresolvable id yields `dangling-trace-reference`. Kind values match after trimming and ASCII case folding. | Test |
-| FR-049-AC-14 | A target cell that matches no pattern (`-`, empty) extracts no id and yields no reference and no finding, whatever the row's kind; a multi-id cell classifies each id independently and reports only the mismatched ones. | Test |
-| FR-049-AC-15 | Module load rejects, naming the declaration and the field at fault and applying no part of it, each malformed kind declaration: `kind_column` without `kind_targets` or the reverse, an empty `kind_column`, `kind_column` equal to `column`, an empty map, an empty or duplicate kind key, an empty target list, and a listed target not in `targets`. | Test |
-| FR-049-AC-16 | A declaration without `kind_column` and `kind_targets` behaves exactly as before: the engine contains no kind name, and a fixture module declaring different kind values and column names is resolved by its own declaration. | Test |
-| FR-049-AC-17 | `reference-kind-mismatch` findings are deterministic: repeated validation of the same bundle yields the same findings, interleaved with `dangling-trace-reference` findings, in the same order. | Test |
+| FR-049-AC-10 | A declaration with `kind_column` and `kind_targets` and a row whose id resolves inside the row's kind subset yields no finding; the same id on a row whose kind maps to a different target set yields exactly one `reference-kind-mismatch` finding carrying the document path, the id, the kind value, the allowed target names and the declaration. | Test (TC-2240) |
+| FR-049-AC-11 | An id absent from the union of targets yields `dangling-trace-reference` only, never also `reference-kind-mismatch`, in a kind-typed declaration. | Test (TC-2240) |
+| FR-049-AC-12 | `reference-kind-mismatch` is posture-degradable like FR-049-AC-3: the same mismatch is an error under `Strict` and a warning under `Okf`, and `trace:reference-kind-mismatch` is registrable per FR-057. | Test (TC-2241) |
+| FR-049-AC-13 | A row whose kind cell is empty or names a value absent from `kind_targets`, and a table lacking the `kind_column` header, is checked against the union only: a resolvable id yields no finding and an unresolvable id yields `dangling-trace-reference`. Kind values match after trimming and ASCII case folding. | Test (TC-2242) |
+| FR-049-AC-18 | A table with the declaration's `column` header but no `kind_column` header yields exactly one `kind-column-matches-nothing` finding naming the document path and declaration, a warning under both `Strict` and `Okf` when unconfigured, mappable as `trace:kind-column-matches-nothing`; a table with both headers, and a table with neither, yields none. | Test (TC-2247) |
+| FR-049-AC-14 | A target cell that matches no pattern (`-`, empty) extracts no id and yields no reference and no finding, whatever the row's kind; a multi-id cell classifies each id independently and reports only the mismatched ones. | Test (TC-2243) |
+| FR-049-AC-15 | Module load rejects, naming the declaration and the field at fault and applying no part of it, each malformed kind declaration: `kind_column` without `kind_targets` or the reverse, an empty `kind_column`, `kind_column` equal to `column`, an empty map, an empty or duplicate kind key, an empty target list, and a listed target not in `targets`. | Test (TC-2244) |
+| FR-049-AC-16 | A declaration without `kind_column` and `kind_targets` behaves exactly as before: the engine contains no kind name, and a fixture module declaring different kind values and column names is resolved by its own declaration. | Test (TC-2245) |
+| FR-049-AC-17 | `reference-kind-mismatch` findings are deterministic: repeated validation of the same bundle yields the same findings, interleaved with `dangling-trace-reference` findings, in the order document path, row order, position of the id in the cell. | Test (TC-2245) |
 
 > **CR-045 note (2026-08-15):** `validate_bundle` gains the same two-root
 > split `compute_coverage` has always had via its `root` parameter: a
@@ -134,5 +149,5 @@ declaration's `targets`. A rejected declaration is never partially applied.
 
 ## Dependencies
 
-- **Upstream**: [FR-050](./FR-050-declarative-coverage-computation.md) (the declared traceability model), [FR-038](./FR-038-okf-bundle-validation.md) (bundle validation and postures), [FR-025](./FR-025-spec-corpus-model.md) (the corpus)
+- **Upstream**: [FR-057](./FR-057-corpus-check-severity.md) (the severity registry AC-12 relies on), [FR-050](./FR-050-declarative-coverage-computation.md) (the declared traceability model), [FR-038](./FR-038-okf-bundle-validation.md) (bundle validation and postures), [FR-025](./FR-025-spec-corpus-model.md) (the corpus)
 - **Downstream**: `spec-artifacts-iso` declares the ISO `Verification`-cell model (follow-up change in that module); the `gap-analysis` workflow consumes the findings
