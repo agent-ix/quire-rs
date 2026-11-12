@@ -281,7 +281,7 @@ mod tests {
         )
     }
 
-    #[trace("TC-1052")]
+    #[trace("FR-051-AC-23")]
     #[test]
     fn tc1052_reports_the_qualified_name_the_engine_built() {
         // THE FIELD THE PORTS DISAGREED ON. Two reimplementations of
@@ -306,7 +306,7 @@ mod tests {
         assert_eq!(covered.path, "tests/test_thing.py");
     }
 
-    #[trace("TC-1053")]
+    #[trace("FR-051-AC-23")]
     #[test]
     fn tc1053_kind_capability_is_reported_beside_the_symbol() {
         // The first thing to check when a row will not bind, and previously
@@ -335,7 +335,7 @@ mod tests {
         assert!(method.binds_trace_ids);
     }
 
-    #[trace("TC-1054")]
+    #[trace("FR-051-AC-23")]
     #[test]
     fn tc1054_no_graph_means_not_asked_rather_than_not_tagged() {
         // An unbound run and a repository nobody tagged produce the SAME empty
@@ -367,7 +367,7 @@ mod tests {
     /// corpus with no ignored symbol carries no `ignored` key at all, and a
     /// corpus with one ignored symbol emits `ignored: true` on that record
     /// alone.
-    #[trace("TC-1943")]
+    #[trace("FR-051-AC-27")]
     #[test]
     fn tc1943_ignored_is_serialized_only_when_true() {
         let report = build(&python_tree(), None);

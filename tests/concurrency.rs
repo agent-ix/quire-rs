@@ -42,7 +42,7 @@ fn parallel_collect_is_race_free_and_order_independent() {
     });
 }
 
-#[trace("TC-815", "NFR-017-AC-4")]
+#[trace("NFR-017-AC-4")]
 //
 // The FR-025 lazy body cache (CR-047): two threads first-touch the SAME
 // document's body cell, and the contract is exactly-once init with every

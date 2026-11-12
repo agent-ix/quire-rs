@@ -70,7 +70,7 @@ Merge-patch ([US-006](./US-006-llm-patches-one-block.md)) is the natural primiti
 
 ## Performance Criteria
 
-- **US-007-PC-1**: `replace_block` on a 10 KB document with a typical 5-block layout completes in p50 < 1 ms, p99 < 5 ms (within ±10% of [US-006](./US-006-llm-patches-one-block.md)-PC-1 — the deep-merge step is negligible at this scale). Bench: **TC-451**.
+- **US-007-PC-1**: `replace_block` on a 10 KB document with a typical 5-block layout completes in p50 < 1 ms, p99 < 5 ms (within ±10% of [US-006](./US-006-llm-patches-one-block.md)-PC-1 — the deep-merge step is negligible at this scale).
 - **US-007-PC-2**: Per-call memory: identical envelope to [US-006](./US-006-llm-patches-one-block.md) — one allocation for the output `String`.
 - **US-007-PC-3**: Inherits [NFR-001](../non-functional/NFR-001-render-latency.md) + [NFR-007](../non-functional/NFR-007-load-cost-amortized.md) (render <1 ms, zero disk I/O after load).
 - **US-007-PC-4**: On larger blocks (≥ 50 KB of rendered content), `replace_block` is measurably *faster* than `apply_block_patch` because it skips the recursive `deep_merge`. The crossover where US-007 wins is documented in the TC-451 report.

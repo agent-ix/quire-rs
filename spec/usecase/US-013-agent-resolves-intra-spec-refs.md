@@ -40,6 +40,6 @@ This is deliberately *not* a graph engine: there is no traversal query language,
 
 ## Performance Criteria
 
-- **US-013-PC-1**: Resolving all references in a 200-artifact spec (~hundreds of edges) completes in p50 < 5 ms on a single thread as part of corpus construction (folded into [US-012](./US-012-agent-audits-whole-spec.md)-PC-1's load+resolve budget). Bench: **TC-459**.
+- **US-013-PC-1**: Resolving all references in a 200-artifact spec (~hundreds of edges) completes in p50 < 5 ms on a single thread as part of corpus construction (folded into [US-012](./US-012-agent-audits-whole-spec.md)-PC-1's load+resolve budget).
 - **US-013-PC-2**: Resolution is O(edges) with a single hash lookup per stub; no quadratic pairwise matching. Verified by scaling the edge count and confirming linear growth.
 - **US-013-PC-3**: Determinism — identical loaded set yields an identical resolved/dangling classification across runs and threads ([NFR-006](../non-functional/NFR-006-determinism.md)).

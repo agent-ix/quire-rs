@@ -19,7 +19,7 @@ SPEC_DIR = REPO_ROOT / "spec"
 MODULES_DIR = REPO_ROOT / "tests" / "fixtures" / "modules"
 
 
-@pytest.mark.trace("TC-461")
+@pytest.mark.trace("FR-023-AC-2", "StR-005-AC-1")
 def test_parse_document_returns_structured_object():
     """TC-461/467: parse returns a native dict, not a JSON string."""
     md = "---\nid: FR-023\ntype: FR\n---\n# Behavior {#blk-1}\n\nbody\n"
@@ -40,7 +40,7 @@ def test_parse_document_malformed_frontmatter_is_tolerant():
     assert doc["frontmatter"] is None  # malformed -> None (FR-006)
 
 
-@pytest.mark.trace("TC-666")
+@pytest.mark.trace("FR-042-AC-10")
 def test_check_grammar_ears_findings_cross_boundary():
     """FR-042-AC-10: the EARS grammar entry point is exposed via PyO3
     and returns the same findings as the in-process Rust call for a fixture."""
@@ -65,7 +65,7 @@ def test_check_grammar_ears_findings_cross_boundary():
     assert quire.check_grammar("nonexistent", "FR", md) == []
 
 
-@pytest.mark.trace("TC-673")
+@pytest.mark.trace("FR-043-AC-7")
 def test_check_grammar_applies_module_lexicon(tmp_path):
     """FR-043-AC-7: check_grammar applies a module's concrete lexicon
     when given module_root; without one it uses an empty lexicon."""
@@ -87,7 +87,7 @@ def test_check_grammar_applies_module_lexicon(tmp_path):
     assert not any(f["check"] == "vague-response" for f in findings2)
 
 
-@pytest.mark.trace("FR-047-AC-12", "TC-715")
+@pytest.mark.trace("FR-047-AC-12")
 def test_check_grammar_ac_findings_cross_boundary(tmp_path):
     """FR-047-AC-9: the `ac` grammar is exposed through the same PyO3
     surface and returns the same findings as the in-process Rust call."""
@@ -142,7 +142,7 @@ def test_check_grammar_ac_findings_cross_boundary(tmp_path):
     assert "unclassifiable" not in scoped_checks
 
 
-@pytest.mark.trace("FR-052-AC-8", "TC-789")
+@pytest.mark.trace("FR-052-AC-8")
 def test_classify_properties_cross_boundary(tmp_path):
     """FR-052-AC-11: the property classifier is exposed through PyO3
     and returns the same records, field for field, as the in-process Rust call
@@ -230,7 +230,7 @@ def test_classify_properties_cross_boundary(tmp_path):
     assert scoped[1]["extraction"] == "not-extractable"
 
 
-@pytest.mark.trace("TC-463")
+@pytest.mark.trace("FR-023-AC-4", "US-011-AC-1")
 def test_load_repo_returns_documents(tmp_path):
     """load_repo yields one structured doc per markdown file."""
     (tmp_path / "FR-001.md").write_text(
@@ -262,7 +262,7 @@ def test_spec_queries_on_real_spec():
     assert rec is not None and rec["type"] == "FR"
 
 
-@pytest.mark.trace("TC-462")
+@pytest.mark.trace("FR-023-AC-3")
 def test_validate_accepts_valid_and_flags_violations():
     """schema validation across the FFI boundary, with the same
     dotted field path the Rust validator produces (NFR-005)."""
@@ -318,7 +318,7 @@ CONFORMANT_FR = (
 )
 
 
-@pytest.mark.trace("TC-528", "TC-533")
+@pytest.mark.trace("FR-032-AC-1")
 def test_validate_document_conformant_is_valid():
     """binding happy path: a conformant FR markdown
     document validates through the wheel."""
@@ -327,7 +327,7 @@ def test_validate_document_conformant_is_valid():
     assert result["errors"] == []
 
 
-@pytest.mark.trace("TC-529", "TC-533")
+@pytest.mark.trace("FR-032-AC-2")
 def test_validate_document_flags_missing_section_with_reason_and_line():
     """binding sad path: a missing required section is
     flagged with a reason and a line-numbered error shape."""
@@ -391,7 +391,7 @@ def test_validate_sad_path_raises_validation_error_with_field_path():
     assert "id" in str(exc.value)
 
 
-@pytest.mark.trace("TC-512")
+@pytest.mark.trace("FR-028-AC-3")
 def test_validate_manifest_happy_and_sad(tmp_path):
     """schema-load happy, validation happy + sad, schema-missing → QuireSchemaError."""
     schema_path = tmp_path / "s.json"
@@ -464,7 +464,7 @@ def test_validate_document_column_choices_enforced(tmp_path):
     assert any("huge" in e["message"] for e in res2["errors"])
 
 
-@pytest.mark.trace("TC-1868")
+@pytest.mark.trace("FR-076-AC-15")
 def test_validate_document_bundle_package_qualifies_relationship_targets(tmp_path):
     """FR-076-AC-15: the optional `bundle_package` kwarg routes to
     `validate_document_in_bundle`: a bare row target qualifies under it, so a
@@ -553,7 +553,7 @@ def test_validate_document_scalar_choices_enforced(tmp_path):
     assert "assert" in {e["reason"] for e in res["errors"]}
 
 
-@pytest.mark.trace("TC-513")
+@pytest.mark.trace("FR-028-AC-4")
 def test_extract_envelope_returns_extraction_and_edges(tmp_path):
     """extract returns {extraction, edges}. demo-item has no body_extraction,
     so we use a manifest with one. For a clean test, build a tiny module on the fly."""
@@ -683,7 +683,7 @@ def test_extraction_context_errors_on_required_per_match_miss():
         ctx.extract("api_endpoint", {}, "## Endpoints\n### Get User\nNo code here\n")
 
 
-@pytest.mark.trace("TC-514")
+@pytest.mark.trace("FR-028-AC-5")
 def test_extract_frontmatter_returns_dict_or_none():
     """FR-006 parity — Rust returns frontmatter and body."""
     result = quire.extract_frontmatter("---\nid: X\ntype: FR\n---\n# H\n")
@@ -712,7 +712,7 @@ def test_extract_frontmatter_body_matches_rust_bom_and_crlf_parity():
     assert crlf["body"] == "# H\r\n"
 
 
-@pytest.mark.trace("TC-515")
+@pytest.mark.trace("FR-028-AC-6")
 def test_harvest_edges_string_and_dict_equal():
     """harvest_edges accepts raw string or parsed dict; outputs equal."""
     md = (
@@ -736,7 +736,7 @@ def test_harvest_edges_string_and_dict_equal():
     assert ("FR-2", "requires") in dict_targets
 
 
-@pytest.mark.trace("TC-516")
+@pytest.mark.trace("FR-028-AC-7")
 def test_exception_hierarchy_importable():
     """the exception hierarchy is importable and properly nested;
     QuireRenderError is not exported (render removed, FR-028-AC-7)."""
@@ -747,7 +747,6 @@ def test_exception_hierarchy_importable():
     assert not hasattr(quire, "QuireRenderError")
 
 
-@pytest.mark.trace("TC-517")
 def test_new_functions_release_gil():
     """concurrent calls to validate complete without serializing."""
 
@@ -800,7 +799,7 @@ def _filament_input(markdown):
     }
 
 
-@pytest.mark.trace("TC-686")
+@pytest.mark.trace("FR-046-AC-1", "NFR-020-AC-3")
 def test_extract_filament_core_tier1_binding():
     """Python half: the binding returns native core-data JSON, not a
     string, with a validated graph node carrying frontmatter id/title."""
@@ -820,7 +819,7 @@ def test_extract_filament_core_tier1_binding():
     assert data["title"] == "Pay vendors"
 
 
-@pytest.mark.trace("TC-686")
+@pytest.mark.trace("FR-046-AC-1", "NFR-020-AC-3")
 def test_extract_filament_core_malformed_frontmatter_reports_parse_failure():
     """a complete-but-unparsable frontmatter block surfaces a
     `parse_failed` error through the binding (reaches Filament index_errors)."""

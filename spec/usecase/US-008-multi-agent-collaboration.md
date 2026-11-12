@@ -66,7 +66,7 @@ Without stable block IDs, addressing "the Acceptance section" of an artifact rel
 
 Multi-agent perf is per-call linear; the spec measures composition explicitly to guard against superlinear surprises.
 
-- **US-008-PC-1**: Sequential composition of N=10 distinct-block patches on a single 20 KB document completes in p50 < 10 ms (≈ N × per-call [US-006](./US-006-llm-patches-one-block.md)-PC-1). Linear-in-N regression gate enforced. Bench: **TC-452**.
+- **US-008-PC-1**: Sequential composition of N=10 distinct-block patches on a single 20 KB document completes in p50 < 10 ms (≈ N × per-call [US-006](./US-006-llm-patches-one-block.md)-PC-1). Linear-in-N regression gate enforced.
 - **US-008-PC-2**: Each call reparses from the previous call's output string. The reparse cost dominates as N grows; targets above account for this (each iteration: parse + apply + return).
 - **US-008-PC-3**: For orchestrators that can skip reparse between same-doc edits (advanced pattern: keep one parsed `QuireDocument` and patch its source string in-place between calls), the per-call cost reduces to apply_block_patch alone. Documented as a non-default optimization in `spec/assets/multi-agent-orchestration.md` (to be added).
 - **US-008-PC-4**: No global lock or shared state inside quire-rs. Independent documents can be edited concurrently by the host with zero contention (Registry is `Send + Sync`, [FR-013-AC-9](../functional/FR-013-archetype-loader.md)). Verified by TC-008 (64-thread concurrency).

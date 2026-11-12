@@ -12,12 +12,6 @@ relationships:
     type: references
   - target: ix://agent-ix/quire-rs/NFR-006
     type: references
-  - target: ix://agent-ix/quire-rs/TC-1085
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-1086
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-1088
-    type: verifies
 ---
 # Task-012: FR-067 — deterministic premise inventory and exporter
 

@@ -41,7 +41,7 @@ fn merged(suffix: &str) -> Registry {
     Registry::load_from(&[root.as_path()]).expect("load merged")
 }
 
-#[trace("TC-844", "FR-054-AC-1")]
+#[trace("FR-054-AC-1")]
 // every declared field survives to the accessor.
 #[test]
 fn tc844_catalog_entries_are_exposed_intact() {
@@ -72,7 +72,7 @@ fn tc844_catalog_entries_are_exposed_intact() {
     );
 }
 
-#[trace("TC-845", "FR-054-AC-2")]
+#[trace("FR-054-AC-2")]
 // a colliding id merges first-wins and is reported.
 #[test]
 fn tc845_duplicate_method_is_first_wins_and_reported() {
@@ -110,7 +110,7 @@ fn tc845_duplicate_method_is_first_wins_and_reported() {
     assert!(reported[0].contains("catalog-two"), "{reported:#?}");
 }
 
-#[trace("TC-846", "FR-054-AC-3")]
+#[trace("FR-054-AC-3")]
 // undeclared is None, not an empty map.
 #[test]
 fn tc846_no_catalog_is_undeclared_not_empty() {
@@ -120,7 +120,7 @@ fn tc846_no_catalog_is_undeclared_not_empty() {
     );
 }
 
-#[trace("TC-847", "FR-054-AC-4")]
+#[trace("FR-054-AC-4")]
 // an unknown key fails load naming the key.
 #[test]
 fn tc847_unknown_key_fails_load() {
@@ -133,7 +133,7 @@ fn tc847_unknown_key_fails_load() {
     assert!(outcome.modules.is_empty());
 }
 
-#[trace("TC-848", "FR-054-AC-5")]
+#[trace("FR-054-AC-5")]
 // an empty required field fails load naming the method.
 #[test]
 fn tc848_empty_required_field_fails_load() {
@@ -148,7 +148,7 @@ fn tc848_empty_required_field_fails_load() {
     assert!(outcome.modules.is_empty());
 }
 
-#[trace("TC-849", "FR-054-AC-6")]
+#[trace("FR-054-AC-6")]
 // the two derived vocabularies come from the catalog.
 #[test]
 fn tc849_derived_vocabularies_come_from_the_catalog() {
@@ -169,7 +169,7 @@ fn tc849_derived_vocabularies_come_from_the_catalog() {
     );
 }
 
-#[trace("TC-850", "FR-054-AC-7")]
+#[trace("FR-054-AC-7")]
 // `test_type` is unchanged; an unknown name is empty.
 #[test]
 fn tc850_test_type_unchanged_and_unknown_name_is_empty() {
@@ -190,7 +190,7 @@ fn tc850_test_type_unchanged_and_unknown_name_is_empty() {
     assert!(!one.column_vocabulary("verification_method").is_empty());
 }
 
-#[trace("TC-851", "FR-054-AC-8")]
+#[trace("FR-054-AC-8")]
 // applicability is carried verbatim and never
 // interpreted — including a rule name the engine has never heard of (CON-2).
 #[test]
@@ -212,7 +212,7 @@ fn tc851_applicability_is_opaque() {
     assert!(two["property-based-testing"].applicability.is_empty());
 }
 
-#[trace("TC-852", "FR-054-AC-9")]
+#[trace("FR-054-AC-9")]
 // declaring a catalog moves no finding (CON-3).
 #[test]
 fn tc852_catalog_changes_no_finding() {
@@ -247,7 +247,7 @@ fn tc852_catalog_changes_no_finding() {
     }
 }
 
-#[trace("TC-853", "FR-054-AC-10")]
+#[trace("FR-054-AC-10")]
 // the derived vocabularies are never read from a
 // separate declaration (CON-4).
 #[test]
@@ -268,7 +268,7 @@ fn tc853_derived_vocabularies_need_no_separate_declaration() {
     assert_eq!(merged.column_vocabulary("verification_method").len(), 3);
 }
 
-#[trace("TC-968", "FR-054-AC-13")]
+#[trace("FR-054-AC-13")]
 // a declared cost survives to the accessor verbatim, and an
 // entry declaring none reads `None` — never a default. Before this field a
 // correct-but-expensive method (`concolic-execution` is the filed case: an
@@ -293,7 +293,7 @@ fn tc968_cost_is_exposed_intact_and_absent_reads_none() {
     );
 }
 
-#[trace("TC-969", "FR-054-AC-13")]
+#[trace("FR-054-AC-13")]
 // the serialized entry — the shape the advisor's payload
 // carries — omits an undeclared cost entirely and carries a declared one, so
 // a consumer written before the field existed reads an unchanged entry from
@@ -313,7 +313,7 @@ fn tc969_cost_serializes_additively_in_both_directions() {
     );
 }
 
-#[trace("TC-874", "FR-054-AC-11")]
+#[trace("FR-054-AC-11")]
 // a declared method that is in no catalog is reported.
 //
 // This is what finally gives the derived vocabularies a reader. Before it,
@@ -382,7 +382,7 @@ fn tc874_uncatalogued_method_is_reported() {
         .contains("uncatalogued-verification-method"));
 }
 
-#[trace("TC-967", "FR-054-AC-12")]
+#[trace("FR-054-AC-12")]
 // the uncatalogued diagnostic carries the offending method
 // in a structured `value` field, verbatim — the same string the obligation
 // records carry in `method` — so a consumer joins the two by equality instead
@@ -450,7 +450,7 @@ fn tc967_uncatalogued_diagnostic_carries_the_method_as_a_value() {
     }
 }
 
-#[trace("TC-875", "FR-054-AC-11")]
+#[trace("FR-054-AC-11")]
 // with no catalog declared, the check is silent.
 //
 // An absent catalog means the question cannot be asked, which is a different

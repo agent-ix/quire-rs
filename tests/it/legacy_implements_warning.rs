@@ -72,7 +72,7 @@ pub fn parse() {}\n\
 /// Implements: FR-007-AC-1, FR-007-AC-2\n\
 pub fn parse_both() {}\n";
 
-#[trace("TC-2090", "FR-050-AC-62")]
+#[trace("FR-050-AC-62")]
 #[test]
 fn a_legacy_use_warns_with_the_canonical_text_and_changes_nothing_else() {
     let forms = vec![
@@ -110,7 +110,7 @@ fn a_legacy_use_warns_with_the_canonical_text_and_changes_nothing_else() {
     assert!(findings(&control).is_empty());
 }
 
-#[trace("TC-2090", "FR-050-AC-62")]
+#[trace("FR-050-AC-62")]
 #[test]
 fn renaming_every_form_changes_no_finding() {
     let run_named = |legacy: &str, attr: &str| {
@@ -132,7 +132,7 @@ fn renaming_every_form_changes_no_finding() {
     assert_eq!(strip(&original), strip(&renamed));
 }
 
-#[trace("TC-2090", "FR-050-AC-62")]
+#[trace("FR-050-AC-62")]
 #[test]
 fn an_attribute_form_without_a_template_yields_no_finding() {
     let forms = vec![
@@ -144,7 +144,7 @@ fn an_attribute_form_without_a_template_yields_no_finding() {
     assert!(findings(&report).is_empty());
 }
 
-#[trace("TC-2090", "FR-050-AC-62")]
+#[trace("FR-050-AC-62")]
 #[test]
 fn the_first_declared_template_renders_the_replacement() {
     let forms = vec![
@@ -160,7 +160,7 @@ fn the_first_declared_template_renders_the_replacement() {
     );
 }
 
-#[trace("TC-2090", "FR-050-AC-62")]
+#[trace("FR-050-AC-62")]
 #[test]
 fn an_attribute_binding_yields_no_finding() {
     let forms = vec![
@@ -173,7 +173,7 @@ fn an_attribute_binding_yields_no_finding() {
     assert!(findings(&report).is_empty());
 }
 
-#[trace("TC-2090", "FR-050-AC-62")]
+#[trace("FR-050-AC-62")]
 #[test]
 fn non_rust_source_yields_no_finding() {
     let forms = vec![
@@ -190,7 +190,7 @@ fn non_rust_source_yields_no_finding() {
     assert!(findings(&report).is_empty());
 }
 
-#[trace("TC-2090", "FR-050-AC-62")]
+#[trace("FR-050-AC-62")]
 #[test]
 fn a_nested_use_yields_one_finding_naming_the_innermost_member() {
     let source = "pub mod inner {\n\

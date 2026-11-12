@@ -72,7 +72,7 @@ fn unowned(report: &BundleReport) -> Vec<String> {
         .collect()
 }
 
-#[trace("TC-911", "FR-059-AC-1")]
+#[trace("FR-059-AC-1")]
 // a declared value no document claims is reported, and a
 // claimed one is not.
 //
@@ -97,7 +97,7 @@ fn tc911_a_value_no_document_claims_is_reported() {
     fs::remove_dir_all(&root).ok();
 }
 
-#[trace("TC-912", "FR-059-AC-2")]
+#[trace("FR-059-AC-2")]
 // the vocabulary is READ from the archetype's frontmatter
 // schema, not restated in the manifest.
 //
@@ -133,7 +133,7 @@ fn tc912_the_vocabulary_comes_from_the_schema() {
     fs::remove_dir_all(&root).ok();
 }
 
-#[trace("TC-913", "FR-059-AC-3")]
+#[trace("FR-059-AC-3")]
 // a written "not applicable" record covers a value.
 //
 // A check that cannot accept an answer forces one of two bad outcomes: a
@@ -164,7 +164,7 @@ fn tc913_a_justified_absence_covers_the_value() {
     fs::remove_dir_all(&root).ok();
 }
 
-#[trace("TC-914", "FR-059-AC-4")]
+#[trace("FR-059-AC-4")]
 // the justification may live on ANY document, not only on
 // one of the archetype being counted.
 //
@@ -193,7 +193,7 @@ fn tc914_the_justification_need_not_be_on_the_counted_archetype() {
     fs::remove_dir_all(&root).ok();
 }
 
-#[trace("TC-915", "FR-059-AC-5")]
+#[trace("FR-059-AC-5")]
 // the finding carries its own `trace:<check>` severity
 // key, so a repository tunes it without touching any other corpus check.
 #[test]
@@ -234,7 +234,7 @@ fn tc915_the_check_is_independently_tunable() {
     fs::remove_dir_all(&root).ok();
 }
 
-#[trace("TC-916", "FR-059-AC-7")]
+#[trace("FR-059-AC-7")]
 // a declaration naming a field the schema gives no enum
 // reports itself rather than silently covering everything.
 //
@@ -282,7 +282,7 @@ fn tc916_a_declaration_with_no_vocabulary_reports_itself() {
     fs::remove_dir_all(&module).ok();
 }
 
-#[trace("TC-917", "FR-059-AC-6")]
+#[trace("FR-059-AC-6")]
 // a module declaring no vocabulary coverage produces
 // byte-identical output to one that never heard of this FR.
 //
@@ -312,7 +312,7 @@ fn tc917_a_module_declaring_nothing_sees_no_change() {
     fs::remove_dir_all(&root).ok();
 }
 
-#[trace("TC-918", "FR-059-AC-8")]
+#[trace("FR-059-AC-8")]
 // an empty projection is ONE finding, not one per value.
 //
 // Measured over 243 `~/dev` bundles during the FR-059 fit-check: 90 carry no
@@ -402,7 +402,7 @@ fn classified_bundle(tag: &str) -> PathBuf {
     root
 }
 
-#[trace("TC-962", "FR-059-AC-9")]
+#[trace("FR-059-AC-9")]
 // a claimed value is an `owned` record naming the claiming
 // document — a fact the warning stream never carries, because a covered value
 // produces no warning at all.
@@ -431,7 +431,7 @@ fn tc962_a_claimed_value_is_an_owned_record() {
     fs::remove_dir_all(&root).ok();
 }
 
-#[trace("TC-963", "FR-059-AC-9")]
+#[trace("FR-059-AC-9")]
 // an excused value is an `excused` record naming the
 // excusing document. Owned and excused are very different facts — one means a
 // requirement exists, the other means somebody wrote the value into the
@@ -458,7 +458,7 @@ fn tc963_an_excused_value_is_an_excused_record_naming_the_excuser() {
     fs::remove_dir_all(&root).ok();
 }
 
-#[trace("TC-964", "FR-059-AC-9")]
+#[trace("FR-059-AC-9")]
 // a value nothing claims and nothing excuses is an
 // `unowned` record with no documents, and the record set covers every declared
 // value exactly once, in the schema's own order.
@@ -496,7 +496,7 @@ fn tc964_an_unclaimed_unexcused_value_is_an_unowned_record() {
     fs::remove_dir_all(&root).ok();
 }
 
-#[trace("TC-965", "FR-059-AC-9")]
+#[trace("FR-059-AC-9")]
 // a module declaring no `vocabulary_coverage` serializes
 // with no `vocabulary_coverage` key at all — the FR-050-AC-7 byte-identity
 // every additive payload key before this one has kept.
@@ -519,7 +519,7 @@ fn tc965_a_module_declaring_nothing_serializes_no_key() {
     fs::remove_dir_all(&root).ok();
 }
 
-#[trace("TC-966", "FR-059-AC-10")]
+#[trace("FR-059-AC-10")]
 // a declaration whose field yields no enum reports itself
 // on the coverage surface too, under the same `undeclared-coverage-vocabulary`
 // token the bundle warning uses. Without this, a dead declaration and an

@@ -12,14 +12,6 @@ relationships:
     type: references
   - target: ix://agent-ix/quire-rs/FR-048
     type: references
-  - target: ix://agent-ix/quire-rs/TC-714
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-720
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-721
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-755
-    type: verifies
 ---
 # Task-003: Grammar CLI-surface support — generic summary + `--severity` helper
 

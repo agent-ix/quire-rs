@@ -324,9 +324,9 @@ coverage-baseline-update:
 	@git --no-pager diff --stat -- tests/fixtures/coverage_baseline/expected.json
 
 # The #212 gate: the engine under test validates its own spec/ tree. PR #204
-# corrupted a spec/tests.md row, every target below stayed green, and the
+# corrupted a hand-kept spec table, every target below stayed green, and the
 # corruption shipped — nothing here ever ran structural
-# validation against this repo's own matrix. Runs the working-tree engine
+# validation against this repo's own spec tree. Runs the working-tree engine
 # (cargo run --example), never an installed `quire` CLI, which lags the branch
 # under test. The two schema-provider repositories are independent executable
 # inputs: accepting their ambient installed versions made this gate change
@@ -356,7 +356,7 @@ corpus-recall-update:
 	UPDATE_CORPUS_RECALL=1 CARGO_TARGET_DIR=target cargo test --locked --test it corpus_recall::
 
 .PHONY: ci
-# NFR-021-AC-2 (TC-1649): the semantic resolver runs from the embedded bundle,
+# NFR-021-AC-2: the semantic resolver runs from the embedded bundle,
 # so the wasm feature build (no filesystem `$ref` resolution) must keep
 # compiling. Needs `rustup target add wasm32-unknown-unknown`.
 .PHONY: check-wasm

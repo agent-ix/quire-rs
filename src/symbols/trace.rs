@@ -2195,7 +2195,7 @@ mod tests {
             .collect()
     }
 
-    #[trace("TC-744", "FR-051-AC-4")]
+    #[trace("FR-051-AC-4")]
     // each canonical marker form binds statically — one
     // `verifies` relation per attached trace id, no code executed.
     #[test]
@@ -2222,7 +2222,7 @@ mod tests {
         assert!(relations_for(&graph, "TestService").is_empty());
     }
 
-    #[trace("TC-745", "FR-051-AC-5")]
+    #[trace("FR-051-AC-5")]
     // marker forms are module data — a different
     // declaration binds by its own forms, and no declared forms mints nothing.
     #[test]
@@ -2248,7 +2248,7 @@ mod tests {
         assert!(!none.defined_in.is_empty());
     }
 
-    #[trace("TC-746", "FR-051-AC-6")]
+    #[trace("FR-051-AC-6")]
     // a trace id attached more than once to one symbol
     // mints one relation and one diagnostic.
     #[test]
@@ -2275,7 +2275,7 @@ mod tests {
         );
     }
 
-    #[trace("TC-828", "FR-051-AC-17")]
+    #[trace("FR-051-AC-17")]
     // a benchmark and a fuzz target are leaf (CR-061)
     // evidence and bind; a container and a plain production function do not.
     //
@@ -2356,7 +2356,7 @@ mod tests {
         );
     }
 
-    #[trace("TC-1042", "FR-051-AC-21")]
+    #[trace("FR-051-AC-21")]
     // a name chain that NAMES a suite is a suite,
     // wherever the suite word sits in it (CR-121).
     //
@@ -2420,7 +2420,7 @@ mod tests {
         );
     }
 
-    #[trace("TC-1040", "FR-051-AC-21")]
+    #[trace("FR-051-AC-21")]
     // a trace tag on a SUITE HEADER binds nothing, (CR-119)
     // and the suite is not a binding candidate.
     //
@@ -2506,7 +2506,7 @@ mod tests {
         assert_eq!(graph.implements_bound, 0);
     }
 
-    #[trace("TC-894", "FR-051-AC-6")]
+    #[trace("FR-051-AC-6")]
     // a tag-shaped snippet inside a Rust string literal is data,
     // not a marker. This engine's own suite feeds tag-shaped snippets to the
     // extractor as fixtures, and before the mask every one of them bound and
@@ -2531,7 +2531,7 @@ mod tests {
         );
     }
 
-    #[trace("TC-895", "FR-051-AC-6")]
+    #[trace("FR-051-AC-6")]
     // the mask must not reach the canonical marker, whose
     // ids are string literals by design. Masking before matching it would
     // suppress exactly the form the grammar prefers.
@@ -2554,7 +2554,7 @@ mod tests {
         );
     }
 
-    #[trace("TC-748", "FR-051-AC-8")]
+    #[trace("FR-051-AC-8")]
     // `defined_in` links every symbol to its file and
     // `contains` links containers to members, deterministically ordered.
     #[test]
@@ -2590,7 +2590,7 @@ mod tests {
         }
     }
 
-    #[trace("TC-747", "FR-051-AC-7")]
+    #[trace("FR-051-AC-7")]
     // emitted records match the FR-045 graph-record
     // shapes with normalized `ref` values.
     #[test]
@@ -2653,7 +2653,7 @@ mod tests {
         assert!(edges.iter().any(|e| e.edge_type == "contains"));
     }
 
-    #[trace("TC-750", "FR-051-AC-10")]
+    #[trace("FR-051-AC-10")]
     // repeated extraction + binding over an (Property)
     // identical tree emits byte-identical JSON and identical record ids.
     #[test]
@@ -2696,7 +2696,7 @@ mod tests {
             .collect()
     }
 
-    #[trace("TC-1044", "FR-051-AC-22")]
+    #[trace("FR-051-AC-22")]
     // an id in the annotation block of a symbol whose kind cannot bind is
     // reported naming the id, the symbol and its kind, and the payload is
     // otherwise unmoved.
@@ -2728,7 +2728,7 @@ mod tests {
         );
     }
 
-    #[trace("TC-1046", "FR-051-AC-22")]
+    #[trace("FR-051-AC-22")]
     // where several symbols span one id the INNERMOST is named, because the
     // module is where the id is not; a container loses a tie.
     #[test]
@@ -2758,7 +2758,7 @@ mod tests {
         assert_eq!(graph.outside_marker[0].owner, OutsideMarkerOwner::Evidence);
     }
 
-    #[trace("TC-1081", "FR-051-AC-22")]
+    #[trace("FR-051-AC-22")]
     // An id quoted inside comment prose remains visible to the advisory, while
     // the same prose with a redacted non-id stays silent: the check still
     // depends on an id rather than on quoted text, and no caller-specific mask
@@ -2778,7 +2778,7 @@ mod tests {
         assert!(redacted.outside_marker.is_empty());
     }
 
-    #[trace("TC-2165", "FR-051-AC-22", "FR-051-AC-49")]
+    #[trace("FR-051-AC-22", "FR-051-AC-49")]
     // A canonical marker on a production function, a container or a file
     // yields nothing; a comment id on the same function is reported with its
     // kind; the same id twice on a line is one finding; `unmatched_tags` is
@@ -2831,7 +2831,7 @@ mod tests {
         assert!(graph.verifies.is_empty() && graph.implements.is_empty());
     }
 
-    #[trace("TC-2163", "FR-051-AC-50", "FR-051-AC-24")]
+    #[trace("FR-051-AC-50", "FR-051-AC-24")]
     // The advisory fires whether or not the id is also backed, stays silent for
     // a body and a string literal outside the annotation channel, yields
     // nothing for an all-marker tree, and goes quiet once retagged.
@@ -2867,7 +2867,7 @@ mod tests {
         assert!(tidy.outside_marker.is_empty());
     }
 
-    #[trace("TC-2161", "FR-051-AC-49")]
+    #[trace("FR-051-AC-49")]
     // The finding is additive to `unmatched_tags` and `mentions`: neither is
     // replaced or suppressed, and one finding is made per id per line.
     #[test]
@@ -2901,7 +2901,7 @@ mod tests {
         assert!(graph.verifies.is_empty());
     }
 
-    #[trace("TC-2161", "FR-051-AC-49")]
+    #[trace("FR-051-AC-49")]
     // The advisory covers Rust, Python and TypeScript comment channels.
     #[test]
     fn tc2161_the_advisory_reads_each_languages_comment_channel() {
@@ -2935,7 +2935,7 @@ mod tests {
         }
     }
 
-    #[trace("TC-2164", "FR-050-AC-44")]
+    #[trace("FR-050-AC-44")]
     // A test whose name embeds a trace id adds nothing to `tagged` or `bound`.
     #[test]
     fn tc2164_an_id_in_a_name_adds_nothing_to_the_census() {
@@ -2965,7 +2965,7 @@ mod tests {
         }
     }
 
-    #[trace("TC-2160", "FR-051-AC-11")]
+    #[trace("FR-051-AC-11")]
     // Per language, an id in a docstring, a doc comment or a line comment, a
     // `Trace:` line, or the test's own name mints no `verifies` relation; the
     // same tests with a marker bind; the relation carries no provenance.
@@ -3051,7 +3051,7 @@ mod tests {
         }
     }
 
-    #[trace("TC-982", "FR-051-AC-19")]
+    #[trace("FR-051-AC-19")]
     // the binder reports what it looked at and what
     // bound, per language, so a corpus whose convention matches no declared
     // pattern is distinguishable from one with no tests.
@@ -3152,7 +3152,7 @@ mod tests {
         assert!(blind.verifies.is_empty());
     }
 
-    #[trace("TC-1074", "FR-050-AC-39", "FR-066-AC-3", "FR-066-AC-6")]
+    #[trace("FR-050-AC-39", "FR-066-AC-3", "FR-066-AC-6")]
     // every unread authored id is row-addressable without widening the
     // declared binder or scanning test bodies (#362).
     #[test]
@@ -3324,7 +3324,7 @@ mod tests {
         crate::symbols::extract_file("src/lib.rs", SourceLanguage::Rust, source)
     }
 
-    #[trace("TC-1888", "FR-077-AC-2")]
+    #[trace("FR-077-AC-2")]
     #[test]
     fn tc1888_every_id_shaped_token_lands_in_exactly_one_bucket() {
         // The no-silent-drop invariant FR-077 exists to hold: over a fixture
@@ -3419,7 +3419,7 @@ fn fn_plain_mention() {\n\
     /// no relation at all, including its own endpoints, and is reported
     /// under `range-in-trace-tag` — the same rule `#[trace(...)]` already
     /// gets, applied to `bind_implements`'s own marker loop.
-    #[trace("TC-1936", "FR-051-AC-28")]
+    #[trace("FR-051-AC-28")]
     #[test]
     fn tc1936_a_range_in_an_implements_marker_binds_nothing() {
         let mut model = iso_model();
@@ -3462,7 +3462,7 @@ fn fn_plain_mention() {\n\
     /// FR-051-AC-28: a range's own endpoints must not
     /// resurface as citations in `mentions` either — "the range finding is
     /// the only record of it".
-    #[trace("TC-1936", "FR-051-AC-28")]
+    #[trace("FR-051-AC-28")]
     #[test]
     fn tc1936_range_endpoints_do_not_leak_into_mentions() {
         let graph = bind(
@@ -3504,7 +3504,7 @@ fn fn_plain_mention() {\n\
 
     /// CR-187: a range inside a marker that continues past it — only the range
     /// token is inert, and the explicitly named id after it still binds.
-    #[trace("TC-1937", "FR-051-AC-28", "FR-050-AC-50")]
+    #[trace("FR-051-AC-28", "FR-050-AC-50")]
     #[test]
     fn tc1937_a_marker_continuing_past_a_range_still_binds_the_rest() {
         let graph = bind(
@@ -3556,7 +3556,7 @@ fn fn_plain_mention() {\n\
     /// A marker range above a production function binds nothing, is reported
     /// once against that function (not the module container that also spans
     /// it), and keeps its endpoints out of `mentions`.
-    #[trace("TC-1937", "FR-051-AC-28")]
+    #[trace("FR-051-AC-28")]
     #[test]
     fn tc1937_a_marker_range_on_a_production_function_is_reported() {
         for (label, extraction) in [
@@ -3592,7 +3592,7 @@ fn fn_plain_mention() {\n\
 
     /// A marker range on a test inside a container is the test's: one range
     /// record naming the test.
-    #[trace("TC-1937", "FR-051-AC-28")]
+    #[trace("FR-051-AC-28")]
     #[test]
     fn tc1937_a_marker_range_on_a_contained_test_is_the_tests() {
         let ts = |source: &str| {
@@ -3654,7 +3654,7 @@ fn fn_plain_mention() {\n\
     /// When a container and a function start on the same line and both span a
     /// range on a production symbol, the function is named: a container loses
     /// ties.
-    #[trace("TC-1937", "FR-051-AC-28")]
+    #[trace("FR-051-AC-28")]
     #[test]
     fn tc1937_a_container_loses_a_tie_for_a_production_range() {
         let graph = bind(
@@ -3675,7 +3675,7 @@ fn fn_plain_mention() {\n\
     /// `/// Implements: FR-001..FR-003` (Rust) and `# Implements: ...` (Python)
     /// binds no id, mints no relation for either endpoint, and yields one
     /// range finding on the line its text sits on.
-    #[trace("TC-2166", "FR-051-AC-28")]
+    #[trace("FR-051-AC-28")]
     #[test]
     fn tc2166_a_range_in_a_textual_implements_use_binds_nothing() {
         let mut model = iso_model();
@@ -3741,7 +3741,7 @@ mod mask_tests {
         annotation_channel(src, language).expect("not shell")
     }
 
-    #[trace("TC-1055", "FR-051-AC-24")]
+    #[trace("FR-051-AC-24")]
     #[test]
     fn tc1055_an_id_inside_a_string_is_masked_in_every_language() {
         // `agent-ix/quire-rs#323`. A trace id a file carries as DATA is not an
@@ -3767,7 +3767,7 @@ mod mask_tests {
         );
     }
 
-    #[trace("TC-1056", "FR-051-AC-24")]
+    #[trace("FR-051-AC-24")]
     #[test]
     fn tc1056_a_python_docstring_is_the_annotation_channel_there() {
         // Python has no doc-comment syntax: its annotation channel IS a string
@@ -3799,7 +3799,7 @@ mod mask_tests {
         );
     }
 
-    #[trace("TC-1057", "FR-051-AC-24")]
+    #[trace("FR-051-AC-24")]
     #[test]
     fn tc1057_comments_survive_and_offsets_do_not_shift() {
         // Comments are the annotation channel everywhere. Byte length and line
@@ -3833,7 +3833,7 @@ mod mask_tests {
         }
     }
 
-    #[trace("TC-1055", "FR-051-AC-24")]
+    #[trace("FR-051-AC-24")]
     #[test]
     fn a_char_literal_holding_a_quote_does_not_open_a_string() {
         // `'"'` is a char literal. Read as a string opener it would swallow the

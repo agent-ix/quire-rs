@@ -59,7 +59,7 @@ fn gate(model: &str) -> jsonschema::Validator {
     .unwrap()
 }
 
-#[trace("TC-1622", "FR-071-AC-1")]
+#[trace("FR-071-AC-1")]
 // golden clauses, operations, clauseText, and the config-version span.
 #[test]
 fn golden_operations_and_spans() {
@@ -279,7 +279,7 @@ fn cases(prefix: &str) -> Vec<Value> {
         .collect()
 }
 
-#[trace("TC-1623", "FR-071-AC-2")]
+#[trace("FR-071-AC-2")]
 // the six language cases, `fence-ocl-carried` included; `quire` yields no
 // advisory.
 #[test]
@@ -301,7 +301,7 @@ fn language_cases() {
     assert!(out.availability.lossy);
 }
 
-#[trace("TC-1850", "FR-071-AC-8")]
+#[trace("FR-071-AC-8")]
 // `quire` is the only checked language; `ocl` is carried unchecked under
 // the embedded semantic-core.
 #[test]
@@ -338,7 +338,7 @@ fn quire_is_checked_and_ocl_is_carried() {
     assert_eq!(carried.availability, out.availability);
 }
 
-#[trace("TC-1624", "FR-071-AC-3")]
+#[trace("FR-071-AC-3")]
 // structural cases: duplicate id, non-identifier, inline+external, ownerless
 // fence, bodiless heading, two fences, unterminated, external-only.
 #[test]
@@ -427,7 +427,7 @@ fn structural_cases() {
     );
 }
 
-#[trace("TC-1625", "FR-071-AC-4")]
+#[trace("FR-071-AC-4")]
 // operations: dangling post, duplicate operation, non-identifier heading,
 // Pre lists, no-table params.
 #[test]
@@ -492,7 +492,7 @@ fn operation_cases() {
     );
 }
 
-#[trace("TC-1626", "FR-071-AC-5")]
+#[trace("FR-071-AC-5")]
 // produced entries validate; absent sections are not_applicable; one
 // erroring entry makes the kind unavailable with no partial array.
 #[test]
@@ -537,7 +537,7 @@ fn validation_and_states() {
     assert!(out.clause_text.is_empty());
 }
 
-#[trace("TC-1648", "FR-071-AC-7")]
+#[trace("FR-071-AC-7")]
 // defaulted vs supplied source identity.
 #[test]
 fn source_identity_default() {
@@ -591,7 +591,7 @@ fn body_strategy() -> impl Strategy<Value = String> {
 
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(200))]
-    #[trace("TC-1629", "FR-071-AC-6")]
+    #[trace("FR-071-AC-6")]
     // generated bodies round-trip byte-for-byte with spans on the fences.
     #[test]
     fn fence_bodies_round_trip(body in body_strategy(), tilde in any::<bool>(), extra in 0usize..3) {
@@ -660,7 +660,7 @@ fn reason_beside_reason_loci_is_refused() {
     assert_case(&case);
 }
 
-#[trace("TC-1945", "FR-070-AC-11")]
+#[trace("FR-070-AC-11")]
 // A `Clock` parameter and result lower to the native identity and validate.
 #[test]
 fn clock_operation_params_and_returns_extract() {

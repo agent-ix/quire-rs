@@ -14,10 +14,6 @@ relationships:
     type: references
   - target: ix://agent-ix/quire-rs/IT-001
     type: references
-  - target: ix://agent-ix/quire-rs/TC-1090
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-1099
-    type: verifies
 ---
 # Task-014: FR-067/FR-068 — boundary and compatibility gates
 

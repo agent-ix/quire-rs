@@ -82,7 +82,7 @@ fn baseline() -> Value {
         .expect("baseline is valid JSON")
 }
 
-#[trace("TC-854", "FR-055-AC-1")]
+#[trace("FR-055-AC-1")]
 // the artifacts are themselves valid, and self-identify.
 #[test]
 fn tc854_published_schemas_are_valid_and_versioned() {
@@ -110,7 +110,7 @@ fn tc854_published_schemas_are_valid_and_versioned() {
     }
 }
 
-#[trace("TC-855", "FR-055-AC-2")]
+#[trace("FR-055-AC-2")]
 // the CR-057 byte-golden corpus is also the contract
 // corpus — one input, two gates, reviewed in one diff.
 #[test]
@@ -123,7 +123,7 @@ fn tc855_coverage_baseline_conforms() {
     );
 }
 
-#[trace("TC-1082", "FR-055-AC-3")]
+#[trace("FR-055-AC-3")]
 #[test]
 fn tc1082_guidance_is_complete_exclusive_and_additive() {
     let schema = compile("coverage-v1.schema.json");
@@ -176,7 +176,7 @@ fn tc1082_guidance_is_complete_exclusive_and_additive() {
     );
 }
 
-#[trace("TC-856", "FR-055-AC-3")]
+#[trace("FR-055-AC-3")]
 // the optional keys are covered by a payload that
 // actually carries them, not only by one that omits them — the way an optional
 // field quietly stops being described.
@@ -438,7 +438,7 @@ fn tc856_payload_carrying_every_optional_key_conforms() {
     );
 }
 
-#[trace("TC-857", "FR-055-AC-4")]
+#[trace("FR-055-AC-4")]
 // every criterion the engine actually emits conforms.
 #[test]
 fn tc857_emitted_criteria_conform() {
@@ -478,7 +478,7 @@ fn tc857_emitted_criteria_conform() {
     }
 }
 
-#[trace("TC-2055", "FR-072-AC-9")]
+#[trace("FR-072-AC-9")]
 // the criterion record values and order the engine produces equal the
 // checked-in golden byte for byte.
 #[test]
@@ -549,7 +549,7 @@ fn record_json(r: &quire_rs::AcClassification) -> Value {
     })
 }
 
-#[trace("TC-858", "FR-055-AC-5")]
+#[trace("FR-055-AC-5")]
 // `additionalProperties: false` holds at depth, not only
 // at the root — the usual place a hand-authored schema is accidentally open.
 #[test]
@@ -580,7 +580,7 @@ fn tc858_added_fields_are_rejected_at_every_level() {
     }
 }
 
-#[trace("FR-050-AC-39", "TC-859", "FR-055-AC-6")]
+#[trace("FR-050-AC-39", "FR-055-AC-6")]
 // the optional/required split matches the engine's
 // skip-when-empty behaviour, in both directions.
 #[test]
@@ -640,7 +640,7 @@ fn tc859_optional_and_required_split_matches_the_engine() {
     }
 }
 
-#[trace("TC-947", "FR-055-AC-6")]
+#[trace("FR-055-AC-6")]
 // the `implements` optional-key acceptance, pinned in both
 // directions against the ENGINE, not only the schema. #203 (CR-083) silently
 // widened tc859's optional list with `implements` — a real correction
@@ -689,7 +689,7 @@ fn tc947_implements_key_is_omitted_when_empty_and_carried_when_populated() {
     );
 }
 
-#[trace("TC-957", "FR-050-AC-26")]
+#[trace("FR-050-AC-26")]
 // the `line` keys are optional in BOTH directions
 // (#210, the CR-083 additive pattern): a record whose line was not recovered
 // serializes with no key at all — never `null` — a recovered one carries it,
@@ -740,7 +740,7 @@ fn tc957_line_keys_are_optional_in_both_directions() {
     );
 }
 
-#[trace("TC-860", "FR-055-AC-7")]
+#[trace("FR-055-AC-7")]
 // the contract is carried by the artifact alone.
 #[test]
 fn tc860_no_version_key_in_the_payload_and_no_schemars() {
@@ -788,7 +788,7 @@ fn tc860_no_version_key_in_the_payload_and_no_schemars() {
     assert!(Path::new(&repo().join("schemas/output")).is_dir());
 }
 
-#[trace("TC-1010", "FR-055-AC-8")]
+#[trace("FR-055-AC-8")]
 // CR-104 / agent-ix/quire-cli#68: instrument provenance is
 // admitted, and its shape is closed. Both payloads, both directions, because a
 // definition that only one schema carries is the drift this FR exists to stop.

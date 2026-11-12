@@ -29,17 +29,17 @@ fn qa_bounds(root: &std::path::Path) -> Result<serde_json::Value, qa_corpus::cor
     qa_corpus::bounds::derive(root, &cases)
 }
 
-#[trace("TC-992", "FR-050-AC-29")]
+#[trace("FR-050-AC-29")]
 // marker-form mismatch, and its control. (CR-098)
-#[trace("TC-993", "FR-050-AC-29")]
+#[trace("FR-050-AC-29")]
 // a stale test name over a correct marker.
-#[trace("TC-994", "FR-050-AC-29")]
+#[trace("FR-050-AC-29")]
 // a greenfield corpus reports 0% honestly.
-#[trace("TC-995", "FR-050-AC-29")]
+#[trace("FR-050-AC-29")]
 // `implements` was never asked, not answered none.
-#[trace("TC-996", "FR-050-AC-29")]
+#[trace("FR-050-AC-29")]
 // the catch-all-only properties headline.
-#[trace("TC-1011", "FR-065-AC-1")]
+#[trace("FR-065-AC-1")]
 // read in place: no case is materialised.
 #[test]
 fn corpus_cases_hold() {
@@ -134,7 +134,7 @@ fn corpus_cases_hold() {
     );
 }
 
-#[trace("TC-1016", "FR-065-AC-11")]
+#[trace("FR-065-AC-11")]
 // a failing case names the level it lost, and the
 // deepest level it reached. Driven by MUTATING a real case's expectation
 // rather than by a synthetic fixture: the claim is about the grader's reading
@@ -182,7 +182,7 @@ fn tc1016_a_lost_level_is_named_and_graded() {
     assert!(text.contains("reached L2 localised"), "{text}");
 }
 
-#[trace("TC-1016", "FR-065-AC-12")]
+#[trace("FR-065-AC-12")]
 // losing L1 reports no level reached — the case that
 // distinguishes "the detector stopped firing" from "the message got worse".
 #[test]
@@ -225,7 +225,7 @@ fn corpus_attribution_preserves_real_tracker_filings_and_rejects_blank_values() 
 /// Every case names the filing it is the regression for, and every case is
 /// uniquely named — the two properties that keep the corpus navigable as it
 /// grows past the point where anyone remembers all of it.
-#[trace("TC-1012", "FR-065-AC-3")]
+#[trace("FR-065-AC-3")]
 // attribution is required, not decorative.
 #[test]
 fn every_case_is_attributed_and_uniquely_named() {
@@ -248,7 +248,7 @@ fn every_case_is_attributed_and_uniquely_named() {
 
 /// A control names a case that exists, and does not claim a finding is
 /// expected on it.
-#[trace("TC-1017", "FR-065-AC-13")]
+#[trace("FR-065-AC-13")]
 // every control's partner resolves.
 #[test]
 fn tc1017_every_control_names_a_case_that_exists() {
@@ -306,7 +306,7 @@ fn tc1017_every_control_names_a_case_that_exists() {
 /// The corpus is deterministic: the same case run twice produces the same
 /// report. Mirrors the `filament_core` corpus's own determinism guard, which is
 /// the pattern this generalizes.
-#[trace("TC-1019", "FR-065-AC-17")]
+#[trace("FR-065-AC-17")]
 // two runs over unchanged input agree byte for byte.
 #[test]
 fn corpus_cases_are_deterministic() {
@@ -320,7 +320,7 @@ fn corpus_cases_are_deterministic() {
 /// Characterize the public behavior that the #360 harness decomposition must
 /// preserve: one representative case produces identical JSON on repeated
 /// execution and its successful grade renders the same actionable summary.
-#[trace("TC-1058", "FR-050-AC-7")]
+#[trace("FR-050-AC-7")]
 #[test]
 fn tc1058_corpus_execution_grading_and_rendering_are_stable() {
     let case = load_cases()
@@ -363,15 +363,15 @@ fn tc1058_corpus_execution_grading_and_rendering_are_stable() {
 /// declaration order — the enum that grades, against the file that declares.
 /// Order is asserted because `Outcome::level_lost` is a MINIMUM over the ladder;
 /// a declaration that reordered it would mean something different.
-#[trace("TC-1021", "FR-065-AC-19")]
+#[trace("FR-065-AC-19")]
 // the bounds enum comes from corpus.yaml.
-#[trace("TC-1021", "FR-065-AC-20")]
+#[trace("FR-065-AC-20")]
 // the compiled ladder and the declared ladder agree,
 // in name and in order.
-#[trace("TC-1021", "FR-065-AC-21")]
+#[trace("FR-065-AC-21")]
 // so do the mode families, and a case naming an
 // undeclared one is rejected.
-#[trace("TC-1021", "FR-065-AC-49")]
+#[trace("FR-065-AC-49")]
 // the corpus carries no copy of the provider modules.
 #[test]
 fn tc1021_the_vocabularies_come_from_the_corpus_not_from_this_file() {
@@ -572,7 +572,7 @@ fn tc1021_the_vocabularies_come_from_the_corpus_not_from_this_file() {
 /// declared field has a consumer that constrains it. So that assertion is a
 /// backstop for a field with no such consumer, not a gate observed to fire —
 /// said plainly rather than counted as verification it did not earn.
-#[trace("TC-1043", "FR-065-AC-3")]
+#[trace("FR-065-AC-3")]
 // every field `case_schema` requires is refused by the Rust reader when absent,
 // and every field it declares is one `CaseMeta` models.
 #[test]
@@ -744,9 +744,9 @@ fn glob_case_files(cases: &std::path::Path) -> Vec<std::path::PathBuf> {
 /// `bounds.py` crediting the cell as ecosystem-covered. That is #266's defect
 /// ("the field named one thing and the file loaded another") relocated rather
 /// than removed.
-#[trace("FR-065-CON-3", "TC-1018", "FR-065-AC-15")]
+#[trace("FR-065-CON-3", "FR-065-AC-15")]
 // a variant binding names its relaxation ticket.
-#[trace("TC-1020", "FR-065-AC-18")]
+#[trace("FR-065-AC-18")]
 // the documented invocation names the module that loads (none for ecosystem).
 #[test]
 fn tc1020_the_documented_invocation_names_the_module_that_loads() {
@@ -845,9 +845,9 @@ fn tc1020_the_documented_invocation_names_the_module_that_loads() {
 /// with `gap_count` unmoved — and `bounds.py` honoured a variant-declared `id`
 /// verbatim while this harness overwrote it, so one fixture had two identities
 /// and nothing keyed on `id` could be joined across runners.
-#[trace("TC-1022", "FR-065-AC-22")]
+#[trace("FR-065-AC-22")]
 // a variant may not re-point its own case.
-#[trace("TC-1022", "FR-065-AC-23")]
+#[trace("FR-065-AC-23")]
 // one variant, one id, in every reader.
 #[test]
 fn tc1022_a_variant_varies_expectations_not_identity() {
@@ -908,11 +908,11 @@ fn tc1022_a_variant_varies_expectations_not_identity() {
 /// true today went unasserted. Measured on the two minting rows: both fixtures
 /// could have regressed to minting nothing at all, in three languages, and
 /// stayed green.
-#[trace("TC-1023", "FR-065-AC-25")]
+#[trace("FR-065-AC-25")]
 // the live block holds for a pending case too.
-#[trace("TC-1023", "FR-065-AC-26")]
+#[trace("FR-065-AC-26")]
 // `pending:` and `expect-pending.yaml` imply each other.
-#[trace("TC-1023", "FR-065-AC-27")]
+#[trace("FR-065-AC-27")]
 // a forward block that starts holding fails the run.
 #[test]
 fn tc1023_a_pending_case_still_asserts_what_is_true_today() {
@@ -978,7 +978,7 @@ fn tc1023_a_pending_case_still_asserts_what_is_true_today() {
 /// it and mints a row whose identity is null. Every other key of those two
 /// payloads is byte-identical, and a subset match would let either case pass on
 /// the other's payload.
-#[trace("TC-1024", "FR-065-AC-28")]
+#[trace("FR-065-AC-28")]
 // exact, both directions; `[]` is an assertion.
 #[test]
 fn tc1024_unbacked_rows_and_groups_are_exact() {
@@ -1093,7 +1093,7 @@ fn tc1024_unbacked_rows_and_groups_are_exact() {
 /// leaving its reader unable to act. `agent-ix/identity` has 606 ids stranded
 /// on exactly this: told only "the declared id column was not found", its
 /// reader edits the heading, which is already correct.
-#[trace("TC-1024", "FR-065-AC-29")]
+#[trace("FR-065-AC-29")]
 // each fragment in the list must be present.
 #[test]
 fn tc1024_every_l3_fragment_is_asserted() {
@@ -1135,17 +1135,17 @@ fn tc1024_every_l3_fragment_is_asserted() {
 /// Every case below drives the authoritative QA Rust loader over a COPY of the
 /// corpus with one file changed, and asserts it refuses — naming the case and
 /// the thing that is wrong.
-#[trace("TC-1025", "FR-065-AC-30")]
+#[trace("FR-065-AC-30")]
 // a token in neither list is rejected.
-#[trace("TC-1025", "FR-065-AC-31")]
+#[trace("FR-065-AC-31")]
 // a live block may not require what no engine emits.
-#[trace("TC-1025", "FR-065-AC-32")]
+#[trace("FR-065-AC-32")]
 // a failure case may not assert its pending token absent.
-#[trace("TC-1025", "FR-065-AC-33")]
+#[trace("FR-065-AC-33")]
 // a forward block that asserts nothing is rejected.
-#[trace("TC-1025", "FR-065-AC-39")]
+#[trace("FR-065-AC-39")]
 // a live block that asserts nothing is rejected.
-#[trace("TC-1025", "FR-065-AC-36")]
+#[trace("FR-065-AC-36")]
 // a forward block must be ABOUT its ticket.
 #[test]
 fn tc1025_the_loader_refuses_a_block_that_asserts_the_wrong_thing() {
@@ -1483,11 +1483,11 @@ fn copy_tree(from: &std::path::Path, to: &std::path::Path) {
 
 /// The corpus vocabulary equals the engine's published registry (#300).
 /// Forward tokens must stay outside it until their implementation lands.
-#[trace("TC-1026", "FR-065-AC-34")]
+#[trace("FR-065-AC-34")]
 // `emitted` names only what the engine emits.
-#[trace("TC-1026", "FR-065-AC-35")]
+#[trace("FR-065-AC-35")]
 // `forward` names only what it does not.
-#[trace("TC-1026", "FR-065-AC-48")]
+#[trace("FR-065-AC-48")]
 // Every emitted reason is exercised in both failure and healthy input.
 #[test]
 fn tc1026_the_declared_vocabulary_matches_the_engine() {
@@ -1614,13 +1614,13 @@ fn tc1026_the_declared_vocabulary_matches_the_engine() {
 ///
 /// Mutated, like TC-1025: scanning a conformant corpus and asserting it
 /// conforms proves nothing about the checker.
-#[trace("TC-1027", "FR-065-AC-37")]
+#[trace("FR-065-AC-37")]
 // a control binds its partner's mode and module.
-#[trace("TC-1027", "FR-065-AC-38")]
+#[trace("FR-065-AC-38")]
 // every failure case is named by some control.
-#[trace("TC-1027", "FR-065-AC-40")]
+#[trace("FR-065-AC-40")]
 // a findable case names what finds it.
-#[trace("TC-1027", "FR-065-AC-41")]
+#[trace("FR-065-AC-41")]
 // an exemption names a ticket and a case.
 #[test]
 fn tc1027_a_control_binds_its_partners_declaration() {
@@ -1760,7 +1760,7 @@ fn scratch_dir(test: &str, index: usize) -> Scratch {
 /// check exists to close. It is implemented in both readers as of #337, and the
 /// two resolutions of "which control is this case's" are now one rule, asserted
 /// against each other at the end of this test rather than assumed to agree.
-#[trace("TC-1028", "FR-065-AC-42", "FR-065-AC-46", "FR-065-AC-47")]
+#[trace("FR-065-AC-42", "FR-065-AC-46", "FR-065-AC-47")]
 // a failure case separates itself from its control, THROUGH its mode's witness
 // channel. CR-130 added AC-46 and AC-47 and pointed both at this TC in the
 // spec/tests.md index, but left the marker naming AC-42 alone — so the two new
@@ -2123,11 +2123,11 @@ fn tc1028_a_failure_case_discriminates_from_its_control() {
 /// Not every fix leaves one behind. Where a fix makes a diagnostic FIRE, the
 /// control stays silent and the pair keeps discriminating — those fixtures fold
 /// their forward block in and stay `failure` cases.
-#[trace("TC-1032", "FR-065-AC-43")]
+#[trace("FR-065-AC-43")]
 // accepted with no control; findable/control_for/pending rejected.
-#[trace("TC-1032", "FR-065-AC-44")]
+#[trace("FR-065-AC-44")]
 // an ecosystem-bound one credits its cell, so a fixed defect does not revert.
-#[trace("TC-1032", "FR-065-AC-45")]
+#[trace("FR-065-AC-45")]
 // a variant-bound one credits none, and its GAP reason names the ticket.
 #[test]
 fn tc1032_a_regression_case_pins_a_landed_fix() {
@@ -2257,7 +2257,7 @@ fn tc1032_a_regression_case_pins_a_landed_fix() {
     }
 }
 
-#[trace("TC-2053", "FR-050-AC-53")]
+#[trace("FR-050-AC-53")]
 #[test]
 fn withdrawn_verification_corpus_cases() {
     let cases: Vec<_> = load_cases()

@@ -34,7 +34,7 @@ The parsed frontmatter is a `serde_json::Map<String, Value>` (JSON-compatible va
 | FR-006-AC-4 | [FR-001](./FR-001-render-dispatch.md) returns `frontmatter: None, body: full original input`. | Test |
 | FR-006-AC-5 | [FR-001](./FR-001-render-dispatch.md) (BOM-prefixed input) returns the same result as the BOM-free equivalent — frontmatter parsed, body equal to `"body"` (no BOM in body). | Test |
 | FR-006-AC-6 | `extract_frontmatter("\u{FEFF}# heading")` (BOM-prefixed, no frontmatter) returns `frontmatter: None, body: "# heading"` (BOM stripped from body). | Test |
-| FR-006-AC-7 | The result `status` (CR-011) classifies each branch: absent/unterminated → `Absent`; a valid mapping → `Present`; invalid YAML or a non-null non-mapping value (array/scalar) → `Malformed`; an empty/whitespace/comment-only block (YAML null) → `Absent` (not a parse failure). | Test (TC-706) |
+| FR-006-AC-7 | The result `status` (CR-011) classifies each branch: absent/unterminated → `Absent`; a valid mapping → `Present`; invalid YAML or a non-null non-mapping value (array/scalar) → `Malformed`; an empty/whitespace/comment-only block (YAML null) → `Absent` (not a parse failure). | Test |
 
 ## Dependencies
 

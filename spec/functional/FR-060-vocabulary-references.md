@@ -82,12 +82,12 @@ Two sources for one constraint is the duplication this FR removes; unioning them
 
 | ID | Criteria | Verification |
 |----|----------|--------------|
-| FR-060-AC-1 | `column_vocabularies: {Header: name}` resolves to the declared vocabulary's values, and the reference is consumed so nothing downstream must understand it. | Test (TC-919) |
-| FR-060-AC-2 | `from_vocabulary: name` resolves the scalar counterpart the same way. | Test (TC-920) |
-| FR-060-AC-3 | A name no module declares resolves to an **empty** choice set, never to an absent constraint. | Test (TC-921) |
-| FR-060-AC-4 | A literal `choices`/`column_choices` beside a reference wins, and the reference is dropped rather than merged. | Test (TC-922) |
-| FR-060-AC-5 | An archetype naming no vocabulary is left byte-identical and is not cloned. | Test (TC-923) |
-| FR-060-AC-6 | A reference is legal exactly where its literal counterpart is legal, and the load failure names the offending key. | Test (TC-924) |
+| FR-060-AC-1 | `column_vocabularies: {Header: name}` resolves to the declared vocabulary's values, and the reference is consumed so nothing downstream must understand it. | Test |
+| FR-060-AC-2 | `from_vocabulary: name` resolves the scalar counterpart the same way. | Test |
+| FR-060-AC-3 | A name no module declares resolves to an **empty** choice set, never to an absent constraint. | Test |
+| FR-060-AC-4 | A literal `choices`/`column_choices` beside a reference wins, and the reference is dropped rather than merged. | Test |
+| FR-060-AC-5 | An archetype naming no vocabulary is left byte-identical and is not cloned. | Test |
+| FR-060-AC-6 | A reference is legal exactly where its literal counterpart is legal, and the load failure names the offending key. | Test |
 
 ## Constraints
 

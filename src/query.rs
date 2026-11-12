@@ -743,7 +743,7 @@ mod tests {
 
     // ─── CR-007: escaped pipes are literal cell content ─────────────────
 
-    #[trace("TC-589", "FR-010-AC-4")]
+    #[trace("FR-010-AC-4")]
     // an escaped pipe is cell content, not a delimiter. (CR-007)
     #[test]
     fn cr007_escaped_pipe_in_body_cell_is_literal_not_delimiter() {

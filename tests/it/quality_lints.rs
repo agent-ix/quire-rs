@@ -62,7 +62,7 @@ fn plain(suffix: &str) -> Registry {
     Registry::load_module(&module_with_terms(suffix, &[])).expect("load")
 }
 
-#[trace("TC-861", "FR-056-AC-1")]
+#[trace("FR-056-AC-1")]
 // a built-in ambiguity term fires and names itself.
 #[test]
 fn tc861_builtin_ambiguity_term_fires_and_names_the_term() {
@@ -89,7 +89,7 @@ fn tc861_builtin_ambiguity_term_fires_and_names_the_term() {
     );
 }
 
-#[trace("TC-862", "FR-056-AC-2")]
+#[trace("FR-056-AC-2")]
 // the longest matching term names the finding, so the
 // report says what the author wrote.
 #[test]
@@ -106,7 +106,7 @@ fn tc862_longest_term_names_the_finding() {
     );
 }
 
-#[trace("TC-863", "FR-056-AC-3")]
+#[trace("FR-056-AC-3")]
 // module terms layer OVER the built-ins, never replace.
 #[test]
 fn tc863_module_terms_extend_the_builtins() {
@@ -131,7 +131,7 @@ fn tc863_module_terms_extend_the_builtins() {
     );
 }
 
-#[trace("TC-864", "FR-056-AC-4")]
+#[trace("FR-056-AC-4")]
 // the check is about missing allocation, not the voice.
 #[test]
 fn tc864_agentless_passive_is_about_allocation_not_voice() {
@@ -160,7 +160,7 @@ fn tc864_agentless_passive_is_about_allocation_not_voice() {
     );
 }
 
-#[trace("TC-865", "FR-056-AC-5")]
+#[trace("FR-056-AC-5")]
 // two modals is the defect; one is not.
 #[test]
 fn tc865_mixed_modal_needs_two_modals() {
@@ -182,7 +182,7 @@ fn tc865_mixed_modal_needs_two_modals() {
     assert!(!single.iter().any(|c| c == "mixed-modal"), "{single:?}");
 }
 
-#[trace("TC-866", "FR-056-AC-6")]
+#[trace("FR-056-AC-6")]
 // CR-017 parity — a quoted term is a mention.
 #[test]
 fn tc866_quoted_term_is_a_mention_not_a_use() {
@@ -206,7 +206,7 @@ fn tc866_quoted_term_is_a_mention_not_a_use() {
     );
 }
 
-#[trace("FR-048-AC-9", "TC-867", "FR-056-AC-7")]
+#[trace("FR-048-AC-9", "FR-056-AC-7")]
 // advisory on arrival, and individually silenceable.
 #[test]
 fn tc867_advisory_and_individually_addressable() {
@@ -242,7 +242,7 @@ fn tc867_advisory_and_individually_addressable() {
     );
 }
 
-#[trace("TC-868", "FR-056-AC-8")]
+#[trace("FR-056-AC-8")]
 // the pack adds a grammar, it does not reinterpret the
 // two that exist (CON-4).
 #[test]
@@ -299,7 +299,7 @@ fn tc868_ears_and_ac_findings_are_unchanged() {
     );
 }
 
-#[trace("TC-869", "FR-056-AC-9")]
+#[trace("FR-056-AC-9")]
 // checks are independent, so two defects report twice.
 #[test]
 fn tc869_two_defects_report_two_findings() {
@@ -322,7 +322,7 @@ fn ambiguity_terms_layer_over_builtins() {
     assert_eq!(extended.len(), builtin.len() + 1);
 }
 
-#[trace("TC-876", "FR-056-AC-10")]
+#[trace("FR-056-AC-10")]
 // a table finding reports the ROW's line, not the
 // section heading's.
 //
@@ -357,7 +357,7 @@ fn tc876_table_findings_carry_the_row_line() {
     );
 }
 
-#[trace("TC-877", "FR-056-AC-11")]
+#[trace("FR-056-AC-11")]
 // a `must`-only statement is judged.
 //
 // The prose collection gate admitted `shall` and `should` alone, while
@@ -381,7 +381,7 @@ fn tc877_must_only_statement_is_judged() {
     assert!(checks(&registry, &fr("This section explains the adequate case.")).is_empty());
 }
 
-#[trace("TC-878", "FR-056-AC-12")]
+#[trace("FR-056-AC-12")]
 // `by <deadline>` and `by <sort key>` do not count as
 // an agent.
 //
@@ -414,7 +414,7 @@ fn tc878_by_a_deadline_or_a_sort_key_is_not_an_agent() {
     }
 }
 
-#[trace("TC-879", "FR-056-AC-13")]
+#[trace("FR-056-AC-13")]
 // an unknown key in `ambiguity_terms` fails module load.
 //
 // `VerificationMethodDef` rejected unknown fields and `AmbiguityTermDef` did

@@ -56,7 +56,7 @@ fn render_report() -> String {
 
 /// CR-057: the coverage report over the baseline corpus
 /// is byte-identical to the checked-in snapshot.
-#[trace("FR-050-AC-7", "TC-824", "TC-2055", "FR-072-AC-9")]
+#[trace("FR-050-AC-7", "FR-072-AC-9")]
 #[test]
 fn tc824_coverage_report_matches_the_checked_in_baseline() {
     let actual = render_report();
@@ -85,7 +85,7 @@ fn tc824_coverage_report_matches_the_checked_in_baseline() {
 /// it was chosen to exercise. A gate over a corpus that has quietly stopped
 /// producing findings passes forever while measuring nothing — the failure
 /// mode of every baseline nobody re-reads.
-#[trace("FR-050-AC-7", "TC-824", "TC-826")]
+#[trace("FR-050-AC-7")]
 #[test]
 fn tc824_the_baseline_corpus_still_exercises_the_surface() {
     let scope = fixture("scope");

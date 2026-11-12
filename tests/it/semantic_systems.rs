@@ -147,7 +147,7 @@ const BUNDLE: &[(&str, &str)] = &[
 
 const PKG: &str = "ix://agent-ix/shop";
 
-#[trace("TC-1872", "FR-075-AC-12")]
+#[trace("FR-075-AC-12")]
 #[test]
 fn systems_tables_lower_to_record_keys_and_refuse_bad_rows() {
     let pkg = PKG;
@@ -384,7 +384,7 @@ fn systems_tables_lower_to_record_keys_and_refuse_bad_rows() {
     assert_eq!(refusal["section"], "Elsewhere");
 }
 
-#[trace("TC-1872", "FR-075-AC-12")]
+#[trace("FR-075-AC-12")]
 #[test]
 fn systems_references_resolve_qualified_and_imported_names_of_the_admitted_kind() {
     let pkg = PKG;
@@ -543,7 +543,7 @@ fn systems_references_resolve_qualified_and_imported_names_of_the_admitted_kind(
 /// systems record (the same four), and only when `<id>` actually declares
 /// the operation `<member>`. A Port `Owner` and an
 /// allocation `Target` still admit only a `part`.
-#[trace("TC-1872", "FR-075-AC-12")]
+#[trace("FR-075-AC-12")]
 #[test]
 fn part_owner_and_allocation_operation_source_admit_any_declared_kind() {
     let pkg = PKG;
@@ -693,7 +693,7 @@ fn part_owner_and_allocation_operation_source_admit_any_declared_kind() {
 /// checked (see the third case below and `SYSTEMS_RECORD_KINDS` in
 /// `src/semantic/systems.rs`), so the operation-check path this test targets
 /// needs a declarer kind that check admits.
-#[trace("TC-1872", "FR-075-AC-12")]
+#[trace("FR-075-AC-12")]
 #[test]
 fn allocation_source_self_reference_checks_its_own_declared_operations() {
     let self_ref_doc = |kind: &str, source: &str| -> String {
@@ -749,7 +749,7 @@ fn allocation_source_self_reference_checks_its_own_declared_operations() {
 /// real corpus document declaring `### run`; the index built from it names
 /// `run`, and an allocation `Source: Pump/run` lifts against that index end
 /// to end, exactly as it does when a caller supplies `operations` itself.
-#[trace("TC-1872", "FR-075-AC-12")]
+#[trace("FR-075-AC-12")]
 #[test]
 fn corpus_mode_derives_operations_from_each_documents_own_section() {
     let pump_raw = "---\nid: Pump\ntitle: \"Pump\"\ntype: entity\nobject: entity\n---\n# [Pump] Pump\n\n## Operations\n\n### run\n";
@@ -806,7 +806,7 @@ fn corpus_mode_derives_operations_from_each_documents_own_section() {
 /// (`BundleIndex::from_documents`, another artifact's `Pump/run`) and the
 /// self-reference path (`Pump`'s own `Pump/run`, via `model.rs`'s
 /// `own_operations`). Both lift, consistently.
-#[trace("TC-1872", "FR-075-AC-12")]
+#[trace("FR-075-AC-12")]
 #[test]
 fn declared_operation_names_survives_a_malformed_operation_body() {
     let pump_raw = "---\nid: Pump\ntitle: \"Pump\"\ntype: entity\nobject: entity\n---\n# [Pump] Pump\n\n## Operations\n\n### run\n\nReturns: bad\n\n## Allocation\n\n| Source | Target |\n|---|---|\n| Pump/run | sys_pump |\n";
@@ -863,7 +863,7 @@ fn declared_operation_names_survives_a_malformed_operation_body() {
     );
 }
 
-#[trace("TC-1872", "FR-075-AC-12")]
+#[trace("FR-075-AC-12")]
 #[test]
 fn systems_table_kind_comes_from_the_match_key() {
     // A connection declared with `[Source, Target]` reads a `Source | Target`
@@ -954,7 +954,7 @@ fn skip_if_spec_objects_architecture_unavailable() -> bool {
     }
 }
 
-#[trace("TC-1873", "FR-075-AC-13")]
+#[trace("FR-075-AC-13")]
 #[test]
 fn spec_objects_architecture_systems_skeletons_validate_with_zero_errors() {
     if skip_if_spec_objects_architecture_unavailable() {
@@ -1010,7 +1010,7 @@ fn spec_objects_architecture_systems_skeletons_validate_with_zero_errors() {
     }
 }
 
-#[trace("TC-1872", "FR-075-AC-12")]
+#[trace("FR-075-AC-12")]
 #[test]
 fn a_declaration_with_two_systems_records_is_an_error() {
     let part = extract(

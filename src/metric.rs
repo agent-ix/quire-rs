@@ -232,7 +232,7 @@ mod tests {
     use super::*;
     use ix_trace_rs::trace;
 
-    #[trace("TC-985", "FR-063-AC-1", "FR-063-AC-6")]
+    #[trace("FR-063-AC-1", "FR-063-AC-6")]
     // a hollow denominator is a population the
     // measurement could not read, and it is distinguishable from every
     // neighbouring shape.
@@ -279,7 +279,7 @@ mod tests {
         assert!(Metric::measured("coverage.backed", "matrix row", "…", 0, 42, 42, 0).is_hollow());
     }
 
-    #[trace("TC-986", "FR-063-AC-2")]
+    #[trace("FR-063-AC-2")]
     // `not computed` and `computed zero` are different
     // facts and serialize differently — the ambiguity #226 is about.
     #[test]
@@ -316,7 +316,7 @@ mod tests {
         }
     }
 
-    #[trace("TC-987", "FR-063-AC-1")]
+    #[trace("FR-063-AC-1")]
     // every metric carries a unit and a method, because
     // there is no constructor that can omit them.
     #[test]

@@ -51,13 +51,13 @@ not exist SHALL be an error, and SHALL leave the document unchanged.
 
 | ID | Criteria | Verification |
 |----|----------|--------------|
-| FR-022-AC-1 | Replacing a section's content updates that content range and leaves the heading line, the frontmatter and every other section byte-identical. | Test (TC-430) |
-| FR-022-AC-2 | Replacing a block by its id updates the heading line and content together, and resolves a block nested below the top level. | Test (TC-431) |
-| FR-022-AC-3 | After a block replacement, untouched blocks are byte-identical, including trailing whitespace and nested list markers. | Test (TC-432) |
-| FR-022-AC-4 | Frontmatter is byte-identical through both primitives. | Test (TC-433) |
-| FR-022-AC-5 | An unknown heading and an unknown block id each return `MissingField` and leave the document unchanged. | Test (TC-434, TC-435) |
-| FR-022-AC-6 | Replacing a section's content with **its own current content** returns the document byte-identical, for every section including an **empty** one — a heading immediately followed by the next heading, or by end of file. A speculative rewrite is therefore a no-op rather than a source of churn. | Test (TC-896) |
-| FR-022-AC-7 | Writing content into a section whose heading line is the **last line of the document** (no trailing newline) inserts the line break that separates them, so the heading text is unchanged and the new content parses as content. Concatenating the two — turning `## Aa` plus `body` into a heading reading `Aa body` — is document corruption and MUST NOT occur. | Test (TC-896) |
+| FR-022-AC-1 | Replacing a section's content updates that content range and leaves the heading line, the frontmatter and every other section byte-identical. | Test |
+| FR-022-AC-2 | Replacing a block by its id updates the heading line and content together, and resolves a block nested below the top level. | Test |
+| FR-022-AC-3 | After a block replacement, untouched blocks are byte-identical, including trailing whitespace and nested list markers. | Test |
+| FR-022-AC-4 | Frontmatter is byte-identical through both primitives. | Test |
+| FR-022-AC-5 | An unknown heading and an unknown block id each return `MissingField` and leave the document unchanged. | Test |
+| FR-022-AC-6 | Replacing a section's content with **its own current content** returns the document byte-identical, for every section including an **empty** one — a heading immediately followed by the next heading, or by end of file. A speculative rewrite is therefore a no-op rather than a source of churn. | Test |
+| FR-022-AC-7 | Writing content into a section whose heading line is the **last line of the document** (no trailing newline) inserts the line break that separates them, so the heading text is unchanged and the new content parses as content. Concatenating the two — turning `## Aa` plus `body` into a heading reading `Aa body` — is document corruption and MUST NOT occur. | Test |
 
 > **CR-042 note (2026-08-14):** Authored after the fact. This shipped in v0.2 and
 > was never written up. The tests were there the whole time — the eight cases in

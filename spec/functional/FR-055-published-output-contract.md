@@ -169,14 +169,14 @@ value outside them is a defect a consumer should hear about.
 
 | ID | Criteria | Verification |
 |----|----------|--------------|
-| FR-055-AC-1 | Both published schemas are themselves valid JSON Schema draft 2020-12 documents, and each carries a `$id` ending in its versioned filename. | Test (TC-854) |
-| FR-055-AC-2 | The checked-in coverage baseline report validates against `coverage-v1.schema.json` with zero errors, so the byte-golden corpus and the contract are gated over one input. | Test (TC-855) |
-| FR-055-AC-3 | A coverage report over a corpus exercising obligations, criteria counts and scan diagnostics validates against the schema, so the optional keys are covered by a payload that carries them rather than only by one that omits them. | Test (TC-856) |
-| FR-055-AC-4 | Every criterion record emitted for a fixture document validates against the `Criterion` definition in `properties-v1.schema.json`. | Test (TC-857) |
-| FR-055-AC-5 | A payload with an added field is rejected by its schema, confirming `additionalProperties: false` holds everywhere rather than only at the root. | Test (TC-858) |
-| FR-055-AC-6 | Removing an optional key from a valid payload leaves it valid, and removing a required one makes it invalid, so the optional/required split matches the engine's skip-when-empty behaviour. | Test (TC-859) |
-| FR-055-AC-7 | Neither coverage-v1 nor properties-v1 contains a `version`, `$schema` or `schema_version` key, and `schemars` is absent from the dependency graph (CON-1, CON-2). | Test (TC-860) |
-| FR-055-AC-8 | Both schemas define an optional `engine` object requiring `cli`, `engine` and `capabilities` (CR-104). A payload carrying one conforms; a payload omitting it conforms; a payload whose `engine` is missing a required member, or carries an undeclared member, is rejected. | Test (TC-1010) |
+| FR-055-AC-1 | Both published schemas are themselves valid JSON Schema draft 2020-12 documents, and each carries a `$id` ending in its versioned filename. | Test |
+| FR-055-AC-2 | The checked-in coverage baseline report validates against `coverage-v1.schema.json` with zero errors, so the byte-golden corpus and the contract are gated over one input. | Test |
+| FR-055-AC-3 | A coverage report over a corpus exercising obligations, criteria counts and scan diagnostics validates against the schema, so the optional keys are covered by a payload that carries them rather than only by one that omits them. | Test |
+| FR-055-AC-4 | Every criterion record emitted for a fixture document validates against the `Criterion` definition in `properties-v1.schema.json`. | Test |
+| FR-055-AC-5 | A payload with an added field is rejected by its schema, confirming `additionalProperties: false` holds everywhere rather than only at the root. | Test |
+| FR-055-AC-6 | Removing an optional key from a valid payload leaves it valid, and removing a required one makes it invalid, so the optional/required split matches the engine's skip-when-empty behaviour. | Test |
+| FR-055-AC-7 | Neither coverage-v1 nor properties-v1 contains a `version`, `$schema` or `schema_version` key, and `schemars` is absent from the dependency graph (CON-1, CON-2). | Test |
+| FR-055-AC-8 | Both schemas define an optional `engine` object requiring `cli`, `engine` and `capabilities` (CR-104). A payload carrying one conforms; a payload omitting it conforms; a payload whose `engine` is missing a required member, or carries an undeclared member, is rejected. | Test |
 
 ## Dependencies
 

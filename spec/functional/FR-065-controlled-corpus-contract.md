@@ -616,55 +616,55 @@ against neither; it now renders `Level::ALL` and compares that.
 
 | ID | Criteria | Verification |
 |----|----------|--------------|
-| FR-065-AC-1 | A case is read from disk in place: no file under `input/` is generated, copied or materialised during a non-mutating run. | Test (TC-1011) |
-| FR-065-AC-2 | A mutating case operates on a copy, leaving its checked-in `input/` tree byte-unchanged. | Test (TC-1011) |
-| FR-065-AC-3 | A case omitting any field `case_schema.required` names is rejected by every reader, and the rejection names the case and the field. | Test (TC-1012, TC-1043) |
-| FR-065-AC-4 | A control case declaring no `control_for` is rejected. | Test (TC-1012) |
-| FR-065-AC-5 | An `expect` field a case omits is asserted on by nothing; the omitted field is not defaulted. | Test (TC-1013) |
-| FR-065-AC-6 | Every declared cell in `corpus.yaml` reads as exactly one of `covered`, `out-of-scope` or `GAP`. | Test (TC-1014) |
-| FR-065-AC-7 | An `out-of-scope` cell carries a non-empty reason; one with an empty reason is rejected. | Test (TC-1014) |
-| FR-065-AC-8 | A cell in none of the three states is rejected, naming the case and the language. | Test (TC-1014) |
-| FR-065-AC-9 | `bounds.gap_count` is an integer count on every surface this crate emits. | Test (TC-1015) |
-| FR-065-AC-10 | No payload this crate emits renders `bounds.gap_count` as a ratio or a percentage. | Test (TC-1015) |
-| FR-065-AC-11 | A failing case reports the highest detection level it reached, distinguishing L1, L2 and L3. | Test (TC-1016) |
-| FR-065-AC-12 | A failing case reports the first level it lost. | Test (TC-1016) |
-| FR-065-AC-13 | A failure case whose `control_for` partner is absent is rejected, naming the missing control. | Test (TC-1017) |
-| FR-065-AC-14 | A control case over healthy input produces no finding for the mode its partner asserts. | Test (TC-1017) |
-| FR-065-AC-15 | A variant-bound case is rejected unless it declares exactly one of `relaxation_ticket` or `declaration_under_test`; an ecosystem-bound case declaring either is rejected. | Test (TC-1018) |
-| FR-065-AC-16 | A case binding the ecosystem declaration loads without naming a ticket. | Test (TC-1018) |
-| FR-065-AC-17 | Two runs of one case over unchanged input produce a byte-identical engine report. | Test (TC-1019) |
-| FR-065-AC-18 | Each case's `case.yaml` carries the invocation that reproduces it. For a non-ecosystem case that invocation names the case's corpus module; for an ecosystem case it names no module, and the provider modules resolve from the consumer. | Test (TC-1020) |
-| FR-065-AC-19 | `qa_corpus::bounds` derives its per-state counters and its sum invariant from `corpus.yaml`'s `bounds_states`, and rejects a cell graded into a state the declaration does not name. | Test (TC-1021, `qa-corpus` bounds tests) |
-| FR-065-AC-20 | The compiled grading ladder and `corpus.yaml`'s `grading_levels` agree in name and in order, and a gate fails on disagreement. The runner is not required to accept a ladder change without a code edit: the ladder is the grading rule, not a vocabulary (CR-129). | Test (TC-1021) |
-| FR-065-AC-21 | The runner reads the mode families from `corpus.yaml`, and a case naming an undeclared family is rejected. | Test (TC-1021) |
-| FR-065-AC-22 | A language set's variant declares only what varies; a variant DECLARING any field `case_schema.variant_forbidden` names is rejected naming the field, whether or not the shared file also declares it, and a reader finding no `variant_forbidden` fails rather than skips. | Test (TC-1022) |
-| FR-065-AC-23 | Every reader derives the same `id` for one variant, `<shared id>-<language>`, so a record keyed on `id` joins across runners. | Test (TC-1022) |
-| FR-065-AC-24 | `control_for` resolves against failure cases only, in the control's own language; a control whose partner is absent is rejected. | Test (TC-1017) |
-| FR-065-AC-25 | Every case's `expect.yaml` is graded and MUST hold, whether or not the case declares `pending`. | Test (TC-1023) |
-| FR-065-AC-26 | A case declaring `pending` and shipping no `expect-pending.yaml` is rejected, and so is one shipping `expect-pending.yaml` and declaring no `pending`. | Test (TC-1023) |
-| FR-065-AC-27 | A case whose `expect-pending.yaml` holds fails the run, naming the ticket in its `pending`. | Test (TC-1023) |
-| FR-065-AC-28 | A case asserting `unbacked_rows` or `groups` fails on a payload carrying an extra entry, a missing entry, a changed field or a different order; a case asserting an empty list fails on a payload carrying any entry. | Test (TC-1024) |
-| FR-065-AC-29 | A case naming several substrings for one reason fails when the message carries any proper subset of them. | Test (TC-1024) |
-| FR-065-AC-30 | A block naming a reason token that `corpus.yaml` declares neither emitted nor forward is rejected, naming the token. | Test (TC-1025) |
-| FR-065-AC-31 | A live block requiring a `forward` token is rejected; a forward block requiring a token whose ticket is not the case's own `pending` is rejected. | Test (TC-1025) |
-| FR-065-AC-32 | A failure case asserting a `forward` token ABSENT is rejected; a control asserting one in its live block is accepted. | Test (TC-1025) |
-| FR-065-AC-33 | An `expect-pending.yaml` grading zero assertions is rejected rather than read as its ticket having landed. | Test (TC-1025) |
-| FR-065-AC-34 | A token declared `emitted` that the engine does not produce is rejected. | Test (TC-1026) |
-| FR-065-AC-35 | A token declared `forward` that the engine already produces is rejected, naming the ticket that appears to have landed. | Test (TC-1026) |
-| FR-065-AC-36 | An `expect-pending.yaml` requiring no token its own `pending` ticket introduces is rejected, and one requiring an already-emitted token is rejected. | Test (TC-1025) |
-| FR-065-AC-37 | A control whose `mode` or `module` differs from a partner's is rejected unless declared in `known_gaps`; an entry in `known_gaps` naming no case is rejected. | Test (TC-1027) |
-| FR-065-AC-38 | A failure case named by no control is rejected unless declared in `known_gaps`. | Test (TC-1027) |
-| FR-065-AC-39 | An `expect.yaml` grading zero assertions is rejected, for every case. | Test (TC-1025) |
-| FR-065-AC-40 | A case declaring `findable` and requiring no finding in any block is rejected unless declared in `known_gaps`. | Test (TC-1027) |
-| FR-065-AC-41 | A `known_gaps` entry naming no ticket, or naming no case, is rejected. | Test (TC-1027) |
-| FR-065-AC-42 | A failure case with a control whose `expect.yaml` holds against that control's payload is rejected **by every reader**, with `validate_*` graded over the control's tree, against every control that names the case. | Test (TC-1028; `qa-corpus` `src/verify.rs` tests) |
-| FR-065-AC-43 | A case of kind `regression` is accepted with no control and is not held to AC-42; one declaring `findable`, `control_for` or `pending` is rejected. | Test (TC-1032) |
-| FR-065-AC-44 | An ecosystem-bound `regression` case credits its inventory cell, so a cell does not revert to GAP when its defect is fixed. | Test (TC-1032) |
-| FR-065-AC-45 | A relaxation variant credits no cell and reads `GAP` naming its ticket; a declaration-under-test variant credits no ecosystem cell and reads `out-of-scope` with its authored reason. | Test (TC-1032) |
-| FR-065-AC-46 | A failure case whose `expect.yaml`, restricted to the `witness_channels` its mode declares, holds against its control's payload is rejected **by every reader** — as is one naming no witness channel at all. | Test (TC-1028; `qa-corpus` `src/verify.rs` tests) |
-| FR-065-AC-47 | A `witness_channels` entry naming a channel a reader cannot restrict on is rejected **by every reader**, rather than dropped; so is one that is not a list, and a declared `mode_family` with no entry at all. | Test (TC-1028; `qa-corpus` `src/verify.rs` tests) |
-| FR-065-AC-48 | Every emitted diagnostic reason has at least one live expectation requiring it and at least one healthy-input expectation requiring its absence, enforced by both corpus readers. | Test (TC-1026; `qa-corpus` Rust corpus tests) |
-| FR-065-AC-49 | The corpus carries no copy of the provider modules: it holds no `modules/ecosystem` directory, and both provider manifests (`spec-artifacts-process`, `spec-artifacts-iso`) resolve from their own checkouts. | Test (TC-1021) |
+| FR-065-AC-1 | A case is read from disk in place: no file under `input/` is generated, copied or materialised during a non-mutating run. | Test |
+| FR-065-AC-2 | A mutating case operates on a copy, leaving its checked-in `input/` tree byte-unchanged. | Test |
+| FR-065-AC-3 | A case omitting any field `case_schema.required` names is rejected by every reader, and the rejection names the case and the field. | Test |
+| FR-065-AC-4 | A control case declaring no `control_for` is rejected. | Test |
+| FR-065-AC-5 | An `expect` field a case omits is asserted on by nothing; the omitted field is not defaulted. | Test |
+| FR-065-AC-6 | Every declared cell in `corpus.yaml` reads as exactly one of `covered`, `out-of-scope` or `GAP`. | Test |
+| FR-065-AC-7 | An `out-of-scope` cell carries a non-empty reason; one with an empty reason is rejected. | Test |
+| FR-065-AC-8 | A cell in none of the three states is rejected, naming the case and the language. | Test |
+| FR-065-AC-9 | `bounds.gap_count` is an integer count on every surface this crate emits. | Test |
+| FR-065-AC-10 | No payload this crate emits renders `bounds.gap_count` as a ratio or a percentage. | Test |
+| FR-065-AC-11 | A failing case reports the highest detection level it reached, distinguishing L1, L2 and L3. | Test |
+| FR-065-AC-12 | A failing case reports the first level it lost. | Test |
+| FR-065-AC-13 | A failure case whose `control_for` partner is absent is rejected, naming the missing control. | Test |
+| FR-065-AC-14 | A control case over healthy input produces no finding for the mode its partner asserts. | Test |
+| FR-065-AC-15 | A variant-bound case is rejected unless it declares exactly one of `relaxation_ticket` or `declaration_under_test`; an ecosystem-bound case declaring either is rejected. | Test |
+| FR-065-AC-16 | A case binding the ecosystem declaration loads without naming a ticket. | Test |
+| FR-065-AC-17 | Two runs of one case over unchanged input produce a byte-identical engine report. | Test |
+| FR-065-AC-18 | Each case's `case.yaml` carries the invocation that reproduces it. For a non-ecosystem case that invocation names the case's corpus module; for an ecosystem case it names no module, and the provider modules resolve from the consumer. | Test |
+| FR-065-AC-19 | `qa_corpus::bounds` derives its per-state counters and its sum invariant from `corpus.yaml`'s `bounds_states`, and rejects a cell graded into a state the declaration does not name. | Test (`qa-corpus` bounds tests) |
+| FR-065-AC-20 | The compiled grading ladder and `corpus.yaml`'s `grading_levels` agree in name and in order, and a gate fails on disagreement. The runner is not required to accept a ladder change without a code edit: the ladder is the grading rule, not a vocabulary (CR-129). | Test |
+| FR-065-AC-21 | The runner reads the mode families from `corpus.yaml`, and a case naming an undeclared family is rejected. | Test |
+| FR-065-AC-22 | A language set's variant declares only what varies; a variant DECLARING any field `case_schema.variant_forbidden` names is rejected naming the field, whether or not the shared file also declares it, and a reader finding no `variant_forbidden` fails rather than skips. | Test |
+| FR-065-AC-23 | Every reader derives the same `id` for one variant, `<shared id>-<language>`, so a record keyed on `id` joins across runners. | Test |
+| FR-065-AC-24 | `control_for` resolves against failure cases only, in the control's own language; a control whose partner is absent is rejected. | Test |
+| FR-065-AC-25 | Every case's `expect.yaml` is graded and MUST hold, whether or not the case declares `pending`. | Test |
+| FR-065-AC-26 | A case declaring `pending` and shipping no `expect-pending.yaml` is rejected, and so is one shipping `expect-pending.yaml` and declaring no `pending`. | Test |
+| FR-065-AC-27 | A case whose `expect-pending.yaml` holds fails the run, naming the ticket in its `pending`. | Test |
+| FR-065-AC-28 | A case asserting `unbacked_rows` or `groups` fails on a payload carrying an extra entry, a missing entry, a changed field or a different order; a case asserting an empty list fails on a payload carrying any entry. | Test |
+| FR-065-AC-29 | A case naming several substrings for one reason fails when the message carries any proper subset of them. | Test |
+| FR-065-AC-30 | A block naming a reason token that `corpus.yaml` declares neither emitted nor forward is rejected, naming the token. | Test |
+| FR-065-AC-31 | A live block requiring a `forward` token is rejected; a forward block requiring a token whose ticket is not the case's own `pending` is rejected. | Test |
+| FR-065-AC-32 | A failure case asserting a `forward` token ABSENT is rejected; a control asserting one in its live block is accepted. | Test |
+| FR-065-AC-33 | An `expect-pending.yaml` grading zero assertions is rejected rather than read as its ticket having landed. | Test |
+| FR-065-AC-34 | A token declared `emitted` that the engine does not produce is rejected. | Test |
+| FR-065-AC-35 | A token declared `forward` that the engine already produces is rejected, naming the ticket that appears to have landed. | Test |
+| FR-065-AC-36 | An `expect-pending.yaml` requiring no token its own `pending` ticket introduces is rejected, and one requiring an already-emitted token is rejected. | Test |
+| FR-065-AC-37 | A control whose `mode` or `module` differs from a partner's is rejected unless declared in `known_gaps`; an entry in `known_gaps` naming no case is rejected. | Test |
+| FR-065-AC-38 | A failure case named by no control is rejected unless declared in `known_gaps`. | Test |
+| FR-065-AC-39 | An `expect.yaml` grading zero assertions is rejected, for every case. | Test |
+| FR-065-AC-40 | A case declaring `findable` and requiring no finding in any block is rejected unless declared in `known_gaps`. | Test |
+| FR-065-AC-41 | A `known_gaps` entry naming no ticket, or naming no case, is rejected. | Test |
+| FR-065-AC-42 | A failure case with a control whose `expect.yaml` holds against that control's payload is rejected **by every reader**, with `validate_*` graded over the control's tree, against every control that names the case. | Test (`qa-corpus` `src/verify.rs` tests) |
+| FR-065-AC-43 | A case of kind `regression` is accepted with no control and is not held to AC-42; one declaring `findable`, `control_for` or `pending` is rejected. | Test |
+| FR-065-AC-44 | An ecosystem-bound `regression` case credits its inventory cell, so a cell does not revert to GAP when its defect is fixed. | Test |
+| FR-065-AC-45 | A relaxation variant credits no cell and reads `GAP` naming its ticket; a declaration-under-test variant credits no ecosystem cell and reads `out-of-scope` with its authored reason. | Test |
+| FR-065-AC-46 | A failure case whose `expect.yaml`, restricted to the `witness_channels` its mode declares, holds against its control's payload is rejected **by every reader** — as is one naming no witness channel at all. | Test (`qa-corpus` `src/verify.rs` tests) |
+| FR-065-AC-47 | A `witness_channels` entry naming a channel a reader cannot restrict on is rejected **by every reader**, rather than dropped; so is one that is not a list, and a declared `mode_family` with no entry at all. | Test (`qa-corpus` `src/verify.rs` tests) |
+| FR-065-AC-48 | Every emitted diagnostic reason has at least one live expectation requiring it and at least one healthy-input expectation requiring its absence, enforced by both corpus readers. | Test (`qa-corpus` Rust corpus tests) |
+| FR-065-AC-49 | The corpus carries no copy of the provider modules: it holds no `modules/ecosystem` directory, and both provider manifests (`spec-artifacts-process`, `spec-artifacts-iso`) resolve from their own checkouts. | Test |
 
 ## Dependencies
 

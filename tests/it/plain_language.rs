@@ -29,7 +29,7 @@ fn manifest(profile_body: &str) -> String {
     )
 }
 
-#[trace("TC-976", "FR-074-AC-7")]
+#[trace("FR-074-AC-7")]
 #[test]
 fn typed_profile_loads_and_malformed_profiles_fail_load() {
     let valid = manifest(
@@ -71,7 +71,7 @@ fn typed_profile_loads_and_malformed_profiles_fail_load() {
     }
 }
 
-#[trace("TC-977", "FR-074-AC-8")]
+#[trace("FR-074-AC-8")]
 #[test]
 fn profile_merge_is_first_wins_and_has_no_default() {
     let root = tempdir().unwrap();
@@ -93,7 +93,7 @@ fn profile_merge_is_first_wins_and_has_no_default() {
     assert!(registry.plain_language_profile("missing").is_none());
 }
 
-#[trace("TC-978", "FR-074-AC-9")]
+#[trace("FR-074-AC-9")]
 #[test]
 fn batch_report_accounts_for_clean_empty_and_non_documents() {
     let root = tempdir().unwrap();
@@ -144,7 +144,7 @@ fn batch_report_accounts_for_clean_empty_and_non_documents() {
     assert_eq!(empty.skipped_inputs[0].reason, "no-readable-prose");
 }
 
-#[trace("TC-981", "FR-074-AC-12")]
+#[trace("FR-074-AC-12")]
 #[test]
 fn advisory_run_does_not_change_other_engine_results() {
     let manifest = br#"

@@ -292,7 +292,7 @@ mod tests {
         Resolution::Unresolved { reason }
     }
 
-    #[trace("TC-1952", "FR-070-AC-14")]
+    #[trace("FR-070-AC-14")]
     #[test]
     fn bare_tokens_prefer_the_own_bundle_then_the_imports() {
         let ctx = context(imported_bundle());
@@ -324,7 +324,7 @@ mod tests {
         );
     }
 
-    #[trace("TC-1952", "FR-070-AC-14")]
+    #[trace("FR-070-AC-14")]
     #[test]
     fn qualified_tokens_consult_only_their_package() {
         let ctx = context(imported_bundle());
@@ -354,7 +354,7 @@ mod tests {
         );
     }
 
-    #[trace("TC-1952", "FR-070-AC-14")]
+    #[trace("FR-070-AC-14")]
     #[test]
     fn dimensions_carry_their_owner_in_the_identity() {
         let mut bundle = imported_bundle();
@@ -378,7 +378,7 @@ mod tests {
         );
     }
 
-    #[trace("TC-1952", "FR-070-AC-14")]
+    #[trace("FR-070-AC-14")]
     #[test]
     fn absent_imported_artifacts_leave_qualified_tokens_import_unresolved() {
         let ctx = context(json!({
@@ -395,7 +395,7 @@ mod tests {
         );
     }
 
-    #[trace("TC-1952", "FR-070-AC-14")]
+    #[trace("FR-070-AC-14")]
     #[test]
     fn an_empty_index_has_the_single_reason_no_bundle_index() {
         let ctx = context(json!({}));
@@ -407,7 +407,7 @@ mod tests {
         }
     }
 
-    #[trace("TC-1947", "FR-070-AC-13")]
+    #[trace("FR-070-AC-13")]
     #[test]
     fn only_identifiers_and_org_repo_qualified_identifiers_parse() {
         for bad in [

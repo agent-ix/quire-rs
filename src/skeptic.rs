@@ -929,7 +929,7 @@ mod tests {
         }
     }
 
-    #[trace("TC-1002", "FR-064-AC-1")]
+    #[trace("FR-064-AC-1")]
     // a narrowing guard that opens and closes on ONE line (CR-102)
     // still guards the assertion sitting on it.
     #[test]
@@ -973,7 +973,7 @@ mod tests {
         );
     }
 
-    #[trace("TC-1003", "FR-064-AC-5")]
+    #[trace("FR-064-AC-5")]
     // an arrow function is not a narrowing guard: a TypeScript (CR-102)
     // suite of ordinary `it(... () => {...})` tests reports nothing.
     #[test]
@@ -1002,7 +1002,7 @@ mod tests {
         );
     }
 
-    #[trace("TC-1004", "FR-064-AC-5")]
+    #[trace("FR-064-AC-5")]
     // a comment is prose, not an oracle: code quoted inside one (CR-102)
     // counts as neither an assertion nor a guard.
     #[test]
@@ -1039,7 +1039,7 @@ mod tests {
         assert_eq!(vacuous_property_suites(&real).len(), 1);
     }
 
-    #[trace("TC-997", "FR-064-AC-1")]
+    #[trace("FR-064-AC-1")]
     // a suite whose every assertion sits behind a (CR-100)
     // narrowing guard is reported; one with an unguarded assertion is not.
     #[test]
@@ -1090,7 +1090,7 @@ mod tests {
         );
     }
 
-    #[trace("TC-998", "FR-064-AC-1")]
+    #[trace("FR-064-AC-1")]
     // a test with no assertion MACRO is not a finding: (CR-100)
     // in Rust a test fails on panic, so absence of a macro is not absence of
     // an oracle. Measured, that rule was wrong 12 times out of 12 sampled.
@@ -1126,7 +1126,7 @@ mod tests {
         assert!(vacuous_property_suites(&production).is_empty());
     }
 
-    #[trace("TC-999", "FR-064-AC-2")]
+    #[trace("FR-064-AC-2")]
     // an oracle that is a copy of the code under test (CR-100)
     // is reported; one that judges the same subject differently is not.
     #[test]
@@ -1165,7 +1165,7 @@ mod tests {
         );
     }
 
-    #[trace("TC-1061", "FR-064-AC-6")]
+    #[trace("FR-064-AC-6")]
     #[test]
     fn tc1061_explicit_oracle_bindings_join_to_production_expressions() {
         let cases = [
@@ -1302,7 +1302,7 @@ assert_eq!(normalize(value), expected);"#;
         );
     }
 
-    #[trace("TC-1080", "FR-064-AC-7")]
+    #[trace("FR-064-AC-7")]
     #[test]
     fn tc1080_the_pinned_helper_oracle_copy_is_detected_without_guessing() {
         const IMPLEMENTATION: &str =
@@ -1431,7 +1431,7 @@ assert_eq!(normalize(value), expected);"#;
         assert!(oracle_candidate("let expected = f(x);\n", SourceLanguage::Rust).is_none());
     }
 
-    #[trace("TC-1000", "FR-064-AC-3")]
+    #[trace("FR-064-AC-3")]
     // similarity is over tokens, so reordering does not (CR-100)
     // disguise a copy and reformatting does not manufacture one.
     #[test]

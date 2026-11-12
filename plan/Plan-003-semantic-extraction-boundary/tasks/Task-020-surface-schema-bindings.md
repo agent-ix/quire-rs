@@ -10,24 +10,6 @@ relationships:
     type: depends_on
   - target: ix://agent-ix/quire-rs/FR-072
     type: references
-  - target: ix://agent-ix/quire-rs/TC-1630
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-1631
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-1632
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-1634
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-1635
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-1637
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-1638
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-1644
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-1650
-    type: verifies
 ---
 # Task-020: FR-072 — surface, semantic-v1 schema, bindings
 

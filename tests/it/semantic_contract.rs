@@ -111,7 +111,7 @@ fn semantic_diagnostics(registry: &Registry) -> Vec<(String, String)> {
         .collect()
 }
 
-#[trace("TC-1599", "FR-069-AC-1")]
+#[trace("FR-069-AC-1")]
 // a valid block and a reference schema load; the resolved
 // validator accepts the golden declaration set. (`validate_document` over an
 // entity artifact joins this row in Task-018, when `fields[]` is extracted.)
@@ -137,7 +137,7 @@ fn valid_block_and_reference_schema_load() {
     assert!(!validator.is_valid(&json!({ "fields": [{ "name": "x" }] })));
 }
 
-#[trace("TC-1600", "FR-069-AC-2")]
+#[trace("FR-069-AC-2")]
 // version refusals come first and alone.
 #[test]
 fn unsupported_versions_are_refused_first() {
@@ -173,7 +173,7 @@ fn spread_across_sections(m: &mut serde_yaml::Value) {
     m["object_types"] = serde_yaml::Value::Sequence(Vec::new());
 }
 
-#[trace("TC-1600", "FR-069-AC-2")]
+#[trace("FR-069-AC-2")]
 #[test]
 fn refused_block_fails_every_archetype_in_every_section() {
     let tmp = tempfile::tempdir().unwrap();
@@ -229,7 +229,7 @@ fn exported_artifact_type_is_a_declared_module_type() {
     assert!(registry.archetype("entity").is_some());
 }
 
-#[trace("TC-1601", "FR-069-AC-3")]
+#[trace("FR-069-AC-3")]
 // block-shape refusals name the key or value.
 #[test]
 fn block_shape_refusals_name_the_offender() {
@@ -289,7 +289,7 @@ fn block_shape_refusals_name_the_offender() {
     }
 }
 
-#[trace("TC-1602", "FR-069-AC-4")]
+#[trace("FR-069-AC-4")]
 // reference-form refusals name path and reason; the mixed form is ambiguous.
 #[test]
 fn reference_form_refusals() {
@@ -365,7 +365,7 @@ fn fields_items(schema: &mut Value) -> &mut Value {
     &mut schema["properties"]["fields"]["items"]
 }
 
-#[trace("TC-1603", "FR-069-AC-5")]
+#[trace("FR-069-AC-5")]
 // `$ref` rules: any-version core ref resolves, unshipped, outside, cycle; self fragment ok.
 #[test]
 fn ref_rules() {
@@ -443,7 +443,7 @@ fn ref_rules() {
         .is_valid(&json!({ "fields": [], "marker": "x" })));
 }
 
-#[trace("TC-1608", "FR-069-CON-1")]
+#[trace("FR-069-CON-1")]
 // the resolver has no fetch path and reads only the module and the bundle.
 #[test]
 fn resolver_reads_no_network_and_nothing_outside_the_module() {
@@ -494,7 +494,7 @@ fn resolver_reads_no_network_and_nothing_outside_the_module() {
     assert!(!validator.is_valid(&json!({ "f": { "name": "id" } })));
 }
 
-#[trace("TC-1604", "FR-069-AC-6")]
+#[trace("FR-069-AC-6")]
 // inline data_schema under a block warns; without a block it is silent.
 #[test]
 fn inline_schema_warns_only_under_a_block() {
@@ -547,7 +547,7 @@ fn entity_snapshot(data_schema: Value, semantic: Option<Value>) -> Value {
     v
 }
 
-#[trace("TC-1605", "FR-069-AC-7")]
+#[trace("FR-069-AC-7")]
 // a Filament snapshot with the reference form is refused; inline + context extracts.
 #[test]
 fn filament_snapshot_reference_form_is_refused() {
@@ -601,7 +601,7 @@ fn filament_snapshot_reference_form_is_refused() {
     );
 }
 
-#[trace("TC-1633", "FR-072-AC-4")]
+#[trace("FR-072-AC-4")]
 // unsupported snapshot versions are refused before any node is produced.
 #[test]
 fn filament_snapshot_unsupported_versions_are_refused() {
@@ -626,7 +626,7 @@ fn filament_snapshot_unsupported_versions_are_refused() {
     );
 }
 
-#[trace("TC-2190", "FR-069-AC-15")]
+#[trace("FR-069-AC-15")]
 // two packages exporting one type: the later sorted root is refused, with no
 // archetype collision after it; a refused module claims none of its exports;
 // disjoint exports load all; the outcome does not depend on search-root order.
@@ -703,7 +703,7 @@ fn duplicate_export_refuses_the_later_module() {
     }
 }
 
-#[trace("TC-1645", "FR-069-AC-10")]
+#[trace("FR-069-AC-10")]
 // cross-module: duplicate package, unresolved import, import cycle.
 #[test]
 fn cross_module_checks() {
@@ -773,7 +773,7 @@ fn cross_module_checks() {
     );
 }
 
-#[trace("TC-1646", "FR-069-AC-11")]
+#[trace("FR-069-AC-11")]
 // inline parts serve the reference form from the `schemas` map.
 #[test]
 fn inline_parts_resolve_the_reference_form() {
@@ -817,7 +817,7 @@ fn values_locator() -> Value {
     json!({ "from": "table_row", "under_section": "Values", "assert": { "columns": ["Value", "Description"] } })
 }
 
-#[trace("TC-1848", "FR-069-AC-12")]
+#[trace("FR-069-AC-12")]
 // `semantic.mappings` is recorded on the loaded module.
 #[test]
 fn mappings_are_recorded() {
@@ -836,7 +836,7 @@ fn mappings_are_recorded() {
         .is_empty());
 }
 
-#[trace("TC-1849", "FR-075-AC-9")]
+#[trace("FR-075-AC-9")]
 // validate_document and Filament extraction read a declared feature and
 // refuse an undeclared one, from the manifest alone.
 #[test]
@@ -919,7 +919,7 @@ fn surfaces_gate_model_features_on_the_manifest() {
 
 /// A Rust caller gates model tables through the public context builder and
 /// gets the record the JSON adapter returns for the same request.
-#[trace("TC-1869", "FR-075-AC-10")]
+#[trace("FR-075-AC-10")]
 #[test]
 fn rust_callers_gate_model_tables_through_the_public_context() {
     use quire_rs::extract::dsl::ExtractionDsl;
@@ -993,7 +993,7 @@ fn rust_callers_gate_model_tables_through_the_public_context() {
 /// locator sits under, wherever the locator is declared: `match`,
 /// `per_match`, an `emit_edges` target, or a fallback-chain member. Each DSL
 /// is authored JSON with the module key names, so a serde rename fails here.
-#[trace("TC-1870", "FR-075-AC-11")]
+#[trace("FR-075-AC-11")]
 #[test]
 fn required_sections_read_every_locator_of_the_typed_dsl() {
     use quire_rs::extract::dsl::ExtractionDsl;
@@ -1108,7 +1108,7 @@ fn relationship_findings(result: quire_rs::ValidationResult) -> (Vec<String>, Ve
     )
 }
 
-#[trace("TC-1864", "FR-076-AC-13")]
+#[trace("FR-076-AC-13")]
 // validate_document checks relationship rows against the loaded registry's
 // edge_types, roles, and allowed_links; Filament and the Python entry, which
 // carry no vocabulary, report `no-relation-vocabulary`.
@@ -1193,7 +1193,7 @@ fn surfaces_supply_the_relation_vocabulary() {
     assert!(record.get("relations").is_none());
 }
 
-#[trace("TC-1866", "FR-076-AC-15")]
+#[trace("FR-076-AC-15")]
 // validate_document qualifies targets under the caller's bundle package,
 // never the module's; with no bundle package the feature is unavailable
 // with `no-bundle-package`.
@@ -1269,7 +1269,7 @@ fn validate_document_qualifies_under_the_bundle_package() {
     );
 }
 
-#[trace("TC-2152", "FR-076-AC-23")]
+#[trace("FR-076-AC-23")]
 // The own-package check folds ASCII case on both sides and lowers the target
 // in the declared package's spelling: a frontmatter relationship written in
 // that spelling is a duplicate of the row. A foreign package without an
@@ -1340,7 +1340,7 @@ fn relationship_own_package_check_folds_ascii_case() {
     );
 }
 
-#[trace("TC-1868", "FR-076-AC-15")]
+#[trace("FR-076-AC-15")]
 // validate_bundle qualifies relationships under the repository identity the
 // Spec declares (PLAT-48); without one the table is unavailable with
 // `no-bundle-package`.
@@ -1465,7 +1465,7 @@ fn process_module(
     })
 }
 
-#[trace("TC-2005", "FR-069-AC-13")]
+#[trace("FR-069-AC-13")]
 // A `table_row` locator keyed on a typed relation key under the
 // `relationships` mapping refuses every archetype of the module.
 #[test]
@@ -1530,7 +1530,7 @@ fn locator_on_a_typed_relation_key_is_duplicate_authority() {
     }
 }
 
-#[trace("TC-2081", "FR-069-AC-14")]
+#[trace("FR-069-AC-14")]
 // PLAT-1299: a semantic refusal's reason names its manifest location.
 #[test]
 fn refusals_carry_their_manifest_path() {
@@ -1598,7 +1598,7 @@ fn refusals_carry_their_manifest_path() {
     );
 }
 
-#[trace("TC-2081", "FR-069-AC-14")]
+#[trace("FR-069-AC-14")]
 // The duplicate-authority path names the section the type is declared in.
 #[test]
 fn duplicate_authority_path_names_its_section() {
@@ -1674,7 +1674,7 @@ fn has_diagnostic(registry: &Registry, code: &str, needle: &str) -> bool {
         .any(|(c, m)| c == code && m.contains(needle))
 }
 
-#[trace("TC-2214", "FR-069-AC-16")]
+#[trace("FR-069-AC-16")]
 // import_types is optional and recorded; each malformed shape is refused at
 // the unescaped package locus.
 #[test]
@@ -1760,7 +1760,7 @@ fn import_types_shape() {
     );
 }
 
-#[trace("TC-2215", "FR-069-AC-17")]
+#[trace("FR-069-AC-17")]
 // import_types are checked only against a loaded provider at the declared
 // version.
 #[test]
@@ -1852,7 +1852,7 @@ fn import_types_checked_against_the_loaded_provider() {
     ));
 }
 
-#[trace("TC-2216", "FR-069-AC-18")]
+#[trace("FR-069-AC-18")]
 // a declared import no data schema references warns; one `$ref` silences it.
 #[test]
 fn unused_import_warns() {
@@ -1878,7 +1878,7 @@ fn unused_import_warns() {
     assert!(!has_diagnostic(&registry, "semantic.unused-import", ""));
 }
 
-#[trace("TC-2217", "FR-069-AC-19")]
+#[trace("FR-069-AC-19")]
 // a declared-import `$ref` is admitted, never followed, and accepts any
 // value; an unexported type fails at the data_schema locus; an undeclared
 // package's `$ref` stays unshipped.
@@ -2022,7 +2022,7 @@ fn cycle_pair(x_refs: bool, y_refs: bool, x_file: &str, y_file: &str) -> (TempDi
     (tmp, registry)
 }
 
-#[trace("TC-2218", "FR-069-AC-20")]
+#[trace("FR-069-AC-20")]
 // every package cycle is refused; types name it only when the `$ref` edges
 // themselves cycle.
 #[test]
@@ -2064,7 +2064,7 @@ fn import_cycles_are_named_over_types_only_when_type_edges_cycle() {
     assert!(!cycle(&registry).contains('#'));
 }
 
-#[trace("TC-2217", "FR-069-AC-19")]
+#[trace("FR-069-AC-19")]
 // A module whose imports name its OWN package (at another version) still
 // reads and validates its sibling `$ref`s.
 #[test]

@@ -11,14 +11,6 @@ relationships:
     type: references
   - target: ix://agent-ix/quire-rs/NFR-021
     type: references
-  - target: ix://agent-ix/quire-rs/TC-1606
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-1607
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-1639
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-1643
-    type: verifies
 ---
 # Task-015: Baselines, vendored schemas, audit scaffold
 

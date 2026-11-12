@@ -50,10 +50,10 @@ delegating to the same Rust implementation.
 
 | ID | Criteria | Verification |
 |----|----------|--------------|
-| FR-046-AC-1 | Python and WASM bindings return equivalent JSON for Tier 1, Tier 2, relationship, malformed-link, and extraction-error fixtures. | Test (TC-686) |
-| FR-046-AC-2 | `@agent-ix/quire-wasm` exports the new extraction API and updated `.d.ts` declarations while existing `parseDocument`, `extractFromBlob`, and `validateFromBlob` smoke tests continue to pass. | Test (TC-687) |
-| FR-046-AC-3 | Static inspection finds no extraction-policy branches in binding code beyond input/output conversion and error mapping. | Inspection (TC-688) |
-| FR-046-AC-4 | A default Rust build without the Python feature remains free of Python/CPython linkage, and a WASM target check succeeds with filesystem-free features. | Test (TC-689) |
+| FR-046-AC-1 | Python and WASM bindings return equivalent JSON for Tier 1, Tier 2, relationship, malformed-link, and extraction-error fixtures. | Test |
+| FR-046-AC-2 | `@agent-ix/quire-wasm` exports the new extraction API and updated `.d.ts` declarations while existing `parseDocument`, `extractFromBlob`, and `validateFromBlob` smoke tests continue to pass. | Test |
+| FR-046-AC-3 | Static inspection finds no extraction-policy branches in binding code beyond input/output conversion and error mapping. | Inspection |
+| FR-046-AC-4 | A default Rust build without the Python feature remains free of Python/CPython linkage, and a WASM target check succeeds with filesystem-free features. | Test |
 
 ## Dependencies
 

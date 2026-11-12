@@ -404,7 +404,7 @@ mod tests {
         }
     }
 
-    #[trace("TC-585", "FR-036-AC-2")]
+    #[trace("FR-036-AC-2")]
     // the Verification vocabulary rule, both directions.
     #[test]
     fn allowed_values_and_annotations_pass_others_flagged() {
@@ -421,7 +421,7 @@ mod tests {
         assert!(findings[0].message.contains("row 3"));
     }
 
-    #[trace("TC-586", "FR-036-AC-3")]
+    #[trace("FR-036-AC-3")]
     // a scoped rule ignores documents it does not cover.
     #[test]
     fn archetype_scoping_skips_non_matching_documents() {
@@ -432,7 +432,7 @@ mod tests {
         assert!(lint_document(&[rule], None, &doc).is_empty());
     }
 
-    #[trace("TC-587", "FR-036-AC-4")]
+    #[trace("FR-036-AC-4")]
     // structure is FR-032's job, not a lint finding.
     #[test]
     fn missing_section_or_column_yields_no_findings() {
@@ -476,7 +476,7 @@ mod tests {
         assert!(findings[0].message.contains("vibes"));
     }
 
-    #[trace("TC-584", "FR-036-AC-1")]
+    #[trace("FR-036-AC-1")]
     // rules parse typed and survive a round trip.
     #[test]
     fn rule_yaml_round_trip() {
@@ -509,7 +509,7 @@ mod tests {
     }
 
     // (a) a body containing the pattern produces NO finding.
-    #[trace("TC-609", "FR-036-AC-6")]
+    #[trace("FR-036-AC-6")]
     #[test]
     fn tc609_section_body_pattern_match_yields_no_finding() {
         let doc = parse_document("## Statement\nThe system shall do the thing.\n");
@@ -519,7 +519,7 @@ mod tests {
 
     // (b) a body lacking the pattern produces exactly one finding with the
     // rule's severity.
-    #[trace("TC-609")]
+    #[trace("FR-036-AC-6")]
     #[test]
     fn tc609_section_body_pattern_mismatch_yields_one_finding() {
         let doc = parse_document("## Statement\nThe system does the thing.\n");
@@ -531,7 +531,7 @@ mod tests {
     }
 
     // (c) archetype scoping skips non-matching archetypes.
-    #[trace("TC-609")]
+    #[trace("FR-036-AC-6")]
     #[test]
     fn tc609_section_body_pattern_archetype_scoping() {
         let doc = parse_document("## Statement\nThe system does the thing.\n");
@@ -541,7 +541,7 @@ mod tests {
     }
 
     // (d) a missing section yields no finding.
-    #[trace("TC-609")]
+    #[trace("FR-036-AC-6")]
     #[test]
     fn tc609_section_body_pattern_missing_section_yields_no_finding() {
         let doc = parse_document("## Other\nprose\n");
@@ -551,7 +551,7 @@ mod tests {
 
     // (e) YAML round-trip for the new `type: section_body_pattern` rule,
     // including a custom `message`.
-    #[trace("TC-609")]
+    #[trace("FR-036-AC-6")]
     #[test]
     fn tc609_section_body_pattern_yaml_round_trip() {
         let yaml = r#"
@@ -581,7 +581,7 @@ mod tests {
     // (f) a token authored inside a subsection counts — the rule matches the
     // section's full subtree, not just its direct body (e.g. an `IT-XXX-SC-NN`
     // id under a `### Step` heading satisfies an IT success-criteria rule).
-    #[trace("TC-609")]
+    #[trace("FR-036-AC-6")]
     #[test]
     fn tc609_section_body_pattern_matches_in_subsection() {
         let rule = LintRule::SectionBodyPattern {
@@ -605,7 +605,7 @@ mod tests {
         assert_eq!(lint_document(&[rule], Some("IT"), &doc2).len(), 1);
     }
 
-    #[trace("TC-764", "FR-036-AC-7")]
+    #[trace("FR-036-AC-7")]
     // `forbidden_section` fires *because* a (CR-020)
     // section is present — the inverse of the other two rule types, which only
     // ever check a section that exists. The motivating case is a US document

@@ -162,7 +162,7 @@ mod tests {
     }
 
     // no-FM half
-    #[trace("FR-006-AC-1", "TC-012")]
+    #[trace("FR-006-AC-1")]
     #[test]
     fn no_frontmatter_returns_input_as_body() {
         let r = extract_frontmatter("# heading");
@@ -173,7 +173,7 @@ mod tests {
     }
 
     // happy path
-    #[trace("FR-006-AC-2", "TC-012")]
+    #[trace("FR-006-AC-2")]
     #[test]
     fn happy_path_parses_yaml_and_strips_fences() {
         let r = extract_frontmatter("---\nid: FR-001\n---\nbody");
@@ -183,7 +183,7 @@ mod tests {
         assert_eq!(r.status, FrontmatterStatus::Present);
     }
 
-    #[trace("FR-006-AC-3", "TC-013")]
+    #[trace("FR-006-AC-3")]
     #[test]
     fn malformed_yaml_returns_body_fallback() {
         let input = "---\nid: : malformed\n---\nbody";
@@ -195,7 +195,7 @@ mod tests {
         assert_eq!(r.status, FrontmatterStatus::Malformed);
     }
 
-    #[trace("FR-006-AC-4", "TC-014")]
+    #[trace("FR-006-AC-4")]
     #[test]
     fn unterminated_fence_returns_body_fallback() {
         let input = "---\nid: FR-001\nno closing fence\nbody";
@@ -207,7 +207,7 @@ mod tests {
         assert_eq!(r.status, FrontmatterStatus::Absent);
     }
 
-    #[trace("FR-006-AC-5", "TC-180")]
+    #[trace("FR-006-AC-5")]
     #[test]
     fn bom_prefix_with_frontmatter() {
         let r = extract_frontmatter("\u{FEFF}---\nid: FR-001\n---\nbody");
@@ -216,7 +216,7 @@ mod tests {
         assert_eq!(r.body, "body");
     }
 
-    #[trace("FR-006-AC-6", "TC-181")]
+    #[trace("FR-006-AC-6")]
     #[test]
     fn bom_prefix_without_frontmatter() {
         let r = extract_frontmatter("\u{FEFF}# heading");
@@ -262,7 +262,7 @@ mod tests {
     }
 
     // empty/null → Absent half of the status classification
-    #[trace("FR-006-AC-7", "TC-706")]
+    #[trace("FR-006-AC-7")]
     #[test]
     fn empty_or_comment_only_frontmatter_is_absent_not_malformed() {
         // A complete fence block whose content parses to YAML null (empty,

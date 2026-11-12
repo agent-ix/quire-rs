@@ -60,7 +60,7 @@ fn fields_json(outcome: &quire_rs::semantic::FieldsOutcome) -> Value {
     serde_json::to_value(outcome.fields.as_ref().expect("fields available")).unwrap()
 }
 
-#[trace("TC-1610", "FR-070-AC-1")]
+#[trace("FR-070-AC-1")]
 // the golden table extracts to the normalized FieldDecl[] and validates.
 #[test]
 fn golden_table_extracts_to_expected_fields() {
@@ -90,7 +90,7 @@ fn golden_table_extracts_to_expected_fields() {
     assert!(outcome.diagnostics.is_empty(), "{:?}", outcome.diagnostics);
 }
 
-#[trace("TC-1611", "FR-070-AC-2")]
+#[trace("FR-070-AC-2")]
 // the fence form yields the identical normalized array.
 #[test]
 fn golden_fence_extracts_to_identical_fields() {
@@ -121,7 +121,7 @@ fn artifact(properties_body: &str) -> String {
     format!("---\nid: FR-900\ntitle: Thing\nobject: entity\n---\n# FR-900: Thing\n\n## Properties\n\n{properties_body}\n\n## Notes\n\nprose\n")
 }
 
-#[trace("TC-1612", "FR-070-AC-3")]
+#[trace("FR-070-AC-3")]
 // both forms, typed-then-legacy, and duplicate headings.
 #[test]
 fn both_forms_and_duplicate_sections_are_refused() {
@@ -250,7 +250,7 @@ fn cell_cases(prefix: &str) -> Vec<Value> {
         .collect()
 }
 
-#[trace("TC-1613", "FR-070-AC-4")]
+#[trace("FR-070-AC-4")]
 // every Type case, plus ambiguity, empty index, and non-identifier tokens.
 #[test]
 fn type_cells() {
@@ -329,7 +329,7 @@ fn type_cells() {
     assert!(out.fields.is_none());
 }
 
-#[trace("TC-1614", "FR-070-AC-5")]
+#[trace("FR-070-AC-5")]
 // every Multiplicity case plus the boundary set.
 #[test]
 fn multiplicity_cells() {
@@ -395,7 +395,7 @@ fn multiplicity_cells() {
     }
 }
 
-#[trace("TC-1615", "FR-070-AC-6")]
+#[trace("FR-070-AC-6")]
 // every Constraints case plus nullable, pattern with commas, duplicate names.
 #[test]
 fn constraints_cells() {
@@ -444,7 +444,7 @@ fn constraints_cells() {
     assert!(out.fields.is_none());
 }
 
-#[trace("TC-1616", "FR-070-AC-7")]
+#[trace("FR-070-AC-7")]
 // fence-line cases and opaque brace content.
 #[test]
 fn fence_lines() {
@@ -497,7 +497,7 @@ fn fence_lines() {
         .any(|d| d.code == "semantic.sysml-outside-subset"));
 }
 
-#[trace("TC-1617", "FR-070-AC-8")]
+#[trace("FR-070-AC-8")]
 // legacy forms per legacy.expected.json; `legacy_forms: error` promotes.
 #[test]
 fn legacy_forms() {
@@ -569,7 +569,7 @@ fn legacy_forms() {
     assert_eq!(out.diagnostics[0].severity, SemanticSeverity::Error);
 }
 
-#[trace("TC-1618", "FR-070-AC-9", "FR-070-CON-3")]
+#[trace("FR-070-AC-9", "FR-070-CON-3")]
 // a module without a block yields the pre-change record: no fields key, no
 // semantic diagnostic (the Filament byte-identity half is TC-1632).
 #[test]
@@ -582,7 +582,7 @@ fn no_block_record_is_unchanged() {
         .any(|d| matches!(d, quire_rs::Diagnostic::Semantic { .. })));
 }
 
-#[trace("TC-1647", "FR-070-AC-10")]
+#[trace("FR-070-AC-10")]
 // one row error → unavailable naming the loci, no partial array; an empty
 // typed table is available and empty.
 #[test]
@@ -643,7 +643,7 @@ fn cell_strategy() -> impl Strategy<Value = (String, String, String)> {
 
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(256))]
-    #[trace("TC-1621", "FR-070-AC-4", "FR-070-AC-5", "FR-070-AC-6", "FR-070-AC-10")]
+    #[trace("FR-070-AC-4", "FR-070-AC-5", "FR-070-AC-6", "FR-070-AC-10")]
     // generated cells: every produced FieldDecl validates, or the row is
     // diagnosed and no partial array is emitted.
     #[test]
@@ -727,7 +727,7 @@ fn unit_bundle(value: Value) -> BundleIndex {
 }
 
 /// FR-070-AC-11: `Clock` is a native target beside the kernel scalars.
-#[trace("TC-1945", "FR-070-AC-11")]
+#[trace("FR-070-AC-11")]
 #[test]
 fn clock_is_a_native_type_with_no_unit_or_decimal() {
     let hostile = unit_bundle(json!({
@@ -795,7 +795,7 @@ fn reasons(outcome: &quire_rs::semantic::FieldsOutcome) -> Vec<&str> {
 }
 
 /// FR-070-AC-12: a quantity resolves to the unit artifact's identity.
-#[trace("TC-1946", "FR-070-AC-12")]
+#[trace("FR-070-AC-12")]
 #[test]
 fn quantity_resolves_to_the_unit_artifact_by_id_and_title() {
     for cell in ["Quantity<ms>", "Quantity<Millisecond>"] {
@@ -860,7 +860,7 @@ fn quantity_resolves_to_the_unit_artifact_by_id_and_title() {
 }
 
 /// FR-070-AC-13: malformed quantity tokens and the cells that refuse them.
-#[trace("TC-1947", "FR-070-AC-13")]
+#[trace("FR-070-AC-13")]
 #[test]
 fn malformed_quantity_tokens_are_refused_at_the_row() {
     for cell in [
@@ -915,7 +915,7 @@ fn malformed_quantity_tokens_are_refused_at_the_row() {
 
 /// FR-070-AC-14 end to end: qualified, bare and imported unit cells resolve
 /// to owner-qualified identities in one record.
-#[trace("TC-1952", "FR-070-AC-14")]
+#[trace("FR-070-AC-14")]
 #[test]
 fn qualified_quantity_cells_resolve_through_imported_artifacts() {
     let bundle = || {

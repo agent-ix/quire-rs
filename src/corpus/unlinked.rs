@@ -342,7 +342,7 @@ mod tests {
 
     // bare id in prose -> one AutoFix with token span +
     // suggested relative-path link.
-    #[trace("FR-039-AC-1", "TC-623")]
+    #[trace("FR-039-AC-1")]
     #[test]
     fn bare_id_in_prose_is_autofix() {
         let spec = spec_of(vec![
@@ -362,7 +362,7 @@ mod tests {
     }
 
     // sub-id links to the PARENT file, label = full token.
-    #[trace("FR-039-AC-2", "TC-624")]
+    #[trace("FR-039-AC-2")]
     #[test]
     fn sub_id_links_to_parent_file() {
         let spec = spec_of(vec![
@@ -380,7 +380,7 @@ mod tests {
 
     // inline-code token -> span covers backticks, link is
     // backtick-free.
-    #[trace("FR-039-AC-3", "TC-625")]
+    #[trace("FR-039-AC-3")]
     #[test]
     fn inline_code_token_converted() {
         let spec = spec_of(vec![
@@ -401,7 +401,7 @@ mod tests {
     // a code span holding >1 artifact token is skipped
     // entirely (converting each would emit overlapping whole-span fixes that
     // corrupt on apply); a single-token code span still converts.
-    #[trace("FR-039-AC-10", "TC-632")]
+    #[trace("FR-039-AC-10")]
     #[test]
     fn multi_token_code_span_skipped() {
         let spec = spec_of(vec![
@@ -435,7 +435,7 @@ mod tests {
     }
 
     // fenced block + frontmatter tokens yield no finding.
-    #[trace("FR-039-AC-4", "TC-626")]
+    #[trace("FR-039-AC-4")]
     #[test]
     fn fenced_and_frontmatter_ignored() {
         let spec = spec_of(vec![
@@ -451,7 +451,7 @@ mod tests {
     }
 
     // already-linked tokens yield nothing (idempotence).
-    #[trace("FR-039-AC-5", "TC-627")]
+    #[trace("FR-039-AC-5")]
     #[test]
     fn already_linked_ignored() {
         let spec = spec_of(vec![
@@ -467,7 +467,7 @@ mod tests {
     }
 
     // self-references skipped; cross-references kept.
-    #[trace("FR-039-AC-6", "TC-628")]
+    #[trace("FR-039-AC-6")]
     #[test]
     fn self_reference_skipped() {
         let spec = spec_of(vec![
@@ -484,7 +484,7 @@ mod tests {
     }
 
     // unresolved parent -> WarnOnly{Unresolved}, no link.
-    #[trace("FR-039-AC-7", "TC-629")]
+    #[trace("FR-039-AC-7")]
     #[test]
     fn unresolved_is_warn_only() {
         let spec = spec_of(vec![doc_at(
@@ -503,7 +503,7 @@ mod tests {
     }
 
     // duplicate parent id -> WarnOnly{Ambiguous}.
-    #[trace("FR-039-AC-8", "TC-630")]
+    #[trace("FR-039-AC-8")]
     #[test]
     fn ambiguous_is_warn_only() {
         let spec = spec_of(vec![
@@ -526,7 +526,7 @@ mod tests {
     }
 
     // results sorted by (path, span.start), stable.
-    #[trace("FR-039-AC-9", "TC-631")]
+    #[trace("FR-039-AC-9")]
     #[test]
     fn results_sorted_and_stable() {
         let docs = vec![
@@ -549,7 +549,7 @@ mod tests {
         assert_eq!(unlinked_references(&spec_of(docs)), refs);
     }
 
-    #[trace("TC-765", "FR-039-AC-11")]
+    #[trace("FR-039-AC-11")]
     // a sub-id token resolves to its parent (CR-020)
     // document for every declared sub-id kind. `-VC-` is StR's
     // validation-criterion kind (spec-artifacts-iso#9); without it a bare

@@ -162,7 +162,7 @@ mod tests {
     }
 
     // Covers (FR-027-AC-1, US-012-AC-1).
-    #[trace("TC-493")]
+    #[trace("FR-027-AC-1", "US-012-AC-1")]
     #[test]
     fn by_type_returns_exactly_that_type_sorted() {
         let root = tmpdir("by_type");
@@ -174,7 +174,7 @@ mod tests {
     }
 
     // Covers (FR-027-AC-2, US-012-AC-3).
-    #[trace("TC-494")]
+    #[trace("FR-027-AC-2", "US-012-AC-3")]
     #[test]
     fn referencing_is_reverse_lookup() {
         let root = tmpdir("ref");
@@ -186,7 +186,7 @@ mod tests {
     }
 
     // Covers (FR-027-AC-3, US-012-AC-2): orphan FRs lacking implements->StR.
-    #[trace("TC-495")]
+    #[trace("FR-027-AC-3", "US-012-AC-2")]
     #[test]
     fn orphans_finds_untraced_frs() {
         let root = tmpdir("orphans");
@@ -200,7 +200,7 @@ mod tests {
     }
 
     // untyped doc -> not in by_type, in by_id, diagnostic.
-    #[trace("FR-027-AC-9", "TC-500")]
+    #[trace("FR-027-AC-9")]
     #[test]
     fn untyped_document_is_excluded_and_diagnosed() {
         let root = tmpdir("untyped");
@@ -215,7 +215,7 @@ mod tests {
     }
 
     // outgoing includes dangling; dangling()/referencing agree.
-    #[trace("FR-027-AC-5", "TC-497")]
+    #[trace("FR-027-AC-5")]
     #[test]
     fn dangling_appears_in_outgoing_not_referencing() {
         let root = tmpdir("dangling");
@@ -229,7 +229,7 @@ mod tests {
     }
 
     // query results deterministic across runs (NFR-006).
-    #[trace("FR-027-AC-6", "TC-498")]
+    #[trace("FR-027-AC-6")]
     #[test]
     fn query_results_are_deterministic() {
         let root = tmpdir("determ");

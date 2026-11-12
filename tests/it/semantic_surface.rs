@@ -183,7 +183,7 @@ fn assert_case(name: &str, expect: &Value, value: &Value) {
     }
 }
 
-#[trace("TC-1630", "FR-072-AC-1")]
+#[trace("FR-072-AC-1")]
 // every case yields its expected declarations, availability, and ordered
 // diagnostics; every record validates against semantic-v1.
 #[test]
@@ -255,7 +255,7 @@ fn assert_filed_cases(issue_ref: &str, keys: &[&str]) {
     }
 }
 
-#[trace("TC-1998", "FR-075-AC-27")]
+#[trace("FR-075-AC-27")]
 // PLAT-35 cases per reference column: the resolved SemanticId, a refusal and
 // a control.
 #[test]
@@ -266,7 +266,7 @@ fn declaration_reference_cases() {
     );
 }
 
-#[trace("TC-2004", "FR-076-AC-21")]
+#[trace("FR-076-AC-21")]
 // PLAT-55 cases per typed relation key: the lowered identity, a refusal and a
 // control.
 #[test]
@@ -307,7 +307,7 @@ fn assert_inline_expression_cases(tc: &str) -> usize {
     ran
 }
 
-#[trace("TC-2040", "FR-071-AC-10", "FR-071-AC-11", "FR-075-AC-30")]
+#[trace("FR-071-AC-10", "FR-071-AC-11", "FR-075-AC-30")]
 // `Pre: x > 1 and y(a, b)` is one unsplit expression with an empty frame
 // `pre`; the `Pre: a, b` control stays a reference list.
 #[test]
@@ -315,7 +315,7 @@ fn pre_expression_cases() {
     assert_eq!(assert_inline_expression_cases("TC-2040"), 2);
 }
 
-#[trace("TC-2041", "FR-071-AC-11", "FR-071-AC-12", "FR-071-AC-14")]
+#[trace("FR-071-AC-11", "FR-071-AC-12", "FR-071-AC-14")]
 // classification by text shape, empty lines refused, and no expression
 // without its operation.
 #[test]
@@ -323,14 +323,14 @@ fn expression_classification_cases() {
     assert_eq!(assert_inline_expression_cases("TC-2041"), 9);
 }
 
-#[trace("TC-2042", "FR-071-AC-13")]
+#[trace("FR-071-AC-13")]
 // an invalid-syntax expression is carried verbatim with only the advisory.
 #[test]
 fn invalid_syntax_expression_is_carried() {
     assert_eq!(assert_inline_expression_cases("TC-2042"), 1);
 }
 
-#[trace("TC-2043", "FR-075-AC-28", "FR-075-AC-29")]
+#[trace("FR-075-AC-28", "FR-075-AC-29")]
 // transition `Guard` cells: expression, reference, dangling, empty.
 #[test]
 fn guard_expression_cases() {
@@ -358,7 +358,7 @@ fn guard_expression_cases() {
     );
 }
 
-#[trace("TC-1631", "FR-072-AC-2")]
+#[trace("FR-072-AC-2")]
 // every state token and both lossy values appear, each distinct;
 // unavailable/missing carry a reason.
 #[test]
@@ -427,8 +427,8 @@ fn fixture_snapshot(with_context: bool) -> FilamentExtractionInput {
     serde_json::from_value(input).unwrap()
 }
 
-#[trace("TC-1632", "FR-072-AC-3", "FR-072-CON-1")]
-#[trace("TC-2055", "FR-072-AC-9")]
+#[trace("FR-072-AC-3", "FR-072-CON-1")]
+#[trace("FR-072-AC-9")]
 // with a context: dataJson.semantic + diagnostics with locus and mapped
 // severity; without: no `semantic` key and no locus.
 #[test]
@@ -492,7 +492,7 @@ fn filament_surface_with_and_without_context() {
     assert!(!serde_json::to_string(&value).unwrap().contains("\"locus\""));
 }
 
-#[trace("TC-1634", "FR-072-AC-5")]
+#[trace("FR-072-AC-5")]
 // validate_document over the free-table fixture warns at its line; over both-forms
 // it errors at the fence line and fails validation.
 #[test]
@@ -535,8 +535,8 @@ fn validate_document_surface() {
     );
 }
 
-#[trace("TC-1637", "FR-072-AC-7")]
-#[trace("TC-1644", "NFR-021-AC-4")]
+#[trace("FR-072-AC-7")]
+#[trace("NFR-021-AC-4")]
 // byte-identical repeated runs; an unrelated edit changes nothing.
 #[test]
 fn determinism_and_isolation() {
@@ -559,7 +559,7 @@ fn determinism_and_isolation() {
     assert_eq!(before, after);
 }
 
-#[trace("TC-1638", "FR-072-AC-8")]
+#[trace("FR-072-AC-8")]
 // the schema is 2020-12 with additionalProperties: false everywhere; the
 // expected-records fixture pins every field and state token; a removed field
 // fails the fixture.
@@ -655,7 +655,7 @@ fn schema_and_compatibility_fixture() {
     assert!(!schema.is_valid(&renamed));
 }
 
-#[trace("TC-1650", "FR-072-CON-3")]
+#[trace("FR-072-CON-3")]
 // The dependency ban covers schemars; this checks the authored schema itself.
 #[test]
 fn semantic_schema_has_no_generator_marker() {

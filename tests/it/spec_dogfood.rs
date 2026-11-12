@@ -76,7 +76,7 @@ fn spec_documents() -> Vec<(PathBuf, String, String)> {
 /// The vocabularies are the engine defaults, not the module's: a module lexicon
 /// only ever *suppresses* findings, so judging on the defaults is the stricter
 /// reading and cannot go green on a vocabulary accident.
-#[trace("FR-048-AC-11", "TC-794")]
+#[trace("FR-048-AC-11")]
 #[test]
 fn tc794_own_spec_carries_no_promoted_error_finding() {
     let severity = promoted_severity();

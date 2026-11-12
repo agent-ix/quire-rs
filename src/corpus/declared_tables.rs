@@ -1328,7 +1328,6 @@ pub(crate) fn scan_finding(
 
 #[cfg(test)]
 mod props_metamorphic {
-    use ix_trace_rs::trace;
     use proptest::prelude::*;
 
     /// Cells built from the tokens the two opt-in normalizations rewrite —
@@ -1353,7 +1352,6 @@ mod props_metamorphic {
         /// before the fixpoint loop was the chained range
         /// `FR-375..FR-432..FR-432`, which left a `..` the pattern rejects.
         #[test]
-        #[trace("TC-892")]
         fn tc892_reference_cell_normalization_is_idempotent(
             s in cellish(),
             strip in any::<bool>(),
@@ -1371,7 +1369,6 @@ mod props_metamorphic {
         /// returned unchanged — normalization is opt-in (CR-015), so the
         /// no-declaration path must be the identity.
         #[test]
-        #[trace("TC-892")]
         fn tc892_no_flags_is_the_identity(s in cellish()) {
             prop_assert_eq!(super::normalize_reference_cell(&s, false, false), s.clone());
         }
@@ -1390,7 +1387,7 @@ mod ac63_id_column_order {
 
     /// `cells` is a `BTreeMap` (key order), and a coverage report sorts minted
     /// ids, so only the row itself can show column order.
-    #[trace("TC-2095", "FR-050-AC-63")]
+    #[trace("FR-050-AC-63")]
     #[test]
     fn ids_run_in_column_order_not_declaration_or_lexical_order() {
         let row = ScannedRow {
@@ -1421,7 +1418,7 @@ mod cr110_scanned_table {
         crate::parser::parse_document(body)
     }
 
-    #[trace("TC-1041", "FR-050-AC-35")]
+    #[trace("FR-050-AC-35")]
     // every matched section holding NO table is a silent
     // zero, and one among others is not (CR-120). #272's widening made three
     // repositories match a table-less heading and LOSE their
@@ -1486,7 +1483,7 @@ mod cr110_scanned_table {
         );
     }
 
-    #[trace("TC-1033", "FR-050-AC-33")]
+    #[trace("FR-050-AC-33")]
     // the three ways a scan produces no rows are three
     // ANSWERS, not one empty `Vec` (CR-117). `rows_of` collapsed them, so a
     // heading one word off and a matrix with no rows were the same fact
@@ -1543,7 +1540,7 @@ mod cr110_scanned_table {
         assert!(rows.is_empty());
     }
 
-    #[trace("TC-1033", "FR-050-AC-33")]
+    #[trace("FR-050-AC-33")]
     // headings are deduped and kept in document order:
     // a document repeating `### Notes` under six parents would spend the whole
     // message saying so, and the reader is scanning for one near miss.
@@ -1557,7 +1554,7 @@ mod cr110_scanned_table {
         assert_eq!(document_headings(&doc), vec!["Alpha", "Notes", "Beta"]);
     }
 
-    #[trace("TC-1037", "FR-050-AC-34")]
+    #[trace("FR-050-AC-34")]
     // every section a declaration names contributes its (CR-118)
     // own table, in DOCUMENT order rather than in the order the module happened
     // to list its headings — the row order in a payload is a property of the
@@ -1597,12 +1594,10 @@ mod cr110_scanned_table {
 
 #[cfg(test)]
 mod cr069_regressions {
-    use ix_trace_rs::trace;
     /// regression (FR-049, CR-069) — the generator's minimized witness.
     /// A chained range expanded only its leftmost pair and left a `..` behind,
     /// which the declaration's pattern then rejects — so a cell the engine could
     /// have read reported as a dangling trace reference instead.
-    #[trace("TC-892")]
     #[test]
     fn tc892_chained_ranges_expand_completely() {
         let out = super::normalize_reference_cell("FR-001..FR-003..FR-005", false, true);
@@ -1635,7 +1630,7 @@ mod cr135_archetype_matches_nothing {
     use crate::traceability::IdColumns;
     use crate::traceability::SectionNames;
 
-    #[trace("TC-1048", "FR-050-AC-36")]
+    #[trace("FR-050-AC-36")]
     // a declared archetype no document has survives
     // `into_diagnostics`: there is no model-wide gate left to drop it.
     #[test]
@@ -1665,7 +1660,7 @@ mod cr135_archetype_matches_nothing {
         assert_eq!(out[0].0, "test-case", "it names the declaration");
     }
 
-    #[trace("TC-1049", "FR-050-AC-36")]
+    #[trace("FR-050-AC-36")]
     // only a TRACE TARGET reports a missing archetype; a
     // reference declaration, whose section is legitimately optional, does not.
     #[test]
@@ -1734,7 +1729,7 @@ mod cr135_archetype_matches_nothing {
         );
     }
 
-    #[trace("TC-1076", "FR-050-AC-41")]
+    #[trace("FR-050-AC-41")]
     // `required: false` must suppress only missing-target findings. It does
     // not skip documents or excuse a present table with a broken id column.
     #[test]

@@ -29,7 +29,7 @@ const FORBIDDEN: &[&str] = &[
     "tokio",
 ];
 
-#[trace("TC-690")]
+#[trace("FR-045-CON-1", "FR-045-CON-3", "NFR-020-AC-1")]
 #[test]
 fn tc690_extraction_module_has_no_forbidden_runtime_surface() {
     for needle in FORBIDDEN {

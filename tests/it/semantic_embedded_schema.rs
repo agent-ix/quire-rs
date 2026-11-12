@@ -3,7 +3,7 @@
 use ix_trace_rs::trace;
 use serde_json::{json, Value};
 
-#[trace("TC-1606", "FR-069-AC-8")]
+#[trace("FR-069-AC-8")]
 // The embedded semantic-core bundle is complete and made of valid schemas.
 #[test]
 fn embedded_semantic_core_bundle_is_complete() {
@@ -20,7 +20,7 @@ fn embedded_semantic_core_bundle_is_complete() {
     }
 }
 
-#[trace("TC-1877", "FR-031-AC-8")]
+#[trace("FR-031-AC-8")]
 // quire-rs's own loader never validates `object_types[].construct` against
 // the embedded schema — only `properties.semantic` is compiled out of it
 // (`contract::block_validator`) — so TC-1876's loader test cannot, on its
@@ -75,14 +75,7 @@ fn adjacent_fixture() -> Value {
     .unwrap()
 }
 
-#[trace(
-    "TC-1610",
-    "TC-1613",
-    "TC-1615",
-    "FR-070-AC-1",
-    "FR-070-AC-4",
-    "FR-070-AC-6"
-)]
+#[trace("FR-070-AC-1", "FR-070-AC-4", "FR-070-AC-6")]
 #[test]
 fn ir994_public_extraction_emits_every_adjacent_constraint_form() {
     use quire_rs::semantic::{extract_fields, AvailabilityState, BundleIndex, SemanticContext};
@@ -133,7 +126,7 @@ fn ir994_public_extraction_emits_every_adjacent_constraint_form() {
     }
 }
 
-#[trace("TC-1621", "TC-1638", "FR-070-AC-10", "FR-072-AC-8")]
+#[trace("FR-070-AC-10", "FR-072-AC-8")]
 #[test]
 fn ir994_adjacent_declarations_round_trip_and_old_wire_is_refused() {
     use quire_rs::semantic::{compile_module_schema, embedded, FieldDecl};

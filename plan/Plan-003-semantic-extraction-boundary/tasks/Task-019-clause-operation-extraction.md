@@ -10,20 +10,6 @@ relationships:
     type: depends_on
   - target: ix://agent-ix/quire-rs/FR-071
     type: references
-  - target: ix://agent-ix/quire-rs/TC-1622
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-1623
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-1624
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-1625
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-1626
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-1629
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-1648
-    type: verifies
 ---
 # Task-019: FR-071 — clause and operation extraction
 

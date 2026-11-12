@@ -2,8 +2,8 @@
 
 use ix_trace_rs::trace;
 
-#[trace("TC-1059", "FR-050-CON-1")]
-#[trace("TC-1059", "FR-050-CON-2")]
+#[trace("FR-050-CON-1")]
+#[trace("FR-050-CON-2")]
 #[test]
 fn tc1059_coverage_and_corpus_modules_keep_one_responsibility() {
     let declarations = include_str!("../../src/coverage/declarations.rs");

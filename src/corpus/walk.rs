@@ -496,7 +496,7 @@ mod tests {
     const STR_005: &str = "---\nid: StR-005\ntype: StR\nuuid: 0190b6a0-0000-7000-8000-000000000005\n---\n# Need\nbody\n";
     const TM_001: &str = "---\nid: TM-001\ntype: TestMatrix\nuuid: 0190b6a0-0000-7000-8000-000000000001\n---\n# Test Matrix\n\n## Test Case Summary\n";
 
-    #[trace("TC-470")]
+    #[trace("FR-024-AC-1")]
     // N files -> N docs, each matching a direct parse_document.
     #[test]
     fn loads_one_document_per_markdown_file() {
@@ -516,7 +516,7 @@ mod tests {
     }
 
     // bad root -> empty + one warning, no panic.
-    #[trace("FR-024-AC-7", "TC-476")]
+    #[trace("FR-024-AC-7")]
     #[test]
     fn missing_root_yields_empty_with_warning() {
         let load = load_repo(Path::new("/no/such/dir/quire-test"));
@@ -540,7 +540,7 @@ mod tests {
     }
 
     // one malformed (non-UTF8) file -> N-1 docs + 1 diagnostic.
-    #[trace("FR-024-AC-2", "TC-471")]
+    #[trace("FR-024-AC-2")]
     #[test]
     fn malformed_file_is_diagnosed_not_fatal() {
         let root = tmpdir("malformed");
@@ -561,7 +561,7 @@ mod tests {
     }
 
     // path-sorted, byte-identical across runs (NFR-006).
-    #[trace("FR-024-AC-4", "TC-473")]
+    #[trace("FR-024-AC-4")]
     #[test]
     fn output_is_path_sorted_and_deterministic() {
         let root = tmpdir("sorted");
@@ -579,7 +579,7 @@ mod tests {
     }
 
     // .gitignore honored by default; overridable.
-    #[trace("FR-024-AC-3", "TC-472")]
+    #[trace("FR-024-AC-3")]
     #[test]
     fn gitignore_honored_by_default_and_overridable() {
         let root = tmpdir("gitignore");
@@ -604,7 +604,7 @@ mod tests {
     // motivated the change — it is the canonical filename for `TestMatrix`,
     // a fully registered archetype, and the old skip list made the engine
     // unable to load the canonical instance of a type its own module declares.
-    #[trace("TC-807", "FR-024-AC-10")]
+    #[trace("FR-024-AC-10")]
     // (CR-048: the CR-044 "produce no diagnostic"
     // assertion is inverted — a frontmatter-less file INSIDE the walked
     // root warns; files outside the root are simply never visited, #91).
@@ -681,7 +681,7 @@ mod tests {
     }
 
     // id + uuid read from frontmatter; missing uuid -> diagnostic.
-    #[trace("FR-024-AC-6", "TC-475")]
+    #[trace("FR-024-AC-6")]
     #[test]
     fn identity_is_read_and_missing_uuid_diagnosed() {
         let root = tmpdir("identity");

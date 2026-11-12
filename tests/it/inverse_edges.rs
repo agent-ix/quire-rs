@@ -30,7 +30,7 @@ fn registry(manifest: &[u8]) -> Registry {
     r
 }
 
-#[trace("TC-652", "FR-040-AC-1", "FR-041-AC-1")]
+#[trace("FR-040-AC-1", "FR-041-AC-1")]
 // the merged registry exposes an inverse index mapping
 // each declared `inverse:` label to its forward verb; a registry with no
 // declared inverses exposes an empty index.
@@ -73,7 +73,7 @@ edge_types:
     assert!(bare.inverse_index().is_empty());
 }
 
-#[trace("TC-1869", "FR-040-AC-1", "FR-041-AC-1")]
+#[trace("FR-040-AC-1", "FR-041-AC-1")]
 // Composition metadata is independent of inverse-label uniqueness; both ISO
 // composition verbs retain their own inverse in the merged registry.
 #[test]
@@ -110,7 +110,7 @@ edge_types:
     );
 }
 
-#[trace("TC-653", "FR-041-AC-2")]
+#[trace("FR-041-AC-2")]
 // a frontmatter edge whose `type` is a declared inverse
 // label is type-allowed during validate (no DisallowedEdgeType), even though
 // it is absent from resolve_allowed_links; a verb that is neither a resolved
@@ -154,7 +154,7 @@ edge_types:
     assert!(r.is_valid, "edges are advisory");
 }
 
-#[trace("TC-654", "FR-041-AC-3")]
+#[trace("FR-041-AC-3")]
 // a label that is both a forward edge_types key and an
 // inverse of another verb resolves to the forward registration (not the
 // inverse); two forward verbs declaring the same inverse label are first-wins
@@ -208,7 +208,7 @@ edge_types:
     );
 }
 
-#[trace("TC-652", "TC-652b", "FR-041-AC-1")]
+#[trace("FR-041-AC-1")]
 // an inverse label used as an `allowed_links` key in a
 // manifest is a valid verb — it does NOT raise UnknownEdgeType at load.
 #[test]
@@ -284,7 +284,7 @@ edge_types:
     )
 }
 
-#[trace("TC-655", "FR-041-AC-4")]
+#[trace("FR-041-AC-4")]
 // a corpus inverse edge `(B, consumed_by, A)` is
 // normalized to `(A, publishes, B)` before target_satisfies; a forward-valid
 // target passes, a forward-direction mismatch yields one DisallowedEdgeTarget
@@ -345,7 +345,7 @@ fn tc655_tier2_inverse_normalization() {
     );
 }
 
-#[trace("TC-656", "FR-041-AC-5")]
+#[trace("FR-041-AC-5")]
 // inverse recognition/normalization are warnings only
 // and deterministic — the inverse index is identical across repeated loads.
 #[test]

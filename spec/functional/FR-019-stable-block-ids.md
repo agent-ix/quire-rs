@@ -39,9 +39,9 @@ invented one.
 
 | ID | Criteria | Verification |
 |----|----------|--------------|
-| FR-019-AC-1 | A heading `## Behavior {#blk-7af2}` parses to `block_id = Some("blk-7af2")` with heading text `Behavior`, and a heading with no attribute parses to `block_id = None` with its text byte-identical to the input. | Test (TC-400, TC-403) |
-| FR-019-AC-2 | The attribute is stripped from the heading text on parse: no `{#…}` span remains in `QuireSection.heading`. | Test (TC-402) |
-| FR-019-AC-3 | A block id survives a write-back addressed by that id and a reparse of the result. | Test (TC-443) |
+| FR-019-AC-1 | A heading `## Behavior {#blk-7af2}` parses to `block_id = Some("blk-7af2")` with heading text `Behavior`, and a heading with no attribute parses to `block_id = None` with its text byte-identical to the input. | Test |
+| FR-019-AC-2 | The attribute is stripped from the heading text on parse: no `{#…}` span remains in `QuireSection.heading`. | Test |
+| FR-019-AC-3 | A block id survives a write-back addressed by that id and a reparse of the result. | Test |
 
 > **CR-042 note (2026-08-14):** Authored after the fact. This requirement
 > shipped in v0.2 and was never written up — `spec/tests.md` carried TC-400..403

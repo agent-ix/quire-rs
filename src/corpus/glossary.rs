@@ -195,7 +195,7 @@ mod tests {
         glossary_terms(&Spec::from_path(&tmp))
     }
 
-    #[trace("TC-674", "FR-044-AC-1")]
+    #[trace("FR-044-AC-1")]
     // harvest the Term column from a `## Terms` table.
     #[test]
     fn tc674_harvest_terms_table() {
@@ -204,7 +204,7 @@ mod tests {
         assert!(terms.contains(&"Sprocket".to_string()));
     }
 
-    #[trace("TC-675", "FR-044-AC-2")]
+    #[trace("FR-044-AC-2")]
     // harvest the bold term from `## Ubiquitous Language`.
     #[test]
     fn tc675_harvest_ubiquitous_language() {
@@ -259,14 +259,14 @@ mod tests {
         assert_eq!(from_path, glossary_terms(&Spec::from_path(&dir)));
     }
 
-    #[trace("TC-808", "FR-024-AC-11")]
+    #[trace("FR-024-AC-11")]
     // this scanner reads raw text rather than (CR-044)
     // building a `Spec`, so it needs the membership rule applied explicitly.
     // It used to inherit the walk's `{README.md, tests.md}` skip through
     // `discover_files`; when that skip went, the scope here would have widened
     // in silence to every stray `.md`. A repository's ubiquitous language is
     // defined by its documents.
-    #[trace("TC-808", "FR-024-AC-11")]
+    #[trace("FR-024-AC-11")]
     #[test]
     fn tc808_from_path_applies_the_corpus_membership_rule() {
         let dir_guard = tempfile::TempDir::new().unwrap();
@@ -333,7 +333,7 @@ mod tests {
         )
     }
 
-    #[trace("TC-678", "FR-044-AC-5")]
+    #[trace("FR-044-AC-5")]
     // validate_bundle harvests the Spec's project terms
     // and applies the combined lexicon — the FR's `widget` is suppressed.
     #[test]
@@ -345,7 +345,7 @@ mod tests {
             .any(|w| w.message.contains("[ears:vague-response]")));
     }
 
-    #[trace("TC-679", "FR-044-AC-6")]
+    #[trace("FR-044-AC-6")]
     // the project-glossary suppression is advisory —
     // grammar findings never become bundle errors.
     #[test]
@@ -354,7 +354,7 @@ mod tests {
         assert!(!report.errors.iter().any(|e| e.reason == "grammar"));
     }
 
-    #[trace("TC-680", "FR-044-AC-7")]
+    #[trace("FR-044-AC-7")]
     // a repo with no glossary harvests nothing.
     #[test]
     fn tc680_no_glossary_empty() {
@@ -386,7 +386,7 @@ mod tests {
         assert!(glossary_terms(&spec).is_empty());
     }
 
-    #[trace("TC-823", "FR-044-AC-8")]
+    #[trace("FR-044-AC-8")]
     // the pre-filter agrees with the lookup it (CR-055)
     // gates. ISO heading form numbers its sections, and `query::section`
     // treats that numbering as decorative — so a pre-filter matching the raw
@@ -410,7 +410,7 @@ mod tests {
         assert!(!has_glossary_heading("## Terms of Service\n"));
     }
 
-    #[trace("TC-823", "FR-044-AC-8")]
+    #[trace("FR-044-AC-8")]
     // and end to end — a numbered heading (CR-055)
     // harvests the same terms an unnumbered one does, through both harvesters.
     #[test]
@@ -436,7 +436,7 @@ mod tests {
         );
     }
 
-    #[trace("TC-823", "FR-044-AC-8")]
+    #[trace("FR-044-AC-8")]
     // a glossary-bearing file with no front (CR-055)
     // block is reported, not silently skipped. It stays out of the harvest —
     // the membership rule is unchanged — but the operator is told why the

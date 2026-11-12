@@ -120,7 +120,7 @@ const PYTHON_SOURCE: &str = concat!(
 const TYPESCRIPT_SOURCE: &str = "// FR-007-AC-1: on the registration\n\
 it(\"parses\", () => {});\n";
 
-#[trace("TC-2161", "FR-051-AC-49")]
+#[trace("FR-051-AC-49")]
 #[test]
 fn a_comment_or_docstring_id_warns_with_the_text_rendered_from_the_template() {
     let forms = vec![rust_marker(Some("#[trace({ids})]")), python_marker()];
@@ -162,7 +162,7 @@ fn a_comment_or_docstring_id_warns_with_the_text_rendered_from_the_template() {
     assert_eq!(run.report.totals.backed, 0);
 }
 
-#[trace("TC-2162", "FR-051-AC-49")]
+#[trace("FR-051-AC-49")]
 #[test]
 fn the_advisory_is_silent_or_names_the_form_when_nothing_canonical_can_be_written() {
     // No marker form for Python: nothing to write, so no finding for it.
@@ -201,7 +201,7 @@ fn the_advisory_is_silent_or_names_the_form_when_nothing_canonical_can_be_writte
     assert!(findings(&none.report).is_empty());
 }
 
-#[trace("TC-2162", "FR-051-AC-49")]
+#[trace("FR-051-AC-49")]
 #[test]
 fn an_id_an_implements_form_read_is_left_to_its_own_warning() {
     let source = "/// Implements: FR-007-AC-2\n\
@@ -231,7 +231,7 @@ fn an_id_an_implements_form_read_is_left_to_its_own_warning() {
     );
 }
 
-#[trace("TC-2163", "FR-051-AC-50")]
+#[trace("FR-051-AC-50")]
 #[test]
 fn the_advisory_fires_on_a_backed_id_and_is_silent_for_an_all_marker_tree() {
     let backed = "// FR-007-AC-1: still a comment.\n\
@@ -261,7 +261,7 @@ fn the_advisory_fires_on_a_backed_id_and_is_silent_for_an_all_marker_tree() {
     assert!(findings(&run_tidy.report).is_empty());
 }
 
-#[trace("TC-2165", "FR-051-AC-22", "FR-051-AC-49")]
+#[trace("FR-051-AC-22", "FR-051-AC-49")]
 #[test]
 fn a_production_symbol_is_told_the_implements_attribute_and_a_module_its_kind() {
     let source = "// FR-007-AC-1 header prose.\n\
@@ -306,7 +306,7 @@ fn a_production_symbol_is_told_the_implements_attribute_and_a_module_its_kind() 
     assert!(!found[1].message.contains("#["), "{}", found[1].message);
 }
 
-#[trace("TC-2164", "FR-050-AC-44")]
+#[trace("FR-050-AC-44")]
 #[test]
 fn an_id_in_a_test_name_adds_nothing_and_raises_no_name_diagnostic() {
     let source = "#[test]\nfn tc_901_named() {}\n";
@@ -375,7 +375,7 @@ fn minted_bundle(comment: &str) -> (CoverageReport, trace::SymbolGraph) {
 
 const KIND_COMMENT: &str = "    // CR-215 and PLAT-847 name the change, AC-3 a criterion; FR-001-AC-1 and TC-001\n    // are the ids this test is about.\n";
 
-#[trace("TC-2183", "FR-051-AC-49")]
+#[trace("FR-051-AC-49")]
 #[test]
 fn only_a_kind_the_corpus_mints_is_advised() {
     let (report, _) = minted_bundle(KIND_COMMENT);
@@ -391,7 +391,7 @@ fn only_a_kind_the_corpus_mints_is_advised() {
     );
 }
 
-#[trace("TC-2184", "FR-050-AC-39", "FR-077-CON-1")]
+#[trace("FR-050-AC-39", "FR-077-CON-1")]
 #[test]
 fn the_same_kinds_filter_unmatched_tags_and_mentions() {
     let (report, mut graph) = minted_bundle(KIND_COMMENT);
@@ -440,7 +440,7 @@ fn the_same_kinds_filter_unmatched_tags_and_mentions() {
     );
 }
 
-#[trace("TC-2185", "FR-051-AC-22")]
+#[trace("FR-051-AC-22")]
 #[test]
 fn a_production_function_is_told_an_implements_form_of_its_own_language_only() {
     let python_attr = json!({

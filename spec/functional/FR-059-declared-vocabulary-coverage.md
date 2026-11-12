@@ -107,16 +107,16 @@ why findings ship advisory and severity is settable per repository.
 
 | ID | Criteria | Verification |
 |----|----------|--------------|
-| FR-059-AC-1 | A declared value no document claims is reported, naming the value and the declaration; a claimed value is not. | Test (TC-911) |
-| FR-059-AC-2 | The vocabulary is read from the projected archetype's frontmatter schema `enum`. A manifest that restates the values is not how the engine learns them. | Test (TC-912) |
-| FR-059-AC-3 | A value named in the declared justified-absence field counts as covered. | Test (TC-913) |
-| FR-059-AC-4 | The justification may live on **any** document in the bundle, not only on the projected archetype. | Test (TC-914) |
-| FR-059-AC-5 | Findings carry their own `trace:<check>` severity key: advisory by default, droppable with `off`, promotable with `error`, independent of every other corpus check ([FR-057](./FR-057-corpus-check-severity.md)). | Test (TC-915) |
-| FR-059-AC-6 | A module declaring no `vocabulary_coverage` produces byte-identical output to one that never heard of this FR. | Test (TC-917) |
-| FR-059-AC-7 | A declaration whose archetype or field yields no `enum` reports **itself** under `trace:undeclared-coverage-vocabulary`, rather than silently reporting no unowned value. | Test (TC-916) |
-| FR-059-AC-8 | When no document of the projected archetype exists, the finding is a single statement that nothing projects, naming how many values are unowned — not one finding per value. | Test (TC-918) |
-| FR-059-AC-9 | The coverage payload carries one `vocabulary_coverage` record per declared value — `{vocabulary, archetype, field, check, value, state, documents}` with `state` ∈ `owned` / `excused` / `unowned` and the deciding documents (claimants for owned, justified-absence recorders for excused, empty for unowned; a claimed value is owned even when also recorded absent). The key is absent — never empty — for a module declaring no `vocabulary_coverage` (CR-091). | Test (TC-962, TC-963, TC-964, TC-965) |
-| FR-059-AC-10 | A declaration whose archetype or field yields no `enum` is reported on the coverage surface as an `undeclared-coverage-vocabulary` diagnostic — the same token as AC-7's bundle warning — rather than silently minting no record (CR-091). | Test (TC-966) |
+| FR-059-AC-1 | A declared value no document claims is reported, naming the value and the declaration; a claimed value is not. | Test |
+| FR-059-AC-2 | The vocabulary is read from the projected archetype's frontmatter schema `enum`. A manifest that restates the values is not how the engine learns them. | Test |
+| FR-059-AC-3 | A value named in the declared justified-absence field counts as covered. | Test |
+| FR-059-AC-4 | The justification may live on **any** document in the bundle, not only on the projected archetype. | Test |
+| FR-059-AC-5 | Findings carry their own `trace:<check>` severity key: advisory by default, droppable with `off`, promotable with `error`, independent of every other corpus check ([FR-057](./FR-057-corpus-check-severity.md)). | Test |
+| FR-059-AC-6 | A module declaring no `vocabulary_coverage` produces byte-identical output to one that never heard of this FR. | Test |
+| FR-059-AC-7 | A declaration whose archetype or field yields no `enum` reports **itself** under `trace:undeclared-coverage-vocabulary`, rather than silently reporting no unowned value. | Test |
+| FR-059-AC-8 | When no document of the projected archetype exists, the finding is a single statement that nothing projects, naming how many values are unowned — not one finding per value. | Test |
+| FR-059-AC-9 | The coverage payload carries one `vocabulary_coverage` record per declared value — `{vocabulary, archetype, field, check, value, state, documents}` with `state` ∈ `owned` / `excused` / `unowned` and the deciding documents (claimants for owned, justified-absence recorders for excused, empty for unowned; a claimed value is owned even when also recorded absent). The key is absent — never empty — for a module declaring no `vocabulary_coverage` (CR-091). | Test |
+| FR-059-AC-10 | A declaration whose archetype or field yields no `enum` is reported on the coverage surface as an `undeclared-coverage-vocabulary` diagnostic — the same token as AC-7's bundle warning — rather than silently minting no record (CR-091). | Test |
 
 ## Constraints
 

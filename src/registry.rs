@@ -800,7 +800,7 @@ mod tests {
         p
     }
 
-    #[trace("TC-411", "FR-020-AC-2")]
+    #[trace("FR-020-AC-2")]
     // block type is an alias over the archetype registry.
     //
     // Written when FR-020 was authored (CR-042): the row had been ✅ since v0.2
@@ -1005,7 +1005,7 @@ lint_rules:
         assert_eq!(r.lint_rules()[0].id(), "ac-verification-method");
     }
 
-    #[trace("TC-588", "FR-036-AC-5")]
+    #[trace("FR-036-AC-5")]
     // lint evaluation never affects extraction or
     // validation. The same document through the same archetype, once under a
     // module carrying a lint rule it violates and once under the identical
@@ -1274,7 +1274,7 @@ lint_rules:
         fs::write(root.join("manifest.yaml"), format!("name: {name}\n{body}")).unwrap();
     }
 
-    #[trace("TC-636", "FR-040-AC-1")]
+    #[trace("FR-040-AC-1")]
     // edge_types + roles registries load and the
     // merged Registry exposes both; identical re-declaration across two
     // modules is silently idempotent (no diagnostic).
@@ -1314,7 +1314,7 @@ roles:
         )));
     }
 
-    #[trace("TC-637", "FR-040-AC-2")]
+    #[trace("FR-040-AC-2")]
     // differing re-declaration is first-wins +
     // non-fatal Duplicate{EdgeType,Role}; default load still succeeds.
     #[test]
@@ -1339,7 +1339,7 @@ roles:
             .any(|d| matches!(d, Diagnostic::DuplicateEdgeType { name, .. } if name == "calls")));
     }
 
-    #[trace("TC-667", "FR-043-AC-1")]
+    #[trace("FR-043-AC-1")]
     // a `lexicon` term loads, is readable via
     // `Registry::lexicon()`, and the precompiled matcher recognises it.
     #[test]
@@ -1359,7 +1359,7 @@ roles:
         assert!(!r.lexicon_matcher().contains_term("unrelated text"));
     }
 
-    #[trace("TC-668", "FR-043-AC-2")]
+    #[trace("FR-043-AC-2")]
     // a term re-declared with a differing body across
     // modules is first-wins + emits one `DuplicateLexiconTerm`.
     #[test]
@@ -1382,7 +1382,7 @@ roles:
         ));
     }
 
-    #[trace("TC-672", "FR-043-AC-6")]
+    #[trace("FR-043-AC-6")]
     // the registry-backed path applies the merged
     // lexicon; the type-only path applies an empty one (more findings).
     #[test]
@@ -1431,7 +1431,7 @@ roles:
         fs::write(root.join("schemas/fr.schema.json"), r#"{"type":"object"}"#).unwrap();
     }
 
-    #[trace("TC-766", "FR-048-AC-5")]
+    #[trace("FR-048-AC-5")]
     // a surface layers its `--severity` overrides over
     // the module-declared map. The returned registry shares the same loaded
     // module set — only the severity policy differs.
@@ -1467,7 +1467,7 @@ roles:
         );
     }
 
-    #[trace("TC-716", "FR-048-AC-1")]
+    #[trace("FR-048-AC-1")]
     // a manifest `grammar_severity` registry loads and
     // `Registry::grammar_severity()` returns the merged map.
     #[test]
@@ -1489,7 +1489,7 @@ roles:
         );
     }
 
-    #[trace("TC-717", "FR-048-AC-2")]
+    #[trace("FR-048-AC-2")]
     // conflicting redeclarations merge first-wins with
     // one `DuplicateGrammarSeverity`; identical redeclaration emits none.
     #[test]
@@ -1523,7 +1523,7 @@ roles:
         assert_eq!(dups, vec!["ac:unclassifiable"]);
     }
 
-    #[trace("TC-723", "FR-048-AC-8")]
+    #[trace("FR-048-AC-8")]
     // a malformed `grammar_severity` entry fails module
     // load like any other manifest shape error.
     #[test]
@@ -1545,7 +1545,7 @@ roles:
         assert!(err2.to_string().contains("grammar_severity key '12'"));
     }
 
-    #[trace("TC-722", "FR-048-AC-7")]
+    #[trace("FR-048-AC-7")]
     // the type-only `validate_document` path applies the
     // all-default map — every grammar finding is a warning regardless of the
     // module's manifest, which promotes the same check to `error`.
@@ -1584,7 +1584,7 @@ roles:
     // `ValidationResult.errors` and clears `is_valid`, while an `ears` finding
     // with no map entry stays a warning. (The framework-level contract is
     // pinned in `validate_document::tests::tc718_per_check_error_routing`.)
-    #[trace("FR-048-AC-3", "TC-718")]
+    #[trace("FR-048-AC-3")]
     #[test]
     fn tc718_ac_error_routing_end_to_end() {
         let p = tmpdir("severity-718");
@@ -1628,7 +1628,7 @@ roles:
             .join("traceability")
     }
 
-    #[trace("TC-732", "FR-050-AC-1")]
+    #[trace("FR-050-AC-1")]
     // a manifest `traceability:` section declaring trace
     // targets, document references, a status vocabulary, and a trace-tag
     // grammar loads, and the Registry exposes the declared model.
@@ -1687,7 +1687,7 @@ roles:
         assert_eq!(alt.status.as_ref().unwrap().column, "State");
     }
 
-    #[trace("TC-2051", "FR-013-AC-19")]
+    #[trace("FR-013-AC-19")]
     // PLAT-323: a module whose manifest carries a key this engine does not
     // know fails every constructor loudly, naming module, version and key,
     // instead of yielding an empty model.
@@ -1743,7 +1743,7 @@ roles:
         check(inline, "zzz", "7.7.7");
     }
 
-    #[trace("TC-2051", "FR-013-AC-19")]
+    #[trace("FR-013-AC-19")]
     // Keys owned by other tools stay loadable as opaque values.
     #[test]
     fn foreign_owned_top_level_keys_still_load() {
@@ -1758,7 +1758,7 @@ roles:
         assert_eq!(r.module_names().count(), 1);
     }
 
-    #[trace("TC-733", "FR-050-AC-2")]
+    #[trace("FR-050-AC-2")]
     // a malformed `traceability:` section fails module
     // load like any other manifest shape error; an absent section loads and
     // marks the model undeclared.
@@ -1794,7 +1794,7 @@ roles:
         assert!(err3.to_string().contains("typo"));
     }
 
-    #[trace("TC-676", "FR-044-AC-3")]
+    #[trace("FR-044-AC-3")]
     // `lexicon_with` composes module keys ∪ project terms.
     #[test]
     fn tc676_lexicon_with_combines_module_and_project() {
@@ -1811,7 +1811,7 @@ roles:
         assert!(!lex.contains_term("provide flexibility")); // neither
     }
 
-    #[trace("TC-677", "FR-044-AC-4")]
+    #[trace("FR-044-AC-4")]
     // validate_document_in_registry_with_lexicon injects
     // the supplied lexicon — a project term suppresses; module-only flags.
     #[test]
@@ -1843,7 +1843,7 @@ roles:
             .any(|w| w.message.contains("[ears:vague-response]")));
     }
 
-    #[trace("TC-650", "FR-040-AC-3")]
+    #[trace("FR-040-AC-3")]
     // unknown verb/role → non-fatal diagnostic
     // (default load succeeds); load_strict escalates to an error.
     #[test]
@@ -1880,7 +1880,7 @@ roles: {}
         assert!(matches!(err, QuireError::EdgeVocabularyViolation { .. }));
     }
 
-    #[trace("TC-651", "FR-040-AC-5")]
+    #[trace("FR-040-AC-5")]
     // object `roles:` list is parsed onto the
     // compiled archetype and readable via roles(); none reads empty.
     #[test]
@@ -1906,7 +1906,7 @@ roles:
         assert!(r.archetype("enumeration").unwrap().roles().is_empty());
     }
 
-    #[trace("TC-639", "FR-040-AC-6")]
+    #[trace("FR-040-AC-6")]
     // resolve_allowed_links unions both axes;
     // shared verb unions targets and "*" absorbs; object=None → artifact only.
     #[test]
@@ -1943,7 +1943,7 @@ edge_types:
         assert_eq!(artifact_only["references"], vec!["*".to_string()]);
     }
 
-    #[trace("TC-640", "FR-040-AC-7")]
+    #[trace("FR-040-AC-7")]
     // target_satisfies by name, role, or "*".
     #[test]
     fn tc640_target_satisfies_name_role_or_star() {

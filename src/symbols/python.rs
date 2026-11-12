@@ -810,7 +810,7 @@ mod tests {
     /// `naive_line_scan_finds_declaration` stand-in above — the shape of bug
     /// the retired tests pinned — reports every phantom present, proving the
     /// property is not vacuous; `parse` reports none of them.
-    #[trace("TC-1029", "FR-051-AC-20")]
+    #[trace("FR-051-AC-20")]
     #[test]
     fn tc1029_a_string_embedded_declaration_is_structurally_unreadable() {
         let source = concat!(
@@ -875,7 +875,7 @@ mod tests {
     /// toggle incorrectly, because tree-sitter's own lexer (not this
     /// adapter's) resolves string and comment boundaries once, correctly, as
     /// part of producing the tree at all.
-    #[trace("TC-1030", "FR-051-AC-20")]
+    #[trace("FR-051-AC-20")]
     #[test]
     fn tc1030_a_delimiter_in_a_string_or_comment_never_affects_the_tree() {
         let source = concat!(
@@ -921,7 +921,7 @@ mod tests {
     /// `class`/`def` line to a single global scope regardless of nesting —
     /// the shape of bug #274 was — which cannot distinguish the two
     /// `test_*` methods' containers; `parse` does.
-    #[trace("TC-1031", "FR-051-AC-20")]
+    #[trace("FR-051-AC-20")]
     #[test]
     fn tc1031_the_true_container_survives_an_embedded_string() {
         let source = concat!(
@@ -997,12 +997,12 @@ mod tests {
     /// multiple lines still reaches its docstring — `function_definition`'s
     /// own node span already covers the full signature, so no bespoke
     /// paren-depth walk (the pre-port scanner's `block_end`/`paren_delta`,
-    /// deleted by this port) is needed. This also backs `TC-1880`
-    /// (`FR-051-AC-25`)'s "a `def` whose signature spans lines" clause:
+    /// deleted by this port) is needed. This also backs
+    /// `FR-051-AC-25`'s "a `def` whose signature spans lines" clause:
     /// `test_multi_line`'s wrapped signature binds `TC-029` exactly as
     /// `test_single_line`'s single-line spelling binds `TC-028` — the
     /// single-line form is the control.
-    #[trace("FR-051-AC-13", "TC-800", "TC-1880", "FR-051-AC-25")]
+    #[trace("FR-051-AC-13", "FR-051-AC-25")]
     #[test]
     fn tc800_wrapped_signature_span_reaches_the_docstring() {
         let source = concat!(
@@ -1049,7 +1049,7 @@ mod tests {
     /// rather than inventing a new one — an invented id here would be an
     /// id-shaped literal with no declared row, landing in this repo's own
     /// `unmatched_tags` population, PLAT-868 PR #479 review, F5).
-    #[trace("TC-1880", "FR-051-AC-25")]
+    #[trace("FR-051-AC-25")]
     #[test]
     fn plat234_a_black_wrapped_multiline_decorator_reaches_leading_line() {
         let wrapped = concat!(
@@ -1097,7 +1097,7 @@ mod tests {
     /// The single-line spelling of both decorators is the control: both
     /// bind `TC-029` from their span (see `plat234`'s own doc comment above
     /// for why this reuses a real id rather than inventing one).
-    #[trace("TC-1880", "FR-051-AC-25")]
+    #[trace("FR-051-AC-25")]
     #[test]
     fn a_second_wrapped_decorator_between_the_tag_and_def_does_not_move_leading_line() {
         let wrapped = concat!(
@@ -1374,7 +1374,7 @@ mod tests {
     /// pytest.mark.skip(...)` marks every module-level test function
     /// ignored; `@pytest.mark.skipif(cond)` and `@pytest.mark.xfail` are
     /// controls and stay `ignored: false`.
-    #[trace("TC-1941", "FR-051-AC-27")]
+    #[trace("FR-051-AC-27")]
     #[test]
     fn tc1941_skip_decorators_and_pytestmark_mark_symbols_ignored() {
         let source = concat!(
@@ -1458,7 +1458,7 @@ mod tests {
     /// `pytestmark` counts only as the module's own assignment: the same
     /// text at column 0 inside a docstring, or assigned inside a block, marks
     /// nothing.
-    #[trace("TC-1941", "FR-051-AC-27")]
+    #[trace("FR-051-AC-27")]
     #[test]
     fn tc1941_pytestmark_counts_only_as_a_module_assignment() {
         let ignored = |source: &str| {
@@ -1501,7 +1501,7 @@ mod tests {
         )));
     }
 
-    #[trace("TC-1941", "FR-051-AC-27")]
+    #[trace("FR-051-AC-27")]
     #[test]
     fn tc1941_module_level_skipif_is_a_control() {
         let source = concat!(
@@ -1534,7 +1534,7 @@ mod tests {
     /// module (`import unittest as ut` -> `@ut.skip(...)`) and an
     /// aliased/bare name import (`from unittest import skip [as sk]` ->
     /// `@skip(...)`/`@sk(...)`) all mark the decorated test ignored.
-    #[trace("TC-1941", "FR-051-AC-27")]
+    #[trace("FR-051-AC-27")]
     #[test]
     fn tc1941_aliased_unittest_skip_forms_are_ignored() {
         let aliased_module = super::super::extract_file(
@@ -1604,7 +1604,7 @@ mod tests {
     /// FR-051-AC-27: `ignored` is scoped to test-kind and
     /// suite-kind symbols. A plain helper method inside a skipped class is a
     /// `Function`, not a `TestFunction`, and must not inherit `ignored`.
-    #[trace("TC-1941", "FR-051-AC-27")]
+    #[trace("FR-051-AC-27")]
     #[test]
     fn tc1941_a_helper_inside_a_skipped_class_does_not_inherit_ignored() {
         let extraction = super::super::extract_file(

@@ -46,7 +46,7 @@ const FR_DOC: &str = "---\nid: FR-001\ntitle: Determinism\ntype: FR\n---\n\n\
 ## Acceptance Criteria\n\nAll runs agree.\n\n\
 ## Dependencies\n\nNone.\n";
 
-#[trace("TC-578", "NFR-006-AC-4")]
+#[trace("NFR-006-AC-4")]
 // validate_document + extract on the same input
 // 100× across threads yield equal ValidationResult (ordered diagnostics)
 // and ExtractionResult (records + edges + diagnostics) every time.

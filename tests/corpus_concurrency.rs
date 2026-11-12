@@ -44,7 +44,7 @@ fn corpus(tag: &str, n: usize) -> PathBuf {
     root
 }
 
-#[trace("TC-816", "FR-025-AC-8")]
+#[trace("FR-025-AC-8")]
 // two OS threads first-touch the SAME (CR-047)
 // document's lazy body — the real std once-lock, raced for real (this file
 // is the NFR-018 TSAN lane target; the loom model of the same contract is
@@ -94,7 +94,7 @@ fn concurrent_first_touch_parses_once_and_agrees() {
     fs::remove_dir_all(&root).ok();
 }
 
-#[trace("TC-816", "FR-025-AC-8")]
+#[trace("FR-025-AC-8")]
 // the same contract past (CR-047, widened CR-053)
 // 2 threads × 1 document. Eight OS threads first-touch SIXTEEN documents,
 // each thread starting at a different offset so the racers collide on
@@ -159,7 +159,7 @@ fn concurrent_first_touch_over_many_documents_agrees() {
     fs::remove_dir_all(&root).ok();
 }
 
-#[trace("TC-816", "FR-025-AC-8")]
+#[trace("FR-025-AC-8")]
 // the shape `python::load_repo` runs — a rayon (CR-053)
 // region that forces every lazy body after the walk, with the GIL released.
 // The PyO3 binding does exactly this (`load.documents.par_iter().for_each(|d|

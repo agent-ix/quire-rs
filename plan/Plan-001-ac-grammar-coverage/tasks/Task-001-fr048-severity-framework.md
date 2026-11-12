@@ -8,20 +8,6 @@ priority: P0
 relationships:
   - target: ix://agent-ix/quire-rs/FR-048
     type: references
-  - target: ix://agent-ix/quire-rs/TC-716
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-717
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-718
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-719
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-722
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-723
-    type: verifies
-  - target: ix://agent-ix/quire-rs/TC-752
-    type: verifies
 ---
 # Task-001: FR-048 — per-check grammar severity framework
 
@@ -75,8 +61,8 @@ the all-default map. `--strict` global semantics untouched.
   mapped to `error` routes to `errors` and clears `is_valid` while an unmapped
   `ears` finding stays a warning — and Task-002 exercises the same key
   end-to-end through the real classifier.
-- `spec/tests.md` TC statuses stay 🚧 until Gate G1, when the whole Track A
-  slice (including the `ac` grammar the TC prose describes) is real.
+- Test statuses stay open until Gate G1, when the whole Track A
+  slice (including the `ac` grammar the test prose describes) is real.
 
 ## Notes
 - First on Track A: FR-047's routing contract builds on this.

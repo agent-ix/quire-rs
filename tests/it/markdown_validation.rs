@@ -46,7 +46,7 @@ On parse, the engine retains every byte of the section body verbatim.\n\
 - **Upstream**: none\n\
 - **Downstream**: none\n";
 
-#[trace("TC-528", "FR-032-AC-1")]
+#[trace("FR-032-AC-1")]
 // a conformant FR validates.
 #[test]
 fn conformant_fr_validates() {
@@ -57,7 +57,7 @@ fn conformant_fr_validates() {
     assert!(result.errors.is_empty());
 }
 
-#[trace("TC-529", "FR-032-AC-2")]
+#[trace("FR-032-AC-2")]
 // removing a required section fails with reason
 // `missing`, naming the archetype + section.
 #[test]
@@ -81,7 +81,7 @@ On parse, the engine retains every byte of the section body verbatim.\n\n",
     assert!(e.message.contains("Specification"), "{}", e.message);
 }
 
-#[trace("TC-530", "FR-032-AC-3")]
+#[trace("FR-032-AC-3")]
 // a placeholder-only required section fails with
 // reason `placeholder` even though the frontmatter is valid.
 #[test]
@@ -100,7 +100,7 @@ fn placeholder_section_fails() {
         .any(|e| e.reason == ValidationReason::Placeholder));
 }
 
-#[trace("TC-531", "FR-032-AC-4")]
+#[trace("FR-032-AC-4")]
 // a frontmatter-schema violation fails with reason
 // `frontmatter`, independent of body structure.
 #[test]
@@ -160,7 +160,7 @@ id: FR-700\n\
 | FR-700-AC-1 | First criterion | Integration Test |\n\
 | FR-700-AC-2 | Second criterion | Unit Test |\n";
 
-#[trace("TC-562", "FR-033-AC-4")]
+#[trace("FR-033-AC-4")]
 #[test]
 fn registry_assert_path_passes_conformant() {
     let r = assert_registry();
@@ -173,7 +173,7 @@ fn registry_assert_path_passes_conformant() {
     assert!(result.is_valid, "expected valid, got: {:?}", result.errors);
 }
 
-#[trace("TC-562", "FR-033-AC-4")]
+#[trace("FR-033-AC-4")]
 #[test]
 fn registry_assert_path_fails_on_bad_id_prefix() {
     let r = assert_registry();
@@ -250,7 +250,7 @@ The requirement classes that make up this specification and how they trace.\n\
 
 #[trace("FR-032-AC-1")]
 // a conformant master spec validates.
-#[trace("TC-581", "FR-011-AC-20")]
+#[trace("FR-011-AC-20")]
 // a numbered master spec validates — the `from: heading`
 // locator normalizes the ISO section-number prefix, so `## 2. Scope` matches.
 #[test]
@@ -451,7 +451,7 @@ fn optcol_doc(header: &str, row: &str) -> String {
     )
 }
 
-#[trace("TC-770")]
+#[trace("FR-033-AC-14")]
 #[test]
 fn tc770_optional_column_may_be_absent() {
     let r = optcol_registry();
@@ -468,7 +468,7 @@ fn tc770_optional_column_may_be_absent() {
     );
 }
 
-#[trace("TC-771")]
+#[trace("FR-033-AC-14")]
 #[test]
 fn tc771_optional_column_may_be_present() {
     let r = optcol_registry();
@@ -485,7 +485,7 @@ fn tc771_optional_column_may_be_present() {
     );
 }
 
-#[trace("TC-772")]
+#[trace("FR-033-AC-14")]
 #[test]
 fn tc772_only_the_declared_column_is_optional() {
     let r = optcol_registry();
@@ -548,7 +548,7 @@ fn optcol_choices_registry() -> Registry {
         .expect("inline module with optional_columns + column_choices loads")
 }
 
-#[trace("TC-773")]
+#[trace("FR-033-AC-15")]
 #[test]
 fn tc773_column_choices_does_not_fire_on_an_omitted_optional_column() {
     let r = optcol_choices_registry();
@@ -565,7 +565,7 @@ fn tc773_column_choices_does_not_fire_on_an_omitted_optional_column() {
     );
 }
 
-#[trace("TC-774")]
+#[trace("FR-033-AC-15")]
 #[test]
 fn tc774_column_choices_still_applies_when_the_optional_column_is_present() {
     let r = optcol_choices_registry();

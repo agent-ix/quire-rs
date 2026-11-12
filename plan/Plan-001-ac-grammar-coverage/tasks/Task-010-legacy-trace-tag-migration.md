@@ -10,8 +10,6 @@ relationships:
     type: depends_on
   - target: ix://agent-ix/quire-rs/FR-051
     type: references
-  - target: ix://agent-ix/quire-rs/TC-753
-    type: verifies
 ---
 # Task-010: Corpus cleanup — legacy trace-tag migration (user-gated removal)
 

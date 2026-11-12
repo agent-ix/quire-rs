@@ -44,7 +44,7 @@ fn note(id: &str, body: &str) -> String {
 
 /// Strict: a document with no `type` is a hard error (was a non-fatal
 /// `UntypedArtifact` warning before this change).
-#[trace("TC-600", "FR-038-AC-1")]
+#[trace("FR-038-AC-1")]
 // under Strict an untyped document is a hard error.
 #[test]
 fn strict_untyped_doc_is_error() {
@@ -64,7 +64,7 @@ fn strict_untyped_doc_is_error() {
 
 /// Okf: `type` is still required — an untyped doc is an error even under
 /// the permissive posture.
-#[trace("TC-601", "FR-038-AC-2")]
+#[trace("FR-038-AC-2")]
 // and the permissive posture does not soften it.
 #[test]
 fn okf_untyped_doc_is_still_error() {
@@ -81,7 +81,7 @@ fn okf_untyped_doc_is_still_error() {
 
 /// Okf tolerates an unknown type and a dangling `ix://` reference as
 /// warnings; Strict rejects the unknown type.
-#[trace("TC-602", "FR-038-AC-3")]
+#[trace("FR-038-AC-3")]
 // what Okf does soften — unknown type, dangling ref.
 #[test]
 fn okf_tolerates_unknown_type_and_broken_links() {
@@ -111,7 +111,7 @@ fn okf_tolerates_unknown_type_and_broken_links() {
 
 /// A typed, archetype-conformant bundle whose index lists every sibling +
 /// carries `okf_version` is valid under Strict.
-#[trace("TC-603", "FR-038-AC-4")]
+#[trace("FR-038-AC-4")]
 // the conformant bundle passes Strict end to end.
 #[test]
 fn strict_conformant_bundle_with_complete_index_is_valid() {
@@ -129,7 +129,7 @@ fn strict_conformant_bundle_with_complete_index_is_valid() {
 
 /// An index.md missing a sibling artifact is an index-completeness error
 /// under Strict, a warning under Okf.
-#[trace("TC-604", "FR-038-AC-5")]
+#[trace("FR-038-AC-5")]
 // a missing sibling is an error, then a warning.
 #[test]
 fn index_incompleteness_is_error_strict_warning_okf() {
@@ -166,7 +166,7 @@ fn index_incompleteness_is_error_strict_warning_okf() {
 }
 
 /// The bundle-root index.md must declare `okf_version`.
-#[trace("TC-605", "FR-038-AC-6")]
+#[trace("FR-038-AC-6")]
 // the bundle root must declare `okf_version`.
 #[test]
 fn root_index_missing_okf_version_is_flagged() {
@@ -186,7 +186,7 @@ fn root_index_missing_okf_version_is_flagged() {
 }
 
 /// A subdirectory index need not carry `okf_version` (only the root does).
-#[trace("TC-606", "FR-038-AC-6")]
+#[trace("FR-038-AC-6")]
 // a subdirectory index does not.
 #[test]
 fn subdir_index_does_not_require_okf_version() {
@@ -210,7 +210,7 @@ fn subdir_index_does_not_require_okf_version() {
 
 /// A mistyped optional `description` is caught by the base concept contract
 /// under Strict.
-#[trace("TC-607", "FR-038-AC-7")]
+#[trace("FR-038-AC-7")]
 // the base-concept contract still applies to a known type.
 #[test]
 fn strict_rejects_mistyped_description() {
@@ -261,7 +261,7 @@ roles:
 /// no token in the verb's target list yields a `disallowed-edge-target`
 /// warning; the same verb to a target carrying the required role passes —
 /// across object-type boundaries. Warn-tier: the bundle stays valid.
-#[trace("FR-040-AC-9", "TC-642")]
+#[trace("FR-040-AC-9")]
 #[test]
 fn tc642_disallowed_edge_target_is_warning() {
     let root = tmpdir("edge_target");
@@ -311,7 +311,7 @@ fn tc642_disallowed_edge_target_is_warning() {
 /// never an error — and the two flavors carry distinct machine reasons so a
 /// consumer can triage "not meant to be a document" apart from "someone wrote
 /// a front block and it does not parse" (CR-051).
-#[trace("FR-024-AC-12", "TC-820")]
+#[trace("FR-024-AC-12")]
 #[test]
 fn tc820_frontmatter_less_files_bridge_into_bundle_warnings() {
     for posture in [BundlePosture::Strict, BundlePosture::Okf] {
@@ -425,7 +425,7 @@ fn one_dangling_ref(tag: &str) -> PathBuf {
     root
 }
 
-#[trace("TC-883")]
+#[trace("FR-057-AC-1", "FR-057-AC-2", "FR-057-AC-3")]
 // a mapped key promotes, demotes, and (FR-057-AC-1/AC-2/AC-3)
 // suppresses a corpus check — the three states posture alone could not reach.
 #[test]
@@ -477,7 +477,7 @@ fn tc883_registry_promotes_demotes_and_suppresses() {
     fs::remove_dir_all(&root).ok();
 }
 
-#[trace("TC-884", "FR-057-AC-4")]
+#[trace("FR-057-AC-4")]
 // with no entry, every check keeps the exact tier it had
 // before FR-057 — checked per check, not in aggregate. FR-048-AC-4's blanket
 // `warning` default deliberately does NOT apply here: it would silently
@@ -529,7 +529,7 @@ fn tc884_unconfigured_checks_keep_their_prior_tier() {
     fs::remove_dir_all(&root).ok();
 }
 
-#[trace("TC-885", "FR-057-AC-5")]
+#[trace("FR-057-AC-5")]
 // overrides layered the way `quire validate --severity`
 // layers them reach corpus checks, and a CLI entry beats a module entry for the
 // same key. This is `apply_severity_overrides` in quire-cli, verbatim.
@@ -558,7 +558,7 @@ fn tc885_cli_shaped_overrides_reach_corpus_checks() {
     fs::remove_dir_all(&root).ok();
 }
 
-#[trace("TC-886")]
+#[trace("FR-057-AC-7", "FR-057-AC-8", "FR-057-AC-9")]
 // the finding carries the level that was (FR-057-AC-7/AC-8/AC-9)
 // applied; the `reason` token consumers match on is unchanged; and every pack
 // finding has a key `--severity` would accept — asserted over what the engine
@@ -618,7 +618,7 @@ fn tc886_findings_carry_severity_and_a_wellformed_key() {
     fs::remove_dir_all(&root).ok();
 }
 
-#[trace("TC-887", "FR-057-AC-10")]
+#[trace("FR-057-AC-10")]
 // order is a property of the bundle, not of the map
 // (NFR-006) — findings come out in the same order with and without a registry,
 // and identically across runs.
@@ -658,7 +658,7 @@ fn tc887_severity_does_not_perturb_order() {
     fs::remove_dir_all(&root).ok();
 }
 
-#[trace("TC-888", "FR-057-CON-1")]
+#[trace("FR-057-CON-1")]
 // document-level results bridged into the report are NOT
 // registrable. A module that could map `unknown-type: off` would be switching
 // off schema validation under a severity key, which is a different decision.
@@ -694,7 +694,7 @@ fn tc888_bridged_document_results_are_not_registrable() {
 /// A correct `ix://` target under another repo's authority is cross-repo, not
 /// dangling, once the bundle declares its own package; without a declared
 /// package, or under the declared package, an absent target stays dangling.
-#[trace("TC-1992", "FR-038-AC-9")]
+#[trace("FR-038-AC-9")]
 // PLAT-1056: foreign-authority targets are not reported as dangling.
 #[test]
 fn foreign_authority_target_is_not_dangling() {
@@ -732,7 +732,7 @@ fn foreign_authority_target_is_not_dangling() {
 
 /// The authority-versus-package comparison folds ASCII case on both sides,
 /// and an own-repo spelling of a target claims it local whatever else spells it.
-#[trace("TC-2151", "FR-038-AC-10")]
+#[trace("FR-038-AC-10")]
 #[test]
 fn authority_comparison_folds_ascii_case() {
     let root = tmpdir("cross_repo_case");
@@ -794,7 +794,7 @@ fn authority_comparison_folds_ascii_case() {
 /// A dangling relationship edge is located at the source document's loaded
 /// path and names the edge type and the missing target; a duplicate-id second
 /// document's broken edge is reported once, at the first document's path.
-#[trace("TC-2227", "FR-038-AC-11")]
+#[trace("FR-038-AC-11")]
 #[test]
 fn dangling_edge_is_located_at_source_document_path() {
     let root = tmpdir("2227");

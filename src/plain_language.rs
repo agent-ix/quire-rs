@@ -811,7 +811,7 @@ mod tests {
         }
     }
 
-    #[trace("TC-970", "FR-074-AC-1")]
+    #[trace("FR-074-AC-1")]
     #[test]
     fn reader_view_excludes_metadata_and_code_with_document_lines() {
         let input = "---\nid: FR-1\ntype: FR\n---\n# Visible\nText with `HIDDEN API` here.\n```rust\nCODE API\n```\n    indented API\n>     quoted code API\n<!-- SECRET API -->\nLast words.";
@@ -833,7 +833,7 @@ mod tests {
         assert!(!all.contains("quoted code"));
     }
 
-    #[trace("TC-971", "FR-074-AC-2")]
+    #[trace("FR-074-AC-2")]
     #[test]
     fn compound_reader_blocks_keep_shapes_and_wrapping() {
         let input = "Paragraph wraps\nonto another line.\n\n- first\n  wraps here\n  - nested\n> quote wraps\n> here\n> [!NOTE]\n> alert body";
@@ -848,7 +848,7 @@ mod tests {
         assert_eq!(blocks[4].text, "alert body");
     }
 
-    #[trace("TC-972", "FR-074-AC-3")]
+    #[trace("FR-074-AC-3")]
     #[test]
     fn tables_and_malformed_input_are_bounded() {
         let input = "Choice A | choice B remains prose.\n\n| Name | Meaning |\n|---|:---:|\n| API | visible words |\n| `A\\|B` | still visible |\n\n| Solo |\n|---|\n| value |\n```\nunclosed";
@@ -867,7 +867,7 @@ mod tests {
         assert!(!first.iter().any(|b| b.text.contains("---")));
     }
 
-    #[trace("TC-973", "FR-074-AC-4")]
+    #[trace("FR-074-AC-4")]
     #[test]
     fn sentence_limit_is_strict_and_ignores_non_reader_text() {
         let p = profile(5);
@@ -886,7 +886,7 @@ mod tests {
         );
     }
 
-    #[trace("TC-974", "FR-074-AC-5")]
+    #[trace("FR-074-AC-5")]
     #[test]
     fn heading_skip_respects_boundary() {
         let findings = check_plain_language(
@@ -899,7 +899,7 @@ mod tests {
         assert_eq!(skips[0].line, 3);
     }
 
-    #[trace("TC-975", "FR-074-AC-6")]
+    #[trace("FR-074-AC-6")]
     #[test]
     fn acronym_first_use_definition_vocabulary_and_code() {
         let mut p = profile(50);
@@ -933,7 +933,7 @@ mod tests {
         );
     }
 
-    #[trace("TC-980", "FR-074-AC-11")]
+    #[trace("FR-074-AC-11")]
     #[test]
     fn findings_have_common_advisory_location_shape() {
         let findings = check_plain_language(
@@ -955,7 +955,7 @@ mod tests {
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(1_000))]
 
-        #[trace("TC-972", "FR-074-AC-3")]
+        #[trace("FR-074-AC-3")]
         #[test]
         fn reader_view_is_total_and_deterministic(markdown in "\\PC*") {
             let first = reader_blocks(&markdown);

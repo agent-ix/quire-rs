@@ -167,7 +167,7 @@ fn golden() -> Value {
     serde_json::from_str(include_str!("../fixtures/assurance/v1.json")).expect("golden JSON")
 }
 
-#[trace("TC-1084", "FR-067-AC-1")]
+#[trace("FR-067-AC-1")]
 #[test]
 fn tc1084_assurance_schema_compiles_and_accepts_the_complete_fixture() {
     let value: Value = serde_json::from_str(ASSURANCE_V1_SCHEMA).expect("schema JSON");
@@ -182,7 +182,7 @@ fn tc1084_assurance_schema_compiles_and_accepts_the_complete_fixture() {
     assert!(schema().validate(&golden()).is_ok());
 }
 
-#[trace("TC-2055", "FR-072-AC-9")]
+#[trace("FR-072-AC-9")]
 // the assurance-v1 bytes for the fixed fixture equal the checked-in export.
 #[test]
 fn assurance_export_matches_the_checked_in_bytes() {
@@ -199,7 +199,7 @@ fn assurance_export_matches_the_checked_in_bytes() {
     );
 }
 
-#[trace("TC-1085", "FR-067-AC-2")]
+#[trace("FR-067-AC-2")]
 #[test]
 fn tc1085_construction_refuses_incomplete_premises_atomically() {
     let fixture = Fixture::new();
@@ -251,7 +251,7 @@ fn tc1085_construction_refuses_incomplete_premises_atomically() {
     ));
 }
 
-#[trace("TC-2063", "FR-067-AC-8")]
+#[trace("FR-067-AC-8")]
 #[test]
 fn tc2063_export_refuses_an_unavailable_language() {
     let mut fixture = Fixture::new();
@@ -262,8 +262,8 @@ fn tc2063_export_refuses_an_unavailable_language() {
     assert!(err.to_string().contains("rust"));
 }
 
-#[trace("TC-1086", "FR-067-AC-3")]
-#[trace("TC-1088", "FR-067-AC-5")]
+#[trace("FR-067-AC-3")]
+#[trace("FR-067-AC-5")]
 #[test]
 fn tc1086_tc1088_premises_and_bytes_are_deterministic() {
     let fixture = Fixture::new();
@@ -281,7 +281,7 @@ fn tc1086_tc1088_premises_and_bytes_are_deterministic() {
         .all(|pair| pair[0] < pair[1]));
 }
 
-#[trace("TC-1087", "FR-067-AC-4", "StR-007-VC-2")]
+#[trace("FR-067-AC-4", "StR-007-VC-2")]
 #[test]
 fn tc1087_reader_rejects_unsupported_premises_before_returning_records() {
     let export: AssuranceExport = serde_json::from_value(golden()).expect("typed golden");
@@ -334,9 +334,9 @@ fn tc1087_reader_rejects_unsupported_premises_before_returning_records() {
     ));
 }
 
-#[trace("TC-1091", "FR-068-AC-1", "StR-007-VC-1")]
-#[trace("TC-1092", "FR-068-AC-2")]
-#[trace("TC-1093", "FR-068-AC-3")]
+#[trace("FR-068-AC-1", "StR-007-VC-1")]
+#[trace("FR-068-AC-2")]
+#[trace("FR-068-AC-3")]
 #[test]
 fn tc1091_tc1093_records_preserve_authoritative_identifiers_and_locators() {
     let fixture = Fixture::new();
@@ -361,9 +361,9 @@ fn tc1091_tc1093_records_preserve_authoritative_identifiers_and_locators() {
     }
 }
 
-#[trace("TC-1094", "FR-068-AC-4")]
-#[trace("TC-1095", "FR-068-AC-5")]
-#[trace("TC-1097", "FR-068-AC-7")]
+#[trace("FR-068-AC-4")]
+#[trace("FR-068-AC-5")]
+#[trace("FR-068-AC-7")]
 #[test]
 fn tc1094_tc1097_relation_variants_preserve_graph_meaning() {
     let fixture = Fixture::new();
@@ -419,7 +419,7 @@ fn tc1094_tc1097_relation_variants_preserve_graph_meaning() {
     }));
 }
 
-#[trace("TC-1096", "FR-068-AC-6", "StR-007-VC-3")]
+#[trace("FR-068-AC-6", "StR-007-VC-3")]
 #[test]
 fn tc1096_relation_observations_keep_all_four_states_distinct() {
     let fixture = Fixture::new();
@@ -451,7 +451,7 @@ fn tc1096_relation_observations_keep_all_four_states_distinct() {
     }));
 }
 
-#[trace("TC-1098", "FR-068-AC-8")]
+#[trace("FR-068-AC-8")]
 #[test]
 fn tc1098_repeated_projection_is_byte_identical() {
     let fixture = Fixture::new();

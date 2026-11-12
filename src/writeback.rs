@@ -204,7 +204,7 @@ mod tests {
     // ─── update_section ─────────────────────────────────────────────
 
     // Port of TS writeback.test.ts FR-014-AC-1: target section replaced.
-    #[trace("TC-430", "FR-022-AC-1")]
+    #[trace("FR-022-AC-1")]
     // the content range is what changes.
     #[test]
     fn update_section_replaces_target_content() {
@@ -216,7 +216,7 @@ mod tests {
 
     #[trace("FR-014-AC-2")]
     // other sections byte-identical.
-    #[trace("TC-430", "FR-022-AC-1")]
+    #[trace("FR-022-AC-1")]
     // and nothing else does.
     #[test]
     fn update_section_preserves_other_sections_byte_identical() {
@@ -229,7 +229,7 @@ mod tests {
 
     #[trace("FR-014-AC-3")]
     // frontmatter preserved.
-    #[trace("TC-433", "FR-022-AC-4")]
+    #[trace("FR-022-AC-4")]
     // frontmatter is byte-identical through the edit.
     #[test]
     fn update_section_preserves_frontmatter_byte_identical() {
@@ -241,7 +241,7 @@ mod tests {
         assert!(out.contains("## Acceptance\n- AC-1\n"));
     }
 
-    #[trace("TC-434", "FR-022-AC-5")]
+    #[trace("FR-022-AC-5")]
     // an unknown heading errors and changes nothing.
     #[test]
     fn update_section_unknown_heading_returns_missing_field() {
@@ -261,7 +261,7 @@ mod tests {
 
     // ─── update_block (block_id addressing) ──────────────────────────
 
-    #[trace("TC-431", "FR-022-AC-2")]
+    #[trace("FR-022-AC-2")]
     // a block edit replaces heading and content together.
     #[test]
     fn update_block_replaces_heading_and_content() {
@@ -276,7 +276,7 @@ mod tests {
         );
     }
 
-    #[trace("TC-432", "FR-022-AC-3")]
+    #[trace("FR-022-AC-3")]
     // untouched blocks keep their exact bytes.
     #[test]
     fn update_block_other_blocks_byte_identical() {
@@ -288,7 +288,7 @@ mod tests {
         assert!(out.contains("## Acceptance {#blk-b}\n- AC-1\n  - nested  \n"));
     }
 
-    #[trace("TC-410", "FR-020-AC-1")]
+    #[trace("FR-020-AC-1")]
     // lookup walks the nested section tree.
     #[test]
     fn update_block_finds_nested_block_id() {
@@ -300,7 +300,7 @@ mod tests {
         assert!(out.contains("## Other\nother\n"));
     }
 
-    #[trace("TC-435", "FR-022-AC-5")]
+    #[trace("FR-022-AC-5")]
     // an unknown block id errors and changes nothing.
     #[test]
     fn update_block_unknown_id_returns_missing_field() {
@@ -313,7 +313,7 @@ mod tests {
     // Stable round-trip property: update_block followed by
     // parse_document of the result gives back a doc whose block_id is
     // preserved.
-    #[trace("TC-443", "FR-019-AC-3")]
+    #[trace("FR-019-AC-3")]
     // the id survives the write-back it addressed.
     #[test]
     fn update_block_preserves_block_id_through_roundtrip() {
