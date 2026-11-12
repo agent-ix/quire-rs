@@ -44,3 +44,16 @@ Ticket: PLAT-1413. PR head `c9711bd`. Plan completion: not assessed. Planless au
 ## Verdict
 
 FAIL: not mergeable until FND-001 is fixed. The implementation is complete against FR-082 with no stubs or coverage inflation, and no production code lacks an owning requirement. But the criteria are unbacked in the computed matrix, and the FR-050-AC-58 audit check is red.
+
+## New findings (disposition pass 1)
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-003 | low | The fix round adds a normative clause to FR-082 (a present-but-null `criticality` leaves the key absent) from an implementation branch, with no CR note. The repo CLAUDE.md says "a spec error or change requires a CR note (see CR-002 in FR-024 for the pattern)". The clause itself is consistent with FR-082-AC-6 and FR-082-CON-1: null is the absence of a value, not an out-of-enumeration value, and the filter holds no enumeration. Either add a one-line CR note or accept with a reason. | spec/functional/FR-082-coverage-matrix-criticality.md:27 |
+
+## Dispositions
+
+| FND | Outcome | Reason |
+| --- | --- | --- |
+| FND-001 | fixed | 9ea7a37 adds TC-2228..TC-2233 rows, an audit row for each of FR-082-AC-1..9, and the TC id in each `#[trace]`. Re-measured at 9ea7a37: `quire matrix` shows FR-082-AC-1..9 `tagged` (CON-1 method-without-symbol), and `spec_validate` reports 204 documents, 0 failed. |
+| FND-002 | fixed | 9ea7a37 adds `fr082_the_evidence_path_carries_criticality_too` (TC-2233) through `compute_with_evidence`; it passes. |

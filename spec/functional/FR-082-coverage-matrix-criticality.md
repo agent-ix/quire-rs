@@ -14,6 +14,8 @@ relationships:
 ---
 # FR-082: Requirement-level criticality in the coverage matrix
 
+> **CR note (PLAT-1413, 2026-11-11):** A frontmatter `criticality` that is present with a null value is treated as absent: the entry carries no key.
+
 ## Description
 
 The trace lookup of [FR-077](./FR-077-trace-search-index.md) is keyed by trace id (often an

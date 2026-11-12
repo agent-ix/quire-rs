@@ -35,3 +35,17 @@ Ticket: PLAT-1413. PR head `c9711bd`, scoped to `git diff origin/main...HEAD` (4
 ## Verdict
 
 PASS with fixes requested: one medium (schema change untested) and two low. The code itself is correct and idiomatic. Mergeability also depends on the gap-analysis artifact's high finding (missing Test Matrix rows).
+
+## New findings (disposition pass 1)
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-004 | low | The fix round removed `(FR-082).` from the first line of the `document_criticality` doc comment, which leaves a run-on sentence. Rustdoc now renders "A document's frontmatter `criticality`, verbatim whatever its type A missing or null key is `None`." Restore the period (and the FR-082 reference). | src/coverage.rs:647-648 |
+
+## Dispositions
+
+| FND | Outcome | Reason |
+| --- | --- | --- |
+| FND-001 | fixed | 9ea7a37 adds `"criticality": "high"` to the tc856 full payload. Mutation check: deleting the schema property makes `tc856_payload_carrying_every_optional_key_conforms` fail. |
+| FND-002 | fixed | 9ea7a37 adds `fr082_a_null_criticality_is_absent_like_a_missing_field` (TC-2232) for `criticality:` and `~`, and FR-082 now states null means absent. Mutation check: dropping the `is_null` filter makes that test fail. |
+| FND-003 | fixed | 9ea7a37 moves the FR-050-AC-48 comment down to the `by_document` mapping and gives the map its own FR-082 comment. |
