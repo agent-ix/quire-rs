@@ -7,6 +7,15 @@ bumps; once 1.0 ships, semver is strict.
 
 ## [Unreleased]
 
+### Fixed
+
+- PLAT-1484: a manifest archetype `record_validation: null` is refused at load
+  (`semantic.invalid-value`, naming the archetype) instead of read as absent
+  (FR-069-AC-29).
+- PLAT-1491: a document-reference declaration reads every table under its
+  declared section, not only the first, so findings for later tables are no
+  longer silently dropped (FR-049-AC-23..26).
+
 ## [0.59.0] — 2026-11-12
 
 ### Added

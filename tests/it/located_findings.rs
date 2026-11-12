@@ -359,6 +359,120 @@ fn tc2302_a_kind_mismatch_is_located_at_its_own_row_below_other_tables() {
     fs::remove_dir_all(&root).ok();
 }
 
+/// The repro of PLAT-1491: table 1, a prose line, then table 2 under `## Links`.
+fn two_tables() -> String {
+    format!(
+        "{LINKS_HEAD}| K-1 | north | L-1 |\n\nA note between the tables.\n\n| Link | Class | Target |\n|------|-------|--------|\n| K-2 | north | R-1 |\n| K-3 | north | L-7 |\n"
+    )
+}
+
+#[trace("TC-2319", "FR-049-AC-23")]
+#[test]
+fn tc2319_rows_of_a_second_table_under_the_section_are_scanned() {
+    let links = two_tables();
+    let root = kinds_bundle("2319", &links);
+    let report = validate_bundle_at(&root, &kinds_registry(), BundlePosture::Okf);
+    let mismatch = with_reason(&report, "reference-kind-mismatch");
+    let dangling = with_reason(&report, "dangling-trace-reference");
+    assert_eq!(mismatch.len(), 1, "{:?}", report.errors);
+    assert_eq!(dangling.len(), 1, "{:?}", report.errors);
+    assert!(mismatch[0].message.contains("R-1"));
+    assert!(dangling[0].message.contains("L-7"));
+    fs::remove_dir_all(&root).ok();
+
+    // The same rows in a table under a later section: the same two findings.
+    let later = format!(
+        "{LINKS_HEAD}| K-1 | north | L-1 |\n\n## Links\n\n| Link | Class | Target |\n|------|-------|--------|\n| K-2 | north | R-1 |\n| K-3 | north | L-7 |\n"
+    );
+    let root = kinds_bundle("2319b", &later);
+    let report = validate_bundle_at(&root, &kinds_registry(), BundlePosture::Okf);
+    assert_eq!(with_reason(&report, "reference-kind-mismatch").len(), 1);
+    assert_eq!(with_reason(&report, "dangling-trace-reference").len(), 1);
+    fs::remove_dir_all(&root).ok();
+
+    // Tables under two different matched sections are all scanned.
+    let two_sections = format!(
+        "{LINKS_HEAD}| K-1 | north | L-8 |\n\n## Other\n\ntext\n\n## Links\n\n| Link | Class | Target |\n|------|-------|--------|\n| K-2 | north | L-9 |\n\nprose\n\n| Link | Class | Target |\n|------|-------|--------|\n| K-3 | north | L-6 |\n"
+    );
+    let root = kinds_bundle("2319c", &two_sections);
+    let report = validate_bundle_at(&root, &kinds_registry(), BundlePosture::Okf);
+    let dangling = with_reason(&report, "dangling-trace-reference");
+    assert_eq!(dangling.len(), 3, "{:?}", report.errors);
+    fs::remove_dir_all(&root).ok();
+}
+
+#[trace("TC-2320", "FR-049-AC-24")]
+#[test]
+fn tc2320_findings_of_a_later_table_carry_their_own_row_lines() {
+    let links = two_tables();
+    let root = kinds_bundle("2320", &links);
+    let report = validate_bundle_at(&root, &kinds_registry(), BundlePosture::Okf);
+    let line = |reason: &str| with_reason(&report, reason)[0].line;
+    assert_eq!(
+        line("reference-kind-mismatch"),
+        Some(line_of(&links, "| K-2 |"))
+    );
+    assert_eq!(
+        line("dangling-trace-reference"),
+        Some(line_of(&links, "| K-3 |"))
+    );
+    fs::remove_dir_all(&root).ok();
+
+    // Single-table output is the same with or without an unrelated trailing
+    // table that carries no declared column.
+    let single = format!("{LINKS_HEAD}| K-1 | north | L-7 |\n| K-2 | north | R-1 |\n");
+    let extra = format!("{single}\n| Legend | Meaning |\n|--------|---------|\n| a | b |\n");
+    let root_a = kinds_bundle("2320a", &single);
+    let root_b = kinds_bundle("2320b", &extra);
+    let a = validate_bundle_at(&root_a, &kinds_registry(), BundlePosture::Okf);
+    let b = validate_bundle_at(&root_b, &kinds_registry(), BundlePosture::Okf);
+    let summary = |r: &BundleReport| -> Vec<(String, Option<usize>)> {
+        r.errors
+            .iter()
+            .chain(r.warnings.iter())
+            .map(|f| (f.reason.to_string(), f.line))
+            .collect()
+    };
+    assert_eq!(summary(&a).len(), 2, "{:?}", a.errors);
+    assert_eq!(summary(&a), summary(&b));
+    fs::remove_dir_all(&root_a).ok();
+    fs::remove_dir_all(&root_b).ok();
+}
+
+#[trace("TC-2321", "FR-049-AC-25")]
+#[test]
+fn tc2321_columns_are_matched_per_table() {
+    // A second table with the reference column and no kind column warns once.
+    let links = format!(
+        "{LINKS_HEAD}| K-1 | north | L-1 |\n\n| Link | Target |\n|------|--------|\n| K-2 | R-1 |\n"
+    );
+    let root = kinds_bundle("2321", &links);
+    let report = validate_bundle_at(&root, &kinds_registry(), BundlePosture::Okf);
+    let found = with_reason(&report, "kind-column-matches-nothing");
+    assert_eq!(found.len(), 1, "{:?}", report.warnings);
+    fs::remove_dir_all(&root).ok();
+    // Control: the first table alone, with both headers, is silent.
+    let root = kinds_bundle("2321a", &format!("{LINKS_HEAD}| K-1 | north | L-1 |\n"));
+    let report = validate_bundle_at(&root, &kinds_registry(), BundlePosture::Okf);
+    assert!(with_reason(&report, "kind-column-matches-nothing").is_empty());
+    fs::remove_dir_all(&root).ok();
+
+    // A second table with neither column adds no rows and no finding, even
+    // though it holds an id-shaped cell.
+    let links = format!(
+        "{LINKS_HEAD}| K-1 | north | L-1 |\n\n| Legend | Meaning |\n|--------|---------|\n| L-404 | note |\n"
+    );
+    let root = kinds_bundle("2321b", &links);
+    let report = validate_bundle_at(&root, &kinds_registry(), BundlePosture::Okf);
+    assert!(
+        report.errors.is_empty() && report.warnings.is_empty(),
+        "{:?} {:?}",
+        report.errors,
+        report.warnings
+    );
+    fs::remove_dir_all(&root).ok();
+}
+
 #[trace("TC-2303", "FR-049-AC-21")]
 #[test]
 fn tc2303_located_findings_are_deterministic_and_follow_the_modules_own_declaration() {
@@ -737,7 +851,11 @@ fn tc2318_record_validation_null_is_refused_naming_the_archetype() {
     // Absent is fine, and the valid sibling is recorded unchanged.
     let registry = refused(BAD_MATCH, "", GOOD_SEMANTIC);
     assert!(registry.failures().is_empty(), "{:?}", registry.failures());
-    assert!(registry.archetype("Bad").unwrap().record_validation.is_none());
+    assert!(registry
+        .archetype("Bad")
+        .unwrap()
+        .record_validation
+        .is_none());
     let good = registry.archetype("Good").unwrap();
     assert_eq!(
         good.record_validation.as_ref().unwrap().locate_absence_at,

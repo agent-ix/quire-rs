@@ -4213,3 +4213,30 @@ fn tc2222_strict_decision_passes_exempt_only_rows_and_keeps_every_other_premise(
         .inherited
         .contains(&StrictCause::UnbackedRows));
 }
+
+/// PLAT-1491: the rollup reads the same tables as the bundle check, so a row
+/// of a second table under the declared section is a referencing row too.
+#[trace("TC-2322", "FR-049-AC-26")]
+#[test]
+fn tc2322_a_second_table_under_the_declared_section_is_a_referencing_row() {
+    let bundle = iso_bundle("2322", &[("TC-001", "FR-001-AC-1", "✅")], &["TC-001"]);
+    let before = report_for(&bundle, "iso").expect("model declared");
+    assert!(before
+        .unbacked_rows
+        .iter()
+        .all(|r| r.row_id.as_deref() != Some("TC-009")));
+
+    let tests = bundle.scope.join("tests.md");
+    let mut matrix = fs::read_to_string(&tests).expect("read");
+    matrix.push_str(
+        "\nA second grid.\n\n| ID | Traces To | Status |\n|----|-----------|--------|\n| TC-009 | FR-001-AC-2 | 🚧 |\n",
+    );
+    fs::write(&tests, matrix).expect("write");
+    let after = report_for(&bundle, "iso").expect("model declared");
+    let row = after
+        .unbacked_rows
+        .iter()
+        .find(|r| r.row_id.as_deref() == Some("TC-009"))
+        .unwrap_or_else(|| panic!("second-table row missing: {:?}", after.unbacked_rows));
+    assert!(row.target_ids.contains(&"FR-001-AC-2".to_string()));
+}

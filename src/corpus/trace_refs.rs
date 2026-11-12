@@ -253,6 +253,7 @@ fn referencing_rows(
                 .kind_column
                 .as_deref()
                 .map(|kind| (declaration.column.as_str(), kind)),
+            every_table: true,
             target_required: false,
         },
         &declaration.section,

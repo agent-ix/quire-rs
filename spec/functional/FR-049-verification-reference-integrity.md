@@ -124,7 +124,7 @@ unchecked and report a clean bundle: a `dangling-trace-reference`,
 `reference-kind-mismatch` or `kind-column-matches-nothing` finding that a
 row-for-row identical table under a later section produces would be missing,
 and no diagnostic would say a table was skipped. Reporting the extra table as
-an error, as [FR-076](./FR-076-semantic-relationship-lowering.md) does for a
+an error, as [FR-076](./FR-076-relationships-extraction.md) does for a
 `## Relationships` section, is not the rule here: that section is a lowering
 whose output is one declaration, whereas a reference declaration is a read of
 cells, so a second table is data to read, not malformed input.

@@ -104,6 +104,11 @@ pub(crate) struct DeclaredScope<'a> {
     /// a table with the first header and not the second is reported per
     /// table, rows or no rows (FR-049-AC-18).
     pub kind_column: Option<(&'a str, &'a str)>,
+    /// Read every table under a declared section, not only the first
+    /// (FR-049-AC-23). Set by document-reference declarations, which extract
+    /// every referenced id from the declared cells; a trace target or an
+    /// obligation source reads the section's first table.
+    pub every_table: bool,
     /// Whether absence of a matching archetype or minting section is itself a
     /// finding. This is independent of `mints`: an optional target still scans
     /// and validates a present section (#327).
@@ -485,7 +490,7 @@ pub(crate) fn scan(
         // section that is there and holds no table (CR-117). Only the first is
         // a minting defect; the second is an empty matrix, which is a
         // repository with no tests yet.
-        let scanned = tables_of(doc.body(), &doc.path, sections);
+        let scanned = tables_in_sections(doc.body(), &doc.path, sections, scope.every_table);
         if scope.mints.is_some() && (scope.target_required || !scanned.is_empty()) {
             ctx.census.selected += 1;
             if !scanned.is_empty() {
@@ -650,6 +655,7 @@ pub(crate) fn mint(
         mints: target.id_columns(),
         status_column: None,
         kind_column: None,
+        every_table: false,
         target_required: target.required,
     };
     match &target.source {
@@ -875,27 +881,57 @@ pub(crate) fn tables_of(
     path: &Path,
     sections: &SectionNames,
 ) -> Vec<(String, ScannedTable)> {
-    // Document order, over EVERY matching section rather than the first: since
-    // #272 the whole point is a matrix whose rows are spread across several
-    // headings. `crate::query::section` returns the first match, which is what
-    // `table_of` still does for a single heading.
-    //
-    // **[RAN]** over the 393 `type: TestMatrix` documents in `~/dev`: not one
-    // repeats the ecosystem's declared heading, so for a single-name
-    // declaration this reads exactly the section `section()` used to.
+    tables_in_sections(doc, path, sections, false)
+}
+
+/// [`tables_of`], reading either the first table of each matched section or
+/// every table in it (`every_table`, FR-049-AC-23). Several tables under one
+/// heading appear as several entries sharing that heading, in document order.
+fn tables_in_sections(
+    doc: &QuireDocument,
+    path: &Path,
+    sections: &SectionNames,
+    every_table: bool,
+) -> Vec<(String, ScannedTable)> {
     crate::query::sections(doc, None)
         .into_iter()
         .filter(|sec| sections.matches(&sec.heading))
-        .map(|sec| (sec.heading.trim().to_string(), table_in(doc, path, sec)))
+        .flat_map(|sec| {
+            let heading = sec.heading.trim().to_string();
+            tables_in(doc, path, sec, every_table)
+                .into_iter()
+                .map(move |table| (heading.clone(), table))
+        })
         .collect()
 }
 
-/// The table one already-selected section holds.
-fn table_in(doc: &QuireDocument, path: &Path, sec: &crate::ast::QuireSection) -> ScannedTable {
-    let Some((table, row_lines, header_line)) = crate::query::parse_table_with_lines(&sec.content)
-    else {
-        return ScannedTable::NoTable;
-    };
+/// The tables one already-selected section holds: its first, or every one when
+/// `every_table`. A section holding none is one [`ScannedTable::NoTable`].
+fn tables_in(
+    doc: &QuireDocument,
+    path: &Path,
+    sec: &crate::ast::QuireSection,
+    every_table: bool,
+) -> Vec<ScannedTable> {
+    let mut parsed = crate::query::parse_tables_with_lines(&sec.content);
+    if !every_table {
+        parsed.truncate(1);
+    }
+    if parsed.is_empty() {
+        return vec![ScannedTable::NoTable];
+    }
+    parsed
+        .into_iter()
+        .map(|found| table_of_parsed(doc, path, sec, found))
+        .collect()
+}
+
+fn table_of_parsed(
+    doc: &QuireDocument,
+    path: &Path,
+    sec: &crate::ast::QuireSection,
+    (table, row_lines, header_line): (crate::query::TableResult, Vec<usize>, usize),
+) -> ScannedTable {
     // The frontmatter's line count, so a section's body-relative `start_line`
     // converts to the 1-based document line `validate` findings use (#210).
     // Parsed line information was discarded here from v0.1: `ScannedRow` had
@@ -1599,6 +1635,7 @@ mod cr135_archetype_matches_nothing {
                 mints: Some(&IdColumns::from("Test ID")),
                 status_column: None,
                 kind_column: None,
+                every_table: false,
                 target_required: true,
             },
             &sections,
@@ -1622,6 +1659,7 @@ mod cr135_archetype_matches_nothing {
                 mints: None,
                 status_column: None,
                 kind_column: None,
+                every_table: false,
                 target_required: false,
             },
             &sections,
@@ -1654,6 +1692,7 @@ mod cr135_archetype_matches_nothing {
             mints: Some(&id),
             status_column: None,
             kind_column: None,
+            every_table: false,
             target_required: required,
         };
 
