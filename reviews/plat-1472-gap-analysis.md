@@ -41,3 +41,10 @@ All in-scope ACs are bound, and every test asserts its AC's main clauses. There 
 | FR-050 document_references kind fields | examined | Clean; serialization unchanged when absent |
 | FR-057-AC-4 | context_only | Tagged bundle_validate.rs:486; unaffected |
 | FR-057-AC-11 | examined | Tagged TC-2246; clean |
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | 35058b5: TC-2244 adds the exact-duplicate case (`north` twice), asserting "duplicate kind key 'north'". The reviewer probe confirms load is rejected, naming the declaration and the field. |
+| FND-002 | fixed | 35058b5: TC-2247 adds a zero-row table (expects 1) and two tables in one document (expects 2). The reviewer probe reproduces both counts under Okf. |

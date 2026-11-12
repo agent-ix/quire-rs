@@ -45,3 +45,11 @@ Not mergeable as is: one high finding (FND-001) and one medium finding (FND-002)
 ## Verification
 
 Reviewer-only; no branch edits. The probes ran in a throwaway module (`tests/it/zz_probe_qrs650.rs`), which was removed afterwards; the worktree is clean.
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | 35058b5: `kind_targets` is now `Option<KindTargets>`, an order-preserving `Vec<(String, Vec<String>)>` filled by a map visitor, so repeated keys reach `check_kind_declaration`. Probe: an exact duplicate `north` now fails load with "document_references entry 'links' has a duplicate kind key 'north' in `kind_targets`". TC-2244 has the exact-duplicate case. JSON and YAML round trips of the typed declaration are equal, and an untyped declaration serializes with no `kind_*` keys (FR-049-AC-16). |
+| FND-002 | fixed | 35058b5: detection moved into `declared_tables::scan` as `ScanDiagnostic::KindColumnMatchesNothing`, checked per matched table over its headers, and routed at warning tier via `scan_reason`. Probe: a zero-row table gives 1 warning and two tables in one document give 2, under Okf. TC-2247 has both cases. |
+| FND-003 | fixed | 35058b5: the mismatch message carries `(row 'K-n')`. Probe: two `north` rows that both reference R-1 now give 2 distinct findings (rows K-0 and K-2). TC-2240 asserts `(row 'K-1')`. |
