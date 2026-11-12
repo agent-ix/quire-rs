@@ -4214,29 +4214,51 @@ fn tc2222_strict_decision_passes_exempt_only_rows_and_keeps_every_other_premise(
         .contains(&StrictCause::UnbackedRows));
 }
 
-/// PLAT-1491: the rollup reads the same tables as the bundle check, so a row
-/// of a second table under the declared section is a referencing row too.
+/// PLAT-1491: the rollup keeps reading the first table of a section, so its
+/// rows equal what is minted; a second table adds neither a row nor a status
+/// finding (FR-049-AC-26).
 #[trace("TC-2322", "FR-049-AC-26")]
 #[test]
-fn tc2322_a_second_table_under_the_declared_section_is_a_referencing_row() {
+fn tc2322_a_second_table_under_the_declared_section_is_not_a_rollup_row() {
     let bundle = iso_bundle("2322", &[("TC-001", "FR-001-AC-1", "✅")], &["TC-001"]);
-    let before = report_for(&bundle, "iso").expect("model declared");
-    assert!(before
-        .unbacked_rows
-        .iter()
-        .all(|r| r.row_id.as_deref() != Some("TC-009")));
-
     let tests = bundle.scope.join("tests.md");
-    let mut matrix = fs::read_to_string(&tests).expect("read");
-    matrix.push_str(
-        "\nA second grid.\n\n| ID | Traces To | Status |\n|----|-----------|--------|\n| TC-009 | FR-001-AC-2 | 🚧 |\n",
+    let first = fs::read_to_string(&tests).expect("read");
+
+    let second_table = |table: &str| {
+        let mut matrix = first.clone();
+        matrix.push_str("\nA second grid.\n\n");
+        matrix.push_str(table);
+        fs::write(&tests, matrix).expect("write");
+        report_for(&bundle, "iso").expect("model declared")
+    };
+    let unbacked = |r: &CoverageReport, id: &str| {
+        r.unbacked_rows
+            .iter()
+            .any(|u| u.row_id.as_deref() == Some(id))
+    };
+
+    // Rows of a second table are not rollup rows.
+    let report = second_table(
+        "| ID | Traces To | Status |\n|----|-----------|--------|\n| TC-009 | FR-001-AC-2 | 🚧 |\n",
     );
+    assert!(!unbacked(&report, "TC-009"), "{:?}", report.unbacked_rows);
+
+    // Control: the same row in the first table is an unbacked row.
+    let mut matrix = first.clone();
+    matrix.push_str("| TC-009 | FR-001-AC-2 | 🚧 |\n");
     fs::write(&tests, matrix).expect("write");
-    let after = report_for(&bundle, "iso").expect("model declared");
-    let row = after
-        .unbacked_rows
-        .iter()
-        .find(|r| r.row_id.as_deref() == Some("TC-009"))
-        .unwrap_or_else(|| panic!("second-table row missing: {:?}", after.unbacked_rows));
-    assert!(row.target_ids.contains(&"FR-001-AC-2".to_string()));
+    let report = report_for(&bundle, "iso").expect("model declared");
+    assert!(unbacked(&report, "TC-009"), "{:?}", report.unbacked_rows);
+
+    // A legend grid after the matrix raises no status-column finding.
+    let report =
+        second_table("| Status Symbol | Meaning |\n|---------------|---------|\n| ✅ | done |\n");
+    assert!(
+        !report
+            .diagnostics
+            .iter()
+            .any(|d| d.reason == "status-column-matches-nothing"),
+        "{:?}",
+        report.diagnostics
+    );
 }

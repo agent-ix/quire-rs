@@ -43,15 +43,6 @@ pub(super) fn resolve(
             SemanticFailure::error("semantic.invalid-value", path, message).reason(),
         )
     };
-    if declaration.is_null() {
-        return Err(refuse(
-            at,
-            format!(
-                "archetype `{}` declares record_validation as null; give a mapping of schema and locate_absence_at, or omit the key",
-                a.name
-            ),
-        ));
-    }
     let Some(semantic) = semantic else {
         return Err(refuse(
             at,

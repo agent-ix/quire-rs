@@ -418,25 +418,85 @@ fn tc2320_findings_of_a_later_table_carry_their_own_row_lines() {
     );
     fs::remove_dir_all(&root).ok();
 
-    // Single-table output is the same with or without an unrelated trailing
-    // table that carries no declared column.
+    // Single-table output is pinned: the same two findings at their own rows,
+    // with or without an unrelated trailing table that has no declared column.
     let single = format!("{LINKS_HEAD}| K-1 | north | L-7 |\n| K-2 | north | R-1 |\n");
     let extra = format!("{single}\n| Legend | Meaning |\n|--------|---------|\n| a | b |\n");
-    let root_a = kinds_bundle("2320a", &single);
-    let root_b = kinds_bundle("2320b", &extra);
-    let a = validate_bundle_at(&root_a, &kinds_registry(), BundlePosture::Okf);
-    let b = validate_bundle_at(&root_b, &kinds_registry(), BundlePosture::Okf);
-    let summary = |r: &BundleReport| -> Vec<(String, Option<usize>)> {
-        r.errors
+    let expected = [
+        ("dangling-trace-reference".to_string(), Some(11)),
+        ("reference-kind-mismatch".to_string(), Some(12)),
+    ];
+    assert_eq!(line_of(&single, "| K-1 |"), 11);
+    for (name, links) in [("2320a", &single), ("2320b", &extra)] {
+        let root = kinds_bundle(name, links);
+        let report = validate_bundle_at(&root, &kinds_registry(), BundlePosture::Okf);
+        let mut found: Vec<(String, Option<usize>)> = report
+            .errors
             .iter()
-            .chain(r.warnings.iter())
+            .chain(report.warnings.iter())
             .map(|f| (f.reason.to_string(), f.line))
-            .collect()
-    };
-    assert_eq!(summary(&a).len(), 2, "{:?}", a.errors);
-    assert_eq!(summary(&a), summary(&b));
-    fs::remove_dir_all(&root_a).ok();
-    fs::remove_dir_all(&root_b).ok();
+            .collect();
+        found.sort();
+        assert_eq!(found, expected, "{name}");
+        fs::remove_dir_all(&root).ok();
+    }
+}
+
+#[trace("TC-2325", "FR-049-AC-27")]
+#[test]
+fn tc2325_a_fenced_table_is_an_example_not_data() {
+    let real = format!("{LINKS_HEAD}| K-1 | north | L-1 |\n");
+    let fenced_after = format!(
+        "{real}\n```markdown\n| Link | Class | Target |\n|------|-------|--------|\n| K-9 | north | L-999 |\n```\n"
+    );
+    let tilde_only = format!(
+        "---\nid: LK-001\ntype: Link\ntitle: Links\n---\n\n## Links\n\n~~~\n| Link | Class | Target |\n|------|-------|--------|\n| K-9 | north | L-999 |\n~~~\n"
+    );
+    for (name, links) in [("2325a", &fenced_after), ("2325b", &tilde_only)] {
+        let root = kinds_bundle(name, links);
+        let report = validate_bundle_at(&root, &kinds_registry(), BundlePosture::Okf);
+        assert!(
+            report.errors.is_empty() && report.warnings.is_empty(),
+            "{name}: {:?} {:?}",
+            report.errors,
+            report.warnings
+        );
+        fs::remove_dir_all(&root).ok();
+    }
+    // Control: the same row outside a fence is a finding, after the fence too.
+    let after_fence = format!("{fenced_after}\n| Link | Class | Target |\n|------|-------|--------|\n| K-8 | north | L-998 |\n");
+    let root = kinds_bundle("2325c", &after_fence);
+    let report = validate_bundle_at(&root, &kinds_registry(), BundlePosture::Okf);
+    let dangling = with_reason(&report, "dangling-trace-reference");
+    assert_eq!(dangling.len(), 1, "{:?}", report.errors);
+    assert_eq!(dangling[0].line, Some(line_of(&after_fence, "| K-8 |")));
+    fs::remove_dir_all(&root).ok();
+}
+
+#[trace("TC-2326", "FR-049-AC-28")]
+#[test]
+fn tc2326_an_id_only_in_a_second_target_table_is_not_minted() {
+    let root = bundle_dir("2326");
+    write(
+        &root,
+        "left.md",
+        "---\nid: LD-001\ntype: Left\ntitle: Left\n---\n\n## Items\n\n| Item |\n|------|\n| L-1 |\n\nnote\n\n| Item |\n|------|\n| L-2 |\n",
+    );
+    write(
+        &root,
+        "right.md",
+        "---\nid: RD-001\ntype: Right\ntitle: Right\n---\n\n## Items\n\n| Item |\n|------|\n| R-1 |\n",
+    );
+    write(
+        &root,
+        "links.md",
+        &format!("{LINKS_HEAD}| K-1 | north | L-1 |\n| K-2 | north | L-2 |\n"),
+    );
+    let report = validate_bundle_at(&root, &kinds_registry(), BundlePosture::Okf);
+    let dangling = with_reason(&report, "dangling-trace-reference");
+    assert_eq!(dangling.len(), 1, "{:?}", report.errors);
+    assert!(dangling[0].message.contains("L-2"));
+    fs::remove_dir_all(&root).ok();
 }
 
 #[trace("TC-2321", "FR-049-AC-25")]
@@ -861,6 +921,65 @@ fn tc2318_record_validation_null_is_refused_naming_the_archetype() {
         good.record_validation.as_ref().unwrap().locate_absence_at,
         "status"
     );
+}
+
+#[trace("TC-2323", "FR-069-AC-30")]
+#[test]
+fn tc2323_other_object_keys_authored_null_are_refused_not_read_as_absent() {
+    for key in ["data_schema", "body_extraction", "frontmatter_schema_ref"] {
+        let expected = format!("semantic.invalid-value: artifact_types[Bad].{key}:");
+        for (name, semantic) in [("with semantic", GOOD_SEMANTIC), ("without", "")] {
+            let body = if key == "body_extraction" {
+                ""
+            } else {
+                BAD_MATCH
+            };
+            let registry = refused(body, &format!("  {key}: null\n"), semantic);
+            let reasons: Vec<&str> = registry
+                .failures()
+                .iter()
+                .filter(|f| f.archetype == "Bad")
+                .map(|f| f.reason.as_str())
+                .collect();
+            assert!(
+                reasons
+                    .iter()
+                    .any(|r| r.starts_with(&expected) && r.contains("archetype `Bad`")),
+                "{key} {name}: {reasons:?}"
+            );
+            assert!(registry.archetype("Bad").is_none(), "{key} {name}");
+            // Without a semantic block `Good`'s own record_validation is refused.
+            assert_eq!(
+                registry.archetype("Good").is_some(),
+                !semantic.is_empty(),
+                "{key} {name}"
+            );
+        }
+    }
+    // Control: with every key omitted the archetype loads.
+    let registry = refused(BAD_MATCH, "", GOOD_SEMANTIC);
+    assert!(registry.failures().is_empty(), "{:?}", registry.failures());
+}
+
+#[trace("TC-2324", "FR-069-AC-31")]
+#[test]
+fn tc2324_a_null_semantic_block_is_refused_not_read_as_absent() {
+    let with = |semantic_line: &str| {
+        Registry::from_inline_parts(
+            format!("name: m\nversion: 0.1.0\nartifact_types:\n- name: A\n{semantic_line}")
+                .as_bytes(),
+            &BTreeMap::new(),
+        )
+    };
+    let error = with("semantic: null\n").expect_err("null semantic is refused");
+    assert!(
+        error
+            .to_string()
+            .contains("semantic.invalid-value: semantic:"),
+        "{error}"
+    );
+    let omitted = with("").expect("omitted semantic loads");
+    assert!(omitted.failures().is_empty());
 }
 
 // ─────────────────── TC-2306 .. TC-2310: Anomaly checks ───────────────────

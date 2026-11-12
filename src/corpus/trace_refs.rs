@@ -253,7 +253,7 @@ fn referencing_rows(
                 .kind_column
                 .as_deref()
                 .map(|kind| (declaration.column.as_str(), kind)),
-            every_table: true,
+            tables: declared_tables::TableScan::Every,
             target_required: false,
         },
         &declaration.section,

@@ -60,6 +60,17 @@ impl ScannedRow {
     }
 }
 
+/// Which tables under a declared section a scan reads (FR-049-AC-23).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum TableScan {
+    /// The section's first table: trace-target minting, obligation sources and
+    /// the FR-050 rollup, so the rollup's rows equal what is minted.
+    First,
+    /// Every table outside a fenced code block, in document order: the
+    /// FR-049 reference check, which reads every id from the declared cells.
+    Every,
+}
+
 /// What one declaration says about where its rows live: every bundle document
 /// of an archetype, minus anything `exclude` matches (CR-038, CR-060).
 ///
@@ -104,11 +115,8 @@ pub(crate) struct DeclaredScope<'a> {
     /// a table with the first header and not the second is reported per
     /// table, rows or no rows (FR-049-AC-18).
     pub kind_column: Option<(&'a str, &'a str)>,
-    /// Read every table under a declared section, not only the first
-    /// (FR-049-AC-23). Set by document-reference declarations, which extract
-    /// every referenced id from the declared cells; a trace target or an
-    /// obligation source reads the section's first table.
-    pub every_table: bool,
+    /// Which of a declared section's tables are read (FR-049-AC-23).
+    pub tables: TableScan,
     /// Whether absence of a matching archetype or minting section is itself a
     /// finding. This is independent of `mints`: an optional target still scans
     /// and validates a present section (#327).
@@ -490,7 +498,7 @@ pub(crate) fn scan(
         // section that is there and holds no table (CR-117). Only the first is
         // a minting defect; the second is an empty matrix, which is a
         // repository with no tests yet.
-        let scanned = tables_in_sections(doc.body(), &doc.path, sections, scope.every_table);
+        let scanned = tables_in_sections(doc.body(), &doc.path, sections, scope.tables);
         if scope.mints.is_some() && (scope.target_required || !scanned.is_empty()) {
             ctx.census.selected += 1;
             if !scanned.is_empty() {
@@ -655,7 +663,7 @@ pub(crate) fn mint(
         mints: target.id_columns(),
         status_column: None,
         kind_column: None,
-        every_table: false,
+        tables: TableScan::First,
         target_required: target.required,
     };
     match &target.source {
@@ -881,24 +889,24 @@ pub(crate) fn tables_of(
     path: &Path,
     sections: &SectionNames,
 ) -> Vec<(String, ScannedTable)> {
-    tables_in_sections(doc, path, sections, false)
+    tables_in_sections(doc, path, sections, TableScan::First)
 }
 
-/// [`tables_of`], reading either the first table of each matched section or
-/// every table in it (`every_table`, FR-049-AC-23). Several tables under one
+/// [`tables_of`], reading the first table of each matched section or every
+/// table in it (`tables`, FR-049-AC-23). Several tables under one
 /// heading appear as several entries sharing that heading, in document order.
 fn tables_in_sections(
     doc: &QuireDocument,
     path: &Path,
     sections: &SectionNames,
-    every_table: bool,
+    tables: TableScan,
 ) -> Vec<(String, ScannedTable)> {
     crate::query::sections(doc, None)
         .into_iter()
         .filter(|sec| sections.matches(&sec.heading))
         .flat_map(|sec| {
             let heading = sec.heading.trim().to_string();
-            tables_in(doc, path, sec, every_table)
+            tables_in(doc, path, sec, tables)
                 .into_iter()
                 .map(move |table| (heading.clone(), table))
         })
@@ -906,16 +914,21 @@ fn tables_in_sections(
 }
 
 /// The tables one already-selected section holds: its first, or every one when
-/// `every_table`. A section holding none is one [`ScannedTable::NoTable`].
+/// `tables`. A section holding none is one [`ScannedTable::NoTable`].
 fn tables_in(
     doc: &QuireDocument,
     path: &Path,
     sec: &crate::ast::QuireSection,
-    every_table: bool,
+    tables: TableScan,
 ) -> Vec<ScannedTable> {
     let mut parsed = crate::query::parse_tables_with_lines(&sec.content);
-    if !every_table {
-        parsed.truncate(1);
+    match tables {
+        TableScan::First => parsed.truncate(1),
+        TableScan::Every => {
+            // A fenced table is an example, not data (FR-049-AC-27).
+            let fenced = fenced_lines(&sec.content);
+            parsed.retain(|(_, _, header_line)| !fenced[*header_line]);
+        }
     }
     if parsed.is_empty() {
         return vec![ScannedTable::NoTable];
@@ -923,6 +936,32 @@ fn tables_in(
     parsed
         .into_iter()
         .map(|found| table_of_parsed(doc, path, sec, found))
+        .collect()
+}
+
+/// For each line of `content`, whether it sits inside a fenced code block
+/// (the fence lines included).
+fn fenced_lines(content: &str) -> Vec<bool> {
+    let mut open: Option<char> = None;
+    content
+        .split('\n')
+        .map(|line| {
+            let trimmed = line.trim_start();
+            let marker = ['`', '~']
+                .into_iter()
+                .find(|m| trimmed.starts_with(&m.to_string().repeat(3)));
+            match (open, marker) {
+                (None, Some(m)) => {
+                    open = Some(m);
+                    true
+                }
+                (Some(o), Some(m)) if o == m => {
+                    open = None;
+                    true
+                }
+                (state, _) => state.is_some(),
+            }
+        })
         .collect()
 }
 
@@ -1568,7 +1607,7 @@ mod cr069_regressions {
 mod cr135_archetype_matches_nothing {
     use ix_trace_rs::trace;
 
-    use super::{scan, DeclaredScope, ExcludeSet, ScanContext, ScanDiagnostic};
+    use super::{scan, DeclaredScope, ExcludeSet, ScanContext, ScanDiagnostic, TableScan};
     use crate::corpus::spec::Spec;
     use crate::traceability::IdColumns;
     use crate::traceability::SectionNames;
@@ -1635,7 +1674,7 @@ mod cr135_archetype_matches_nothing {
                 mints: Some(&IdColumns::from("Test ID")),
                 status_column: None,
                 kind_column: None,
-                every_table: false,
+                tables: TableScan::First,
                 target_required: true,
             },
             &sections,
@@ -1659,7 +1698,7 @@ mod cr135_archetype_matches_nothing {
                 mints: None,
                 status_column: None,
                 kind_column: None,
-                every_table: false,
+                tables: TableScan::First,
                 target_required: false,
             },
             &sections,
@@ -1692,7 +1731,7 @@ mod cr135_archetype_matches_nothing {
             mints: Some(&id),
             status_column: None,
             kind_column: None,
-            every_table: false,
+            tables: TableScan::First,
             target_required: required,
         };
 
