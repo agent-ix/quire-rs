@@ -7,9 +7,21 @@ bumps; once 1.0 ships, semver is strict.
 
 ## [Unreleased]
 
+## [0.57.0] — 2026-11-12
+
+### Added
+
+- **Kind-typed cell references, PLAT-1472 (#650, spec #649):** a declared table
+  column of references can carry a kind column; a referenced id whose artifact
+  kind differs from the declared kind yields a `reference-kind-mismatch` finding
+  (FR-049-AC-10..18).
+- **Requirement criticality in the coverage matrix, PLAT-1413 (#648, FR-082):**
+  each `coverage_matrix` `requirements[]` entry carries the requirement's
+  frontmatter `criticality` verbatim when present.
+
 ### Fixed
 
-- PLAT-1408: a `dangling-reference` bundle finding is located at the source document's loaded path instead of its artifact id (FR-038-AC-11).
+- PLAT-1408 (#647): a `dangling-reference` bundle finding is located at the source document's loaded path instead of its artifact id (FR-038-AC-11).
 
 ## [0.56.1] — 2026-11-11
 
