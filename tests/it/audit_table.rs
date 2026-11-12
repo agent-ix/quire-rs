@@ -2,8 +2,6 @@
 //! no row in the matrix's AC → TC Coverage Audit table is an error, and so is
 //! a row or range id that no requirement document defines.
 
-use std::path::Path;
-
 use ix_trace_rs::trace;
 use quire_rs::audit_table::{audit_gaps, AuditFinding, AuditSource, PhantomSource};
 
