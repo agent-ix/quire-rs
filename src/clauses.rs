@@ -11,6 +11,8 @@ use std::path::{Component, Path};
 
 use serde::{Deserialize, Serialize};
 
+use crate::loader::LoadedModule;
+
 const SCHEMA_VERSION: &str = "clause-set-v1";
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
@@ -43,6 +45,9 @@ pub enum TextRights {
     None,
     Original,
     ExplicitlyCleared,
+    /// Text its holder may use locally but may not publish; needs no
+    /// `clearance_ref`. Such a set is reported by [`check_publishable`].
+    Licensed,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -696,6 +701,37 @@ fn combine_any(
     } else {
         (BindingOutcome::Unresolved, unresolved)
     }
+}
+
+/// A clause set whose text may be used locally but not published.
+///
+/// Names the set by `authority/id@version` and never carries clause text.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RestrictedClauseSet {
+    pub authority: String,
+    pub id: String,
+    pub version: String,
+    /// Number of clauses in the set that carry text.
+    pub text_clauses: usize,
+}
+
+/// Report the module's licence-restricted clause sets, ordered by authority,
+/// id, then version. An empty vector means the module is publishable.
+pub fn check_publishable(module: &LoadedModule) -> Vec<RestrictedClauseSet> {
+    let mut restricted: Vec<RestrictedClauseSet> = module
+        .clause_sets
+        .iter()
+        .filter(|set| set.rights.text == TextRights::Licensed)
+        .map(|set| RestrictedClauseSet {
+            authority: set.authority.clone(),
+            id: set.id.clone(),
+            version: set.version.clone(),
+            text_clauses: set.clauses.iter().filter(|c| c.text.is_some()).count(),
+        })
+        .collect();
+    restricted
+        .sort_by(|a, b| (&a.authority, &a.id, &a.version).cmp(&(&b.authority, &b.id, &b.version)));
+    restricted
 }
 
 #[cfg(test)]

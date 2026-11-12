@@ -338,7 +338,7 @@ pub struct Manifest {
     /// Rights-aware clause-set files, resolved relative to the module root.
     /// The files are data; no domain vocabulary is compiled into the engine.
     #[serde(default)]
-    pub clause_sets: Vec<PathBuf>,
+    pub clause_sets: Vec<String>,
     /// Declarative advisory lint rules (FR-036). Previously this key
     /// was inert; it is now typed — a malformed rule fails manifest
     /// parse like any other shape error.
@@ -586,6 +586,7 @@ impl Archetype {
 pub fn parse_manifest(bytes: &[u8]) -> Result<Manifest, String> {
     let manifest = serde_yaml::from_slice::<Manifest>(bytes).map_err(|e| e.to_string())?;
     check_grammar_severity_keys(&manifest)?;
+    check_clause_sets_shape(bytes)?;
     // FR-050-AC-2: an incoherent `traceability:` declaration is a shape error.
     manifest.traceability.validate()?;
     // FR-054-AC-5: a catalog entry that cannot say what it is advises nothing,
@@ -601,6 +602,22 @@ pub fn parse_manifest(bytes: &[u8]) -> Result<Manifest, String> {
         profile.validate(id)?;
     }
     Ok(manifest)
+}
+
+/// Reject a `clause_sets` value that is not a list of strings (FR-083-AC-1).
+/// YAML stringifies a bare scalar entry (`- 1`) instead of failing, so the
+/// entries are checked against the raw document.
+fn check_clause_sets_shape(bytes: &[u8]) -> Result<(), String> {
+    let document: serde_yaml::Value = serde_yaml::from_slice(bytes).map_err(|e| e.to_string())?;
+    match document.get("clause_sets") {
+        None | Some(serde_yaml::Value::Null) => Ok(()),
+        Some(serde_yaml::Value::Sequence(items))
+            if items.iter().all(serde_yaml::Value::is_string) =>
+        {
+            Ok(())
+        }
+        Some(_) => Err("clause_sets must be a list of module-relative path strings".into()),
+    }
 }
 
 /// Reject a malformed `grammar_severity` key (FR-048-AC-8). The level side is

@@ -827,7 +827,7 @@ fn load_one_module(
 
     let mut clause_sets = Vec::new();
     for relative in &manifest.clause_sets {
-        match crate::clauses::load_clause_set(module_root, relative) {
+        match crate::clauses::load_clause_set(module_root, Path::new(relative)) {
             Ok(set) => clause_sets.push(Arc::new(set)),
             Err(error) => failures.push(failure(
                 &module_name,

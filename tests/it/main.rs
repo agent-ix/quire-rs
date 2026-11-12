@@ -9,6 +9,7 @@ mod assurance_boundary;
 mod assurance_export;
 mod audit_table;
 mod bundle_validate;
+mod clause_publishable;
 mod combinatorial;
 mod corpus_case;
 mod corpus_cases;
