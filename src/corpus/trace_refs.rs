@@ -32,6 +32,9 @@ struct ReferencingRow {
     row_id: Option<String>,
     /// The raw cell text.
     cell: String,
+    /// The row's kind cell, when the declaration is kind-typed and the row
+    /// carries the column.
+    kind: Option<String>,
 }
 
 /// Check every declared document reference against the bundle's resolution
@@ -73,7 +76,8 @@ pub(crate) fn validate_trace_references(
 
     // Collect findings before pushing so their order is a property of the
     // bundle, not of the walk (FR-049-AC-8).
-    let mut findings: Vec<(PathBuf, String, String)> = Vec::new();
+    // Ordered by (path, id, reason, message) (FR-049-AC-17).
+    let mut findings: Vec<(PathBuf, String, &'static str, String)> = Vec::new();
     for declaration in &model.document_references {
         let Ok(pattern) = Regex::new(&declaration.pattern) else {
             continue; // patterns are validated at module load
@@ -84,12 +88,17 @@ pub(crate) fn validate_trace_references(
                 resolvable.extend(ids.iter());
             }
         }
-        for row in referencing_rows(spec, root, declaration, &model_exclude, &mut ctx) {
+        let scanned = referencing_rows(spec, root, declaration, &model_exclude, &mut ctx);
+        for row in scanned {
+            let kind_subset = row
+                .kind
+                .as_deref()
+                .and_then(|kind| declaration.targets_for_kind(kind));
             for caps in pattern.captures_iter(&row.cell) {
                 let Some(id) = caps.get(1).map(|m| m.as_str().trim()) else {
                     continue;
                 };
-                if id.is_empty() || resolvable.iter().any(|known| known.as_str() == id) {
+                if id.is_empty() {
                     continue;
                 }
                 let owner = row
@@ -97,9 +106,34 @@ pub(crate) fn validate_trace_references(
                     .as_deref()
                     .map(|r| format!(" (row '{r}')"))
                     .unwrap_or_default();
+                if resolvable.iter().any(|known| known.as_str() == id) {
+                    if let (Some(subset), Some(kind)) = (kind_subset, row.kind.as_deref()) {
+                        let in_subset = subset.iter().any(|name| {
+                            resolution
+                                .get(name.as_str())
+                                .is_some_and(|ids| ids.contains(id))
+                        });
+                        if !in_subset {
+                            findings.push((
+                                row.path.clone(),
+                                id.to_string(),
+                                "reference-kind-mismatch",
+                                format!(
+                                    "trace reference '{id}'{owner} declared by '{}' is on a row of kind \
+                                     '{}' which may reference only {} targets",
+                                    declaration.name,
+                                    kind.trim(),
+                                    subset.join("/")
+                                ),
+                            ));
+                        }
+                    }
+                    continue;
+                }
                 findings.push((
                     row.path.clone(),
                     id.to_string(),
+                    "dangling-trace-reference",
                     format!(
                         "trace reference '{id}'{owner} declared by '{}' resolves to no {} target",
                         declaration.name,
@@ -137,11 +171,11 @@ pub(crate) fn validate_trace_references(
 
     findings.sort();
     findings.dedup();
-    for (path, _, message) in findings {
+    for (path, _, reason, message) in findings {
         report.route(
             severity,
             posture_tier(posture),
-            BundleFinding::in_pack(pack::TRACE, "dangling-trace-reference", path, message),
+            BundleFinding::in_pack(pack::TRACE, reason, path, message),
         );
     }
 }
@@ -201,7 +235,7 @@ fn referencing_rows(
     ctx: &mut declared_tables::ScanContext,
 ) -> Vec<ReferencingRow> {
     let exclude = declared_tables::ExcludeSet::compile_validated(&declaration.exclude);
-    declared_tables::scan(
+    let scanned = declared_tables::scan(
         spec,
         root,
         declared_tables::DeclaredScope {
@@ -211,17 +245,24 @@ fn referencing_rows(
             model_exclude,
             mints: None,
             status_column: None,
+            kind_column: declaration
+                .kind_column
+                .as_deref()
+                .map(|kind| (declaration.column.as_str(), kind)),
             target_required: false,
         },
         &declaration.section,
         ctx,
-    )
-    .into_iter()
-    .filter_map(|row| {
+    );
+    let mut rows = Vec::new();
+    for row in scanned {
         // CR-015: apply the declaration's opt-in normalizations before any id
         // is read out of the cell.
+        let Some(raw) = row.cell(&declaration.column) else {
+            continue;
+        };
         let cell = declared_tables::normalize_reference_cell(
-            row.cell(&declaration.column)?,
+            raw,
             declaration.strip_annotations,
             declaration.expand_ranges,
         );
@@ -230,11 +271,17 @@ fn referencing_rows(
             .as_deref()
             .and_then(|c| row.cell(c))
             .map(str::to_string);
-        Some(ReferencingRow {
+        let kind = declaration
+            .kind_column
+            .as_deref()
+            .and_then(|c| row.cell(c))
+            .map(str::to_string);
+        rows.push(ReferencingRow {
             path: row.path,
             row_id,
             cell,
-        })
-    })
-    .collect()
+            kind,
+        });
+    }
+    rows
 }

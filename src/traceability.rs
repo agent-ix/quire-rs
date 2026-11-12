@@ -969,6 +969,79 @@ pub struct DocumentReference {
     /// than two (CR-015). Off unless declared.
     #[serde(default)]
     pub strip_annotations: bool,
+    /// Column naming the row's kind. Declared together with `kind_targets`
+    /// or not at all (FR-049-AC-15).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub kind_column: Option<String>,
+    /// Kind value to the subset of `targets` a row of that kind may
+    /// reference. Kinds match after trimming and ASCII case folding.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub kind_targets: Option<KindTargets>,
+}
+
+impl DocumentReference {
+    /// The targets a row of `kind` may reference, when the declaration is
+    /// kind-typed and `kind` names one of its kinds (FR-049-AC-13).
+    pub(crate) fn targets_for_kind(&self, kind: &str) -> Option<&[String]> {
+        let wanted = fold_kind(kind);
+        self.kind_targets
+            .as_ref()?
+            .entries()
+            .iter()
+            .find(|(key, _)| fold_kind(key) == wanted)
+            .map(|(_, targets)| targets.as_slice())
+    }
+}
+
+/// The `kind_targets` map as authored: entries in order, repeated keys kept so
+/// load validation can reject them (a `BTreeMap` would silently keep one).
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct KindTargets(Vec<(String, Vec<String>)>);
+
+impl KindTargets {
+    /// The authored `(kind, targets)` entries.
+    pub fn entries(&self) -> &[(String, Vec<String>)] {
+        &self.0
+    }
+}
+
+impl Serialize for KindTargets {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        use serde::ser::SerializeMap;
+        let mut map = serializer.serialize_map(Some(self.0.len()))?;
+        for (kind, targets) in &self.0 {
+            map.serialize_entry(kind, targets)?;
+        }
+        map.end()
+    }
+}
+
+impl<'de> Deserialize<'de> for KindTargets {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        struct Entries;
+        impl<'de> serde::de::Visitor<'de> for Entries {
+            type Value = KindTargets;
+            fn expecting(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                f.write_str("a map of kind to target names")
+            }
+            fn visit_map<A: serde::de::MapAccess<'de>>(
+                self,
+                mut map: A,
+            ) -> Result<Self::Value, A::Error> {
+                let mut entries = Vec::new();
+                while let Some(entry) = map.next_entry::<String, Vec<String>>()? {
+                    entries.push(entry);
+                }
+                Ok(KindTargets(entries))
+            }
+        }
+        deserializer.deserialize_map(Entries)
+    }
+}
+
+/// A kind value as matched: trimmed, ASCII case folded.
+fn fold_kind(value: &str) -> String {
+    value.trim().to_ascii_lowercase()
 }
 
 fn deserialize_status_column<'de, D: serde::Deserializer<'de>>(
@@ -1441,6 +1514,7 @@ impl TraceabilityModel {
                     ));
                 }
             }
+            check_kind_declaration(reference)?;
         }
 
         // FR-053: an obligation source resolves its minting documents exactly
@@ -1839,6 +1913,69 @@ impl TraceabilityModel {
 fn check_named(section: &str, name: &str) -> Result<(), String> {
     if name.trim().is_empty() {
         return Err(format!("traceability: {section} entry has an empty name"));
+    }
+    Ok(())
+}
+
+/// FR-049-AC-15: a kind declaration is both fields, well formed, or neither.
+fn check_kind_declaration(reference: &DocumentReference) -> Result<(), String> {
+    let name = &reference.name;
+    let (column, kinds) = match (&reference.kind_column, &reference.kind_targets) {
+        (None, None) => return Ok(()),
+        (Some(_), None) => {
+            return Err(format!(
+                "traceability: document_references entry '{name}' declares `kind_column` \
+                 without `kind_targets`"
+            ))
+        }
+        (None, Some(_)) => {
+            return Err(format!(
+                "traceability: document_references entry '{name}' declares `kind_targets` \
+                 without `kind_column`"
+            ))
+        }
+        (Some(column), Some(kinds)) => (column, kinds),
+    };
+    check_field("document_references", name, "kind_column", column)?;
+    if fold_kind(column) == fold_kind(&reference.column) {
+        return Err(format!(
+            "traceability: document_references entry '{name}' declares a `kind_column` equal \
+             to its `column`"
+        ));
+    }
+    if kinds.entries().is_empty() {
+        return Err(format!(
+            "traceability: document_references entry '{name}' declares an empty `kind_targets`"
+        ));
+    }
+    let mut seen: BTreeSet<String> = BTreeSet::new();
+    for (kind, targets) in kinds.entries() {
+        if kind.trim().is_empty() {
+            return Err(format!(
+                "traceability: document_references entry '{name}' has an empty kind key in \
+                 `kind_targets`"
+            ));
+        }
+        if !seen.insert(fold_kind(kind)) {
+            return Err(format!(
+                "traceability: document_references entry '{name}' has a duplicate kind key \
+                 '{kind}' in `kind_targets`"
+            ));
+        }
+        if targets.is_empty() {
+            return Err(format!(
+                "traceability: document_references entry '{name}' lists no targets for kind \
+                 '{kind}' in `kind_targets`"
+            ));
+        }
+        for target in targets {
+            if !reference.targets.contains(target) {
+                return Err(format!(
+                    "traceability: document_references entry '{name}' lists target '{target}' \
+                     for kind '{kind}' in `kind_targets` that is not in its `targets`"
+                ));
+            }
+        }
     }
     Ok(())
 }

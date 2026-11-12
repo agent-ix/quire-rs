@@ -100,6 +100,10 @@ pub(crate) struct DeclaredScope<'a> {
     /// exposing a status-shaped header. Tables with no status axis remain out of
     /// scope; a near-miss such as `Coverage Status` is no longer silent (#341).
     pub status_column: Option<crate::traceability::SelectedStatusColumn<'a>>,
+    /// `(reference column, kind column)` of a kind-typed document reference:
+    /// a table with the first header and not the second is reported per
+    /// table, rows or no rows (FR-049-AC-18).
+    pub kind_column: Option<(&'a str, &'a str)>,
     /// Whether absence of a matching archetype or minting section is itself a
     /// finding. This is independent of `mints`: an optional target still scans
     /// and validates a present section (#327).
@@ -307,6 +311,16 @@ pub(crate) enum ScanDiagnostic {
         columns: Vec<String>,
         line: usize,
     },
+    /// A kind-typed reference table has the reference column but not the
+    /// declared kind column (FR-049-AC-18).
+    KindColumnMatchesNothing {
+        document: String,
+        section: String,
+        reference_column: String,
+        kind_column: String,
+        columns: Vec<String>,
+        line: usize,
+    },
 }
 
 impl ScanDiagnostic {
@@ -321,14 +335,16 @@ impl ScanDiagnostic {
             Self::SectionMatchesNothing { document, .. }
             | Self::SectionHoldsNoTable { document, .. }
             | Self::IdColumnMatchesNothing { document, .. }
-            | Self::StatusColumnMatchesNothing { document, .. } => Some(document),
+            | Self::StatusColumnMatchesNothing { document, .. }
+            | Self::KindColumnMatchesNothing { document, .. } => Some(document),
         }
     }
 
     /// The smallest authored repair locus known for this selector failure.
     pub(crate) fn line(&self) -> Option<usize> {
         match self {
-            Self::StatusColumnMatchesNothing { line, .. } => Some(*line),
+            Self::StatusColumnMatchesNothing { line, .. }
+            | Self::KindColumnMatchesNothing { line, .. } => Some(*line),
             _ => None,
         }
     }
@@ -574,6 +590,22 @@ pub(crate) fn scan(
                     );
                 }
             }
+            if let Some((reference_column, kind_column)) = scope.kind_column {
+                let has = |name: &str| headers.iter().any(|h| h.eq_ignore_ascii_case(name));
+                if has(reference_column) && !has(kind_column) {
+                    ctx.note(
+                        scope.name,
+                        ScanDiagnostic::KindColumnMatchesNothing {
+                            document: relative_path(root, &doc.path),
+                            section: heading.clone(),
+                            reference_column: reference_column.to_string(),
+                            kind_column: kind_column.to_string(),
+                            columns: headers.clone(),
+                            line,
+                        },
+                    );
+                }
+            }
             out.extend(rows);
         }
     }
@@ -617,6 +649,7 @@ pub(crate) fn mint(
         model_exclude,
         mints: target.id_columns(),
         status_column: None,
+        kind_column: None,
         target_required: target.required,
     };
     match &target.source {
@@ -1031,6 +1064,7 @@ pub(crate) fn scan_reason(diagnostic: &ScanDiagnostic) -> &'static str {
         ScanDiagnostic::SectionHoldsNoTable { .. } => "section-holds-no-table",
         ScanDiagnostic::IdColumnMatchesNothing { .. } => "id-column-matches-nothing",
         ScanDiagnostic::StatusColumnMatchesNothing { .. } => "status-column-matches-nothing",
+        ScanDiagnostic::KindColumnMatchesNothing { .. } => "kind-column-matches-nothing",
     }
 }
 
@@ -1171,6 +1205,23 @@ pub(crate) fn scan_finding(
                  Align `{configuration_path}` with the authored header or \
                  rename the document column; the engine will not guess between \
                  those change targets",
+                quoted_list(columns)
+            ),
+        ),
+        ScanDiagnostic::KindColumnMatchesNothing {
+            document,
+            section,
+            reference_column,
+            kind_column,
+            columns,
+            ..
+        } => (
+            root.join(document),
+            format!(
+                "declaration '{declaration}' reads column '{reference_column}' but the table \
+                 under '{section}' in {document} has no '{kind_column}' kind column — the \
+                 columns it has are {}. Its references are checked against the union of \
+                 targets only",
                 quoted_list(columns)
             ),
         ),
@@ -1547,6 +1598,7 @@ mod cr135_archetype_matches_nothing {
                 model_exclude: &empty,
                 mints: Some(&IdColumns::from("Test ID")),
                 status_column: None,
+                kind_column: None,
                 target_required: true,
             },
             &sections,
@@ -1569,6 +1621,7 @@ mod cr135_archetype_matches_nothing {
                 model_exclude: &empty,
                 mints: None,
                 status_column: None,
+                kind_column: None,
                 target_required: false,
             },
             &sections,
@@ -1600,6 +1653,7 @@ mod cr135_archetype_matches_nothing {
             model_exclude: &empty,
             mints: Some(&id),
             status_column: None,
+            kind_column: None,
             target_required: required,
         };
 
