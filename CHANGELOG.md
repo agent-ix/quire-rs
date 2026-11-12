@@ -7,6 +7,8 @@ bumps; once 1.0 ships, semver is strict.
 
 ## [Unreleased]
 
+## [0.59.1] — 2026-11-12
+
 ### Fixed
 
 - PLAT-1484: a manifest archetype `record_validation: null` is refused at load
