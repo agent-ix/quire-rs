@@ -113,6 +113,32 @@ empty after trimming or that duplicates another key under the matching rule; a
 kind whose target list is empty; and a listed target name that is not in the
 declaration's `targets`. A rejected declaration is never partially applied.
 
+### Several tables under one declared section (PLAT-1491)
+
+A declared section may hold more than one table (a prose line, a note or a
+second grid between them). The declaration names the section, not a table, so
+`validate_bundle` SHALL read **every** table under each section the declaration
+matches, in document order, and extract every referenced id from the declared
+column of each. Reading only the first table would leave later rows
+unchecked and report a clean bundle: a `dangling-trace-reference`,
+`reference-kind-mismatch` or `kind-column-matches-nothing` finding that a
+row-for-row identical table under a later section produces would be missing,
+and no diagnostic would say a table was skipped. Reporting the extra table as
+an error, as [FR-076](./FR-076-semantic-relationship-lowering.md) does for a
+`## Relationships` section, is not the rule here: that section is a lowering
+whose output is one declaration, whereas a reference declaration is a read of
+cells, so a second table is data to read, not malformed input.
+
+Each table is read on its own: the declaration's `column`, `row_id_column`
+and `kind_column` headers are matched against that table's headers
+(FR-049-AC-18), a table lacking the `column` header contributes no rows and no
+finding (a legend or summary grid is legitimate), and each finding carries its
+own row's line (FR-049-AC-19..22). The same reading is shared with the
+[FR-050](./FR-050-declarative-coverage-computation.md) rollup so the two
+consumers of a declaration do not disagree about which cells it covers. A
+trace target's `id_column` and an obligation source continue to read the
+section's first table; the rule is the document-reference declaration's.
+
 ### Located findings (PLAT-1476)
 
 The reference scan already reads each referencing row together with its
@@ -154,6 +180,10 @@ without such repeats orders as before.
 | FR-049-AC-20 | A `reference-kind-mismatch` finding carries the line of the referencing row exactly as AC-19, for a row whose kind cell and target cell sit on the row's line; a row below another table or section of the same document reports its own line, not the table header's or the section heading's. | Test (TC-2302) |
 | FR-049-AC-21 | Located findings remain deterministic: repeated validation yields the same findings in the order (path, id, reason, message, line), and a fixture module declaring different column names and a different table position yields lines by its own declaration, with no archetype or column name in the engine. | Test (TC-2303) |
 | FR-049-AC-22 | A document-level error or warning bridged into the bundle report keeps its line: a bundle over a document whose `validate_document_in_registry` result carries an error at line N yields a bridged finding with `line` `Some(N)`, and one whose result has no line yields `None`; a `semantic.record-invalid` finding of FR-069 reaches a `validate_bundle` caller at the same line it has from `validate_document_in_registry`. | Test (TC-2312) |
+| FR-049-AC-23 | Rows of a second table under the same declared section are scanned like the first: with table 1 holding `K-1 | north | L-1` (resolving), a prose line, and table 2 holding `K-2 | north | R-1` (target outside the kind's targets) and `K-3 | north | L-7` (resolving nowhere), the bundle yields one `reference-kind-mismatch` and one `dangling-trace-reference` finding for the table-2 rows, and the same rows under a later section yield the same two findings. | Test (TC-2319) |
+| FR-049-AC-24 | Each finding from a later table carries the 1-based document line of its own row (frontmatter lines counted), not that of the first table or the heading, and a bundle whose rows sit in the first table only reports the findings, order and lines it reported before this criterion. | Test (TC-2320) |
+| FR-049-AC-25 | The `column` and `kind_column` headers are matched per table: a second table with the `column` header and no `kind_column` header yields one `kind-column-matches-nothing` finding for that table only, a second table with neither header yields no finding and contributes no rows, and a first table with both headers is unaffected. | Test (TC-2321) |
+| FR-049-AC-26 | The FR-050 rollup reads the same tables: an id referenced only from a row of a second table under the declared section counts as referenced in the coverage matrix, as it does from the first table. | Test (TC-2322) |
 | FR-049-AC-14 | A target cell that matches no pattern (`-`, empty) extracts no id and yields no reference and no finding, whatever the row's kind; a multi-id cell classifies each id independently and reports only the mismatched ones. | Test (TC-2243) |
 | FR-049-AC-15 | Module load rejects, naming the declaration and the field at fault and applying no part of it, each malformed kind declaration: `kind_column` without `kind_targets` or the reverse, an empty `kind_column`, `kind_column` equal to `column`, an empty map, an empty or duplicate kind key, an empty target list, and a listed target not in `targets`. | Test (TC-2244) |
 | FR-049-AC-16 | A declaration without `kind_column` and `kind_targets` behaves exactly as before: the engine contains no kind name, and a fixture module declaring different kind values and column names is resolved by its own declaration. | Test (TC-2245) |
