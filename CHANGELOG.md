@@ -7,6 +7,8 @@ bumps; once 1.0 ships, semver is strict.
 
 ## [Unreleased]
 
+## [0.59.0] — 2026-11-12
+
 ### Added
 
 - PLAT-1420/PLAT-1485: `TextRights::Licensed` (`licensed` on the wire) permits
