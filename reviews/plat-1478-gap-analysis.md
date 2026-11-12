@@ -64,3 +64,13 @@ The coder's interpretations were judged as follows:
 ## Verdict
 
 Not mergeable until FND-001 is resolved, either by a code fix with an extended test or by an AC-18 amendment. FND-002 and FND-003 are missing tests that belong in this PR. FND-004 and FND-005 are spec follow-ups. Everything else traced cleanly. The record comes from the unmodified `extract::extract`, the engine holds no archetype or field names, the load refusals cover the AC-22 list (including iterate_over-only and no-semantic modules), the type-only `validate_document` runs no record check, and a module without `record_validation` is unchanged.
+
+## Dispositions
+
+| FND | Outcome | Reason |
+| --- | --- | --- |
+| FND-001 | fixed | Round 1 (f9de3f2, verified at e662590): `AssertFailure.doc_line` is set from `eval_located` for `choices`, `matches` and scalar `id_pattern`, and `validate_required_locator` prefers it. The parity test now covers frontmatter_field `choices` and `id_pattern`, section_body `choices` and `matches`, list_item, heading and table_row. Mutants that set `doc_line: None` (on `choices` or `id_pattern`) or prefer `line` over `doc_line` fail. A probe puts an Anomaly-style `status: bogus` assert at the status key's line 4, and per_match list_item failures at their item lines (10 and 14). The full `it` suite (711) and lib suite (740) pass unchanged, so section-scoped lines are unchanged. |
+| FND-002 | fixed | Round 1: TC-2303's `refs-alt` memo (no `row_id_column`) cites `G7` on two rows and expects two findings at the two row lines. The mutant dropping `line` from the sort/dedup key fails. |
+| FND-003 | fixed | Round 1: `tc2312_a_bridged_warning_keeps_its_line` bridges a grammar `adequate` warning and compares its lines with `validate_document_in_registry`'s. The mutant `.at_line(None)` on warnings fails. |
+| FND-004 | fixed | Round 1: FR-069 "When it runs" now states that an all-optional record with nothing located validates the empty record, with the absence at line 1. `tc2307_no_located_value_validates_the_empty_record` checks it, and the mutant returning no findings for a missing record fails. |
+| FND-005 | fixed | Round 1: FR-069 "Every error" now says the reason is `semantic` and the message begins with the code `semantic.record-invalid`, and that a bundle reports the same reason token. No stale "reason `semantic.record-invalid`" text remains, and spec_validate reports 0 failed. |

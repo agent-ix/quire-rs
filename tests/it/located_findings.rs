@@ -218,6 +218,7 @@ artifact_types:
       match:
         status: { from: frontmatter_field, path: [status], assert: { choices: [good] } }
         code: { from: frontmatter_field, path: [code], assert: { id_pattern: '^X-' } }
+        tag: { from: frontmatter_field, path: [tag], assert: { matches: '^ok' } }
         kind: { from: section_body, after_heading: Kind, assert: { choices: [alpha] } }
         note: { from: section_body, after_heading: Note, assert: { matches: '^fine' } }
         item: { from: list_item, under_section: Items, assert: { choices: [fine] } }
@@ -225,7 +226,7 @@ artifact_types:
         rows: { from: table_row, under_section: Rows, assert: { column_choices: { Id: [R1] } } }
 ";
     let registry = Registry::from_inline_parts(manifest.as_bytes(), &BTreeMap::new()).unwrap();
-    let doc = "---\ntype: Doc\nstatus: bad\ncode: Y-1\n---\n\n## Kind\n\nbeta\n\n## Note\n\nodd\n\n## Items\n\n- fine\n- nope\n\n### Odd\n\n## Rows\n\n| Id |\n|----|\n| R1 |\n| R9 |\n";
+    let doc = "---\ntype: Doc\nstatus: bad\ncode: Y-1\ntag: nope\n---\n\n## Kind\n\nbeta\n\n## Note\n\nodd\n\n## Items\n\n- fine\n- nope\n\n### Odd\n\n## Rows\n\n| Id |\n|----|\n| R1 |\n| R9 |\n";
     let result = validate_document_in_registry(&registry, registry.archetype("Doc").unwrap(), doc);
     let failing: Vec<Option<usize>> = result.errors.iter().map(|e| e.line).collect();
     let parsed = parse_document(doc);
@@ -235,6 +236,7 @@ artifact_types:
     let expected = [
         exposed(json!({"from": "frontmatter_field", "path": ["status"]}), 0),
         exposed(json!({"from": "frontmatter_field", "path": ["code"]}), 0),
+        exposed(json!({"from": "frontmatter_field", "path": ["tag"]}), 0),
         exposed(json!({"from": "section_body", "after_heading": "Kind"}), 0),
         exposed(json!({"from": "section_body", "after_heading": "Note"}), 0),
         exposed(json!({"from": "list_item", "under_section": "Items"}), 1),
@@ -246,7 +248,7 @@ artifact_types:
     ];
     assert_eq!(failing, expected, "{:?}", result.errors);
     assert_eq!(expected[0], Some(line_of(doc, "status: bad")));
-    assert_eq!(expected[4], Some(line_of(doc, "- nope")));
+    assert_eq!(expected[5], Some(line_of(doc, "- nope")));
 }
 
 // ───────────────── TC-2301..2303: located trace findings ─────────────────

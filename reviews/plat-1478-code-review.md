@@ -29,3 +29,13 @@ Ticket: PLAT-1478. One code-review pass with the rust-review lane over `git diff
 ## Verdict
 
 No correctness defect in the new code paths. All five findings are low (idiom, API surface, one edge-case line). The blocking issue is a spec gap, recorded in SR-20261112155216 (FR-033-AC-18 assert-line parity).
+
+## Dispositions
+
+| FND | Outcome | Reason |
+| --- | --- | --- |
+| FND-001 | fixed | Round 1 (f9de3f2, verified at e662590): `find_key` searches `.rev()`, so a duplicated key takes its last occurrence's line. Unit test `a_duplicated_key_takes_the_line_of_its_last_occurrence` and integration test `tc2300_a_duplicated_frontmatter_key_follows_the_value_the_parser_keeps` check it; the mutant dropping `.rev()` fails. |
+| FND-002 | fixed | Round 1: the `Concerns.absent` field and its match arm are removed, and `line` matches on `&at.property` alone. |
+| FND-003 | fixed | Round 1: `if value.starts_with('{') { Scope::Flow { col: line.text.len() - value.len(), .. } }`. |
+| FND-004 | fixed | Round 1: `match_value_lines` and `resolve_reference_at` are `pub(crate)`. |
+| FND-005 | fixed | Round 1: `match_value_lines` computes `body_line_offset` once per document and passes it through `eval_locator_located_at`. The second evaluation of each locator remains because FR-069 requires the record from the unmodified `extract::extract`. A comment in `record_check.rs` states this. Accepted as the spec's cost. |
