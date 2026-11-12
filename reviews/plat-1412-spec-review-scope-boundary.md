@@ -25,3 +25,9 @@ Ticket: PLAT-1412. This review checks how FR-082 allocates work between the engi
 ## Verdict
 
 FAIL: a sibling quire-cli requirement is required. FR-082 should own only the engine row field. The CLI column, its header, its JSON key and the `unassigned` label belong to quire-cli.
+
+## Dispositions
+
+| FND | Outcome | Reason |
+| --- | --- | --- |
+| FND-001 | fixed | FR-082 owns only the engine key; the `unassigned` label and the column moved to the sibling quire-cli FR-028 (quire-cli#166) on `quire matrix`. That departs from the ticket's `quire trace` wording, which is correct, because trace has no requirement rows. |

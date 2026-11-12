@@ -25,3 +25,9 @@ Ticket: PLAT-1412. This review checks the normative statements in FR-082's Descr
 ## Verdict
 
 Low only. Fix it together with the base and scope-boundary findings.
+
+## Dispositions
+
+| FND | Outcome | Reason |
+| --- | --- | --- |
+| FND-001 | still-open | The compound half is fixed (the CLI clause is gone). The core positive behaviour ('The engine reads the value ... and carries it as written. When the document has no such field, the engine leaves the key absent.') still has no SHALL; only the FR-053 and No-inference clauses do. One-line fix: 'The engine SHALL carry ... When ..., the engine SHALL leave the key absent.' |

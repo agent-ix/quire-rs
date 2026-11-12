@@ -25,3 +25,9 @@ Ticket: PLAT-1412. This review checks FR-082's three new `relationships:` edges 
 ## Verdict
 
 FAIL on ordering only: merge after (or with) spec-artifacts-iso#70. The FR-077 and StR-001 edges are correct. The missing FR-053/FR-050 edges are covered by SR-20261103118155 FND-001/FND-002.
+
+## Dispositions
+
+| FND | Outcome | Reason |
+| --- | --- | --- |
+| FND-001 | fixed | The PR body and the Dependencies section now say FR-082 lands together with spec-artifacts-iso#70 (FR-008) and quire-cli#166 (FR-028). Both are still open, so the merge must be one batch. |

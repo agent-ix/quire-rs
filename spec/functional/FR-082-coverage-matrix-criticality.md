@@ -23,8 +23,8 @@ one entry per source document, each with its criteria. Criticality therefore liv
 
 This requirement extends each `requirements[]` entry with an optional `criticality` key. The
 engine reads the value from the document's frontmatter `criticality` field
-([spec-artifacts-iso FR-008](ix://agent-ix/spec-artifacts-iso/FR-008)) and carries it as written.
-When the document has no such field, the engine leaves the key absent. The engine writes no
+([spec-artifacts-iso FR-008](ix://agent-ix/spec-artifacts-iso/FR-008)) and SHALL carry it as written.
+When the document has no such field, the engine SHALL leave the key absent. The engine writes no
 label, default or placeholder for a missing value; the human-readable label `unassigned` belongs
 to the renderer ([quire-cli FR-028](ix://agent-ix/quire-cli/spec/functional/FR-028)).
 

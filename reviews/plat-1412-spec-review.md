@@ -30,3 +30,14 @@ Ticket: PLAT-1412. Base checklist over the PR diff: the new FR-082 and its index
 ## Verdict
 
 FAIL: not mergeable. FND-001 (high) means the requirement cannot be implemented as written against FR-077's model. FND-002..FND-005 (medium) are to be fixed in the same round. Clean units: FR-082-AC-1 and AC-3 are well-formed once the host row exists. FR-082-AC-7 and CON-1 are testable and carry no ceremony. The index line is correct.
+
+## Dispositions
+
+| FND | Outcome | Reason |
+| --- | --- | --- |
+| FND-001 | fixed | 21016ba re-hosts the value on the FR-050 `coverage_matrix` `requirements[]` entry, read from that document's frontmatter; it no longer touches the FR-077 trace model. |
+| FND-002 | fixed | New section "Relation to FR-053 criticality" (both kept, neither fills the other, one absent-convention) plus FR-082-AC-7. |
+| FND-003 | fixed | AC-2: key absent when missing; AC-3: an authored `unassigned` stays distinguishable; the label moves to the renderer (quire-cli FR-028). |
+| FND-004 | fixed | AC-6 now only says an out-of-enumeration value is carried as written; the validation-diagnostic clause is gone. |
+| FND-005 | fixed | The CLI table/JSON criterion is removed from FR-082; rendering moved to quire-cli FR-028 (quire-cli#166). |
+| FND-006 | fixed | AC-5 covers `traces_to`, `satisfies`, `implements` and `refines`, and the No-inference statement covers any verb. |
