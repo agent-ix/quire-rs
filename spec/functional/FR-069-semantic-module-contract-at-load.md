@@ -336,7 +336,7 @@ record_validation:
   archetype and that `record_validation` must be a mapping or omitted, as the
   authoritative module-manifest schema (`$defs/RecordValidation`, an object)
   does. The refusal precedes the no-`semantic`-block refusal. `where: null` on a
-  `required_relations` entry is likewise refused (FR-058-AC-11); the remaining
+  `required_relations` entry is likewise refused (FR-058-AC-19); the remaining
   optional objects of an archetype entry carry no null-as-absent reading.
 
 Allocation note: `agent-ix/quoin` FR-070 says Quire "applies the same
