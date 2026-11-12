@@ -939,8 +939,8 @@ fn validate_required_locator(
             errors.push(ValidationError {
                 message,
                 line: failure
-                    .line
-                    .map(|l| to_doc_line(line_offset, l))
+                    .doc_line
+                    .or_else(|| failure.line.map(|l| to_doc_line(line_offset, l)))
                     .or_else(|| locator_line(doc, canonical, line_offset)),
                 reason,
             });

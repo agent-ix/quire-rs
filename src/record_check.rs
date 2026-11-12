@@ -48,6 +48,8 @@ pub(crate) fn record_findings(
     // FR-011 yields no record when every locator is optional and none located
     // anything: that is the empty record, so an absence is still reported.
     let record = Value::Object(extracted.records.into_iter().next().unwrap_or_default());
+    // The record comes from `extract` unmodified (FR-011), so each locator is
+    // evaluated a second time here for its lines; only opted-in archetypes pay.
     let lines = match_value_lines(doc, match_map);
     let absence = lines
         .get(&declaration.locate_absence_at)
@@ -62,8 +64,8 @@ pub(crate) fn record_findings(
             if at.property.as_ref().is_some_and(|p| locator_keys.contains(p)) {
                 return None;
             }
-            let line = match (&at.property, at.absent) {
-                (Some(property), false) => lines
+            let line = match &at.property {
+                Some(property) => lines
                     .get(property)
                     .and_then(|located| {
                         at.element
@@ -99,8 +101,6 @@ struct Concerns {
     property: Option<String>,
     /// The array element index, when the error sits inside one.
     element: Option<usize>,
-    /// A property that is missing, so it has no value to point at.
-    absent: bool,
 }
 
 impl Concerns {
@@ -116,14 +116,12 @@ impl Concerns {
                 return Self {
                     property: property.as_str().map(str::to_string),
                     element: None,
-                    absent: true,
                 };
             }
         }
         Self {
             property: first,
             element: segments.next().and_then(|s| s.parse().ok()),
-            absent: false,
         }
     }
 }

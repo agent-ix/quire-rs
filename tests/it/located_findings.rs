@@ -209,24 +209,44 @@ fn tc2300_a_locator_that_located_nothing_exposes_no_line() {
 #[trace("TC-2300", "FR-033-AC-18")]
 #[test]
 fn tc2300_an_assert_failure_and_the_exposed_line_are_the_same_number() {
-    let registry = Registry::from_inline_parts(
-        b"name: asserts\nversion: 0.1.0\nartifact_types:\n- name: Doc\n  body_extraction:\n    yield_pattern:\n      match:\n        kind:\n          from: section_body\n          after_heading: Kind\n          assert: { choices: [alpha] }\n        rows:\n          from: table_row\n          under_section: Rows\n          assert: { column_choices: { Id: [R1] } }\n",
-        &BTreeMap::new(),
-    )
-    .unwrap();
-    let doc =
-        "---\ntype: Doc\n---\n\n## Kind\n\nbeta\n\n## Rows\n\n| Id |\n|----|\n| R1 |\n| R9 |\n";
+    let manifest = "name: asserts
+version: 0.1.0
+artifact_types:
+- name: Doc
+  body_extraction:
+    yield_pattern:
+      match:
+        status: { from: frontmatter_field, path: [status], assert: { choices: [good] } }
+        code: { from: frontmatter_field, path: [code], assert: { id_pattern: '^X-' } }
+        kind: { from: section_body, after_heading: Kind, assert: { choices: [alpha] } }
+        note: { from: section_body, after_heading: Note, assert: { matches: '^fine' } }
+        item: { from: list_item, under_section: Items, assert: { choices: [fine] } }
+        title: { from: heading, level: 3, assert: { choices: [Known] } }
+        rows: { from: table_row, under_section: Rows, assert: { column_choices: { Id: [R1] } } }
+";
+    let registry = Registry::from_inline_parts(manifest.as_bytes(), &BTreeMap::new()).unwrap();
+    let doc = "---\ntype: Doc\nstatus: bad\ncode: Y-1\n---\n\n## Kind\n\nbeta\n\n## Note\n\nodd\n\n## Items\n\n- fine\n- nope\n\n### Odd\n\n## Rows\n\n| Id |\n|----|\n| R1 |\n| R9 |\n";
     let result = validate_document_in_registry(&registry, registry.archetype("Doc").unwrap(), doc);
     let failing: Vec<Option<usize>> = result.errors.iter().map(|e| e.line).collect();
-    let kind = eval_located(
-        &parse_document(doc),
-        &primitive(json!({"from": "section_body", "after_heading": "Kind"})),
-    );
-    let rows = eval_located(
-        &parse_document(doc),
-        &primitive(json!({"from": "table_row", "under_section": "Rows", "column": "Id"})),
-    );
-    assert_eq!(failing, [kind[0].line, rows[1].line], "{:?}", result.errors);
+    let parsed = parse_document(doc);
+    // The line exposed for the one failing value of each locator.
+    let exposed =
+        |locator: Value, value: usize| eval_located(&parsed, &primitive(locator))[value].line;
+    let expected = [
+        exposed(json!({"from": "frontmatter_field", "path": ["status"]}), 0),
+        exposed(json!({"from": "frontmatter_field", "path": ["code"]}), 0),
+        exposed(json!({"from": "section_body", "after_heading": "Kind"}), 0),
+        exposed(json!({"from": "section_body", "after_heading": "Note"}), 0),
+        exposed(json!({"from": "list_item", "under_section": "Items"}), 1),
+        exposed(json!({"from": "heading", "level": 3}), 0),
+        exposed(
+            json!({"from": "table_row", "under_section": "Rows", "column": "Id"}),
+            1,
+        ),
+    ];
+    assert_eq!(failing, expected, "{:?}", result.errors);
+    assert_eq!(expected[0], Some(line_of(doc, "status: bad")));
+    assert_eq!(expected[4], Some(line_of(doc, "- nope")));
 }
 
 // ───────────────── TC-2301..2303: located trace findings ─────────────────
@@ -378,13 +398,24 @@ fn tc2303_located_findings_are_deterministic_and_follow_the_modules_own_declarat
         "goal.md",
         "---\nid: GL-1\ntype: Goal\ntitle: g\n---\n\n## Goals\n\n| Goal |\n|------|\n| G1 |\n",
     );
-    let memo = "---\nid: MM-1\ntype: Memo\ntitle: m\n---\n\n## Intro\n\n| A | B |\n|---|---|\n| 1 | 2 |\n\n## Citations\n\n| Why | Cites |\n|-----|-------|\n| fine | G1 |\n| lost | G7 |\n";
+    let memo = "---\nid: MM-1\ntype: Memo\ntitle: m\n---\n\n## Intro\n\n| A | B |\n|---|---|\n| 1 | 2 |\n\n## Citations\n\n| Why | Cites |\n|-----|-------|\n| fine | G1 |\n| lost | G7 |\n| again | G7 |\n";
     write(&docs, "memo.md", memo);
     let registry = Registry::load_module(&module).unwrap();
     let report = validate_bundle_at(&docs, &registry, BundlePosture::Strict);
     let dangling = with_reason(&report, "dangling-trace-reference");
-    assert_eq!(dangling.len(), 1, "{:?}", report.errors);
-    assert_eq!(dangling[0].line, Some(line_of(memo, "| lost |")));
+    // No `row_id_column`: the two findings differ by line alone, and the same
+    // id dangling on two rows is two findings (FR-049-AC-19).
+    let mut found: Vec<Option<usize>> = dangling.iter().map(|f| f.line).collect();
+    found.sort();
+    assert_eq!(
+        found,
+        [
+            Some(line_of(memo, "| lost |")),
+            Some(line_of(memo, "| again |"))
+        ],
+        "{:?}",
+        report.errors
+    );
     fs::remove_dir_all(&module).ok();
     fs::remove_dir_all(&docs).ok();
 }
@@ -1046,4 +1077,79 @@ fn tc2312_bridged_findings_keep_the_line_of_the_document_result() {
         }
     }
     fs::remove_dir_all(&root).ok();
+}
+
+#[trace("TC-2312", "FR-049-AC-22")]
+#[test]
+fn tc2312_a_bridged_warning_keeps_its_line() {
+    let registry = inline(
+        "name: warn-fixture\nversion: 0.1.0\nartifact_types:\n- name: FR\n  grammar_ref: iso-spec-core\n",
+        &[],
+    );
+    let doc = "---\nid: FR-001\ntype: FR\ntitle: A requirement\n---\n\n## Description\n\nThe system shall provide adequate throughput.\n";
+    let direct = validate(&registry, "FR", doc);
+    let direct_lines: Vec<Option<usize>> = direct.warnings.iter().map(|w| w.line).collect();
+    assert!(
+        direct_lines.contains(&Some(line_of(doc, "adequate"))),
+        "{:?}",
+        direct.warnings
+    );
+
+    let root = bundle_dir("2312-warn");
+    write(&root, "FR-001.md", doc);
+    let report = validate_bundle_at(&root, &registry, BundlePosture::Strict);
+    let mut bridged: Vec<Option<usize>> = report
+        .warnings
+        .iter()
+        .filter(|f| f.pack.is_none())
+        .map(|f| f.line)
+        .collect();
+    let mut direct_lines = direct_lines;
+    bridged.sort();
+    direct_lines.sort();
+    assert_eq!(bridged, direct_lines);
+    fs::remove_dir_all(&root).ok();
+}
+
+#[trace("TC-2307", "FR-069-AC-24")]
+#[test]
+fn tc2307_no_located_value_validates_the_empty_record() {
+    // Every locator is optional and none located anything: FR-011 yields no
+    // record, the empty record is validated, and its absence is reported at
+    // the first line.
+    let manifest = "name: empty-fixture
+version: 0.1.0
+artifact_types:
+- name: Note
+  body_extraction:
+    yield_pattern:
+      match:
+        owner: { from: frontmatter_field, path: [owner], required: false }
+  record_validation:
+    schema: schemas/NoteFields.json
+    locate_absence_at: owner
+semantic:
+  contract_version: 1.0.0
+  package: agent-ix/empty-fixture
+  exports: [Note]
+  targets: [json-schema, markdown]
+";
+    let schema = json!({"$schema": DRAFT, "type": "object", "required": ["owner"]}).to_string();
+    let registry = inline(manifest, &[("schemas/NoteFields.json", &schema)]);
+    assert!(registry.failures().is_empty(), "{:?}", registry.failures());
+    let result = validate(&registry, "Note", "---\ntype: Note\n---\n\nbody\n");
+    assert_eq!(record_lines(&result), [Some(1)], "{:?}", result.errors);
+}
+
+#[trace("TC-2300", "FR-033-AC-18")]
+#[test]
+fn tc2300_a_duplicated_frontmatter_key_follows_the_value_the_parser_keeps() {
+    let doc = "---\nid: first\nname: x\nid: last\n---\n";
+    let located = eval_located(
+        &parse_document(doc),
+        &primitive(json!({"from": "frontmatter_field", "path": ["id"]})),
+    );
+    assert_eq!(located.len(), 1);
+    assert_eq!(located[0].value, json!("last"));
+    assert_eq!(located[0].line, Some(4));
 }

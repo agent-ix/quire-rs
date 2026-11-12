@@ -25,7 +25,7 @@ use crate::diagnostic::Diagnostic;
 use crate::error::QuireError;
 use crate::extract::dsl::{EdgeTarget, EmitEdge, ExtractionDsl, IterateKind, IterateOver};
 use crate::extract::locator::{
-    eval_locator, eval_locator_located, is_whole_value_mustache, Locator,
+    eval_locator, eval_locator_located_at, is_whole_value_mustache, Locator,
 };
 
 /// FR-011-AC-17: drop resolved values that are a whole-value `{{…}}`
@@ -47,14 +47,15 @@ fn drop_whole_value_placeholders(values: Vec<Value>) -> Vec<Value> {
 /// applies, in order. A `multiple: true` key's record array element `i` is the
 /// value at `lines[i]`; any other key's record value is the value at
 /// `lines[0]`. A key that located nothing has no entry.
-pub fn match_value_lines(
+pub(crate) fn match_value_lines(
     doc: &QuireDocument,
     match_map: &IndexMap<String, Locator>,
 ) -> IndexMap<String, Vec<Option<usize>>> {
+    let offset = crate::validate_document::body_line_offset(&doc.raw);
     match_map
         .iter()
         .filter_map(|(key, loc)| {
-            let (located, _) = eval_locator_located(doc, loc);
+            let (located, _) = eval_locator_located_at(doc, loc, offset);
             let lines: Vec<Option<usize>> = located
                 .into_iter()
                 .filter(|v| !matches!(&v.value, Value::String(s) if is_whole_value_mustache(s)))

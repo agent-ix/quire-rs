@@ -461,12 +461,27 @@ pub fn eval_locator(doc: &QuireDocument, locator: &Locator) -> (Vec<Value>, usiz
 /// For a fallback chain the lines are those of the primitive whose values are
 /// returned.
 pub fn eval_locator_located(doc: &QuireDocument, locator: &Locator) -> (Vec<LocatedValue>, usize) {
+    eval_locator_located_at(doc, locator, offset_of(doc))
+}
+
+/// The number of document lines before the body (frontmatter, any BOM).
+fn offset_of(doc: &QuireDocument) -> usize {
+    crate::validate_document::body_line_offset(&doc.raw)
+}
+
+/// [`eval_locator_located`] given the document's body-line `offset`, so a
+/// caller locating many values parses the frontmatter's extent once.
+pub(crate) fn eval_locator_located_at(
+    doc: &QuireDocument,
+    locator: &Locator,
+    offset: usize,
+) -> (Vec<LocatedValue>, usize) {
     let (located, position) = eval_locator_at(doc, locator);
     let primitive = match locator {
         Locator::Primitive(p) => p,
         Locator::Fallback(chain) => chain.get(position).unwrap_or_else(|| locator.canonical()),
     };
-    (resolve_lines(doc, primitive, located), position)
+    (resolve_lines(doc, primitive, located, offset), position)
 }
 
 fn eval_locator_at(doc: &QuireDocument, locator: &Locator) -> (Vec<Located>, usize) {
@@ -504,7 +519,7 @@ pub fn eval(doc: &QuireDocument, loc: &LocatorPrimitive) -> Vec<Value> {
 /// | `list_item` | the item |
 /// | `table_row` | the row's own line |
 pub fn eval_located(doc: &QuireDocument, loc: &LocatorPrimitive) -> Vec<LocatedValue> {
-    resolve_lines(doc, loc, eval_at(doc, loc))
+    resolve_lines(doc, loc, eval_at(doc, loc), offset_of(doc))
 }
 
 fn eval_at(doc: &QuireDocument, loc: &LocatorPrimitive) -> Vec<Located> {
@@ -517,11 +532,11 @@ fn resolve_lines(
     doc: &QuireDocument,
     loc: &LocatorPrimitive,
     located: Vec<Located>,
+    offset: usize,
 ) -> Vec<LocatedValue> {
     if located.is_empty() {
         return Vec::new();
     }
-    let offset = crate::validate_document::body_line_offset(&doc.raw);
     let frontmatter_line = match loc {
         LocatorPrimitive::FrontmatterField { path, .. } => {
             super::frontmatter_lines::key_line(&doc.raw, path)

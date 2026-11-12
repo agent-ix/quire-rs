@@ -164,7 +164,7 @@ pub fn resolve_reference(
 /// [`resolve_reference`] for the schema file named by the manifest key `field`
 /// of the archetype (`data_schema`, or `record_validation` for FR-069's located
 /// record validation): the refusal path is `<section>[<type>].<field>.schema`.
-pub fn resolve_reference_at(
+pub(crate) fn resolve_reference_at(
     source: &SchemaSource,
     reference: &DataSchemaRef,
     field: &str,

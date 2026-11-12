@@ -295,10 +295,15 @@ record_validation:
   type-only `validate_document` runs no record check, as today.
 - **When it runs.** If extraction aborts because a `required: true` locator
   located nothing, no yield record exists and no `semantic.record-invalid`
-  finding is raised; the locator's own missing-value finding is the report.
+  finding is raised; the locator's own missing-value finding is the report. If every `match` locator is
+  optional and none located a value, FR-011 yields no record and the empty
+  record is validated, so a `required` property is still reported (at the first
+  line of the document when the `locate_absence_at` locator located nothing).
 - **Every error.** Each error of the validator over the yield record is one
-  finding with reason `semantic.record-invalid`, naming the schema path and the
-  keyword's message, in the validator's error order (identical across runs).
+  finding whose reason is `semantic` (the FR-072 finding reason) and whose
+  message begins with the code `semantic.record-invalid`, naming the schema path
+  and the keyword's message, in the validator's error order (identical across
+  runs). A bundle reports the same reason token.
 - **One defect, one finding.** A record error whose property already has a locator finding in the same run (an
   `assert` failure, such as `choices`, on that key) is not reported again. The property of a `required` error is the key it names (the error sits at the record root, so it has no first path segment); the property of any other error is its first path segment. Both are match keys. A
   conditional absence has no locator finding, because its locator is

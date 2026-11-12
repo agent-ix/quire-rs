@@ -80,21 +80,24 @@ fn find_key(lines: &[Line<'_>], scope: Scope, key: &str) -> Option<(usize, Scope
     match scope {
         Scope::Block { from, to } => {
             let level = lines.get(from)?.indent;
+            // The last occurrence: a duplicated key keeps its last value.
             let index = (from..to)
+                .rev()
                 .find(|&i| lines[i].indent == level && after_key(lines[i].text, key).is_some())?;
             let line = &lines[index];
             let value = after_key(line.text, key)?.trim_start();
-            let next = match value.find('{').filter(|_| value.starts_with('{')) {
-                Some(offset) => Scope::Flow {
+            let next = if value.starts_with('{') {
+                Scope::Flow {
                     line: index,
-                    col: line.text.len() - value.len() + offset,
-                },
-                None => Scope::Block {
+                    col: line.text.len() - value.len(),
+                }
+            } else {
+                Scope::Block {
                     from: index + 1,
                     to: (index + 1..to)
                         .find(|&i| lines[i].indent <= line.indent)
                         .unwrap_or(to),
-                },
+                }
             };
             Some((line.number, next))
         }
@@ -154,6 +157,12 @@ mod tests {
         assert_eq!(key_line(raw, &path(&["flow", "b"])), Some(8));
         assert_eq!(key_line(raw, &path(&["tags"])), Some(9));
         assert_eq!(key_line(raw, &path(&["nope"])), None);
+    }
+
+    #[test]
+    fn a_duplicated_key_takes_the_line_of_its_last_occurrence() {
+        let raw = "---\nid: A\nname: x\nid: B\n---\n";
+        assert_eq!(key_line(raw, &path(&["id"])), Some(4));
     }
 
     #[test]
