@@ -54,6 +54,13 @@ pub struct AssertFailure {
     /// carried a row id anywhere, so two byte-identical strings at one locus
     /// were the whole report for two different rows.
     pub row_id: Option<String>,
+    /// 1-based **document** line (frontmatter counted) of the located value a
+    /// value-scoped assert (`choices`, `matches`, scalar `id_pattern`) failed
+    /// on: the same number [`crate::extract::locator::eval_located`] exposes
+    /// for that value (FR-033-AC-18). When set it takes precedence over
+    /// [`line`](Self::line), which is body-relative and cannot name a
+    /// frontmatter line.
+    pub doc_line: Option<usize>,
 }
 
 /// Evaluate `assert` for `primitive` against `doc`. Returns every failed
@@ -145,6 +152,7 @@ fn check_level(
                     message: format!("no heading found at asserted level {level}"),
                     line: None,
                     row_id: None,
+                    doc_line: None,
                 });
             }
             return;
@@ -161,12 +169,14 @@ fn check_level(
             ),
             line: Some(s.start_line),
             row_id: None,
+            doc_line: None,
         }),
         None => failures.push(AssertFailure {
             reason: AssertReason::Assert,
             message: format!("section not found for level assert (required level {level})"),
             line: None,
             row_id: None,
+            doc_line: None,
         }),
     }
 }
@@ -281,6 +291,7 @@ fn check_table(
                 message: "table not found for table_row assert".to_string(),
                 line: None,
                 row_id: None,
+                doc_line: None,
             });
         }
         return;
@@ -305,6 +316,7 @@ fn check_table(
                 message,
                 line,
                 row_id: None,
+                doc_line: None,
             });
         } else {
             // Headers conform; every row must also be as wide as the header.
@@ -318,6 +330,7 @@ fn check_table(
                         ),
                         line: row_lines.get(i).copied().or(line),
                         row_id: row_identity(&table, assert, row),
+                        doc_line: None,
                     });
                 }
             }
@@ -334,6 +347,7 @@ fn check_table(
                 ),
                 line,
                 row_id: None,
+                doc_line: None,
             });
         }
     }
@@ -348,6 +362,7 @@ fn check_table(
                 ),
                 line,
                 row_id: None,
+                doc_line: None,
             });
         }
     }
@@ -386,6 +401,7 @@ fn check_table(
                 ),
                 line,
                 row_id: None,
+                doc_line: None,
             });
             return;
         };
@@ -400,6 +416,7 @@ fn check_table(
                     // would read as two facts. The line is what this failure
                     // was missing.
                     row_id: None,
+                    doc_line: None,
                 });
             }
         }
@@ -465,6 +482,7 @@ fn table_column_index(
                 ),
                 line,
                 row_id: None,
+                doc_line: None,
             });
             None
         }
@@ -491,6 +509,7 @@ fn check_table_column_choices(
                 message: format!("column '{col}' cell '{cell}' is not one of {allowed:?}"),
                 line: row_lines.get(n).copied().or(line),
                 row_id: row_identity(table, assert, row),
+                doc_line: None,
             });
         }
     }
@@ -519,6 +538,7 @@ fn check_table_column_pattern(
                 ),
                 line: row_lines.get(n).copied().or(line),
                 row_id: row_identity(table, assert, row),
+                doc_line: None,
             });
         }
     }
@@ -537,8 +557,8 @@ fn check_value_choices(
     };
     let line = located_section_name(primitive)
         .and_then(|name| q_section(doc, &name).map(|s| s.start_line));
-    for v in &crate::extract::locator::eval(doc, primitive) {
-        if let Some(s) = v.as_str() {
+    for located in &crate::extract::locator::eval_located(doc, primitive) {
+        if let Some(s) = located.value.as_str() {
             let value = s.trim();
             if !choices.iter().any(|c| c == value) {
                 failures.push(AssertFailure {
@@ -546,6 +566,7 @@ fn check_value_choices(
                     message: format!("value '{value}' is not one of {choices:?}"),
                     line,
                     row_id: None,
+                    doc_line: located.line,
                 });
             }
         }
@@ -567,6 +588,7 @@ fn check_min_items(
                     message: format!("section '{name}' not found for min_items assert"),
                     line: None,
                     row_id: None,
+                    doc_line: None,
                 });
                 return;
             }
@@ -587,6 +609,7 @@ fn check_min_items(
             message: format!("list has {count} item(s) but assert requires at least {min_items}"),
             line,
             row_id: None,
+            doc_line: None,
         });
     }
 }
@@ -608,15 +631,15 @@ fn check_value_pattern(
             return;
         }
     };
-    let values = crate::extract::locator::eval(doc, primitive);
-    for v in &values {
-        if let Some(s) = v.as_str() {
+    for located in &crate::extract::locator::eval_located(doc, primitive) {
+        if let Some(s) = located.value.as_str() {
             if !re.is_match(s) {
                 failures.push(AssertFailure {
                     reason: AssertReason::Assert,
                     message: format!("value '{s}' does not match pattern /{}/", re.as_str()),
                     line: None,
                     row_id: None,
+                    doc_line: located.line,
                 });
             }
         }
@@ -643,11 +666,10 @@ fn check_content_matches(
     // A locator that resolves to no values (missing/empty section) does not
     // fire `matches` — that absence is the required/content_status path's
     // job, not this one (FR-033).
-    let values = crate::extract::locator::eval(doc, primitive);
     let line = located_section_name(primitive)
         .and_then(|name| q_section(doc, &name).map(|s| s.start_line));
-    for v in &values {
-        if let Some(s) = v.as_str() {
+    for located in &crate::extract::locator::eval_located(doc, primitive) {
+        if let Some(s) = located.value.as_str() {
             if !re.is_match(s) {
                 failures.push(AssertFailure {
                     reason: AssertReason::Assert,
@@ -657,6 +679,7 @@ fn check_content_matches(
                     ),
                     line,
                     row_id: None,
+                    doc_line: located.line,
                 });
             }
         }
@@ -678,12 +701,14 @@ fn resolve_regex(
         ),
         line: None,
         row_id: None,
+        doc_line: None,
     })?;
     Regex::new(&resolved).map_err(|e| AssertFailure {
         reason: AssertReason::Assert,
         message: format!("assert pattern is not a valid regex: {e}"),
         line: None,
         row_id: None,
+        doc_line: None,
     })
 }
 

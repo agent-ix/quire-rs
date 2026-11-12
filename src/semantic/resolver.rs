@@ -139,8 +139,8 @@ fn read_module_file(source: &SchemaSource, rel: &str) -> Result<Option<Vec<u8>>,
     }
 }
 
-fn locus(section: &str, object_type: &str, key: &str) -> String {
-    format!("{section}[{object_type}].data_schema.{key}")
+fn locus(section: &str, object_type: &str, field: &str, key: &str) -> String {
+    format!("{section}[{object_type}].{field}.{key}")
 }
 
 /// Resolve and compile one reference-form `data_schema` (FR-069 Behavior).
@@ -151,26 +151,47 @@ pub fn resolve_reference(
     object_type: &str,
     imports: &[String],
 ) -> Result<ResolvedSchema, SemanticFailure> {
+    resolve_reference_at(
+        source,
+        reference,
+        "data_schema",
+        section,
+        object_type,
+        imports,
+    )
+}
+
+/// [`resolve_reference`] for the schema file named by the manifest key `field`
+/// of the archetype (`data_schema`, or `record_validation` for FR-069's located
+/// record validation): the refusal path is `<section>[<type>].<field>.schema`.
+pub(crate) fn resolve_reference_at(
+    source: &SchemaSource,
+    reference: &DataSchemaRef,
+    field: &str,
+    section: &str,
+    object_type: &str,
+    imports: &[String],
+) -> Result<ResolvedSchema, SemanticFailure> {
     let rel = reference.schema.as_str();
     let bytes = match read_module_file(source, rel) {
         Err(e) if e == "escape" => {
             return Err(SemanticFailure::error(
                 "semantic.data-schema-escape",
-                locus(section, object_type, "schema"),
+                locus(section, object_type, field, "schema"),
                 format!("schema path {rel} leaves the module root"),
             ))
         }
         Err(e) => {
             return Err(SemanticFailure::error(
                 "semantic.data-schema-missing",
-                locus(section, object_type, "schema"),
+                locus(section, object_type, field, "schema"),
                 format!("schema file {rel} is {e}"),
             ))
         }
         Ok(None) => {
             return Err(SemanticFailure::error(
                 "semantic.data-schema-missing",
-                locus(section, object_type, "schema"),
+                locus(section, object_type, field, "schema"),
                 format!("schema file {rel} is not shipped in the module"),
             ))
         }
@@ -179,7 +200,7 @@ pub fn resolve_reference(
     let schema: Value = serde_json::from_slice(&bytes).map_err(|e| {
         SemanticFailure::error(
             "semantic.data-schema-not-json",
-            locus(section, object_type, "schema"),
+            locus(section, object_type, field, "schema"),
             format!("schema file {rel} is not JSON: {e}"),
         )
     })?;
@@ -188,7 +209,7 @@ pub fn resolve_reference(
     {
         return Err(SemanticFailure::error(
             "semantic.data-schema-not-schema",
-            locus(section, object_type, "schema"),
+            locus(section, object_type, field, "schema"),
             format!("schema file {rel} does not declare JSON Schema 2020-12"),
         ));
     }
@@ -226,7 +247,7 @@ pub fn resolve_reference(
         }
     };
     let relocate = |mut f: SemanticFailure| {
-        f.path = locus(section, object_type, "schema");
+        f.path = locus(section, object_type, field, "schema");
         f
     };
     let (documents, mut import_refs) =

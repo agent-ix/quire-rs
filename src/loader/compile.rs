@@ -62,6 +62,19 @@ impl std::fmt::Debug for ArchetypeCarryOver {
     }
 }
 
+/// A resolved `record_validation` declaration (FR-069): the schema of the
+/// record `body_extraction.yield_pattern.match` yields, and the `match` key
+/// whose locator an absence is reported at.
+#[derive(Clone)]
+pub struct CompiledRecordValidation {
+    /// The record schema document.
+    pub schema: Arc<Value>,
+    /// The schema compiled with every `$ref` resolved offline.
+    pub validator: Arc<Validator>,
+    /// A key of `yield_pattern.match`.
+    pub locate_absence_at: String,
+}
+
 /// A unified compiled archetype (FR-031, ADR 0003): one shape that may
 /// carry an optional frontmatter schema, an optional `body_extraction`
 /// DSL, an optional `data_schema`, and the carry-over fields.
@@ -97,6 +110,9 @@ pub struct CompiledArchetype {
     /// Parsed `body_extraction` DSL (FR-011), `None` when absent.
     /// Drives both `extract()` and `validate_document()` (FR-032).
     pub body_extraction: Option<ExtractionDsl>,
+    /// Located record validation (FR-069), `None` when the archetype declares
+    /// no `record_validation`.
+    pub record_validation: Option<CompiledRecordValidation>,
     /// Carry-over fields with no DSL representation (FR-031-AC-3).
     pub carry_over: ArchetypeCarryOver,
 }

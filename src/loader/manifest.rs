@@ -475,6 +475,11 @@ pub struct Archetype {
     pub data_schema: Option<Value>,
     #[serde(default)]
     pub body_extraction: Option<crate::extract::dsl::ExtractionDsl>,
+    /// `record_validation: { schema, locate_absence_at }` — FR-069 located
+    /// record validation. Kept raw: its shape is checked, and every refusal
+    /// named, by the loader (`loader::record_validation`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub record_validation: Option<Value>,
     /// Free-form passthrough for carry-over fields (`grammar_ref`,
     /// `allowed_links`, `has_plugin`, `defaults`, `construct`) and the retired fields
     /// the loader rejects.
@@ -508,6 +513,7 @@ impl Archetype {
         self.frontmatter_schema_ref.is_some()
             || self.data_schema.is_some()
             || self.body_extraction.is_some()
+            || self.record_validation.is_some()
             || OWNED.iter().any(|k| self.extras.contains_key(*k))
             || defaults_id_pattern
     }
