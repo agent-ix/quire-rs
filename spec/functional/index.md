@@ -81,3 +81,4 @@ description: "Index of artifacts in this directory."
 * [FR-076: Relationships extraction to RelationDecl[]](./FR-076-relationships-extraction.md)
 * [FR-077: Trace search: structural forward/inverse lookup over the symbol graph](./FR-077-trace-search-index.md)
 * [FR-081: Record-sections extraction to a module's own record keys](./FR-081-record-sections-extraction.md)
+* [FR-082: Requirement-level criticality in the coverage matrix](./FR-082-coverage-matrix-criticality.md)
