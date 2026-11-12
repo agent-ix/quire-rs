@@ -34,3 +34,19 @@ Covered and clean:
 ## Verdict
 
 Changes requested: FND-001 (medium) should be fixed in this PR. FND-002 and FND-003 (low) are wording fixes.
+
+## New findings (disposition pass 1)
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-004 | low | The new self-report (AC-22) does not say how a `values` entry is compared with the schema `enum`, or what "held by no `from` document" means. If the comparison is exact, `values: [Security]` against enum `security` is reported as "outside the enum" even though it selects every `security` document under the trim and ASCII-fold matching rule. If it is folded, it is not reported. Fix: state that both comparisons use the AC-14 matching rule (trim plus ASCII case folding), and add a `Security`-vs-`security` case to TC-2257. | spec/functional/FR-058-upward-trace-completeness.md:99-107, AC-22 |
+
+## Dispositions
+
+Round 1, checked at a5fc8b0. AC-22's design is consistent with FR-059. Both read the vocabulary at the `enum` of the named field in the projected (`from`) archetype's frontmatter schema, and neither restates it in the manifest or the engine. The archetype and field come from the declaration, so this is implementable without engine knowledge of any name, and CON-3 still holds. AC-22 reports under `trace:undeclared-relation-vocabulary`, the key AC-11 already uses for dead relation vocabulary. It applies AC-11's liveness rule (declared in the schema OR held by a document), so a schema-declared field with no documents yet is not reported. AC-22 diverges from FR-059-AC-7 on a field with no `enum`: here `values` goes unchecked, while FR-059-AC-7 has the declaration report itself. This divergence is correct, because a `where` field can be free-form while a coverage vocabulary cannot.
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | The wrong rationale is removed, and a declaration-side self-report is added (prose lines 99-107, AC-22, TC-2257 and its audit row). |
+| FND-002 | fixed | The prose and AC-14 say "ASCII case folding", and TC-2250 says "folds ASCII case". |
+| FND-003 | fixed | AC-19 (formerly AC-18) rejects a blank `field`, a blank `values` entry, and two `values` entries equal after trimming and ASCII case folding. TC-2254 lists the same cases. |

@@ -35,3 +35,11 @@ Downstream use, walked end to end against spec-artifacts-iso, spec-objects-secur
 ## Verdict
 
 Changes requested: FND-001 (medium) should be fixed in this PR. Otherwise the design is consistent with FR-058, FR-082, FR-049 and FR-057.
+
+## Dispositions
+
+Round 1, checked at a5fc8b0. Gate: `examples/spec_validate.rs` with the sibling process and iso roots gives 204 documents, 0 failed, 43 warnings. The FR-050-AC-58 audit check passes. The only FR-058 warnings are AC-10 and AC-11 (now lines 197-198), which are on main.
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | The YAML example uses `from: NFR`, and the prose says "applies to the `NFR` documents whose `quality_attribute` is ...". `NFR` is the archetype name in spec-artifacts-iso. |

@@ -101,7 +101,7 @@ selects zero documents and silently disables the relation, the same defect as a 
 kind nothing has. So a relation with `where` SHALL report under
 `trace:undeclared-relation-vocabulary` when `field` is neither a property of the `from`
 archetype's frontmatter schema nor carried by any `from` document, or when a `values` entry is
-outside that field's schema `enum` and held by no `from` document. Either condition alone makes
+outside that field's schema `enum` and held by no `from` document, both comparisons using the trim and ASCII case folding rule above. Either condition alone makes
 the field or entry live. When the schema declares no `enum` for the field, `values` entries are
 not checked, because nothing then says what a misspelling is.
 
@@ -206,7 +206,7 @@ case that needs no help.
 | FR-058-AC-19 | Module load rejects a `where` that cannot be executed, naming the relation and `where`, and applies none of the module's declaration: `where` not a mapping, `field` missing, blank or not a string, `values` missing, empty, not a list, or holding a blank or non-string entry, two `values` entries equal after trimming and ASCII case folding, and any key other than `field` and `values`. | Test (TC-2254) |
 | FR-058-AC-20 | A finding from a relation with `where` names the document, the declaration, the selector `field`, and the document's field value as authored; a finding from a relation without `where` is byte-identical to the pre-change text. | Test (TC-2255) |
 | FR-058-AC-21 | A relation without `where` selects exactly the documents it selected before this amendment, and over one bundle repeated runs of a relation with `where` yield identical findings in document-then-id order ([NFR-006](../non-functional/NFR-006-determinism.md)). | Test (TC-2256) |
-| FR-058-AC-22 | A relation with `where` reports under `trace:undeclared-relation-vocabulary`, naming the declaration and the entry, when `field` is neither a property of the `from` archetype's frontmatter schema nor carried by any `from` document, or when a `values` entry is outside that field's schema `enum` and held by no `from` document; a field or entry that is live by either route yields no such finding, and a field whose schema declares no `enum` has its `values` unchecked. | Test (TC-2257) |
+| FR-058-AC-22 | A relation with `where` reports under `trace:undeclared-relation-vocabulary`, naming the declaration and the entry, when `field` is neither a property of the `from` archetype's frontmatter schema nor carried by any `from` document, or when a `values` entry is outside that field's schema `enum` and held by no `from` document, where "outside" and "held" both compare after trimming and ASCII case folding as in FR-058-AC-14, so a `values` entry differing from an `enum` member only by case or surrounding whitespace is not reported; a field or entry that is live by either route yields no such finding, and a field whose schema declares no `enum` has its `values` unchecked. | Test (TC-2257) |
 
 ## Constraints
 

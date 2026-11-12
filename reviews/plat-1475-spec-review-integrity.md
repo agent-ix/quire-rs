@@ -27,3 +27,19 @@ Ticket: PLAT-1475. Checked completeness, consistency and atomicity of FR-058-AC-
 ## Verdict
 
 Mergeable with respect to integrity. All three findings are low: wording, status and link fixes.
+
+## New findings (disposition pass 1)
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-004 | low | The PR description is stale after the fix round. It still says `from: nfr-document`, "match is trim + case-fold", "FR-058-AC-12..20" and "TC-2248..TC-2255", and it does not mention AC-21, AC-22 or the self-report. These repos squash-merge, so the description can become the commit message on main. Fix: update the PR body to `from: NFR`, ASCII case folding, AC-12..22 and TC-2248..TC-2257, and mention the self-report. | quire-rs PR 652 description |
+
+## Dispositions
+
+Round 1, checked at a5fc8b0. Renumbering check: every mention of FR-058-AC-12..22 and TC-2248..TC-2257 in `spec/` is consistent. FR-058 has AC rows 12-22. Each TC row's "Verifies" cell names the renumbered AC (AC-16→TC-2251, AC-17→TC-2252, AC-18→TC-2253, AC-19→TC-2254, AC-20→TC-2255, AC-21→TC-2256, AC-22→TC-2257). The audit rows match, and the coverage row says AC-1..22. TC-2256 and TC-2257 do not exist on main. No other document in `spec/` cites FR-058-AC-12+ by number. The validator gives 0 failed.
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | The coverage row status reads "🚧 AC-1..11 Implemented; AC-12..22 (TC-2248..TC-2257) Open". |
+| FND-002 | fixed | AC-16 now covers only `exclude` (TC-2251), and AC-17 covers only the unchanged dead-vocabulary rule (TC-2252). |
+| FND-003 | fixed | The link is `./FR-082-coverage-matrix-criticality.md`, and the file exists. |
