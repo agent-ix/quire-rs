@@ -1787,3 +1787,184 @@ fn retained_native_origins_preserve_unmapped_rows_and_refuse_rendered_reordering
     );
     fs::remove_dir_all(root).unwrap();
 }
+
+// FR-082: requirement-level criticality on `coverage_matrix` entries.
+
+fn criticality_doc(id: &str, frontmatter_extra: &str, priority: &str) -> String {
+    format!(
+        "---\nid: {id}\ntype: FR\ntitle: A requirement\n{frontmatter_extra}---\n\n\
+         ## Acceptance Criteria\n\n\
+         | ID | Criteria | Verification | Priority |\n|----|----------|--------------|----------|\n\
+         | {id}-AC-1 | The system shall do it. | Test (TC-001) | {priority} |\n"
+    )
+}
+
+fn entry(report: &CoverageReport, document: &str) -> serde_json::Value {
+    let value = serde_json::to_value(report).expect("serialize report");
+    value["coverage_matrix"]
+        .as_array()
+        .expect("coverage_matrix")
+        .iter()
+        .find(|e| e["document"] == document)
+        .unwrap_or_else(|| panic!("no entry for {document}"))
+        .clone()
+}
+
+#[trace(
+    "FR-082-AC-1",
+    "FR-082-AC-2",
+    "FR-082-AC-3",
+    "FR-082-AC-4",
+    "FR-082-AC-6"
+)]
+#[test]
+fn fr082_entries_carry_their_own_value_as_written_and_absent_when_missing() {
+    let root = tmpdir("fr082-values");
+    write(
+        &root,
+        "spec/FR-001.md",
+        &criticality_doc("FR-001", "criticality: low\n", ""),
+    );
+    write(
+        &root,
+        "spec/FR-002.md",
+        &criticality_doc("FR-002", "criticality: medium\n", ""),
+    );
+    write(
+        &root,
+        "spec/FR-003.md",
+        &criticality_doc("FR-003", "criticality: high\n", ""),
+    );
+    write(&root, "spec/FR-004.md", &criticality_doc("FR-004", "", ""));
+    write(
+        &root,
+        "spec/FR-005.md",
+        &criticality_doc("FR-005", "criticality: unassigned\n", ""),
+    );
+    write(
+        &root,
+        "spec/FR-006.md",
+        &criticality_doc("FR-006", "criticality: High\n", ""),
+    );
+    write(&root, "src/lib.rs", "//! fixture\n");
+    let report = report_over(&root, "obligations");
+
+    assert_eq!(entry(&report, "spec/FR-001.md")["criticality"], "low");
+    assert_eq!(entry(&report, "spec/FR-002.md")["criticality"], "medium");
+    assert_eq!(entry(&report, "spec/FR-003.md")["criticality"], "high");
+    // AC-2: no key at all, not null, empty or `unassigned`.
+    assert!(entry(&report, "spec/FR-004.md")
+        .as_object()
+        .unwrap()
+        .get("criticality")
+        .is_none());
+    // AC-3: a literal `unassigned` is a present value.
+    assert_eq!(
+        entry(&report, "spec/FR-005.md")["criticality"],
+        "unassigned"
+    );
+    // AC-6: out-of-enumeration values are carried verbatim.
+    assert_eq!(entry(&report, "spec/FR-006.md")["criticality"], "High");
+
+    let _ = fs::remove_dir_all(&root);
+}
+
+#[trace("FR-082-AC-5")]
+#[test]
+fn fr082_criticality_is_never_inferred_across_relationships() {
+    let root = tmpdir("fr082-inference");
+    write(
+        &root,
+        "spec/FR-001.md",
+        &criticality_doc("FR-001", "criticality: high\n", ""),
+    );
+    for (n, verb) in ["traces_to", "satisfies", "implements", "refines"]
+        .iter()
+        .enumerate()
+    {
+        let id = format!("FR-1{n:02}");
+        write(
+            &root,
+            &format!("spec/{id}.md"),
+            &criticality_doc(
+                &id,
+                &format!("relationships:\n  - target: \"ix://x/y/FR-001\"\n    type: \"{verb}\"\n"),
+                "",
+            ),
+        );
+    }
+    write(&root, "src/lib.rs", "//! fixture\n");
+    let report = report_over(&root, "obligations");
+    assert_eq!(entry(&report, "spec/FR-001.md")["criticality"], "high");
+    for n in 0..4 {
+        assert!(entry(&report, &format!("spec/FR-1{n:02}.md"))
+            .as_object()
+            .unwrap()
+            .get("criticality")
+            .is_none());
+    }
+    let _ = fs::remove_dir_all(&root);
+}
+
+#[trace("FR-082-AC-7")]
+#[test]
+fn fr082_requirement_and_obligation_criticality_never_fill_each_other() {
+    let root = tmpdir("fr082-levels");
+    // Frontmatter value, no obligation criticality.
+    write(
+        &root,
+        "spec/FR-001.md",
+        &criticality_doc("FR-001", "criticality: high\n", ""),
+    );
+    // No frontmatter value, obligation criticality P1.
+    write(
+        &root,
+        "spec/FR-002.md",
+        &criticality_doc("FR-002", "", "P1"),
+    );
+    write(&root, "src/lib.rs", "//! fixture\n");
+    let report = report_over(&root, "obligations");
+    let registry = Registry::load_module(&fixture_module("obligations")).expect("load");
+    let model = registry.traceability().cloned().unwrap_or_default();
+    let (obligations, _) = quire_rs::obligation::derive(
+        &Spec::from_path(&root.join("spec")),
+        &root.join("spec"),
+        &model,
+    );
+    let by_doc = |d: &str| obligations.iter().find(|o| o.document == d).unwrap();
+    assert_eq!(by_doc("FR-001.md").criticality, None);
+    assert_eq!(by_doc("FR-002.md").criticality.as_deref(), Some("P1"));
+    assert_eq!(entry(&report, "spec/FR-001.md")["criticality"], "high");
+    assert!(entry(&report, "spec/FR-002.md")
+        .as_object()
+        .unwrap()
+        .get("criticality")
+        .is_none());
+    let _ = fs::remove_dir_all(&root);
+}
+
+#[trace("FR-082-AC-8", "FR-082-AC-9")]
+#[test]
+fn fr082_matrix_is_deterministic_and_leaves_documents_untouched() {
+    let root = tmpdir("fr082-determinism");
+    write(
+        &root,
+        "spec/FR-001.md",
+        &criticality_doc("FR-001", "criticality: low\n", ""),
+    );
+    write(&root, "spec/FR-002.md", &criticality_doc("FR-002", "", ""));
+    write(&root, "src/lib.rs", "//! fixture\n");
+    let before = (
+        fs::read(root.join("spec/FR-001.md")).unwrap(),
+        fs::read(root.join("spec/FR-002.md")).unwrap(),
+    );
+    let a = report_over(&root, "obligations");
+    let b = report_over(&root, "obligations");
+    assert_eq!(a.to_json(), b.to_json());
+    let after = (
+        fs::read(root.join("spec/FR-001.md")).unwrap(),
+        fs::read(root.join("spec/FR-002.md")).unwrap(),
+    );
+    assert_eq!(before, after);
+    let _ = fs::remove_dir_all(&root);
+}

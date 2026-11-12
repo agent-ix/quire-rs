@@ -1079,6 +1079,10 @@
           "type": "string",
           "description": "The obligation group's stating document, scope-relative."
         },
+        "criticality": {
+          "type": "string",
+          "description": "FR-082: the document's frontmatter `criticality`, as written. ABSENT when the document states none; never defaulted or inferred."
+        },
         "criteria": {
           "type": "array",
           "items": {
