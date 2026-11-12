@@ -66,13 +66,13 @@ a three-node cycle is one finding rather than three.
 
 `from` selects by kind, and some obligations belong to only part of a kind. The reverse rule "every
 security- or safety-classified requirement traces to an upstream threat or hazard, else it is
-unjustified scope" applies to the `nfr-document` documents whose `quality_attribute` is `security`
+unjustified scope" applies to the `NFR` documents whose `quality_attribute` is `security`
 or `safety`, not to every NFR. An optional `where` on a relation expresses that:
 
 ```yaml
 required_relations:
   - name: security-safety-nfr-needs-upstream-hazard
-    from: nfr-document
+    from: NFR
     where: { field: quality_attribute, values: [security, safety] }
     edges: [mitigates]
     to: [threat, hazard]
@@ -86,15 +86,24 @@ values, exactly as it names `from` and `edges`. A relation without `where` oblig
 document, as before.
 
 **How the field is read.** The engine reads the top-level frontmatter key `field` of each `from`
-document, the same frontmatter source [FR-082](./FR-082-requirement-criticality-in-the-coverage-matrix.md)
+document, the same frontmatter source [FR-082](./FR-082-coverage-matrix-criticality.md)
 reads `criticality` from. A document is **selected** when that value is a string equal to one of
-`values`, comparing after trimming whitespace and folding case — the comparison
+`values`, comparing after trimming whitespace and ASCII case folding — the comparison
 [FR-049](./FR-049-verification-reference-integrity.md)-AC-13 applies to kind values. A document is
 **not selected**, and yields no finding of any kind, when the field is absent, null, empty, not a
-string, or a string outside `values`. Not being selected is not a defect: the engine holds no
-list of permitted values (the module schema owns the enumeration), so it cannot call an unlisted
-value wrong and SHALL NOT try. A misspelt entry in `values` therefore selects nothing; the engine
-does not guess, and the field's own schema is where an unknown enumeration member is caught.
+string, or a string outside `values`. Not being selected is not a defect: a document outside `values` is correctly out of scope, and the
+engine SHALL NOT call an unlisted value wrong. The engine holds no list of permitted values; the
+vocabulary comes from the `from` archetype's frontmatter schema, read the way
+[FR-059](./FR-059-declared-vocabulary-coverage.md) reads a field's `enum`.
+
+**A declaration that selects nothing reports itself.** A misspelt `field` or `values` entry
+selects zero documents and silently disables the relation, the same defect as a `from` naming a
+kind nothing has. So a relation with `where` SHALL report under
+`trace:undeclared-relation-vocabulary` when `field` is neither a property of the `from`
+archetype's frontmatter schema nor carried by any `from` document, or when a `values` entry is
+outside that field's schema `enum` and held by no `from` document. Either condition alone makes
+the field or entry live. When the schema declares no `enum` for the field, `values` entries are
+not checked, because nothing then says what a misspelling is.
 
 **What `where` narrows.** Only the obliged side. It selects which `from` documents carry the
 obligation. It does not filter the documents at the other end of the edge, which remain governed
@@ -189,13 +198,15 @@ case that needs no help.
 | FR-058-AC-11 | A relation naming a document kind that no loaded module declares **and** no document in the bundle is SHALL report itself under `trace:undeclared-relation-vocabulary`, naming the kind and the declaration. Verbs are deliberately **not** checked this way — an absent `edge_types` entry is legal (FR-041-AC-2) and a misspelt verb already fails loudly. | Test (TC-908) |
 | FR-058-AC-12 | A relation with `where: {field: F, values: [V1, V2]}` reports a `from` document whose frontmatter `F` is `V1` or `V2` and which has no accepted edge; it does not report a selected document that has the edge, and it does not report a `from` document whose `F` is a string outside `values`, with or without the edge. | Test (TC-2248) |
 | FR-058-AC-13 | A `from` document whose field `F` is absent, null, empty, a number, a list or a mapping is not selected and yields no finding, and the run neither errors nor warns about it. | Test (TC-2249) |
-| FR-058-AC-14 | The field value matches after trimming whitespace and folding case, so ` Security ` selects against `values: [security]`; `values` entries match the same way, and a value that differs by more than case and surrounding whitespace is not selected. | Test (TC-2250) |
+| FR-058-AC-14 | The field value matches after trimming whitespace and ASCII case folding, so ` Security ` selects against `values: [security]`; `values` entries match the same way, and a value that differs by more than case and surrounding whitespace is not selected. | Test (TC-2250) |
 | FR-058-AC-15 | `where` narrows only the obliged `from` side: with `direction: outgoing` and with `direction: incoming`, an edge to or from a document whose own `F` is outside `values` still satisfies the relation, and `to` is constrained exactly as without `where`. | Test (TC-2248) |
-| FR-058-AC-16 | A document that matches `where` and an `exclude` glob is not reported; a document that matches `where` and no glob is. A relation naming a kind that no module declares and no document is still reports under `trace:undeclared-relation-vocabulary` whether or not it carries `where`. | Test (TC-2251) |
-| FR-058-AC-17 | A relation with `where` reports under its own `trace:<check>` key, advisory by default: a bundle whose only faults are such findings stays valid under both `Okf` and `Strict`, and mapping the key to `error` or `off` through the FR-057 registry promotes or drops exactly those findings. | Test (TC-2252) |
-| FR-058-AC-18 | Module load rejects a `where` that cannot be executed, naming the relation and `where`, and applies none of the module's declaration: `where` not a mapping, `field` missing, empty or not a string, `values` missing, empty, not a list, or holding an empty or non-string entry, and any key other than `field` and `values`. | Test (TC-2253) |
-| FR-058-AC-19 | A finding from a relation with `where` names the document, the declaration, the selector `field`, and the document's field value as authored; a finding from a relation without `where` is byte-identical to the pre-change text. | Test (TC-2254) |
-| FR-058-AC-20 | A relation without `where` selects exactly the documents it selected before this amendment, and over one bundle repeated runs of a relation with `where` yield identical findings in document-then-id order ([NFR-006](../non-functional/NFR-006-determinism.md)). | Test (TC-2255) |
+| FR-058-AC-16 | A document that matches `where` and an `exclude` glob is not reported; a document that matches `where` and no glob is. | Test (TC-2251) |
+| FR-058-AC-17 | A relation naming a document kind that no module declares and no document is still reports under `trace:undeclared-relation-vocabulary` whether or not it carries `where`. | Test (TC-2252) |
+| FR-058-AC-18 | A relation with `where` reports under its own `trace:<check>` key, advisory by default: a bundle whose only faults are such findings stays valid under both `Okf` and `Strict`, and mapping the key to `error` or `off` through the FR-057 registry promotes or drops exactly those findings. | Test (TC-2253) |
+| FR-058-AC-19 | Module load rejects a `where` that cannot be executed, naming the relation and `where`, and applies none of the module's declaration: `where` not a mapping, `field` missing, blank or not a string, `values` missing, empty, not a list, or holding a blank or non-string entry, two `values` entries equal after trimming and ASCII case folding, and any key other than `field` and `values`. | Test (TC-2254) |
+| FR-058-AC-20 | A finding from a relation with `where` names the document, the declaration, the selector `field`, and the document's field value as authored; a finding from a relation without `where` is byte-identical to the pre-change text. | Test (TC-2255) |
+| FR-058-AC-21 | A relation without `where` selects exactly the documents it selected before this amendment, and over one bundle repeated runs of a relation with `where` yield identical findings in document-then-id order ([NFR-006](../non-functional/NFR-006-determinism.md)). | Test (TC-2256) |
+| FR-058-AC-22 | A relation with `where` reports under `trace:undeclared-relation-vocabulary`, naming the declaration and the entry, when `field` is neither a property of the `from` archetype's frontmatter schema nor carried by any `from` document, or when a `values` entry is outside that field's schema `enum` and held by no `from` document; a field or entry that is live by either route yields no such finding, and a field whose schema declares no `enum` has its `values` unchecked. | Test (TC-2257) |
 
 ## Constraints
 
@@ -203,7 +214,7 @@ case that needs no help.
 |----|-----------|------|------------|
 | FR-058-CON-1 | Every field of `TraceabilityModel` SHALL survive both `is_empty` and the cross-module merge. Neither is an exhaustive `match`, so a field added to the struct and to nothing else compiles and is silently dropped — which is exactly what happened while building this FR, twice in one change. | Design | Test (TC-905) |
 | FR-058-CON-2 | The engine SHALL contain no archetype name, verb, or direction belonging to any particular traceability chain. A second chain is a manifest entry, never a second check. | Design | Inspection |
-| FR-058-CON-3 | The engine SHALL contain no frontmatter field name and no field value for `where`. The manifest declares both, and the engine holds no enumeration of permitted values. | Design | Inspection |
+| FR-058-CON-3 | The engine SHALL contain no frontmatter field name and no field value for `where`. The manifest declares both, and the engine holds no enumeration of permitted values: any vocabulary it checks `values` against comes from the `from` archetype's frontmatter schema. | Design | Inspection |
 
 ## Dependencies
 
