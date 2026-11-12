@@ -519,7 +519,7 @@ mod tests {
 
     // (b) a body lacking the pattern produces exactly one finding with the
     // rule's severity.
-    #[trace("TC-609")]
+    #[trace("FR-036-AC-6")]
     #[test]
     fn tc609_section_body_pattern_mismatch_yields_one_finding() {
         let doc = parse_document("## Statement\nThe system does the thing.\n");
@@ -531,7 +531,7 @@ mod tests {
     }
 
     // (c) archetype scoping skips non-matching archetypes.
-    #[trace("TC-609")]
+    #[trace("FR-036-AC-6")]
     #[test]
     fn tc609_section_body_pattern_archetype_scoping() {
         let doc = parse_document("## Statement\nThe system does the thing.\n");
@@ -541,7 +541,7 @@ mod tests {
     }
 
     // (d) a missing section yields no finding.
-    #[trace("TC-609")]
+    #[trace("FR-036-AC-6")]
     #[test]
     fn tc609_section_body_pattern_missing_section_yields_no_finding() {
         let doc = parse_document("## Other\nprose\n");
@@ -551,7 +551,7 @@ mod tests {
 
     // (e) YAML round-trip for the new `type: section_body_pattern` rule,
     // including a custom `message`.
-    #[trace("TC-609")]
+    #[trace("FR-036-AC-6")]
     #[test]
     fn tc609_section_body_pattern_yaml_round_trip() {
         let yaml = r#"
@@ -581,7 +581,7 @@ mod tests {
     // (f) a token authored inside a subsection counts — the rule matches the
     // section's full subtree, not just its direct body (e.g. an `IT-XXX-SC-NN`
     // id under a `### Step` heading satisfies an IT success-criteria rule).
-    #[trace("TC-609")]
+    #[trace("FR-036-AC-6")]
     #[test]
     fn tc609_section_body_pattern_matches_in_subsection() {
         let rule = LintRule::SectionBodyPattern {

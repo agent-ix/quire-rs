@@ -1353,7 +1353,7 @@ mod props_metamorphic {
         /// before the fixpoint loop was the chained range
         /// `FR-375..FR-432..FR-432`, which left a `..` the pattern rejects.
         #[test]
-        #[trace("TC-892")]
+        #[trace("FR-049-AC-1")]
         fn tc892_reference_cell_normalization_is_idempotent(
             s in cellish(),
             strip in any::<bool>(),
@@ -1371,7 +1371,7 @@ mod props_metamorphic {
         /// returned unchanged — normalization is opt-in (CR-015), so the
         /// no-declaration path must be the identity.
         #[test]
-        #[trace("TC-892")]
+        #[trace("FR-049-AC-1")]
         fn tc892_no_flags_is_the_identity(s in cellish()) {
             prop_assert_eq!(super::normalize_reference_cell(&s, false, false), s.clone());
         }
@@ -1602,7 +1602,7 @@ mod cr069_regressions {
     /// A chained range expanded only its leftmost pair and left a `..` behind,
     /// which the declaration's pattern then rejects — so a cell the engine could
     /// have read reported as a dangling trace reference instead.
-    #[trace("TC-892")]
+    #[trace("FR-049-AC-1")]
     #[test]
     fn tc892_chained_ranges_expand_completely() {
         let out = super::normalize_reference_cell("FR-001..FR-003..FR-005", false, true);

@@ -425,7 +425,7 @@ fn one_dangling_ref(tag: &str) -> PathBuf {
     root
 }
 
-#[trace("TC-883")]
+#[trace("FR-057-AC-1", "FR-057-AC-2", "FR-057-AC-3")]
 // a mapped key promotes, demotes, and (FR-057-AC-1/AC-2/AC-3)
 // suppresses a corpus check — the three states posture alone could not reach.
 #[test]
@@ -558,7 +558,7 @@ fn tc885_cli_shaped_overrides_reach_corpus_checks() {
     fs::remove_dir_all(&root).ok();
 }
 
-#[trace("TC-886")]
+#[trace("FR-057-AC-7", "FR-057-AC-8", "FR-057-AC-9")]
 // the finding carries the level that was (FR-057-AC-7/AC-8/AC-9)
 // applied; the `reason` token consumers match on is unchanged; and every pack
 // finding has a key `--severity` would accept — asserted over what the engine

@@ -1137,7 +1137,7 @@ mod tests {
     /// each of these adversarial fixtures reports an *imbalance*, which is
     /// exactly the false rejection this property forbids — so this test is
     /// not satisfiable by an implementation that regresses to text scanning.
-    #[trace("TC-804")]
+    #[trace("FR-051-AC-15")]
     #[test]
     fn tc804_delimiters_in_string_and_comment_content_do_not_move_symbols() {
         // Each fixture is `fn kept() { <one line holding the adversarial
@@ -1182,7 +1182,7 @@ mod tests {
     /// being counted, asserted through `parse`'s outcome (a function
     /// spanning both lines extracts with the right `end_line`) rather than
     /// through `ScanState` fields that no longer exist.
-    #[trace("TC-804")]
+    #[trace("FR-051-AC-15")]
     #[test]
     fn tc804_a_delimiter_carried_across_lines_does_not_move_symbols() {
         let source = concat!(
@@ -1629,7 +1629,7 @@ mod tests {
     /// Asserts `leading_line` directly, not only that the classification
     /// survives — a fixture checking binding alone can pass for the wrong
     /// reason.
-    #[trace("TC-1885")]
+    #[trace("FR-051-AC-25")]
     #[test]
     fn tc1885_a_split_attribute_does_not_truncate_the_leading_span() {
         let source = concat!(
@@ -1650,7 +1650,7 @@ mod tests {
     /// `TC-1886` (`FR-051-AC-25`), PLAT-846: a block doc comment (`/** ...
     /// */`) joins the leading span, the same defect class as PLAT-69.
     /// Asserts `leading_line`.
-    #[trace("TC-1886")]
+    #[trace("FR-051-AC-25")]
     #[test]
     fn tc1886_a_block_doc_comment_joins_the_leading_span() {
         let source = "/** doc */\n#[test]\nfn documented() {\n}\n";
@@ -1665,7 +1665,7 @@ mod tests {
     /// `TC-1879` (`FR-051-AC-25`), PLAT-305 regression pin (already passing
     /// on `main`, fixed by CR-061 — not a demonstrated improvement of this
     /// port): `#[ignore]` before `#[test]` is still found.
-    #[trace("TC-1879")]
+    #[trace("FR-051-AC-25")]
     #[test]
     fn tc1879_ignore_before_test_is_still_found() {
         let source = "#[ignore]\n#[test]\nfn t() {\n}\n";
@@ -1989,7 +1989,7 @@ mod tests {
     /// `#[ignore]` marks only a function AC-3 classifies as a test: a plain
     /// `fn` carrying the attribute, top-level or inside `proptest!`, is a
     /// `Function` and stays `ignored: false`.
-    #[trace("TC-1939")]
+    #[trace("FR-051-AC-27")]
     #[test]
     fn tc1939_ignore_on_a_non_test_fn_is_a_control() {
         let source = concat!(

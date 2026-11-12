@@ -451,7 +451,7 @@ fn optcol_doc(header: &str, row: &str) -> String {
     )
 }
 
-#[trace("TC-770")]
+#[trace("FR-033-AC-14")]
 #[test]
 fn tc770_optional_column_may_be_absent() {
     let r = optcol_registry();
@@ -468,7 +468,7 @@ fn tc770_optional_column_may_be_absent() {
     );
 }
 
-#[trace("TC-771")]
+#[trace("FR-033-AC-14")]
 #[test]
 fn tc771_optional_column_may_be_present() {
     let r = optcol_registry();
@@ -485,7 +485,7 @@ fn tc771_optional_column_may_be_present() {
     );
 }
 
-#[trace("TC-772")]
+#[trace("FR-033-AC-14")]
 #[test]
 fn tc772_only_the_declared_column_is_optional() {
     let r = optcol_registry();
@@ -548,7 +548,7 @@ fn optcol_choices_registry() -> Registry {
         .expect("inline module with optional_columns + column_choices loads")
 }
 
-#[trace("TC-773")]
+#[trace("FR-033-AC-15")]
 #[test]
 fn tc773_column_choices_does_not_fire_on_an_omitted_optional_column() {
     let r = optcol_choices_registry();
@@ -565,7 +565,7 @@ fn tc773_column_choices_does_not_fire_on_an_omitted_optional_column() {
     );
 }
 
-#[trace("TC-774")]
+#[trace("FR-033-AC-15")]
 #[test]
 fn tc774_column_choices_still_applies_when_the_optional_column_is_present() {
     let r = optcol_choices_registry();

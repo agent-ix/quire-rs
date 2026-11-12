@@ -868,7 +868,6 @@ mod tests {
     // FR-026-CON-1, CR-067: `harvest_edges` — the single-document
     // surface behind the Python binding — reads the same grammar as corpus
     // resolution, because both go through `harvest_body_links`.
-    #[trace("TC-882")]
     #[test]
     fn tc882_single_doc_harvest_reads_the_same_grammar() {
         let doc = loaded(

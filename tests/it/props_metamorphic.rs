@@ -78,7 +78,7 @@ proptest! {
     /// an empty section, a section whose content is only blank lines, two
     /// adjacent headings with nothing between them.
     #[test]
-    #[trace("TC-896")]
+    #[trace("FR-022-AC-6", "FR-022-AC-7")]
     fn tc896_rewriting_a_section_with_its_own_content_is_the_identity(text in any_document()) {
         let doc = parse_document(&text);
         for section in &doc.sections {
@@ -147,7 +147,7 @@ proptest! {
 /// seed rather than under the one that happened to find them. A property that
 /// only fails one run in N is a flaky gate; a property plus its witnesses is a
 /// gate.
-#[trace("TC-896")]
+#[trace("FR-022-AC-6", "FR-022-AC-7")]
 #[test]
 fn tc896_regressions_from_the_generator() {
     const FM: &str = "---\nid: X-1\ntype: note\n---\n";

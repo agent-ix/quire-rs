@@ -127,7 +127,7 @@ mod props_metamorphic {
         /// already a slug. Block ids are minted from this, so a non-idempotent
         /// slug would make an id depend on how it was reached.
         #[test]
-        #[trace("TC-893")]
+        #[trace("FR-009-AC-1", "FR-009-AC-3", "FR-009-AC-6")]
         fn tc893_slug_is_idempotent(s in "\\PC*") {
             let once = super::slug(&s);
             prop_assert_eq!(super::slug(&once), once.clone(), "input={:?}", s);
@@ -137,7 +137,7 @@ mod props_metamorphic {
         /// lowercase ASCII alphanumerics and `-` only, for any input including
         /// non-ASCII (FR-009-AC-6).
         #[test]
-        #[trace("TC-893")]
+        #[trace("FR-009-AC-1", "FR-009-AC-3", "FR-009-AC-6")]
         fn tc893_slug_alphabet_is_closed(s in "\\PC*") {
             let out = super::slug(&s);
             prop_assert!(

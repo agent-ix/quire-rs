@@ -302,7 +302,7 @@ mod tests {
 
     // FR-025-AC-6 + StR-006-AC-1: queries do no filesystem IO
     // after construction — load once, then drop the directory.
-    #[trace("TC-485")]
+    #[trace("FR-025-AC-6", "StR-006-AC-1", "US-012-AC-5")]
     #[test]
     fn queries_need_no_filesystem_after_construction() {
         let root = tmpdir("no_io");

@@ -120,7 +120,7 @@ mod props_metamorphic {
 
         /// spec-correctness: row=FR-040-AC-4 property=fixpoint extraction=extractable origin=manual review=none
         #[test]
-        #[trace("TC-895")]
+        #[trace("FR-040-AC-4")]
         fn tc895_normalization_reaches_a_fixpoint(verbs in prop::collection::vec(verb(), 0..12)) {
             // Array form is the lossier spelling; normalizing it once must land
             // on a value that normalizes to itself.
@@ -132,7 +132,7 @@ mod props_metamorphic {
 
         /// spec-correctness: row=FR-040-AC-4 property=fixpoint extraction=extractable origin=manual review=none
         #[test]
-        #[trace("TC-895")]
+        #[trace("FR-040-AC-4")]
         fn tc895_map_form_is_already_a_fixpoint(
             pairs in prop::collection::vec((verb(), prop::collection::vec(verb(), 0..4)), 0..10)
         ) {

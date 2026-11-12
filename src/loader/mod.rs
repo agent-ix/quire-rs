@@ -2270,7 +2270,7 @@ mod tests {
         }
     }
 
-    #[trace("TC-826")]
+    #[trace("FR-050-AC-13", "FR-050-AC-15")]
     // the model-level exclusion is the one traceability key (CR-060)
     // that merges as a **union**. Every other key is first-wins by name, which
     // is right for a named declaration and wrong for a statement of fact: a
@@ -2796,7 +2796,7 @@ artifact_types:
         );
     }
 
-    #[trace("TC-526", "TC-526b")]
+    #[trace("FR-031-AC-5")]
     // `variants` is likewise a hard failure (no-compat rule).
     #[test]
     fn tc526_variants_is_hard_load_failure() {

@@ -899,7 +899,7 @@ mod cr069_regressions {
     /// Stripping `**` synthesized a link the link pass had already run past, so
     /// one pass left `[]()` — raw markdown link syntax in the text the grammar
     /// reads as prose — and a second pass reduced it to `""`.
-    #[trace("TC-891")]
+    #[trace("FR-042-AC-1")]
     #[test]
     fn tc891_bold_removal_can_synthesize_a_link() {
         assert_eq!(super::normalize("[]**()"), "");

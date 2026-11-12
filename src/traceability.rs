@@ -2218,7 +2218,7 @@ mod cr118_props {
         /// Asserted against the real parser and the real query rather than
         /// against a restatement of the matcher.
         #[test]
-        #[trace("TC-1038")]
+        #[trace("FR-050-AC-34")]
         fn tc1038_a_star_free_name_agrees_with_the_engines_own_section_lookup(
             declared in headingish(),
             authored in headingish(),
@@ -2560,7 +2560,7 @@ document_references:
         assert!(!yaml.contains("exclude"), "{yaml}");
     }
 
-    #[trace("TC-826")]
+    #[trace("FR-050-AC-13", "FR-050-AC-15")]
     // the same compile check `exclude:` has carried since (CR-060)
     // CR-038 — a pattern that cannot compile would quietly readmit everything
     // the module meant to keep out.

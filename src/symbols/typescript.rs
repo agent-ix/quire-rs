@@ -1306,7 +1306,7 @@ mod tests {
     /// brace-depth counter left to desync in the first place). Asserted at
     /// the `parse` outcome level; the old mechanism-level `lex_line`
     /// assertion this test used to end with no longer applies.
-    #[trace("TC-799")]
+    #[trace("FR-051-AC-12")]
     #[test]
     fn tc799_braces_inside_a_multiline_literal_do_not_unbalance() {
         let source = concat!(

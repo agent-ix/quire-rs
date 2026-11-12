@@ -162,7 +162,7 @@ mod tests {
     }
 
     // Covers (FR-027-AC-1, US-012-AC-1).
-    #[trace("TC-493")]
+    #[trace("FR-027-AC-1", "US-012-AC-1")]
     #[test]
     fn by_type_returns_exactly_that_type_sorted() {
         let root = tmpdir("by_type");
@@ -174,7 +174,7 @@ mod tests {
     }
 
     // Covers (FR-027-AC-2, US-012-AC-3).
-    #[trace("TC-494")]
+    #[trace("FR-027-AC-2", "US-012-AC-3")]
     #[test]
     fn referencing_is_reverse_lookup() {
         let root = tmpdir("ref");
@@ -186,7 +186,7 @@ mod tests {
     }
 
     // Covers (FR-027-AC-3, US-012-AC-2): orphan FRs lacking implements->StR.
-    #[trace("TC-495")]
+    #[trace("FR-027-AC-3", "US-012-AC-2")]
     #[test]
     fn orphans_finds_untraced_frs() {
         let root = tmpdir("orphans");

@@ -381,7 +381,7 @@ yield_pattern:
         }
     }
 
-    #[trace("TC-538")]
+    #[trace("FR-033-AC-5")]
     // `min_items` on a `table_row` locator is rejected.
     #[test]
     fn min_items_on_table_row_is_load_error() {

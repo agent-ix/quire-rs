@@ -1244,7 +1244,7 @@ mod tests {
         }
     }
 
-    #[trace("TC-681")]
+    #[trace("FR-045-AC-1")]
     #[test]
     fn tc681_tier1_frontmatter_extracts_core_node() {
         let result = extract_filament_core(base_input(
@@ -1292,7 +1292,7 @@ mod tests {
         );
     }
 
-    #[trace("TC-682")]
+    #[trace("FR-045-AC-2")]
     #[test]
     fn tc682_tier2_uses_rust_dsl_records_and_edges() {
         let mut input = base_input(
@@ -1344,7 +1344,7 @@ mod tests {
         ));
     }
 
-    #[trace("TC-683")]
+    #[trace("FR-045-AC-3")]
     #[test]
     fn tc683_error_fixtures_are_reported_without_panic() {
         let no_frontmatter = extract_filament_core(base_input("# Body\n"));
@@ -1390,7 +1390,7 @@ mod tests {
             .any(|d| d.code == "ix_uri_malformed"));
     }
 
-    #[trace("TC-705")]
+    #[trace("FR-045-AC-6")]
     #[test]
     fn tc705_malformed_frontmatter_is_a_parse_failure_but_absent_is_clean() {
         // Complete `---` … `---` fence block with unparseable YAML → parse
@@ -1422,7 +1422,7 @@ mod tests {
             .any(|d| d.code == "no_frontmatter"));
     }
 
-    #[trace("TC-684")]
+    #[trace("FR-045-AC-4")]
     #[test]
     fn tc684_relationship_sugar_and_body_ix_links_have_metadata() {
         let result = extract_filament_core(base_input(
@@ -1515,7 +1515,7 @@ mod tests {
         assert_eq!(numeric.nodes[0].name, "123");
     }
 
-    #[trace("TC-685")]
+    #[trace("FR-045-AC-5", "NFR-020-AC-2")]
     #[test]
     fn tc685_repeated_extraction_is_byte_identical() {
         let input = base_input(

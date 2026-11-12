@@ -29,7 +29,7 @@ def _expected():
     return json.loads((FIXTURES / "cases.expected.json").read_text())
 
 
-@pytest.mark.trace("TC-1635")
+@pytest.mark.trace("FR-072-AC-6")
 def test_extract_semantic_matches_rust_for_every_case():
     """binding output equals the Rust oracle, case by case."""
     expected = _expected()
@@ -39,7 +39,7 @@ def test_extract_semantic_matches_rust_for_every_case():
         assert result == expected[case["name"]], case["name"]
 
 
-@pytest.mark.trace("TC-1644")
+@pytest.mark.trace("NFR-021-AC-4")
 def test_extract_semantic_is_deterministic():
     """Python half: repeated runs agree including diagnostic order."""
     for case in _cases():
@@ -49,7 +49,7 @@ def test_extract_semantic_is_deterministic():
         assert [d["code"] for d in first["diagnostics"]] == [d["code"] for d in second["diagnostics"]]
 
 
-@pytest.mark.trace("TC-1635")
+@pytest.mark.trace("FR-072-AC-6")
 def test_extract_filament_core_carries_the_semantic_record():
     """the Filament API payload is additive and equals the record."""
     entity = json.loads((FIXTURE_CRATE / "module-ok" / "schemas" / "Entity.json").read_text())

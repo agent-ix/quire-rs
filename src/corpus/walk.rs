@@ -496,7 +496,7 @@ mod tests {
     const STR_005: &str = "---\nid: StR-005\ntype: StR\nuuid: 0190b6a0-0000-7000-8000-000000000005\n---\n# Need\nbody\n";
     const TM_001: &str = "---\nid: TM-001\ntype: TestMatrix\nuuid: 0190b6a0-0000-7000-8000-000000000001\n---\n# Test Matrix\n\n## Test Case Summary\n";
 
-    #[trace("TC-470")]
+    #[trace("FR-024-AC-1")]
     // N files -> N docs, each matching a direct parse_document.
     #[test]
     fn loads_one_document_per_markdown_file() {

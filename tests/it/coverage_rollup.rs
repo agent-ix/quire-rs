@@ -1660,7 +1660,7 @@ fn tc801_excluded_documents_contribute_no_rows() {
     assert!(unscoped.totals.total > scoped.totals.total);
 }
 
-#[trace("TC-826")]
+#[trace("FR-050-AC-13", "FR-050-AC-15")]
 // a model-level `exclude:` scopes the (FR-050-AC-13 / AC-15, CR-060)
 // **criteria walk**, which has no declaration of its own to hang an exclusion
 // on and so had none at all before this.
@@ -2039,7 +2039,7 @@ fn tc822_declarations_that_select_nothing_are_reported() {
     assert_eq!(report.diagnostics, again.diagnostics);
 }
 
-#[trace("TC-822")]
+#[trace("FR-050-AC-19")]
 #[test]
 fn tc822_model_that_mints_nothing_points_to_traceability_declaration() {
     let module = tmpdir("822-model-origin-module");

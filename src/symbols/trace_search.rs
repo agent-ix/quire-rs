@@ -359,7 +359,7 @@ fn citing_helper() {\n\
         (extraction, graph)
     }
 
-    #[trace("TC-1887")]
+    #[trace("FR-077-AC-1")]
     #[test]
     fn tc1887_forward_id_query_separates_claims_from_citations() {
         // ACs: FR-077-AC-1
@@ -424,7 +424,7 @@ fn citing_helper() {\n\
         );
     }
 
-    #[trace("TC-1889")]
+    #[trace("FR-077-AC-3")]
     #[test]
     fn tc1889_unresolved_id_returns_full_shape_not_empty() {
         // ACs: FR-077-AC-3
@@ -442,7 +442,7 @@ fn citing_helper() {\n\
         assert!(result.ambiguous_matches.is_empty());
     }
 
-    #[trace("TC-1893")]
+    #[trace("FR-077-AC-6")]
     #[test]
     fn tc1893_exact_match_only_no_hierarchy_expansion() {
         // ACs: FR-077-AC-6
@@ -535,7 +535,7 @@ mod tests {\n\
         (a, graph)
     }
 
-    #[trace("TC-1890")]
+    #[trace("FR-077-AC-4")]
     #[test]
     fn tc1890_ambiguous_bare_name_lists_every_candidate() {
         // ACs: FR-077-AC-4
@@ -564,7 +564,7 @@ mod tests {\n\
         assert!(result.citations.is_empty());
     }
 
-    #[trace("TC-1891")]
+    #[trace("FR-077-AC-4")]
     #[test]
     fn tc1891_exact_symbol_ref_returns_only_that_symbol() {
         // ACs: FR-077-AC-4
@@ -594,7 +594,7 @@ mod tests {\n\
         );
     }
 
-    #[trace("TC-1892")]
+    #[trace("FR-077-AC-5")]
     #[test]
     fn tc1892_language_confidence_is_honest_per_language() {
         // ACs: FR-077-AC-5
@@ -660,7 +660,7 @@ mod tests {\n\
         );
     }
 
-    #[trace("TC-1894")]
+    #[trace("FR-077-CON-3")]
     #[test]
     fn tc1894_string_literal_content_is_not_masked_from_citations() {
         // Constraints: FR-077-CON-3
