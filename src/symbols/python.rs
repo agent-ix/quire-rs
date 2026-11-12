@@ -997,8 +997,8 @@ mod tests {
     /// multiple lines still reaches its docstring — `function_definition`'s
     /// own node span already covers the full signature, so no bespoke
     /// paren-depth walk (the pre-port scanner's `block_end`/`paren_delta`,
-    /// deleted by this port) is needed. This also backs `TC-1880`
-    /// (`FR-051-AC-25`)'s "a `def` whose signature spans lines" clause:
+    /// deleted by this port) is needed. This also backs
+    /// `FR-051-AC-25`'s "a `def` whose signature spans lines" clause:
     /// `test_multi_line`'s wrapped signature binds `TC-029` exactly as
     /// `test_single_line`'s single-line spelling binds `TC-028` — the
     /// single-line form is the control.

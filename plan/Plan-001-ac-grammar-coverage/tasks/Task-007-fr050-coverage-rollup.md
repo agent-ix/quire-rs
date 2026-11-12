@@ -21,7 +21,7 @@ The generic reconciliation over declared targets, declared references, and
 scanned source tags: unbacked rows, status lies, untracked symbols, and
 per-minting-document backed/total counts, emitted as byte-identical JSON.
 Engine API takes a loaded `Spec`, a `Registry` with a declared model, and the
-Task-006 symbol graph; auxiliary trace sources (tests.md-style matrices) are
+Task-006 symbol graph; auxiliary trace sources (hand-written test matrices) are
 harvested per the declaration. No model declared → distinct diagnostic (the
 CLI exit is wired in quire-cli). Includes the TC-756 static boundary audit
 covering FR-050-CON-2 and FR-051-CON-1 (no network/service I/O, no execution

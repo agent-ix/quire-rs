@@ -634,7 +634,7 @@ against neither; it now renders `Level::ALL` and compares that.
 | FR-065-AC-16 | A case binding the ecosystem declaration loads without naming a ticket. | Test |
 | FR-065-AC-17 | Two runs of one case over unchanged input produce a byte-identical engine report. | Test |
 | FR-065-AC-18 | Each case's `case.yaml` carries the invocation that reproduces it. For a non-ecosystem case that invocation names the case's corpus module; for an ecosystem case it names no module, and the provider modules resolve from the consumer. | Test |
-| FR-065-AC-19 | `qa_corpus::bounds` derives its per-state counters and its sum invariant from `corpus.yaml`'s `bounds_states`, and rejects a cell graded into a state the declaration does not name. | Test (TC-1021, `qa-corpus` bounds tests) |
+| FR-065-AC-19 | `qa_corpus::bounds` derives its per-state counters and its sum invariant from `corpus.yaml`'s `bounds_states`, and rejects a cell graded into a state the declaration does not name. | Test (`qa-corpus` bounds tests) |
 | FR-065-AC-20 | The compiled grading ladder and `corpus.yaml`'s `grading_levels` agree in name and in order, and a gate fails on disagreement. The runner is not required to accept a ladder change without a code edit: the ladder is the grading rule, not a vocabulary (CR-129). | Test |
 | FR-065-AC-21 | The runner reads the mode families from `corpus.yaml`, and a case naming an undeclared family is rejected. | Test |
 | FR-065-AC-22 | A language set's variant declares only what varies; a variant DECLARING any field `case_schema.variant_forbidden` names is rejected naming the field, whether or not the shared file also declares it, and a reader finding no `variant_forbidden` fails rather than skips. | Test |

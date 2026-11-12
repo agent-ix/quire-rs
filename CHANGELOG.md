@@ -7,6 +7,13 @@ bumps; once 1.0 ships, semver is strict.
 
 ## [Unreleased]
 
+### Removed
+
+- **Breaking, PLAT-1501:** the public `audit_table::audit_spec_dir` is removed; it
+  only read this repository's own `spec/tests.md`, which is deleted in favour of
+  the computed matrix (`quire matrix`). `audit_table::audit_gaps` is unchanged,
+  and `make validate` no longer runs an audit-table stage.
+
 ## [0.59.1] — 2026-11-12
 
 ### Fixed
