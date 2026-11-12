@@ -7,6 +7,10 @@ bumps; once 1.0 ships, semver is strict.
 
 ## [Unreleased]
 
+### Fixed
+
+- PLAT-1408: a `dangling-reference` bundle finding is located at the source document's loaded path instead of its artifact id (FR-038-AC-11).
+
 ## [0.56.1] — 2026-11-11
 
 ### Fixed
