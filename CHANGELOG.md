@@ -15,6 +15,11 @@ bumps; once 1.0 ships, semver is strict.
   count, never clause text) of licensed sets; a manifest `clause_sets` that is
   not a list of strings fails load naming the key (FR-083, FR-073).
 
+### Changed
+
+- PLAT-1420: `Manifest::clause_sets` is now `Vec<String>` instead of
+  `Vec<PathBuf>`, so non-string entries are rejected.
+
 ## [0.58.0] — 2026-11-12
 
 ### Added

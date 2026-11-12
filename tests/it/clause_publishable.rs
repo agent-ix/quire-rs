@@ -135,10 +135,6 @@ fn publishable_sets_and_structure_rights_are_not_restricted() {
     assert!(outcome.failures.is_empty(), "{:?}", outcome.failures);
     assert_eq!(outcome.modules[0].clause_sets.len(), 3);
     assert!(check_publishable(&outcome.modules[0]).is_empty());
-
-    let dir = tempfile::tempdir().unwrap();
-    let outcome = module(dir.path(), "", &[]);
-    assert!(check_publishable(&outcome.modules[0]).is_empty());
 }
 
 #[test]
@@ -213,4 +209,8 @@ fn result_is_unchanged_after_the_module_directory_is_deleted() {
     assert_eq!(before.len(), 1);
     drop(dir);
     assert_eq!(check_publishable(&outcome.modules[0]), before);
+
+    let dir = tempfile::tempdir().unwrap();
+    let outcome = module(dir.path(), "", &[]);
+    assert!(check_publishable(&outcome.modules[0]).is_empty());
 }
