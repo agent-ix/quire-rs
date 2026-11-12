@@ -31,3 +31,13 @@ Ticket: PLAT-1407. Base checklist review of the single added row FR-038-AC-11 (a
 ## Verdict
 
 FAIL until FND-001 is fixed (add the TC row and the audit-table row, and cite the TC in the Verification cell). The AC's intent is right and matches the companion chain (quire-cli FR-014-AC-11, spec-objects-safety FR-007-AC-3); FR-038-AC-9/AC-10 and FR-026 do not contradict it. The message half is already met by the current emitter; only the path half is new behaviour.
+
+## Dispositions
+
+| FND | Outcome | Reason |
+| --- | --- | --- |
+| FND-001 | fixed | 6d279b6 adds TC-2227 (FR-038-AC-11, status 🚧 test not yet written), the audit row `FR-038-AC-11 -> TC-2227`, and cites `Test (TC-2227)` in the Verification cell |
+| FND-002 | fixed | 6d279b6: "the source document's loaded path (the root-joined `doc.path` ...)"; fixture "whose path ends in `a.md`" |
+| FND-003 | fixed | 6d279b6: "in an otherwise conformant bundle, yields exactly one `dangling-reference` finding" |
+| FND-004 | fixed | 6d279b6: message names "the missing target as harvested", with the raw destination string for a dangling relative-path link |
+| FND-005 | fixed | 6d279b6: default posture tier "unless FR-057 promotes, demotes or suppresses `refs:dangling-reference`, in which case the FR-057 tier applies and the path and message are unchanged" |

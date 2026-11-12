@@ -25,3 +25,9 @@ Ticket: PLAT-1407. Failure-domain lens on FR-038-AC-11: identity confusion betwe
 ## Verdict
 
 One medium identity gap. No other failure mode found: id-less (path-keyed) documents map to their own path, and the foreign-authority skip of AC-9/AC-10 emits nothing so carries no path.
+
+## Dispositions
+
+| FND | Outcome | Reason |
+| --- | --- | --- |
+| FND-001 | fixed | 6d279b6 states the duplicate-id rule: edges dedup by (source, target, type) and a broken edge declared in both documents is reported once, at the first document's path; TC-2227 also pins the second-document-only case to the first document's path. The rule is now explicit and testable; the collision itself is located by FR-025's DuplicateArtifactId diagnostic |
