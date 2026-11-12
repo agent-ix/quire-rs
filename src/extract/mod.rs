@@ -13,6 +13,7 @@
 
 pub mod assert_eval;
 pub mod dsl;
+mod frontmatter_lines;
 pub mod interpolate;
 pub mod locator;
 
@@ -23,7 +24,9 @@ use crate::ast::{QuireDocument, QuireSection};
 use crate::diagnostic::Diagnostic;
 use crate::error::QuireError;
 use crate::extract::dsl::{EdgeTarget, EmitEdge, ExtractionDsl, IterateKind, IterateOver};
-use crate::extract::locator::{eval_locator, is_whole_value_mustache, Locator};
+use crate::extract::locator::{
+    eval_locator, eval_locator_located, is_whole_value_mustache, Locator,
+};
 
 /// FR-011-AC-17: drop resolved values that are a whole-value `{{…}}`
 /// placeholder marker. Used on the extract path so a placeholder-only
@@ -34,6 +37,30 @@ fn drop_whole_value_placeholders(values: Vec<Value>) -> Vec<Value> {
         .filter(|v| match v {
             Value::String(s) => !is_whole_value_mustache(s),
             _ => true,
+        })
+        .collect()
+}
+
+/// The 1-based document line of each value that became part of the record a
+/// `match:` yield builds (FR-033-AC-18), keyed like the record: one entry per
+/// value the key's locator located **after** the placeholder drop `extract`
+/// applies, in order. A `multiple: true` key's record array element `i` is the
+/// value at `lines[i]`; any other key's record value is the value at
+/// `lines[0]`. A key that located nothing has no entry.
+pub fn match_value_lines(
+    doc: &QuireDocument,
+    match_map: &IndexMap<String, Locator>,
+) -> IndexMap<String, Vec<Option<usize>>> {
+    match_map
+        .iter()
+        .filter_map(|(key, loc)| {
+            let (located, _) = eval_locator_located(doc, loc);
+            let lines: Vec<Option<usize>> = located
+                .into_iter()
+                .filter(|v| !matches!(&v.value, Value::String(s) if is_whole_value_mustache(s)))
+                .map(|v| v.line)
+                .collect();
+            (!lines.is_empty()).then(|| (key.clone(), lines))
         })
         .collect()
 }

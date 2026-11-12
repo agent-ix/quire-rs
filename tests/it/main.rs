@@ -28,6 +28,7 @@ mod integration;
 mod inverse_edges;
 #[cfg(feature = "rust-symbols")]
 mod legacy_implements_warning;
+mod located_findings;
 mod markdown_validation;
 mod no_hidden_recompile;
 mod obligations;

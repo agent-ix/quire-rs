@@ -16,6 +16,7 @@
 pub mod compile;
 pub mod manifest;
 pub mod paths;
+mod record_validation;
 pub(crate) mod vocabulary_refs;
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -533,6 +534,21 @@ pub fn load_inline_module(manifest_yaml: &[u8], schemas: &BTreeMap<String, Strin
             }
         }
 
+        let record_validation = match record_validation::resolve(
+            &module_name,
+            inline_root.clone(),
+            a,
+            manifest.section_of(a),
+            inline_semantic.as_ref(),
+            &inline_source,
+        ) {
+            Ok(resolved) => resolved,
+            Err(f) => {
+                failures.push(f);
+                continue;
+            }
+        };
+
         archetypes.push(Arc::new(finish_compiled(
             &module_name,
             a,
@@ -541,6 +557,7 @@ pub fn load_inline_module(manifest_yaml: &[u8], schemas: &BTreeMap<String, Strin
             data_schema,
             data_validator,
             data_schema_documents,
+            record_validation,
         )));
     }
 
@@ -911,6 +928,15 @@ fn compile_archetype(
         })?;
     }
 
+    let record_validation = record_validation::resolve(
+        module,
+        module_root.join("manifest.yaml"),
+        a,
+        section,
+        semantic,
+        source,
+    )?;
+
     Ok(finish_compiled(
         module,
         a,
@@ -919,6 +945,7 @@ fn compile_archetype(
         data_schema,
         data_validator,
         data_schema_documents,
+        record_validation,
     ))
 }
 
@@ -1106,6 +1133,7 @@ fn finish_compiled(
     data_schema: Option<Arc<Value>>,
     data_validator: Option<Arc<jsonschema::Validator>>,
     data_schema_documents: Option<Arc<BTreeMap<String, Value>>>,
+    record_validation: Option<crate::loader::compile::CompiledRecordValidation>,
 ) -> CompiledArchetype {
     let (raw_schema, validator) = match (&frontmatter_schema, &frontmatter_validator) {
         (Some(s), Some(v)) => (Arc::clone(s), Arc::clone(v)),
@@ -1125,6 +1153,7 @@ fn finish_compiled(
         data_validator,
         data_schema_documents,
         body_extraction: a.body_extraction.clone(),
+        record_validation,
         carry_over: a.carry_over(),
     }
 }

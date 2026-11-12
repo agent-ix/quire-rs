@@ -35,6 +35,8 @@ struct ReferencingRow {
     /// The row's kind cell, when the declaration is kind-typed and the row
     /// carries the column.
     kind: Option<String>,
+    /// The row's 1-based document line, frontmatter counted (FR-049-AC-19).
+    line: usize,
 }
 
 /// Check every declared document reference against the bundle's resolution
@@ -76,8 +78,8 @@ pub(crate) fn validate_trace_references(
 
     // Collect findings before pushing so their order is a property of the
     // bundle, not of the walk (FR-049-AC-8).
-    // Ordered by (path, id, reason, message) (FR-049-AC-17).
-    let mut findings: Vec<(PathBuf, String, &'static str, String)> = Vec::new();
+    // Ordered by (path, id, reason, message, line) (FR-049-AC-17, AC-21).
+    let mut findings: Vec<(PathBuf, String, &'static str, String, usize)> = Vec::new();
     for declaration in &model.document_references {
         let Ok(pattern) = Regex::new(&declaration.pattern) else {
             continue; // patterns are validated at module load
@@ -125,6 +127,7 @@ pub(crate) fn validate_trace_references(
                                     kind.trim(),
                                     subset.join("/")
                                 ),
+                                row.line,
                             ));
                         }
                     }
@@ -139,6 +142,7 @@ pub(crate) fn validate_trace_references(
                         declaration.name,
                         declaration.targets.join("/")
                     ),
+                    row.line,
                 ));
             }
         }
@@ -171,11 +175,11 @@ pub(crate) fn validate_trace_references(
 
     findings.sort();
     findings.dedup();
-    for (path, _, reason, message) in findings {
+    for (path, _, reason, message, line) in findings {
         report.route(
             severity,
             posture_tier(posture),
-            BundleFinding::in_pack(pack::TRACE, reason, path, message),
+            BundleFinding::in_pack(pack::TRACE, reason, path, message).at_line(Some(line)),
         );
     }
 }
@@ -281,6 +285,7 @@ fn referencing_rows(
             row_id,
             cell,
             kind,
+            line: row.line,
         });
     }
     rows

@@ -374,23 +374,30 @@ pub fn table_from_section(doc: &QuireDocument, heading: &str) -> Option<TableRes
 /// `title`/`description`. Falls back to the other pattern, then to
 /// plain, when the requested pattern doesn't match.
 pub fn parse_bullet_list(content: &str, pattern: Option<ListPattern>) -> Vec<ListItem> {
-    let pattern = pattern.unwrap_or_default();
-    let mut items: Vec<ListItem> = Vec::new();
+    parse_bullet_list_with_lines(content, pattern)
+        .into_iter()
+        .map(|(_, item)| item)
+        .collect()
+}
 
-    for line in content.split('\n') {
-        let bullet_cap = match re_bullet().captures(line.trim()) {
-            Some(c) => c,
-            None => continue,
-        };
-        let raw: String = bullet_cap
-            .get(1)
-            .expect("bullet group")
-            .as_str()
-            .to_string();
-        let item = classify_bullet(&raw, pattern);
-        items.push(item);
-    }
-    items
+/// [`parse_bullet_list`] with each item's 0-based line index within `content`
+/// (FR-033-AC-18). A separate seam for the same reason as
+/// [`parse_table_with_lines`]: [`ListItem`]'s public shape is mirrored
+/// downstream.
+pub(crate) fn parse_bullet_list_with_lines(
+    content: &str,
+    pattern: Option<ListPattern>,
+) -> Vec<(usize, ListItem)> {
+    let pattern = pattern.unwrap_or_default();
+    content
+        .split('\n')
+        .enumerate()
+        .filter_map(|(index, line)| {
+            let bullet_cap = re_bullet().captures(line.trim())?;
+            let raw = bullet_cap.get(1).expect("bullet group").as_str();
+            Some((index, classify_bullet(raw, pattern)))
+        })
+        .collect()
 }
 
 fn re_list_item() -> &'static Regex {
@@ -483,7 +490,10 @@ fn classify_bullet(raw: &str, pattern: ListPattern) -> ListItem {
 /// safe (FR-011).
 pub fn extract_diagrams(doc: &QuireDocument, language: Option<&str>) -> Vec<DiagramBlock> {
     let body: &str = strip_frontmatter_view(&doc.raw);
-    scan_fenced_blocks(body, language, true)
+    scan_fenced_blocks_with_lines(body, language, true)
+        .into_iter()
+        .map(|(_, block)| block)
+        .collect()
 }
 
 /// Parse fenced code blocks from a **content slice**, optionally filtered
@@ -495,18 +505,31 @@ pub fn extract_diagrams(doc: &QuireDocument, language: Option<&str>) -> Vec<Diag
 /// caller passes the target section's (or iteration unit's) `.content`,
 /// guaranteeing containment and determinism under multi-yield.
 pub fn diagrams_from_content(content: &str, language: Option<&str>) -> Vec<DiagramBlock> {
-    scan_fenced_blocks(content, language, false)
+    diagrams_from_content_with_lines(content, language)
+        .into_iter()
+        .map(|(_, block)| block)
+        .collect()
+}
+
+/// [`diagrams_from_content`] with the 0-based line index, within `content`, of
+/// each block's opening fence (FR-033-AC-18).
+pub(crate) fn diagrams_from_content_with_lines(
+    content: &str,
+    language: Option<&str>,
+) -> Vec<(usize, DiagramBlock)> {
+    scan_fenced_blocks_with_lines(content, language, false)
 }
 
 /// Core fenced-block scanner shared by [`extract_diagrams`] (whole-doc,
 /// heading-tracking) and [`diagrams_from_content`] (slice, no headings).
 /// When `track_headings` is false, every block's `section` is `None`.
-fn scan_fenced_blocks(
+fn scan_fenced_blocks_with_lines(
     body: &str,
     language: Option<&str>,
     track_headings: bool,
-) -> Vec<DiagramBlock> {
-    let mut out: Vec<DiagramBlock> = Vec::new();
+) -> Vec<(usize, DiagramBlock)> {
+    let mut out: Vec<(usize, DiagramBlock)> = Vec::new();
+    let mut fence_line: usize = 0;
     let mut current_section: Option<String> = None;
     // `Some(kind)` while inside a block opened by `kind`; `None` otherwise.
     let mut open_fence: Option<FenceKind> = None;
@@ -514,7 +537,7 @@ fn scan_fenced_blocks(
     let mut block_lines: Vec<String> = Vec::new();
     let mut block_index: usize = 0;
 
-    for line in body.split('\n') {
+    for (line_index, line) in body.split('\n').enumerate() {
         if open_fence.is_none() && track_headings {
             if let Some(cap) = re_heading().captures(line) {
                 current_section = Some(cap.get(2).unwrap().as_str().trim().to_string());
@@ -533,6 +556,7 @@ fn scan_fenced_blocks(
                         .map(|m| m.as_str().to_string())
                         .unwrap_or_default();
                     block_lines.clear();
+                    fence_line = line_index;
                 }
             }
             // Close ONLY on a matching-character fence line; a mismatched
@@ -540,6 +564,7 @@ fn scan_fenced_blocks(
             Some(open) if FenceKind::of_line(trimmed_start) == Some(open) => {
                 push_block(
                     &mut out,
+                    fence_line,
                     &mut block_index,
                     &block_lang,
                     &block_lines,
@@ -558,6 +583,7 @@ fn scan_fenced_blocks(
     if open_fence.is_some() && !block_lines.is_empty() {
         push_block(
             &mut out,
+            fence_line,
             &mut block_index,
             &block_lang,
             &block_lines,
@@ -569,7 +595,8 @@ fn scan_fenced_blocks(
 }
 
 fn push_block(
-    out: &mut Vec<DiagramBlock>,
+    out: &mut Vec<(usize, DiagramBlock)>,
+    fence_line: usize,
     index: &mut usize,
     lang: &str,
     lines: &[String],
@@ -585,13 +612,16 @@ fn push_block(
     let tag: Option<String> = re_type_annotation()
         .captures(&source)
         .map(|c| c.get(1).unwrap().as_str().to_string());
-    out.push(DiagramBlock {
-        index: *index,
-        language: lang.to_string(),
-        source,
-        section: section.clone(),
-        tag,
-    });
+    out.push((
+        fence_line,
+        DiagramBlock {
+            index: *index,
+            language: lang.to_string(),
+            source,
+            section: section.clone(),
+            tag,
+        },
+    ));
     *index += 1;
 }
 

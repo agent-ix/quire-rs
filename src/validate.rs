@@ -242,6 +242,7 @@ mod tests {
             data_validator: None,
             data_schema_documents: None,
             body_extraction: None,
+            record_validation: None,
             carry_over: Default::default(),
         }
     }

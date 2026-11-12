@@ -99,6 +99,11 @@ pub struct BundleFinding {
     /// The severity that was applied (FR-057-AC-7), so a surface renders the
     /// configured level instead of inferring it from which vector it landed in.
     pub severity: GrammarSeverity,
+    /// 1-based line of the finding in the document at `path`, frontmatter
+    /// counted, when the finding names a located element (FR-049-AC-19): the
+    /// referencing row of a trace-reference finding, or the line a bridged
+    /// document-level result carries. `None` for every other finding.
+    pub line: Option<usize>,
 }
 
 impl BundleFinding {
@@ -115,7 +120,14 @@ impl BundleFinding {
             reason: reason.into(),
             pack: Some(pack),
             severity: GrammarSeverity::Warning,
+            line: None,
         }
+    }
+
+    /// This finding located at `line` (1-based, frontmatter counted).
+    pub(crate) fn at_line(mut self, line: Option<usize>) -> Self {
+        self.line = line;
+        self
     }
 
     /// A document-level result bridged into the bundle report. Not registrable
@@ -131,6 +143,7 @@ impl BundleFinding {
             reason: reason.into(),
             pack: None,
             severity: GrammarSeverity::Error,
+            line: None,
         }
     }
 
@@ -513,7 +526,8 @@ fn validate_concept(
             for err in crate::concept::validate_base_concept(&fm) {
                 report.bridged(
                     GrammarSeverity::Error,
-                    BundleFinding::bridged(err.reason.as_str(), doc.path.clone(), err.message),
+                    BundleFinding::bridged(err.reason.as_str(), doc.path.clone(), err.message)
+                        .at_line(err.line),
                 );
             }
 
@@ -547,7 +561,8 @@ fn validate_concept(
                                 err.reason.as_str(),
                                 doc.path.clone(),
                                 err.message,
-                            ),
+                            )
+                            .at_line(err.line),
                         );
                     }
                     for warn in result.warnings {
@@ -557,7 +572,8 @@ fn validate_concept(
                                 warn.reason.as_str(),
                                 doc.path.clone(),
                                 warn.message,
-                            ),
+                            )
+                            .at_line(warn.line),
                         );
                     }
                 }

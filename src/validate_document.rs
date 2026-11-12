@@ -19,7 +19,7 @@
 
 #![deny(clippy::disallowed_types)]
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use serde_json::{Map, Value};
 
@@ -550,9 +550,10 @@ fn validate_in_registry_core(
     let fm = doc.frontmatter.clone().unwrap_or_default();
     errors.extend(crate::concept::validate_concept_shape(&fm));
     validate_frontmatter(archetype, &doc, &mut errors);
-    if let Some(dsl) = archetype.body_extraction() {
-        validate_body(archetype, &doc, dsl, line_offset, &mut errors);
-    }
+    let type_locator_keys = match archetype.body_extraction() {
+        Some(dsl) => validate_body(archetype, &doc, dsl, line_offset, &mut errors),
+        None => BTreeSet::new(),
+    };
     check_heading_uniqueness(&doc, line_offset, &mut errors);
 
     // ── `object:` archetype layer (composed; FR-032-AC-11..13) ──
@@ -571,7 +572,14 @@ fn validate_in_registry_core(
                 // report every failure twice.
                 let same_as_type = arch.name == archetype.name && arch.module == archetype.module;
                 if let (false, Some(dsl)) = (same_as_type, arch.body_extraction()) {
-                    validate_body(arch, &doc, dsl, line_offset, &mut errors);
+                    let object_locator_keys =
+                        validate_body(arch, &doc, dsl, line_offset, &mut errors);
+                    // FR-069: the object archetype's own record check.
+                    errors.extend(crate::record_check::record_findings(
+                        arch,
+                        &doc,
+                        &object_locator_keys,
+                    ));
                 }
             }
             // Unresolved: a single advisory warning, not an error.
@@ -584,6 +592,15 @@ fn validate_in_registry_core(
             }),
         }
     }
+
+    // FR-069: the `type` archetype's yield record against its
+    // `record_validation` schema. Registry-backed entry points only; the
+    // type-only `validate_document` runs no record check.
+    errors.extend(crate::record_check::record_findings(
+        archetype,
+        &doc,
+        &type_locator_keys,
+    ));
 
     // ── Tier-1 edge-type validation (FR-040-AC-8) ──
     // Resolve the union of the artifact + object allowed_links and flag
@@ -762,18 +779,26 @@ fn dotted_path(ptr: &str) -> String {
     }
 }
 
+/// Validate the body against `dsl`, returning the single-yield `match` keys
+/// that produced a finding (FR-069: a record error about such a key is that
+/// defect again).
 fn validate_body(
     archetype: &CompiledArchetype,
     doc: &QuireDocument,
     dsl: &ExtractionDsl,
     line_offset: usize,
     errors: &mut Vec<ValidationError>,
-) {
+) -> BTreeSet<String> {
+    let mut flagged = BTreeSet::new();
     // Single-yield `match` locators are the structural contract for the
     // document body.
     if let Some(map) = &dsl.yield_pattern.r#match {
         for (key, locator) in map {
+            let before = errors.len();
             validate_required_locator(archetype, doc, key, locator, line_offset, errors);
+            if errors.len() > before {
+                flagged.insert(key.clone());
+            }
         }
     }
 
@@ -801,6 +826,7 @@ fn validate_body(
             }
         }
     }
+    flagged
 }
 
 fn validate_required_locator(
@@ -1176,6 +1202,7 @@ mod tests {
             data_validator: None,
             data_schema_documents: None,
             body_extraction,
+            record_validation: None,
             carry_over: ArchetypeCarryOver::default(),
         }
     }

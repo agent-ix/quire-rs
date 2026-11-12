@@ -15,8 +15,8 @@ use serde_json::Value;
 
 use crate::ast::QuireDocument;
 use crate::query::{
-    diagrams_from_content, parse_bullet_list, parse_table, parse_tables, section as q_section,
-    sections as q_sections, table_from_section, ListPattern,
+    diagrams_from_content_with_lines, parse_bullet_list_with_lines, parse_tables_with_lines,
+    section as q_section, sections as q_sections, ListPattern, TableResult,
 };
 
 /// A DSL Locator value — either a single [`LocatorPrimitive`] or a
@@ -416,6 +416,34 @@ impl LocatorPrimitive {
     }
 }
 
+/// Where a located value sits in its document (FR-033-AC-18), before the
+/// document-line conversion that needs the frontmatter's extent.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum At {
+    /// 0-based line of the value's source within the document body.
+    Body(usize),
+    /// The value is a frontmatter field: its line is the last path key's.
+    Frontmatter,
+}
+
+/// A located value with its position. The one internal currency of
+/// evaluation: [`eval`] drops the position, [`eval_located`] resolves it.
+#[derive(Debug, Clone, PartialEq)]
+struct Located {
+    value: Value,
+    at: At,
+}
+
+/// A value a locator located, with the 1-based document line (frontmatter
+/// counted) it was read from (FR-033-AC-18). The line travels with the value
+/// through `regex` filtering, a missing `column` cell and a fallback chain.
+#[derive(Debug, Clone, PartialEq)]
+pub struct LocatedValue {
+    pub value: Value,
+    /// `None` only when the value has no line to point at.
+    pub line: Option<usize>,
+}
+
 /// Implements: FR-016
 /// Evaluate a [`Locator`] (primitive or fallback chain) against
 /// `doc`. For a fallback chain, returns the first primitive that
@@ -425,11 +453,28 @@ impl LocatorPrimitive {
 /// Returns `(values, position_used)` where `position_used == 0` for a
 /// `Primitive` or a fallback that hit at the head.
 pub fn eval_locator(doc: &QuireDocument, locator: &Locator) -> (Vec<Value>, usize) {
+    let (located, position) = eval_locator_at(doc, locator);
+    (located.into_iter().map(|l| l.value).collect(), position)
+}
+
+/// [`eval_locator`] with each value's 1-based document line (FR-033-AC-18).
+/// For a fallback chain the lines are those of the primitive whose values are
+/// returned.
+pub fn eval_locator_located(doc: &QuireDocument, locator: &Locator) -> (Vec<LocatedValue>, usize) {
+    let (located, position) = eval_locator_at(doc, locator);
+    let primitive = match locator {
+        Locator::Primitive(p) => p,
+        Locator::Fallback(chain) => chain.get(position).unwrap_or_else(|| locator.canonical()),
+    };
+    (resolve_lines(doc, primitive, located), position)
+}
+
+fn eval_locator_at(doc: &QuireDocument, locator: &Locator) -> (Vec<Located>, usize) {
     match locator {
-        Locator::Primitive(p) => (eval(doc, p), 0),
+        Locator::Primitive(p) => (eval_at(doc, p), 0),
         Locator::Fallback(chain) => {
             for (i, p) in chain.iter().enumerate() {
-                let v = eval(doc, p);
+                let v = eval_at(doc, p);
                 if !v.is_empty() {
                     return (v, i);
                 }
@@ -443,8 +488,56 @@ pub fn eval_locator(doc: &QuireDocument, locator: &Locator) -> (Vec<Value>, usiz
 /// list of values; the caller picks first-or-all depending on its
 /// yield pattern.
 pub fn eval(doc: &QuireDocument, loc: &LocatorPrimitive) -> Vec<Value> {
+    eval_at(doc, loc).into_iter().map(|l| l.value).collect()
+}
+
+/// Every value `loc` locates in `doc`, each with the 1-based document line it
+/// was read from (FR-033-AC-18), independent of any `assert`. A locator that
+/// located nothing returns an empty list and so exposes no line.
+///
+/// | locator | line |
+/// |---|---|
+/// | `frontmatter_field` | the last key of `path`; a list value has the key's line |
+/// | `heading` | the heading |
+/// | `section_body` | the heading that owns the body |
+/// | `code_block` | the opening fence |
+/// | `list_item` | the item |
+/// | `table_row` | the row's own line |
+pub fn eval_located(doc: &QuireDocument, loc: &LocatorPrimitive) -> Vec<LocatedValue> {
+    resolve_lines(doc, loc, eval_at(doc, loc))
+}
+
+fn eval_at(doc: &QuireDocument, loc: &LocatorPrimitive) -> Vec<Located> {
     let (values, regex) = eval_unfiltered(doc, loc);
     apply_regex(values, regex)
+}
+
+/// Convert body-relative positions to 1-based document lines.
+fn resolve_lines(
+    doc: &QuireDocument,
+    loc: &LocatorPrimitive,
+    located: Vec<Located>,
+) -> Vec<LocatedValue> {
+    if located.is_empty() {
+        return Vec::new();
+    }
+    let offset = crate::validate_document::body_line_offset(&doc.raw);
+    let frontmatter_line = match loc {
+        LocatorPrimitive::FrontmatterField { path, .. } => {
+            super::frontmatter_lines::key_line(&doc.raw, path)
+        }
+        _ => None,
+    };
+    located
+        .into_iter()
+        .map(|l| LocatedValue {
+            line: match l.at {
+                At::Body(line) => Some(offset + line + 1),
+                At::Frontmatter => frontmatter_line,
+            },
+            value: l.value,
+        })
+        .collect()
 }
 
 /// The text of the first value `loc` locates **before** its `regex` filter,
@@ -469,7 +562,7 @@ pub fn regex_mismatch<'a>(
     }
     let (values, regex) = eval_unfiltered(doc, loc);
     let pattern = regex?;
-    let located = values.iter().find_map(|v| match v {
+    let located = values.iter().find_map(|l| match &l.value {
         Value::String(s) if !s.trim().is_empty() => Some(s.trim().to_string()),
         _ => None,
     })?;
@@ -481,18 +574,16 @@ pub fn regex_mismatch<'a>(
 fn eval_unfiltered<'a>(
     doc: &QuireDocument,
     loc: &'a LocatorPrimitive,
-) -> (Vec<Value>, Option<&'a str>) {
+) -> (Vec<Located>, Option<&'a str>) {
     match loc {
         LocatorPrimitive::FrontmatterField { path, regex, .. } => {
             (eval_frontmatter_field(doc, path), regex.as_deref())
         }
-        LocatorPrimitive::SectionBody { after_heading, .. } => {
-            let regex = match loc {
-                LocatorPrimitive::SectionBody { regex, .. } => regex.as_deref(),
-                _ => None,
-            };
-            (eval_section_body(doc, after_heading), regex)
-        }
+        LocatorPrimitive::SectionBody {
+            after_heading,
+            regex,
+            ..
+        } => (eval_section_body(doc, after_heading), regex.as_deref()),
         LocatorPrimitive::CodeBlock {
             language,
             under_section,
@@ -537,7 +628,7 @@ pub fn is_whole_value_mustache(s: &str) -> bool {
     t.starts_with("{{") && t.ends_with("}}") && t.len() >= 4
 }
 
-fn apply_regex(values: Vec<Value>, pattern: Option<&str>) -> Vec<Value> {
+fn apply_regex(values: Vec<Located>, pattern: Option<&str>) -> Vec<Located> {
     let Some(pattern) = pattern else {
         return values;
     };
@@ -546,21 +637,27 @@ fn apply_regex(values: Vec<Value>, pattern: Option<&str>) -> Vec<Value> {
     };
     values
         .into_iter()
-        .filter_map(|value| match value {
+        .filter_map(|located| match located.value {
             Value::String(s) => re.captures(&s).map(|caps| {
                 let matched = caps
                     .get(1)
                     .or_else(|| caps.get(0))
                     .map(|m| m.as_str())
                     .unwrap_or("");
-                Value::String(matched.to_string())
+                Located {
+                    value: Value::String(matched.to_string()),
+                    at: located.at,
+                }
             }),
-            other => Some(other),
+            value => Some(Located {
+                value,
+                at: located.at,
+            }),
         })
         .collect()
 }
 
-fn eval_frontmatter_field(doc: &QuireDocument, path: &[String]) -> Vec<Value> {
+fn eval_frontmatter_field(doc: &QuireDocument, path: &[String]) -> Vec<Located> {
     let mut cur: Value = match &doc.frontmatter {
         Some(map) => Value::Object(map.clone()),
         None => return Vec::new(),
@@ -577,14 +674,74 @@ fn eval_frontmatter_field(doc: &QuireDocument, path: &[String]) -> Vec<Value> {
     if cur.is_null() {
         Vec::new()
     } else {
-        vec![cur]
+        vec![Located {
+            value: cur,
+            at: At::Frontmatter,
+        }]
     }
 }
 
-fn eval_section_body(doc: &QuireDocument, heading: &str) -> Vec<Value> {
+fn eval_section_body(doc: &QuireDocument, heading: &str) -> Vec<Located> {
     match q_section(doc, heading) {
-        Some(s) => vec![Value::String(s.content.trim().to_string())],
+        Some(s) => vec![Located {
+            value: Value::String(s.content.trim().to_string()),
+            at: At::Body(s.start_line),
+        }],
         None => Vec::new(),
+    }
+}
+
+/// The content a section-owned locator reads, and where each part of it
+/// starts in the document body. A named section is one part; with no section
+/// named the top-level sections' contents are joined by `\n`, so a line of the
+/// joined text maps back to its own section.
+struct Scope {
+    content: String,
+    /// `(first line of the part within content, body line of the part's first
+    /// content line)`, ascending.
+    parts: Vec<(usize, usize)>,
+}
+
+impl Scope {
+    fn of(doc: &QuireDocument, under_section: Option<&str>) -> Option<Self> {
+        match under_section {
+            Some(h) => {
+                let s = q_section(doc, h)?;
+                Some(Self {
+                    content: s.content.clone(),
+                    parts: vec![(0, s.start_line + 1)],
+                })
+            }
+            None => {
+                let mut parts = Vec::new();
+                let mut next = 0;
+                for s in &doc.sections {
+                    parts.push((next, s.start_line + 1));
+                    next += s.content.matches('\n').count() + 1;
+                }
+                Some(Self {
+                    content: doc
+                        .sections
+                        .iter()
+                        .map(|s| s.content.as_str())
+                        .collect::<Vec<_>>()
+                        .join("\n"),
+                    parts,
+                })
+            }
+        }
+    }
+
+    /// The body line of line `rel` of the scope's content.
+    fn body_line(&self, rel: usize) -> usize {
+        let (first, body) = self
+            .parts
+            .iter()
+            .rev()
+            .find(|(first, _)| *first <= rel)
+            .copied()
+            .unwrap_or((0, 0));
+        body + (rel - first)
     }
 }
 
@@ -592,51 +749,54 @@ fn eval_code_block(
     doc: &QuireDocument,
     language: Option<&str>,
     under_section: Option<&str>,
-) -> Vec<Value> {
+) -> Vec<Located> {
     // Section-owned: resolve from the section's content slice (and thus,
     // under multi-yield, the iteration unit's slice), mirroring
     // `eval_list_item`. The document-wide `extract_diagrams` harvest is a
     // separate query, not the locator substrate (FR-011).
-    let content: String = match under_section {
-        Some(h) => match q_section(doc, h) {
-            Some(s) => s.content.clone(),
-            None => return Vec::new(),
-        },
-        None => doc
-            .sections
-            .iter()
-            .map(|s| s.content.as_str())
-            .collect::<Vec<_>>()
-            .join("\n"),
+    let Some(scope) = Scope::of(doc, under_section) else {
+        return Vec::new();
     };
-    diagrams_from_content(&content, language)
+    diagrams_from_content_with_lines(&scope.content, language)
         .into_iter()
-        .map(|b| Value::String(b.source))
+        .map(|(fence, block)| Located {
+            value: Value::String(block.source),
+            at: At::Body(scope.body_line(fence)),
+        })
         .collect()
+}
+
+/// The first table a table locator reads, with the body line of each data row:
+/// the named section's first table, or the first table of the first section
+/// that has one.
+fn find_table(
+    doc: &QuireDocument,
+    under_section: Option<&str>,
+) -> Option<(TableResult, Vec<usize>)> {
+    let pick = |s: &crate::ast::QuireSection| {
+        parse_tables_with_lines(&s.content)
+            .into_iter()
+            .next()
+            .map(|(table, row_lines, _)| {
+                let body = row_lines.iter().map(|rel| s.start_line + 1 + rel).collect();
+                (table, body)
+            })
+    };
+    match under_section {
+        Some(h) => q_section(doc, h).and_then(pick),
+        None => doc.sections.iter().find_map(pick),
+    }
 }
 
 fn eval_table_row(
     doc: &QuireDocument,
     under_section: Option<&str>,
     column: Option<&ColumnRef>,
-) -> Vec<Value> {
-    let table = match under_section {
-        Some(h) => table_from_section(doc, h),
-        None => doc
-            .sections
-            .first()
-            .and_then(|s| parse_table(&s.content))
-            .or_else(|| {
-                doc.sections
-                    .iter()
-                    .flat_map(|s| parse_tables(&s.content))
-                    .next()
-            }),
+) -> Vec<Located> {
+    let Some((table, row_lines)) = find_table(doc, under_section) else {
+        return Vec::new();
     };
-    let table = match table {
-        Some(t) => t,
-        None => return Vec::new(),
-    };
+    let rows = table.rows.into_iter().zip(row_lines);
     if let Some(col) = column {
         let idx = match col {
             ColumnRef::Name(name) => match table.headers.iter().position(|h| h == name) {
@@ -648,17 +808,19 @@ fn eval_table_row(
                 _ => return Vec::new(),
             },
         };
-        table
-            .rows
-            .into_iter()
-            .filter_map(|r| r.get(idx).cloned().map(Value::String))
-            .collect()
+        rows.filter_map(|(r, line)| {
+            r.get(idx).cloned().map(|cell| Located {
+                value: Value::String(cell),
+                at: At::Body(line),
+            })
+        })
+        .collect()
     } else {
-        table
-            .rows
-            .into_iter()
-            .map(|r| Value::String(r.join("\t")))
-            .collect()
+        rows.map(|(r, line)| Located {
+            value: Value::String(r.join("\t")),
+            at: At::Body(line),
+        })
+        .collect()
     }
 }
 
@@ -666,26 +828,24 @@ fn eval_list_item(
     doc: &QuireDocument,
     under_section: Option<&str>,
     pattern: Option<ListPattern>,
-) -> Vec<Value> {
-    let content: String = match under_section {
-        Some(h) => match q_section(doc, h) {
-            Some(s) => s.content.clone(),
-            None => return Vec::new(),
-        },
-        None => doc
-            .sections
-            .iter()
-            .map(|s| s.content.as_str())
-            .collect::<Vec<_>>()
-            .join("\n"),
+) -> Vec<Located> {
+    let Some(scope) = Scope::of(doc, under_section) else {
+        return Vec::new();
     };
-    parse_bullet_list(&content, pattern)
+    parse_bullet_list_with_lines(&scope.content, pattern)
         .into_iter()
-        .map(|item| Value::String(item.raw))
+        .map(|(line, item)| Located {
+            value: Value::String(item.raw),
+            at: At::Body(scope.body_line(line)),
+        })
         .collect()
 }
 
-fn eval_heading(doc: &QuireDocument, level: Option<u8>, path: Option<&[String]>) -> Vec<Value> {
+fn eval_heading(doc: &QuireDocument, level: Option<u8>, path: Option<&[String]>) -> Vec<Located> {
+    let located = |s: &crate::ast::QuireSection| Located {
+        value: Value::String(crate::query::normalize_heading(&s.heading)),
+        at: At::Body(s.start_line),
+    };
     if let Some(p) = path {
         // Walk by exact heading path.
         let mut current: Option<&crate::ast::QuireSection> = None;
@@ -705,14 +865,9 @@ fn eval_heading(doc: &QuireDocument, level: Option<u8>, path: Option<&[String]>)
                 return Vec::new();
             }
         }
-        current
-            .map(|s| vec![Value::String(crate::query::normalize_heading(&s.heading))])
-            .unwrap_or_default()
+        current.map(|s| vec![located(s)]).unwrap_or_default()
     } else {
-        q_sections(doc, level)
-            .into_iter()
-            .map(|s| Value::String(crate::query::normalize_heading(&s.heading)))
-            .collect()
+        q_sections(doc, level).into_iter().map(located).collect()
     }
 }
 

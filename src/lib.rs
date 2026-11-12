@@ -38,6 +38,7 @@ pub mod plain_language;
 #[cfg(feature = "python")]
 pub mod python;
 pub mod query;
+mod record_check;
 pub mod registry;
 pub mod semantic;
 pub mod skeptic;

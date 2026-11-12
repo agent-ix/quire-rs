@@ -7,6 +7,17 @@ bumps; once 1.0 ships, semver is strict.
 
 ## [Unreleased]
 
+### Added
+
+- **Located engine findings, PLAT-1478:** every locator exposes the 1-based line
+  of each value it located (`extract::locator::eval_located`, FR-033-AC-18);
+  `BundleFinding.line` carries the referencing row's line for
+  `dangling-trace-reference` and `reference-kind-mismatch`, and the line of a
+  bridged document-level error or warning (FR-049-AC-19..22); an archetype of a
+  `semantic` module may declare `record_validation: { schema, locate_absence_at }`
+  to validate the FR-011 yield record, one located `semantic.record-invalid`
+  finding per validator error (FR-069-AC-21..28).
+
 ## [0.57.0] — 2026-11-12
 
 ### Added
