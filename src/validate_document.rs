@@ -1459,7 +1459,6 @@ yield_pattern:
         id_pattern: '^Algo-\d+:'
 "#;
 
-    #[trace("FR-032-AC-2", "FR-033-AC-4")]
     // multi-yield archetype — a (FR-032 step 3 / FR-033)
     // conformant document (every iteration unit carries its required
     // sub-locator with a satisfied assert) validates.
@@ -1490,7 +1489,6 @@ yield_pattern:
       required: true
 "#;
 
-    #[trace("FR-032-AC-2", "FR-033-AC-4")]
     // a unit missing its required per_match sub-locator (no
     // `#### Detail` child) fails with reason `missing`, naming the key.
     #[test]
@@ -1513,7 +1511,6 @@ yield_pattern:
     // The same archetype: when every unit carries its required child, the
     // document validates (distinct `#### Detail N` headings avoid the
     // per-level uniqueness rule, FR-035).
-    #[trace("FR-032-AC-2", "FR-033-AC-4")]
     #[test]
     fn tc561_multi_yield_missing_dsl_conformant_validates() {
         let a = archetype(None, Some(MULTI_DSL_MISSING));

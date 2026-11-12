@@ -78,7 +78,7 @@ proptest! {
     /// an empty section, a section whose content is only blank lines, two
     /// adjacent headings with nothing between them.
     #[test]
-    #[trace("FR-022-AC-6", "FR-022-AC-7")]
+    #[trace("FR-022-AC-6")]
     fn tc896_rewriting_a_section_with_its_own_content_is_the_identity(text in any_document()) {
         let doc = parse_document(&text);
         for section in &doc.sections {

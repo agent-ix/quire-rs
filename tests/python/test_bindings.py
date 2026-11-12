@@ -230,7 +230,7 @@ def test_classify_properties_cross_boundary(tmp_path):
     assert scoped[1]["extraction"] == "not-extractable"
 
 
-@pytest.mark.trace("FR-023-AC-4", "US-011-AC-1", "US-011-AC-2")
+@pytest.mark.trace("FR-023-AC-4", "US-011-AC-1")
 def test_load_repo_returns_documents(tmp_path):
     """load_repo yields one structured doc per markdown file."""
     (tmp_path / "FR-001.md").write_text(
@@ -318,7 +318,7 @@ CONFORMANT_FR = (
 )
 
 
-@pytest.mark.trace("FR-032-AC-1", "FR-032-AC-6")
+@pytest.mark.trace("FR-032-AC-1")
 def test_validate_document_conformant_is_valid():
     """binding happy path: a conformant FR markdown
     document validates through the wheel."""
@@ -327,7 +327,7 @@ def test_validate_document_conformant_is_valid():
     assert result["errors"] == []
 
 
-@pytest.mark.trace("FR-032-AC-2", "FR-032-AC-6")
+@pytest.mark.trace("FR-032-AC-2")
 def test_validate_document_flags_missing_section_with_reason_and_line():
     """binding sad path: a missing required section is
     flagged with a reason and a line-numbered error shape."""
@@ -747,7 +747,6 @@ def test_exception_hierarchy_importable():
     assert not hasattr(quire, "QuireRenderError")
 
 
-@pytest.mark.trace("FR-028-AC-8", "NFR-016-AC-2")
 def test_new_functions_release_gil():
     """concurrent calls to validate complete without serializing."""
 

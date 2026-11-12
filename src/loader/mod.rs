@@ -2270,7 +2270,7 @@ mod tests {
         }
     }
 
-    #[trace("FR-050-AC-13", "FR-050-AC-15")]
+    #[trace("FR-050-AC-15")]
     // the model-level exclusion is the one traceability key (CR-060)
     // that merges as a **union**. Every other key is first-wins by name, which
     // is right for a named declaration and wrong for a statement of fact: a

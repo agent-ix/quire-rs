@@ -1443,7 +1443,6 @@ mod tests {
                 && edge.data_json.contains("original_uri")));
     }
 
-    #[trace("TC-706")]
     #[test]
     fn tc706_identified_document_without_object_mints_primary_artifact_node() {
         let result = extract_filament_core(base_input(
@@ -1466,7 +1465,6 @@ mod tests {
         }
     }
 
-    #[trace("TC-707")]
     #[test]
     fn tc707_document_without_id_keeps_document_fallback_source() {
         let result = extract_filament_core(base_input(
@@ -1481,7 +1479,6 @@ mod tests {
         );
     }
 
-    #[trace("TC-708")]
     #[test]
     fn tc708_object_typed_document_does_not_mint_extra_artifact_node() {
         let result = extract_filament_core(base_input(
@@ -1492,7 +1489,6 @@ mod tests {
         assert_eq!(result.nodes[0].object_type, "capability");
     }
 
-    #[trace("TC-709")]
     #[test]
     fn tc709_non_scalar_or_blank_ids_do_not_mint_a_primary_node() {
         for markdown in [

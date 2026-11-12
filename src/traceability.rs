@@ -2560,7 +2560,7 @@ document_references:
         assert!(!yaml.contains("exclude"), "{yaml}");
     }
 
-    #[trace("FR-050-AC-13", "FR-050-AC-15")]
+    #[trace("FR-050-AC-15")]
     // the same compile check `exclude:` has carried since (CR-060)
     // CR-038 — a pattern that cannot compile would quietly readmit everything
     // the module meant to keep out.
