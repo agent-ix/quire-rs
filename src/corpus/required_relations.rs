@@ -23,12 +23,20 @@ use std::path::{Path, PathBuf};
 use super::declared_tables::ExcludeSet;
 use super::resolve::Resolution;
 use super::spec::Spec;
-use super::validate::{pack, posture_tier, BundleFinding, BundlePosture, BundleReport};
+use super::validate::{pack, BundleFinding, BundleReport};
+use super::vocabulary_coverage::{declares_property, enum_at};
+use crate::grammar::GrammarSeverity;
 use crate::registry::Registry;
-use crate::traceability::{RelationDirection, RequiredRelation};
+use crate::traceability::{
+    fold_selector_value, RelationDirection, RequiredRelation, WhereSelector,
+};
 
 /// Implements: FR-058
 /// Check every declared required relation, plus any declared acyclic edge sets.
+///
+/// Findings are advisory under **both** postures (FR-058-AC-7, AC-18): the
+/// unconfigured tier is a warning whatever the posture, and only the FR-057
+/// registry promotes one.
 ///
 /// A no-op when the active module declares neither (FR-058-AC-8), which is the
 /// same early return `validate_trace_references` makes — a module that has not
@@ -36,7 +44,6 @@ use crate::traceability::{RelationDirection, RequiredRelation};
 pub(crate) fn validate_required_relations(
     spec: &Spec,
     registry: &Registry,
-    posture: BundlePosture,
     root: &Path,
     report: &mut BundleReport,
 ) {
@@ -67,7 +74,7 @@ pub(crate) fn validate_required_relations(
     for (path, _key, check, message) in findings {
         report.route(
             severity,
-            posture_tier(posture),
+            GrammarSeverity::Warning,
             BundleFinding::in_pack(pack::TRACE, check, path, message),
         );
     }
@@ -124,21 +131,90 @@ fn check_declaration_is_live(
             dead.push(format!("to '{target}'"));
         }
     }
-    if dead.is_empty() {
+    if !dead.is_empty() {
+        out.push((
+            root.to_path_buf(),
+            String::new(),
+            "undeclared-relation-vocabulary".to_string(),
+            format!(
+                "required relation '{}' names {} — no loaded module declares that kind and no \
+                 document in this bundle is one, so the relation matches nothing",
+                relation.name,
+                dead.join(", ")
+            ),
+        ));
+    }
+    if let Some(selector) = relation.selector() {
+        check_selector_is_live(spec, registry, relation, &selector, root, out);
+    }
+}
+
+/// Report a `where` that selects nothing (FR-058-AC-22): a `field` that is
+/// neither a property of the `from` archetype's frontmatter schema nor carried
+/// by any `from` document, or a `values` entry outside the field's schema
+/// `enum` and held by no `from` document. Both comparisons trim and ASCII fold.
+/// A field whose schema declares no `enum` leaves `values` unchecked.
+fn check_selector_is_live(
+    spec: &Spec,
+    registry: &Registry,
+    relation: &RequiredRelation,
+    selector: &WhereSelector,
+    root: &Path,
+    out: &mut Vec<(PathBuf, String, String, String)>,
+) {
+    let field = selector.field.as_str();
+    let docs = spec.by_type(&relation.from);
+    let schema = registry
+        .archetype(&relation.from)
+        .and_then(|a| a.frontmatter_schema.as_ref());
+    let carried = docs
+        .iter()
+        .any(|d| d.frontmatter().is_some_and(|fm| fm.contains_key(field)));
+    let mut push = |message: String| {
+        out.push((
+            root.to_path_buf(),
+            String::new(),
+            "undeclared-relation-vocabulary".to_string(),
+            message,
+        ));
+    };
+
+    if !carried && !schema.is_some_and(|s| declares_property(s, field)) {
+        push(format!(
+            "required relation '{}' selects on `where` field '{field}', which is not a property \
+             of '{}' frontmatter and no '{}' document carries it, so the relation matches nothing",
+            relation.name, relation.from, relation.from
+        ));
         return;
     }
 
-    out.push((
-        root.to_path_buf(),
-        String::new(),
-        "undeclared-relation-vocabulary".to_string(),
-        format!(
-            "required relation '{}' names {} — no loaded module declares that kind and no \
-             document in this bundle is one, so the relation matches nothing",
-            relation.name,
-            dead.join(", ")
-        ),
-    ));
+    let Some(members) = schema
+        .and_then(|s| enum_at(s, field))
+        .filter(|m| !m.is_empty())
+    else {
+        return;
+    };
+    let members: BTreeSet<String> = members.iter().map(|m| fold_selector_value(m)).collect();
+    let held: BTreeSet<String> = docs
+        .iter()
+        .filter_map(|d| {
+            d.frontmatter()?
+                .get(field)?
+                .as_str()
+                .map(fold_selector_value)
+        })
+        .collect();
+    for entry in &selector.values {
+        let folded = fold_selector_value(entry);
+        if !members.contains(&folded) && !held.contains(&folded) {
+            push(format!(
+                "required relation '{}' selects on `where` value '{entry}' for field '{field}', \
+                 which is outside the field's declared enum and held by no '{}' document, so \
+                 that value selects nothing",
+                relation.name, relation.from
+            ));
+        }
+    }
 }
 
 /// Every document of `relation.from` that lacks the declared edge.
@@ -161,7 +237,21 @@ fn check_relation(
     let accepted_targets: BTreeSet<&str> = relation.to.iter().map(String::as_str).collect();
     let accepted_edges: BTreeSet<&str> = relation.edges.iter().map(String::as_str).collect();
 
+    let selector = relation.selector();
+    if relation.where_clause.is_some() && selector.is_none() {
+        return; // unreachable after load validation; select nothing rather than everything
+    }
+
     for doc in spec.by_type(&relation.from) {
+        // Selection order is `from`, then `where`, then `exclude` (FR-058).
+        // The authored value is kept for the finding text (AC-20).
+        let selected_value = match &selector {
+            Some(sel) => match doc.frontmatter().and_then(|fm| fm.get(&sel.field)) {
+                Some(value) if sel.selects(value) => value.as_str(),
+                _ => continue,
+            },
+            None => None,
+        };
         if exclude.excludes(root, &doc.path) || model_exclude.excludes(root, &doc.path) {
             continue;
         }
@@ -200,7 +290,7 @@ fn check_relation(
         } else {
             format!("any {}", relation.to.join("/"))
         };
-        let message = match relation.direction {
+        let mut message = match relation.direction {
             RelationDirection::Outgoing => format!(
                 "'{}' has no '{verbs}' edge to {kinds} — declared by '{}'",
                 doc.id, relation.name
@@ -214,6 +304,9 @@ fn check_relation(
                 doc.id, relation.name
             ),
         };
+        if let (Some(sel), Some(value)) = (&selector, selected_value) {
+            message.push_str(&format!(", selected because `{}` is '{value}'", sel.field));
+        }
         out.push((doc.path.clone(), doc.id.clone(), check.clone(), message));
     }
 }

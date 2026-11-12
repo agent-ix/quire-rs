@@ -376,6 +376,7 @@ fn tc906_an_unexecutable_relation_is_rejected_at_load() {
         direction: RelationDirection::Either,
         check: check.to_string(),
         exclude: vec![],
+        where_clause: None,
     };
     let model = |r: RequiredRelation| TraceabilityModel {
         required_relations: vec![r],
@@ -436,6 +437,7 @@ fn tc907_duplicate_relation_names_are_rejected() {
         direction: RelationDirection::Outgoing,
         check: "orphan-fr".to_string(),
         exclude: vec![],
+        where_clause: None,
     };
     let err = TraceabilityModel {
         required_relations: vec![one.clone(), one],

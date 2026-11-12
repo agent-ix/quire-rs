@@ -510,6 +510,106 @@ pub struct RequiredRelation {
     /// relation — the same opt-out [`TraceTarget`] has (CR-038).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub exclude: Vec<String>,
+    /// Optional `where: {field, values}` narrowing the obligation to `from`
+    /// documents whose top-level frontmatter `field` holds one of `values`
+    /// (FR-058-AC-12..22).
+    ///
+    /// Kept as the authored value so a malformed selector reaches
+    /// [`TraceabilityModel::validate`] and is rejected there naming the relation
+    /// and `where`, rather than surfacing as a generic parse error. Read it
+    /// through [`RequiredRelation::selector`].
+    #[serde(
+        default,
+        rename = "where",
+        deserialize_with = "deserialize_present",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub where_clause: Option<serde_json::Value>,
+}
+
+/// Keeps an authored `where: null` as `Some(Null)` so validation rejects it,
+/// instead of serde folding it into "absent".
+fn deserialize_present<'de, D>(d: D) -> Result<Option<serde_json::Value>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    serde_json::Value::deserialize(d).map(Some)
+}
+
+/// A validated `where` selector (FR-058).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct WhereSelector {
+    /// Top-level frontmatter key read from each `from` document.
+    pub field: String,
+    /// Accepted values, as authored.
+    pub values: Vec<String>,
+}
+
+/// The FR-058-AC-14 comparison form: trimmed and ASCII case folded.
+pub(crate) fn fold_selector_value(value: &str) -> String {
+    value.trim().to_ascii_lowercase()
+}
+
+impl WhereSelector {
+    /// Parse and validate an authored `where`, naming `relation` on failure.
+    fn parse(relation: &str, raw: &serde_json::Value) -> Result<Self, String> {
+        let bad = |why: &str| {
+            format!(
+                "traceability: required_relations entry '{relation}' has an invalid `where`: {why}"
+            )
+        };
+        let map = raw
+            .as_object()
+            .ok_or_else(|| bad("it must be a mapping of `field` and `values`"))?;
+        if let Some(key) = map.keys().find(|k| *k != "field" && *k != "values") {
+            return Err(bad(&format!("unknown key '{key}'")));
+        }
+        let field = match map.get("field") {
+            Some(serde_json::Value::String(f)) if !f.trim().is_empty() => f.clone(),
+            Some(_) => return Err(bad("`field` must be a non-blank string")),
+            None => return Err(bad("`field` is missing")),
+        };
+        let items = match map.get("values") {
+            Some(serde_json::Value::Array(items)) if !items.is_empty() => items,
+            Some(serde_json::Value::Array(_)) => return Err(bad("`values` is empty")),
+            Some(_) => return Err(bad("`values` must be a list")),
+            None => return Err(bad("`values` is missing")),
+        };
+        let mut seen: BTreeSet<String> = BTreeSet::new();
+        let mut values = Vec::with_capacity(items.len());
+        for item in items {
+            let Some(text) = item.as_str().filter(|t| !t.trim().is_empty()) else {
+                return Err(bad("`values` entries must be non-blank strings"));
+            };
+            if !seen.insert(fold_selector_value(text)) {
+                return Err(bad(&format!(
+                    "`values` entry '{text}' duplicates another after trimming and ASCII case folding"
+                )));
+            }
+            values.push(text.to_string());
+        }
+        Ok(Self { field, values })
+    }
+
+    /// Whether a document's frontmatter value is selected (FR-058-AC-13/14):
+    /// only a string equal to an entry after trim and ASCII case fold.
+    #[must_use]
+    pub fn selects(&self, value: &serde_json::Value) -> bool {
+        let Some(text) = value.as_str() else {
+            return false;
+        };
+        let folded = fold_selector_value(text);
+        self.values.iter().any(|v| fold_selector_value(v) == folded)
+    }
+}
+
+impl RequiredRelation {
+    /// The validated `where` selector, or `None` when the relation has none or
+    /// it is malformed (the loader has already rejected the latter).
+    #[must_use]
+    pub fn selector(&self) -> Option<WhereSelector> {
+        WhereSelector::parse(&self.name, self.where_clause.as_ref()?).ok()
+    }
 }
 
 /// Which way a [`RequiredRelation`]'s edge must point.
@@ -1708,6 +1808,9 @@ impl TraceabilityModel {
                 "exclude",
                 &relation.exclude,
             )?;
+            if let Some(raw) = &relation.where_clause {
+                WhereSelector::parse(&relation.name, raw)?;
+            }
         }
 
         // An empty verb here would make `check_acyclic` walk a graph keyed on

@@ -7,6 +7,19 @@ bumps; once 1.0 ships, semver is strict.
 
 ## [Unreleased]
 
+### Added
+
+- **`where` selector on `required_relations`, PLAT-1477 (FR-058-AC-12..22):** a
+  relation can narrow its obligation to `from` documents whose frontmatter
+  `field` holds one of `values` (trim + ASCII case fold); a malformed `where`
+  fails module load, and one that selects nothing reports under
+  `trace:undeclared-relation-vocabulary`.
+
+### Fixed
+
+- Required-relation findings are advisory under `Strict` as well as `Okf`
+  (FR-058-AC-7); they were hard errors under `Strict`.
+
 ## [0.57.0] — 2026-11-12
 
 ### Added
