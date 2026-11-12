@@ -17,6 +17,17 @@ bumps; once 1.0 ships, semver is strict.
   `semantic` module may declare `record_validation: { schema, locate_absence_at }`
   to validate the FR-011 yield record, one located `semantic.record-invalid`
   finding per validator error (FR-069-AC-21..28).
+- **`where` selector on `required_relations`, PLAT-1477 (FR-058-AC-12..22):** a
+  relation can narrow its obligation to `from` documents whose frontmatter
+  `field` holds one of `values` (trim + ASCII case fold); a malformed `where`
+  fails module load, and one that selects nothing reports under
+  `trace:undeclared-relation-vocabulary`.
+
+### Fixed
+
+- Every FR-058 finding (required-relation, cyclic `acyclic_edges` and
+  `undeclared-relation-vocabulary`) is advisory under `Strict` as well as `Okf`
+  (FR-058-AC-7); they were hard errors under `Strict`.
 
 ## [0.57.0] — 2026-11-12
 

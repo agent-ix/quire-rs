@@ -44,6 +44,7 @@ mod props_fr_040;
 mod props_metamorphic;
 mod quality_lints;
 mod required_relations;
+mod required_relations_where;
 mod robustness;
 mod semantic_boundary;
 mod semantic_clauses;

@@ -381,7 +381,6 @@ pub fn validate_bundle(
     crate::corpus::required_relations::validate_required_relations(
         spec,
         registry,
-        posture,
         reference_root,
         &mut report,
     );

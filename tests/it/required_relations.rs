@@ -220,52 +220,105 @@ fn tc902_a_derivation_cycle_is_reported_once() {
     fs::remove_dir_all(&root).ok();
 }
 
-#[trace("TC-903")]
+#[trace("TC-903", "FR-058-AC-6", "FR-058-AC-7")]
 // each declared relation carries its own (FR-058-AC-6/AC-7)
 // `trace:<check>` severity key, so a module tunes them independently — and
-// FR-058's findings ship advisory, tunable by the FR-057 registry.
+// FR-058's findings (relations, cycles, dead vocabulary) ship advisory under
+// BOTH postures, tunable by the FR-057 registry.
 #[test]
 fn tc903_each_relation_is_independently_tunable() {
     let root = tmpdir("903");
     write(&root, "StR-001.md", &str_doc("StR-001"));
     write(&root, "StR-002.md", &str_doc("StR-002"));
-    write(&root, "FR-001.md", &fr("FR-001", None));
+    write(
+        &root,
+        "FR-001.md",
+        &fr("FR-001", Some(("derives_from", "FR-002"))),
+    );
+    write(
+        &root,
+        "FR-002.md",
+        &fr("FR-002", Some(("derives_from", "FR-001"))),
+    );
+    write(&root, "FR-003.md", &fr("FR-003", None));
 
-    // Unconfigured: both fire, and under Okf both are warnings.
-    let base = validate(&root, None);
-    assert_eq!(findings(&base, "orphan-fr").len(), 1);
-    assert_eq!(findings(&base, "unsatisfied-str").len(), 2);
-    assert!(base.is_valid(), "advisory by default: {:?}", base.errors);
-
-    // One off, the other untouched — the keys are per declaration.
-    let mut map = GrammarSeverityMap::new();
-    map.insert("trace:orphan-fr".into(), GrammarSeverityLevel::Off);
-    let scoped = validate(&root, Some(map));
-    assert_eq!(findings(&scoped, "orphan-fr").len(), 0, "switched off");
-    assert_eq!(
-        findings(&scoped, "unsatisfied-str").len(),
-        2,
-        "its sibling is untouched"
+    // A copy of the fixture whose first relation names a dead `from` kind.
+    let dead = tmpdir("903_dead");
+    let manifest = fs::read_to_string(fixture_module("required-relations").join("manifest.yaml"))
+        .expect("read manifest");
+    write(
+        &dead,
+        "manifest.yaml",
+        &manifest.replacen("from: FR\n", "from: FRR\n", 1),
     );
 
-    // And promotion works through the same key.
-    let mut map = GrammarSeverityMap::new();
-    map.insert("trace:orphan-fr".into(), GrammarSeverityLevel::Error);
-    let promoted = validate(&root, Some(map));
-    assert!(
-        !promoted.is_valid(),
-        "error promotes out of the warning tier"
-    );
-    assert_eq!(
-        promoted
-            .errors
-            .iter()
-            .filter(|f| f.reason == "orphan-fr")
-            .count(),
-        1
-    );
+    let run = |registry: &Registry, posture, map: Option<GrammarSeverityMap>| {
+        let registry = match map {
+            Some(m) => registry.clone().with_grammar_severity(m),
+            None => registry.clone(),
+        };
+        validate_bundle_at(&root, &registry, posture)
+    };
+    let live = Registry::load_module(&fixture_module("required-relations")).expect("load");
+    let dead_registry = Registry::load_module(&dead).expect("load dead");
+
+    for posture in [BundlePosture::Okf, BundlePosture::Strict] {
+        // Unconfigured: relation (no `where`), cycle and dead-vocabulary
+        // findings all fire and none is an error.
+        let base = run(&live, posture, None);
+        assert_eq!(findings(&base, "orphan-fr").len(), 3, "{posture:?}");
+        assert_eq!(findings(&base, "unsatisfied-str").len(), 2, "{posture:?}");
+        assert_eq!(
+            findings(&base, "cyclic-derives_from").len(),
+            1,
+            "{posture:?}"
+        );
+        let dead_base = run(&dead_registry, posture, None);
+        assert_eq!(
+            findings(&dead_base, "undeclared-relation-vocabulary").len(),
+            1,
+            "{posture:?}"
+        );
+        for report in [&base, &dead_base] {
+            assert!(
+                report.is_valid(),
+                "advisory by default: {:?}",
+                report.errors
+            );
+            assert!(!report.warnings.is_empty());
+        }
+
+        // One off, the other untouched — the keys are per declaration.
+        let mut map = GrammarSeverityMap::new();
+        map.insert("trace:orphan-fr".into(), GrammarSeverityLevel::Off);
+        let scoped = run(&live, posture, Some(map));
+        assert_eq!(findings(&scoped, "orphan-fr").len(), 0, "switched off");
+        assert_eq!(findings(&scoped, "unsatisfied-str").len(), 2);
+
+        // Promotion works through the same key, for each finding family.
+        for (key, reason, registry) in [
+            ("trace:orphan-fr", "orphan-fr", &live),
+            ("trace:cyclic-derives_from", "cyclic-derives_from", &live),
+            (
+                "trace:undeclared-relation-vocabulary",
+                "undeclared-relation-vocabulary",
+                &dead_registry,
+            ),
+        ] {
+            let mut map = GrammarSeverityMap::new();
+            map.insert(key.into(), GrammarSeverityLevel::Error);
+            let promoted = run(registry, posture, Some(map));
+            assert!(!promoted.is_valid(), "{key} promotes under {posture:?}");
+            assert!(
+                promoted.errors.iter().any(|f| f.reason == reason),
+                "{key}: {:?}",
+                promoted.errors
+            );
+        }
+    }
 
     fs::remove_dir_all(&root).ok();
+    fs::remove_dir_all(&dead).ok();
 }
 
 #[trace("TC-904", "FR-058-AC-8")]
@@ -376,6 +429,7 @@ fn tc906_an_unexecutable_relation_is_rejected_at_load() {
         direction: RelationDirection::Either,
         check: check.to_string(),
         exclude: vec![],
+        selector: None,
     };
     let model = |r: RequiredRelation| TraceabilityModel {
         required_relations: vec![r],
@@ -436,6 +490,7 @@ fn tc907_duplicate_relation_names_are_rejected() {
         direction: RelationDirection::Outgoing,
         check: "orphan-fr".to_string(),
         exclude: vec![],
+        selector: None,
     };
     let err = TraceabilityModel {
         required_relations: vec![one.clone(), one],
