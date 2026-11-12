@@ -449,7 +449,7 @@ fn tc2325_a_fenced_table_is_an_example_not_data() {
     let fenced_after = format!(
         "{real}\n```markdown\n| Link | Class | Target |\n|------|-------|--------|\n| K-9 | north | L-999 |\n```\n"
     );
-    let tilde_only = format!(
+    let tilde_only = String::from(
         "---\nid: LK-001\ntype: Link\ntitle: Links\n---\n\n## Links\n\n~~~\n| Link | Class | Target |\n|------|-------|--------|\n| K-9 | north | L-999 |\n~~~\n"
     );
     for (name, links) in [("2325a", &fenced_after), ("2325b", &tilde_only)] {
