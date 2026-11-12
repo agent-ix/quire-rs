@@ -113,6 +113,22 @@ empty after trimming or that duplicates another key under the matching rule; a
 kind whose target list is empty; and a listed target name that is not in the
 declaration's `targets`. A rejected declaration is never partially applied.
 
+### Located findings (PLAT-1476)
+
+The reference scan already reads each referencing row together with its
+1-based document line (frontmatter included, the numbering `validate` findings
+use). A `dangling-trace-reference` and a `reference-kind-mismatch` finding SHALL
+carry that line: the line of the referencing table row, in the referencing
+document. The row is the unit the scan knows; it records no cell offset, so the
+finding names the row's line and no column. Every id of a multi-id cell takes
+the row's one line. Two rows of one document that reference the same id yield
+two findings at two lines. Findings are ordered by (document path, id, reason,
+message, line); the line is the last key, so findings that differ only by line
+order by it and a declaration without duplicates orders as before. The line is a
+field of the finding (`line`) and the rendered diagnostic leads with
+`<path>: line <N>:` in the form the command uses for its other located
+diagnostics, so a consumer matching located diagnostics matches these.
+
 ## Acceptance Criteria
 
 | ID | Criteria | Verification |
@@ -131,6 +147,9 @@ declaration's `targets`. A rejected declaration is never partially applied.
 | FR-049-AC-12 | `reference-kind-mismatch` is posture-degradable like FR-049-AC-3: the same mismatch is an error under `Strict` and a warning under `Okf`, and `trace:reference-kind-mismatch` is registrable per FR-057. | Test (TC-2241) |
 | FR-049-AC-13 | A row whose kind cell is empty or names a value absent from `kind_targets`, and a table lacking the `kind_column` header, is checked against the union only: a resolvable id yields no finding and an unresolvable id yields `dangling-trace-reference`. Kind values match after trimming and ASCII case folding. | Test (TC-2242) |
 | FR-049-AC-18 | A table with the declaration's `column` header but no `kind_column` header yields exactly one `kind-column-matches-nothing` finding naming the document path and declaration, a warning under both `Strict` and `Okf` when unconfigured, mappable as `trace:kind-column-matches-nothing`; a table with both headers, and a table with neither, yields none. | Test (TC-2247) |
+| FR-049-AC-19 | A `dangling-trace-reference` finding carries the 1-based document line of the referencing table row (frontmatter lines counted) as a `line` field, with the line also leading the rendered diagnostic; every unresolved id of a multi-id cell carries the same row line, and the same id dangling on two rows of one document yields two findings at the two rows' lines. | Test (TC-2301) |
+| FR-049-AC-20 | A `reference-kind-mismatch` finding carries the line of the referencing row exactly as AC-19, for a row whose kind cell and target cell sit on the row's line; a row below another table or section of the same document reports its own line, not the table header's or the section heading's. | Test (TC-2302) |
+| FR-049-AC-21 | Findings carrying a line remain deterministic: repeated validation yields the same findings in the order (path, id, reason, message, line), and a fixture module declaring different column names and a different table position yields lines by its own declaration, with no archetype or column name in the engine. | Test (TC-2303) |
 | FR-049-AC-14 | A target cell that matches no pattern (`-`, empty) extracts no id and yields no reference and no finding, whatever the row's kind; a multi-id cell classifies each id independently and reports only the mismatched ones. | Test (TC-2243) |
 | FR-049-AC-15 | Module load rejects, naming the declaration and the field at fault and applying no part of it, each malformed kind declaration: `kind_column` without `kind_targets` or the reverse, an empty `kind_column`, `kind_column` equal to `column`, an empty map, an empty or duplicate kind key, an empty target list, and a listed target not in `targets`. | Test (TC-2244) |
 | FR-049-AC-16 | A declaration without `kind_column` and `kind_targets` behaves exactly as before: the engine contains no kind name, and a fixture module declaring different kind values and column names is resolved by its own declaration. | Test (TC-2245) |
