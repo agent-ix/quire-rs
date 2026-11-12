@@ -418,40 +418,6 @@ pub fn audit_gaps(matrix: &str, documents: &[(&str, &str)]) -> Vec<AuditFinding>
     findings
 }
 
-/// Directories of a spec tree holding requirement documents.
-const REQUIREMENT_DIRECTORIES: [&str; 4] =
-    ["stakeholder", "usecase", "functional", "non-functional"];
-
-/// [`audit_gaps`] over a spec tree: `<spec>/tests.md` against every `.md`
-/// document in the requirement directories. A file or directory entry that
-/// cannot be read is an error, never a smaller population.
-pub fn audit_spec_dir(spec: &std::path::Path) -> Result<Vec<AuditFinding>, String> {
-    let read = |path: &std::path::Path| {
-        std::fs::read_to_string(path).map_err(|error| format!("{}: {error}", path.display()))
-    };
-    let matrix = read(&spec.join("tests.md"))?;
-    let mut documents: Vec<(String, String)> = Vec::new();
-    for directory in REQUIREMENT_DIRECTORIES {
-        let entries = std::fs::read_dir(spec.join(directory))
-            .map_err(|error| format!("{}: {error}", spec.join(directory).display()))?;
-        for entry in entries {
-            let entry =
-                entry.map_err(|error| format!("{}: {error}", spec.join(directory).display()))?;
-            let path = entry.path();
-            if path.extension().is_some_and(|extension| extension == "md") {
-                let label = format!("{directory}/{}", entry.file_name().to_string_lossy());
-                documents.push((label, read(&path)?));
-            }
-        }
-    }
-    documents.sort();
-    let documents: Vec<(&str, &str)> = documents
-        .iter()
-        .map(|(label, text)| (label.as_str(), text.as_str()))
-        .collect();
-    Ok(audit_gaps(&matrix, &documents))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

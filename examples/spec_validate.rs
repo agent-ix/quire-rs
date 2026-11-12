@@ -1,7 +1,7 @@
 // agent-ix/quire-rs#212: the `make validate` gate — the engine under test
 // validates its own `spec/` tree.
 //
-// A past PR corrupted a `spec/tests.md` row with a single-shot string replace,
+// A past PR corrupted a hand-kept test-matrix row with a single-shot string replace,
 // every local gate stayed green, and the corruption shipped:
 // nothing in `make ci` ever ran structural validation against this repo's own
 // matrix. This binary closes that gap with the engine in this working tree —
@@ -321,24 +321,6 @@ fn main() {
                  deliberately frontmatter-less notes under spec/assets/)",
                 path.display()
             );
-            failed_documents += 1;
-        }
-    }
-
-    // ── Audit-table completeness (FR-050-AC-58, CR-200) ──
-    // Per-document validation cannot see a row that is absent: a coverage row
-    // declaring `AC-1..N` over an audit table lacking one criterion's row
-    // validates cell by cell. The matrix and the requirement documents are
-    // read together.
-    match quire_rs::audit_table::audit_spec_dir(&root.join("spec")) {
-        Ok(gaps) => {
-            for gap in gaps {
-                eprintln!("error: spec/tests.md: audit table: {gap}");
-                failed_documents += 1;
-            }
-        }
-        Err(error) => {
-            eprintln!("error: audit table: {error}");
             failed_documents += 1;
         }
     }

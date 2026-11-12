@@ -87,7 +87,7 @@ fn bench_parse(c: &mut Criterion) {
 /// Registry (load cost excluded). Target: median below 1 ms on the canonical
 /// baseline runner, which is the `quire-perf-gate` baseline this bench is
 /// compared against.
-#[trace("NFR-002-AC-4", "NFR-007-AC-1", "TC-577")]
+#[trace("NFR-002-AC-4", "NFR-007-AC-1")]
 fn bench_validate_document(c: &mut Criterion) {
     let module = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/modules/req-fixture");
     let registry = Registry::load_module(&module).expect("load req-fixture module");

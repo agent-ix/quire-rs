@@ -5,7 +5,7 @@
 use std::path::Path;
 
 use ix_trace_rs::trace;
-use quire_rs::audit_table::{audit_gaps, audit_spec_dir, AuditFinding, AuditSource, PhantomSource};
+use quire_rs::audit_table::{audit_gaps, AuditFinding, AuditSource, PhantomSource};
 
 const MATRIX: &str = "\
 ## Requirements Traceability
@@ -93,7 +93,7 @@ fn subjects(findings: &[AuditFinding]) -> Vec<&str> {
 /// The control: every declared criterion has a row; tombstones, struck-through
 /// and RETIRED-status rows, parenthetical notes, a `###` gaps table and a
 /// RETIRED word in a live row's test cell declare or map nothing wrongly.
-#[trace("TC-2056", "FR-050-AC-58")]
+#[trace("FR-050-AC-58")]
 #[test]
 fn a_complete_audit_table_has_no_findings() {
     let findings = audit_gaps(MATRIX, &documents());
@@ -102,7 +102,7 @@ fn a_complete_audit_table_has_no_findings() {
 
 /// Deleting one audit row is one error naming exactly that criterion, even
 /// though a coverage row and a document both declare it.
-#[trace("TC-2056", "FR-050-AC-58")]
+#[trace("FR-050-AC-58")]
 #[test]
 fn a_deleted_audit_row_is_one_error_naming_it() {
     let matrix = without_row(MATRIX, "| FR-001-AC-2 | TC-1 |");
@@ -121,7 +121,7 @@ fn a_deleted_audit_row_is_one_error_naming_it() {
 }
 
 /// Mixed-case `StR-` ids are read whole: deleting a stakeholder row fails.
-#[trace("TC-2056", "FR-050-AC-58")]
+#[trace("FR-050-AC-58")]
 #[test]
 fn a_deleted_stakeholder_row_is_named() {
     for row in ["| StR-003-AC-1 | TC-20 |", "| StR-005-AC-2 | TC-21 |"] {
@@ -133,7 +133,7 @@ fn a_deleted_stakeholder_row_is_named() {
 
 /// A list continuation declares its later items; a document-defined criterion
 /// from a leading table cell is named; a tombstone never needs a row.
-#[trace("TC-2056", "FR-050-AC-58")]
+#[trace("FR-050-AC-58")]
 #[test]
 fn continuations_and_table_cell_definitions_are_read() {
     let matrix = without_row(MATRIX, "| FR-004-AC-4 | TC-4 |");
@@ -146,7 +146,7 @@ fn continuations_and_table_cell_definitions_are_read() {
 }
 
 /// A live statement that merely begins `Withdrawn` is a live criterion.
-#[trace("TC-2056", "FR-050-AC-58")]
+#[trace("FR-050-AC-58")]
 #[test]
 fn a_live_withdrawn_sentence_needs_a_row() {
     let mut documents = documents();
@@ -159,7 +159,7 @@ fn a_live_withdrawn_sentence_needs_a_row() {
 }
 
 /// An id that no document defines is an error from either side.
-#[trace("TC-2056", "FR-050-AC-58")]
+#[trace("FR-050-AC-58")]
 #[test]
 fn a_phantom_id_is_an_error() {
     let matrix = MATRIX.replace(
@@ -189,7 +189,7 @@ fn a_phantom_id_is_an_error() {
 
 /// A criteria cell the check cannot read in full is an error, never a smaller
 /// declaration; a runaway range errors once and quickly.
-#[trace("TC-2056", "FR-050-AC-58")]
+#[trace("FR-050-AC-58")]
 #[test]
 fn an_unreadable_criteria_cell_is_an_error() {
     for cell in ["AC-1...3", "ac-1..3", "AC-5..2", "AC-1..4000000", "AC-1-3"] {
@@ -210,12 +210,4 @@ fn an_unreadable_criteria_cell_is_an_error() {
     assert!(audit_gaps(&long, &documents()).is_empty());
     let findings = audit_gaps(&without_row(&long, "| FR-001-AC-2 | TC-1 |"), &documents());
     assert_eq!(subjects(&findings), ["FR-001-AC-2"], "{findings:?}");
-}
-
-/// This repository's own matrix passes against its own requirement documents.
-#[trace("TC-2056", "FR-050-AC-58")]
-#[test]
-fn this_repositorys_matrix_has_no_findings() {
-    let findings = audit_spec_dir(Path::new("spec")).expect("readable spec tree");
-    assert!(findings.is_empty(), "{findings:#?}");
 }

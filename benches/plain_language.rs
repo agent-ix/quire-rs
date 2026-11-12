@@ -4,7 +4,7 @@ use std::path::Path;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use quire_rs::{check_plain_language, reader_blocks, PlainLanguageProfile};
 
-const LARGE_DOCUMENT: &str = include_str!("../spec/tests.md");
+const LARGE_DOCUMENT: &str = include_str!("../spec/functional/FR-050-declarative-coverage-computation.md");
 
 fn profile() -> PlainLanguageProfile {
     PlainLanguageProfile {
@@ -22,14 +22,14 @@ fn profile() -> PlainLanguageProfile {
 }
 
 fn bench_plain_language(c: &mut Criterion) {
-    c.bench_function("reader_blocks/spec_tests", |b| {
+    c.bench_function("reader_blocks/spec_fr050", |b| {
         b.iter(|| reader_blocks(black_box(LARGE_DOCUMENT)))
     });
     let profile = profile();
-    c.bench_function("plain_language/spec_tests", |b| {
+    c.bench_function("plain_language/spec_fr050", |b| {
         b.iter(|| {
             check_plain_language(
-                black_box(Path::new("spec/tests.md")),
+                black_box(Path::new("spec/functional/FR-050-declarative-coverage-computation.md")),
                 black_box(LARGE_DOCUMENT),
                 black_box(&profile),
             )
