@@ -37,13 +37,6 @@ struct ReferencingRow {
     kind: Option<String>,
 }
 
-/// The referencing rows of one declaration, plus the documents whose table
-/// has the reference column but not the declared kind column (FR-049-AC-18).
-struct ReferencingRows {
-    rows: Vec<ReferencingRow>,
-    missing_kind_column: BTreeSet<PathBuf>,
-}
-
 /// Check every declared document reference against the bundle's resolution
 /// set, appending posture-degradable `dangling-trace-reference` findings.
 ///
@@ -85,7 +78,6 @@ pub(crate) fn validate_trace_references(
     // bundle, not of the walk (FR-049-AC-8).
     // Ordered by (path, id, reason, message) (FR-049-AC-17).
     let mut findings: Vec<(PathBuf, String, &'static str, String)> = Vec::new();
-    let mut kind_column_findings: BTreeSet<(PathBuf, String)> = BTreeSet::new();
     for declaration in &model.document_references {
         let Ok(pattern) = Regex::new(&declaration.pattern) else {
             continue; // patterns are validated at module load
@@ -97,18 +89,7 @@ pub(crate) fn validate_trace_references(
             }
         }
         let scanned = referencing_rows(spec, root, declaration, &model_exclude, &mut ctx);
-        for path in scanned.missing_kind_column {
-            let kind_column = declaration.kind_column.as_deref().unwrap_or_default();
-            kind_column_findings.insert((
-                path,
-                format!(
-                    "declaration '{}' reads column '{}' but the table has no '{kind_column}' \
-                     kind column, so its references are checked against the union of targets only",
-                    declaration.name, declaration.column
-                ),
-            ));
-        }
-        for row in scanned.rows {
+        for row in scanned {
             let kind_subset = row
                 .kind
                 .as_deref()
@@ -120,6 +101,11 @@ pub(crate) fn validate_trace_references(
                 if id.is_empty() {
                     continue;
                 }
+                let owner = row
+                    .row_id
+                    .as_deref()
+                    .map(|r| format!(" (row '{r}')"))
+                    .unwrap_or_default();
                 if resolvable.iter().any(|known| known.as_str() == id) {
                     if let (Some(subset), Some(kind)) = (kind_subset, row.kind.as_deref()) {
                         let in_subset = subset.iter().any(|name| {
@@ -133,7 +119,7 @@ pub(crate) fn validate_trace_references(
                                 id.to_string(),
                                 "reference-kind-mismatch",
                                 format!(
-                                    "trace reference '{id}' declared by '{}' is on a row of kind \
+                                    "trace reference '{id}'{owner} declared by '{}' is on a row of kind \
                                      '{}' which may reference only {} targets",
                                     declaration.name,
                                     kind.trim(),
@@ -144,11 +130,6 @@ pub(crate) fn validate_trace_references(
                     }
                     continue;
                 }
-                let owner = row
-                    .row_id
-                    .as_deref()
-                    .map(|r| format!(" (row '{r}')"))
-                    .unwrap_or_default();
                 findings.push((
                     row.path.clone(),
                     id.to_string(),
@@ -185,15 +166,6 @@ pub(crate) fn validate_trace_references(
                 path,
                 message,
             ),
-        );
-    }
-
-    // Warning tier in both postures, tunable (FR-049-AC-18, FR-057).
-    for (path, message) in kind_column_findings {
-        report.route(
-            severity,
-            GrammarSeverity::Warning,
-            BundleFinding::in_pack(pack::TRACE, "kind-column-matches-nothing", path, message),
         );
     }
 
@@ -261,7 +233,7 @@ fn referencing_rows(
     declaration: &DocumentReference,
     model_exclude: &declared_tables::ExcludeSet,
     ctx: &mut declared_tables::ScanContext,
-) -> ReferencingRows {
+) -> Vec<ReferencingRow> {
     let exclude = declared_tables::ExcludeSet::compile_validated(&declaration.exclude);
     let scanned = declared_tables::scan(
         spec,
@@ -273,20 +245,17 @@ fn referencing_rows(
             model_exclude,
             mints: None,
             status_column: None,
+            kind_column: declaration
+                .kind_column
+                .as_deref()
+                .map(|kind| (declaration.column.as_str(), kind)),
             target_required: false,
         },
         &declaration.section,
         ctx,
     );
-    let mut missing_kind_column = BTreeSet::new();
     let mut rows = Vec::new();
     for row in scanned {
-        if let Some(kind_column) = declaration.kind_column.as_deref() {
-            let has = |name: &str| row.columns.iter().any(|h| h.eq_ignore_ascii_case(name));
-            if has(&declaration.column) && !has(kind_column) {
-                missing_kind_column.insert(row.path.clone());
-            }
-        }
         // CR-015: apply the declaration's opt-in normalizations before any id
         // is read out of the cell.
         let Some(raw) = row.cell(&declaration.column) else {
@@ -314,8 +283,5 @@ fn referencing_rows(
             kind,
         });
     }
-    ReferencingRows {
-        rows,
-        missing_kind_column,
-    }
+    rows
 }

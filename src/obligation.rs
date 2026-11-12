@@ -372,6 +372,7 @@ pub fn derive(
             // every CR-117 finding the coverage scan already reports.
             mints: None,
             status_column: None,
+            kind_column: None,
             target_required: false,
         };
         let rows = declared_tables::scan(spec, root, scope, resolved.section, &mut ctx);

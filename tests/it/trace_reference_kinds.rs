@@ -86,7 +86,7 @@ fn tc2240_kind_subset_decides_mismatch_and_dangling_stays_separate() {
     assert_eq!(mismatch.len(), 1, "{:?}", all(&report));
     let message = &mismatch[0].message;
     assert!(mismatch[0].path.ends_with("links.md"));
-    for part in ["R-1", "north", "lefty", "links"] {
+    for part in ["R-1", "(row 'K-1')", "north", "lefty", "links"] {
         assert!(message.contains(part), "{part} missing from {message}");
     }
     let dangling = with_reason(&report, "dangling-trace-reference");
@@ -215,6 +215,10 @@ fn tc2244_malformed_kind_declarations_fail_module_load() {
         (
             "    kind_column: Class\n    kind_targets:\n      north: [lefty]\n      North: [righty]\n",
             "duplicate kind key",
+        ),
+        (
+            "    kind_column: Class\n    kind_targets:\n      north: [lefty]\n      north: [righty]\n",
+            "duplicate kind key 'north'",
         ),
         (
             "    kind_column: Class\n    kind_targets:\n      north: []\n",
@@ -359,6 +363,33 @@ fn tc2247_missing_kind_header_warns_once_under_both_postures() {
         BundlePosture::Strict,
     );
     assert_eq!(count(&off, "kind-column-matches-nothing"), 0);
+    fs::remove_dir_all(&root).ok();
+
+    // Per table (FR-049-AC-18): a table with the headers and zero data rows
+    // warns, and two such tables in one document warn twice.
+    let root = bundle("2247z", &[]);
+    write(
+        &root,
+        "links.md",
+        "---\nid: LK-001\ntype: Link\ntitle: Links\n---\n\n## Links\n\n| Link | Target |\n|------|--------|\n",
+    );
+    let report = validate_bundle_at(&root, &registry(), BundlePosture::Strict);
+    assert_eq!(count(&report, "kind-column-matches-nothing"), 1);
+    fs::remove_dir_all(&root).ok();
+
+    let root = bundle("2247t", &[]);
+    write(
+        &root,
+        "links.md",
+        "---\nid: LK-001\ntype: Link\ntitle: Links\n---\n\n## Links\n\n| Link | Target |\n|------|--------|\n| K-0 | R-1 |\n\n## Links\n\n| Link | Target |\n|------|--------|\n| K-1 | L-1 |\n",
+    );
+    let report = validate_bundle_at(&root, &registry(), BundlePosture::Strict);
+    assert_eq!(
+        count(&report, "kind-column-matches-nothing"),
+        2,
+        "{:?}",
+        all(&report)
+    );
     fs::remove_dir_all(&root).ok();
 
     // Both headers, and neither header, yield none.
