@@ -710,6 +710,41 @@ fn tc2305_each_malformed_declaration_is_refused_at_its_manifest_path() {
     );
 }
 
+#[trace("TC-2318", "FR-069-AC-29")]
+#[test]
+fn tc2318_record_validation_null_is_refused_naming_the_archetype() {
+    let expected = "semantic.invalid-value: artifact_types[Bad].record_validation:";
+    for (name, semantic) in [("with semantic", GOOD_SEMANTIC), ("without", "")] {
+        let registry = refused(BAD_MATCH, "  record_validation: null\n", semantic);
+        let reasons: Vec<&str> = registry
+            .failures()
+            .iter()
+            .filter(|f| f.archetype == "Bad")
+            .map(|f| f.reason.as_str())
+            .collect();
+        assert!(
+            reasons
+                .iter()
+                .any(|r| r.starts_with(expected) && r.contains("archetype `Bad`")),
+            "{name}: {reasons:?}"
+        );
+        assert!(registry.archetype("Bad").is_none(), "{name}");
+    }
+    // `~` is the same YAML null.
+    let registry = refused(BAD_MATCH, "  record_validation: ~\n", GOOD_SEMANTIC);
+    assert!(registry.archetype("Bad").is_none());
+
+    // Absent is fine, and the valid sibling is recorded unchanged.
+    let registry = refused(BAD_MATCH, "", GOOD_SEMANTIC);
+    assert!(registry.failures().is_empty(), "{:?}", registry.failures());
+    assert!(registry.archetype("Bad").unwrap().record_validation.is_none());
+    let good = registry.archetype("Good").unwrap();
+    assert_eq!(
+        good.record_validation.as_ref().unwrap().locate_absence_at,
+        "status"
+    );
+}
+
 // ─────────────────── TC-2306 .. TC-2310: Anomaly checks ───────────────────
 
 #[trace("TC-2306", "FR-069-AC-23")]

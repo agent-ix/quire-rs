@@ -478,13 +478,27 @@ pub struct Archetype {
     /// `record_validation: { schema, locate_absence_at }` — FR-069 located
     /// record validation. Kept raw: its shape is checked, and every refusal
     /// named, by the loader (`loader::record_validation`).
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    /// An authored `record_validation: null` stays `Some(Null)` so the loader
+    /// refuses it, rather than serde folding it into "absent".
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "deserialize_present"
+    )]
     pub record_validation: Option<Value>,
     /// Free-form passthrough for carry-over fields (`grammar_ref`,
     /// `allowed_links`, `has_plugin`, `defaults`, `construct`) and the retired fields
     /// the loader rejects.
     #[serde(flatten)]
     pub extras: Map<String, Value>,
+}
+
+/// Keeps an authored `null` as `Some(Null)` instead of absent (PLAT-1484).
+fn deserialize_present<'de, D>(d: D) -> Result<Option<Value>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    Value::deserialize(d).map(Some)
 }
 
 impl Archetype {
