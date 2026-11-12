@@ -153,6 +153,39 @@ fn tc2248_where_selects_by_field_value_and_narrows_only_the_obliged_side() {
         "N-005 is targeted by T-002, N-001 by nothing: {report:?}"
     );
     fs::remove_dir_all(&root).ok();
+
+    // `to` stays constrained exactly as without `where`: an edge to a document
+    // of another kind, or to nothing in the bundle, does not satisfy; and an
+    // incoming edge from a non-`to` kind does not satisfy the incoming relation.
+    let root = tmpdir("2248b");
+    write(&root, "N-010.md", &nfr("N-010", &attr("usability"), None));
+    write(
+        &root,
+        "N-011.md",
+        &nfr("N-011", &attr("security"), Some(("mitigates", "N-010"))),
+    );
+    write(
+        &root,
+        "N-012.md",
+        &nfr("N-012", &attr("safety"), Some(("mitigates", "T-404"))),
+    );
+    write(
+        &root,
+        "N-013.md",
+        &nfr("N-013", &attr("usability"), Some(("mitigated_by", "N-011"))),
+    );
+    let report = run(&root, &registry());
+    assert_eq!(
+        ids(&report, "unjustified-classified-nfr"),
+        vec!["N-011", "N-012"],
+        "{report:?}"
+    );
+    assert_eq!(
+        ids(&report, "untargeted-security-nfr"),
+        vec!["N-011"],
+        "an NFR-sourced edge is not a Threat: {report:?}"
+    );
+    fs::remove_dir_all(&root).ok();
 }
 
 #[trace("TC-2249", "FR-058-AC-13")]
@@ -454,6 +487,14 @@ fn tc2257_a_where_that_selects_nothing_reports_itself() {
     // Outside the enum but held by a document: live by the second route.
     write(&root, "N-003.md", &nfr("N-003", &attr("secrity"), None));
     assert!(dead(&run(&root, &bad_value)).is_empty());
+
+    // "Held" compares folded too: a padded, upper-case entry is live through a
+    // document holding the lower-case value.
+    let folded_held = load(
+        "2257e",
+        "    where: { field: quality_attribute, values: [security, \" SECRITY \"] }\n",
+    );
+    assert!(dead(&run(&root, &folded_held)).is_empty());
 
     fs::remove_dir_all(&root).ok();
 }

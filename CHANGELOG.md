@@ -17,7 +17,8 @@ bumps; once 1.0 ships, semver is strict.
 
 ### Fixed
 
-- Required-relation findings are advisory under `Strict` as well as `Okf`
+- Every FR-058 finding (required-relation, cyclic `acyclic_edges` and
+  `undeclared-relation-vocabulary`) is advisory under `Strict` as well as `Okf`
   (FR-058-AC-7); they were hard errors under `Strict`.
 
 ## [0.57.0] — 2026-11-12

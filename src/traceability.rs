@@ -485,7 +485,7 @@ pub struct VocabularyCoverage {
 /// are the same declaration read in opposite directions, so they are one type
 /// with a [`direction`](Self::direction) rather than two checks.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
+#[serde(try_from = "RawRequiredRelation")]
 pub struct RequiredRelation {
     /// Declaration name, used in the finding and in diagnostics.
     pub name: String,
@@ -512,19 +512,51 @@ pub struct RequiredRelation {
     pub exclude: Vec<String>,
     /// Optional `where: {field, values}` narrowing the obligation to `from`
     /// documents whose top-level frontmatter `field` holds one of `values`
-    /// (FR-058-AC-12..22).
-    ///
-    /// Kept as the authored value so a malformed selector reaches
-    /// [`TraceabilityModel::validate`] and is rejected there naming the relation
-    /// and `where`, rather than surfacing as a generic parse error. Read it
-    /// through [`RequiredRelation::selector`].
-    #[serde(
-        default,
-        rename = "where",
-        deserialize_with = "deserialize_present",
-        skip_serializing_if = "Option::is_none"
-    )]
-    pub where_clause: Option<serde_json::Value>,
+    /// (FR-058-AC-12..22). Validated once, when the declaration is
+    /// deserialized, so a malformed one never reaches the check.
+    #[serde(rename = "where", skip_serializing_if = "Option::is_none")]
+    pub selector: Option<WhereSelector>,
+}
+
+/// The authored shape of a [`RequiredRelation`], before the `where` is
+/// validated. Exists so a malformed `where` is rejected naming the relation.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RawRequiredRelation {
+    name: String,
+    from: String,
+    edges: Vec<String>,
+    #[serde(default)]
+    to: Vec<String>,
+    direction: RelationDirection,
+    check: String,
+    #[serde(default)]
+    exclude: Vec<String>,
+    /// `where: null` stays `Some(Null)` so it is rejected, not read as absent.
+    #[serde(default, rename = "where", deserialize_with = "deserialize_present")]
+    selector: Option<serde_json::Value>,
+}
+
+impl TryFrom<RawRequiredRelation> for RequiredRelation {
+    type Error = String;
+
+    fn try_from(raw: RawRequiredRelation) -> Result<Self, String> {
+        let selector = raw
+            .selector
+            .as_ref()
+            .map(|value| WhereSelector::parse(&raw.name, value))
+            .transpose()?;
+        Ok(Self {
+            name: raw.name,
+            from: raw.from,
+            edges: raw.edges,
+            to: raw.to,
+            direction: raw.direction,
+            check: raw.check,
+            exclude: raw.exclude,
+            selector,
+        })
+    }
 }
 
 /// Keeps an authored `where: null` as `Some(Null)` so validation rejects it,
@@ -537,12 +569,15 @@ where
 }
 
 /// A validated `where` selector (FR-058).
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct WhereSelector {
     /// Top-level frontmatter key read from each `from` document.
     pub field: String,
     /// Accepted values, as authored.
     pub values: Vec<String>,
+    /// `values` in comparison form, folded once at parse time.
+    #[serde(skip)]
+    folded: BTreeSet<String>,
 }
 
 /// The FR-058-AC-14 comparison form: trimmed and ASCII case folded.
@@ -575,20 +610,24 @@ impl WhereSelector {
             Some(_) => return Err(bad("`values` must be a list")),
             None => return Err(bad("`values` is missing")),
         };
-        let mut seen: BTreeSet<String> = BTreeSet::new();
+        let mut folded: BTreeSet<String> = BTreeSet::new();
         let mut values = Vec::with_capacity(items.len());
         for item in items {
             let Some(text) = item.as_str().filter(|t| !t.trim().is_empty()) else {
                 return Err(bad("`values` entries must be non-blank strings"));
             };
-            if !seen.insert(fold_selector_value(text)) {
+            if !folded.insert(fold_selector_value(text)) {
                 return Err(bad(&format!(
                     "`values` entry '{text}' duplicates another after trimming and ASCII case folding"
                 )));
             }
             values.push(text.to_string());
         }
-        Ok(Self { field, values })
+        Ok(Self {
+            field,
+            values,
+            folded,
+        })
     }
 
     /// Whether a document's frontmatter value is selected (FR-058-AC-13/14):
@@ -598,17 +637,7 @@ impl WhereSelector {
         let Some(text) = value.as_str() else {
             return false;
         };
-        let folded = fold_selector_value(text);
-        self.values.iter().any(|v| fold_selector_value(v) == folded)
-    }
-}
-
-impl RequiredRelation {
-    /// The validated `where` selector, or `None` when the relation has none or
-    /// it is malformed (the loader has already rejected the latter).
-    #[must_use]
-    pub fn selector(&self) -> Option<WhereSelector> {
-        WhereSelector::parse(&self.name, self.where_clause.as_ref()?).ok()
+        self.folded.contains(&fold_selector_value(text))
     }
 }
 
@@ -1808,9 +1837,6 @@ impl TraceabilityModel {
                 "exclude",
                 &relation.exclude,
             )?;
-            if let Some(raw) = &relation.where_clause {
-                WhereSelector::parse(&relation.name, raw)?;
-            }
         }
 
         // An empty verb here would make `check_acyclic` walk a graph keyed on

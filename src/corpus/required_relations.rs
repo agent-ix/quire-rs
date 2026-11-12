@@ -144,8 +144,8 @@ fn check_declaration_is_live(
             ),
         ));
     }
-    if let Some(selector) = relation.selector() {
-        check_selector_is_live(spec, registry, relation, &selector, root, out);
+    if let Some(selector) = &relation.selector {
+        check_selector_is_live(spec, registry, relation, selector, root, out);
     }
 }
 
@@ -237,15 +237,12 @@ fn check_relation(
     let accepted_targets: BTreeSet<&str> = relation.to.iter().map(String::as_str).collect();
     let accepted_edges: BTreeSet<&str> = relation.edges.iter().map(String::as_str).collect();
 
-    let selector = relation.selector();
-    if relation.where_clause.is_some() && selector.is_none() {
-        return; // unreachable after load validation; select nothing rather than everything
-    }
+    let selector = relation.selector.as_ref();
 
     for doc in spec.by_type(&relation.from) {
         // Selection order is `from`, then `where`, then `exclude` (FR-058).
         // The authored value is kept for the finding text (AC-20).
-        let selected_value = match &selector {
+        let selected_value = match selector {
             Some(sel) => match doc.frontmatter().and_then(|fm| fm.get(&sel.field)) {
                 Some(value) if sel.selects(value) => value.as_str(),
                 _ => continue,
@@ -304,7 +301,7 @@ fn check_relation(
                 doc.id, relation.name
             ),
         };
-        if let (Some(sel), Some(value)) = (&selector, selected_value) {
+        if let (Some(sel), Some(value)) = (selector, selected_value) {
             message.push_str(&format!(", selected because `{}` is '{value}'", sel.field));
         }
         out.push((doc.path.clone(), doc.id.clone(), check.clone(), message));
