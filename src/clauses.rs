@@ -796,7 +796,7 @@ mod tests {
     }
 
     #[test]
-    #[trace("TC-1806", "FR-073-AC-2", "FR-073-AC-3")]
+    #[trace("FR-073-AC-2", "FR-073-AC-3")]
     fn synthetic_set_validates_and_preserves_three_valued_applicability() {
         let set = set("1.0.0");
         set.validate().unwrap();
@@ -811,7 +811,7 @@ mod tests {
     }
 
     #[test]
-    #[trace("TC-1807", "FR-073-AC-1", "FR-073-AC-6")]
+    #[trace("FR-073-AC-1", "FR-073-AC-6")]
     fn rights_fail_closed() {
         let mut fixture = set("1.0.0");
         fixture.rights.text = TextRights::None;
@@ -847,7 +847,7 @@ mod tests {
     }
 
     #[test]
-    #[trace("TC-1808", "FR-073-AC-4")]
+    #[trace("FR-073-AC-4")]
     fn diff_reports_added_removed_and_changed_by_clause_id() {
         let before = set("1.0.0");
         let mut after = set("2.0.0");
@@ -871,7 +871,7 @@ mod tests {
     }
 
     #[test]
-    #[trace("TC-1809", "FR-073-AC-1", "FR-073-AC-5")]
+    #[trace("FR-073-AC-1", "FR-073-AC-5")]
     fn module_registry_loads_referenced_set_and_output_schemas_accept_reports() {
         let root = tempfile::tempdir().unwrap();
         std::fs::create_dir(root.path().join("clauses")).unwrap();

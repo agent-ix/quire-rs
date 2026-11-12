@@ -31,7 +31,7 @@ fn model() -> TraceabilityModel {
     model
 }
 
-#[trace("TC-936", "FR-062-AC-1")]
+#[trace("FR-062-AC-1")]
 // a production function carries the requirement it
 // implements, and that relation is NOT evidence.
 #[test]
@@ -62,7 +62,7 @@ fn tc936_a_production_symbol_implements_without_backing() {
     assert!(graph.verifies.is_empty());
 }
 
-#[trace("TC-937", "FR-062-AC-2")]
+#[trace("FR-062-AC-2")]
 // the two markers cannot be confused, because the symbol
 // kinds they attach to are complements.
 #[test]
@@ -101,7 +101,7 @@ fn tc937_the_two_relations_do_not_cross() {
     );
 }
 
-#[trace("TC-938", "FR-062-AC-3")]
+#[trace("FR-062-AC-3")]
 // one requirement named by several markers yields one
 // relation, and the ordering is deterministic (NFR-006).
 #[test]
@@ -127,7 +127,7 @@ fn tc938_relations_are_deduped_and_ordered() {
     assert_eq!(ids, vec!["FR-050", "FR-053"], "{:?}", graph.implements);
 }
 
-#[trace("TC-939", "FR-062-AC-4")]
+#[trace("FR-062-AC-4")]
 // the relation reaches the JSON contract, and changes no
 // coverage number.
 //
@@ -205,7 +205,7 @@ fn tc939_implements_reaches_the_report_without_moving_a_total() {
     std::fs::remove_dir_all(&dir).ok();
 }
 
-#[trace("TC-940", "FR-062-AC-5")]
+#[trace("FR-062-AC-5")]
 // the forms reach `bind` when they come from a (CR-081)
 // module manifest, which is the only way a consumer ever supplies them.
 //
@@ -295,11 +295,6 @@ fn syntax_cases() -> serde_json::Value {
 }
 
 #[trace(
-    "TC-1983",
-    "TC-1984",
-    "TC-1985",
-    "TC-1986",
-    "TC-1987",
     "FR-062-AC-12",
     "FR-062-AC-13",
     "FR-062-AC-14",
@@ -363,7 +358,7 @@ fn declared_attribute_syntax_excludes_data_and_preserves_exact_owners() {
     }
 }
 
-#[trace("TC-1989", "FR-062-AC-12")]
+#[trace("FR-062-AC-12")]
 #[test]
 fn invalid_attribute_guards_refuse_the_named_module_form() {
     for (syntax, language, section) in [
@@ -382,7 +377,7 @@ fn invalid_attribute_guards_refuse_the_named_module_form() {
     }
 }
 
-#[trace("TC-1988", "FR-062-AC-16")]
+#[trace("FR-062-AC-16")]
 #[test]
 fn omitted_guard_keeps_each_languages_declared_comment_form() {
     for (language, file, source) in [
@@ -427,7 +422,7 @@ fn omitted_guard_keeps_each_languages_declared_comment_form() {
     }
 }
 
-#[trace("TC-1989", "FR-062-AC-12")]
+#[trace("FR-062-AC-12")]
 #[test]
 fn partial_attribute_matches_reach_the_coverage_warning_channel() {
     let dir = tempfile::tempdir().unwrap();
@@ -477,7 +472,7 @@ fn partial_attribute_matches_reach_the_coverage_warning_channel() {
     assert!(report.unbacked_rows.is_empty());
 }
 
-#[trace("TC-1990", "FR-062-AC-17")]
+#[trace("FR-062-AC-17")]
 #[test]
 fn syntax_guard_preserves_identity_range_locations_and_file_failure_isolation() {
     let dir = tempfile::tempdir().unwrap();
@@ -531,7 +526,7 @@ fn syntax_guard_preserves_identity_range_locations_and_file_failure_isolation() 
     assert_eq!(graph.range_diagnostics[0].line, 4);
 }
 
-#[trace("TC-1987", "TC-1989", "FR-062-AC-12", "FR-062-AC-15")]
+#[trace("FR-062-AC-12", "FR-062-AC-15")]
 #[test]
 fn guarded_forms_require_complete_matches_and_do_not_expand_cfg_attr() {
     for (source, pattern, expected_ids, expected_partial) in [
@@ -588,7 +583,7 @@ fn guarded_forms_require_complete_matches_and_do_not_expand_cfg_attr() {
     }
 }
 
-#[trace("TC-1987", "FR-062-AC-15")]
+#[trace("FR-062-AC-15")]
 #[test]
 fn recovered_attribute_is_a_real_missing_token_not_a_valid_candidate() {
     let cases = syntax_cases();
@@ -641,7 +636,7 @@ fn coverage_registry_with_evidence(
     registry
 }
 
-#[trace("TC-1990", "FR-062-AC-17")]
+#[trace("FR-062-AC-17")]
 #[test]
 fn guarded_scope_changes_preserve_real_verification_backing_and_symbol_identity() {
     let dir = tempfile::tempdir().unwrap();
@@ -757,7 +752,7 @@ fn guarded_scope_changes_preserve_real_verification_backing_and_symbol_identity(
     assert_eq!(unguarded_graph.verifies, after.verifies);
 }
 
-#[trace("TC-1989", "FR-062-AC-12")]
+#[trace("FR-062-AC-12")]
 #[test]
 fn present_invalid_syntax_values_never_become_an_unguarded_form() {
     for value in [

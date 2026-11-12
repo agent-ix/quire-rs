@@ -168,7 +168,7 @@ const POPULATION: &str = "---\nid: POP-001\ntitle: Shop Population\nobject: popu
 
 const OBJECT_SECTIONS: &str = "---\nid: FR-104\ntitle: Fulfilment\nobject: process\n---\n# FR-104: Fulfilment\n\n## Values\n\n| Value | Description |\n|---|---|\n| express | Next day |\n| standard | |\n\n## States\n\n| State | Description |\n|---|---|\n| open | Accepting lines |\n| shipped | Left the warehouse |\n\n## Transitions\n\n| From | To | Trigger | Guard | Emits |\n|---|---|---|---|---|\n| open | shipped | ship | ready | OrderShipped |\n\n## Steps\n\n| Step | Kind | Consumes | Emits | Description |\n|---|---|---|---|---|\n| pick | command | OrderPlaced | Picked, Packed | Pick the lines |\n| await | wait | | | |\n\n## Aggregate Members\n\n| Member | Multiplicity |\n|---|---|\n| OrderLine | 1..* |\n\n## Ubiquitous Language\n\n| Term | Description |\n|---|---|\n| Backorder | A line awaiting stock |\n\n## Invariants\n\n### ready\n\n```quire\nx\n```\n\n## Operations\n\n### ship\n\nReturns: String[1]\n";
 
-#[trace("TC-1840", "FR-075-AC-1")]
+#[trace("FR-075-AC-1")]
 #[test]
 fn generalization_and_abstract_from_frontmatter() {
     let record = extract(
@@ -248,7 +248,7 @@ fn generalization_and_abstract_from_frontmatter() {
     assert_model_unavailable(&record);
 }
 
-#[trace("TC-1841", "FR-075-AC-2")]
+#[trace("FR-075-AC-2")]
 #[test]
 fn presence_subsets_redefines_columns() {
     let record = extract(
@@ -330,7 +330,7 @@ fn presence_subsets_redefines_columns() {
     assert_model_unavailable(&record);
 }
 
-#[trace("TC-1842", "FR-075-AC-3")]
+#[trace("FR-075-AC-3")]
 #[test]
 fn operation_contract_and_frame_lines() {
     let md = operations("Pre: placed");
@@ -417,7 +417,7 @@ fn operation_contract_and_frame_lines() {
     assert_model_unavailable(&record);
 }
 
-#[trace("TC-1843", "FR-075-AC-4")]
+#[trace("FR-075-AC-4")]
 #[test]
 fn population_members_with_one_extent() {
     let record = extract(POPULATION, &[], tables());
@@ -444,7 +444,7 @@ fn population_members_with_one_extent() {
     assert_span(&members[1], POPULATION, line_of(POPULATION, "| Customer |"));
 }
 
-#[trace("TC-1843", "FR-075-AC-4")]
+#[trace("FR-075-AC-4")]
 #[test]
 fn population_extent_open_and_required() {
     let open = POPULATION.replace("extent: closed", "extent: open");
@@ -496,7 +496,7 @@ fn population_extent_open_and_required() {
 
 /// FR-075-AC-4: the retired `Type | Extent` table is refused whatever the
 /// manifest declares, naming the current shape.
-#[trace("TC-1843", "FR-075-AC-4")]
+#[trace("FR-075-AC-4")]
 #[test]
 fn legacy_population_table_is_refused_under_either_manifest() {
     let old = POPULATION.replace("extent: closed\n", "").replace(
@@ -525,7 +525,7 @@ fn legacy_population_table_is_refused_under_either_manifest() {
 /// FR-075-AC-6: `extent` is a population feature; a module that declares no
 /// population refuses it, and a population type with no `Type` table refuses
 /// an `extent` that has nothing to describe.
-#[trace("TC-1845", "FR-075-AC-6")]
+#[trace("FR-075-AC-6")]
 #[test]
 fn extent_without_a_declared_population_is_refused() {
     let record = extract(POPULATION, &[], dsl(json!({})));
@@ -550,7 +550,7 @@ fn extent_without_a_declared_population_is_refused() {
     assert_model_unavailable(&record);
 }
 
-#[trace("TC-1844", "FR-075-AC-5")]
+#[trace("FR-075-AC-5")]
 #[test]
 fn object_type_sections() {
     let md = OBJECT_SECTIONS;
@@ -713,7 +713,7 @@ fn object_type_sections() {
 }
 
 /// Provenance: agent-ix/quire-rs#569
-#[trace("TC-1844", "FR-075-AC-5")]
+#[trace("FR-075-AC-5")]
 #[test]
 fn declared_section_body_can_contain_prose_beside_a_model_table() {
     let md = "---\nid: FR-200\ntitle: Assessment Domain\nobject: domain\n---\n# FR-200: Assessment Domain\n\n## Ubiquitous Language\n\n- **Authored** — written by a domain expert.\n\n| Term | Description |\n|---|---|\n| Derived | Produced from other declarations. |\n";
@@ -758,7 +758,7 @@ fn declared_section_body_can_contain_prose_beside_a_model_table() {
     );
 }
 
-#[trace("TC-1845", "FR-075-AC-6")]
+#[trace("FR-075-AC-6")]
 #[test]
 fn undeclared_features_are_refused() {
     let ops = operations("Pre: placed");
@@ -903,7 +903,7 @@ fn undeclared_features_are_refused() {
     assert_model_unavailable(&record);
 }
 
-#[trace("TC-1847", "FR-075-AC-8")]
+#[trace("FR-075-AC-8")]
 #[test]
 fn model_identity_and_display_name() {
     let record = extract(
@@ -926,8 +926,8 @@ fn model_identity_and_display_name() {
     );
 }
 
-#[trace("TC-1846", "FR-075-AC-7")]
-#[trace("TC-1846", "FR-075-CON-1")]
+#[trace("FR-075-AC-7")]
+#[trace("FR-075-CON-1")]
 #[test]
 fn records_without_model_features_are_unchanged() {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
@@ -1101,7 +1101,7 @@ fn finding(code: &str, reason: Option<&str>, line: u64) -> (String, Option<Strin
 const EV1: &str = "ix://agent-ix/shop/EV-001";
 const EV2: &str = "ix://agent-ix/shop/EV-002";
 
-#[trace("TC-1993", "FR-075-AC-22", "FR-075-CON-2")]
+#[trace("FR-075-AC-22", "FR-075-CON-2")]
 // `Emits` and `Consumes` items resolve by title or id to SemanticIds of the
 // bundle, never to the cell text.
 #[test]
@@ -1139,7 +1139,7 @@ fn declaration_references_resolve_to_semantic_ids() {
     assert!(record["model"]["steps"][0].get("emits").is_none());
 }
 
-#[trace("TC-1994", "FR-075-AC-23")]
+#[trace("FR-075-AC-23")]
 // An unknown name and a declaration of a type no module source admits are
 // refused; admission reads the construct references, then allowed_links,
 // then admits any.
@@ -1220,7 +1220,7 @@ fn unknown_and_unadmitted_references_are_refused() {
     assert_eq!(record["availability"]["model"]["state"], "available");
 }
 
-#[trace("TC-1995", "FR-075-AC-24")]
+#[trace("FR-075-AC-24")]
 // Candidates are every distinct declaration matched by id, title or name;
 // the admitted ones decide; `ix://` items are never matched by name.
 #[test]
@@ -1336,7 +1336,7 @@ fn reference_candidates_and_ambiguity() {
     );
 }
 
-#[trace("TC-1996", "FR-075-AC-25")]
+#[trace("FR-075-AC-25")]
 // Cell-shape refusals, imported identities, untyped declarations, and the
 // construct entry deciding over allowed_links.
 #[test]
@@ -1437,7 +1437,7 @@ fn reference_cell_rules() {
 
 const MACHINE_MODULE: &str = "manifest_version: 1.0.0\nname: machines\nobject_types:\n- name: state_machine\n  data_schema:\n    type: object\n  body_extraction:\n    yield_pattern:\n      match:\n        states: { from: table_row, under_section: States, assert: { columns: [State, Description] } }\n        transitions: { from: table_row, under_section: Transitions, assert: { columns: [From, To, Trigger, Guard, Emits], optional_columns: [Guard, Emits] } }\n        steps: { from: table_row, under_section: Steps, assert: { columns: [Step, Kind, Consumes, Emits, Description] } }\nsemantic:\n  contract_version: 1.0.0\n  package: agent-ix/machines\n  exports: [state_machine]\n  targets: [json-schema, markdown]\n";
 
-#[trace("TC-1997", "FR-075-AC-26")]
+#[trace("FR-075-AC-26")]
 // With no bundle index or no bundle package the rows advise, the model is
 // unavailable with that reason and no error, and validate_document passes.
 #[test]
@@ -1537,7 +1537,7 @@ fn unresolvable_bundle_advises_and_keeps_validating() {
 /// FR-075-AC-19: a manifest declaring none of the dimension, terms and unit
 /// locators refuses each table with the feature as the `reason`, and an
 /// artifact with none of the tables carries no such member.
-#[trace("TC-1950", "FR-075-AC-19")]
+#[trace("FR-075-AC-19")]
 #[test]
 fn undeclared_dimension_tables_are_refused_and_absent_ones_leave_no_member() {
     let md = "---\nid: FR-100\ntitle: Order\nobject: entity\n---\n# FR-100: Order\n\n\
@@ -1579,7 +1579,7 @@ fn undeclared_dimension_tables_are_refused_and_absent_ones_leave_no_member() {
 
 /// FR-070-AC-11: a `Clock` field validates against semantic-v1 and carries
 /// the target `Clock`.
-#[trace("TC-1945", "FR-070-AC-11")]
+#[trace("FR-070-AC-11")]
 #[test]
 fn clock_field_record_validates_against_semantic_v1() {
     let md = "---\nid: FR-100\ntitle: Order\nobject: entity\n---\n# FR-100: Order\n\n\
@@ -1595,7 +1595,7 @@ fn clock_field_record_validates_against_semantic_v1() {
 
 /// A declared `dimension`, `terms` or `unit` locator is refused visibly
 /// until its reader exists: the table never vanishes without a diagnostic.
-#[trace("TC-1950", "FR-075-AC-19")]
+#[trace("FR-075-AC-19")]
 #[test]
 fn declared_dimension_tables_without_a_reader_are_refused() {
     let md = "---\nid: FR-100\ntitle: Order\nobject: entity\n---\n# FR-100: Order\n\n\

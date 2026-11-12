@@ -50,7 +50,7 @@ fn run(case: &Value, module: &str, root: &Path) -> (CoverageReport, Registry) {
     (report, registry)
 }
 
-#[trace("TC-2080", "FR-050-AC-60")]
+#[trace("FR-050-AC-60")]
 #[test]
 fn list_items_and_headings_mint_from_capture_group_one_within_their_section() {
     let case = case("list-items-and-headings-mint-within-their-section");
@@ -111,7 +111,7 @@ fn list_items_and_headings_mint_from_capture_group_one_within_their_section() {
     }
 }
 
-#[trace("TC-2080", "FR-050-AC-60")]
+#[trace("FR-050-AC-60")]
 #[test]
 fn omitted_from_is_table_row_and_reports_identically() {
     let case = case("list-items-and-headings-mint-within-their-section");
@@ -143,7 +143,7 @@ fn omitted_from_is_table_row_and_reports_identically() {
     );
 }
 
-#[trace("TC-2080", "FR-050-AC-60")]
+#[trace("FR-050-AC-60")]
 #[test]
 fn malformed_non_table_sources_fail_module_load() {
     let broken: Vec<Value> = cases()

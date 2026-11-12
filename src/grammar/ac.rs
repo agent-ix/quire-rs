@@ -901,7 +901,7 @@ mod tests {
             .count()
     }
 
-    #[trace("TC-707", "FR-047-AC-1")]
+    #[trace("FR-047-AC-1")]
     // the four shapes — `assertion` is canonical, (CR-013)
     // `obligation` and `given-when-then` are recognized renderings, and a cell
     // with no structure and no observable signal is `unstructured` and yields
@@ -948,7 +948,7 @@ mod tests {
         }
     }
 
-    #[trace("TC-708", "FR-047-AC-2")]
+    #[trace("FR-047-AC-2")]
     // a modal-free cell is still segmented and checked;
     // an empty cell yields no statement at all.
     #[test]
@@ -962,7 +962,7 @@ mod tests {
         assert!(findings(&["   "]).is_empty());
     }
 
-    #[trace("TC-709", "FR-047-AC-3")]
+    #[trace("FR-047-AC-3")]
     // two obligations yield exactly one `non-singular`;
     // the positive/negative pair idiom yields none.
     #[test]
@@ -1004,7 +1004,7 @@ mod tests {
         );
     }
 
-    #[trace("TC-775", "FR-047-AC-15")]
+    #[trace("FR-047-AC-15")]
     // the pair idiom is recognized by the second (CR-024)
     // obligation, not by the separator joining the two.
     #[test]
@@ -1076,7 +1076,7 @@ mod tests {
         );
     }
 
-    #[trace("TC-776", "FR-047-AC-16")]
+    #[trace("FR-047-AC-16")]
     // `then` separates obligations only in a (CR-024)
     // Given/When/Then criterion that states no modal.
     #[test]
@@ -1115,7 +1115,7 @@ mod tests {
         );
     }
 
-    #[trace("TC-777", "FR-047-AC-17")]
+    #[trace("FR-047-AC-17")]
     // a vacuous predicate that is also a common (CR-025)
     // noun does not fire on the noun.
     #[test]
@@ -1138,7 +1138,7 @@ mod tests {
         );
     }
 
-    #[trace("TC-778", "FR-047-AC-18")]
+    #[trace("FR-047-AC-18")]
     // a double-backtick span masks its whole (CR-026)
     // body, including the keywords and the single-tick spans inside it.
     #[test]
@@ -1168,7 +1168,7 @@ mod tests {
         );
     }
 
-    #[trace("TC-710", "FR-047-AC-4")]
+    #[trace("FR-047-AC-4")]
     // a vague outcome verb over an abstract object flags;
     // the same cell with the object in the merged lexicon does not.
     #[test]
@@ -1189,7 +1189,7 @@ mod tests {
         assert_eq!(vague(&lex(&["pagination"])), 0);
     }
 
-    #[trace("TC-711", "FR-047-AC-5")]
+    #[trace("FR-047-AC-5")]
     // a cell headed by a vacuous predicate with (CR-014)
     // nothing else to check fires `vacuous-outcome`; the same predicate
     // alongside a concrete signal, a lexicon term, or an observable verb does
@@ -1245,7 +1245,7 @@ mod tests {
         }
     }
 
-    #[trace("TC-712", "FR-047-AC-6")]
+    #[trace("FR-047-AC-6")]
     // the grammar runs on the `Acceptance (CR-014)
     // Criteria` `Criteria` column of every requirement archetype that carries
     // one, plus `### <doc-id>-AC-N` supplements — but on nothing else. An FR
@@ -1395,7 +1395,7 @@ mod tests {
         .is_empty());
     }
 
-    #[trace("TC-713", "FR-047-AC-7")]
+    #[trace("FR-047-AC-7")]
     // finding fields — grammar, check id, excerpt, line,
     // shape, severity.
     #[test]
@@ -1410,7 +1410,7 @@ mod tests {
         assert_eq!(u.severity, GrammarSeverity::Warning);
     }
 
-    #[trace("TC-751", "FR-047-AC-10")]
+    #[trace("FR-047-AC-10")]
     // a GWT cell yields one `non-canonical-shape` while
     // still classifying `given-when-then`, and its other checks run on the
     // `Then` clause; an EARS cell yields none.
@@ -1456,7 +1456,7 @@ mod tests {
         assert_eq!(count(&["Structural evaluation"], "non-canonical-shape"), 0);
     }
 
-    #[trace("TC-763", "FR-047-AC-14")]
+    #[trace("FR-047-AC-14")]
     // a predication whose copula is elided is a
     // predicate. An existential/quantifier head or a predicative adjective
     // asserts something testable while carrying no inflected verb, no modal and
@@ -1502,7 +1502,7 @@ mod tests {
         }
     }
 
-    #[trace("TC-2070", "FR-047-AC-19")]
+    #[trace("FR-047-AC-19")]
     // an imperative head (base-form action verb, object, prepositional
     // complement) is a predicate (CR-202, PLAT-395); bare headings still fire.
     #[test]
@@ -1538,7 +1538,7 @@ mod tests {
         assert!(r.is_match("Add service to scenario version"));
     }
 
-    #[trace("TC-761", "FR-047-AC-13")]
+    #[trace("FR-047-AC-13")]
     // a keyword inside a code span is a *mention*, not a
     // use — it decides neither the shape nor the obligation count — while the
     // vocabulary checks still read the real words inside the span (CR-017).
@@ -1634,7 +1634,7 @@ mod tests {
         );
     }
 
-    #[trace("TC-754", "FR-047-AC-11")]
+    #[trace("FR-047-AC-11")]
     // fenced blocks and blockquotes inside a supplement
     // section are skipped; the surrounding prose is still checked.
     #[test]
@@ -1676,7 +1676,7 @@ mod tests {
         .any(|x| x.check == "vacuous-outcome"));
     }
 
-    #[trace("TC-757", "FR-047-AC-12")]
+    #[trace("FR-047-AC-12")]
     // both vocabularies are module data — a (CR-014)
     // module-added observable verb suppresses `vacuous-outcome`, a module-added
     // vacuous predicate extends the vacuity set, and with no declaration both
@@ -1774,7 +1774,7 @@ mod props_metamorphic {
         /// CR-017/CR-026, CR-069, Property: masking is
         /// idempotent — a masked span masks to itself.
         #[test]
-        #[trace("FR-047-AC-18", "TC-894")]
+        #[trace("FR-047-AC-18")]
         fn tc894_mask_code_spans_is_idempotent(s in tickish()) {
             let once = super::mask_code_spans(&s);
             prop_assert_eq!(super::mask_code_spans(&once), once.clone(), "input={:?}", s);
@@ -1785,7 +1785,7 @@ mod props_metamorphic {
         /// slices the *original* with that offset, so any drift here would
         /// silently mis-slice rather than fail loudly.
         #[test]
-        #[trace("FR-047-AC-18", "TC-894")]
+        #[trace("FR-047-AC-18")]
         fn tc894_mask_code_spans_preserves_byte_length(s in tickish()) {
             prop_assert_eq!(super::mask_code_spans(&s).len(), s.len(), "input={:?}", s);
         }
@@ -1799,7 +1799,7 @@ mod props_metamorphic {
         /// could synthesize a delimiter would change which spans a second pass
         /// sees, and idempotence would be luck rather than structure.
         #[test]
-        #[trace("FR-047-AC-18", "TC-894")]
+        #[trace("FR-047-AC-18")]
         fn tc894_mask_code_spans_never_introduces_a_backtick(s in tickish()) {
             let out = super::mask_code_spans(&s);
             let positions = |t: &str| -> std::collections::BTreeSet<usize> {

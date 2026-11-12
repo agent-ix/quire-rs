@@ -309,32 +309,32 @@ fn run_cases(ac: &str) {
     assert!(ran > 0, "no case backs {ac}");
 }
 
-#[trace("TC-2167", "FR-081-AC-1", "FR-081-AC-2", "FR-081-CON-1")]
+#[trace("FR-081-AC-1", "FR-081-AC-2", "FR-081-CON-1")]
 #[test]
 fn assessment_and_lifecycle_keys() {
     run_cases("FR-081-AC-1");
     run_cases("FR-081-AC-2");
 }
 
-#[trace("TC-2168", "FR-081-AC-3")]
+#[trace("FR-081-AC-3")]
 #[test]
 fn evidence_targets_resolve_by_the_target_rules() {
     run_cases("FR-081-AC-3");
 }
 
-#[trace("TC-2169", "FR-081-AC-4")]
+#[trace("FR-081-AC-4")]
 #[test]
 fn table_and_cell_refusals() {
     run_cases("FR-081-AC-4");
 }
 
-#[trace("TC-2170", "FR-081-AC-5")]
+#[trace("FR-081-AC-5")]
 #[test]
 fn blocks_not_of_the_keys_form() {
     run_cases("FR-081-AC-5");
 }
 
-#[trace("TC-2171", "FR-081-AC-6", "FR-081-CON-2")]
+#[trace("FR-081-AC-6", "FR-081-CON-2")]
 #[test]
 fn token_gating_and_owned_keys() {
     run_cases("FR-081-AC-6");
@@ -362,43 +362,43 @@ fn token_gating_and_owned_keys() {
     );
 }
 
-#[trace("TC-2172", "FR-081-AC-7")]
+#[trace("FR-081-AC-7")]
 #[test]
 fn camel_case_headings_and_ambiguous_keys() {
     run_cases("FR-081-AC-7");
 }
 
-#[trace("TC-2173", "FR-081-AC-8")]
+#[trace("FR-081-AC-8")]
 #[test]
 fn single_values_and_one_row_policy_tables() {
     run_cases("FR-081-AC-8");
 }
 
-#[trace("TC-2174", "FR-081-AC-9")]
+#[trace("FR-081-AC-9")]
 #[test]
 fn routes_name_declared_operations() {
     run_cases("FR-081-AC-9");
 }
 
-#[trace("TC-2175", "FR-081-AC-10")]
+#[trace("FR-081-AC-10")]
 #[test]
 fn associated_types_come_from_the_table_only() {
     run_cases("FR-081-AC-10");
 }
 
-#[trace("TC-2176", "FR-081-AC-11")]
+#[trace("FR-081-AC-11")]
 #[test]
 fn layout_fence_lowers_to_records_and_endianness() {
     run_cases("FR-081-AC-11");
 }
 
-#[trace("TC-2177", "FR-081-AC-12")]
+#[trace("FR-081-AC-12")]
 #[test]
 fn threshold_rows_build_on_exceeded() {
     run_cases("FR-081-AC-12");
 }
 
-#[trace("TC-2178", "FR-081-AC-13")]
+#[trace("FR-081-AC-13")]
 #[test]
 fn every_case_record_validates_against_semantic_v1() {
     let schema: Value = serde_json::from_str(SEMANTIC_V1_SCHEMA).unwrap();
@@ -422,19 +422,19 @@ fn every_case_record_validates_against_semantic_v1() {
     }
 }
 
-#[trace("TC-2181", "FR-081-AC-16")]
+#[trace("FR-081-AC-16")]
 #[test]
 fn members_vocabulary_and_unmapped_keys() {
     run_cases("FR-081-AC-16");
 }
 
-#[trace("TC-2182", "FR-081-AC-17")]
+#[trace("FR-081-AC-17")]
 #[test]
 fn unreadable_schema_shapes_are_refused_not_prose() {
     run_cases("FR-081-AC-17");
 }
 
-#[trace("TC-2180", "FR-081-AC-15")]
+#[trace("FR-081-AC-15")]
 #[test]
 fn model_table_entries_copy_to_record_keys() {
     run_cases("FR-081-AC-15");
@@ -443,7 +443,7 @@ fn model_table_entries_copy_to_record_keys() {
 /// quoin FR-122-AC-7 (TC-2115): every top-level property of every
 /// object-type record schema that `agent-ix/spec-objects-architecture` ships
 /// has an owner, and none is declared not-authored.
-#[trace("TC-2179", "FR-081-AC-14")]
+#[trace("FR-081-AC-14")]
 #[test]
 fn architecture_record_keys_are_all_owned() {
     use quire_rs::semantic::{record_key_owners, RelationVocabulary};

@@ -503,7 +503,7 @@ yield_pattern:
     // `multiple: true` keeps every located value as a
     // JSON array; the default contract still collapses to the first.
     #[test]
-    #[trace("TC-583", "FR-011-AC-21")]
+    #[trace("FR-011-AC-21")]
     // `multiple: true` keeps every located (CR-006)
     // value as a JSON array.
     fn multiple_true_keeps_all_values_as_array() {
@@ -531,7 +531,7 @@ yield_pattern:
     }
 
     #[test]
-    #[trace("TC-583", "FR-011-AC-21")]
+    #[trace("FR-011-AC-21")]
     // absent flag → first-wins, unchanged. (CR-006)
     fn without_multiple_first_value_wins_unchanged() {
         let md = "## Workflow\n\
@@ -557,7 +557,7 @@ yield_pattern:
     // in a fallback chain the `multiple` flag is read
     // from the primitive that actually produced the values.
     #[test]
-    #[trace("TC-583", "FR-011-AC-21")]
+    #[trace("FR-011-AC-21")]
     // a fallback chain reads the flag from the (CR-006)
     // primitive that hit.
     fn multiple_in_fallback_chain_uses_hit_primitive_flag() {
@@ -584,7 +584,7 @@ yield_pattern:
     // multiple:true under iterate_over/per_match keeps
     // each unit's full value list.
     #[test]
-    #[trace("TC-583", "FR-011-AC-21")]
+    #[trace("FR-011-AC-21")]
     // multi-yield keeps per-unit lists. (CR-006)
     fn multiple_true_applies_per_iteration_unit() {
         let md = "\
@@ -686,7 +686,7 @@ yield_pattern:
     // routing the locator through the unit's content slice rather than
     // the document-wide harvest).
     #[test]
-    #[trace("TC-563", "FR-011-AC-13")]
+    #[trace("FR-011-AC-13")]
     // multi-yield `per_match` isolates each unit's
     // own block rather than sharing the section's first one.
     fn code_block_per_match_isolates_per_unit_under_iterate_over() {
@@ -728,7 +728,7 @@ yield_pattern:
     // specific unit that lacks its own block (containment, not a
     // document-wide fallback that would silently borrow a sibling's).
     #[test]
-    #[trace("TC-563", "FR-011-AC-13")]
+    #[trace("FR-011-AC-13")]
     // and a required miss is a MissingField for the
     // unit lacking one, not for the document.
     fn code_block_per_match_required_fails_for_unit_missing_its_block() {
@@ -881,7 +881,7 @@ level: 2
         .unwrap();
     }
 
-    #[trace("TC-539", "FR-033-AC-6")]
+    #[trace("FR-033-AC-6")]
     // extraction ignores the `assert` facet — the
     // extracted value is byte-identical with and without `assert`.
     #[test]
@@ -924,7 +924,7 @@ yield_pattern:
 
     // ── FR-011 back-fills (TC-565..569) ─────────────────────────────────
 
-    #[trace("TC-565", "FR-011-AC-15")]
+    #[trace("FR-011-AC-15")]
     // per-locator `regex:` projection. `(\d+)`
     // yields capture group 1; `\d+` (no group) yields group 0; a non-match
     // drops the key (required:false) or returns MissingField (required:true);
@@ -976,7 +976,7 @@ yield_pattern:
         assert!(!rb.records[0].contains_key("n"));
     }
 
-    #[trace("TC-566", "FR-011-AC-16")]
+    #[trace("FR-011-AC-16")]
     // `under_section: None` substrate. `table_row`
     // resolves against the joined body using the first table; `list_item`
     // and `code_block` read the joined-body substrate.
@@ -1007,7 +1007,7 @@ yield_pattern:
         assert!(rc.records[0]["code"].as_str().unwrap().contains("\"x\""));
     }
 
-    #[trace("TC-567", "FR-011-AC-17")]
+    #[trace("FR-011-AC-17")]
     // a whole-value `{{ id }}` resolved value
     // contributes no extracted value (placeholder); an embedded `{{x}}`
     // mid-prose does not trigger the rule and the surrounding content
@@ -1049,7 +1049,7 @@ yield_pattern:
             .contains("mid-sentence"));
     }
 
-    #[trace("TC-568", "FR-011-AC-18")]
+    #[trace("FR-011-AC-18")]
     // an unclosed fenced block (both ``` and ~~~)
     // is flushed as the final block — trailing content is part of the
     // block, not a phantom following block.
@@ -1070,7 +1070,7 @@ yield_pattern:
         }
     }
 
-    #[trace("TC-569", "FR-011-AC-19")]
+    #[trace("FR-011-AC-19")]
     // `emit_edges` projects one edge per record
     // whose field resolves; records lacking the field emit no edge.
     #[test]

@@ -136,7 +136,7 @@ fn run(files: &[(&str, &str)]) -> Run {
     run_with(vec![], structural_forms(), files)
 }
 
-#[trace("TC-2200", "FR-062-AC-18")]
+#[trace("FR-062-AC-18")]
 #[test]
 fn the_three_syntax_values_round_trip_and_bad_declarations_are_refused_at_load() {
     let dir = tempfile::tempdir().unwrap();
@@ -230,7 +230,7 @@ class Klass:
         pass
 "#;
 
-#[trace("TC-2201", "FR-062-AC-19")]
+#[trace("FR-062-AC-19")]
 #[test]
 fn a_python_decorator_binds_its_declaration_in_every_spelling() {
     let run = run(&[("lib.py", PY_BINDING)]);
@@ -252,7 +252,7 @@ fn a_python_decorator_binds_its_declaration_in_every_spelling() {
     assert!(run.findings("partial-implements-syntax-match").is_empty());
 }
 
-#[trace("TC-2201", "FR-062-AC-19")]
+#[trace("FR-062-AC-19")]
 #[test]
 fn a_pattern_matching_only_a_substring_of_a_python_decorator_binds_nothing() {
     let mut form = py_form();
@@ -306,7 +306,7 @@ def a_fixture():
     pass
 "##;
 
-#[trace("TC-2202", "FR-062-AC-20")]
+#[trace("FR-062-AC-20")]
 #[test]
 fn python_decorator_text_elsewhere_binds_nothing_and_ownership_is_exact() {
     let run = run(&[("lib.py", PY_SCOPE)]);
@@ -339,7 +339,7 @@ const Expr = @implementing("FR-708") class {};
 @ixTrace.implementing("FR-709") class Plain {}
 "#;
 
-#[trace("TC-2203", "FR-062-AC-21")]
+#[trace("FR-062-AC-21")]
 #[test]
 fn a_typescript_decorator_binds_a_class_or_method_and_nothing_else() {
     let run = run(&[("lib.ts", TS_DECORATORS)]);
@@ -359,7 +359,7 @@ fn a_typescript_decorator_binds_a_class_or_method_and_nothing_else() {
     assert!(run.findings("partial-implements-syntax-match").is_empty());
 }
 
-#[trace("TC-2203", "FR-062-AC-21")]
+#[trace("FR-062-AC-21")]
 #[test]
 fn an_abstract_signature_decorator_rejects_the_file_with_the_per_file_diagnostic() {
     let run = run(&[
@@ -404,7 +404,7 @@ class Owner {
 }
 "##;
 
-#[trace("TC-2204", "FR-062-AC-22")]
+#[trace("FR-062-AC-22")]
 #[test]
 fn typescript_decorator_text_elsewhere_binds_nothing_and_ownership_is_exact() {
     let run = run(&[("lib.ts", TS_SCOPE)]);
@@ -427,8 +427,8 @@ const memo = memoize(() => 4);
 function declared() {}
 "#;
 
-#[trace("TC-2205", "FR-062-AC-23")]
-#[trace("TC-2210", "FR-051-AC-51")]
+#[trace("FR-062-AC-23")]
+#[trace("FR-051-AC-51")]
 #[test]
 fn a_wrapper_chain_mints_a_function_symbol_and_binds_each_links_callee_call() {
     let run = run(&[("lib.ts", TS_WRAPPERS)]);
@@ -471,7 +471,7 @@ fn a_wrapper_chain_mints_a_function_symbol_and_binds_each_links_callee_call() {
     assert!(run.findings("partial-implements-syntax-match").is_empty());
 }
 
-#[trace("TC-2210", "FR-051-AC-51")]
+#[trace("FR-051-AC-51")]
 #[test]
 fn a_call_that_is_not_a_curried_wrapper_chain_mints_nothing() {
     let run = run(&[(
@@ -497,7 +497,7 @@ const commented = implementing("FR-757")(/* c */ implementing("FR-758")(() => 6)
 class Decorated {}
 "#;
 
-#[trace("TC-2206", "FR-062-AC-24")]
+#[trace("FR-062-AC-24")]
 #[test]
 fn a_wrapper_attached_to_nothing_binds_nothing_and_is_reported_once() {
     let run = run(&[("lib.ts", TS_UNATTACHED)]);
@@ -532,7 +532,7 @@ fn a_wrapper_attached_to_nothing_binds_nothing_and_is_reported_once() {
     );
 }
 
-#[trace("TC-2207", "FR-062-AC-25")]
+#[trace("FR-062-AC-25")]
 #[test]
 fn a_substring_match_of_a_typescript_candidate_is_a_partial_finding_and_a_renamed_one_is_silent() {
     let mut decorator = ts_decorator_form();
@@ -589,7 +589,7 @@ fn advisory_run(files: &[(&str, &str)], implements: Vec<Value>) -> Run {
     run_with(vec![pytest_marker(), ts_marker], implements, files)
 }
 
-#[trace("TC-2208", "FR-062-AC-26")]
+#[trace("FR-062-AC-26")]
 #[test]
 fn comment_forms_bind_nothing_under_structural_forms_and_the_advisory_names_the_structure() {
     let py = "# Implements: FR-007-AC-2\ndef production():\n    pass\n";
@@ -648,7 +648,7 @@ fn comment_forms_bind_nothing_under_structural_forms_and_the_advisory_names_the_
     );
 }
 
-#[trace("TC-2209", "FR-062-AC-27")]
+#[trace("FR-062-AC-27")]
 #[test]
 fn structural_forms_preserve_identity_locations_ranges_isolation_and_determinism() {
     let plain =
@@ -728,7 +728,7 @@ fn structural_forms_preserve_identity_locations_ranges_isolation_and_determinism
     assert_eq!(after.report.diagnostics, again.report.diagnostics);
 }
 
-#[trace("TC-2209", "FR-062-AC-27")]
+#[trace("FR-062-AC-27")]
 #[test]
 fn structural_scope_moves_no_verifies_edge_and_no_coverage_backing() {
     let dir = tempfile::tempdir().unwrap();
@@ -781,7 +781,7 @@ fn structural_scope_moves_no_verifies_edge_and_no_coverage_backing() {
     assert_eq!(before_report.totals.backed, 1);
 }
 
-#[trace("TC-2200", "FR-062-AC-18")]
+#[trace("FR-062-AC-18")]
 #[test]
 fn an_in_memory_model_cannot_keep_a_wrong_language_structural_form() {
     use quire_rs::traceability::{SourceLanguage, TraceMarkerForm, TraceMarkerSyntax};
@@ -810,7 +810,7 @@ fn an_in_memory_model_cannot_keep_a_wrong_language_structural_form() {
     }
 }
 
-#[trace("TC-2207", "FR-062-AC-25")]
+#[trace("FR-062-AC-25")]
 #[test]
 fn a_partial_candidate_creates_no_relation_even_where_another_candidate_matches_fully() {
     let mut form = ts_decorator_form();
@@ -853,7 +853,7 @@ fn a_partial_candidate_creates_no_relation_even_where_another_candidate_matches_
     );
 }
 
-#[trace("TC-2208", "FR-062-AC-26")]
+#[trace("FR-062-AC-26")]
 #[test]
 fn the_advisory_names_the_decorator_for_a_python_method_and_class() {
     let py = "# Implements: FR-007-AC-2\nclass Klass:\n    def first(self):\n        pass\n\n    # Implements: FR-007-AC-2\n    def method(self):\n        pass\n";
@@ -873,7 +873,7 @@ fn the_advisory_names_the_decorator_for_a_python_method_and_class() {
     );
 }
 
-#[trace("TC-2209", "FR-062-AC-27")]
+#[trace("FR-062-AC-27")]
 #[test]
 fn typescript_identity_decorator_location_and_finding_order_are_preserved() {
     let plain =

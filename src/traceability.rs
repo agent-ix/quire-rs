@@ -2251,7 +2251,7 @@ mod tests {
         serde_yaml::from_str(yaml).expect("parse")
     }
 
-    #[trace("TC-945", "FR-050-AC-22")]
+    #[trace("FR-050-AC-22")]
     // `source_exclude` is validated at load like every other
     // glob list, and a model declaring only it has still declared nothing
     // (CR-085).
@@ -2338,7 +2338,7 @@ trace_tags:
         assert_eq!(m.trace_tags.markers[0].language, SourceLanguage::Rust);
     }
 
-    #[trace("TC-2254", "FR-058-AC-19")]
+    #[trace("FR-058-AC-19")]
     #[test]
     fn where_serializes_as_authored_and_round_trips() {
         let yaml = "required_relations:\n- name: r\n  from: NFR\n  edges: [mitigates]\n  direction: outgoing\n  check: c\n  where: { field: quality_attribute, values: [\" Security \", Safety] }\n- name: plain\n  from: NFR\n  edges: [mitigates]\n  direction: outgoing\n  check: c2\n";
@@ -2362,7 +2362,7 @@ trace_tags:
         );
     }
 
-    #[trace("TC-1804", "FR-050-AC-45")]
+    #[trace("FR-050-AC-45")]
     #[test]
     fn reference_status_selection_defaults_and_validates() {
         let mut m = model(FULL);
@@ -2494,7 +2494,7 @@ document_references:
     /// required. A `document:` key — the deleted form — is now an unknown field,
     /// which `deny_unknown_fields` rejects rather than silently ignores: a module
     /// carrying the old declaration fails load instead of minting nothing.
-    #[trace("FR-050-AC-7", "TC-829")]
+    #[trace("FR-050-AC-7")]
     #[test]
     fn tc829_archetype_is_the_only_origin() {
         let m = model(
@@ -2544,7 +2544,7 @@ document_references:
         assert!(!yaml.contains("exclude"), "{yaml}");
     }
 
-    #[trace("FR-050-AC-7", "TC-826")]
+    #[trace("FR-050-AC-7")]
     // the model-level `exclude:` is a repository fact, so it (CR-060)
     // is not what makes a model *declared* — a module that says only "these
     // paths are not corpus data" has declared no model to reconcile against.
@@ -2579,7 +2579,7 @@ document_references:
         assert!(err.contains("empty `exclude` pattern"), "{err}");
     }
 
-    #[trace("TC-2080", "FR-050-AC-60")]
+    #[trace("FR-050-AC-60")]
     #[test]
     fn trace_target_source_round_trips_its_authored_shape() {
         let yaml = "trace_targets:\n- name: rows\n  archetype: FR\n  section: S\n  id_column: ID\n\
@@ -2617,7 +2617,7 @@ document_references:
         assert!(serde_yaml::from_str::<TraceabilityModel>(bad).is_err());
     }
 
-    #[trace("TC-1075", "FR-050-AC-40", "FR-066-AC-2")]
+    #[trace("FR-050-AC-40", "FR-066-AC-2")]
     #[test]
     fn tc1075_trace_target_evidence_posture_is_typed_and_defaults_to_source() {
         let defaulted =
@@ -2648,7 +2648,7 @@ document_references:
         );
     }
 
-    #[trace("TC-1076", "FR-050-AC-41")]
+    #[trace("FR-050-AC-41")]
     #[test]
     fn tc1076_trace_target_required_defaults_true_and_false_round_trips() {
         let defaulted =
@@ -2676,7 +2676,7 @@ document_references:
         );
     }
 
-    #[trace("TC-1038", "FR-050-AC-34")]
+    #[trace("FR-050-AC-34")]
     // `section:` reads a scalar or a sequence under the ONE (CR-118)
     // key, a one-name declaration round-trips back out as the scalar it was
     // authored as, and a declaration that selects nothing is a load failure
@@ -2732,7 +2732,7 @@ document_references:
         assert!(err.contains("empty `section`"), "{err}");
     }
 
-    #[trace("TC-1038", "FR-050-AC-34")]
+    #[trace("FR-050-AC-34")]
     // matching is unchanged for a name without `*`: (CR-118)
     // case-insensitive, decorative section numbering normalized away, and
     // nothing else. `*` is the only metacharacter, and it is opt-in.

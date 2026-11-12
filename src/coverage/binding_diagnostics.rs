@@ -431,7 +431,7 @@ mod cr137_minted_children {
         }
     }
 
-    #[trace("TC-1077", "FR-050-AC-42")]
+    #[trace("FR-050-AC-42")]
     #[test]
     fn tc1077_an_unminted_parent_names_real_children_without_backing_them() {
         let minted = BTreeSet::from([
@@ -491,7 +491,7 @@ mod cr136_near_miss {
         }
     }
 
-    #[trace("TC-1050", "FR-050-AC-37")]
+    #[trace("FR-050-AC-37")]
     // zero-padding, case and separator are one class, and
     // the normalisation collapses all three onto one key.
     #[test]
@@ -513,7 +513,7 @@ mod cr136_near_miss {
         assert_ne!(normalized_id("TC-000"), normalized_id("TC-"));
     }
 
-    #[trace("TC-1051", "FR-050-AC-37")]
+    #[trace("FR-050-AC-37")]
     // a near miss is reported naming BOTH spellings, and an
     // EXACT match is not reported at all.
     #[test]

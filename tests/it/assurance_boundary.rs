@@ -10,7 +10,7 @@ fn repo() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
 }
 
-#[trace("TC-1099", "FR-068-AC-9", "FR-068-CON-1")]
+#[trace("FR-068-AC-9", "FR-068-CON-1")]
 #[test]
 fn tc1099_exporter_uses_only_authoritative_record_surfaces() {
     let source = fs::read_to_string(repo().join("src/assurance.rs")).expect("assurance source");
@@ -44,7 +44,7 @@ fn tc1099_exporter_uses_only_authoritative_record_surfaces() {
     }
 }
 
-#[trace("TC-1090", "FR-067-AC-7", "FR-067-CON-4", "FR-055-AC-7")]
+#[trace("FR-067-AC-7", "FR-067-CON-4", "FR-055-AC-7")]
 #[test]
 fn tc1090_existing_v1_contracts_remain_assurance_version_free() {
     for name in ["coverage-v1.schema.json", "properties-v1.schema.json"] {

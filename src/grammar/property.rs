@@ -1110,7 +1110,7 @@ mod tests {
     const ISSUE_CELL: &str =
         "A finding whose key is absent from the merged map defaults to warning";
 
-    #[trace("TC-990", "FR-052-AC-19")]
+    #[trace("FR-052-AC-19")]
     // decomposition keys on quantification, not on (CR-096)
     // the winning structural label, and invents nothing for a statement that
     // states no domain.
@@ -1161,7 +1161,7 @@ mod tests {
             .is_none());
     }
 
-    #[trace("TC-779", "FR-052-AC-1")]
+    #[trace("FR-052-AC-1")]
     // the issue's own cell classifies `Universal` with
     // all three spans populated.
     #[test]
@@ -1192,7 +1192,7 @@ mod tests {
         );
     }
 
-    #[trace("TC-780", "FR-052-AC-2")]
+    #[trace("FR-052-AC-2")]
     // each metamorphic idiom labels to its own shape, and
     // a universally quantified round-trip labels `RoundTrip` — structure
     // outranks quantification under the fixed precedence.
@@ -1244,7 +1244,7 @@ mod tests {
         assert!(classify_property(unquantified, &idioms()).spans.is_none());
     }
 
-    #[trace("TC-781", "FR-052-AC-3")]
+    #[trace("FR-052-AC-3")]
     // CR-017 parity — an idiom phrase inside an inline
     // code span is a mention and fires no signal; unquoted, it fires.
     #[test]
@@ -1261,7 +1261,7 @@ mod tests {
         assert_eq!(shape(used_idiom), PropertyShape::Concurrency);
     }
 
-    #[trace("TC-782", "FR-052-AC-4")]
+    #[trace("FR-052-AC-4")]
     // a criterion whose oracle boundary rests only on the
     // weak inflected-verb marker classifies `Universal` with all three spans
     // absent — a confidently wrong span is worse for a generator than none —
@@ -1284,7 +1284,7 @@ mod tests {
         assert!(classify_property(anchored, &idioms()).spans.is_some());
     }
 
-    #[trace("TC-1078", "FR-052-AC-20")]
+    #[trace("FR-052-AC-20")]
     #[test]
     fn tc1078_clause_boundaries_are_whole_word_and_subject_grounded() {
         // Exact control: the established short form remains exact.
@@ -1340,7 +1340,7 @@ mod tests {
         assert!(refusal.signals.contains(&"span:refused-weak-boundary"));
     }
 
-    #[trace("TC-783", "FR-052-AC-5")]
+    #[trace("FR-052-AC-5")]
     // a specific-scenario criterion classifies `Example`
     // with `extractable == false`, and contributes zero findings to any `ac`
     // check — classification is metadata, never a verdict (FR-052-CON-1).
@@ -1370,7 +1370,7 @@ mod tests {
         );
     }
 
-    #[trace("TC-785", "FR-052-AC-7")]
+    #[trace("FR-052-AC-7")]
     // the `ac` finding stream over a (FR-052-CON-1)
     // fixture corpus is unchanged finding-for-finding, field-for-field and
     // order-for-order by the classifier's presence. This is what guarantees no
@@ -1416,7 +1416,7 @@ mod tests {
         }
     }
 
-    #[trace("TC-786", "FR-052-AC-8")]
+    #[trace("FR-052-AC-8")]
     // a module `property_idioms` registry merges
     // first-wins over the engine built-ins; an absent declaration classifies
     // against the built-ins alone (mirrors TC-757).
@@ -1454,7 +1454,7 @@ mod tests {
         );
     }
 
-    #[trace("TC-787", "FR-052-AC-9")]
+    #[trace("FR-052-AC-9")]
     // classification sees exactly the cells (CR-020)
     // `ac::check` sees — FR/NFR `Acceptance Criteria`, StR `Validation
     // Criteria`, and their supplements — while a US or IT document yields no
@@ -1509,7 +1509,7 @@ mod tests {
         assert_eq!(records[0].property, PropertyShape::Universal);
     }
 
-    #[trace("TC-791", "FR-052-AC-13")]
+    #[trace("FR-052-AC-13")]
     // the closed structural signals fire with no
     // registry at all, and the ordering lexicon deliberately excludes the words
     // that would swallow `Example`.
@@ -1719,7 +1719,7 @@ mod tests {
     /// the determiner is read at a bounded subject
     /// position as well as at offset 0 — and the rule refuses everywhere it
     /// cannot bound one.
-    #[trace("FR-052-AC-14", "TC-792")]
+    #[trace("FR-052-AC-14")]
     #[test]
     fn tc792_subject_determiner_widens_position_not_vocabulary() {
         for f in RECALL_FIXTURES {
@@ -1793,7 +1793,7 @@ mod tests {
     /// while three rules sat behind cargo features. One of those rules now
     /// ships, so the pin is rebased onto the adopted behaviour rather than
     /// retired — the finding stream is still the thing that may not move.
-    #[trace("FR-052-AC-15", "TC-793")]
+    #[trace("FR-052-AC-15")]
     #[test]
     fn tc793_widening_moves_no_finding_and_no_other_shape() {
         // 1. The `ac` finding stream is untouched. The property axis is
@@ -1930,7 +1930,7 @@ mod tests {
     }
 
     proptest! {
-        #[trace("TC-784", "FR-052-AC-6")]
+        #[trace("FR-052-AC-6")]
         // for every emitted span,
         // `statement[start..end] == text`; the spans of one record are in
         // bounds, non-overlapping and ascending by start offset.
@@ -1960,7 +1960,7 @@ mod tests {
             }
         }
 
-        #[trace("TC-790", "FR-052-AC-12")]
+        #[trace("FR-052-AC-12")]
         // `extractable` is identical with (FR-052-CON-4)
         // the idiom registry present and absent — only the `property` label may
         // differ — so a missed idiom degrades a label and never coverage.
@@ -1982,7 +1982,7 @@ mod tests {
             prop_assert_eq!(&without.spans, &with_module.spans);
         }
 
-        #[trace("TC-795", "FR-052-AC-16")]
+        #[trace("FR-052-AC-16")]
         // the three-valued outcome is exactly (CR-033)
         // the stated function of `property` and `extractable` — extractable
         // wins outright, a non-extractable metamorphic label is a candidate,
@@ -2005,7 +2005,7 @@ mod tests {
             );
         }
 
-        #[trace("TC-796", "FR-052-AC-17")]
+        #[trace("FR-052-AC-17")]
         // `extraction` is derived and feeds back (CR-033)
         // into nothing — CON-4 still holds on `extractable` with a registry
         // declared and without — while `extraction` itself *may* move, which is
@@ -2046,7 +2046,7 @@ mod tests {
     }
 
     /// the worked cases behind the property test.
-    #[trace("FR-052-AC-16", "TC-795")]
+    #[trace("FR-052-AC-16")]
     #[test]
     fn tc795_extraction_worked_cases() {
         // A quantified criterion with an oracle: unattended.

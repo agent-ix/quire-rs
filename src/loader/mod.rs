@@ -2223,7 +2223,7 @@ mod tests {
         .unwrap();
     }
 
-    #[trace("TC-2100", "FR-050-AC-63")]
+    #[trace("FR-050-AC-63")]
     #[test]
     fn an_obligation_bound_to_another_modules_unreadable_target_fails_load() {
         for (a_target, expected) in [
@@ -2430,7 +2430,7 @@ object_types:
 
     // ── Task 037: unified archetype shape (FR-031) ──────────────────
 
-    #[trace("TC-522", "FR-031-AC-1")]
+    #[trace("FR-031-AC-1")]
     // frontmatter_schema_ref + body_extraction
     // compiles to one CompiledArchetype that is validatable (frontmatter
     // schema) and extractable (resolvable body contract); no
@@ -2470,7 +2470,7 @@ artifact_types:
         assert!(arch.frontmatter_validator().is_some());
     }
 
-    #[trace("TC-523", "FR-031-AC-2")]
+    #[trace("FR-031-AC-2")]
     // body_extraction compiles, validatable +
     // extractable.
     #[test]
@@ -2501,7 +2501,7 @@ object_types:
         assert!(arch.body_extraction().is_some());
     }
 
-    #[trace("TC-524", "FR-031-AC-3")]
+    #[trace("FR-031-AC-3")]
     // carry-over fields retained + readable.
     #[test]
     fn tc524_carry_over_fields_retained() {
@@ -2542,7 +2542,7 @@ artifact_types:
         );
     }
 
-    #[trace("TC-1871", "FR-031-AC-7")]
+    #[trace("FR-031-AC-7")]
     // an archetype's `construct` is carried as-is, `null` included; an
     // archetype without one returns `None`.
     #[test]
@@ -2605,7 +2605,7 @@ object_types:
         assert_eq!(by_name("nulled").construct(), Some(&Value::Null));
     }
 
-    #[trace("TC-1876", "FR-031-AC-8")]
+    #[trace("FR-031-AC-8")]
     // filament-core-service #38 (FR-035-AC-17) adds the optional boolean
     // `immutable` to `$defs/ConstructDeclaration`; it is not a distinct
     // carry-over field, it is carried as part of the raw `construct` value
@@ -2688,7 +2688,7 @@ object_types:
         assert_eq!(by_name("entity").construct(), Some(&expected_entity));
     }
 
-    #[trace("TC-525", "FR-031-AC-4")]
+    #[trace("FR-031-AC-4")]
     // frontmatter_schema_ref + data_schema are
     // two distinct compiled validators, neither collapsed.
     #[test]
@@ -2729,7 +2729,7 @@ artifact_types:
         assert!(!dv.is_valid(&serde_json::json!({"id": "FR-1"})));
     }
 
-    #[trace("TC-526", "FR-031-AC-5")]
+    #[trace("FR-031-AC-5")]
     // required_sections is rejected as a hard
     // ArchetypeLoadFailure (no-compat rule overrides FR-031-AC-5's
     // softer "non-fatal diagnostic" — see CR note in task 037).
@@ -2764,7 +2764,7 @@ artifact_types:
         );
     }
 
-    #[trace("TC-526", "TC-526c", "FR-031-AC-5")]
+    #[trace("FR-031-AC-5")]
     // `template_ref` is a hard ArchetypeLoadFailure
     // (render removed — no backward-compatibility layer).
     #[test]
@@ -2821,7 +2821,7 @@ object_types:
         assert!(outcome.failures[0].reason.contains("variants"));
     }
 
-    #[trace("TC-762", "NFR-006-AC-5")]
+    #[trace("NFR-006-AC-5")]
     // module discovery is sorted, so first-wins (CR-018)
     // resolves the same way on every machine. Directories are created in
     // reverse order to keep the fixture honest — `read_dir` order is
@@ -2841,7 +2841,7 @@ object_types:
         );
     }
 
-    #[trace("TC-527", "FR-031-AC-6")]
+    #[trace("FR-031-AC-6")]
     // Registry::archetype resolves unified
     // archetype identically (same keying + first-wins).
     #[test]
@@ -2889,7 +2889,7 @@ object_types:
 
     // ---- FR-013 closed module set (agent-ix/quire-rs#405) ----
 
-    #[trace("FR-013-AC-15", "TC-1651")]
+    #[trace("FR-013-AC-15")]
     // an exact set emits no duplicate-module or
     // duplicate-archetype diagnostic for a module declared once. The failing
     // case this replaces is not exotic: a module materialized at its pinned
@@ -2941,7 +2941,7 @@ object_types:
         assert_eq!(twice.modules.len(), 2);
     }
 
-    #[trace("FR-013-AC-16", "TC-1652")]
+    #[trace("FR-013-AC-16")]
     // the set is CLOSED, not merely preferred. Removing a
     // module changes the outcome of a document that depends on it — the
     // archetype it contributed stops resolving, rather than being answered
@@ -2975,7 +2975,7 @@ object_types:
         );
     }
 
-    #[trace("FR-013-AC-17", "TC-1653")]
+    #[trace("FR-013-AC-17")]
     // a module reachable only from the ambient install root is
     // not consulted when an exact set is declared, and an empty declared set
     // loads nothing rather than falling back. `load_module_set` never calls
@@ -3030,7 +3030,7 @@ object_types:
             .collect()
     }
 
-    #[trace("FR-013-AC-20", "TC-2211")]
+    #[trace("FR-013-AC-20")]
     // the same name in `archetypes:` and `artifact_types:`/`object_types:` of
     // ONE module is one registry entry and no collision; a presentation row
     // that carries its own validation part is a real second declaration; the
@@ -3081,7 +3081,7 @@ object_types:
         ));
     }
 
-    #[trace("FR-013-AC-21", "TC-2212")]
+    #[trace("FR-013-AC-21")]
     // an `archetypes:` row with no quire-owned key registers nothing, so it
     // is not an accept-anything type; a real artifact type still validates.
     #[test]
@@ -3101,7 +3101,7 @@ object_types:
         );
     }
 
-    #[trace("FR-013-AC-21", "TC-2213")]
+    #[trace("FR-013-AC-21")]
     // a row with a carry-over key stays a registered type, and a row with a
     // retired field is still refused (FR-031-AC-5), not silently dropped.
     #[test]

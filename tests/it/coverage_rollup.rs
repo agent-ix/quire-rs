@@ -111,7 +111,7 @@ fn report_for(bundle: &Bundle, module: &str) -> Result<CoverageReport, CoverageE
     compute(&spec, &registry, &graph, &bundle.scope)
 }
 
-#[trace("TC-734", "FR-050-AC-3", "FR-050-AC-8")]
+#[trace("FR-050-AC-3", "FR-050-AC-8")]
 #[test]
 fn obligation_reference_rows_require_their_own_evidence() {
     let cases: serde_json::Value = serde_json::from_str(include_str!(
@@ -168,7 +168,7 @@ fn obligation_reference_rows_require_their_own_evidence() {
     }
 }
 
-#[trace("TC-829", "FR-051-AC-1")]
+#[trace("FR-051-AC-1")]
 #[test]
 fn kani_proof_functions_bind_attribute_trace_tags_and_not_a_trace_line() {
     let fixtures: serde_json::Value =
@@ -264,7 +264,7 @@ fn kani_proof_functions_bind_attribute_trace_tags_and_not_a_trace_line() {
     }
 }
 
-#[trace("TC-734", "FR-050-AC-3")]
+#[trace("FR-050-AC-3")]
 // a reference row whose trace target has no backing
 // `verifies` relation appears in unbacked rows with the row id and target id.
 #[test]
@@ -300,7 +300,7 @@ fn tc734_unbacked_rows() {
 }
 
 /// Provenance: PLAT-2.
-#[trace("TC-734", "FR-050-AC-3", "FR-050-AC-67")]
+#[trace("FR-050-AC-3", "FR-050-AC-67")]
 #[test]
 fn a_criterion_tag_only_backs_its_own_matrix_row() {
     let cases: serde_json::Value = serde_json::from_str(include_str!(
@@ -439,7 +439,7 @@ fn a_criterion_tag_only_backs_its_own_matrix_row() {
     }
 }
 
-#[trace("TC-735", "FR-050-AC-4")]
+#[trace("FR-050-AC-4")]
 // a `complete`-classed row with no backing symbol is a
 // status lie; the same row with a backing symbol is not.
 #[test]
@@ -484,7 +484,7 @@ fn tc735_status_lies() {
         .is_empty());
 }
 
-#[trace("TC-941", "FR-050-AC-21")]
+#[trace("FR-050-AC-21")]
 // a status value the model classes as nothing is reported
 // as its own defect, carrying the authored string verbatim — and a corpus whose
 // every status is declared omits the key entirely.
@@ -541,7 +541,7 @@ fn tc941_undeclared_status_is_reported() {
     );
 }
 
-#[trace("TC-942", "FR-050-AC-21")]
+#[trace("FR-050-AC-21")]
 // vocabulary drift is reported on a *backed* row too. The
 // classification sits above the backed early-continue deliberately: drift is a
 // property of the declaration, not of the row's evidence.
@@ -580,7 +580,7 @@ fn tc942_undeclared_status_is_seen_on_a_backed_row() {
     assert_eq!(report.undeclared_statuses[0].status, "🟡 review-open");
 }
 
-#[trace("TC-946", "FR-050-AC-21")]
+#[trace("FR-050-AC-21")]
 // two identical matching rows are one defect, not two records — the list is
 // deduplicated after its sort, mirroring `untracked_symbols` (#213). Before
 // this, `undeclared_statuses` was the only reconciliation list sorted but
@@ -639,7 +639,7 @@ fn tc946_duplicate_undeclared_status_rows_yield_one_record() {
     );
 }
 
-#[trace("TC-950", "FR-050-AC-23")]
+#[trace("FR-050-AC-23")]
 // one test-case id names one source symbol: an id bound by
 // two distinct symbols is reported in `shared_trace_ids` with both binders,
 // ordered, and the rollup's counts are untouched — the row is still backed,
@@ -686,7 +686,7 @@ fn tc950_an_id_bound_by_two_symbols_is_reported_with_both_binders() {
     assert_eq!((report.totals.backed, report.totals.total), (2, 4));
 }
 
-#[trace("TC-951", "FR-050-AC-23")]
+#[trace("FR-050-AC-23")]
 // the check's negative space, in both halves. A corpus
 // whose every status-row id is uniquely bound reports an empty list and the
 // key is ABSENT from the JSON — byte-identity (FR-050-AC-7) for every
@@ -722,7 +722,7 @@ fn tc951_uniquely_bound_ids_report_nothing_and_omit_the_key() {
     );
 }
 
-#[trace("TC-953", "FR-050-AC-24")]
+#[trace("FR-050-AC-24")]
 // what `source_exclude` subtracts is carried all the way
 // into the report (#215): the count travels extraction → symbol graph →
 // `CoverageReport.excluded_source_files` and the JSON key, and is ABSENT —
@@ -763,7 +763,7 @@ fn tc953_excluded_source_file_count_reaches_the_coverage_json() {
     );
 }
 
-#[trace("TC-955", "FR-050-AC-26")]
+#[trace("FR-050-AC-26")]
 // every row-shaped record carries the 1-based document
 // line of the matrix row it came from (#210): line information was discarded
 // at `parse_table` since v0.1, so no consumer could render `path:line:` or
@@ -824,7 +824,7 @@ fn tc955_row_shaped_records_carry_the_matrix_row_line() {
     );
 }
 
-#[trace("TC-956", "FR-050-AC-26")]
+#[trace("FR-050-AC-26")]
 // `untracked_symbols` carries the 1-based declaration
 // line of the tagged test (#210) — `SymbolRecord` always had it, the
 // `VerifiesRelation` in between discarded it.
@@ -849,7 +849,7 @@ fn tc956_untracked_symbols_carry_the_tagged_tests_line() {
     );
 }
 
-#[trace("TC-736", "FR-050-AC-5")]
+#[trace("FR-050-AC-5")]
 // a symbol whose trace tag resolves to no declared
 // target or row appears in untracked symbols with its file and symbol name.
 #[test]
@@ -872,7 +872,7 @@ fn tc736_untracked_symbols() {
     assert!(entry.symbol.contains("covers_1"));
 }
 
-#[trace("TC-737", "FR-050-AC-6")]
+#[trace("FR-050-AC-6")]
 // per-minting-document counts, summing to the totals.
 #[test]
 fn tc737_per_group_counts_sum_to_totals() {
@@ -915,7 +915,7 @@ fn tc737_per_group_counts_sum_to_totals() {
     assert_eq!(report.totals.backed, 2);
 }
 
-#[trace("TC-1073", "FR-050-AC-38", "FR-066-AC-2")]
+#[trace("FR-050-AC-38", "FR-066-AC-2")]
 #[test]
 fn tc1073_minted_targets_are_the_row_level_totals() {
     let bundle = iso_bundle(
@@ -961,7 +961,7 @@ fn tc1073_minted_targets_are_the_row_level_totals() {
     assert!(value.get("minted_targets").is_none());
 }
 
-#[trace("TC-1075", "FR-050-AC-40", "FR-066-AC-2")]
+#[trace("FR-050-AC-40", "FR-066-AC-2")]
 #[test]
 fn tc1075_reference_only_targets_resolve_without_entering_coverage() {
     let bundle = iso_bundle(
@@ -1023,7 +1023,7 @@ fn tc1075_reference_only_targets_resolve_without_entering_coverage() {
         .any(|finding| finding.reason == "dangling-trace-reference"));
 }
 
-#[trace("TC-738", "FR-050-AC-7")]
+#[trace("FR-050-AC-7")]
 // repeated runs over identical inputs emit (Property)
 // byte-identical JSON.
 #[test]
@@ -1052,7 +1052,7 @@ fn tc738_report_json_is_byte_identical() {
     }
 }
 
-#[trace("TC-739", "FR-050-AC-8")]
+#[trace("FR-050-AC-8")]
 // a non-ISO vocabulary gets a correct rollup from its
 // own declaration, with no engine change.
 #[test]
@@ -1116,7 +1116,7 @@ fn tc739_non_iso_model_rolls_up() {
 // `wasm` (no `rust-symbols`) arm that sets this field is covered natively by
 // driving the refusal with the field set directly, plus the cfg-gated unit
 // test in `src/symbols/mod.rs`.
-#[trace("TC-2061", "FR-050-AC-59")]
+#[trace("FR-050-AC-59")]
 #[test]
 fn tc2061_unextractable_language_refuses_coverage() {
     let bundle = iso_bundle("2061", &[("TC-001", "FR-001-AC-1", "✅")], &["TC-001"]);
@@ -1144,7 +1144,7 @@ fn tc2061_unextractable_language_refuses_coverage() {
     assert!(err.to_string().contains("rust"));
 }
 
-#[trace("TC-740", "FR-050-AC-9")]
+#[trace("FR-050-AC-9")]
 // with no declared model, coverage fails with a distinct
 // diagnostic naming the missing declaration — never an empty report.
 #[test]
@@ -1166,7 +1166,7 @@ fn tc740_no_model_is_a_distinct_diagnostic() {
     assert!(err.to_string().contains("traceability"));
 }
 
-#[trace("TC-788", "FR-052-AC-10", "FR-050-AC-13")]
+#[trace("FR-052-AC-10", "FR-050-AC-13")]
 // the CR-028 criteria rollup — one entry
 // per document binding criteria plus the two new totals, and byte-identical
 // serialization across runs.
@@ -1258,7 +1258,7 @@ fn tc788_criteria_counts_and_totals() {
     }
 }
 
-#[trace("TC-788", "FR-050-AC-13")]
+#[trace("FR-050-AC-13")]
 // a corpus binding criteria of which *none* (continued)
 // are property-shaped emits `property_shaped: 0` — present and zero, never
 // absent. The two totals move as a pair, so a JSON consumer computing the
@@ -1324,7 +1324,7 @@ fn tc788_zero_property_shaped_is_emitted_not_omitted() {
     assert_eq!(restored, report);
 }
 
-#[trace("TC-788", "FR-050-AC-13")]
+#[trace("FR-050-AC-13")]
 // a corpus binding no criteria carries an (continued)
 // empty list, and its JSON is byte-for-byte what an engine predating the
 // field would have written — the CR-028 keys are absent, not zero-valued.
@@ -1421,7 +1421,7 @@ fn tc788_no_criteria_corpus_is_unchanged() {
     assert_eq!(restored, report);
 }
 
-#[trace("TC-756", "FR-050-CON-2", "FR-051-CON-1")]
+#[trace("FR-050-CON-2", "FR-051-CON-1")]
 // static boundary audit over the coverage
 // and symbol modules — no network or service I/O, and no execution of the code
 // the symbols were extracted from. Mirrors the TC-690 pattern.
@@ -1508,7 +1508,7 @@ fn model_from(yaml: &str) -> quire_rs::traceability::TraceabilityModel {
         .expect("declared model")
 }
 
-#[trace("TC-758", "FR-050-AC-10")]
+#[trace("FR-050-AC-10")]
 // a status cell with a trailing note classes by its
 // leading marker, and a declared `retired` value classes retired.
 #[test]
@@ -1544,7 +1544,7 @@ fn tc758_status_classes_by_leading_marker() {
     assert_eq!(words.class_of("doneish"), StatusClass::Unknown);
 }
 
-#[trace("TC-759", "FR-050-AC-11")]
+#[trace("FR-050-AC-11")]
 // a declared column vocabulary is exposed on the
 // Registry, and is the same list a matrix contract would validate against.
 #[test]
@@ -1605,7 +1605,7 @@ fn scoped_bundle(suffix: &str) -> Bundle {
     bundle
 }
 
-#[trace("TC-801", "FR-050-AC-15")]
+#[trace("FR-050-AC-15")]
 // a declaration excluding `fixtures/**` contributes no
 // rows from a matching document; the same corpus without the exclusion reports
 // the fixture's rows as real.
@@ -1742,7 +1742,7 @@ fn tc826_model_level_exclusion_scopes_the_criteria_walk() {
     );
 }
 
-#[trace("TC-830", "FR-050-AC-15")]
+#[trace("FR-050-AC-15")]
 // ONE archetype-bound entry mints from every (CR-062)
 // matrix in the corpus, whatever each one is called. This is what replaced
 // enumeration: the retired `document:` form needed an entry per filename and
@@ -1806,7 +1806,7 @@ fn typed_matrix_bundle(suffix: &str) -> Bundle {
     bundle
 }
 
-#[trace("TC-805", "FR-050-AC-16")]
+#[trace("FR-050-AC-16")]
 // a row whose declared `Type` names a method that mints
 // no source symbol is reported as a no-symbol row rather than a status lie —
 // and only when the module declares the vocabulary.
@@ -1846,7 +1846,7 @@ fn tc805_no_source_symbol_rows_are_not_status_lies() {
     assert!(!unbacked.contains(&"TC-001"));
 }
 
-#[trace("TC-805", "FR-050-AC-16", "FR-050-AC-7")]
+#[trace("FR-050-AC-16", "FR-050-AC-7")]
 // a module declaring no `no_source_symbol`
 // vocabulary reports exactly as before — the same rows are lies, and the report
 // serializes without the new key.
@@ -1892,7 +1892,7 @@ fn tc805_undeclared_vocabulary_changes_nothing() {
     );
 }
 
-#[trace("TC-818", "FR-050-AC-18")]
+#[trace("FR-050-AC-18")]
 // coverage parses bodies only for the (CR-049)
 // archetypes its declared model names. Selection is decided on the header
 // tier (frontmatter `type`), never by filename, before any body touch —
@@ -1953,7 +1953,7 @@ fn tc818_coverage_parses_only_declared_archetype_bodies() {
     );
 }
 
-#[trace("TC-822", "FR-050-AC-19")]
+#[trace("FR-050-AC-19")]
 // a model that loads and (CR-054, amended CR-059)
 // selects nothing is reported, not silently accepted. Both shapes reach the
 // report: an archetype no document has (a typo in the declaration), and a
@@ -2071,7 +2071,7 @@ fn tc822_model_that_mints_nothing_points_to_traceability_declaration() {
     fs::remove_dir_all(bundle.scope.parent().expect("bundle root")).ok();
 }
 
-#[trace("TC-822", "FR-050-AC-19")]
+#[trace("FR-050-AC-19")]
 // and a model whose declarations all select (CR-054)
 // something reports no diagnostics at all — the key is absent from the JSON,
 // so FR-050-AC-7 byte-identity holds for every repo without the defect.
@@ -2127,7 +2127,7 @@ fn tc822_a_healthy_model_reports_no_diagnostics_and_no_key() {
     );
 }
 
-#[trace("TC-822", "FR-050-AC-19")]
+#[trace("FR-050-AC-19")]
 // excluding every document of a declared (CR-054)
 // archetype is a deliberate act, not a missing archetype — the count that
 // decides is taken before `exclude` applies.
@@ -2179,7 +2179,7 @@ fn census_for<'r>(report: &'r CoverageReport, language: &str) -> &'r BindingCens
         .unwrap_or_else(|| panic!("no {language} census in {:?}", report.binding_census))
 }
 
-#[trace("TC-1060", "FR-051-AC-19", "FR-063-AC-8")]
+#[trace("FR-051-AC-19", "FR-063-AC-8")]
 #[test]
 fn tc1060_tagged_separates_authoring_absence_from_an_unread_tag() {
     let bundle = iso_bundle("1060", &[("TC-001", "FR-001-AC-1", "✅")], &[]);
@@ -2223,7 +2223,7 @@ fn tc1060_tagged_separates_authoring_absence_from_an_unread_tag() {
     assert!(census.bound <= census.tagged && census.tagged <= census.candidates);
 }
 
-#[trace("TC-983", "FR-050-AC-27")]
+#[trace("FR-050-AC-27")]
 // a language whose evidence symbols all fail to (CR-093)
 // bind is reported as a diagnostic naming the counts and the declared forms,
 // never as a low percentage indistinguishable from missing tests.
@@ -2284,7 +2284,7 @@ fn tc983_a_language_that_binds_nothing_is_a_diagnostic() {
     assert!(healthy.to_json().contains("binding_census"));
 }
 
-#[trace("TC-984", "FR-050-AC-27")]
+#[trace("FR-050-AC-27")]
 // Below the observation boundary (MP-201), the engine reports both counts and
 // the ambiguity rather than diagnosing sparse tagging or a pattern mismatch.
 #[test]
@@ -2347,7 +2347,7 @@ fn metric_for<'r>(report: &'r CoverageReport, name: &str) -> &'r Metric {
         .unwrap_or_else(|| panic!("no `{name}` metric in {:?}", report.metrics))
 }
 
-#[trace("TC-988", "FR-063-AC-3", "FR-063-AC-4", "FR-063-AC-5")]
+#[trace("FR-063-AC-3", "FR-063-AC-4", "FR-063-AC-5")]
 // every headline number the coverage payload (CR-094)
 // emits carries its unit, population, examined and matched counts, and a ratio
 // computed over input the measurement could not read is a diagnostic.
@@ -2448,7 +2448,7 @@ fn tc988_coverage_metrics_carry_provenance_and_flag_a_hollow_denominator() {
     );
 }
 
-#[trace("TC-989", "FR-050-AC-28", "FR-052-AC-18")]
+#[trace("FR-050-AC-28", "FR-052-AC-18")]
 // the catch-all is split out of the headline, and (CR-095)
 // the span-grounding rate is reported per shape — the two facts a bare
 // `extractable (54%)` hid.
@@ -2526,7 +2526,7 @@ fn tc989_the_properties_headline_separates_the_catch_all() {
     }
 }
 
-#[trace("TC-1001", "FR-064-AC-4", "FR-064-CON-1")]
+#[trace("FR-064-AC-4", "FR-064-CON-1")]
 // suspicions reach the report, ordered and (CR-100)
 // evidenced, and change no number and no exit.
 #[test]
@@ -2645,7 +2645,7 @@ fn rewrite_matrix_with_status(
     write(&bundle.scope, "tests.md", &md);
 }
 
-#[trace("TC-1079", "FR-050-AC-43")]
+#[trace("FR-050-AC-43")]
 // A status-shaped near miss used to make status classification silently skip
 // every row. The diagnostic names the configured and observed columns at the
 // table header; restoring the configured header restores the status lie and
@@ -2729,7 +2729,7 @@ fn diagnostic_for<'r>(
         .unwrap_or_else(|| panic!("no `{reason}` diagnostic in {:?}", report.diagnostics))
 }
 
-#[trace("TC-1805", "FR-050-AC-46")]
+#[trace("FR-050-AC-46")]
 #[test]
 fn explicit_reference_status_selection_drives_all_classification_channels() {
     // The shared corpus grades located diagnostics but has no exact status-lie
@@ -2834,7 +2834,7 @@ fn explicit_reference_status_selection_drives_all_classification_channels() {
     }
 }
 
-#[trace("TC-1033", "FR-050-AC-33")]
+#[trace("FR-050-AC-33")]
 // a declared section the archetype-matching document (CR-117)
 // does not have is reported per document, naming the file, the heading it
 // FOUND and the heading it DECLARED — and a document carrying the declared
@@ -2913,7 +2913,7 @@ fn tc1033_a_declared_section_the_document_lacks_is_reported_with_both_names() {
     );
 }
 
-#[trace("TC-1034", "FR-050-AC-33")]
+#[trace("FR-050-AC-33")]
 // the section found and the declared id column (CR-117)
 // absent is its OWN token: the two faults produce payloads agreeing in every
 // key a reader looks at, so one shared "matched nothing" sends a reader of
@@ -2979,7 +2979,7 @@ fn tc1034_a_declared_id_column_the_table_lacks_is_its_own_token() {
     );
 }
 
-#[trace("TC-1035", "FR-050-AC-33")]
+#[trace("FR-050-AC-33")]
 // neither token is gated on whether the model (CR-117)
 // minted anything ELSE, and the section message names the id column it could
 // not check — so a document carrying both faults is fixed in one pass.
@@ -3040,7 +3040,7 @@ fn tc1035_the_minting_diagnostics_are_not_gated_on_another_declaration_minting()
     assert_eq!(half_fixed.diagnostics, again.diagnostics);
 }
 
-#[trace("TC-1036", "FR-063-AC-7")]
+#[trace("FR-063-AC-7")]
 // `minting.section_hit_rate` is the premise under (CR-117)
 // every minting number: the documents whose declared section was found over
 // the documents the archetype selected. A RATIO, so reading none of them is
@@ -3168,7 +3168,7 @@ fn matrix_across_headings(bundle: &Bundle) {
     );
 }
 
-#[trace("TC-1037", "FR-050-AC-34")]
+#[trace("FR-050-AC-34")]
 // a declaration naming SEVERAL sections mints from (CR-118)
 // every one of them, in document order, and the same declaration naming ONE
 // section still mints from exactly that one — a widening a module did not ask
@@ -3272,7 +3272,7 @@ fn tc1037_a_declaration_naming_several_sections_mints_from_all_of_them() {
     }
 }
 
-#[trace("TC-1038", "FR-050-AC-34")]
+#[trace("FR-050-AC-34")]
 // when NONE of several declared sections is in the (CR-118)
 // document, the message names every one of them. A declaration naming three
 // headings and a finding naming one leaves its reader to guess which of the
@@ -3328,7 +3328,7 @@ fn tc1038_the_section_finding_names_every_declared_section() {
     );
 }
 
-#[trace("FR-053", "TC-1878", "FR-053-AC-1")]
+#[trace("FR-053", "FR-053-AC-1")]
 // agent-ix/quire-rs#460: an "object" archetype whose own id joins KIND and
 // NUMBER with an underscore (`interface_004`) rather than the requirement
 // archetypes' hyphen (`FR-001`) registers as an obligation-bearing kind
@@ -3408,7 +3408,6 @@ fn tc1878_interface_acceptance_criteria_register_as_obligations() {
 }
 
 #[trace(
-    "TC-2053",
     "FR-050-AC-53",
     "FR-050-AC-55",
     "FR-050-AC-56",
@@ -3596,7 +3595,7 @@ fn retired_declarations_keep_live_gaps_and_historical_identity() {
     }
 }
 
-#[trace("TC-2053", "FR-050-AC-55")]
+#[trace("FR-050-AC-55")]
 #[test]
 fn retirement_vocabularies_are_validated_after_module_selection() {
     let fixture: serde_json::Value = serde_json::from_str(include_str!(
@@ -3717,7 +3716,7 @@ fn exemption_bundle(suffix: &str, statuses: &[&str]) -> Bundle {
     iso_bundle(suffix, &refs, &[])
 }
 
-#[trace("TC-2219", "FR-050-AC-64")]
+#[trace("FR-050-AC-64")]
 #[test]
 fn tc2219_planned_blocked_parked_status_text_exempts_only_whole_words() {
     let exempt = [
@@ -3795,7 +3794,7 @@ fn two_status_matrix(bundle: &Bundle, rows: &[(&str, &str, &str)]) {
     write(&bundle.scope, "tests.md", &md);
 }
 
-#[trace("TC-2220", "FR-050-AC-64")]
+#[trace("FR-050-AC-64")]
 #[test]
 fn tc2220_the_reference_status_column_wins_and_the_vocabulary_class_is_ignored() {
     let bundle = iso_bundle("2220", &[], &[]);
@@ -3839,7 +3838,7 @@ fn tc2220_the_reference_status_column_wins_and_the_vocabulary_class_is_ignored()
     assert!(flags["TC-001"] && flags["TC-002"], "{flags:?}");
 }
 
-#[trace("TC-2224", "FR-050-AC-64")]
+#[trace("FR-050-AC-64")]
 #[test]
 fn tc2224_a_row_without_a_status_cell_takes_its_exemption_from_its_referencing_rows() {
     // tl-syntax shape: criterion rows with no Status column, referenced by
@@ -3879,7 +3878,7 @@ fn tc2224_a_row_without_a_status_cell_takes_its_exemption_from_its_referencing_r
     assert!(!flags["FR-001-AC-2"] && !flags["FR-001-AC-3"], "{flags:?}");
 }
 
-#[trace("TC-2221", "FR-050-AC-65")]
+#[trace("FR-050-AC-65")]
 #[test]
 fn tc2221_exempt_rows_are_counted_flagged_and_schema_valid() {
     let planned = exemption_bundle("2221", &["🚧 planned", "Blocked", "In Progress"]);
@@ -3956,7 +3955,7 @@ fn tc2221_exempt_rows_are_counted_flagged_and_schema_valid() {
     );
 }
 
-#[trace("TC-2222", "FR-050-AC-66")]
+#[trace("FR-050-AC-66")]
 #[test]
 fn tc2222_the_non_exempt_count_and_strict_verdict_exclude_exempt_rows() {
     use quire_rs::evidence::{strict_decision, BackingInput};
@@ -4026,7 +4025,7 @@ fn tc2222_the_non_exempt_count_and_strict_verdict_exclude_exempt_rows() {
     );
 }
 
-#[trace("TC-2223", "FR-050-AC-66")]
+#[trace("FR-050-AC-66")]
 #[test]
 fn tc2223_the_exemption_consults_no_severity_input() {
     // `compute` takes no severity: the exempt count is a function of the spec
@@ -4042,7 +4041,7 @@ fn tc2223_the_exemption_consults_no_severity_input() {
     );
 }
 
-#[trace("TC-2224", "FR-050-AC-64")]
+#[trace("FR-050-AC-64")]
 #[test]
 fn tc2224_blank_backed_and_retired_referencing_rows_block_the_exemption() {
     let root = tmpdir("2224-edges");
@@ -4122,7 +4121,7 @@ fn tc2224_blank_backed_and_retired_referencing_rows_block_the_exemption() {
     assert!(!ac["FR-001-AC-1"], "retired referencing row vetoes: {ac:?}");
 }
 
-#[trace("TC-2222", "FR-050-AC-66")]
+#[trace("FR-050-AC-66")]
 #[test]
 fn tc2222_strict_decision_passes_exempt_only_rows_and_keeps_every_other_premise() {
     use quire_rs::evidence::{strict_decision, ActResult, BackingInput, CauseCode, StrictCause};
@@ -4217,7 +4216,7 @@ fn tc2222_strict_decision_passes_exempt_only_rows_and_keeps_every_other_premise(
 /// PLAT-1491: the rollup keeps reading the first table of a section, so its
 /// rows equal what is minted; a second table adds neither a row nor a status
 /// finding (FR-049-AC-26).
-#[trace("TC-2322", "FR-049-AC-26")]
+#[trace("FR-049-AC-26")]
 #[test]
 fn tc2322_a_second_table_under_the_declared_section_is_not_a_rollup_row() {
     let bundle = iso_bundle("2322", &[("TC-001", "FR-001-AC-1", "✅")], &["TC-001"]);

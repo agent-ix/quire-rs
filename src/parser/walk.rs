@@ -165,7 +165,7 @@ mod tests {
         s.split('\n').collect()
     }
 
-    #[trace("FR-007-AC-1", "TC-015")]
+    #[trace("FR-007-AC-1")]
     #[test]
     fn backtick_fence_blocks_inner_headings() {
         let input = "## Real\n```\n# fake\n```\n## Real2";
@@ -177,7 +177,7 @@ mod tests {
         assert_eq!(hs[1].level, 2);
     }
 
-    #[trace("FR-007-AC-2", "TC-016")]
+    #[trace("FR-007-AC-2")]
     #[test]
     fn unclosed_fence_swallows_trailing_lines() {
         let input = "## Real\n```\n## still-inside\n";
@@ -186,7 +186,7 @@ mod tests {
         assert_eq!(hs[0].text, "Real");
     }
 
-    #[trace("FR-007-AC-3", "TC-017")]
+    #[trace("FR-007-AC-3")]
     #[test]
     fn tilde_fence_behaves_like_backtick() {
         let input = "~~~\n# fake\n~~~\n## Real";
@@ -257,7 +257,7 @@ mod tests {
 
     #[trace("FR-019-AC-2")]
     // the `{#…}` attribute is stripped from the heading text.
-    #[trace("TC-402", "FR-019-AC-2")]
+    #[trace("FR-019-AC-2")]
     // the attribute is parsed off the heading text.
     #[test]
     fn pandoc_block_id_attribute_is_stripped_from_text() {
@@ -267,7 +267,7 @@ mod tests {
         assert_eq!(hs[0].block_id.as_deref(), Some("blk-7af2"));
     }
 
-    #[trace("TC-403", "FR-019-AC-1")]
+    #[trace("FR-019-AC-1")]
     // no attribute means no id, never a synthesized one.
     #[test]
     fn heading_without_attribute_has_no_block_id() {
@@ -276,7 +276,7 @@ mod tests {
         assert!(hs[0].block_id.is_none());
     }
 
-    #[trace("TC-400", "FR-019-AC-1")]
+    #[trace("FR-019-AC-1")]
     // the id characters an author may write.
     #[test]
     fn block_id_allows_alphanumeric_dash_underscore() {
@@ -310,7 +310,7 @@ mod tests {
         assert_eq!(texts, ["A", "B", "C", "D"]);
     }
 
-    #[trace("TC-443", "FR-019-AC-3")]
+    #[trace("FR-019-AC-3")]
     // the id survives a reparse.
     #[test]
     fn block_id_round_trip_parse_reparse_is_stable() {

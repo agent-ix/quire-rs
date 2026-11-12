@@ -98,7 +98,7 @@ fn skip_if_spec_objects_architecture_unavailable() -> bool {
     }
 }
 
-#[trace("TC-1874", "FR-075-AC-14")]
+#[trace("FR-075-AC-14")]
 #[test]
 fn features_table_yields_feature_order_in_row_order() {
     if skip_if_spec_objects_architecture_unavailable() {
@@ -152,7 +152,7 @@ fn features_table_yields_feature_order_in_row_order() {
     assert!(violations.is_empty(), "{violations:?}\n{declaration:#}");
 }
 
-#[trace("TC-1875", "FR-075-AC-15")]
+#[trace("FR-075-AC-15")]
 #[test]
 fn features_table_refuses_rows_that_disagree_with_the_declarations() {
     // A row naming no declared feature.
@@ -277,7 +277,7 @@ fn feature_codes(record: &Value) -> Vec<&str> {
         .collect()
 }
 
-#[trace("TC-1875", "FR-075-AC-15")]
+#[trace("FR-075-AC-15")]
 #[test]
 fn features_rows_of_an_unavailable_kind_are_not_checked() {
     // A dangling `Pre:` makes `operations` unavailable. Not checked: a
@@ -312,7 +312,7 @@ fn features_rows_of_an_unavailable_kind_are_not_checked() {
     );
 }
 
-#[trace("TC-1874", "FR-075-AC-14")]
+#[trace("FR-075-AC-14")]
 #[test]
 fn feature_kind_spelling_agrees_with_serde() {
     for kind in [FeatureKind::Field, FeatureKind::Operation] {

@@ -64,7 +64,7 @@ fn matrix_assert(registry: &Registry) -> quire_rs::extract::locator::LocatorAsse
     locator.canonical().assert().expect("assert").clone()
 }
 
-#[trace("TC-919", "FR-060-AC-1")]
+#[trace("FR-060-AC-1")]
 // `column_vocabularies` resolves to the declared values.
 //
 // The contract names `test_type`; the values come from the traceability model
@@ -93,7 +93,7 @@ fn tc919_a_named_column_vocabulary_resolves() {
     fs::remove_dir_all(&dir).ok();
 }
 
-#[trace("TC-920", "FR-060-AC-2")]
+#[trace("FR-060-AC-2")]
 // `from_vocabulary` resolves the scalar counterpart.
 #[test]
 fn tc920_a_named_scalar_vocabulary_resolves() {
@@ -116,7 +116,7 @@ fn tc920_a_named_scalar_vocabulary_resolves() {
     fs::remove_dir_all(&dir).ok();
 }
 
-#[trace("TC-921", "FR-060-AC-3")]
+#[trace("FR-060-AC-3")]
 // a name nothing declares resolves to an EMPTY choice
 // set, not to "no constraint".
 //
@@ -141,7 +141,7 @@ fn tc921_an_unknown_vocabulary_is_empty_not_absent() {
     fs::remove_dir_all(&dir).ok();
 }
 
-#[trace("TC-922", "FR-060-AC-4")]
+#[trace("FR-060-AC-4")]
 // a literal beside a reference wins, and the reference is
 // dropped rather than merged.
 //
@@ -162,7 +162,7 @@ fn tc922_a_literal_wins_over_a_reference() {
     fs::remove_dir_all(&dir).ok();
 }
 
-#[trace("TC-923", "FR-060-AC-5")]
+#[trace("FR-060-AC-5")]
 // an archetype naming no vocabulary is untouched.
 //
 // The byte-identity guarantee. A module that has not adopted this must compile
@@ -185,7 +185,7 @@ fn tc923_an_archetype_naming_nothing_is_unchanged() {
     fs::remove_dir_all(&dir).ok();
 }
 
-#[trace("TC-924", "FR-060-AC-6")]
+#[trace("FR-060-AC-6")]
 // a reference obeys the same per-locator-kind rules as
 // the literal it stands in for.
 //

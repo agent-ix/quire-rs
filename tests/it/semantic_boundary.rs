@@ -34,8 +34,8 @@ fn code_lines(source: &str) -> impl Iterator<Item = &str> {
     source.lines().filter(|l| !l.trim_start().starts_with("//"))
 }
 
-#[trace("TC-1641", "NFR-021-AC-1")]
-#[trace("TC-2042", "FR-071-CON-3")]
+#[trace("NFR-021-AC-1")]
+#[trace("FR-071-CON-3")]
 // no denylisted crate in the graph, no evaluator, tokenizer, or parser symbol
 // over clause or expression text.
 #[test]
@@ -97,7 +97,7 @@ fn no_clause_parser_or_template_dependency() {
     assert!(status.success());
 }
 
-#[trace("TC-1642", "NFR-021-AC-2")]
+#[trace("NFR-021-AC-2")]
 // no network, process, or filesystem write on the semantic path; the only
 // filesystem read is the module-file reader of the resolver.
 #[test]
@@ -140,7 +140,7 @@ fn no_network_process_or_writes() {
     );
 }
 
-#[trace("TC-1619", "FR-070-CON-1")]
+#[trace("FR-070-CON-1")]
 // no brace-content or pattern parser: braces and patterns are carried opaque.
 #[test]
 fn fence_and_pattern_text_stay_opaque() {
@@ -155,7 +155,7 @@ fn fence_and_pattern_text_stay_opaque() {
     assert!(!cargo.contains("sysml"), "no SysML crate");
 }
 
-#[trace("TC-1620", "FR-070-CON-2")]
+#[trace("FR-070-CON-2")]
 // resolution reads only the BundleIndex and loaded modules.
 #[test]
 fn resolution_touches_no_filesystem_or_network() {
@@ -179,7 +179,7 @@ fn resolution_touches_no_filesystem_or_network() {
     }
 }
 
-#[trace("TC-1627", "FR-071-CON-1")]
+#[trace("FR-071-CON-1")]
 // no clause tokenizer, parser, or evaluator; arbitrary text round-trips.
 #[test]
 fn clause_text_is_only_copied() {
@@ -211,7 +211,7 @@ fn clause_text_is_only_copied() {
     assert_eq!(out.clause_text["inv"], body);
 }
 
-#[trace("TC-1628", "FR-071-CON-2")]
+#[trace("FR-071-CON-2")]
 // spans agree with the code_block scanner on every fixture; the parser
 // golden is untouched (the parser_golden suite pins it).
 #[test]
@@ -255,7 +255,7 @@ fn spans_agree_with_the_code_block_scanner() {
     assert!(quire_rs::section(&doc, "Operations").is_some());
 }
 
-#[trace("TC-1640", "FR-072-CON-2")]
+#[trace("FR-072-CON-2")]
 // the surface renders nothing, generates nothing, writes nothing.
 #[test]
 fn surface_returns_values_only() {

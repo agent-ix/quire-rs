@@ -65,7 +65,7 @@ fn load(dir: &Path, files: &[(&str, String)]) -> LoadOutcome {
 }
 
 #[test]
-#[trace("TC-2313", "FR-083-AC-1", "FR-083-AC-2")]
+#[trace("FR-083-AC-1", "FR-083-AC-2")]
 fn malformed_clause_sets_and_missing_rights_fail_load() {
     let dir = tempfile::tempdir().unwrap();
     let outcome = module(dir.path(), "clause_sets: not-a-list\n", &[]);
@@ -107,7 +107,7 @@ fn malformed_clause_sets_and_missing_rights_fail_load() {
 }
 
 #[test]
-#[trace("TC-2314", "FR-083-AC-3", "FR-083-AC-5")]
+#[trace("FR-083-AC-3", "FR-083-AC-5")]
 fn publishable_sets_and_structure_rights_are_not_restricted() {
     let dir = tempfile::tempdir().unwrap();
     let files = [
@@ -138,7 +138,7 @@ fn publishable_sets_and_structure_rights_are_not_restricted() {
 }
 
 #[test]
-#[trace("TC-2315", "FR-083-AC-4", "FR-083-AC-9")]
+#[trace("FR-083-AC-4", "FR-083-AC-9")]
 fn licensed_sets_load_without_clearance_and_are_reported() {
     let dir = tempfile::tempdir().unwrap();
     let files = [
@@ -169,7 +169,7 @@ fn licensed_sets_load_without_clearance_and_are_reported() {
 }
 
 #[test]
-#[trace("TC-2316", "FR-083-AC-6", "FR-083-AC-7")]
+#[trace("FR-083-AC-6", "FR-083-AC-7")]
 fn mixed_module_lists_licensed_sets_in_stable_order_without_text() {
     let dir = tempfile::tempdir().unwrap();
     let files = [
@@ -197,7 +197,7 @@ fn mixed_module_lists_licensed_sets_in_stable_order_without_text() {
 }
 
 #[test]
-#[trace("TC-2317", "FR-083-AC-8")]
+#[trace("FR-083-AC-8")]
 fn result_is_unchanged_after_the_module_directory_is_deleted() {
     let dir = tempfile::tempdir().unwrap();
     let files = [(

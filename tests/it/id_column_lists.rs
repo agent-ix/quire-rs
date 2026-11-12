@@ -115,19 +115,19 @@ fn check_language_cases(tc: &str, language: &str) {
     }
 }
 
-#[trace("TC-2095", "FR-050-AC-63")]
+#[trace("FR-050-AC-63")]
 #[test]
 fn python_sequence_wildcard_and_exact_columns_mint_with_scalar_control() {
     check_language_cases("TC-2095", "python");
 }
 
-#[trace("TC-2096", "FR-050-AC-63")]
+#[trace("FR-050-AC-63")]
 #[test]
 fn typescript_sequence_wildcard_and_exact_columns_mint_with_scalar_control() {
     check_language_cases("TC-2096", "typescript");
 }
 
-#[trace("TC-2097", "FR-050-AC-63")]
+#[trace("FR-050-AC-63")]
 #[test]
 fn rust_sequence_wildcard_and_exact_columns_mint_with_scalar_control() {
     check_language_cases("TC-2097", "rust");
@@ -136,20 +136,20 @@ fn rust_sequence_wildcard_and_exact_columns_mint_with_scalar_control() {
 const WIDE: &str = "| ID | Test ID | Alt ID |\n|----|---------|--------|\n\
                     | X-1 | T-1 | T-1 |\n| X-2 | T-2 | T-9 |\n";
 
-#[trace("TC-2098", "FR-050-AC-63")]
+#[trace("FR-050-AC-63")]
 #[test]
 fn one_declared_column_reads_no_other_column() {
     assert_eq!(mint("ID", WIDE), ["X-1", "X-2"]);
     assert_eq!(mint("Test ID", WIDE), ["T-1", "T-2"]);
 }
 
-#[trace("TC-2098", "FR-050-AC-63")]
+#[trace("FR-050-AC-63")]
 #[test]
 fn a_header_matching_two_entries_is_read_once() {
     assert_eq!(mint("[Test ID, 'test*']", WIDE), ["T-1", "T-2"]);
 }
 
-#[trace("TC-2098", "FR-050-AC-63")]
+#[trace("FR-050-AC-63")]
 #[test]
 fn a_row_holding_one_id_in_two_matched_columns_mints_it_once() {
     // Row X-1 repeats T-1 across both columns; row X-2 holds two distinct ids.
@@ -160,7 +160,7 @@ fn a_row_holding_one_id_in_two_matched_columns_mints_it_once() {
     );
 }
 
-#[trace("TC-2098", "FR-050-AC-63")]
+#[trace("FR-050-AC-63")]
 #[test]
 fn entries_match_ignoring_ascii_case_and_headers_are_not_normalized() {
     let table = "| 2. Test ID | TEST NOTE |\n|----|----|\n| T-1 | N-1 |\n";
@@ -173,7 +173,7 @@ fn entries_match_ignoring_ascii_case_and_headers_are_not_normalized() {
     );
 }
 
-#[trace("TC-2099", "FR-050-AC-63")]
+#[trace("FR-050-AC-63")]
 #[test]
 fn id_column_matches_nothing_fires_only_when_no_entry_matches_and_names_every_entry() {
     let table = "| ID | Name |\n|----|------|\n| X-1 | a |\n";
@@ -199,7 +199,7 @@ fn id_column_matches_nothing_fires_only_when_no_entry_matches_and_names_every_en
     );
 }
 
-#[trace("TC-2099", "FR-050-AC-63")]
+#[trace("FR-050-AC-63")]
 #[test]
 fn an_empty_list_or_blank_entry_fails_load_naming_the_declaration() {
     for id_column in ["[]", "[ID, '']", "'  '"] {
@@ -209,7 +209,7 @@ fn an_empty_list_or_blank_entry_fails_load_naming_the_declaration() {
     }
 }
 
-#[trace("TC-2099", "FR-050-AC-63")]
+#[trace("FR-050-AC-63")]
 #[test]
 fn a_one_name_declaration_round_trips_as_the_scalar() {
     let root = tempfile::tempdir().expect("module");
@@ -244,7 +244,7 @@ fn row_binding_module() -> String {
         .to_string()
 }
 
-#[trace("TC-2100", "FR-050-AC-63")]
+#[trace("FR-050-AC-63")]
 #[test]
 fn a_list_or_wildcard_target_bound_by_an_obligations_source_fails_load() {
     let module = row_binding_module();
@@ -264,7 +264,7 @@ fn a_list_or_wildcard_target_bound_by_an_obligations_source_fails_load() {
     }
 }
 
-#[trace("TC-2100", "FR-050-AC-63")]
+#[trace("FR-050-AC-63")]
 #[test]
 fn row_binding_never_joins_a_list_target_while_a_single_name_target_joins() {
     let cases: Value = serde_json::from_str(include_str!(

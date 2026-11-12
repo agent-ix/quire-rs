@@ -108,7 +108,7 @@ fn ids(report: &BundleReport, reason: &str) -> Vec<String> {
     v
 }
 
-#[trace("TC-2248", "FR-058-AC-12", "FR-058-AC-15")]
+#[trace("FR-058-AC-12", "FR-058-AC-15")]
 #[test]
 fn tc2248_where_selects_by_field_value_and_narrows_only_the_obliged_side() {
     let root = tmpdir("2248");
@@ -188,7 +188,7 @@ fn tc2248_where_selects_by_field_value_and_narrows_only_the_obliged_side() {
     fs::remove_dir_all(&root).ok();
 }
 
-#[trace("TC-2249", "FR-058-AC-13")]
+#[trace("FR-058-AC-13")]
 #[test]
 fn tc2249_absent_null_empty_or_non_string_values_are_not_selected() {
     let root = tmpdir("2249");
@@ -221,7 +221,7 @@ fn tc2249_absent_null_empty_or_non_string_values_are_not_selected() {
     fs::remove_dir_all(&root).ok();
 }
 
-#[trace("TC-2250", "FR-058-AC-14")]
+#[trace("FR-058-AC-14")]
 #[test]
 fn tc2250_matching_trims_and_folds_ascii_case_on_both_sides() {
     let root = tmpdir("2250");
@@ -254,7 +254,7 @@ fn tc2250_matching_trims_and_folds_ascii_case_on_both_sides() {
     fs::remove_dir_all(&dir).ok();
 }
 
-#[trace("TC-2251", "FR-058-AC-16")]
+#[trace("FR-058-AC-16")]
 #[test]
 fn tc2251_exclude_exempts_a_selected_document() {
     let root = tmpdir("2251");
@@ -269,7 +269,7 @@ fn tc2251_exclude_exempts_a_selected_document() {
     fs::remove_dir_all(&root).ok();
 }
 
-#[trace("TC-2252", "FR-058-AC-17")]
+#[trace("FR-058-AC-17")]
 #[test]
 fn tc2252_dead_from_kind_reports_with_and_without_where() {
     let root = tmpdir("2252");
@@ -303,7 +303,7 @@ fn tc2252_dead_from_kind_reports_with_and_without_where() {
     fs::remove_dir_all(&root).ok();
 }
 
-#[trace("TC-2253", "FR-058-AC-18")]
+#[trace("FR-058-AC-18")]
 #[test]
 fn tc2253_where_findings_are_advisory_and_tunable_by_their_own_key() {
     let root = tmpdir("2253");
@@ -333,7 +333,7 @@ fn tc2253_where_findings_are_advisory_and_tunable_by_their_own_key() {
     fs::remove_dir_all(&root).ok();
 }
 
-#[trace("TC-2254", "FR-058-AC-19")]
+#[trace("FR-058-AC-19")]
 #[test]
 fn tc2254_a_malformed_where_fails_module_load_naming_relation_and_where() {
     let bad = [
@@ -364,7 +364,7 @@ fn tc2254_a_malformed_where_fails_module_load_naming_relation_and_where() {
     }
 }
 
-#[trace("TC-2255", "FR-058-AC-20")]
+#[trace("FR-058-AC-20")]
 #[test]
 fn tc2255_the_finding_names_the_selection_and_unselected_text_is_unchanged() {
     let root = tmpdir("2255");
@@ -399,7 +399,7 @@ fn tc2255_the_finding_names_the_selection_and_unselected_text_is_unchanged() {
     fs::remove_dir_all(&dir).ok();
 }
 
-#[trace("TC-2256", "FR-058-AC-21")]
+#[trace("FR-058-AC-21")]
 #[test]
 fn tc2256_no_where_selects_everything_and_runs_are_deterministic() {
     let root = tmpdir("2256");
@@ -426,7 +426,7 @@ fn tc2256_no_where_selects_everything_and_runs_are_deterministic() {
     fs::remove_dir_all(&dir).ok();
 }
 
-#[trace("TC-2257", "FR-058-AC-22")]
+#[trace("FR-058-AC-22")]
 #[test]
 fn tc2257_a_where_that_selects_nothing_reports_itself() {
     let root = tmpdir("2257");

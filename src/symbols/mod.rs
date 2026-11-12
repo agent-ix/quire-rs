@@ -827,7 +827,7 @@ mod tests {
             .join("symbols")
     }
 
-    #[trace("TC-809", "FR-050-AC-17")]
+    #[trace("FR-050-AC-17")]
     // the code walk never enters an excluded subtree —
     // coverage passes the document root so documents are not scanned as
     // source — and an empty exclusion list is exactly extract_tree (CR-045).
@@ -858,7 +858,7 @@ mod tests {
     // features every adapter is present, so the converse is asserted. `make
     // check-no-adapters` runs the `tc206` tests with every adapter off, which
     // is the only configuration where the first arm executes.
-    #[trace("TC-2060", "FR-051-AC-29")]
+    #[trace("FR-051-AC-29")]
     #[test]
     fn tc2060_missing_adapter_is_unavailable_not_a_diagnostic() {
         let out = extract_file("src/lib.rs", SourceLanguage::Rust, "fn a() {}\n");
@@ -883,7 +883,7 @@ mod tests {
     // FR-051-AC-31: same-id declarations are reported, naming both, and the
     // ids stay as they were.
     #[cfg(feature = "rust-symbols")]
-    #[trace("TC-2082", "FR-051-AC-31")]
+    #[trace("FR-051-AC-31")]
     #[test]
     fn tc2082_rust_cfg_gated_duplicates_are_reported() {
         let src = "#[cfg(feature = \"pg18\")]\nfn rec() { go(); }\n\n#[cfg(not(feature = \"pg18\"))]\nfn rec() {}\n\nfn other() {}\n";
@@ -919,7 +919,7 @@ mod tests {
     }
 
     #[cfg(feature = "python-symbols")]
-    #[trace("TC-2082", "FR-051-AC-31")]
+    #[trace("FR-051-AC-31")]
     #[test]
     fn tc2082_python_redefinition_is_reported() {
         let src = "if X:\n    def f():\n        pass\nelse:\n    def f():\n        pass\n";
@@ -935,7 +935,7 @@ mod tests {
     }
 
     #[cfg(feature = "typescript-symbols")]
-    #[trace("TC-2082", "FR-051-AC-31")]
+    #[trace("FR-051-AC-31")]
     #[test]
     fn tc2082_typescript_duplicate_title_is_reported() {
         let src = "it('same', () => {});\nit('same', () => {});\nit('other', () => {});\n";
@@ -953,7 +953,7 @@ mod tests {
         }
     }
 
-    #[trace("TC-2062", "FR-077-AC-7")]
+    #[trace("FR-077-AC-7")]
     #[test]
     fn tc2062_search_refuses_an_unavailable_language() {
         use crate::symbols::trace_search::{search, Query};
@@ -967,7 +967,7 @@ mod tests {
         assert!(search(&graph, &capable, &Query::Id("FR-1".to_string())).is_ok());
     }
 
-    #[trace("TC-2064", "FR-051-AC-30")]
+    #[trace("FR-051-AC-30")]
     #[test]
     fn tc2064_graph_records_refuse_an_unavailable_language() {
         use crate::symbols::trace::{bind, graph_records, SymbolRecordInput};
@@ -1016,7 +1016,7 @@ mod tests {
         assert_eq!(rooted.excluded_source_files, 0);
     }
 
-    #[trace("TC-944", "FR-050-AC-22")]
+    #[trace("FR-050-AC-22")]
     // a declared `source_exclude` glob removes the matching
     // file's symbols, a non-matching one changes nothing, and the key can only
     // subtract: it cannot un-exclude the document root (CR-085).
@@ -1063,7 +1063,7 @@ mod tests {
         );
     }
 
-    #[trace("TC-952", "FR-050-AC-24")]
+    #[trace("FR-050-AC-24")]
     // the walk counts what a declared glob subtracts. A
     // matching glob's removals are counted, a non-matching or empty glob list
     // counts zero — the count is what makes an over-broad glob observable
@@ -1095,7 +1095,7 @@ mod tests {
         );
     }
 
-    #[trace("TC-954", "FR-050-AC-25")]
+    #[trace("FR-050-AC-25")]
     // an invalid glob errors loudly instead of partially
     // filtering. `ExcludeSet::compile` used to drop what did not compile and
     // apply the rest — so a caller bypassing `TraceabilityModel::validate` got
@@ -1123,7 +1123,7 @@ mod tests {
         );
     }
 
-    #[trace("TC-949", "FR-050-AC-22", "FR-050-AC-17")]
+    #[trace("FR-050-AC-22", "FR-050-AC-17")]
     // the key can only subtract. Declaring `spec/**` as a
     // source glob cannot un-exclude the document root, because the two filters
     // are different in kind: the root is the caller's non-configurable argument
@@ -1153,7 +1153,7 @@ mod tests {
         );
     }
 
-    #[trace("TC-809", "FR-050-AC-17")]
+    #[trace("FR-050-AC-17")]
     // the exclusion must hold wherever the (CR-056)
     // caller's `is_dir()` check held. On a case-insensitive filesystem
     // `<scope>/Spec` satisfies `scope.join("spec").is_dir()` while an exact
@@ -1194,7 +1194,7 @@ mod tests {
         let _ = std::fs::remove_dir_all(&root);
     }
 
-    #[trace("TC-809", "FR-050-AC-17")]
+    #[trace("FR-050-AC-17")]
     // and a symlinked document root is excluded (CR-056)
     // by what it resolves to, not by the name the caller happened to use.
     #[cfg(unix)]
@@ -1224,7 +1224,7 @@ mod tests {
         let _ = std::fs::remove_dir_all(&root);
     }
 
-    #[trace("TC-741", "FR-051-AC-1")]
+    #[trace("FR-051-AC-1")]
     // each adapter extracts functions, test functions,
     // and containers from a fixture tree, and every symbol carries language,
     // repo-relative path, qualified path, kind, and a line attribute.
@@ -1276,7 +1276,7 @@ mod tests {
         assert_eq!(keys, sorted);
     }
 
-    #[trace("TC-742", "FR-051-AC-2")]
+    #[trace("FR-051-AC-2")]
     // reformatting changes no id; renaming changes only
     // the renamed symbol's id.
     #[test]
@@ -1325,7 +1325,7 @@ mod tests {
         assert_ne!(id_of(&base, "alpha"), id_of(&renamed, "beta"));
     }
 
-    #[trace("TC-743", "FR-051-AC-3")]
+    #[trace("FR-051-AC-3")]
     // each language's test convention classifies test
     // symbols; sibling non-test symbols stay plain functions.
     #[test]
@@ -1359,7 +1359,7 @@ mod tests {
         assert_eq!(kind_of("parseConfig"), SymbolKind::Function);
     }
 
-    #[trace("TC-958", "FR-051-AC-18")]
+    #[trace("FR-051-AC-18")]
     // every widened registration form — curried, (CR-090)
     // parametrised, multi-modifier, wrapped, whitespace-separated, awaited —
     // reaches `extract_tree` as a test symbol named by its title, in
@@ -1425,7 +1425,7 @@ mod tests {
             .any(|s| s.path == file && s.qualified_name == "Harness.ready"));
     }
 
-    #[trace("TC-960", "FR-051-AC-18")]
+    #[trace("FR-051-AC-18")]
     // the negative shapes in the same fixture register (CR-090)
     // nothing through `extract_tree`: a variable title, a registration with
     // no callback argument, and an identifier merely starting with `it`. A
@@ -1460,7 +1460,7 @@ mod tests {
         }
     }
 
-    #[trace("TC-749", "FR-051-AC-9")]
+    #[trace("FR-051-AC-9")]
     // an unparseable file yields a per-file (CON-2)
     // diagnostic while the rest of the tree extracts normally.
     #[test]

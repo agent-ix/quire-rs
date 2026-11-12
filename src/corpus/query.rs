@@ -200,7 +200,7 @@ mod tests {
     }
 
     // untyped doc -> not in by_type, in by_id, diagnostic.
-    #[trace("FR-027-AC-9", "TC-500")]
+    #[trace("FR-027-AC-9")]
     #[test]
     fn untyped_document_is_excluded_and_diagnosed() {
         let root = tmpdir("untyped");
@@ -215,7 +215,7 @@ mod tests {
     }
 
     // outgoing includes dangling; dangling()/referencing agree.
-    #[trace("FR-027-AC-5", "TC-497")]
+    #[trace("FR-027-AC-5")]
     #[test]
     fn dangling_appears_in_outgoing_not_referencing() {
         let root = tmpdir("dangling");
@@ -229,7 +229,7 @@ mod tests {
     }
 
     // query results deterministic across runs (NFR-006).
-    #[trace("FR-027-AC-6", "TC-498")]
+    #[trace("FR-027-AC-6")]
     #[test]
     fn query_results_are_deterministic() {
         let root = tmpdir("determ");

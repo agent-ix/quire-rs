@@ -235,7 +235,7 @@ mod tests {
     }
 
     // len == number of parsed artifacts.
-    #[trace("FR-025-AC-1", "TC-480")]
+    #[trace("FR-025-AC-1")]
     #[test]
     fn len_matches_artifact_count() {
         let root = tmpdir("len");
@@ -247,7 +247,7 @@ mod tests {
     }
 
     // by_id present -> Some, absent -> None.
-    #[trace("FR-025-AC-2", "TC-481")]
+    #[trace("FR-025-AC-2")]
     #[test]
     fn by_id_present_and_absent() {
         let root = tmpdir("by_id");
@@ -258,7 +258,7 @@ mod tests {
     }
 
     // duplicate id -> diagnostic, first-wins, no fail.
-    #[trace("FR-025-AC-3", "TC-482")]
+    #[trace("FR-025-AC-3")]
     #[test]
     fn duplicate_id_diagnosed_first_wins() {
         let root = tmpdir("dup");
@@ -279,7 +279,7 @@ mod tests {
     }
 
     // Send + Sync (StR-006-AC-5).
-    #[trace("FR-025-AC-4", "TC-483")]
+    #[trace("FR-025-AC-4")]
     #[test]
     fn spec_is_send_sync() {
         fn assert_send_sync<T: Send + Sync>() {}
@@ -290,7 +290,7 @@ mod tests {
     // immutable. There is no &mut self method, no add/insert/save/watch.
     // This compiles only because the surface is read-only; a clone shares
     // the same Arc'd inner (no independent mutation path).
-    #[trace("FR-025-AC-5", "TC-484")]
+    #[trace("FR-025-AC-5")]
     #[test]
     fn corpus_is_immutable_and_shares_inner() {
         let root = tmpdir("immut");
@@ -323,7 +323,7 @@ mod tests {
     // by_id, by_type, diagnostics, and the FR-026/FR-027 edge queries —
     // completes with ZERO body parses; touching one body then parses
     // exactly that one document and no other.
-    #[trace("FR-025-AC-7", "TC-817")]
+    #[trace("FR-025-AC-7")]
     #[test]
     fn tc817_queries_parse_zero_bodies() {
         let root = tmpdir("lazy");

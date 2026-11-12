@@ -47,7 +47,7 @@ fn backed_in(dir: &str) -> Vec<String> {
         .collect()
 }
 
-#[trace("TC-828", "FR-051-AC-17")]
+#[trace("FR-051-AC-17")]
 // the criterion bench backs its row, and it (CR-061)
 // backs *every* id on its tag line — the comma-list form.
 #[test]
@@ -61,7 +61,7 @@ fn tc828_the_validate_document_bench_backs_tc577() {
     }
 }
 
-#[trace("TC-828", "FR-051-AC-17")]
+#[trace("FR-051-AC-17")]
 // the fuzz target backs its row, from a tag (CR-061)
 // several lines above the invocation — the span is the whole file.
 #[test]
@@ -79,7 +79,7 @@ fn tc828_the_fuzz_target_backs_tc579() {
 /// not a declared trace form (this repo's own `trace_tags` grammar), so
 /// `TC-1880` bound nowhere while the matrix read green: exactly the defect
 /// class FR-051/TC-1044 exists to catch, caught here on this repo's own tree
-/// instead. Fixed by adding `#[trace("TC-1880", "FR-051-AC-25")]` to each of
+/// instead. Fixed by adding `#[trace("FR-051-AC-25")]` to each of
 /// the three; this test is the regression pin so it cannot silently recur.
 ///
 /// Checks `graph.verifies` directly, by `(symbol, trace_id)` — not
@@ -90,7 +90,7 @@ fn tc828_the_fuzz_target_backs_tc579() {
 /// the symbol's own bound id lands in `unmatched_tags` too, regardless of
 /// whether that test's real tag bound. `unmatched_tags` is real signal for
 /// this repo's own health, just not a per-symbol pass/fail check.
-#[trace("TC-1880", "FR-051-AC-25")]
+#[trace("FR-051-AC-25")]
 #[test]
 fn tc1880_the_python_decorator_wrap_tests_actually_bind() {
     let graph = graph_for("src/symbols");
@@ -125,7 +125,7 @@ fn tc1880_the_python_decorator_wrap_tests_actually_bind() {
 /// `tc1881_a_brace_inside_a_regex_literal_is_content` in `typescript.rs`, with
 /// no `#[trace(...)]` tag on it. Only a marker binds (CR-215), so the row is
 /// backed exactly when that tag is present; this pins it.
-#[trace("TC-1881", "FR-051-AC-25")]
+#[trace("FR-051-AC-25")]
 #[test]
 fn tc1881_the_regex_brace_test_actually_binds() {
     let graph = graph_for("src/symbols");

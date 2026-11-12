@@ -1390,7 +1390,7 @@ mod ac63_id_column_order {
 
     /// `cells` is a `BTreeMap` (key order), and a coverage report sorts minted
     /// ids, so only the row itself can show column order.
-    #[trace("TC-2095", "FR-050-AC-63")]
+    #[trace("FR-050-AC-63")]
     #[test]
     fn ids_run_in_column_order_not_declaration_or_lexical_order() {
         let row = ScannedRow {
@@ -1421,7 +1421,7 @@ mod cr110_scanned_table {
         crate::parser::parse_document(body)
     }
 
-    #[trace("TC-1041", "FR-050-AC-35")]
+    #[trace("FR-050-AC-35")]
     // every matched section holding NO table is a silent
     // zero, and one among others is not (CR-120). #272's widening made three
     // repositories match a table-less heading and LOSE their
@@ -1486,7 +1486,7 @@ mod cr110_scanned_table {
         );
     }
 
-    #[trace("TC-1033", "FR-050-AC-33")]
+    #[trace("FR-050-AC-33")]
     // the three ways a scan produces no rows are three
     // ANSWERS, not one empty `Vec` (CR-117). `rows_of` collapsed them, so a
     // heading one word off and a matrix with no rows were the same fact
@@ -1543,7 +1543,7 @@ mod cr110_scanned_table {
         assert!(rows.is_empty());
     }
 
-    #[trace("TC-1033", "FR-050-AC-33")]
+    #[trace("FR-050-AC-33")]
     // headings are deduped and kept in document order:
     // a document repeating `### Notes` under six parents would spend the whole
     // message saying so, and the reader is scanning for one near miss.
@@ -1557,7 +1557,7 @@ mod cr110_scanned_table {
         assert_eq!(document_headings(&doc), vec!["Alpha", "Notes", "Beta"]);
     }
 
-    #[trace("TC-1037", "FR-050-AC-34")]
+    #[trace("FR-050-AC-34")]
     // every section a declaration names contributes its (CR-118)
     // own table, in DOCUMENT order rather than in the order the module happened
     // to list its headings — the row order in a payload is a property of the
@@ -1635,7 +1635,7 @@ mod cr135_archetype_matches_nothing {
     use crate::traceability::IdColumns;
     use crate::traceability::SectionNames;
 
-    #[trace("TC-1048", "FR-050-AC-36")]
+    #[trace("FR-050-AC-36")]
     // a declared archetype no document has survives
     // `into_diagnostics`: there is no model-wide gate left to drop it.
     #[test]
@@ -1665,7 +1665,7 @@ mod cr135_archetype_matches_nothing {
         assert_eq!(out[0].0, "test-case", "it names the declaration");
     }
 
-    #[trace("TC-1049", "FR-050-AC-36")]
+    #[trace("FR-050-AC-36")]
     // only a TRACE TARGET reports a missing archetype; a
     // reference declaration, whose section is legitimately optional, does not.
     #[test]
@@ -1734,7 +1734,7 @@ mod cr135_archetype_matches_nothing {
         );
     }
 
-    #[trace("TC-1076", "FR-050-AC-41")]
+    #[trace("FR-050-AC-41")]
     // `required: false` must suppress only missing-target findings. It does
     // not skip documents or excuse a present table with a broken id column.
     #[test]

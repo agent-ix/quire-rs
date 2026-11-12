@@ -74,7 +74,7 @@ fn count(report: &BundleReport, reason: &str) -> usize {
     with_reason(report, reason).len()
 }
 
-#[trace("TC-2240", "FR-049-AC-10", "FR-049-AC-11")]
+#[trace("FR-049-AC-10", "FR-049-AC-11")]
 #[test]
 fn tc2240_kind_subset_decides_mismatch_and_dangling_stays_separate() {
     let root = bundle(
@@ -95,7 +95,7 @@ fn tc2240_kind_subset_decides_mismatch_and_dangling_stays_separate() {
     fs::remove_dir_all(&root).ok();
 }
 
-#[trace("TC-2241", "FR-049-AC-12")]
+#[trace("FR-049-AC-12")]
 #[test]
 fn tc2241_mismatch_is_error_under_strict_warning_under_okf() {
     let root = bundle("2241", &[("north", "R-1")]);
@@ -116,7 +116,7 @@ fn tc2241_mismatch_is_error_under_strict_warning_under_okf() {
     fs::remove_dir_all(&root).ok();
 }
 
-#[trace("TC-2242", "FR-049-AC-13")]
+#[trace("FR-049-AC-13")]
 #[test]
 fn tc2242_unknown_empty_or_missing_kind_checks_the_union_only() {
     let root = bundle(
@@ -159,7 +159,7 @@ fn tc2242_unknown_empty_or_missing_kind_checks_the_union_only() {
     fs::remove_dir_all(&root).ok();
 }
 
-#[trace("TC-2243", "FR-049-AC-14")]
+#[trace("FR-049-AC-14")]
 #[test]
 fn tc2243_empty_targets_yield_nothing_and_multi_id_cells_split() {
     let root = bundle(
@@ -193,7 +193,7 @@ fn manifest_with(kind_lines: &str) -> String {
     format!("{}{kind_lines}", &base[..start])
 }
 
-#[trace("TC-2244", "FR-049-AC-15")]
+#[trace("FR-049-AC-15")]
 #[test]
 fn tc2244_malformed_kind_declarations_fail_module_load() {
     let cases: &[(&str, &str)] = &[
@@ -241,7 +241,7 @@ fn tc2244_malformed_kind_declarations_fail_module_load() {
     }
 }
 
-#[trace("TC-2245", "FR-049-AC-16", "FR-049-AC-17")]
+#[trace("FR-049-AC-16", "FR-049-AC-17")]
 #[test]
 fn tc2245_untyped_declarations_unchanged_and_findings_deterministic() {
     // Without the kind fields the same cross-kind id is clean.
@@ -284,7 +284,7 @@ fn tc2245_untyped_declarations_unchanged_and_findings_deterministic() {
     fs::remove_dir_all(&root).ok();
 }
 
-#[trace("TC-2246", "FR-057-AC-11")]
+#[trace("FR-057-AC-11")]
 #[test]
 fn tc2246_kind_mismatch_is_registrable_beside_dangling() {
     let root = bundle("2246", &[("north", "R-1"), ("north", "L-9")]);
@@ -328,7 +328,7 @@ fn tc2246_kind_mismatch_is_registrable_beside_dangling() {
     fs::remove_dir_all(&root).ok();
 }
 
-#[trace("TC-2247", "FR-049-AC-18")]
+#[trace("FR-049-AC-18")]
 #[test]
 fn tc2247_missing_kind_header_warns_once_under_both_postures() {
     let root = bundle("2247", &[]);

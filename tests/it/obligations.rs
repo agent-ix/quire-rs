@@ -70,7 +70,7 @@ fn derive_at(scope: &Path, module: &str) -> Vec<quire_rs::Obligation> {
     derive(&spec, scope, &model_of(module)).0
 }
 
-#[trace("TC-831", "FR-053-AC-1")]
+#[trace("FR-053-AC-1")]
 // a `target:`-bound source yields one record per row of
 // the named trace target's table, keyed on the id the rollup already mints.
 #[test]
@@ -93,7 +93,7 @@ fn tc831_target_bound_source_mints_one_record_per_row() {
     assert_eq!(obligations[1].method.as_deref(), Some("Analysis"));
 }
 
-#[trace("TC-832", "FR-053-AC-2")]
+#[trace("FR-053-AC-2")]
 // an `archetype:`+`id_format:` source covers rows with no
 // id column, rendering `{document}` and the 1-based `{row}`.
 #[test]
@@ -122,7 +122,7 @@ fn tc832_archetype_bound_source_renders_ids() {
     assert_eq!(obligations[1].parameters.get("threshold").unwrap(), "< 8ms");
 }
 
-#[trace("TC-833", "FR-053-AC-3")]
+#[trace("FR-053-AC-3")]
 // a source declaring both origins, or neither, fails
 // module load with a diagnostic naming it.
 #[test]
@@ -154,7 +154,7 @@ fn tc833_ambiguous_or_originless_source_fails_load() {
     }
 }
 
-#[trace("TC-835", "FR-053-AC-5")]
+#[trace("FR-053-AC-5")]
 // one cell, two readings. The method drops the trailing
 // annotation; FR-049 still reads the reference out of the same cell.
 #[test]
@@ -187,7 +187,7 @@ fn tc835_method_and_reference_read_the_same_cell() {
     );
 }
 
-#[trace("TC-836", "FR-053-AC-6")]
+#[trace("FR-053-AC-6")]
 // declared parameters with no cell are omitted, never
 // present-and-empty. A threshold nobody wrote is not a threshold of zero.
 #[test]
@@ -213,7 +213,7 @@ fn tc836_absent_parameters_are_omitted() {
     );
 }
 
-#[trace("TC-837", "FR-053-AC-7")]
+#[trace("FR-053-AC-7")]
 // criticality is genuinely optional — a source declaring
 // no column, and one declaring an empty column, agree on every other field.
 #[test]
@@ -231,7 +231,7 @@ fn tc837_criticality_is_optional() {
     assert_eq!(declared_but_empty[0].method.as_deref(), Some("Test"));
 }
 
-#[trace("TC-838", "FR-053-AC-8")]
+#[trace("FR-053-AC-8")]
 // a row whose statement cell is empty is skipped and
 // reported, never emitted as a record stating nothing.
 #[test]
@@ -252,7 +252,7 @@ fn tc838_empty_statement_row_is_skipped_and_reported() {
     assert_eq!(skipped[0].source, "acceptance-criterion");
 }
 
-#[trace("TC-870", "FR-053-AC-8")]
+#[trace("FR-053-AC-8")]
 // the skipped row reaches the coverage report, which is
 // the only surface anybody reads. TC-838 proves `derive` returns it; this proves
 // it is not dropped on the way out (#151, CR-063).
@@ -290,7 +290,7 @@ fn tc870_skipped_row_is_reported_in_the_coverage_report() {
     assert!(report.to_json().contains("obligation-row-states-nothing"));
 }
 
-#[trace("TC-872", "FR-053-AC-9")]
+#[trace("FR-053-AC-9")]
 // record order follows source DECLARATION order, not
 // source name. The fixture declares `zzz-metric` before `aaa-criterion`, so the
 // two orderings disagree — which is the only way to tell them apart (#151).
@@ -327,7 +327,7 @@ fn tc872_order_is_declaration_order_not_source_name() {
     );
 }
 
-#[trace("TC-873", "FR-053-AC-14")]
+#[trace("FR-053-AC-14")]
 // an `exclude`d document states no obligation on EITHER
 // surface. Before #151 the rollup honoured the glob and the classification path
 // did not, so an excluded fixture criterion carried an obligation a generator
@@ -381,7 +381,7 @@ fn tc873_exclude_applies_to_both_surfaces() {
     );
 }
 
-#[trace("TC-839", "FR-053-AC-9")]
+#[trace("FR-053-AC-9")]
 // derivation is deterministic and ordered.
 #[test]
 fn tc839_derivation_is_deterministic() {
@@ -402,7 +402,7 @@ fn tc839_derivation_is_deterministic() {
     assert_eq!(a[1].id, "FR-001-AC-2");
 }
 
-#[trace("TC-840", "FR-053-AC-10")]
+#[trace("FR-053-AC-10")]
 // the classification record carries the obligation,
 // matched by row id — and carries `None` for a module declaring no sources.
 #[test]
@@ -439,7 +439,7 @@ fn tc840_classification_carries_the_obligation() {
     assert_eq!(plain[0].signals, records[0].signals);
 }
 
-#[trace("TC-841", "FR-053-AC-11")]
+#[trace("FR-053-AC-11")]
 // the coverage report carries the records, and a model
 // declaring no sources carries an empty list that serializes away entirely, so
 // FR-050-AC-7 byte-identity holds for every module that has not adopted them.
@@ -471,7 +471,7 @@ fn tc841_coverage_report_carries_obligations() {
     }
 }
 
-#[trace("TC-843", "FR-053-AC-13")]
+#[trace("FR-053-AC-13")]
 // the nested obligation carries no id, statement or
 // document — the record and its enclosing object already have all three.
 #[test]
@@ -497,7 +497,7 @@ fn tc843_nested_obligation_does_not_repeat_the_record() {
     assert!(object.contains_key("source"));
 }
 
-#[trace("TC-935", "FR-053-AC-11")]
+#[trace("FR-053-AC-11")]
 // the obligation carries the test-case ids its method
 // cell names, so a consumer binding evidence keyed on a TEST CASE can join.
 //
@@ -572,11 +572,8 @@ fn selected_at(scope: &Path) -> quire_rs::obligation::inventory::SelectedInvento
 }
 
 #[trace(
-    "TC-1955",
     "FR-053-AC-16",
-    "TC-1957",
     "FR-053-AC-18",
-    "TC-1958",
     "FR-053-AC-19"
 )]
 #[test]
@@ -641,7 +638,7 @@ fn selected_inventory_declarative_controls() {
     }
 }
 
-#[trace("TC-1954", "FR-053-AC-15")]
+#[trace("FR-053-AC-15")]
 #[test]
 fn selected_inventory_validates_the_real_request() {
     use quire_rs::obligation::inventory::{
@@ -700,11 +697,8 @@ fn selected_inventory_validates_the_real_request() {
 }
 
 #[trace(
-    "TC-1955",
     "FR-053-AC-16",
-    "TC-1956",
     "FR-053-AC-17",
-    "TC-1960",
     "FR-053-AC-21"
 )]
 #[test]
@@ -814,7 +808,7 @@ fn selected_inventory_borrowed_identity_changes_with_authored_source() {
     );
 }
 
-#[trace("TC-1958", "FR-053-AC-19")]
+#[trace("FR-053-AC-19")]
 #[test]
 fn selected_inventory_duplicate_lookup_retains_every_locus() {
     use quire_rs::obligation::inventory::{
@@ -854,7 +848,7 @@ fn selected_inventory_duplicate_lookup_retains_every_locus() {
     );
 }
 
-#[trace("TC-1959", "FR-053-AC-20")]
+#[trace("FR-053-AC-20")]
 #[test]
 fn selected_inventory_stops_without_mistaking_a_prefix_for_exhaustion() {
     use quire_rs::obligation::inventory::{
@@ -944,7 +938,7 @@ fn selected_inventory_stops_without_mistaking_a_prefix_for_exhaustion() {
     );
 }
 
-#[trace("TC-1957", "FR-053-AC-18", "TC-1959", "FR-053-AC-20")]
+#[trace("FR-053-AC-18", "FR-053-AC-20")]
 #[test]
 fn selected_inventory_filesystem_failures_retain_original_causes_and_rows() {
     use quire_rs::obligation::inventory::{
@@ -993,7 +987,7 @@ fn selected_inventory_filesystem_failures_retain_original_causes_and_rows() {
 }
 
 #[cfg(unix)]
-#[trace("TC-1957", "FR-053-AC-18", "TC-1959", "FR-053-AC-20")]
+#[trace("FR-053-AC-18", "FR-053-AC-20")]
 #[test]
 fn selected_inventory_real_permission_and_walk_failures_have_healthy_controls() {
     use quire_rs::obligation::inventory::{InventoryCauseCode, InventoryTerminal};
@@ -1070,7 +1064,7 @@ fn selected_inventory_real_permission_and_walk_failures_have_healthy_controls() 
     );
 }
 
-#[trace("TC-1960", "FR-053-AC-21", "TC-1961", "FR-053-AC-22")]
+#[trace("FR-053-AC-21", "FR-053-AC-22")]
 #[test]
 fn selected_inventory_identity_exclusions_and_order_are_owner_facts() {
     use quire_rs::obligation::inventory::{
@@ -1203,7 +1197,7 @@ fn selected_inventory_identity_exclusions_and_order_are_owner_facts() {
     );
 }
 
-#[trace("TC-1956", "FR-053-AC-17")]
+#[trace("FR-053-AC-17")]
 #[test]
 fn selected_inventory_rendered_rows_never_claim_authored_ids() {
     use quire_rs::obligation::inventory::{CriterionOrigin, InventoryTerminal};
@@ -1275,7 +1269,7 @@ struct ConfigurationInventoryCase {
     tuples: Option<usize>,
 }
 
-#[trace("TC-1956", "FR-053-AC-17", "TC-1958", "FR-053-AC-19")]
+#[trace("FR-053-AC-17", "FR-053-AC-19")]
 #[test]
 fn selected_inventory_configuration_rows_follow_the_real_minter() {
     use quire_rs::obligation::inventory::{CriterionOrigin, InventoryCauseCode, InventoryTerminal};
@@ -1403,7 +1397,7 @@ fn selected_inventory_configuration_rows_follow_the_real_minter() {
     assert_eq!(missing.terminal(), InventoryTerminal::Incomplete);
 }
 
-#[trace("TC-1962", "FR-053-AC-23")]
+#[trace("FR-053-AC-23")]
 #[test]
 fn selected_inventory_preserves_legacy_consumers_without_evidence_verdicts() {
     use quire_rs::obligation::inventory::{InventoryCauseCode, InventoryTerminal};

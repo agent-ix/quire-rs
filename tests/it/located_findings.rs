@@ -77,7 +77,7 @@ graph TD
 | R3 | three |
 ";
 
-#[trace("TC-2300", "FR-033-AC-18")]
+#[trace("FR-033-AC-18")]
 #[test]
 fn tc2300_each_locator_kind_exposes_the_line_of_its_value() {
     let at = |needle: &str| Some(line_of(LINED, needle));
@@ -154,7 +154,7 @@ fn tc2300_each_locator_kind_exposes_the_line_of_its_value() {
     );
 }
 
-#[trace("TC-2300", "FR-033-AC-18")]
+#[trace("FR-033-AC-18")]
 #[test]
 fn tc2300_the_line_travels_with_the_value_through_filtering() {
     let at = |needle: &str| Some(line_of(LINED, needle));
@@ -186,7 +186,7 @@ fn tc2300_the_line_travels_with_the_value_through_filtering() {
     );
 }
 
-#[trace("TC-2300", "FR-033-AC-18")]
+#[trace("FR-033-AC-18")]
 #[test]
 fn tc2300_a_locator_that_located_nothing_exposes_no_line() {
     for locator in [
@@ -206,7 +206,7 @@ fn tc2300_a_locator_that_located_nothing_exposes_no_line() {
     .is_empty());
 }
 
-#[trace("TC-2300", "FR-033-AC-18")]
+#[trace("FR-033-AC-18")]
 #[test]
 fn tc2300_an_assert_failure_and_the_exposed_line_are_the_same_number() {
     let manifest = "name: asserts
@@ -305,7 +305,7 @@ fn with_reason<'a>(report: &'a BundleReport, reason: &str) -> Vec<&'a quire_rs::
 
 const LINKS_HEAD: &str = "---\nid: LK-001\ntype: Link\ntitle: Links\n---\n\n## Links\n\n| Link | Class | Target |\n|------|-------|--------|\n";
 
-#[trace("TC-2301", "FR-049-AC-19")]
+#[trace("FR-049-AC-19")]
 #[test]
 fn tc2301_a_dangling_id_is_located_at_its_referencing_row() {
     let links = format!(
@@ -345,7 +345,7 @@ fn tc2301_a_dangling_id_is_located_at_its_referencing_row() {
     fs::remove_dir_all(&root).ok();
 }
 
-#[trace("TC-2302", "FR-049-AC-20")]
+#[trace("FR-049-AC-20")]
 #[test]
 fn tc2302_a_kind_mismatch_is_located_at_its_own_row_below_other_tables() {
     let links = format!(
@@ -366,7 +366,7 @@ fn two_tables() -> String {
     )
 }
 
-#[trace("TC-2319", "FR-049-AC-23")]
+#[trace("FR-049-AC-23")]
 #[test]
 fn tc2319_rows_of_a_second_table_under_the_section_are_scanned() {
     let links = two_tables();
@@ -401,7 +401,7 @@ fn tc2319_rows_of_a_second_table_under_the_section_are_scanned() {
     fs::remove_dir_all(&root).ok();
 }
 
-#[trace("TC-2320", "FR-049-AC-24")]
+#[trace("FR-049-AC-24")]
 #[test]
 fn tc2320_findings_of_a_later_table_carry_their_own_row_lines() {
     let links = two_tables();
@@ -442,7 +442,7 @@ fn tc2320_findings_of_a_later_table_carry_their_own_row_lines() {
     }
 }
 
-#[trace("TC-2325", "FR-049-AC-27")]
+#[trace("FR-049-AC-27")]
 #[test]
 fn tc2325_a_fenced_table_is_an_example_not_data() {
     let real = format!("{LINKS_HEAD}| K-1 | north | L-1 |\n");
@@ -500,7 +500,7 @@ fn tc2325_a_fenced_table_is_an_example_not_data() {
     fs::remove_dir_all(&root).ok();
 }
 
-#[trace("TC-2326", "FR-049-AC-28")]
+#[trace("FR-049-AC-28")]
 #[test]
 fn tc2326_an_id_only_in_a_second_target_table_is_not_minted() {
     let root = bundle_dir("2326");
@@ -526,7 +526,7 @@ fn tc2326_an_id_only_in_a_second_target_table_is_not_minted() {
     fs::remove_dir_all(&root).ok();
 }
 
-#[trace("TC-2321", "FR-049-AC-25")]
+#[trace("FR-049-AC-25")]
 #[test]
 fn tc2321_columns_are_matched_per_table() {
     // A second table with the reference column and no kind column warns once.
@@ -560,7 +560,7 @@ fn tc2321_columns_are_matched_per_table() {
     fs::remove_dir_all(&root).ok();
 }
 
-#[trace("TC-2303", "FR-049-AC-21")]
+#[trace("FR-049-AC-21")]
 #[test]
 fn tc2303_located_findings_are_deterministic_and_follow_the_modules_own_declaration() {
     let links = format!(
@@ -749,7 +749,7 @@ fn anomaly_doc(frontmatter: &str, assessed: bool) -> String {
 
 // ──────────────────────── TC-2304 / TC-2305: load ────────────────────────
 
-#[trace("TC-2304", "FR-069-AC-21")]
+#[trace("FR-069-AC-21")]
 #[test]
 fn tc2304_record_validation_loads_and_is_recorded_beside_data_schema() {
     let data = json!({"$schema": DRAFT, "title": "declaration", "type": "object"}).to_string();
@@ -802,7 +802,7 @@ fn refused(bad_body: &str, bad_rv: &str, semantic: &str) -> Registry {
 const BAD_MATCH: &str = "  body_extraction:\n    yield_pattern:\n      match:\n        status: { from: frontmatter_field, path: [status], required: true }\n";
 const GOOD_SEMANTIC: &str = "semantic:\n  contract_version: 1.0.0\n  package: agent-ix/record-fixture\n  exports: [Good]\n  targets: [json-schema, markdown]\n";
 
-#[trace("TC-2305", "FR-069-AC-22")]
+#[trace("FR-069-AC-22")]
 #[test]
 fn tc2305_each_malformed_declaration_is_refused_at_its_manifest_path() {
     let cases: [(&str, &str, &str, &str); 11] = [
@@ -911,7 +911,7 @@ fn tc2305_each_malformed_declaration_is_refused_at_its_manifest_path() {
     );
 }
 
-#[trace("TC-2318", "FR-069-AC-29")]
+#[trace("FR-069-AC-29")]
 #[test]
 fn tc2318_record_validation_null_is_refused_naming_the_archetype() {
     let expected = "semantic.invalid-value: artifact_types[Bad].record_validation:";
@@ -950,7 +950,7 @@ fn tc2318_record_validation_null_is_refused_naming_the_archetype() {
     );
 }
 
-#[trace("TC-2323", "FR-069-AC-30")]
+#[trace("FR-069-AC-30")]
 #[test]
 fn tc2323_other_object_keys_authored_null_are_refused_not_read_as_absent() {
     for key in [
@@ -1033,7 +1033,7 @@ fn tc2323_other_object_keys_authored_null_are_refused_not_read_as_absent() {
     fs::remove_dir_all(&module).ok();
 }
 
-#[trace("TC-2324", "FR-069-AC-31")]
+#[trace("FR-069-AC-31")]
 #[test]
 fn tc2324_a_null_semantic_block_is_refused_not_read_as_absent() {
     let with = |semantic_line: &str| {
@@ -1056,7 +1056,7 @@ fn tc2324_a_null_semantic_block_is_refused_not_read_as_absent() {
 
 // ─────────────────── TC-2306 .. TC-2310: Anomaly checks ───────────────────
 
-#[trace("TC-2306", "FR-069-AC-23")]
+#[trace("FR-069-AC-23")]
 #[test]
 fn tc2306_every_validator_error_is_one_finding_in_validator_order() {
     let registry = anomaly_registry();
@@ -1087,7 +1087,7 @@ fn tc2306_every_validator_error_is_one_finding_in_validator_order() {
     );
 }
 
-#[trace("TC-2306", "FR-069-AC-23")]
+#[trace("FR-069-AC-23")]
 #[test]
 fn tc2306_an_object_archetype_that_declares_it_is_checked_too() {
     let manifest = "name: object-fixture
@@ -1123,7 +1123,7 @@ semantic:
     );
 }
 
-#[trace("TC-2307", "FR-069-AC-24")]
+#[trace("FR-069-AC-24")]
 #[test]
 fn tc2307_an_absence_is_located_at_the_absence_locators_value() {
     let registry = anomaly_registry();
@@ -1153,7 +1153,7 @@ fn tc2307_an_absence_is_located_at_the_absence_locators_value() {
     );
 }
 
-#[trace("TC-2309", "FR-069-AC-26")]
+#[trace("FR-069-AC-26")]
 #[test]
 fn tc2309_one_defect_is_one_finding() {
     let registry = anomaly_registry();
@@ -1199,7 +1199,7 @@ fn tc2309_one_defect_is_one_finding() {
     );
 }
 
-#[trace("TC-2310", "FR-069-AC-27")]
+#[trace("FR-069-AC-27")]
 #[test]
 fn tc2310_the_anomaly_fixture_reports_conditionals_at_the_status_line() {
     let registry = anomaly_registry();
@@ -1280,7 +1280,7 @@ fn ticket_doc(frontmatter: &str, body: &str) -> String {
     format!("---\ntype: Ticket\n{frontmatter}---\n\n# Ticket\n{body}")
 }
 
-#[trace("TC-2308", "FR-069-AC-25")]
+#[trace("FR-069-AC-25")]
 #[test]
 fn tc2308_a_present_but_invalid_value_is_located_at_its_own_line() {
     let registry = ticket_registry("state");
@@ -1330,7 +1330,7 @@ fn tc2308_a_present_but_invalid_value_is_located_at_its_own_line() {
     assert_eq!(found[0].0, Some(line_of(&doc, "state:")), "{found:?}");
 }
 
-#[trace("TC-2311", "FR-069-AC-28")]
+#[trace("FR-069-AC-28")]
 #[test]
 fn tc2311_another_archetype_locates_at_its_own_state_line_and_repeats_identically() {
     let registry = ticket_registry("state");
@@ -1353,7 +1353,7 @@ fn tc2311_another_archetype_locates_at_its_own_state_line_and_repeats_identicall
 
 // ───────────────────── TC-2312: bridging into the bundle ─────────────────────
 
-#[trace("TC-2312", "FR-049-AC-22")]
+#[trace("FR-049-AC-22")]
 #[test]
 fn tc2312_bridged_findings_keep_the_line_of_the_document_result() {
     let registry = anomaly_registry();
@@ -1425,7 +1425,7 @@ fn tc2312_bridged_findings_keep_the_line_of_the_document_result() {
     fs::remove_dir_all(&root).ok();
 }
 
-#[trace("TC-2312", "FR-049-AC-22")]
+#[trace("FR-049-AC-22")]
 #[test]
 fn tc2312_a_bridged_warning_keeps_its_line() {
     let registry = inline(
@@ -1457,7 +1457,7 @@ fn tc2312_a_bridged_warning_keeps_its_line() {
     fs::remove_dir_all(&root).ok();
 }
 
-#[trace("TC-2307", "FR-069-AC-24")]
+#[trace("FR-069-AC-24")]
 #[test]
 fn tc2307_no_located_value_validates_the_empty_record() {
     // Every locator is optional and none located anything: FR-011 yields no
@@ -1487,7 +1487,7 @@ semantic:
     assert_eq!(record_lines(&result), [Some(1)], "{:?}", result.errors);
 }
 
-#[trace("TC-2300", "FR-033-AC-18")]
+#[trace("FR-033-AC-18")]
 #[test]
 fn tc2300_a_duplicated_frontmatter_key_follows_the_value_the_parser_keeps() {
     let doc = "---\nid: first\nname: x\nid: last\n---\n";

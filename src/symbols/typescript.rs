@@ -1111,7 +1111,7 @@ mod tests {
 
     use super::*;
 
-    #[trace("TC-943", "FR-051-AC-18")]
+    #[trace("FR-051-AC-18")]
     // a curried modifier registration, and a title (CR-084)
     // beginning on a later line, register a test symbol.
     //
@@ -1167,7 +1167,7 @@ mod tests {
         );
     }
 
-    #[trace("TC-948", "FR-051-AC-18")]
+    #[trace("FR-051-AC-18")]
     // the forward scan does not over-reach (CR-084;
     // re-idded from a duplicate TC-943 by CR-087 — one test-case id names one
     // source symbol).
@@ -1205,7 +1205,7 @@ mod tests {
         );
     }
 
-    #[trace("TC-798", "FR-051-AC-12")]
+    #[trace("FR-051-AC-12")]
     // a `/*` inside a template literal is content, (CR-036)
     // not a comment opener.
     //
@@ -1266,7 +1266,7 @@ mod tests {
     /// to lose. Asserted at the `parse` outcome level (PLAT-882) — the old
     /// mechanism-level `lex_line`/`ScanState` carry-across-lines assertions no
     /// longer apply.
-    #[trace("FR-051-AC-12", "TC-799")]
+    #[trace("FR-051-AC-12")]
     #[test]
     fn tc799_template_literal_state_carries_across_lines() {
         let source = concat!(
@@ -1351,7 +1351,7 @@ mod tests {
     /// (PLAT-882 review finding F3), with all three decoys placed in **one**
     /// file immediately before the target registration, so a wrong span
     /// contributed by any one decoy cannot hide behind the other two.
-    #[trace("FR-051-AC-14", "TC-803")]
+    #[trace("FR-051-AC-14")]
     #[test]
     fn tc803_one_reading_decides_whether_delimiters_are_code() {
         let source = concat!(
@@ -1411,7 +1411,7 @@ mod tests {
     /// The control is the same file with the quantifier's braces removed —
     /// it must extract identically either way, proving the *symbols*, not
     /// merely "did it parse", are unaffected by the regex's own content.
-    #[trace("TC-1881", "FR-051-AC-25")]
+    #[trace("FR-051-AC-25")]
     #[test]
     fn tc1881_a_brace_inside_a_regex_literal_is_content() {
         let with_regex = concat!(
@@ -1456,7 +1456,7 @@ mod tests {
         assert!(symbols.iter().any(|s| s.qualified_name == "holds"));
     }
 
-    #[trace("TC-961", "FR-051-AC-18")]
+    #[trace("FR-051-AC-18")]
     // the widened grammar's edges, pinned one by one (CR-090).
     //
     // CR-084 loosened two boundaries the old regex held — exactly one
@@ -1509,7 +1509,7 @@ mod tests {
         assert!(!registers("awaitit('not awaited', () => {});"));
     }
 
-    #[trace("TC-1039", "FR-051-AC-21")]
+    #[trace("FR-051-AC-21")]
     // a suite registration is a CONTAINER that (CR-119)
     // parents its tests without renaming them.
     //
@@ -1588,7 +1588,7 @@ mod tests {
         );
     }
 
-    #[trace("TC-1039", "FR-051-AC-21")]
+    #[trace("FR-051-AC-21")]
     // `context` is outside the suite grammar, and (CR-119)
     // the reason is measured rather than stylistic: across `~/dev` there are
     // 1,699 `describe(` registrations with a quoted title in 103 repository
@@ -1624,7 +1624,7 @@ mod tests {
         );
     }
 
-    #[trace("TC-1039", "FR-051-AC-21")]
+    #[trace("FR-051-AC-21")]
     // a `describe(...)` whose arrow body's `{` falls on a (CR-119)
     // later line than the call still parents its members (PLAT-882 review
     // finding F6). Every positive `tc1039` fixture until now put the `{` on
@@ -1834,7 +1834,7 @@ mod tests {
     /// line-structural scanner never had this failure mode: a line whose
     /// own trimmed text does not begin `//`/`/*`/`*` was never an
     /// annotation line at all, trailing or not.
-    #[trace("TC-1924", "FR-051-AC-14")]
+    #[trace("FR-051-AC-14")]
     #[test]
     fn tc1924_a_trailing_comment_does_not_leak_into_the_next_declarations_span() {
         let source = concat!(
@@ -1912,7 +1912,7 @@ mod tests {
     /// differed by one between `await it(...)` and `it(...)` with an
     /// identical leading comment. Zero real occurrences in either measured
     /// corpus, but the shape is legal (an async registration helper).
-    #[trace("TC-1926", "FR-051-AC-14")]
+    #[trace("FR-051-AC-14")]
     #[test]
     fn tc1926_a_leading_comment_reaches_an_awaited_registration() {
         let awaited = concat!(
@@ -1948,7 +1948,7 @@ mod tests {
     /// split one symbol across two rows of a differential — the pre-port
     /// scanner could never have produced one either, since it read a title
     /// from a single physical line.
-    #[trace("TC-1920", "FR-051-AC-18")]
+    #[trace("FR-051-AC-18")]
     #[test]
     fn tc1920_a_multiline_template_literal_title_registers_nothing() {
         let source = "it(`a title\nspanning lines`, () => {});\n";
@@ -1983,7 +1983,7 @@ mod tests {
     /// `registration.test.ts`) cannot tell the two apart, because it fails
     /// under both for the unrelated, separately-enforced callback-argument
     /// reason.
-    #[trace("TC-1921", "FR-051-AC-18")]
+    #[trace("FR-051-AC-18")]
     #[test]
     fn tc1921_a_far_title_with_a_callback_still_registers() {
         let source = concat!(
@@ -2011,7 +2011,7 @@ mod tests {
     /// false-positive class the differential names — must mint no symbol.
     /// `only_parenthesized_const_arrows_mint_function_symbols` above covers
     /// the bare-arrow and class-field-arrow exclusions but never this shape.
-    #[trace("TC-1922", "FR-051-AC-1")]
+    #[trace("FR-051-AC-1")]
     #[test]
     fn tc1922_a_parenthesized_non_arrow_value_mints_no_symbol() {
         let source = "const sum = (a + b);\n";
@@ -2044,7 +2044,7 @@ mod tests {
     /// (widening the first guard to also accept `function_expression` makes
     /// this test fail alone; `tc1922` stays green, since `parenthesized_expression`
     /// is untouched by that particular widening).
-    #[trace("TC-1925", "FR-051-AC-1")]
+    #[trace("FR-051-AC-1")]
     #[test]
     fn tc1925_a_non_arrow_function_expression_value_mints_no_symbol() {
         for source in [
@@ -2068,7 +2068,7 @@ mod tests {
     /// interface-signature false-positive class), pinned here so it cannot
     /// silently regress. See this module's own docs for the rule stated in
     /// full.
-    #[trace("TC-1923", "FR-051-AC-1")]
+    #[trace("FR-051-AC-1")]
     #[test]
     fn tc1923_an_interface_method_signature_mints_no_symbol() {
         let source = concat!(
@@ -2103,7 +2103,6 @@ mod tests {
     /// `xdescribe` mint with `ignored: true`; a suite's ignored state is
     /// inherited by its members; `.skipIf`/`.todo`/`.fixme` are controls.
     #[trace(
-        "TC-1940",
         "FR-051-AC-3",
         "FR-051-AC-18",
         "FR-051-AC-21",
@@ -2159,7 +2158,7 @@ mod tests {
     /// last-wins lookup swaps ignored-ness between two same-titled suites,
     /// in either declaration order, and equally between a `.skip`ped test
     /// and an unrelated suite sharing its title.
-    #[trace("TC-1940", "FR-051-AC-21", "FR-051-AC-27")]
+    #[trace("FR-051-AC-21", "FR-051-AC-27")]
     #[test]
     fn tc1940_inherited_ignored_follows_the_declaration_site_not_the_title() {
         let ignored_at =
@@ -2257,7 +2256,7 @@ mod tests {
     /// A class inside a skipped suite passes the skip through: a suite
     /// registered inside the class, and its test, are ignored too, while the
     /// class itself (not a suite) is not marked.
-    #[trace("TC-1940", "FR-051-AC-27")]
+    #[trace("FR-051-AC-27")]
     #[test]
     fn tc1940_a_class_passes_an_enclosing_skip_through() {
         let extraction = super::super::extract_file(
@@ -2291,7 +2290,7 @@ mod tests {
     /// FR-051-AC-27 scopes `ignored` to test-kind and suite-kind symbols: a
     /// helper function declared inside a skipped suite is a `Function` and
     /// inherits nothing, while the test beside it does.
-    #[trace("TC-1940", "FR-051-AC-27")]
+    #[trace("FR-051-AC-27")]
     #[test]
     fn tc1940_a_helper_inside_a_skipped_suite_does_not_inherit_ignored() {
         let extraction = super::super::extract_file(

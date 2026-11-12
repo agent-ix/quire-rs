@@ -108,7 +108,7 @@ mod tests {
         // split produces ["abc", ""]; we have 2 line starts.
     }
 
-    #[trace("FR-008-AC-1", "TC-022")]
+    #[trace("FR-008-AC-1")]
     #[test]
     fn preserves_leading_and_trailing_whitespace() {
         let body = "## A\n  indented body  \n## B\n";
@@ -121,7 +121,7 @@ mod tests {
         assert_eq!(a, "  indented body  \n");
     }
 
-    #[trace("FR-008-AC-2", "TC-023")]
+    #[trace("FR-008-AC-2")]
     #[test]
     fn preserves_crlf_byte_for_byte() {
         let body = "## A\r\nhello\r\nworld\r\n## B\r\n";
@@ -237,7 +237,7 @@ mod tests {
         // program exists to catch, and just as misleading.
         #![proptest_config(ProptestConfig::with_cases(10_000))]
         #[test]
-        #[trace("FR-008-AC-3", "NFR-006", "TC-024")]
+        #[trace("FR-008-AC-3", "NFR-006")]
         fn tc024_roundtrip_stitch_is_byte_exact(body in any_body()) {
             prop_assert_eq!(reconstruct(&body), body);
         }

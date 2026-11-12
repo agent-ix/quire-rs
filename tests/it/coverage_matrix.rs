@@ -45,13 +45,13 @@ fn report_over(scope: &Path, module: &str) -> CoverageReport {
     compute(&spec, &registry, &graph, scope).expect("model declared")
 }
 
-#[trace("TC-1930", "FR-050-AC-47")]
+#[trace("FR-050-AC-47")]
 // a fixture module declares an `obligations:` source over its FR
 // documents, tagged tests and no `spec/tests.md` (or any other matrix file) at
 // all: `coverage_matrix` lists one criterion per derived obligation, grouped
 // by document; a minted `test-case` trace target has no corresponding
 // obligation source declared here and so mints no criterion.
-#[trace("TC-1931", "FR-050-AC-47")]
+#[trace("FR-050-AC-47")]
 // the identical fixture with a `spec/tests.md` added — and the module
 // declaring no `obligations:` source that reads it — serializes a
 // byte-identical `coverage_matrix`.
@@ -112,13 +112,13 @@ fn tc1930_tc1931_coverage_matrix_population_is_the_obligation_set() {
     let _ = fs::remove_dir_all(&root);
 }
 
-#[trace("TC-1932", "FR-050-AC-48")]
+#[trace("FR-050-AC-48")]
 // a criterion bound by two TypeScript registrations on the same
 // line carries two distinct binders, disambiguated by column; each binder
 // carries path, line, column, qualified name, kind and ignored, ordered by
 // (path, line, column) then qualified_name then kind; a criterion with no
 // binder carries an empty binders list, never an absent key.
-#[trace("TC-1944", "FR-050-AC-48")]
+#[trace("FR-050-AC-48")]
 // a criterion bound by two identically-titled `it(...)` registrations at
 // different declaration sites in the same file — one inside `describe('A',
 // ...)`, one inside `describe('B', ...)` — carries two distinct binders keyed
@@ -318,10 +318,10 @@ fn malformed_optional_abstract_property_remains_unbound() {
     let _ = fs::remove_dir_all(&root);
 }
 
-#[trace("TC-1933", "FR-050-AC-49")]
+#[trace("FR-050-AC-49")]
 // a criterion bound by one non-ignored test symbol computes
 // tagged; a criterion bound by none computes untagged.
-#[trace("TC-1934", "FR-050-AC-49")]
+#[trace("FR-050-AC-49")]
 // a criterion whose sole binder is ignored computes
 // tagged-by-ignored-test; adding a second, non-ignored binder changes it to
 // tagged.
@@ -395,7 +395,7 @@ fn tc1933_tc1934_computed_status_reads_the_binder_set() {
     let _ = fs::remove_dir_all(&root);
 }
 
-#[trace("TC-1935", "FR-050-AC-49")]
+#[trace("FR-050-AC-49")]
 // a criterion whose obligation's declared method is in the
 // module's declared `no_source_symbol` vocabulary computes
 // method-without-symbol whether or not it also carries a non-ignored binder —
@@ -441,7 +441,7 @@ fn tc1935_method_without_symbol_wins_over_every_other_case() {
     let _ = fs::remove_dir_all(&root);
 }
 
-#[trace("TC-1936", "FR-050-AC-50", "FR-051-AC-28")]
+#[trace("FR-050-AC-50", "FR-051-AC-28")]
 // `#[trace("FR-034-AC-1..FR-034-AC-5")]` mints no `verifies`
 // relation for any id in the range, including its endpoints, and is reported
 // once under `range-in-trace-tag`; the range does not appear in
@@ -519,7 +519,7 @@ fn tc1936_a_marker_range_binds_nothing_and_is_reported() {
     let _ = fs::remove_dir_all(&root);
 }
 
-#[trace("TC-1937", "FR-050-AC-50", "FR-051-AC-28")]
+#[trace("FR-050-AC-50", "FR-051-AC-28")]
 // a range in a marker (same-prefix, differing-prefix, and short-suffix
 // forms) binds no id at all — not even the left endpoint.
 #[test]
@@ -585,7 +585,7 @@ fn tc1937_a_marker_range_binds_neither_endpoint() {
     let _ = fs::remove_dir_all(&root);
 }
 
-#[trace("TC-1938", "FR-050-AC-51", "FR-050-AC-7")]
+#[trace("FR-050-AC-51", "FR-050-AC-7")]
 // two runs over an identical corpus serialize byte-identically; a
 // module declaring no `obligations:` source omits `coverage_matrix` entirely
 // rather than emitting an empty structure.
@@ -631,7 +631,7 @@ fn tc1938_determinism_and_zero_population_omission() {
     let _ = fs::remove_dir_all(&root);
 }
 
-#[trace("TC-1942", "FR-050-AC-47", "FR-050-AC-5")]
+#[trace("FR-050-AC-47", "FR-050-AC-5")]
 // `#[trace("NFR-012-M-1")]` on a test function, where
 // `NFR-012-M-1` is minted only as a derived NFR-metric obligation with no
 // corresponding trace target, resolves against the obligation population and
@@ -1811,7 +1811,6 @@ fn entry(report: &CoverageReport, document: &str) -> serde_json::Value {
 }
 
 #[trace(
-    "TC-2228",
     "FR-082-AC-1",
     "FR-082-AC-2",
     "FR-082-AC-3",
@@ -1876,7 +1875,7 @@ fn fr082_entries_carry_their_own_value_as_written_and_absent_when_missing() {
     let _ = fs::remove_dir_all(&root);
 }
 
-#[trace("TC-2229", "FR-082-AC-5")]
+#[trace("FR-082-AC-5")]
 #[test]
 fn fr082_criticality_is_never_inferred_across_relationships() {
     let root = tmpdir("fr082-inference");
@@ -1913,7 +1912,7 @@ fn fr082_criticality_is_never_inferred_across_relationships() {
     let _ = fs::remove_dir_all(&root);
 }
 
-#[trace("TC-2230", "FR-082-AC-7")]
+#[trace("FR-082-AC-7")]
 #[test]
 fn fr082_requirement_and_obligation_criticality_never_fill_each_other() {
     let root = tmpdir("fr082-levels");
@@ -1950,7 +1949,7 @@ fn fr082_requirement_and_obligation_criticality_never_fill_each_other() {
     let _ = fs::remove_dir_all(&root);
 }
 
-#[trace("TC-2231", "FR-082-AC-8", "FR-082-AC-9")]
+#[trace("FR-082-AC-8", "FR-082-AC-9")]
 #[test]
 fn fr082_matrix_is_deterministic_and_leaves_documents_untouched() {
     let root = tmpdir("fr082-determinism");
@@ -1976,7 +1975,7 @@ fn fr082_matrix_is_deterministic_and_leaves_documents_untouched() {
     let _ = fs::remove_dir_all(&root);
 }
 
-#[trace("TC-2232", "FR-082-AC-2")]
+#[trace("FR-082-AC-2")]
 #[test]
 fn fr082_a_null_criticality_is_absent_like_a_missing_field() {
     let root = tmpdir("fr082-null");
@@ -2002,7 +2001,7 @@ fn fr082_a_null_criticality_is_absent_like_a_missing_field() {
     let _ = fs::remove_dir_all(&root);
 }
 
-#[trace("TC-2233", "FR-082-AC-1", "FR-082-AC-2")]
+#[trace("FR-082-AC-1", "FR-082-AC-2")]
 #[test]
 fn fr082_the_evidence_path_carries_criticality_too() {
     use quire_rs::evidence::BackingInput;

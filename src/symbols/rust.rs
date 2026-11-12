@@ -1087,7 +1087,7 @@ mod tests {
     /// passing against the AST with no edit, because it asserts an outcome
     /// (extracted symbols and their spans), not the deleted lexer's own
     /// intermediate state.
-    #[trace("FR-051-AC-15", "TC-804")]
+    #[trace("FR-051-AC-15")]
     #[test]
     fn tc804_rust_lexing_is_string_and_lifetime_aware() {
         let source = concat!(
@@ -1205,7 +1205,7 @@ mod tests {
     /// attribute — it is an ordinary `fn` that `criterion_group!`
     /// registers — so the registration is what classifies it. Both
     /// invocation forms, wrapped or not, and `#[bench]` directly.
-    #[trace("FR-051-AC-17", "TC-827")]
+    #[trace("FR-051-AC-17")]
     #[test]
     fn tc827_criterion_registrations_classify_benchmarks() {
         let source = concat!(
@@ -1272,7 +1272,7 @@ mod tests {
     /// CR-061: the registration is read from the
     /// macro's own argument nodes, not from a trimmed-line offset, so a
     /// trailing comment beside the invocation cannot hide it.
-    #[trace("FR-051-AC-17", "TC-827")]
+    #[trace("FR-051-AC-17")]
     #[test]
     fn tc827_a_trailing_comment_does_not_hide_the_registration() {
         let symbols = parse(concat!(
@@ -1289,7 +1289,7 @@ mod tests {
     /// identifier token immediately followed by `=`, so a bench or group
     /// whose *name* merely starts with it is still registered rather than
     /// eaten by the long-form parse.
-    #[trace("FR-051-AC-17", "TC-827")]
+    #[trace("FR-051-AC-17")]
     #[test]
     fn tc827_a_name_beginning_with_targets_is_not_the_targets_clause() {
         let symbols =
@@ -1306,7 +1306,7 @@ mod tests {
     /// tag bound to nothing. The symbol's span starts at line 1: the file's
     /// `//!` module header is the invocation's annotation block, and it is
     /// where the tag is naturally written.
-    #[trace("FR-051-AC-17", "TC-827")]
+    #[trace("FR-051-AC-17")]
     #[test]
     fn tc827_a_fuzz_target_is_one_symbol_spanning_its_file() {
         let source = concat!(
@@ -1712,7 +1712,7 @@ mod tests {
     /// naming a line — the exact fixture `tests/fixtures/symbols/broken/
     /// truncated.rs` is, and what `tc749_unparseable_file_degrades_per_file`
     /// (`src/symbols/mod.rs`) pins through the full `extract_tree` path.
-    #[trace("FR-051-AC-9", "TC-1884")]
+    #[trace("FR-051-AC-9")]
     #[test]
     fn tc1884_a_truncated_file_fails_loudly_naming_a_line() {
         let source = "pub fn truncated() {\n    if true {\n        let x = 1;\n";
@@ -1894,7 +1894,7 @@ mod tests {
     /// (PLAT-868 PR #479 F4, PLAT-882 PR #481) — confirmed as a real,
     /// live regression here first: before this fix, `b.leading_line` read
     /// `1` (`// note`'s own line, which is `a`'s line), not `2`.
-    #[trace("FR-051-AC-14", "TC-1924")]
+    #[trace("FR-051-AC-14")]
     #[test]
     fn tc1924_a_trailing_comment_on_the_previous_line_is_not_a_leading_annotation() {
         let source = "fn a() {}  // note\nfn b() {}\n";
@@ -1925,7 +1925,7 @@ mod tests {
     /// string, before or after `#[test]`, marks the symbol ignored.
     /// `#[cfg_attr(test, ignore)]`'s conditional form is a control and does
     /// not mark it ignored — its own outer path is `cfg_attr`, never `ignore`.
-    #[trace("FR-051-AC-27", "TC-1939")]
+    #[trace("FR-051-AC-27")]
     #[test]
     fn tc1939_ignore_attribute_marks_the_symbol_ignored() {
         let before = parse("#[ignore]\n#[test]\nfn t() {\n}\n").expect("valid");
@@ -1950,7 +1950,7 @@ mod tests {
     /// `#[ignore]` the same as a real `function_item` does — AC-27 marks it
     /// ignored "on any function AC-3 already classifies as a test", and
     /// `proptest!`'s own flat-token scan is one such classification path.
-    #[trace("FR-051-AC-27", "TC-1939")]
+    #[trace("FR-051-AC-27")]
     #[test]
     fn tc1939_ignore_on_a_proptest_declared_test_marks_it_ignored() {
         let source = concat!(

@@ -381,7 +381,7 @@ mod tests {
         Registry::load_module(&fixture_module()).expect("load req-fixture")
     }
 
-    #[trace("TC-548", "FR-029-AC-1")]
+    #[trace("FR-029-AC-1")]
     // FR contract has frontmatter schema + the four
     // required sections (derived from body_extraction).
     #[test]
@@ -408,7 +408,7 @@ mod tests {
         }
     }
 
-    #[trace("TC-549", "FR-029-AC-2")]
+    #[trace("FR-029-AC-2")]
     // NFR contract feeds Scope, Measurement and
     // Evaluation, Verification.
     #[test]
@@ -428,7 +428,7 @@ mod tests {
         }
     }
 
-    #[trace("TC-550", "FR-029-AC-3")]
+    #[trace("FR-029-AC-3")]
     // every fixture archetype's contract contains each
     // body_extraction section exactly once, in manifest (match) order.
     #[test]
@@ -457,7 +457,7 @@ mod tests {
         }
     }
 
-    #[trace("TC-551", "FR-029-AC-4")]
+    #[trace("FR-029-AC-4")]
     // JSON serialization is byte-identical across
     // repeated calls.
     #[test]
@@ -474,7 +474,7 @@ mod tests {
         assert_eq!(ja, serde_json::to_string(&c.to_json()).unwrap());
     }
 
-    #[trace("TC-552", "FR-029-AC-5")]
+    #[trace("FR-029-AC-5")]
     // unknown archetype → UnknownArchetype.
     #[test]
     fn tc552_unknown_archetype_errors() {
@@ -483,7 +483,7 @@ mod tests {
         assert!(matches!(err, QuireError::UnknownArchetype { .. }));
     }
 
-    #[trace("TC-553", "FR-029-AC-6")]
+    #[trace("FR-029-AC-6")]
     // a required locator that cannot map to a
     // concrete section still appears in the contract, with an
     // unresolved-mapping diagnostic.
@@ -555,7 +555,7 @@ edge_types:
         Registry::from_inline_parts(manifest, &schemas).expect("inline registry")
     }
 
-    #[trace("TC-645", "FR-040-AC-11")]
+    #[trace("FR-040-AC-11")]
     // input_contract_for_object with an object
     // renders a Relationships block listing each resolved verb with its
     // category + description + targets; without object, only the artifact

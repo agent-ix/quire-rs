@@ -20,7 +20,7 @@ fn space(dimensions: Vec<Dimension>, exclusions: Vec<Exclusion>) -> Configuratio
     }
 }
 
-#[trace("TC-925", "FR-061-AC-1")]
+#[trace("FR-061-AC-1")]
 // the t-way tuple count is the sum over every set of t
 // dimensions of the product of their value counts.
 //
@@ -44,7 +44,7 @@ fn tc925_the_tuple_count_is_the_declared_number() {
     assert_eq!(s.tuples(1), 7);
 }
 
-#[trace("TC-926", "FR-061-AC-2")]
+#[trace("FR-061-AC-2")]
 // a strength greater than the number of dimensions is 0,
 // not an error and not the full product.
 //
@@ -58,7 +58,7 @@ fn tc926_strength_beyond_the_dimensions_is_zero() {
     assert_eq!(s.tuples(2), 4);
 }
 
-#[trace("TC-927", "FR-061-AC-3")]
+#[trace("FR-061-AC-3")]
 // a forbidden combination is removed from the count.
 //
 // Counting a combination that cannot exist makes the target permanently
@@ -84,7 +84,7 @@ fn tc927_a_forbidden_combination_is_not_an_obligation() {
     assert_eq!(excluded.tuples(2), 5);
 }
 
-#[trace("TC-928", "FR-061-AC-4")]
+#[trace("FR-061-AC-4")]
 // an exclusion forbids every WIDER tuple containing it.
 //
 // A two-value constraint has to bite at strength 3 as well, or a space would
@@ -110,7 +110,7 @@ fn tc928_an_exclusion_bites_at_higher_strength() {
     assert_eq!(excluded.tuples(3), 6);
 }
 
-#[trace("TC-929", "FR-061-AC-5")]
+#[trace("FR-061-AC-5")]
 // the statement carries every declared value, so any
 // change to the space changes the statement.
 #[test]
@@ -124,7 +124,7 @@ fn tc929_the_statement_covers_the_whole_space() {
     assert_ne!(before.statement(2), before.statement(3));
 }
 
-#[trace("TC-930", "FR-061-AC-6")]
+#[trace("FR-061-AC-6")]
 // declared cells are parsed the way a spec author writes
 // them, and a repeated value is not counted twice.
 //
@@ -149,7 +149,7 @@ fn tc930_cells_parse_as_authored() {
     assert!(parse_exclusion("nonsense & target=wasm32").is_none());
 }
 
-#[trace("TC-931", "FR-061-AC-7")]
+#[trace("FR-061-AC-7")]
 // a declared configuration space mints ONE obligation
 // through the real minter, carrying the number in `parameters`.
 //
@@ -211,7 +211,7 @@ fn tc931_a_declared_space_mints_one_obligation() {
     );
 }
 
-#[trace("TC-932", "FR-061-AC-8")]
+#[trace("FR-061-AC-8")]
 // a space with fewer than two real dimensions mints
 // nothing.
 //
@@ -256,7 +256,7 @@ fn tc932_a_space_with_no_interaction_mints_nothing() {
     assert!(quire_rs::obligation::for_document(&model, "FR", &doc, None).is_empty());
 }
 
-#[trace("TC-933", "FR-061-AC-9")]
+#[trace("FR-061-AC-9")]
 // strength 0 is rejected at load.
 #[test]
 fn tc933_strength_zero_is_rejected() {
@@ -286,7 +286,7 @@ fn tc933_strength_zero_is_rejected() {
     assert!(err.contains("strength 0"), "{err}");
 }
 
-#[trace("TC-934", "FR-061-AC-10")]
+#[trace("FR-061-AC-10")]
 // a declared space mints ONE obligation through the
 // CORPUS path too, identically to the single-document path.
 //

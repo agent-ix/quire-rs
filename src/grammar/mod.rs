@@ -839,7 +839,7 @@ mod tests {
         }
     }
 
-    #[trace("TC-719", "FR-048-AC-4")]
+    #[trace("FR-048-AC-4")]
     // a finding whose `<grammar>:<check>` key is absent
     // from the merged map defaults to `warning`.
     #[test]
@@ -852,7 +852,7 @@ mod tests {
         assert_eq!(out[0].severity, GrammarSeverity::Warning);
     }
 
-    #[trace("TC-752", "FR-048-AC-9")]
+    #[trace("FR-048-AC-9")]
     // an `off`-mapped check records no finding at all,
     // while sibling checks of the same grammar still report.
     #[test]
@@ -874,7 +874,7 @@ mod tests {
         assert_eq!(keys, vec!["ac:non-singular", "ears:vague-response"]);
     }
 
-    #[trace("TC-714", "FR-047-AC-8")]
+    #[trace("FR-047-AC-8")]
     // the summary histogram groups by the generic
     // `[<grammar>:<check>]` prefix, so a corpus emitting both `[ears:*]` and
     // `[ac:*]` findings shows both.
@@ -903,7 +903,7 @@ mod tests {
         );
     }
 
-    #[trace("TC-720", "FR-048-AC-5")]
+    #[trace("FR-048-AC-5")]
     // `--severity` entries are repeatable and take
     // precedence over a conflicting manifest entry for the same key.
     #[test]
@@ -930,7 +930,7 @@ mod tests {
         assert_eq!(out[0].severity, GrammarSeverity::Error);
     }
 
-    #[trace("TC-721", "FR-048-AC-6")]
+    #[trace("FR-048-AC-6")]
     // `--strict` semantics are untouched. The engine
     // surface `--strict` reads is unchanged: with no severity map a grammar
     // finding is still a warning that leaves the document valid, so the exit
@@ -947,7 +947,7 @@ mod tests {
         assert_eq!(out[0].severity, GrammarSeverity::Warning);
     }
 
-    #[trace("TC-755", "FR-048-AC-10")]
+    #[trace("FR-048-AC-10")]
     // a malformed `--severity` entry is rejected with a
     // usage diagnostic before validation runs.
     #[test]

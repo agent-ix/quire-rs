@@ -73,14 +73,14 @@ mod tests {
     }
 
     // non-ASCII collapses to '-' (matches TS/Py).
-    #[trace("FR-009-AC-6", "TC-190")]
+    #[trace("FR-009-AC-6")]
     #[test]
     fn non_ascii_collapses_to_dash() {
         assert_eq!(slug_line_id("Café Menu", 4), "caf-menu-L4");
     }
 
     // degenerate heading yields "-L<line>".
-    #[trace("FR-009-AC-7", "TC-191")]
+    #[trace("FR-009-AC-7")]
     #[test]
     fn degenerate_heading_keeps_line_index() {
         assert_eq!(slug_line_id("!!!", 7), "-L7");
@@ -151,7 +151,7 @@ mod props_metamorphic {
         /// the ticket's "content invariance under formatting-only edits"
         /// relation at the level where the engine actually claims it.
         #[test]
-        #[trace("FR-009-AC-3", "TC-893")]
+        #[trace("FR-009-AC-3")]
         fn tc893_slug_line_id_ignores_surrounding_whitespace(
             s in "[^\\p{White_Space}\\p{Cc}][^\\p{Cc}]{0,20}",
             line in 0usize..500,

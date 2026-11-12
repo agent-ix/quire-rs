@@ -57,7 +57,7 @@ fn verified(graph: &SymbolGraph) -> Vec<(&str, &str)> {
         .collect()
 }
 
-#[trace("TC-2101", "FR-051-AC-34")]
+#[trace("FR-051-AC-34")]
 // the `.sh` extension is read and every symbol carries language shell;
 // `.bash` and an extension-less `#!/bin/sh` file are not read.
 #[test]
@@ -79,7 +79,7 @@ fn tc2101_only_sh_files_are_read() {
     );
 }
 
-#[trace("TC-2102", "FR-051-AC-35")]
+#[trace("FR-051-AC-35")]
 // every function spelling mints one function named by itself.
 #[test]
 fn tc2102_function_spellings() {
@@ -123,7 +123,7 @@ outer() {
     assert_eq!((d.line, d.end_line), (4, 7), "the span covers the body");
 }
 
-#[trace("TC-2103", "FR-051-AC-36")]
+#[trace("FR-051-AC-36")]
 // definition-shaped text that is data mints nothing and raises no diagnostic.
 #[test]
 fn tc2103_decoys_mint_no_function() {
@@ -170,7 +170,7 @@ real() { :; }
     }
 }
 
-#[trace("TC-2104", "FR-051-AC-37")]
+#[trace("FR-051-AC-37")]
 // one entry_point per file, with or without a module; the label is part of
 // the identity and of the symbol table's kind.
 #[test]
@@ -229,7 +229,7 @@ fn tc2104_one_entry_point_per_file() {
     assert_eq!(SymbolKind::EntryPoint.as_str(), "entry_point");
 }
 
-#[trace("TC-2105", "FR-051-AC-38")]
+#[trace("FR-051-AC-38")]
 // the entry point binds only under a matching glob; a function never binds.
 #[test]
 fn tc2105_eligibility() {
@@ -257,7 +257,7 @@ fn tc2105_eligibility() {
     );
 }
 
-#[trace("TC-2106", "FR-051-AC-39")]
+#[trace("FR-051-AC-39")]
 // glob semantics: source_exclude dialect, code-root relative, a union across
 // forms, source_exclude first, and an uncompilable pattern refused.
 #[test]
@@ -312,7 +312,7 @@ fn tc2106_entry_paths_globs() {
     assert_eq!(not_applied, ["a/[**"]);
 }
 
-#[trace("TC-2107", "FR-051-AC-40")]
+#[trace("FR-051-AC-40")]
 // the tag channel is the comment block above a function, and the first header
 // run before the first command for the entry point.
 #[test]
@@ -350,7 +350,7 @@ func() { :; }
     assert_eq!(func.leading_line, 10);
 }
 
-#[trace("TC-2108", "FR-051-AC-41")]
+#[trace("FR-051-AC-41")]
 // only a comment node opens a comment.
 #[test]
 fn tc2108_only_comment_nodes_are_comments() {
@@ -372,7 +372,7 @@ EOF
     assert_eq!(verified(&graph), [("entry_point", "FR-001-AC-1")]);
 }
 
-#[trace("TC-2109", "FR-051-AC-42")]
+#[trace("FR-051-AC-42")]
 // shell binds only through a declared shell comment form.
 #[test]
 fn tc2109_no_declared_form_mints_nothing() {
@@ -403,7 +403,7 @@ fn tc2109_no_declared_form_mints_nothing() {
     assert!(bind(&sh("scripts/a.sh", src), &model).verifies.is_empty());
 }
 
-#[trace("TC-2110", "FR-051-AC-43")]
+#[trace("FR-051-AC-43")]
 // load-time refusals, and the accepted shell implements form.
 #[test]
 fn tc2110_load_refusals() {
@@ -454,7 +454,7 @@ fn tc2110_load_refusals() {
     assert!(graph.verifies.is_empty());
 }
 
-#[trace("TC-2111", "FR-051-AC-44")]
+#[trace("FR-051-AC-44")]
 // a marker that matched and bound nothing is reported with its reason.
 #[test]
 fn tc2111_non_binding_markers_are_reported() {
@@ -520,7 +520,7 @@ f() { :; }
     assert_eq!(got, ["not-in-tag-channel", "function-not-evidence"]);
 }
 
-#[trace("TC-2112", "FR-051-AC-45")]
+#[trace("FR-051-AC-45")]
 // an unparseable file is a per-file diagnostic naming the line; siblings extract.
 #[test]
 fn tc2112_unparseable_file() {
@@ -544,7 +544,7 @@ fn tc2112_unparseable_file() {
     assert_eq!(names(&extraction.symbols, SymbolKind::Function), ["f"]);
 }
 
-#[trace("TC-2113", "FR-051-AC-46")]
+#[trace("FR-051-AC-46")]
 // end to end: a tagged script under a glob backs its row; outside it, nothing.
 #[test]
 fn tc2113_audit_script_backs_its_static_row() {

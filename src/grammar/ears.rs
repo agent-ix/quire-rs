@@ -535,7 +535,7 @@ mod tests {
         GrammarLexicon::from_terms(terms.iter().copied())
     }
 
-    #[trace("TC-1007", "FR-052-AC-18")]
+    #[trace("FR-052-AC-18")]
     // #257: the ABSOLUTE document line of a classified criterion, with
     // frontmatter present, and it agrees with the coverage path.
     #[test]
@@ -591,7 +591,7 @@ mod tests {
         );
     }
 
-    #[trace("TC-657", "FR-042-AC-1")]
+    #[trace("FR-042-AC-1")]
     // every pattern classifies; no-match → unclassifiable.
     #[test]
     fn tc657_classification() {
@@ -625,7 +625,7 @@ mod tests {
         );
     }
 
-    #[trace("TC-658", "FR-042-AC-2")]
+    #[trace("FR-042-AC-2")]
     // non-singular fires on 2 shalls; enumerated stem doesn't.
     #[test]
     fn tc658_non_singular() {
@@ -638,7 +638,7 @@ mod tests {
         assert_eq!(f2.iter().filter(|x| x.check == "non-singular").count(), 0);
     }
 
-    #[trace("TC-659", "FR-042-AC-3")]
+    #[trace("FR-042-AC-3")]
     // missing-subject fires; StR stakeholder subject doesn't.
     #[test]
     fn tc659_missing_subject() {
@@ -651,7 +651,7 @@ mod tests {
         assert_eq!(f.iter().filter(|x| x.check == "missing-subject").count(), 0);
     }
 
-    #[trace("TC-660", "FR-042-AC-4")]
+    #[trace("FR-042-AC-4")]
     // vague-response fires; passive does not; the check
     // is object-aware (a concrete object or mechanism qualifier suppresses it).
     #[test]
@@ -712,7 +712,7 @@ mod tests {
             .count()
     }
 
-    #[trace("TC-669", "FR-043-AC-3")]
+    #[trace("FR-043-AC-3")]
     // a lexicon term suppresses; a different term re-flags.
     #[test]
     fn tc669_lexicon_term_suppresses() {
@@ -723,7 +723,7 @@ mod tests {
         assert_eq!(vague_count(&ep, &lex(&["endpoint"])), 0);
     }
 
-    #[trace("TC-670", "FR-043-AC-4")]
+    #[trace("FR-043-AC-4")]
     // under an empty lexicon a bare domain noun flags —
     // proving no hardcoded concrete-noun list remains in the engine.
     #[test]
@@ -741,7 +741,7 @@ mod tests {
         );
     }
 
-    #[trace("TC-671", "FR-043-AC-5")]
+    #[trace("FR-043-AC-5")]
     // backtick / mechanism / bound suppression does not
     // depend on the lexicon — it still holds under an empty lexicon.
     #[test]
@@ -788,7 +788,7 @@ mod tests {
         ); // -es
     }
 
-    #[trace("TC-661", "FR-042-AC-5")]
+    #[trace("FR-042-AC-5")]
     // non-canonical trigger fires; NFR no-trigger does not.
     #[test]
     fn tc661_non_canonical_trigger() {
@@ -811,7 +811,7 @@ mod tests {
         );
     }
 
-    #[trace("TC-662", "FR-042-AC-6")]
+    #[trace("FR-042-AC-6")]
     // grammar runs only on bound (archetype, section) pairs.
     #[test]
     fn tc662_binding() {
@@ -824,7 +824,7 @@ mod tests {
         assert!(check("IT", &it, 0, &empty()).is_empty());
     }
 
-    #[trace("TC-664", "FR-042-AC-8")]
+    #[trace("FR-042-AC-8")]
     // findings carry excerpt, line, pattern, severity.
     #[test]
     fn tc664_finding_fields() {
@@ -837,7 +837,7 @@ mod tests {
         assert_eq!(v.severity, GrammarSeverity::Warning);
     }
 
-    #[trace("TC-665", "FR-042-AC-9")]
+    #[trace("FR-042-AC-9")]
     // fenced/quote/reference content is not a statement.
     #[test]
     fn tc665_skips() {
@@ -876,7 +876,7 @@ mod props_metamorphic {
         /// Its counterexample before the fixpoint loop was `[]**()`, which
         /// normalized to `[]()` and then to `""`.
         #[test]
-        #[trace("FR-042", "TC-891")]
+        #[trace("FR-042")]
         fn tc891_ears_normalize_is_idempotent(s in markdownish()) {
             let once = super::normalize(&s);
             prop_assert_eq!(super::normalize(&once), once.clone(), "input={:?}", s);
@@ -885,7 +885,7 @@ mod props_metamorphic {
         /// CR-069, Property: and it never lengthens its input,
         /// which is what makes the fixpoint loop terminate.
         #[test]
-        #[trace("FR-042", "TC-891")]
+        #[trace("FR-042")]
         fn tc891_ears_normalize_never_grows(s in markdownish()) {
             prop_assert!(super::normalize(&s).len() <= s.len(), "input={:?}", s);
         }

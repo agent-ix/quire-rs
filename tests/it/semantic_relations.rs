@@ -356,7 +356,7 @@ const AVAILABILITY_CASES: &[&str] = &[
     "first-failing-check-only",
 ];
 
-#[trace("TC-1852", "FR-076-AC-1")]
+#[trace("FR-076-AC-1")]
 // the golden `relationships.md` extracts to `relationships.expected.json`.
 #[test]
 fn golden_relationships() {
@@ -373,43 +373,43 @@ fn golden_relationships() {
     );
 }
 
-#[trace("TC-1853", "FR-076-AC-2")]
+#[trace("FR-076-AC-2")]
 #[test]
 fn verb_cases() {
     run(VERB_CASES);
 }
 
-#[trace("TC-1854", "FR-076-AC-3")]
+#[trace("FR-076-AC-3")]
 #[test]
 fn target_cases() {
     run(TARGET_CASES);
 }
 
-#[trace("TC-1855", "FR-076-AC-4")]
+#[trace("FR-076-AC-4")]
 #[test]
 fn multiplicity_cases() {
     run(MULTIPLICITY_CASES);
 }
 
-#[trace("TC-1856", "FR-076-AC-5")]
+#[trace("FR-076-AC-5")]
 #[test]
 fn name_and_frontmatter_cases() {
     run(NAME_CASES);
 }
 
-#[trace("TC-1857", "FR-076-AC-6")]
+#[trace("FR-076-AC-6")]
 #[test]
 fn table_shape_cases() {
     run(SHAPE_CASES);
 }
 
-#[trace("TC-1858", "FR-076-AC-7")]
+#[trace("FR-076-AC-7")]
 #[test]
 fn mapping_gating_cases() {
     run(GATING_CASES);
 }
 
-#[trace("TC-1859", "FR-076-AC-8")]
+#[trace("FR-076-AC-8")]
 // availability cases, and every fixture case is run by exactly one criterion.
 #[test]
 fn availability_cases_and_full_coverage() {
@@ -442,7 +442,7 @@ fn availability_cases_and_full_coverage() {
     assert_eq!(unique, in_fixture);
 }
 
-#[trace("TC-1861", "FR-076-AC-10")]
+#[trace("FR-076-AC-10")]
 // no relation vocabulary: one heading advisory and `no-relation-vocabulary`,
 // unless a shape error already makes the feature unavailable.
 #[test]
@@ -450,7 +450,7 @@ fn no_relation_vocabulary_cases() {
     run(NO_VOCABULARY_CASES);
 }
 
-#[trace("TC-1862", "FR-076-AC-11")]
+#[trace("FR-076-AC-11")]
 // no bundle index: a lowering row's unchecked target carries the
 // `no-bundle-index` advisory; a title and a row error are still refused.
 #[test]
@@ -458,14 +458,14 @@ fn no_bundle_index_cases() {
     run(NO_BUNDLE_INDEX_CASES);
 }
 
-#[trace("TC-1863", "FR-076-AC-12")]
+#[trace("FR-076-AC-12")]
 // a section with prose and no block warns at the heading, not_applicable.
 #[test]
 fn no_block_cases() {
     run(NO_BLOCK_CASES);
 }
 
-#[trace("TC-1865", "FR-076-AC-14")]
+#[trace("FR-076-AC-14")]
 // no bundle index and a row error: the lowering row's advisory is dropped;
 // only the error remains.
 #[test]
@@ -473,7 +473,7 @@ fn no_bundle_index_mixed_rows() {
     run(MIXED_ROWS_CASES);
 }
 
-#[trace("TC-1867", "FR-076-AC-15")]
+#[trace("FR-076-AC-15")]
 // with no bundle package, a source identity qualifies targets; with neither,
 // relationships are unavailable with `no-bundle-package`.
 #[test]
@@ -516,7 +516,7 @@ fn bundle_package_from_source_identity_or_unavailable() {
     run(NO_BUNDLE_PACKAGE_CASES);
 }
 
-#[trace("TC-1860", "FR-076-AC-9")]
+#[trace("FR-076-AC-9")]
 // no token and no relationship table: no relations keys; declaration_record
 // carries relations; a renamed verb keeps its registry category and
 // composition (CON-2).
@@ -676,7 +676,7 @@ fn findings(record: &Value) -> Vec<(String, String)> {
         .collect()
 }
 
-#[trace("TC-1999", "FR-076-AC-16", "FR-076-CON-3")]
+#[trace("FR-076-AC-16", "FR-076-CON-3")]
 // Rows whose verb is a typed relation key of the data schema lower into that
 // key as SemanticIds; a typed-only type carries no `relations`.
 #[test]
@@ -733,7 +733,7 @@ fn typed_relation_keys_lower_from_rows() {
     }
 }
 
-#[trace("TC-2000", "FR-076-AC-17")]
+#[trace("FR-076-AC-17")]
 // A typed row is refused for exactly the FR-076 reasons, plus a verb that is
 // no typed key on a typed-only type; an error leaves no typed key.
 #[test]
@@ -767,7 +767,7 @@ fn typed_rows_keep_the_relationship_refusals() {
     assert!(findings(&record).is_empty(), "{record:#}");
 }
 
-#[trace("TC-2001", "FR-076-AC-18")]
+#[trace("FR-076-AC-18")]
 // A header-only table on a typed-only type yields the empty typed key; a type
 // declaring `relations` and a typed key keeps `relationSources` aligned with
 // `relations`.
@@ -798,7 +798,7 @@ fn typed_keys_beside_relations() {
     assert!(sources[0].get("verb").is_none(), "{record:#}");
 }
 
-#[trace("TC-2002", "FR-076-AC-19", "FR-076-CON-4")]
+#[trace("FR-076-AC-19", "FR-076-CON-4")]
 // A typed key in frontmatter is a second declaration site: refused at line 1,
 // and never read into the key.
 #[test]
@@ -830,7 +830,7 @@ fn frontmatter_typed_key_is_duplicate_authority() {
     assert_eq!(record["persists"], json!([identity("entity-001")]));
 }
 
-#[trace("TC-2003", "FR-076-AC-20")]
+#[trace("FR-076-AC-20")]
 // No bundle index lowers a typed row unchecked with the advisory; one
 // declaration has one identity across a model reference item and a typed
 // row; a title stays `target-not-id`; a type without typed keys is unchanged.
@@ -914,7 +914,7 @@ fn typed_rows_share_identity_and_index_states() {
     assert_eq!(record["diagnostics"], fixture["diagnostics"]);
 }
 
-#[trace("TC-2150", "FR-076-AC-22")]
+#[trace("FR-076-AC-22")]
 #[test]
 fn entry_error_reasons_are_stated_by_locus() {
     for name in ["relationships-cases.json", "operations-cases.json"] {
@@ -939,7 +939,7 @@ fn entry_error_reasons_are_stated_by_locus() {
     run(&[two_rows["id"].as_str().unwrap()]);
 }
 
-#[trace("TC-2150", "FR-076-AC-22")]
+#[trace("FR-076-AC-22")]
 #[test]
 #[should_panic(expected = "reason lines")]
 fn reason_lines_differing_from_resolved_loci_fail() {

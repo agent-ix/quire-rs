@@ -35,7 +35,7 @@ fn registry() -> &'static Registry {
     })
 }
 
-#[trace("NFR-019-AC-1", "TC-579")]
+#[trace("NFR-019-AC-1")]
 fuzz_target!(|data: &[u8]| {
     // Lossy conversion so non-UTF-8 byte sequences are exercised too.
     let s = String::from_utf8_lossy(data);

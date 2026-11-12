@@ -398,7 +398,7 @@ mod tests {
         assert_eq!(d.sections[1].end_line, 4);
     }
 
-    #[trace("TC-812", "FR-005-AC-5")]
+    #[trace("FR-005-AC-5")]
     // the header tier alone decides membership — a
     // frontmatter-less, unterminated, or non-mapping input is None, with no
     // body pipeline reachable from parse_header at all.
@@ -418,7 +418,7 @@ mod tests {
         }
     }
 
-    #[trace("TC-812", "FR-005-AC-5")]
+    #[trace("FR-005-AC-5")]
     // the header carries id/type/uuid and the full
     // frontmatter mapping — identity is read, never derived (FR-024-AC-6).
     #[test]
@@ -444,7 +444,7 @@ mod tests {
         assert_eq!(no_id.uuid, None);
     }
 
-    #[trace("TC-813", "FR-005-AC-6")]
+    #[trace("FR-005-AC-6")]
     // parse_document is exactly the composition of the
     // two tiers — parse_body under a parse_header header is byte-identical.
     #[test]
@@ -465,7 +465,7 @@ mod tests {
         }
     }
 
-    #[trace("TC-819", "FR-005-AC-7")]
+    #[trace("FR-005-AC-7")]
     // parse_body is total in its header. `body_offset`
     // is an offset into the input the header came from, so a caller can pair a
     // header with a different string; that must describe the string actually
@@ -505,12 +505,12 @@ mod tests {
         // parse_document does not panic on any input.
         #![proptest_config(ProptestConfig::with_cases(10_000))]
         #[test]
-        #[trace("FR-005-AC-4", "TC-002")]
+        #[trace("FR-005-AC-4")]
         fn never_panics_on_arbitrary_utf8(s in "\\PC*") {
             let _ = parse_document(&s);
         }
 
-        #[trace("TC-819", "FR-005-AC-7")]
+        #[trace("FR-005-AC-7")]
         // no (header input, body input) pair panics
         // parse_body, and the document always describes the body input.
         #[test]
@@ -521,7 +521,7 @@ mod tests {
             }
         }
 
-        #[trace("TC-813", "FR-005-AC-6")]
+        #[trace("FR-005-AC-6")]
         // tier composition equals parse_document on
         // arbitrary input — whenever the input is a document at all.
         #[test]

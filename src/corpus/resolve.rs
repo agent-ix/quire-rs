@@ -384,7 +384,7 @@ mod tests {
     use ix_trace_rs::trace;
 
     // target-id extraction is a pure function.
-    #[trace("FR-026-AC-6", "TC-491")]
+    #[trace("FR-026-AC-6")]
     #[test]
     fn extract_target_id_handles_uri_and_bare() {
         assert_eq!(
@@ -427,7 +427,7 @@ mod tests {
     }
 
     // frontmatter relationship to a present id -> Resolved.
-    #[trace("FR-026-AC-1", "TC-486")]
+    #[trace("FR-026-AC-1")]
     #[test]
     fn frontmatter_relationship_resolves() {
         let docs = vec![
@@ -446,7 +446,7 @@ mod tests {
     }
 
     // ix:// body link to a present id -> Resolved, type "references".
-    #[trace("FR-026-AC-2", "TC-487")]
+    #[trace("FR-026-AC-2")]
     #[test]
     fn body_link_resolves() {
         let docs = vec![
@@ -464,7 +464,7 @@ mod tests {
     }
 
     // absent target -> Dangling + diagnostic; no failure.
-    #[trace("FR-026-AC-3", "TC-488")]
+    #[trace("FR-026-AC-3")]
     #[test]
     fn absent_target_is_dangling() {
         let docs = vec![loaded(
@@ -486,7 +486,7 @@ mod tests {
     }
 
     // cross-spec target (absent from loaded set) -> Dangling.
-    #[trace("FR-026-AC-4", "TC-489")]
+    #[trace("FR-026-AC-4")]
     #[test]
     fn cross_spec_target_is_dangling_not_resolved() {
         // Target lives only in a *different* spec — not in this index.
@@ -526,7 +526,7 @@ mod tests {
     }
 
     // a Resolved edge is in both outgoing(src) and incoming(tgt).
-    #[trace("FR-026-AC-5", "TC-490")]
+    #[trace("FR-026-AC-5")]
     #[test]
     fn resolved_edge_is_bidirectional() {
         let docs = vec![
@@ -547,7 +547,7 @@ mod tests {
 
     // identical (src,target,type) from both sources -> one edge;
     // same pair, different type -> two.
-    #[trace("FR-026-AC-8", "TC-501")]
+    #[trace("FR-026-AC-8")]
     #[test]
     fn dedup_collapses_identical_triples() {
         // frontmatter `references` StR-005 AND a body ix:// link to StR-005
@@ -604,7 +604,7 @@ mod tests {
 
     // relative-path body link resolves via the path index
     // (independent of link text and file slug); an unmatched relative link dangles.
-    #[trace("FR-026-AC-9", "TC-620")]
+    #[trace("FR-026-AC-9")]
     #[test]
     fn relative_path_link_resolves_and_dangles() {
         let docs = vec![
@@ -643,7 +643,7 @@ mod tests {
 
     // a relative link to an id-less (path-keyed) document
     // resolves to its path key, and an unresolved nested path is reported whole.
-    #[trace("FR-026-AC-9", "TC-620")]
+    #[trace("FR-026-AC-9")]
     #[test]
     fn relative_link_to_id_less_doc_resolves_and_nested_miss_keeps_full_path() {
         let idless = LoadedDocument::from_parsed(
@@ -678,7 +678,7 @@ mod tests {
 
     // relative links in index.md are not harvested;
     // the same link in an ordinary artifact is.
-    #[trace("FR-026-AC-10", "TC-621")]
+    #[trace("FR-026-AC-10")]
     #[test]
     fn nav_documents_excluded_as_relative_source() {
         let docs = vec![
@@ -711,7 +711,7 @@ mod tests {
 
     // identical (source, target, references) from a
     // relative-path link and an ix:// link / frontmatter entry dedups to one.
-    #[trace("FR-026-AC-11", "TC-622")]
+    #[trace("FR-026-AC-11")]
     #[test]
     fn relative_and_ix_link_dedup_to_one() {
         let docs = vec![
@@ -745,7 +745,7 @@ mod tests {
     // 237 `~/dev` spec bundles at the time of the change — this test exists so
     // that a future tightening of the grammar has to argue with real usage
     // rather than with an invented example.
-    #[trace("FR-026-AC-12", "TC-880")]
+    #[trace("FR-026-AC-12")]
     #[test]
     fn tc880_grammar_accepts_every_authored_shape() {
         let re = ix_link_regex();
@@ -823,7 +823,7 @@ mod tests {
     // and every malformed form the corpus contains mint nothing. The reported
     // defect is the first case: `` `ix://` `` matched as ``ix://` `` and the
     // harvested target was the closing backtick.
-    #[trace("FR-026-AC-13", "TC-881")]
+    #[trace("FR-026-AC-13")]
     #[test]
     fn tc881_grammar_rejects_the_bare_protocol_and_placeholders() {
         let re = ix_link_regex();
@@ -885,7 +885,7 @@ mod tests {
             "the bare protocol is dropped; the backticked URI is kept"
         );
     }
-    #[trace("TC-897", "FR-026-AC-14")]
+    #[trace("FR-026-AC-14")]
     // every clause of the relative-destination (CR-071)
     // filter is load-bearing, checked one exclusion at a time.
     //
@@ -923,7 +923,7 @@ mod tests {
         }
     }
 
-    #[trace("TC-897", "FR-026-AC-14")]
+    #[trace("FR-026-AC-14")]
     // and end to end — a document whose only (CR-071)
     // links are excluded destinations mints no edge at all.
     #[test]

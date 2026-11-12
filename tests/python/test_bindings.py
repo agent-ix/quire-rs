@@ -87,7 +87,7 @@ def test_check_grammar_applies_module_lexicon(tmp_path):
     assert not any(f["check"] == "vague-response" for f in findings2)
 
 
-@pytest.mark.trace("FR-047-AC-12", "TC-715")
+@pytest.mark.trace("FR-047-AC-12")
 def test_check_grammar_ac_findings_cross_boundary(tmp_path):
     """FR-047-AC-9: the `ac` grammar is exposed through the same PyO3
     surface and returns the same findings as the in-process Rust call."""
@@ -142,7 +142,7 @@ def test_check_grammar_ac_findings_cross_boundary(tmp_path):
     assert "unclassifiable" not in scoped_checks
 
 
-@pytest.mark.trace("FR-052-AC-8", "TC-789")
+@pytest.mark.trace("FR-052-AC-8")
 def test_classify_properties_cross_boundary(tmp_path):
     """FR-052-AC-11: the property classifier is exposed through PyO3
     and returns the same records, field for field, as the in-process Rust call
