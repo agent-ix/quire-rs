@@ -47,7 +47,7 @@ either: the CLI already merges its entries over the module map and installs the 
 | `bundle` | `no-frontmatter`, `malformed-frontmatter`, `index-incomplete`, `index-okf-version` | FR-038 |
 | `refs` | `dangling-reference` | FR-026 |
 | `edges` | `disallowed-edge-target` | FR-040 |
-| `trace` | `dangling-trace-reference`, `archetype-matches-nothing` | FR-049 |
+| `trace` | `dangling-trace-reference`, `reference-kind-mismatch`, `archetype-matches-nothing` | FR-049 |
 
 The **`reason` token is unchanged** by this FR. It is the machine surface consumers already read
 (`quire validate` prints `… [dangling-reference]`); the pack is a prefix applied when forming the
@@ -65,12 +65,13 @@ declared tier **is its current behaviour**:
 |---|---|
 | `refs:dangling-reference` | posture-routed — error under `Strict`, warning under `Okf` |
 | `trace:dangling-trace-reference` | posture-routed |
+| `trace:reference-kind-mismatch` | posture-routed (FR-049-AC-12) |
 | `bundle:index-incomplete`, `bundle:index-okf-version` | posture-routed |
 | `bundle:no-frontmatter`, `bundle:malformed-frontmatter` | warning in both postures (CR-048) |
 | `edges:disallowed-edge-target` | warning in both postures (FR-040-AC-10) |
 | `trace:archetype-matches-nothing` | warning in both postures (CR-054) |
 
-A corpus check introduced **after** this FR SHALL declare `warning`, which restores FR-048-AC-4's
+A corpus check introduced **after** this FR SHALL declare `warning` unless the table above enumerates it (`trace:reference-kind-mismatch` is a kind-narrowed form of `dangling-trace-reference` and shares its routing), which restores FR-048-AC-4's
 rule for everything new and confines the exception to the enumerated list above.
 
 A configured key wins over the declared tier in both directions and in both postures: `error`
@@ -102,6 +103,7 @@ already guarantees is preserved (NFR-006).
 | FR-057-AC-8 | The `reason` token of every check listed in the pack table is byte-identical to its pre-FR value, so a consumer matching on the machine surface is unaffected. | Test (TC-886) |
 | FR-057-AC-9 | Every corpus finding routed through the pack surface carries a well-formed `<pack>:<check>` key accepted by `is_severity_key`, so a pack cannot ship unregistrable — asserted over the packs the engine emits, not a hardcoded list. | Test (TC-886) |
 | FR-057-AC-10 | Findings appear in the same order with and without a severity map, and repeated runs over one bundle are identical (NFR-006). | Test (TC-887) |
+| FR-057-AC-11 | `trace:reference-kind-mismatch` follows the same registry rules as `trace:dangling-trace-reference`: unconfigured it is an error under `Strict` and a warning under `Okf`; `error`, `warning` and `off` override it in both postures without affecting the sibling `trace:dangling-trace-reference` count. | Test |
 
 ## Constraints
 
