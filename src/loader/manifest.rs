@@ -480,12 +480,35 @@ pub struct Archetype {
     /// named, by the loader (`loader::record_validation`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub record_validation: Option<Value>,
+    /// The first of [`NULL_REFUSED_KEYS`] this entry authored as an explicit
+    /// `null`, which serde reads as absent. Filled by [`parse_manifest`] from
+    /// the raw document; the loader refuses the archetype for it (PLAT-1484).
+    #[serde(skip)]
+    pub null_key: Option<&'static str>,
     /// Free-form passthrough for carry-over fields (`grammar_ref`,
     /// `allowed_links`, `has_plugin`, `defaults`, `construct`) and the retired fields
     /// the loader rejects.
     #[serde(flatten)]
     pub extras: Map<String, Value>,
 }
+
+/// The archetype keys whose authoritative schema type is not null (objects for
+/// `data_schema`, `body_extraction`, `record_validation` and `defaults`;
+/// strings for `grammar_ref` and `frontmatter_schema_ref`; an array for
+/// `roles`; an array or object for `allowed_links`), so an authored `null` is
+/// a mistake and not "absent". `construct` is deliberately not listed: FR-031-AC-7 carries it
+/// raw (a `construct: null` is returned as `Some(Null)`), and the construct
+/// declaration is owned downstream.
+const NULL_REFUSED_KEYS: [&str; 8] = [
+    "data_schema",
+    "body_extraction",
+    "frontmatter_schema_ref",
+    "record_validation",
+    "grammar_ref",
+    "defaults",
+    "allowed_links",
+    "roles",
+];
 
 impl Archetype {
     /// Whether the entry declares any key the engine owns: a validation part
@@ -514,6 +537,7 @@ impl Archetype {
             || self.data_schema.is_some()
             || self.body_extraction.is_some()
             || self.record_validation.is_some()
+            || self.null_key.is_some()
             || OWNED.iter().any(|k| self.extras.contains_key(*k))
             || defaults_id_pattern
     }
@@ -584,7 +608,8 @@ impl Archetype {
 /// Returns the typed [`Manifest`] or a `String` error message suitable
 /// for wrapping in `QuireError::ManifestError`.
 pub fn parse_manifest(bytes: &[u8]) -> Result<Manifest, String> {
-    let manifest = serde_yaml::from_slice::<Manifest>(bytes).map_err(|e| e.to_string())?;
+    let mut manifest = serde_yaml::from_slice::<Manifest>(bytes).map_err(|e| e.to_string())?;
+    note_explicit_nulls(bytes, &mut manifest)?;
     check_grammar_severity_keys(&manifest)?;
     // FR-050-AC-2: an incoherent `traceability:` declaration is a shape error.
     manifest.traceability.validate()?;
@@ -601,6 +626,38 @@ pub fn parse_manifest(bytes: &[u8]) -> Result<Manifest, String> {
         profile.validate(id)?;
     }
     Ok(manifest)
+}
+
+/// serde folds an authored `key: null` into "absent" for every optional
+/// archetype key and for `semantic`, so the loader would accept what the
+/// authoritative module-manifest schema refuses (PLAT-1484). Read the raw
+/// document once more: a null `semantic` fails the manifest, and a null
+/// archetype key is recorded on its entry for the loader to refuse by name.
+fn note_explicit_nulls(bytes: &[u8], manifest: &mut Manifest) -> Result<(), String> {
+    let Ok(raw) = serde_yaml::from_slice::<serde_yaml::Value>(bytes) else {
+        return Ok(());
+    };
+    if matches!(raw.get("semantic"), Some(serde_yaml::Value::Null)) {
+        return Err(
+            "semantic.invalid-value: semantic: the semantic block must be a mapping or omitted, not null"
+                .to_string(),
+        );
+    }
+    for (section, entries) in [
+        ("artifact_types", &mut manifest.artifact_types),
+        ("object_types", &mut manifest.object_types),
+        ("archetypes", &mut manifest.archetypes),
+    ] {
+        let Some(raw_entries) = raw.get(section).and_then(serde_yaml::Value::as_sequence) else {
+            continue;
+        };
+        for (entry, raw_entry) in entries.iter_mut().zip(raw_entries) {
+            entry.null_key = NULL_REFUSED_KEYS
+                .into_iter()
+                .find(|key| matches!(raw_entry.get(*key), Some(serde_yaml::Value::Null)));
+        }
+    }
+    Ok(())
 }
 
 /// Deserialize `clause_sets` as a list of strings (FR-083-AC-1). YAML

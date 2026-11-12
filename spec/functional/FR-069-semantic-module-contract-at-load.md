@@ -330,7 +330,20 @@ record_validation:
   codes at `<section>[<type>].record_validation.schema`); or with
   `locate_absence_at` absent, empty, not a string, or not a key of
   `yield_pattern.match` (at `<section>[<type>].record_validation.locate_absence_at`).
-- An archetype without `record_validation` behaves exactly as before.
+- An archetype without `record_validation` behaves exactly as before. A key
+  that is present but `null` is not absent: the loader refuses it with
+  `semantic.invalid-value` at `<section>[<type>].record_validation`, naming the
+  archetype and that `record_validation` must be a mapping or omitted, as the
+  authoritative module-manifest schema (`$defs/RecordValidation`, an object)
+  does. The refusal precedes the no-`semantic`-block refusal. `where: null` on a
+  `required_relations` entry is likewise refused (FR-058-AC-19). The same holds
+  for the other keys of an archetype entry whose authoritative schema type is
+  not null: `data_schema`, `body_extraction`, `frontmatter_schema_ref`,
+  `grammar_ref`, `defaults`, `allowed_links` and `roles`
+  authored as `null` are refused at `<section>[<type>].<key>` in the same form
+  and are never read as absent (an absent `data_schema` would silently switch
+  record validation off). `construct` is the one exception: FR-031-AC-7 carries it raw, so `construct: null` still loads as a null construct. A top-level `semantic: null` is refused as a
+  `semantic` block that is not a mapping, not read as "no semantic block".
 
 Allocation note: `agent-ix/quoin` FR-070 says Quire "applies the same
 schema at artifact-validation time". This requirement applies it at
@@ -377,6 +390,9 @@ stricter of the two.
 | FR-069-AC-26 | A document whose `required: true` locator located nothing yields the locator's missing-value finding and no `semantic.record-invalid` finding; a value failing both a locator `assert: choices` and the schema `enum` yields the assert finding only; a conditional absence (locator `required: false`) yields the record finding. | Test |
 | FR-069-AC-27 | A fixture module taking the real spec-artifacts-process Anomaly `yield_pattern` (`status`, `resolution`, `safety_impact`, `description`, `assessment` with its `table_row` locator) plus a `closed_by` `frontmatter_field` locator and a `record_validation` schema carrying the closed/resolved/assessed conditionals reports, through `validate_document_in_registry`: for `status: closed` with no `closed_by` and no `resolution`, two findings both at the `status:` line; for `status: assessed` with no assessment section, one finding at the `status:` line; for a valid document, none. | Test |
 | FR-069-AC-28 | A fixture module with a different archetype, `state` as `locate_absence_at` and a different schema locates the absence at its own `state` line, and repeated validation yields identical findings in identical order. | Test |
+| FR-069-AC-29 | An archetype declaring `record_validation: null` (a key present with no value) is refused with `semantic.invalid-value` at `<section>[<type>].record_validation` in the AC-14 reason form, the message naming that `record_validation` must be a mapping or omitted, whether or not the module has a `semantic` block; the same archetype with the key omitted loads, and a valid declaration is recorded unchanged. | Test |
+| FR-069-AC-30 | An archetype declaring `data_schema`, `body_extraction`, `frontmatter_schema_ref`, `grammar_ref`, `defaults`, `allowed_links` or `roles` authored as `null` is refused with `semantic.invalid-value` at `<section>[<type>].<key>` in the AC-14 reason form, naming the archetype, with or without a `semantic` block, in a directory module as in an inline one, and also when it sits in `archetypes:` with no other owned key; a valid sibling archetype in the same module still loads, and the same archetype with the key omitted loads. | Test |
+| FR-069-AC-31 | A manifest whose top-level `semantic` is `null` fails to load with `semantic.invalid-value` naming `semantic`, and the same manifest with the key omitted loads with no semantic block. | Test |
 
 ## Dependencies
 

@@ -1387,13 +1387,6 @@ pub enum TraceMarkerSyntax {
     Comment,
 }
 
-// Preserve field presence: explicit null is an invalid guard, not omission.
-fn present_syntax<'de, D: serde::Deserializer<'de>>(
-    deserializer: D,
-) -> Result<Option<serde_json::Value>, D::Error> {
-    serde_json::Value::deserialize(deserializer).map(Some)
-}
-
 impl TraceMarkerSyntax {
     /// The module-declared spelling.
     pub fn as_str(self) -> &'static str {
@@ -1417,7 +1410,7 @@ impl<'de> Deserialize<'de> for TraceMarkerForm {
             pattern: String,
             #[serde(default)]
             template: Option<String>,
-            #[serde(default, deserialize_with = "present_syntax")]
+            #[serde(default, deserialize_with = "deserialize_present")]
             syntax: Option<serde_json::Value>,
             #[serde(default)]
             entry_paths: Option<Vec<String>>,

@@ -131,6 +131,30 @@ impl ManifestLoadFailure {
     }
 }
 
+/// The refusal for an archetype that authored one of its object-typed keys as
+/// an explicit `null` (PLAT-1484): `semantic.invalid-value` at
+/// `<section>[<type>].<key>`, naming the archetype.
+fn null_key_failure(
+    module: &str,
+    path: PathBuf,
+    a: &Archetype,
+    section: &str,
+) -> Option<ArchetypeLoadFailure> {
+    let key = a.null_key?;
+    let reason = crate::semantic::SemanticFailure::error(
+        "semantic.invalid-value",
+        format!("{section}[{}].{key}", a.name),
+        format!(
+            "archetype `{}` declares {key} as null; give a value, or omit the key",
+            a.name
+        ),
+    )
+    .reason();
+    Some(crate::loader::compile::failure(
+        module, &a.name, path, reason,
+    ))
+}
+
 /// Caller-facing reason for a retired manifest field (no
 /// backward-compatibility layer — ADR 0003 / FR-031, render removed).
 fn retired_field_reason(field: &str) -> String {
@@ -454,6 +478,13 @@ pub fn load_inline_module(manifest_yaml: &[u8], schemas: &BTreeMap<String, Strin
                 inline_root.clone(),
                 retired_field_reason(field),
             ));
+            continue;
+        }
+
+        if let Some(f) =
+            null_key_failure(&module_name, inline_root.clone(), a, manifest.section_of(a))
+        {
+            failures.push(f);
             continue;
         }
 
@@ -888,6 +919,10 @@ fn compile_archetype(
             module_root.join("manifest.yaml"),
             retired_field_reason(field),
         ));
+    }
+
+    if let Some(f) = null_key_failure(module, module_root.join("manifest.yaml"), a, section) {
+        return Err(f);
     }
 
     // Frontmatter schema (optional).

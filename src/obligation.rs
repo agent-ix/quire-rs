@@ -373,6 +373,7 @@ pub fn derive(
             mints: None,
             status_column: None,
             kind_column: None,
+            tables: declared_tables::TableScan::First,
             target_required: false,
         };
         let rows = declared_tables::scan(spec, root, scope, resolved.section, &mut ctx);
