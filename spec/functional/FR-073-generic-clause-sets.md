@@ -30,11 +30,13 @@ is `all`, `any`, `not`, `eq`, `in`, and `at_least`. Evaluation returns one of
 value, or incomparable value remains unresolved and never silently becomes
 false.
 
-Clause text is loadable only when the file declares it original or explicitly
-cleared. Explicit clearance carries a review reference. A citation-only or
-structure-only module can keep titles, identifiers, and official links while
-omitting clause text. A citation-only set that does carry clause text is loadable but
-restricted, and is refused for publication under [FR-083](./FR-083-clause-set-publishability.md).
+Clause text is loadable only when the file declares `rights.text` as `original`,
+`explicitly_cleared` or `licensed`. Explicit clearance carries a review
+reference. `licensed` text may be loaded and used locally, needs no
+clearance reference, and is restricted from publication under
+[FR-083](./FR-083-clause-set-publishability.md). `text: none` prohibits clause
+text. A citation-only or structure-only module can keep titles, identifiers, and
+official links while omitting clause text.
 
 ## Acceptance Criteria
 
@@ -45,7 +47,7 @@ restricted, and is refused for publication under [FR-083](./FR-083-clause-set-pu
 | FR-073-AC-3 | `all`, `any`, `not`, `eq`, `in`, and ordered `at_least` expressions evaluate to binding, not-binding, or unresolved; missing, unknown, and incomparable context never becomes not-binding by default. | Test (TC-1806) |
 | FR-073-AC-4 | Diff requires the same authority and id and reports added, removed, and changed clauses between exact versions. | Test (TC-1808) |
 | FR-073-AC-5 | Binding and diff JSON conform to the hand-authored `clause-binding-v1` and `clause-diff-v1` schemas. | Test (TC-1809) |
-| FR-073-AC-6 | Clause text is rejected unless declared original or explicitly cleared, and explicit clearance requires a review reference; the engine and fixtures contain no external publication text. | Test (TC-1807) |
+| FR-073-AC-6 | Clause text is rejected unless declared original, explicitly cleared or licensed, and explicit clearance requires a review reference; the engine and fixtures contain no external publication text. | Test (TC-1807) |
 
 ## Dependencies
 
