@@ -1328,7 +1328,6 @@ pub(crate) fn scan_finding(
 
 #[cfg(test)]
 mod props_metamorphic {
-    use ix_trace_rs::trace;
     use proptest::prelude::*;
 
     /// Cells built from the tokens the two opt-in normalizations rewrite —
@@ -1595,7 +1594,6 @@ mod cr110_scanned_table {
 
 #[cfg(test)]
 mod cr069_regressions {
-    use ix_trace_rs::trace;
     /// regression (FR-049, CR-069) — the generator's minimized witness.
     /// A chained range expanded only its leftmost pair and left a `..` behind,
     /// which the declaration's pattern then rejects — so a cell the engine could
