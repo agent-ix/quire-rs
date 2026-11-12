@@ -106,7 +106,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | FR-044 Project Ubiquitous-Language lexicon | AC-1..7 | TC-674 (harvest Term column from Glossary `## Terms` table), TC-675 (harvest bold term from `## Ubiquitous Language` bullets), TC-676 (combined lexicon = registry keys ∪ project terms), TC-677 (validate_document_in_registry_with_lexicon injects lexicon), TC-678 (validate_bundle harvests Spec + applies combined lexicon), TC-679 (advisory: project suppression never changes is_valid), TC-680 (no glossary → empty terms → module-only path) | 🚧 Pending implementation |
 | FR-067 Versioned assurance export | AC-1..5, 7, 8 (AC-6 withdrawn); CON-1..5 | TC-1084..TC-1090 (TC-1089 withdrawn), TC-2063 | ✅ Implemented |
 | FR-068 Source-grounded assurance projection | AC-1..9; CON-1..4 | TC-1091..TC-1099 | ✅ Implemented |
-| FR-069 Semantic module contract at load | AC-1..8, AC-10..28; CON-1, CON-2, CON-4 | TC-1599..TC-1606, TC-1608, TC-1609, TC-1645, TC-1646, TC-1848, TC-2190, TC-2005, TC-2081, TC-2214..TC-2218, TC-2304..TC-2311 (PLAT-1476 located record validation, AC-21..28) | AC-1..8, AC-10..28 ✅ Implemented |
+| FR-069 Semantic module contract at load | AC-1..8, AC-10..29; CON-1, CON-2, CON-4 | TC-1599..TC-1606, TC-1608, TC-1609, TC-1645, TC-1646, TC-1848, TC-2190, TC-2005, TC-2081, TC-2214..TC-2218, TC-2304..TC-2311 (PLAT-1476 located record validation, AC-21..28), TC-2318 (PLAT-1484 null refused, AC-29) | AC-1..8, AC-10..29 ✅ Implemented |
 | FR-070 Typed Properties extraction to FieldDecl[] | AC-1..14; CON-1..3 | TC-1610..TC-1621, TC-1647, TC-1945..TC-1947, TC-1952 | ✅ AC-1..14 Implemented |
 | FR-071 Clause and operation extraction | AC-1..14; CON-1..3 | TC-1622..TC-1629, TC-1648, TC-1850, TC-1851, TC-2040..TC-2042 | ✅ AC-1..14 Implemented |
 | FR-072 Semantic extraction surface | AC-1..9; CON-1..3 | TC-1630..TC-1640, TC-1650 (TC-1636 external: quire-wasm#3) | ✅ Implemented; WASM leg external |
@@ -1240,6 +1240,7 @@ Reserved withdrawn IDs (not active test cases): TC-834, TC-842, TC-871, TC-1089,
 | TC-2315 | A synthetic `text: licensed` set loads with clause text and with none, needs no `clearance_ref`, and is returned either way with authority, id, version and text-clause count (zero without text) | Unit | P0 | FR-083-AC-4, FR-083-AC-9 | ✅ |
 | TC-2316 | Mixed module returns exactly the licensed sets in stable order across two runs, and no result field or `Debug` output contains the fixture's text sentinel | Unit | P0 | FR-083-AC-6, FR-083-AC-7 | ✅ |
 | TC-2317 | After loading, deleting the module directory leaves the `check_publishable` result unchanged, and a module with no `clause_sets` returns an empty vector | Unit | P0 | FR-083-AC-8 | ✅ |
+| TC-2318 | `record_validation: null` is refused `semantic.invalid-value` at `<section>[<type>].record_validation` naming the archetype, with and without a `semantic` block; the key omitted loads and a valid declaration is recorded unchanged (PLAT-1484) | Integration | P0 | FR-069-AC-29 | ✅ |
 | TC-2248 | `where` selects by field value: a `from` document whose field is in `values` and has no accepted edge is reported, one with the edge is not, one with a string outside `values` is not reported with or without the edge; an edge to or from a document whose own field is outside `values` still satisfies the relation under `outgoing` and `incoming`, with `to` constrained as without `where` (PLAT-1475) | Integration | P0 | FR-058-AC-12, FR-058-AC-15 | ✅ |
 | TC-2249 | A `from` document whose field is absent, null, empty, a number, a list or a mapping yields no finding and no diagnostic (PLAT-1475) | Integration | P0 | FR-058-AC-13 | ✅ |
 | TC-2250 | Matching trims whitespace and folds ASCII case on both the document value and the `values` entries; a value differing by more than case and whitespace is not selected (PLAT-1475) | Integration | P0 | FR-058-AC-14 | ✅ |
@@ -2351,6 +2352,7 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-069-AC-26 | TC-2309 |
 | FR-069-AC-27 | TC-2310 |
 | FR-069-AC-28 | TC-2311 |
+| FR-069-AC-29 | TC-2318 |
 | FR-070-AC-1 | TC-1610 |
 | FR-070-AC-2 | TC-1611 |
 | FR-070-AC-3 | TC-1612 |
