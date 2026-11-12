@@ -27,7 +27,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
 use crate::corpus::resolve::Resolution;
-use crate::corpus::spec::{artifact_key, Spec};
+use crate::corpus::spec::Spec;
 use crate::corpus::walk::LoadedDocument;
 use crate::grammar::{GrammarSeverity, GrammarSeverityLevel, GrammarSeverityMap};
 use crate::query::section;
@@ -310,13 +310,6 @@ pub fn validate_bundle(
 
     // Reference resolution: a dangling `ix://` ref is a hard error under
     // Strict, a warning under OKF. Foreign-authority targets are skipped when the bundle's package is declared.
-    // An edge's source is the document's artifact key; the finding is located
-    // at that document's loaded path. Documents sharing a key resolve to the
-    // first occurrence, as the corpus index does.
-    let mut source_paths: BTreeMap<String, &Path> = BTreeMap::new();
-    for doc in &spec.inner.documents {
-        source_paths.entry(artifact_key(doc)).or_insert(&doc.path);
-    }
     for edge in spec.inner.edges.iter() {
         // A target under another repo's authority is cross-repo, not dangling:
         // this corpus cannot see it. Needs the bundle's own package declared
@@ -336,9 +329,13 @@ pub fn validate_bundle(
                 BundleFinding::in_pack(
                     pack::REFS,
                     "dangling-reference",
-                    source_paths
-                        .get(&edge.source)
-                        .map_or_else(|| PathBuf::from(&edge.source), |p| p.to_path_buf()),
+                    // The edge source is a loaded document's artifact key, so it
+                    // is always indexed; the finding sits at that document's
+                    // path (first occurrence on a duplicate id, FR-025-AC-3).
+                    spec.by_id(&edge.source)
+                        .expect("edge source is a loaded document")
+                        .path
+                        .clone(),
                     format!(
                         "dangling reference '{}' (edge '{}') has no target in the bundle",
                         edge.target, edge.edge_type
