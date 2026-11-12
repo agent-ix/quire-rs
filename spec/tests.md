@@ -162,6 +162,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | FR-057 Per-check corpus severity | AC-1..11; CON-1..2 | TC-883 (promote/demote/off), TC-884 (unconfigured tier per check), TC-885 (`--severity`-shaped layering reaches corpus checks), TC-886 (severity carried, reason stable, key well-formed), TC-887 (order unperturbed), TC-888 (CON-1 bridged results not registrable), TC-889 (sibling packs independent), TC-2246 (PLAT-1471 kind-mismatch routing) | AC-1..11 ✅ Implemented |
 | FR-056 Requirement-quality lints | AC-1..13; CON-1..5 | TC-861 (built-in term fires), TC-862 (longest term names the finding), TC-863 (CON-2 module terms layer over built-ins), TC-864 (allocation, not voice), TC-865 (two modals), TC-866 (CR-017 mention parity), TC-867 (CON-1 advisory + per-check `off`), TC-868 (CON-4 ears/ac streams unchanged), TC-869 (checks independent), TC-876 (row-level line attribution), TC-877 (all four modals collected), TC-878 (a deadline or a sort key is not an agent), TC-879 (unknown ambiguity_terms key fails load) | ✅ Implemented |
 | FR-074 Plain-language profiles | AC-1..9, 11..12 (AC-10 never defined); CON-1..5 | TC-970..TC-981 (reader blocks, three advisory checks, typed profiles, batch accountability, configuration identity and non-interference) | ✅ Implemented |
+| FR-083 Clause-set manifest declaration and publishability check | AC-1..8 | TC-2313..TC-2317 | 🚧 Pending implementation |
 | NFR-020 Filament extraction boundary pure/deterministic | static inspection + parity tests | TC-704, TC-767, TC-690 | ✅ Complete |
 | NFR-021 Semantic extraction offline/non-parsing/additive | static audits + compile + byte-identity + parity | TC-1641, TC-1642, TC-1649, TC-1644 | ✅ Complete; WASM leg external |
 
@@ -1234,7 +1235,11 @@ Reserved withdrawn IDs (not active test cases): TC-834, TC-842, TC-871, TC-1089,
 | TC-2310 | A fixture module built from the real Anomaly `yield_pattern` plus a `closed_by` locator and a conditional record schema yields two findings at the `status:` line for a closed anomaly lacking `closed_by` and `resolution`, one for an assessed anomaly with no assessment section, none for a valid one (PLAT-1476) | Integration | P0 | FR-069-AC-27 | ✅ |
 | TC-2311 | A fixture module with another archetype, `state` as `locate_absence_at` and another schema locates the absence at its `state` line; repeated validation is identical (PLAT-1476) | Property | P0 | FR-069-AC-28 | ✅ |
 | TC-2312 | A bundle over a document whose registry validation result has an error at line N yields a bridged finding with `line` `Some(N)` and one without a line yields `None`; a FR-069 `semantic.record-invalid` finding reaches `validate_bundle` at the same line as from `validate_document_in_registry`; other pack findings keep `None` (PLAT-1476) | Integration | P0 | FR-049-AC-22 | ✅ |
-| TC-2248 | `where` selects by field value: a `from` document whose field is in `values` and has no accepted edge is reported, one with the edge is not, one with a string outside `values` is not reported with or without the edge; an edge to or from a document whose own field is outside `values` still satisfies the relation under `outgoing` and `incoming`, with `to` constrained as without `where` (PLAT-1475) | Integration | P0 | FR-058-AC-12, FR-058-AC-15 | ✅ |
+| TC-2313 | A clause-set file without `rights`, and a `clause_sets` value that is not a list of strings, each fail load with an error naming the `clause_sets` key (implemented under PLAT-1420) | Integration | P0 | FR-083-AC-1, FR-083-AC-2 | 🚧 |
+| TC-2314 | `check_publishable` is empty for synthetic `text: none`, `original` and cleared-with-reference sets, and for a module with no `clause_sets`; structure rights (`citation_only`, `original`, `explicitly_cleared`) change no verdict | Unit | P0 | FR-083-AC-3, FR-083-AC-5 | 🚧 |
+| TC-2315 | A synthetic `text: licensed` set loads with clause text and with none, needs no `clearance_ref`, and is returned either way with authority, id, version and text-clause count (zero without text) | Unit | P0 | FR-083-AC-4, FR-083-AC-9 | 🚧 |
+| TC-2316 | Mixed module returns exactly the licensed sets in stable order across two runs, and no result field or `Debug` output contains the fixture's text sentinel | Unit | P0 | FR-083-AC-6, FR-083-AC-7 | 🚧 |
+| TC-2317 | After loading, deleting the module directory leaves the `check_publishable` result unchanged | Unit | P0 | TC-2248 | `where` selects by field value: a `from` document whose field is in `values` and has no accepted edge is reported, one with the edge is not, one with a string outside `values` is not reported with or without the edge; an edge to or from a document whose own field is outside `values` still satisfies the relation under `outgoing` and `incoming`, with `to` constrained as without `where` (PLAT-1475) | Integration | P0 | FR-058-AC-12, FR-058-AC-15 | ✅ |
 | TC-2249 | A `from` document whose field is absent, null, empty, a number, a list or a mapping yields no finding and no diagnostic (PLAT-1475) | Integration | P0 | FR-058-AC-13 | ✅ |
 | TC-2250 | Matching trims whitespace and folds ASCII case on both the document value and the `values` entries; a value differing by more than case and whitespace is not selected (PLAT-1475) | Integration | P0 | FR-058-AC-14 | ✅ |
 | TC-2251 | A document matching `where` and an `exclude` glob is not reported, one matching `where` and no glob is (PLAT-1475) | Integration | P0 | FR-058-AC-16 | ✅ |
@@ -2447,6 +2452,15 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-082-AC-7 | TC-2230 |
 | FR-082-AC-8 | TC-2231 |
 | FR-082-AC-9 | TC-2231 |
+| FR-083-AC-1 | TC-2313 |
+| FR-083-AC-2 | TC-2313 |
+| FR-083-AC-3 | TC-2314 |
+| FR-083-AC-4 | TC-2315 |
+| FR-083-AC-5 | TC-2314 |
+| FR-083-AC-6 | TC-2316 |
+| FR-083-AC-7 | TC-2316 |
+| FR-083-AC-8 | TC-2317 |
+| FR-083-AC-9 | TC-2315 |
 | FR-081-CON-1 | TC-2167 |
 | FR-081-CON-2 | TC-2171 |
 | FR-078-CON-1 | Inspection — shared owner contract/dependency use; not performed |
