@@ -41,3 +41,10 @@ Ticket: PLAT-1408. PR head: `96d1ddf`. Planless run scoped to the PR diff. Compu
 - Stubs / coverage inflation: none found.
 - Semantic review: done by hand for FR-038-AC-11 only.
 - Plan completion: not assessed
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | Fix commit 2273254 extends TC-2227: Error/Warning overrides leave path and message equal to the baseline, Off records nothing, and a dangling `./gone.md` link in c.md yields one finding at c.md whose message contains `gone.md` |
+| FND-002 | fixed | Fix commit 2273254 moves 23 rows out of the PLAT-1181 (planned) table into the preceding Test Case Summary table, byte-identical with statuses unchanged; `quire matrix` now reports FR-038-AC-9/10/11 tagged |

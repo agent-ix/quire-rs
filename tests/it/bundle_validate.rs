@@ -886,7 +886,7 @@ fn dangling_edge_is_located_at_source_document_path() {
         .filter(|f| f.reason == "dangling-reference" && f.path.ends_with("c.md"))
         .collect();
     assert_eq!(rel.len(), 1, "{:?}", report.errors);
-    assert!(rel[0].message.contains("gone.md"), "{}", rel[0].message);
+    assert!(rel[0].message.contains("./gone.md"), "{}", rel[0].message);
 
     fs::remove_dir_all(&root).ok();
 }

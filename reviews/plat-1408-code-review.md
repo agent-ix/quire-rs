@@ -36,3 +36,10 @@ Out-of-diff observation (not a finding of this PR): `disallowed-edge-target` (sr
 | spec/tests.md (TC-2227 row, FR-038 rollup) | examined | Covered by gap-analysis review |
 | src/corpus/spec.rs (artifact_key, from_repo, by_id) | context_only | First-wins index confirmed |
 | src/corpus/resolve.rs (edge harvest, dedup by source/target/type) | context_only | Edge source = artifact_key(doc) |
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | Fix commit 2273254 drops the rebuilt map and the artifact_key import; the path comes from `spec.by_id(&edge.source)` (FR-025-AC-3 first-wins index) |
+| FND-002 | fixed | Fix commit 2273254 replaces the silent id-as-path fallback with `.expect("edge source is a loaded document")`; the invariant holds (resolve.rs:114) and matches route()'s own expect in the same file |
