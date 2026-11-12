@@ -645,7 +645,7 @@ pub struct CoverageMatrixRequirement {
 }
 
 /// A document's frontmatter `criticality`, verbatim whatever its type
-/// (FR-082). A missing or null key is `None`.
+/// A missing or null key is `None`.
 fn document_criticality(doc: &crate::corpus::walk::LoadedDocument) -> Option<serde_json::Value> {
     doc.frontmatter()?
         .get("criticality")

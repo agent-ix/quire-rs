@@ -915,11 +915,8 @@ fn coverage_matrix(
             .push(criterion);
     }
 
-    // FR-050-AC-48: requirements ordered by `document` — the same path every
-    // other list on this report already sorts by. The `BTreeMap` sorts the
-    // groups themselves; each group's own `Vec` keeps the push order above,
-    // which is `obligations`' own (declaration order, row ordinal) restricted
-    // to that document.
+    // FR-082: each document's frontmatter criticality, joined on the same
+    // scope-relative path the obligations carry.
     let criticality_by_document: BTreeMap<String, _> = spec
         .documents()
         .iter()
@@ -930,6 +927,11 @@ fn coverage_matrix(
             ))
         })
         .collect();
+    // FR-050-AC-48: requirements ordered by `document` — the same path every
+    // other list on this report already sorts by. The `BTreeMap` sorts the
+    // groups themselves; each group's own `Vec` keeps the push order above,
+    // which is `obligations`' own (declaration order, row ordinal) restricted
+    // to that document.
     by_document
         .into_iter()
         .map(|(document, criteria)| CoverageMatrixRequirement {

@@ -1811,6 +1811,7 @@ fn entry(report: &CoverageReport, document: &str) -> serde_json::Value {
 }
 
 #[trace(
+    "TC-2228",
     "FR-082-AC-1",
     "FR-082-AC-2",
     "FR-082-AC-3",
@@ -1875,7 +1876,7 @@ fn fr082_entries_carry_their_own_value_as_written_and_absent_when_missing() {
     let _ = fs::remove_dir_all(&root);
 }
 
-#[trace("FR-082-AC-5")]
+#[trace("TC-2229", "FR-082-AC-5")]
 #[test]
 fn fr082_criticality_is_never_inferred_across_relationships() {
     let root = tmpdir("fr082-inference");
@@ -1912,7 +1913,7 @@ fn fr082_criticality_is_never_inferred_across_relationships() {
     let _ = fs::remove_dir_all(&root);
 }
 
-#[trace("FR-082-AC-7")]
+#[trace("TC-2230", "FR-082-AC-7")]
 #[test]
 fn fr082_requirement_and_obligation_criticality_never_fill_each_other() {
     let root = tmpdir("fr082-levels");
@@ -1949,7 +1950,7 @@ fn fr082_requirement_and_obligation_criticality_never_fill_each_other() {
     let _ = fs::remove_dir_all(&root);
 }
 
-#[trace("FR-082-AC-8", "FR-082-AC-9")]
+#[trace("TC-2231", "FR-082-AC-8", "FR-082-AC-9")]
 #[test]
 fn fr082_matrix_is_deterministic_and_leaves_documents_untouched() {
     let root = tmpdir("fr082-determinism");
@@ -1972,5 +1973,70 @@ fn fr082_matrix_is_deterministic_and_leaves_documents_untouched() {
         fs::read(root.join("spec/FR-002.md")).unwrap(),
     );
     assert_eq!(before, after);
+    let _ = fs::remove_dir_all(&root);
+}
+
+#[trace("TC-2232", "FR-082-AC-2")]
+#[test]
+fn fr082_a_null_criticality_is_absent_like_a_missing_field() {
+    let root = tmpdir("fr082-null");
+    write(
+        &root,
+        "spec/FR-001.md",
+        &criticality_doc("FR-001", "criticality:\n", ""),
+    );
+    write(
+        &root,
+        "spec/FR-002.md",
+        &criticality_doc("FR-002", "criticality: ~\n", ""),
+    );
+    write(&root, "src/lib.rs", "//! fixture\n");
+    let report = report_over(&root, "obligations");
+    for doc in ["spec/FR-001.md", "spec/FR-002.md"] {
+        assert!(entry(&report, doc)
+            .as_object()
+            .unwrap()
+            .get("criticality")
+            .is_none());
+    }
+    let _ = fs::remove_dir_all(&root);
+}
+
+#[trace("TC-2233", "FR-082-AC-1", "FR-082-AC-2")]
+#[test]
+fn fr082_the_evidence_path_carries_criticality_too() {
+    use quire_rs::evidence::BackingInput;
+    use quire_rs::obligation::inventory::{inventory, InventoryOptions};
+
+    let root = tmpdir("fr082-evidence");
+    write(
+        &root,
+        "spec/FR-001.md",
+        &criticality_doc("FR-001", "criticality: high\n", ""),
+    );
+    write(&root, "spec/FR-002.md", &criticality_doc("FR-002", "", ""));
+    let registry = Registry::load_module(&fixture_module("obligations")).unwrap();
+    let model = registry.traceability().unwrap();
+    let inventory = inventory(
+        &root,
+        model,
+        &["acceptance-criterion"],
+        InventoryOptions::default(),
+    );
+    let spec = Spec::from_path(&root.join("spec"));
+    let graph = sym_trace::SymbolGraph::default();
+    let input = BackingInput {
+        inventory: &inventory,
+        claims: &[],
+        results: &[],
+    };
+    let report =
+        quire_rs::coverage::compute_with_evidence(&spec, &registry, &graph, &root, &input).unwrap();
+    assert_eq!(entry(&report, "spec/FR-001.md")["criticality"], "high");
+    assert!(entry(&report, "spec/FR-002.md")
+        .as_object()
+        .unwrap()
+        .get("criticality")
+        .is_none());
     let _ = fs::remove_dir_all(&root);
 }
