@@ -47,8 +47,8 @@ artifact_types:
 - name: NFR
   frontmatter_schema_ref: schemas/c.schema.json
 edge_types:
-  realizes: {{ description: realizes, category: realization }}
-  classifies: {{ description: classifies, category: traceability }}
+  realizes: { description: realizes, category: realization }
+  classifies: { description: classifies, category: traceability }
 roles:
   domain-object: Domain object
 "#;
