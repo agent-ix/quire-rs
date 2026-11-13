@@ -37,3 +37,10 @@ Plan completion: not assessed
 - FR-058-CON-4: Inspection; no verb, direction or archetype literal in src/ for `when_any`.
 - Reverse gaps: src/assurance.rs required-relation subjects ignore `when_any`/`where` (code-review SR-20261113073338 FND-001).
 - Plan completion: not assessed
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | a56b7ac: C-1 now has an outgoing `assumes` to an `Est` (E-1), and H-2 (`Haz`) has an outgoing `protects` into C-2. The verb and the `other` kind match a condition in both cases, so only direction excludes them. An implementation that ignores direction would bring C-1 and C-2 into scope and report them, which fails the empty-result assertion. |
+| FND-002 | fixed | a56b7ac: the AC-27 test asserts `report.is_valid()` under Okf and Strict while `ctl-without-req` is reported, so the default finding is not an error. |

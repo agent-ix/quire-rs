@@ -43,3 +43,17 @@ Ticket: PLAT-1674. PR head `18c3bb9`, diff `origin/main...HEAD` (2 commits). Cod
 | src/assurance.rs project_relation_observations | examined | FND-001 |
 | src/loader/mod.rs merge | context_only | Clones the whole relation; CON-1 holds |
 | tests/it/required_relations_when_any.rs | examined | See gap-analysis SR for AC binding defects |
+
+## New findings (disposition pass 1)
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-004 | low | The doc comment on the shared `obliged` selection still reads "the `from` kind, then `where`, then `exclude`". It omits the `when_any` step that the body now applies between `where` and `exclude`, so the comment no longer states the selection order. It also names only the finding check and the relation report as sharers; the assurance projection now uses it too. Add both to the comment. | src/corpus/required_relations.rs:376-378 |
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | a56b7ac: `project_relation_observations` now takes its subjects from `corpus::required_relations::obliged`, the same selection `check_relation` uses (from, where, when_any, exclude). New test `tc_assurance_rows_follow_the_scope_of_where_and_when_any` (FR-068-AC-6) asserts one `missing` row for the in-scope C-1 only, and one `not_applicable` row for a relation with no in-scope document. Both would fail on the old selection. Passes at a56b7ac. |
+| FND-002 | fixed | a56b7ac: a new two-value `EdgeSide` enum, private `EdgeCondition` fields with accessors, `EdgeCondition::new` validation, an exhaustive `match` in `in_scope_by_edge`, and `TraceabilityModel::validate` re-checks every condition. |
+| FND-003 | fixed | a56b7ac: dead `other` kinds are collected into a `BTreeSet`, so each kind is listed once. |

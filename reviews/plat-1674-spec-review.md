@@ -46,3 +46,9 @@ The gap is in dependencies, not in the text. The module-manifest contract that m
 | spec-objects-safety FR-302 Scope | context_only | Source of the shape |
 | filament-core-data FR-149 / module-manifest schema RequiredRelation | context_only | No `when_any` |
 | quire-rs FR-068 Behavior (required-relation observation) | context_only | Applicability rule the projection violates (code-review SR FND-001) |
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | a56b7ac: FR-058 Dependencies now name the filament-core-data manifest schema (FR-149) needing `when_any`, tracked as PLAT-1678 (exists, Backlog), upstream, and spec-objects-safety FR-302 downstream. |

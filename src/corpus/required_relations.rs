@@ -394,8 +394,9 @@ pub(crate) struct Obliged<'a> {
 }
 
 /// The documents `relation` obliges in the view `spec` sees: the `from` kind,
-/// then `where`, then `exclude`, in id order. Shared by the finding
-/// check and the relation report so the two select the same population.
+/// then `where`, then `when_any`, then `exclude`, in id order. Shared by the
+/// finding check, the relation report and the assurance projection so all
+/// three select the same population.
 pub(crate) fn obliged<'a>(
     spec: &'a Spec,
     relation: &RequiredRelation,
