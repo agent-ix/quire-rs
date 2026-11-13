@@ -129,6 +129,8 @@ keys. Promotion to `error` requires a corpus sweep and is user-gated, as every c
 
 ### What a dangling edge cannot do
 
+An edge to a repository loaded into the same corpus is not dangling: [FR-085](./FR-085-cross-repository-edge-resolution.md) resolves it, and a resolved target outside `to` is a kind mismatch there rather than a silent non-match.
+
 An edge whose target is absent from the bundle SHALL NOT satisfy a relation whose `to` is
 constrained. The target is not loaded, so nothing can say what archetype it is, and accepting it
 would let a typo satisfy the very requirement it broke. With `to: []` the verb alone is the
