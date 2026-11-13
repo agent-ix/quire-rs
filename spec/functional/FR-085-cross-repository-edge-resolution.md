@@ -9,6 +9,8 @@ relationships:
     type: "extends"
   - target: "ix://agent-ix/quire-rs/spec/functional/FR-027"
     type: "extends"
+  - target: "ix://agent-ix/quire-rs/spec/functional/FR-038"
+    type: "extends"
   - target: "ix://agent-ix/quire-rs/spec/stakeholder/StR-006"
     type: "implements"
     cardinality: "1:1"
@@ -64,6 +66,25 @@ edge set: a document in member A that `mitigates` a document in member B satisfi
 with `direction: incoming`, and satisfies a relation on A with `direction: outgoing` when the target
 archetype is in `to`.
 
+### Bundle validation over a multi-member corpus
+
+[FR-038](./FR-038-okf-bundle-validation.md) validates one bundle with `validate_bundle(spec,
+registry, posture, root)`. This FR extends it to a corpus of several members, the engine behaviour
+behind `quire validate --okf --repo` (quire-cli FR-030):
+
+- `validate_corpus(corpus, registry, posture, roots)` takes one root per member, in member order,
+  and runs the FR-038 bundle validation of each member against the shared corpus, so edges resolve
+  across members. The result is one report whose findings are the concatenation of each member's
+  findings in member order. `posture` applies to every member.
+- A member's identity is that member's declared bundle package (`Spec::with_bundle_package`): the
+  `ix://` authority-versus-package comparison of FR-038-AC-9 uses the member's identity for its own
+  documents. A single-member corpus with no identity validates exactly as FR-038 specifies.
+- Identity comparison folds ASCII case on both sides (FR-038-AC-10), for member lookup in resolution
+  as much as for the package comparison; the identity is stored as given and only the comparison
+  folds. Two members whose identities differ only by case are the duplicate-identity error.
+- Every finding, including FR-058 relation findings and `trace:target-kind-mismatch`, names the
+  member identity of its **source document** in a `repo` field, omitted for a member with no identity.
+
 ### Kind of a resolved target
 
 When a document has an edge whose verb is accepted by a relation but whose resolved target's
@@ -99,13 +120,18 @@ loaded without the id ([FR-058-AC-4](./FR-058-upward-trace-completeness.md)).
 | FR-085-AC-8 | A bare id and a relative-path link resolve only within the source's member. | Test |
 | FR-085-AC-9 | Two members declaring one identity is an error naming the identity, and no corpus is built. | Test |
 | FR-085-AC-10 | Over a corpus of one member with no identity, the set of edges and each edge's resolved or dangling classification equal those FR-026 lexical resolution gives for the same documents, including an `ix://` target whose id exists locally. This guarantee covers resolution only: the `trace:target-kind-mismatch` finding of AC-6 applies to such a corpus too and is outside it. | Test |
+| FR-085-AC-11 | Resolution does no I/O beyond the supplied members; resolved and dangling classification is identical across runs and independent of member and document order ([NFR-006](../non-functional/NFR-006-determinism.md)). | Test |
+| FR-085-AC-12 | Over a two-member fixture, one test corpus holds all three cases (satisfied cross-member edge, dangling edge, wrong-kind edge) and each yields exactly its stated outcome and no other. | Test |
 | FR-085-AC-13 | A corpus of two members in which one declares no identity is an error naming that member, and no corpus is built; two identity-less members are the same error. | Test |
 | FR-085-AC-14 | In a corpus of one member that declares identity `o/a`, an `ix://o/a/...` target resolves within that member and an `ix://o/b/...` target is `Dangling` even when the local member holds the id. | Test |
 | FR-085-AC-15 | In a two-member corpus where both members hold id `X`, no `DuplicateArtifactId` diagnostic is raised, a bare `X` link resolves within its own member, `by_id("X")` returns `None`, and `by_qualified_id` returns each member's document ([FR-027-AC-10](./FR-027-whole-spec-query-api.md)); two documents with one id inside a single member still raise `DuplicateArtifactId` ([FR-025-AC-3](./FR-025-spec-corpus-model.md)). | Test |
-| FR-085-AC-11 | Resolution does no I/O beyond the supplied members; resolved and dangling classification is identical across runs and independent of member and document order ([NFR-006](../non-functional/NFR-006-determinism.md)). | Test |
-| FR-085-AC-12 | Over a two-member fixture, one test corpus holds all three cases (satisfied cross-member edge, dangling edge, wrong-kind edge) and each yields exactly its stated outcome and no other. | Test |
+| FR-085-AC-16 | `validate_corpus` over two members validates each member's documents against the shared corpus: a document in member A whose edge targets a document in member B raises no `dangling-reference`, and the same corpus without B raises it. | Test |
+| FR-085-AC-17 | In `validate_corpus`, an `ix://o/b/...` reference to an id absent from loaded member `o/b` is a `dangling-reference` finding, while an `ix://o/c/...` reference whose authority names no loaded member is not reported as `dangling-reference` (FR-038-AC-9: the authority differs from the package, so the corpus cannot see it). | Test |
+| FR-085-AC-18 | Identity matching folds ASCII case: `ix://O/B/X` resolves to the member declared `o/b`, and two members declared `o/b` and `O/B` are the duplicate-identity error of AC-9. | Test |
+| FR-085-AC-19 | Every finding from `validate_corpus` carries the `repo` of its source document's member, for an FR-058 relation finding, a `trace:target-kind-mismatch` finding and a `dangling-reference`; a finding from a member with no identity carries no `repo`. | Test |
+| FR-085-AC-20 | A corpus of one member with no identity run through `validate_corpus` yields findings identical to `validate_bundle` for the same root. | Test |
 
 ## Dependencies
 
-- **Upstream**: [FR-024](./FR-024-parallel-repo-walk.md), [FR-025](./FR-025-spec-corpus-model.md) (amended for the member-keyed index), [FR-027](./FR-027-whole-spec-query-api.md) (`by_id`, `by_qualified_id`), [FR-026](./FR-026-intra-spec-reference-resolution.md), [FR-058](./FR-058-upward-trace-completeness.md), [FR-057](./FR-057-corpus-check-severity.md)
+- **Upstream**: [FR-024](./FR-024-parallel-repo-walk.md), [FR-025](./FR-025-spec-corpus-model.md) (amended for the member-keyed index), [FR-027](./FR-027-whole-spec-query-api.md) (`by_id`, `by_qualified_id`), [FR-038](./FR-038-okf-bundle-validation.md) (bundle validation, extended above), [FR-026](./FR-026-intra-spec-reference-resolution.md), [FR-058](./FR-058-upward-trace-completeness.md), [FR-057](./FR-057-corpus-check-severity.md)
 - **Downstream**: [FR-084](./FR-084-two-way-relation-coverage-report.md)

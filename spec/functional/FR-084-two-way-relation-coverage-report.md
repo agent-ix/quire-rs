@@ -84,8 +84,8 @@ criterion with status `retired` is not counted. A criterion with status `method-
 **not measured**: its declared method (inspection, analysis) mints no source symbol, so the matrix
 cannot evidence it by a tag, and counting it as unbacked would leave a requirement verified by
 inspection permanently `unverified`. Such a criterion is excluded from the denominator, and a
-document whose only non-retired criteria are not measured is `not-tracked`. A document's entry
-carries the counts `backed`, `unbacked` and `not_measured`, so exclusion is visible. The report
+document whose only non-retired criteria are not measured is `not-tracked`. Every document entry, including the obliged document, carries the counts `backed`, `unbacked` and
+`not_measured`, so exclusion is visible. The report
 claims verification by tag or record only. The document's status is:
 
 | Status | Condition |
@@ -113,11 +113,27 @@ The report serializes as JSON with the keys in this order: `{"relations": [...]}
 count present even at zero. Each row is `{"relation", "check", "direction", "document", "selector",
 "state", "verification", "linked", "dangling", "kind_mismatch"}` with `selector` omitted when the
 declaration has no `where`, and `selector` is `{"field": F, "value": V}` with `V` the document's
-value exactly as authored. A document is `{"id", "path", "archetype", "repo"}` with `repo` omitted
-when the member has no identity. A `linked` entry is a document plus `"verb"`, `"resolution"`,
-`"verification"` and `"criteria": {"backed", "unbacked", "not_measured"}` when the document is
-tracked. Arrays are always present, empty when empty. No other key is emitted, and no
-timestamp, path outside the corpus, or run-specific value appears.
+value exactly as authored. The shapes of the remaining objects are:
+
+- **Document** (the obliged `document` and a resolved `linked` entry): `{"id", "path", "archetype",
+  "repo", "verification", "criteria"}` with `repo` omitted when the member has no identity, and
+  `verification` and `criteria` present for the obliged document and for every linked document alike.
+  `criteria` is `{"backed": n, "unbacked": n, "not_measured": n}` and is always present, with zero
+  counts and `verification` `not-tracked` for a document with no matrix entry. The obliged document
+  carries them so a reverse-view row's status is visible on the row.
+- **`linked` entry**: a document plus `"verb"` and `"resolution"` (`"resolved"`). A linked entry for
+  an edge whose target is absent (relations with `to: []`) has the shape `{"reference", "verb",
+  "resolution", "verification", "criteria"}` with `resolution` `"dangling"`, `reference` the target
+  exactly as authored, `verification` `not-tracked` and zero `criteria`; it has no `id`, `path`,
+  `archetype` or `repo`.
+- **`dangling` entry**: `{"reference", "verb"}`, `reference` the target as authored.
+- **`kind_mismatch` entry**: `{"id", "repo", "archetype", "verb", "accepted"}` with `repo` omitted
+  when the member has no identity and `accepted` the relation's `to` as declared.
+
+Ordering inside a row: `linked` resolved entries by repo then path then id, followed by dangling
+entries by `reference` then `verb`; `dangling` by `reference` then `verb`; `kind_mismatch` by repo,
+id, then `verb`. Absent `repo` sorts before any identity. Arrays are always present, empty when empty.
+No other key is emitted, and no timestamp, path outside the corpus, or run-specific value appears.
 
 ### Selecting and ordering
 

@@ -26,3 +26,10 @@ Ticket: PLAT-1520. Requirement-statement grammar pass over the two new FRs and t
 ## Verdict
 
 Minor. Both findings are low. The FR-085 statements and the AC vectors of both FRs are well formed and falsifiable.
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | - |
+| FND-002 | fixed | - |

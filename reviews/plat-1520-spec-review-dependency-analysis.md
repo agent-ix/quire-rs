@@ -26,3 +26,16 @@ Ticket: PLAT-1520. Relationship-edge pass over the new `relationships:` entries.
 ## Verdict
 
 Changes requested on FND-001 (high): the new FR's parent stakeholder requirement explicitly excludes what the FR does. FND-002 is a low bookkeeping gap in the Dependencies prose.
+
+## New findings (disposition pass 1)
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-003 | medium | quire-cli#180 FR-030 makes `quire validate --okf --repo o/a=<A> --repo o/b=<B>` validate every member against one corpus, with each finding naming the member identity (FR-030-AC-20), and safety#35 FR-009-AC-7 and security#46 FR-008-AC-7 depend on that. In quire-rs the bundle validator is FR-038 `validate_bundle(spec, registry, posture, root: &Path)`, which takes one root. FR-038 already carries a declared bundle package (`Spec::with_bundle_package`) whose `ix://` authority comparison folds ASCII case (FR-038-AC-10). FR-085 neither extends FR-038 nor says how a member identity relates to the bundle package, whether identity comparison folds case, or that FR-058 and kind-mismatch findings name the source document's member identity. The engine contract the three consumer specs rely on is therefore unspecified. Fix: have FR-085 extend FR-038, covering multi-member validation, member identity as the per-member bundle package, the case-folding rule of FR-038-AC-10, and the source-member identity in findings, each with an AC. | spec/functional/FR-085-cross-repository-edge-resolution.md:33-35 |
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | - |
+| FND-002 | fixed | - |

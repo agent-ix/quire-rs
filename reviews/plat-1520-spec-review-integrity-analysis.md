@@ -33,3 +33,21 @@ Ticket acceptance cross-check: PLAT-1554 (forward view with uncovered and covere
 ## Verdict
 
 Changes requested. FND-001 and FND-002 (high) are contradictions between ACs, and between FR-085 and the FR-025/FR-027 id contract. FND-003..005 (medium) are edge cases in the report and resolution rules that two implementers would read differently. FND-006..007 (low) are wording gaps. The forward/reverse row model, the derivation of verification from the matrix, the `not-tracked` aggregation, and selection/ordering are sound and cover PLAT-1554. Resolution by `(identity, id)` with no fetch, dangling-named and kind mismatch covers PLAT-1556. Both FRs keep chain names out of the engine (FR-058-CON-2/3, FR-084-AC-14).
+
+## New findings (disposition pass 1)
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-008 | medium | The new Serialization section says "No other key is emitted" but leaves several shapes undefined, so the byte identity FR-084-AC-12 asks for is still open. It gives no shape for a `dangling` or `kind_mismatch` array entry. It gives no key for "the reference as authored" on a `linked` entry with `resolution: dangling`, which has no `id`, `path` or `archetype` to fill the document keys and no repo/id to order `linked` by. The obliged document is serialized as `{id, path, archetype, repo}` only, so the `backed`/`unbacked`/`not_measured` counts the verification section says "a document's entry carries" are emitted for linked documents but not for the obliged document, which is the one whose status decides a reverse-view row. Fix: give each entry shape and the dangling ordering key, and either emit `criteria` on `document` or narrow the counts sentence to linked entries. | spec/functional/FR-084-two-way-relation-coverage-report.md:108-120 |
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | - |
+| FND-002 | fixed | - |
+| FND-003 | fixed | - |
+| FND-004 | fixed | - |
+| FND-005 | fixed | - |
+| FND-006 | fixed | - |
+| FND-007 | fixed | - |
