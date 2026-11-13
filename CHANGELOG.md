@@ -9,6 +9,13 @@ bumps; once 1.0 ships, semver is strict.
 
 ### Added
 
+- **Breaking, PLAT-1418:** `LinkedEntry::Resolved` gains `realized_criteria:
+  Option<Vec<String>>` (`Some` only in `design_join`), so downstream pattern
+  matches need `..`. FR-084 behaviour changes with FR-058 CR-416/417: an edge
+  authored with the counterpart label of a listed verb now satisfies a relation
+  and appears in `linked`, an `incoming` row now lists `dangling` entries for an
+  inverse-authored edge to an absent document, and a criterion edge is read as
+  an edge to its owning document.
 - PLAT-1418 (FR-086, FR-058 CR-416/417, FR-038 CR-418): the design-element join.
   A module's `traceability.design_relations` names `required_relations`
   entries, and `design_join` returns the FR-084 report for those relations in

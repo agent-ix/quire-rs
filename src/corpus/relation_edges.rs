@@ -161,10 +161,6 @@ fn ends_of(spec: &Spec, criteria: &CriterionIndex, edge: &Edge) -> Vec<End> {
     ends
 }
 
-/// The proposition a reading states, normalized so the two spellings of one
-/// edge compare equal: `(source, forward verb, target, absent reference)`.
-type Fact = (Option<usize>, String, Option<usize>, Option<String>);
-
 /// One edge as a relation reads it: `source` has `verb` toward `target`.
 #[derive(Debug, Clone)]
 pub(crate) struct Reading {
@@ -181,7 +177,6 @@ pub(crate) struct Reading {
     pub(crate) reference: Option<String>,
     /// The target as a finding names it.
     pub(crate) authored: String,
-    fact: Fact,
 }
 
 /// A reading seen from one obliged document.
@@ -206,7 +201,18 @@ fn counterpart<'a>(inverse: &'a BTreeMap<String, String>, verb: &'a str) -> Opti
         .map(|(label, _)| label.as_str())
 }
 
+/// Which way a relation reads an authored edge.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Orientation {
+    /// Source to target, as authored.
+    AsAuthored,
+    /// From the opposite end: the authored label is the counterpart of the
+    /// listed verb.
+    Reversed,
+}
+
 /// Every edge a relation matches, read in the orientation it lists.
+#[derive(Debug)]
 pub(crate) struct RelationEdges {
     readings: Vec<Reading>,
     by_source: BTreeMap<usize, Vec<usize>>,
@@ -221,14 +227,30 @@ impl RelationEdges {
         relation: &RequiredRelation,
     ) -> Self {
         let inverse = registry.inverse_index();
-        // Authored label -> (listed verb, whether the edge is read from the
-        // opposite end). The counterpart is always normalized, even when the
-        // relation lists both labels of a pair.
-        let mut forms: BTreeMap<&str, Vec<(&str, bool)>> = BTreeMap::new();
-        for verb in &relation.edges {
-            forms.entry(verb).or_default().push((verb, false));
+        // A pair listed by both labels is read one way only, as its forward
+        // verb: reading it both ways would count one edge between one pair
+        // twice and accept edges listing only one label does not.
+        let listed: Vec<&String> = relation
+            .edges
+            .iter()
+            .filter(|verb| {
+                inverse
+                    .get(verb.as_str())
+                    .is_none_or(|forward| !relation.edges.contains(forward))
+            })
+            .collect();
+        // Authored label -> (listed verb, orientation).
+        let mut forms: BTreeMap<&str, Vec<(&str, Orientation)>> = BTreeMap::new();
+        for verb in listed {
+            forms
+                .entry(verb)
+                .or_default()
+                .push((verb, Orientation::AsAuthored));
             if let Some(label) = counterpart(inverse, verb) {
-                forms.entry(label).or_default().push((verb, true));
+                forms
+                    .entry(label)
+                    .or_default()
+                    .push((verb, Orientation::Reversed));
             }
         }
 
@@ -239,40 +261,36 @@ impl RelationEdges {
                 continue;
             };
             for end in ends_of(spec, criteria, edge) {
-                for &(verb, reversed) in forms {
-                    let (source, target, ids, reference, authored) = match (&end, reversed) {
-                        (End::Doc(slot, ids), false) => (
+                for &(verb, orientation) in forms {
+                    let (source, target, ids, reference, authored) = match (&end, orientation) {
+                        (End::Doc(slot, ids), Orientation::AsAuthored) => (
                             Some(edge.source_slot),
                             Some(*slot),
                             ids.clone(),
                             None,
                             edge.target.clone(),
                         ),
-                        (End::Doc(slot, ids), true) => (
+                        (End::Doc(slot, ids), Orientation::Reversed) => (
                             Some(*slot),
                             Some(edge.source_slot),
                             ids.clone(),
                             None,
                             spec.doc(edge.source_slot).id.clone(),
                         ),
-                        (End::Absent(reference), false) => (
+                        (End::Absent(reference), Orientation::AsAuthored) => (
                             Some(edge.source_slot),
                             None,
                             BTreeSet::new(),
                             Some(reference.clone()),
                             edge.target.clone(),
                         ),
-                        (End::Absent(reference), true) => (
+                        (End::Absent(reference), Orientation::Reversed) => (
                             None,
                             Some(edge.source_slot),
                             BTreeSet::new(),
                             Some(reference.clone()),
                             edge.target.clone(),
                         ),
-                    };
-                    let fact = match inverse.get(verb) {
-                        Some(forward) => (target, forward.clone(), source, reference.clone()),
-                        None => (source, verb.to_string(), target, reference.clone()),
                     };
                     merged
                         .entry((source, target, verb.to_string(), reference.clone()))
@@ -284,7 +302,6 @@ impl RelationEdges {
                             criteria: ids,
                             reference,
                             authored,
-                            fact,
                         });
                 }
             }
@@ -308,8 +325,7 @@ impl RelationEdges {
         }
     }
 
-    /// The readings the relation matches at `slot` in `direction`. Under
-    /// `either`, one proposition read from both ends counts once.
+    /// The readings the relation matches at `slot` in `direction`.
     pub(crate) fn matches(&self, direction: RelationDirection, slot: usize) -> Vec<Match<'_>> {
         let indices = |index: &BTreeMap<usize, Vec<usize>>| -> Vec<usize> {
             index.get(&slot).cloned().unwrap_or_default()
@@ -335,10 +351,49 @@ impl RelationEdges {
                 }
             }));
         }
-        if direction == RelationDirection::Either {
-            let mut seen: BTreeSet<&Fact> = BTreeSet::new();
-            out.retain(|m| seen.insert(&m.reading.fact));
-        }
         out
+    }
+}
+
+/// Everything a relation check reads beyond the corpus, built once per corpus
+/// rather than per relation per member view.
+#[derive(Debug, Default)]
+pub(crate) struct RelationContext {
+    criteria: CriterionIndex,
+    edges: BTreeMap<String, RelationEdges>,
+}
+
+impl RelationContext {
+    /// Read every declared relation's edges. `roots` is each member's
+    /// repository root, in member order.
+    pub(crate) fn build(spec: &Spec, registry: &Registry, roots: &[&Path]) -> Self {
+        let criteria = CriterionIndex::build(spec, registry, roots);
+        let edges = registry
+            .traceability()
+            .map(|model| {
+                model
+                    .required_relations
+                    .iter()
+                    .map(|relation| {
+                        (
+                            relation.name.clone(),
+                            RelationEdges::new(spec, registry, &criteria, relation),
+                        )
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+        Self { criteria, edges }
+    }
+
+    /// Whether every spelling of the dangling `edge` reads as an edge to a
+    /// criterion's document (FR-038 CR-418).
+    pub(crate) fn reads_every_spelling(&self, spec: &Spec, edge: &Edge) -> bool {
+        self.criteria.reads_every_spelling(spec, edge)
+    }
+
+    /// The edges `relation` matches.
+    pub(crate) fn edges_for(&self, relation: &RequiredRelation) -> Option<&RelationEdges> {
+        self.edges.get(&relation.name)
     }
 }

@@ -18,7 +18,7 @@ use std::path::Path;
 use serde::Serialize;
 
 use super::declared_tables::{relative_path, ExcludeSet};
-use super::relation_edges::{CriterionIndex, RelationEdges};
+use super::relation_edges::{RelationContext, RelationEdges};
 use super::required_relations::{is_satisfied, obliged};
 use super::spec::Spec;
 use crate::coverage::{CoverageMatrixRequirement, CoverageMatrixStatus};
@@ -366,7 +366,13 @@ pub fn relation_report(
         .iter()
         .filter(|r| names.is_empty() || names.contains(&r.name))
         .collect();
-    Ok(report_of(corpus, registry, members, &relations, false))
+    Ok(report_of(
+        corpus,
+        registry,
+        members,
+        &relations,
+        Linking::Plain,
+    ))
 }
 
 /// Implements: FR-086
@@ -397,7 +403,13 @@ pub fn design_join(
                 .ok_or_else(|| RelationReportError::UnknownDesignRelation { name: name.clone() })
         })
         .collect::<Result<Vec<_>, _>>()?;
-    Ok(report_of(corpus, registry, members, &relations, true))
+    Ok(report_of(
+        corpus,
+        registry,
+        members,
+        &relations,
+        Linking::Join,
+    ))
 }
 
 fn check_members(
@@ -418,7 +430,7 @@ fn report_of(
     registry: &Registry,
     members: &[RelationReportMember<'_>],
     relations: &[&RequiredRelation],
-    realized: bool,
+    linking: Linking,
 ) -> RelationReport {
     let model_exclude = ExcludeSet::compile_validated(
         registry
@@ -428,14 +440,13 @@ fn report_of(
     let standing: Vec<BTreeMap<String, Criteria>> =
         members.iter().map(|m| standing_of(m)).collect();
     let roots: Vec<&Path> = members.iter().map(|m| m.root).collect();
-    let criteria = CriterionIndex::build(corpus, registry, &roots);
+    let context = RelationContext::build(corpus, registry, &roots);
     let ctx = Context {
         corpus,
-        registry,
-        criteria: &criteria,
+        context: &context,
         members,
         standing: &standing,
-        realized,
+        linking,
     };
     RelationReport {
         relations: relations
@@ -466,12 +477,20 @@ fn standing_of(member: &RelationReportMember<'_>) -> BTreeMap<String, Criteria> 
     out
 }
 
+/// What a resolved `linked` entry carries.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Linking {
+    /// The FR-084 shape.
+    Plain,
+    /// The FR-086 shape: plus `realized_criteria`.
+    Join,
+}
+
 struct Context<'a> {
     corpus: &'a Spec,
-    registry: &'a Registry,
-    criteria: &'a CriterionIndex,
-    /// Whether `linked` entries carry `realized_criteria` (the design join).
-    realized: bool,
+    context: &'a RelationContext,
+    /// Whether `linked` entries carry `realized_criteria`.
+    linking: Linking,
     members: &'a [RelationReportMember<'a>],
     standing: &'a [BTreeMap<String, Criteria>],
 }
@@ -482,11 +501,19 @@ type LinkKey = (Option<String>, String, String);
 impl Context<'_> {
     fn section(&self, relation: &RequiredRelation, model_exclude: &ExcludeSet) -> RelationSection {
         let mut rows: Vec<RelationRow> = Vec::new();
-        let edges = RelationEdges::new(self.corpus, self.registry, self.criteria, relation);
+        let Some(edges) = self.context.edges_for(relation) else {
+            return RelationSection {
+                name: relation.name.clone(),
+                check: relation.check.clone(),
+                direction: relation.direction,
+                summary: RelationSummary::default(),
+                rows: Vec::new(),
+            };
+        };
         for (member, input) in self.members.iter().enumerate() {
             let view = self.corpus.member_view(member);
             for obliged in obliged(&view, relation, input.root, model_exclude) {
-                rows.push(self.row(relation, &edges, obliged.slot, obliged.value));
+                rows.push(self.row(relation, edges, obliged.slot, obliged.value));
             }
         }
         rows.sort_by(|a, b| {
@@ -609,7 +636,8 @@ impl Context<'_> {
             .map(|((_, _, verb), (other, ids))| LinkedEntry::Resolved {
                 document: self.document(other),
                 verb,
-                realized_criteria: self.realized.then(|| ids.into_iter().collect()),
+                realized_criteria: (self.linking == Linking::Join)
+                    .then(|| ids.into_iter().collect()),
             })
             .collect();
         if relation.to.is_empty() {

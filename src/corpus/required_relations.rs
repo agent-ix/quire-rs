@@ -21,7 +21,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
 use super::declared_tables::ExcludeSet;
-use super::relation_edges::{CriterionIndex, RelationEdges};
+use super::relation_edges::{Match, RelationContext, RelationEdges};
 use super::spec::Spec;
 use super::validate::{pack, BundleFinding, BundleReport};
 use super::vocabulary_coverage::{declares_property, enum_at};
@@ -49,7 +49,7 @@ pub(crate) fn validate_required_relations(
     spec: &Spec,
     registry: &Registry,
     root: &Path,
-    criteria: &CriterionIndex,
+    context: &RelationContext,
     report: &mut BundleReport,
 ) {
     let Some(model) = registry.traceability() else {
@@ -71,8 +71,9 @@ pub(crate) fn validate_required_relations(
 
     for relation in &model.required_relations {
         check_declaration_is_live(spec, registry, relation, root, &mut findings);
-        let edges = RelationEdges::new(spec, registry, criteria, relation);
-        check_relation(spec, &edges, relation, root, &model_exclude, &mut findings);
+        if let Some(edges) = context.edges_for(relation) {
+            check_relation(spec, edges, relation, root, &model_exclude, &mut findings);
+        }
     }
     // FR-086-AC-10: a design relation no loaded module declares names nothing
     // for the join to report.
@@ -308,7 +309,7 @@ fn check_relation(
                 ));
             }
         }
-        let satisfied = is_satisfied(spec, edges, relation, slot);
+        let satisfied = seen_satisfies(spec, relation, &seen);
         if satisfied {
             continue;
         }
@@ -411,10 +412,13 @@ pub(crate) fn is_satisfied(
     relation: &RequiredRelation,
     slot: usize,
 ) -> bool {
+    seen_satisfies(spec, relation, &edges.matches(relation.direction, slot))
+}
+
+/// Whether any of the readings seen at a document is an accepted counterpart.
+fn seen_satisfies(spec: &Spec, relation: &RequiredRelation, seen: &[Match<'_>]) -> bool {
     let accepted_targets: BTreeSet<&str> = relation.to.iter().map(String::as_str).collect();
-    edges
-        .matches(relation.direction, slot)
-        .iter()
+    seen.iter()
         .any(|m| target_is_accepted(spec, m.counterpart, &accepted_targets))
 }
 

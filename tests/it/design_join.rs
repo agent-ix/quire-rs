@@ -847,7 +847,6 @@ fn the_join_is_byte_identical_across_runs_and_changes_no_document() {
         lantern("LAN-002", &[]),
     ];
     let forward = repo(&docs);
-    let reversed = repo(&docs.iter().rev().cloned().collect::<Vec<_>>());
     let registry = module("design-join");
     let render = |dir: &TempDir| serde_json::to_string(&join_of(dir, &registry)).expect("json");
     let snapshot = |dir: &TempDir| {
@@ -862,8 +861,53 @@ fn the_join_is_byte_identical_across_runs_and_changes_no_document() {
     let before = snapshot(&forward);
     let first = render(&forward);
     assert_eq!(first, render(&forward));
-    assert_eq!(first, render(&reversed));
     assert_eq!(snapshot(&forward), before);
+
+    // `load_repo` sorts by path, so document order is varied after the load,
+    // and member order by swapping the members of a two-member corpus.
+    let reload = |dir: &TempDir, reverse: bool| {
+        let mut load = quire_rs::corpus::walk::load_repo(&dir.path().join("spec"));
+        if reverse {
+            load.documents.reverse();
+        }
+        load
+    };
+    let shuffled = Spec::from_repo(reload(&forward, true));
+    let joined = design_join(&shuffled, &registry, &single(&forward)).expect("join");
+    assert_eq!(first, serde_json::to_string(&joined).expect("json"));
+
+    let other = repo(&[
+        glyph(
+            "GLY-009",
+            &[("kindled_by", "ix://o/a/spec/LAN-001")],
+            &["chk-q"],
+        ),
+        lantern("LAN-009", &[("kindles", "ix://o/a/spec/GLY-001")]),
+    ]);
+    let identified_in = |order: [(&TempDir, &str); 2], reverse: bool| {
+        let corpus = Spec::from_members(
+            order
+                .iter()
+                .map(|(dir, identity)| CorpusMember {
+                    identity: Some((*identity).to_string()),
+                    load: reload(dir, reverse),
+                })
+                .collect(),
+        )
+        .expect("corpus");
+        let dirs = [order[0].0, order[1].0];
+        serde_json::to_string(&design_join(&corpus, &registry, &members(&dirs)).expect("join"))
+            .expect("json")
+    };
+    let ab = identified_in([(&forward, "o/a"), (&other, "o/b")], false);
+    assert_eq!(
+        ab,
+        identified_in([(&other, "o/b"), (&forward, "o/a")], false)
+    );
+    assert_eq!(
+        ab,
+        identified_in([(&forward, "o/a"), (&other, "o/b")], true)
+    );
 
     // No row, field or state beyond FR-084's, except `realized_criteria`.
     let json: serde_json::Value = serde_json::from_str(&first).expect("json");
@@ -915,4 +959,111 @@ fn design_relations_survive_is_empty_and_merge_in_module_order_without_duplicate
             "glyph-extra"
         ]
     );
+}
+
+#[trace("FR-058-AC-25")]
+#[trace("FR-058-CON-1")]
+#[test]
+fn listing_both_labels_reads_a_pair_one_way_only() {
+    // A Glyph authoring the forward verb toward a Lantern is not an incoming
+    // edge, whichever labels the relation lists.
+    let dir = repo(&[
+        glyph("GLY-001", &[("kindles", "LAN-001")], &[]),
+        lantern("LAN-001", &[]),
+        glyph("GLY-002", &[("kindled_by", "LAN-002")], &[]),
+        lantern("LAN-002", &[]),
+    ]);
+    let both = report_named(
+        &dir,
+        &module("design-join"),
+        &["glyph-both", "glyph-has-lantern"],
+    );
+    for relation in ["glyph-both", "glyph-has-lantern"] {
+        assert_eq!(
+            row(&both, relation, "GLY-001").state,
+            RowState::Uncovered,
+            "{relation}"
+        );
+        assert_eq!(
+            row(&both, relation, "GLY-002").state,
+            RowState::Covered,
+            "{relation}"
+        );
+    }
+}
+
+#[trace("FR-058-AC-24")]
+#[test]
+fn a_forward_key_is_not_read_as_an_inverse_and_unrelated_verbs_are_unchanged() {
+    // `kindles` is a forward key: authored by the obliged Glyph it is not an
+    // incoming edge, and `kindled_by` alone does not make `kindles` an inverse.
+    let (_module_dir, registry) = temp_module(&manifest("", false));
+    let dir = repo(&[
+        glyph("GLY-001", &[("kindles", "LAN-001")], &[]),
+        lantern("LAN-001", &[]),
+    ]);
+    assert_eq!(
+        row(
+            &report_named(&dir, &registry, &[]),
+            "glyph-has-lantern",
+            "GLY-001"
+        )
+        .state,
+        RowState::Uncovered
+    );
+
+    // A relation listing only a verb the index relates to nothing: output is
+    // exactly what matching the authored verb alone gives, serialized.
+    let dir = repo(&[
+        glyph("GLY-001", &[], &[]),
+        lantern("LAN-001", &[("wards", "GLY-001")]),
+    ]);
+    let json = serde_json::to_value(report_named(
+        &dir,
+        &module("design-join"),
+        &["glyph-warded"],
+    ))
+    .expect("json");
+    let rows = &json["relations"][0]["rows"];
+    assert_eq!(rows[0]["state"], "covered");
+    assert_eq!(rows[0]["linked"][0]["id"], "LAN-001");
+    assert_eq!(rows[0]["linked"][0]["verb"], "wards");
+    assert_eq!(rows[0]["dangling"], serde_json::json!([]));
+    assert_eq!(rows[0]["kind_mismatch"], serde_json::json!([]));
+}
+
+#[trace("FR-058-AC-26")]
+#[test]
+fn an_outgoing_mismatch_carries_the_repo_of_the_obliged_document() {
+    let a = repo(&[
+        glyph("GLY-001", &[], &[]),
+        doc(
+            "BUL-001",
+            "Bulb",
+            &[("kindles", "ix://o/a/spec/GLY-001")],
+            "Notes",
+            &[],
+        ),
+    ]);
+    let b = repo(&[lantern("LAN-001", &[])]);
+    let corpus = identified(&[(&a, "o/a"), (&b, "o/b")]);
+    let registry = module("design-join");
+    let report = validate_corpus(
+        &corpus,
+        &registry,
+        BundlePosture::Okf,
+        &[
+            (&a.path().join("spec"), a.path()),
+            (&b.path().join("spec"), b.path()),
+        ],
+    )
+    .expect("validate");
+    let found: Vec<_> = report
+        .warnings
+        .iter()
+        .filter(|f| f.reason == "target-kind-mismatch")
+        .collect();
+    assert_eq!(found.len(), 1, "{found:?}");
+    assert_eq!(found[0].repo.as_deref(), Some("o/a"));
+    assert!(found[0].message.contains("'GLY-001'") && found[0].message.contains("kindled_by"));
 }

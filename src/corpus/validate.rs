@@ -26,7 +26,7 @@ use std::borrow::Cow;
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
-use crate::corpus::relation_edges::CriterionIndex;
+use crate::corpus::relation_edges::RelationContext;
 use crate::corpus::resolve::Resolution;
 use crate::corpus::spec::{CorpusError, Spec};
 use crate::corpus::walk::LoadedDocument;
@@ -267,7 +267,7 @@ pub fn validate_bundle(
     document_root: &Path,
     reference_root: &Path,
 ) -> BundleReport {
-    let criteria = CriterionIndex::build(spec, registry, &[reference_root]);
+    let criteria = RelationContext::build(spec, registry, &[reference_root]);
     validate_view(
         spec,
         registry,
@@ -301,7 +301,7 @@ pub fn validate_corpus(
     }
     let mut report = BundleReport::default();
     let reference_roots: Vec<&Path> = roots.iter().map(|(_, reference)| *reference).collect();
-    let criteria = CriterionIndex::build(corpus, registry, &reference_roots);
+    let criteria = RelationContext::build(corpus, registry, &reference_roots);
     for (member, (document_root, reference_root)) in roots.iter().enumerate() {
         let part = validate_view(
             &corpus.member_view(member),
@@ -325,7 +325,7 @@ fn validate_view(
     posture: BundlePosture,
     document_root: &Path,
     reference_root: &Path,
-    criteria: &CriterionIndex,
+    criteria: &RelationContext,
 ) -> BundleReport {
     let mut report = validate_view_findings(
         spec,
@@ -349,7 +349,7 @@ fn validate_view_findings(
     posture: BundlePosture,
     document_root: &Path,
     reference_root: &Path,
-    criteria: &CriterionIndex,
+    criteria: &RelationContext,
 ) -> BundleReport {
     let mut report = BundleReport::default();
     // FR-057: the merged `<pack>:<check>` registry, already carrying whatever a
