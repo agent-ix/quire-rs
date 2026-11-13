@@ -697,6 +697,8 @@ pub(super) fn reconcile(
         // lives in an archetype's frontmatter schema, which only the
         // `Registry` can read.
         vocabulary_coverage: Vec::new(),
+        // FR-090: likewise filled by `compute`.
+        carried_vocabulary: BTreeMap::new(),
         diagnostics,
         diagnostic_reason_registry: COVERAGE_DIAGNOSTIC_REASONS
             .iter()
@@ -928,6 +930,8 @@ fn coverage_matrix(
             ))
         })
         .collect();
+    // FR-090: the declared carried fields, joined on the same path.
+    let carried_by_document = super::carried_values(spec, root, model);
     // FR-050-AC-48: requirements ordered by `document` — the same path every
     // other list on this report already sorts by. The `BTreeMap` sorts the
     // groups themselves; each group's own `Vec` keeps the push order above,
@@ -937,6 +941,7 @@ fn coverage_matrix(
         .into_iter()
         .map(|(document, criteria)| CoverageMatrixRequirement {
             criticality: criticality_by_document.get(document).cloned(),
+            carried: carried_by_document.get(document).cloned(),
             document: document.to_string(),
             criteria,
         })

@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "id": { "type": "string" },
+    "type": { "const": "Glyph" },
+    "tier": {
+      "description": "The ordered vocabulary. Declared ONCE, here; every other module reads it.",
+      "enum": ["dim", "soft", "bright"]
+    }
+  }
+}

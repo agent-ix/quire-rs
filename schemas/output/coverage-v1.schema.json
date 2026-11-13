@@ -134,6 +134,14 @@
         "$ref": "#/$defs/VocabularyValueRecord"
       }
     },
+    "carried_vocabulary": {
+      "type": "object",
+      "description": "FR-090: the ordered permitted values of each declared carried field, keyed by its name, read from the `enum` of its key in schema order. ABSENT for a module declaring no `carried_fields`, a name whose key has no `enum`, and a name whose archetypes' enums differ. Additive under FR-055-CON-3.",
+      "additionalProperties": {
+        "type": "array",
+        "items": {"type": "string"}
+      }
+    },
     "excluded_source_files": {
       "type": "integer",
       "minimum": 1,
@@ -1081,6 +1089,11 @@
         },
         "criticality": {
           "description": "FR-082: the document's frontmatter `criticality`, as written, of whatever JSON type. ABSENT when the document states none; never defaulted or inferred."
+        },
+        "carried": {
+          "type": "object",
+          "description": "FR-090: the values the document states for the module's declared `carried_fields`, each as written under its declared name. ABSENT when the document states none; never defaulted, inferred or validated here.",
+          "minProperties": 1
         },
         "criteria": {
           "type": "array",

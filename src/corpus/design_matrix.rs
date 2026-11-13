@@ -191,9 +191,8 @@ pub fn design_matrix(
     }
     // Obliged documents the matrix holds no entry for: no criterion yields one.
     for ((repo, document), (id, design)) in obliged {
-        // Hook for FR-090: a `carried` value of a criteria-less entry has no
-        // matrix entry to come from and is read from this document, as
-        // `criticality` is.
+        // A criteria-less entry has no matrix entry to read `criticality` or
+        // `carried` from: both are read from this document.
         let doc = match repo.as_deref() {
             Some(identity) => corpus.by_qualified_id(identity, &id),
             None => corpus.by_id(&id),
@@ -204,7 +203,11 @@ pub fn design_matrix(
             repo,
             id: Some(id),
             criticality,
-            carried: None,
+            carried: doc.and_then(|doc| {
+                registry
+                    .traceability()
+                    .and_then(|model| crate::coverage::carried_for(doc, model))
+            }),
             criteria: Vec::new(),
             design: Some(design),
         });
@@ -224,6 +227,7 @@ fn entry_of(
     let CoverageMatrixRequirement {
         document,
         criticality,
+        carried,
         criteria,
     } = requirement;
     let criteria = criteria
@@ -240,7 +244,7 @@ fn entry_of(
         repo,
         id,
         criticality: criticality.clone(),
-        carried: None,
+        carried: carried.clone(),
         criteria,
         design,
     }

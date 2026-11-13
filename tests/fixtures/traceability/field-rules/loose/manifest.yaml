@@ -1,0 +1,16 @@
+# FR-091-AC-18 fixture: a second module that declares the carried name over an
+# archetype with open frontmatter, so no carried_vocabulary entry exists
+# whichever module loads first.
+name: field-rules-loose
+version: 0.1.0
+description: A carried name with no enum anywhere (quire-rs FR-090)
+archetypes:
+- kind: Pebble
+  name: Pebble
+  defaults:
+    id_pattern: PEB-{next:03d}
+traceability:
+  carried_fields:
+  - name: tier
+    from: [Pebble]
+    key: tier

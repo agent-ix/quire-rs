@@ -1,0 +1,26 @@
+# FR-090/FR-091 fixture, the "stating" half: an archetype whose frontmatter
+# schema holds the ordered vocabulary, and the carried field that reads it.
+# Every name is invented; the engine knows none of them.
+name: field-rules-glyph
+version: 0.1.0
+description: Carried field over an enum-bearing archetype (quire-rs FR-090)
+archetypes:
+- kind: Glyph
+  name: Glyph
+  frontmatter_schema_ref: schemas/glyph.schema.json
+  defaults:
+    id_pattern: GLY-{next:03d}
+traceability:
+  trace_targets:
+  - name: glyph-check
+    archetype: Glyph
+    section: Acceptance Criteria
+    id_column: ID
+  obligations:
+  - name: glyph-check
+    target: glyph-check
+    statement_column: Criteria
+  carried_fields:
+  - name: tier
+    from: [Glyph]
+    key: tier

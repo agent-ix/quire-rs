@@ -829,3 +829,75 @@ fn each_block_equals_the_join_row_and_a_wrong_kind_target_is_a_mismatch() {
     assert!(blocks >= 2, "{blocks}");
     assert_eq!(mismatches, 1, "the Bulb target is a kind mismatch");
 }
+
+const CARRIED: &str = "  carried_fields:
+  - name: tier
+    from: [Glyph]
+    key: tier
+";
+
+#[trace("FR-092-AC-5")]
+#[trace("FR-090-AC-1")]
+#[test]
+fn carried_reaches_the_design_matrix_as_written_and_keeps_byte_identity() {
+    let dir = repo(&[
+        doc(
+            "GLY-001",
+            "Glyph",
+            "tier: class-2\n",
+            &[],
+            "Acceptance Criteria",
+            &["chk-a"],
+        ),
+        glyph("GLY-002", &[], &["chk-b"]),
+    ]);
+    // No design relations, single member, no identity: bytes equal coverage_matrix.
+    let (_m, registry) = temp_module(&manifest(LIT, CARRIED));
+    let report = coverage_of(&dir, &registry);
+    let entries = matrix_of(&dir, &registry);
+    assert_eq!(
+        serde_json::to_string(&entries).expect("json"),
+        serde_json::to_string(&report.coverage_matrix).expect("json")
+    );
+    let matrix = json_of(&entries);
+    assert_eq!(
+        entry(&matrix, "spec/GLY-001.md")["carried"],
+        json!({"tier": "class-2"})
+    );
+    assert!(entry(&matrix, "spec/GLY-002.md").get("carried").is_none());
+
+    // With a design relation the value is still there, ahead of `criteria`.
+    let designed = format!("{CARRIED}  design_relations: [glyph-has-lantern]\n");
+    let (_m2, registry) = temp_module(&manifest(LIT, &designed));
+    let entries = matrix_of(&dir, &registry);
+    assert_eq!(json_of(&entries)[0]["carried"], json!({"tier": "class-2"}));
+    let text = serde_json::to_string(&entries[0]).expect("json");
+    assert!(
+        text.find("\"carried\":") < text.find("\"criteria\":"),
+        "{text}"
+    );
+}
+
+#[trace("FR-092-AC-3")]
+#[trace("FR-090-AC-1")]
+#[test]
+fn a_criteria_less_obliged_entry_carries_the_value_its_document_states() {
+    let dir = repo(&[
+        doc(
+            "GLY-001",
+            "Glyph",
+            "tier: class-3\n",
+            &[],
+            "Acceptance Criteria",
+            &[],
+        ),
+        glyph("GLY-002", &[], &[]),
+    ]);
+    let designed = format!("{CARRIED}  design_relations: [glyph-has-lantern]\n");
+    let (_m, registry) = temp_module(&manifest(LIT, &designed));
+    let matrix = json_of(&matrix_of(&dir, &registry));
+    let stated = entry(&matrix, "spec/GLY-001.md");
+    assert_eq!(stated["criteria"], json!([]));
+    assert_eq!(stated["carried"], json!({"tier": "class-3"}));
+    assert!(entry(&matrix, "spec/GLY-002.md").get("carried").is_none());
+}

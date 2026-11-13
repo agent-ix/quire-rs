@@ -451,6 +451,12 @@ pub struct CoverageReport {
     /// every module that has not adopted the declaration.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub vocabulary_coverage: Vec<VocabularyValueRecord>,
+    /// The ordered permitted values of each declared carried field, keyed by
+    /// its name, read from the `enum` of its key (FR-090). Empty — and so
+    /// absent from the JSON — for a module declaring no `carried_fields`, or
+    /// whose carried keys have no `enum`.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub carried_vocabulary: BTreeMap<String, Vec<String>>,
     /// Source files a declared `source_exclude` glob removed from the symbol
     /// walk (FR-050-AC-24, #215). Zero — and so absent from the JSON — for a
     /// model declaring no `source_exclude`, or one whose globs match nothing,
@@ -638,6 +644,12 @@ pub struct CoverageMatrixRequirement {
     /// validated here — the module schema owns the enumeration.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub criticality: Option<serde_json::Value>,
+    /// The values the document states for the module's declared
+    /// `carried_fields`, each exactly as written, under its declared name
+    /// (FR-090). Absent when the document states none; never defaulted,
+    /// inferred or validated here.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub carried: Option<serde_json::Map<String, serde_json::Value>>,
     /// Ordered exactly as `obligation::derive` already orders its output
     /// (declaration order, document path, row ordinal), restricted to this
     /// document.
@@ -654,6 +666,47 @@ pub(crate) fn document_criticality(
         .get("criticality")
         .filter(|value| !value.is_null())
         .cloned()
+}
+
+/// The values one document states for the declared carried fields, as written;
+/// `None` when it states none (FR-090). The per-document read behind
+/// [`carried_values`], for any entry that needs it without an obligation.
+pub(crate) fn carried_for(
+    doc: &crate::corpus::walk::LoadedDocument,
+    model: &TraceabilityModel,
+) -> Option<serde_json::Map<String, serde_json::Value>> {
+    let (kind, frontmatter) = (doc.concept_type()?, doc.frontmatter()?);
+    let carried: serde_json::Map<_, _> = model
+        .carried_fields
+        .iter()
+        .filter(|field| field.from.iter().any(|from| from == kind))
+        .filter_map(|field| {
+            let value = frontmatter.get(&field.key).filter(|v| !v.is_null())?;
+            Some((field.name.clone(), value.clone()))
+        })
+        .collect();
+    (!carried.is_empty()).then_some(carried)
+}
+
+/// Each document's declared carried values, as written (FR-090), keyed by the
+/// scope-relative path the obligations carry. A document that states none has
+/// no entry. The value is read from the document alone: never inferred from a
+/// related document, another field, or `criticality`.
+fn carried_values(
+    spec: &Spec,
+    root: &Path,
+    model: &TraceabilityModel,
+) -> BTreeMap<String, serde_json::Map<String, serde_json::Value>> {
+    let mut out = BTreeMap::new();
+    if model.carried_fields.is_empty() {
+        return out;
+    }
+    for doc in spec.documents() {
+        if let Some(carried) = carried_for(doc, model) {
+            out.insert(declared_tables::relative_path(root, &doc.path), carried);
+        }
+    }
+    out
 }
 
 /// One derived obligation, as a `coverage_matrix` criterion (CR-187,
@@ -818,6 +871,8 @@ fn compute_inner(
         crate::corpus::vocabulary_coverage::coverage_records(spec, registry, root);
     report.vocabulary_coverage = vocabulary_records;
     report.diagnostics.extend(dead_declarations);
+    // FR-090: the vocabulary of each carried field lives in the same schemas.
+    report.carried_vocabulary = crate::corpus::field_rules::carried_vocabulary(registry).values;
     // FR-063: last, because a metric describes a number the steps above
     // finished computing — `criteria` in particular is set here rather than in
     // `reconcile`.

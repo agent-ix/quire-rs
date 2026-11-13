@@ -289,6 +289,8 @@ fn tc856_payload_carrying_every_optional_key_conforms() {
             "state": "excused",
             "documents": ["spec.md"]
         }],
+        // FR-090: additive, like the rest.
+        "carried_vocabulary": {"tier": ["dim", "soft", "bright"]},
         "obligations": [{
             "source": "acceptance-criterion",
             "id": "FR-001-AC-1",
@@ -314,6 +316,7 @@ fn tc856_payload_carrying_every_optional_key_conforms() {
         "coverage_matrix": [{
             "document": "FR-001.md",
             "criticality": "high",
+            "carried": {"tier": "soft"},
             "criteria": [{
                 "id": "FR-001-AC-1",
                 "statement": "The system shall do it.",
@@ -602,6 +605,7 @@ fn tc859_optional_and_required_split_matches_the_engine() {
         "implements",
         "excluded_source_files",
         "vocabulary_coverage",
+        "carried_vocabulary",
         // CR-093: present whenever the walk found an evidence symbol, so a
         // corpus with no source tree at all omits it.
         "binding_census",
