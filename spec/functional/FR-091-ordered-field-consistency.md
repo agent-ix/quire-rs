@@ -106,7 +106,7 @@ traceability:
       check: undeclared-class-value
 ```
 
-When a `from` document states `field` with a value that is not in the run's `carried_vocabulary` for `carried`
+For **every document of every `from` archetype**, whether or not it takes part in any compared pair of a `field_consistency` entry, when it states `field` with a value that is not in the run's `carried_vocabulary` for `carried`
 ([FR-090](./FR-090-declared-carried-fields.md)), the engine SHALL report a `trace:<check>` finding (advisory by default) naming
 the document, the field and the value as written. This is how a document whose archetype holds no `enum` of its own, such as an
 object type with open frontmatter, is held to the vocabulary another module declares, so that no module copies the list. Matching is

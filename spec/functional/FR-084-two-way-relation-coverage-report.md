@@ -118,8 +118,7 @@ declaration has no `where`, and `selector` is `{"field": F, "value": V}` with `V
 value exactly as authored. The shapes of the remaining objects are:
 
 - **Document** (the obliged `document` and a resolved `linked` entry): `{"id", "path", "archetype",
-  "repo", "verification", "criteria", "carried"}` with `repo` omitted when the member has no identity,
-  `carried` omitted unless the document states a [FR-090](./FR-090-declared-carried-fields.md) carried field (an object of the stated values, last in the key order),
+  "repo", "verification", "criteria"}` with `repo` omitted when the member has no identity,
   `archetype` omitted when the document has no `type`, and
   `verification` and `criteria` present for the obliged document and for every linked document alike.
   `criteria` is `{"backed": n, "unbacked": n, "not_measured": n}` and is always present, with zero
@@ -159,8 +158,6 @@ consumer, and the engine writes nothing back to any document.
 > **CR-414 note:** FR-084-AC-18 was added with CR-412: a corpus whose modules declare no relation yields `{"relations": []}`.
 >
 > **CR-415 note:** FR-084-AC-19 and the sentence on one input per corpus member were added: the engine indexes its per-member inputs by corpus member, so a count that differs is an error rather than undefined behaviour.
->
-> **CR-419 note:** the Serialization **Document** shape gains an optional last key `carried` ([FR-090](./FR-090-declared-carried-fields.md), PLAT-1526): present only for a document that states a declared carried field, absent otherwise, so a report over a module with no `carried_fields` is unchanged.
 
 ## Acceptance Criteria
 

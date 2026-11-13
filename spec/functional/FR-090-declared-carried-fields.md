@@ -7,8 +7,6 @@ relationships:
     type: "extends"
   - target: "ix://agent-ix/quire-rs/spec/functional/FR-082"
     type: "references"
-  - target: "ix://agent-ix/quire-rs/spec/functional/FR-084"
-    type: "extends"
   - target: "ix://agent-ix/quire-rs/spec/functional/FR-059"
     type: "requires"
   - target: "ix://agent-ix/spec-artifacts-iso/FR-009"
@@ -41,8 +39,7 @@ obligation joins the obligation to its requirement entry, as it does for FR-082 
 ### The carried shape
 
 For every document of a `from` archetype that states `key` with a non-null value, the engine SHALL carry the value as written
-under `name` inside **one fixed key**, `carried`, an object, on the document's `requirements[]` entry, and on the `document`
-object of each row, and each resolved `linked` entry, of a relation report ([FR-084](./FR-084-two-way-relation-coverage-report.md)) for that document. A document
+under `name` inside **one fixed key**, `carried`, an object, on the document's `requirements[]` entry. Nothing else carries it: not an obligation record, not a relation report row. A document
 that states nothing has no `carried` key on its entry; a document that states some but not all of the declared names has
 `carried` holding only those it states. The engine adds no other key to any entry, row or obligation record, writes no label,
 default or placeholder, and leaves obligation records untouched.
@@ -63,9 +60,7 @@ as written and left to schema validation; the engine neither drops nor replaces 
 The published coverage schema (`schemas/output/coverage-v1.schema.json`) is `additionalProperties: false` on
 `CoverageMatrixRequirement` and on the top-level report object. This requirement SHALL amend it to add the optional `carried`
 object (any string-keyed values) on `CoverageMatrixRequirement` and the optional `carried_vocabulary` object (string-keyed arrays
-of strings) on the top-level report object, and no other key. The FR-084 relation report has no published schema; its
-`document` object gains `carried` as its last key by the CR-419 note on
-[FR-084](./FR-084-two-way-relation-coverage-report.md) and keeps the key order that FR-084-AC-12 fixes otherwise.
+of strings) on the top-level report object, and no other key.
 
 ### Names, ownership and merging
 
@@ -104,12 +99,11 @@ document. Each carried field is independent: it neither supplies, overrides nor 
 | FR-090-AC-6 | A value outside the field's `enum` is carried as written. | Test |
 | FR-090-AC-7 | A `carried_fields` entry with a blank or malformed `name`, a blank `key` or an empty `from` fails the declaring module's load naming the entry. | Test |
 | FR-090-AC-8 | An entry whose `from` names an archetype that no loaded module declares, or whose `key` is a property of none of the `from` frontmatter schemas and carried by no document, reports `trace:undeclared-relation-vocabulary` naming the entry when the corpus is merged; the same entry in a module whose `from` archetype another loaded module declares reports nothing and does not fail that module's load. | Test |
-| FR-090-AC-9 | The relation report row `document` objects and resolved `linked` entries of FR-084 carry `carried` as the last key for a document that states a value, and no `carried` key otherwise; the key order of FR-084-AC-12 is otherwise unchanged. | Test |
-| FR-090-AC-10 | The top-level coverage report carries `carried_vocabulary.software_safety_class` equal to the `enum` of the key in the `from` schemas, in schema order, and no entry for a name whose key has no `enum`; `coverage_matrix` remains an array of entries. | Test |
-| FR-090-AC-11 | Two entries with the same `name` and `key` in two modules merge to one field whose `from` is the union; the same `name` with different `key` fails the merge naming both modules. | Test |
-| FR-090-AC-12 | The published coverage schema validates a run's output carrying `carried` on a requirement entry and `carried_vocabulary` on the top-level report, and still rejects any other unknown key on the entry and on the top-level report. | Test |
-| FR-090-AC-13 | Running the matrix leaves every document byte-identical, and two runs over an identical corpus serialize identically, with and without the keys. | Test |
-| FR-090-AC-14 | When the `from` archetypes' `enum`s for the key are identical except that one archetype (an open frontmatter) has none, the vocabulary is the existing enum whichever module loads first; when two existing `enum`s differ, `trace:carried-vocabulary-mismatch` names the entry, both archetypes and modules, and no vocabulary entry is emitted. | Test |
+| FR-090-AC-9 | The top-level coverage report carries `carried_vocabulary.software_safety_class` equal to the `enum` of the key in the `from` schemas, in schema order, and no entry for a name whose key has no `enum`; `coverage_matrix` remains an array of entries. | Test |
+| FR-090-AC-10 | Two entries with the same `name` and `key` in two modules merge to one field whose `from` is the union; the same `name` with different `key` fails the merge naming both modules. | Test |
+| FR-090-AC-11 | The published coverage schema validates a run's output carrying `carried` on a requirement entry and `carried_vocabulary` on the top-level report, and still rejects any other unknown key on the entry and on the top-level report. | Test |
+| FR-090-AC-12 | Running the matrix leaves every document byte-identical, and two runs over an identical corpus serialize identically, with and without the keys. | Test |
+| FR-090-AC-13 | When the `from` archetypes' `enum`s for the key are identical except that one archetype (an open frontmatter) has none, the vocabulary is the existing enum whichever module loads first; when two existing `enum`s differ, `trace:carried-vocabulary-mismatch` names the entry, both archetypes and modules, and no vocabulary entry is emitted. | Test |
 
 ## Constraints
 
@@ -120,5 +114,5 @@ document. Each carried field is independent: it neither supplies, overrides nor 
 
 ## Dependencies
 
-- **Upstream**: [FR-050](./FR-050-declarative-coverage-computation.md), [FR-082](./FR-082-coverage-matrix-criticality.md), [FR-084](./FR-084-two-way-relation-coverage-report.md), [FR-059](./FR-059-declared-vocabulary-coverage.md), [FR-058](./FR-058-upward-trace-completeness.md)
+- **Upstream**: [FR-050](./FR-050-declarative-coverage-computation.md), [FR-082](./FR-082-coverage-matrix-criticality.md), [FR-059](./FR-059-declared-vocabulary-coverage.md), [FR-058](./FR-058-upward-trace-completeness.md)
 - **Downstream**: [FR-091](./FR-091-ordered-field-consistency.md), [spec-artifacts-iso FR-009](ix://agent-ix/spec-artifacts-iso/FR-009) (declares the entry; lands after this engine requirement), [quoin FR-160](ix://agent-ix/quoin/FR-160) (reads `carried` and `carried_vocabulary`), quire-cli FR-028 renders the value
