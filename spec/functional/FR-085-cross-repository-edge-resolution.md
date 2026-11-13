@@ -72,8 +72,7 @@ archetype is in `to`.
 registry, posture, root)`. This FR extends it to a corpus of several members, the engine behaviour
 behind `quire validate --okf --repo` (quire-cli FR-030):
 
-- `validate_corpus(corpus, registry, posture, roots)` takes one `(document_root, reference_root)` pair per member, in member order, as `validate_bundle` takes them ([FR-049-AC-9](./FR-049-verification-reference-integrity.md)): the document root locates the member's `index.md` and the reference root is the member's repository root, against which model-declared `document:` paths and `exclude:` globs resolve. For a repository root `<DIR>`, the pair is `(<DIR>/spec, <DIR>)`.
-  and runs the FR-038 bundle validation of each member against the shared corpus, so edges resolve
+- `validate_corpus(corpus, registry, posture, roots)` takes one `(document_root, reference_root)` pair per member, in member order, as `validate_bundle` takes them ([FR-049-AC-9](./FR-049-verification-reference-integrity.md)): the document root locates the member's `index.md` and the reference root is the member's repository root, against which model-declared `document:` paths and `exclude:` globs resolve. For a repository root `<DIR>`, the pair is `(<DIR>/spec, <DIR>)`. It runs the FR-038 bundle validation of each member against the shared corpus, so edges resolve
   across members. The result is one report whose findings are the concatenation of each member's
   findings in member order. `posture` applies to every member.
 - A member's identity is that member's declared bundle package (`Spec::with_bundle_package`): the
