@@ -58,3 +58,12 @@ Ticket: PLAT-1418. PR head: `30ac10c`. This is a code review with the rust-revie
 | src/corpus/required_relations.rs | examined | FND-002 |
 | src/corpus/validate.rs, spec.rs, resolve.rs, traceability.rs, loader/mod.rs | examined | Clean |
 | CHANGELOG.md | examined | FND-003 |
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | 8e969ed: `RelationEdges::new` drops a listed inverse label whose forward verb is also listed, so `[V, W]` reads each pair once, as `V`. New test `listing_both_labels_reads_a_pair_one_way_only` covers a Glyph that authors `kindles` toward a Lantern under `glyph-both`. Probe: with the filter removed in a scratch worktree, that test fails (design_join.rs:982) and the other 17 design_join tests pass. |
+| FND-002 | fixed | 8e969ed: `RelationContext::build` builds the criterion index and every relation's `RelationEdges` once per corpus, shared by all member views in `validate_corpus`. `check_relation` derives satisfaction from its one `matches` result via `seen_satisfies`. Residual: `Context::row` in the report still calls `is_satisfied`, which re-runs `matches` once per row. That cost is negligible and is not a new finding. |
+| FND-003 | fixed | 8e969ed: the CHANGELOG adds a `**Breaking, PLAT-1418:**` entry for `realized_criteria` and the FR-084 behaviour change. |
+| FND-004 | fixed | 8e969ed: `Orientation { AsAuthored, Reversed }` replaces the `bool` in `forms`, and `Linking { Plain, Join }` replaces `realized`. |

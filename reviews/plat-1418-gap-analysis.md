@@ -55,3 +55,11 @@ Ticket: PLAT-1418. PR head: `30ac10c`. Plan completion: not assessed (planless).
 | FR-058-AC-25 | examined | Weak test; see code-review FND-001 |
 | FR-058-AC-26 | examined | FND-003 |
 | FR-038-AC-12 | examined | Tagged and asserted, Okf and Strict |
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | 8e969ed: the AC-14 test now reverses `load.documents` after `load_repo`. `Spec::build` keeps the given order, so the reversal is real. It also swaps the members of a two-member identified corpus, and both orders must render byte-identical. |
+| FND-002 | fixed | 8e969ed: new test `a_forward_key_is_not_read_as_an_inverse_and_unrelated_verbs_are_unchanged` covers the forward-key clause and asserts the serialized row (state, linked id and verb, empty dangling and kind_mismatch) for a verb with no counterpart. |
+| FND-003 | fixed | 8e969ed: new test `an_outgoing_mismatch_carries_the_repo_of_the_obliged_document` asserts that a two-member `validate_corpus` gives exactly one `target-kind-mismatch` with `repo == o/a`, naming `GLY-001` and `kindled_by`. |
