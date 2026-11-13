@@ -21,6 +21,8 @@ When walking the document body to collect heading positions, the parser SHALL tr
 4. Mismatched fence types (a backtick fence opened, a tilde line in between) do NOT close the backtick fence — only a matching fence character does.
 5. If the document ends with `in_fence` still true (unclosed fence), trailing lines are treated as inside the block — they are not parsed as headings.
 
+6. Fences follow the CommonMark rules (shared with the code-block scanner of [FR-010](./FR-010-query-api.md) CR-008): an opening fence is a run of three or more backticks or tildes indented at most three spaces, and a fence closes only on the same character, a run at least as long as the opener, indented at most three spaces, followed by whitespace only.
+
 ## Acceptance Criteria
 
 | ID | Criteria | Verification |
@@ -29,6 +31,7 @@ When walking the document body to collect heading positions, the parser SHALL tr
 | FR-007-AC-2 | For input `## Real\n\`\`\`\n## still-inside\n` (no closing fence), the parser returns 1 section (`Real`) — the trailing `## still-inside` is inside the unclosed block. | Test |
 | FR-007-AC-3 | For input `~~~\n# fake\n~~~\n## Real`, the parser returns 1 section (`Real`); the `# fake` is inside the tilde fence. | Test |
 | FR-007-AC-4 | A test transliterated from `~/dev/quire/tests/` covering each variant passes. | Test |
+| FR-007-AC-5 | For input `## A\n````\n```\n# fake\n````\n## B` the shorter inner fence does not close the block, so `# fake` is not a heading and the parser returns `A` and `B`; a four-space-indented ` ``` ` line opens no fence. | Test |
 
 ## Dependencies
 

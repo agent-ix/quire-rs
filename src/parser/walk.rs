@@ -35,7 +35,7 @@ pub struct Heading {
 /// Walk `lines` and collect every ATX heading outside fenced code blocks.
 pub fn walk_headings(lines: &[&str]) -> Vec<Heading> {
     let mut out: Vec<Heading> = Vec::new();
-    let mut fence: Option<FenceKind> = None;
+    let mut fence: Option<Fence<'_>> = None;
     let mut in_comment = false;
     for (i, line) in lines.iter().enumerate() {
         // A line inside a multi-line `<!-- ... -->` block is comment text, not
@@ -45,18 +45,14 @@ pub fn walk_headings(lines: &[&str]) -> Vec<Heading> {
             in_comment = !line.contains("-->");
             continue;
         }
-        if let Some(kind) = fence_kind(line) {
-            match fence {
-                None => fence = Some(kind),
-                Some(open) if open == kind => fence = None,
-                Some(_) => {
-                    // Mismatched fence character (e.g. tilde line inside
-                    // a backtick block) — treat as content per FR-007-AC-4.
-                }
+        if let Some(open) = &fence {
+            if open.closes(line) {
+                fence = None;
             }
             continue;
         }
-        if fence.is_some() {
+        if let Some(open) = Fence::opening(line) {
+            fence = Some(open);
             continue;
         }
         if let Some((level, mut text)) = parse_heading(line) {
@@ -111,23 +107,67 @@ pub(crate) fn strip_trailing_block_id(text: &mut String) -> Option<String> {
     Some(id)
 }
 
+/// The character of a fence run.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum FenceKind {
+pub(crate) enum FenceKind {
     Backtick,
     Tilde,
 }
 
-/// Return the fence kind if `line` (post `trim_start`) opens or closes a
-/// fenced code block. `None` otherwise.
-fn fence_kind(line: &str) -> Option<FenceKind> {
-    let trimmed: &str = line.trim_start();
-    if trimmed.starts_with("```") {
-        Some(FenceKind::Backtick)
-    } else if trimmed.starts_with("~~~") {
-        Some(FenceKind::Tilde)
-    } else {
-        None
+/// An opening code fence recognised under the CommonMark fence rules
+/// (FR-007-AC-5): at most three spaces of indentation, a run of at least
+/// three backticks or tildes, and for a backtick fence an info string with
+/// no backtick.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct Fence<'a> {
+    kind: FenceKind,
+    /// Length of the opening run; a closing fence must be at least this long.
+    len: usize,
+    /// Everything after the opening run, untrimmed.
+    pub(crate) info: &'a str,
+}
+
+impl<'a> Fence<'a> {
+    /// The fence `line` opens, if any.
+    pub(crate) fn opening(line: &'a str) -> Option<Self> {
+        let (kind, len, rest) = fence_run(line)?;
+        if kind == FenceKind::Backtick && rest.contains('`') {
+            return None;
+        }
+        Some(Self {
+            kind,
+            len,
+            info: rest,
+        })
     }
+
+    /// Whether `line` closes this fence: same character, a run at least as
+    /// long as the opener, indented at most three spaces, and nothing but
+    /// whitespace after the run.
+    pub(crate) fn closes(&self, line: &str) -> bool {
+        fence_run(line).is_some_and(|(kind, len, rest)| {
+            kind == self.kind && len >= self.len && rest.trim().is_empty()
+        })
+    }
+}
+
+/// Split a fence line into its character, run length and remainder.
+fn fence_run(line: &str) -> Option<(FenceKind, usize, &str)> {
+    let indent: usize = line.bytes().take_while(|&b| b == b' ').count();
+    if indent > 3 {
+        return None;
+    }
+    let text: &str = &line[indent..];
+    let (kind, ch) = match text.as_bytes().first()? {
+        b'`' => (FenceKind::Backtick, '`'),
+        b'~' => (FenceKind::Tilde, '~'),
+        _ => return None,
+    };
+    let len: usize = text.chars().take_while(|&c| c == ch).count();
+    if len < 3 {
+        return None;
+    }
+    Some((kind, len, &text[len..]))
 }
 
 /// Parse an ATX heading line per the TS/Py regex `^(#{1,6})\s+(.+)$`,
@@ -203,6 +243,20 @@ mod tests {
         let hs = walk_headings(&lines(input));
         assert_eq!(hs.len(), 1);
         assert_eq!(hs[0].text, "Real");
+    }
+
+    #[trace("FR-007-AC-5")]
+    #[test]
+    fn commonmark_fence_length_and_indent_rules() {
+        let longer = "## A\n````\n```\n# fake\n````\n## B";
+        let texts: Vec<String> = walk_headings(&lines(longer))
+            .into_iter()
+            .map(|h| h.text)
+            .collect();
+        assert_eq!(texts, vec!["A", "B"]);
+        // Four spaces of indent is not a fence, so the heading stays live.
+        let indented = "    ```\n## Live";
+        assert_eq!(walk_headings(&lines(indented)).len(), 1);
     }
 
     #[test]

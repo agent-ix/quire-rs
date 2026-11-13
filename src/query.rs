@@ -15,6 +15,7 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 
 use crate::ast::{QuireDocument, QuireSection};
+use crate::parser::walk::Fence;
 
 /// The document's concept **type** — the discriminator that selects which
 /// archetype validates it. Reads frontmatter `type` exclusively. `None`
@@ -65,34 +66,10 @@ fn re_heading() -> &'static Regex {
     R.get_or_init(|| Regex::new(r"^(#{1,6})\s+(.+)$").expect("heading regex"))
 }
 
-fn re_fence_open() -> &'static Regex {
+fn re_info_word() -> &'static Regex {
     static R: OnceLock<Regex> = OnceLock::new();
-    // Either fence character (``` or ~~~), capturing the info-string word.
-    // Mirrors the parser's FR-007 fence model so the scanner and the
-    // heading walk agree on what opens a block.
-    R.get_or_init(|| Regex::new(r"^(?:```|~~~)(\w*)").expect("fence-open regex"))
-}
-
-/// The fence character that opened a code block. A block opened with one
-/// kind is closed ONLY by a fence line of the same kind; a mismatched
-/// fence line is content (mirrors `walk.rs::FenceKind` + FR-007-AC-4).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum FenceKind {
-    Backtick,
-    Tilde,
-}
-
-impl FenceKind {
-    /// The fence kind a `trim_start`ed line opens or closes, if any.
-    fn of_line(trimmed_start: &str) -> Option<Self> {
-        if trimmed_start.starts_with("```") {
-            Some(Self::Backtick)
-        } else if trimmed_start.starts_with("~~~") {
-            Some(Self::Tilde)
-        } else {
-            None
-        }
-    }
+    // The language word: the leading word characters of the info string.
+    R.get_or_init(|| Regex::new(r"^\s*(\w*)").expect("info-word regex"))
 }
 
 fn re_type_annotation() -> &'static Regex {
@@ -138,9 +115,15 @@ pub enum ListPattern {
 /// One fenced code block found by [`extract_diagrams`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DiagramBlock {
-    /// 0-based index in the document (counts all fenced blocks).
+    /// 0-based ordinal of this block among the returned blocks: with no
+    /// language filter it counts every fenced block; with a language filter
+    /// it counts only the blocks of that language.
     pub index: usize,
-    /// Language tag after the opening backticks (`""` if absent).
+    /// 1-based line of the opening fence. For [`extract_diagrams`] it is the
+    /// line in the full file, frontmatter counted; for
+    /// [`diagrams_from_content`] it is the line within the passed slice.
+    pub line: usize,
+    /// Info word after the whole opening fence (`""` if absent).
     pub language: String,
     /// The bytes between the opening and closing fences (joined by
     /// `\n`, no trailing newline).
@@ -490,9 +473,16 @@ fn classify_bullet(raw: &str, pattern: ListPattern) -> ListItem {
 /// safe (FR-011).
 pub fn extract_diagrams(doc: &QuireDocument, language: Option<&str>) -> Vec<DiagramBlock> {
     let body: &str = strip_frontmatter_view(&doc.raw);
+    // The body begins after the frontmatter; its first line is the rest of the
+    // closing `---` line, so body line `i` is full-file line `base + i + 1`.
+    let skipped: &str = &doc.raw[..doc.raw.len() - body.len()];
+    let base: usize = skipped.matches('\n').count();
     scan_fenced_blocks_with_lines(body, language, true)
         .into_iter()
-        .map(|(_, block)| block)
+        .map(|(_, block)| DiagramBlock {
+            line: block.line + base,
+            ..block
+        })
         .collect()
 }
 
@@ -531,8 +521,8 @@ fn scan_fenced_blocks_with_lines(
     let mut out: Vec<(usize, DiagramBlock)> = Vec::new();
     let mut fence_line: usize = 0;
     let mut current_section: Option<String> = None;
-    // `Some(kind)` while inside a block opened by `kind`; `None` otherwise.
-    let mut open_fence: Option<FenceKind> = None;
+    // `Some(fence)` while inside a block opened by `fence`; `None` otherwise.
+    let mut open_fence: Option<Fence<'_>> = None;
     let mut block_lang: String = String::new();
     let mut block_lines: Vec<String> = Vec::new();
     let mut block_index: usize = 0;
@@ -544,24 +534,21 @@ fn scan_fenced_blocks_with_lines(
                 continue;
             }
         }
-        let trimmed_start = line.trim_start();
         match open_fence {
             None => {
-                if let Some(cap) = re_fence_open().captures(trimmed_start) {
-                    // The capture only matches after a valid fence open, so
-                    // the line's fence kind is necessarily `Some`.
-                    open_fence = FenceKind::of_line(trimmed_start);
-                    block_lang = cap
-                        .get(1)
-                        .map(|m| m.as_str().to_string())
+                if let Some(fence) = Fence::opening(line) {
+                    block_lang = re_info_word()
+                        .captures(fence.info)
+                        .map(|c| c[1].to_string())
                         .unwrap_or_default();
+                    open_fence = Some(fence);
                     block_lines.clear();
                     fence_line = line_index;
                 }
             }
-            // Close ONLY on a matching-character fence line; a mismatched
-            // fence (e.g. `~~~` inside a ``` block) is content (FR-007-AC-4).
-            Some(open) if FenceKind::of_line(trimmed_start) == Some(open) => {
+            // Close only on a fence of the same character and at least the
+            // opening length; any other line is content (FR-010-AC-6).
+            Some(open) if open.closes(line) => {
                 push_block(
                     &mut out,
                     fence_line,
@@ -616,6 +603,7 @@ fn push_block(
         fence_line,
         DiagramBlock {
             index: *index,
+            line: fence_line + 1,
             language: lang.to_string(),
             source,
             section: section.clone(),
@@ -977,6 +965,68 @@ mod tests {
         assert_eq!(blocks.len(), 1);
         assert!(blocks[0].source.contains("foo"));
         assert!(blocks[0].source.contains("bar"));
+    }
+
+    // ─── FR-010 CR-008: fence line and CommonMark fence rules ───────────
+
+    #[trace("FR-010-AC-5")]
+    #[test]
+    fn fence_line_is_one_based_in_the_full_file() {
+        let bare = "## A\n```mermaid\ng\n```\n```mermaid\nh\n```";
+        let lines: Vec<usize> = extract_diagrams(&parse_document(bare), None)
+            .iter()
+            .map(|b| b.line)
+            .collect();
+        assert_eq!(lines, vec![2, 5]);
+        // Three frontmatter lines (`---`, `title: x`, `---`) shift every line.
+        let fm = format!("---\ntitle: x\n---\n{bare}");
+        let blocks = extract_diagrams(&parse_document(&fm), None);
+        let lines: Vec<usize> = blocks.iter().map(|b| b.line).collect();
+        assert_eq!(lines, vec![5, 8]);
+        for b in &blocks {
+            assert!(fm.split('\n').nth(b.line - 1).unwrap().starts_with("```"));
+        }
+        let slice = diagrams_from_content("p\n```mermaid\ng\n```", None);
+        assert_eq!(slice[0].line, 2);
+    }
+
+    #[trace("FR-010-AC-6")]
+    #[test]
+    fn closing_fence_must_match_character_and_length() {
+        let input =
+            "## A\n````mermaid\nx\n```\n~~~~\n```text\n## inner\n````\n## B\n```rust\ny\n```";
+        let blocks = extract_diagrams(&parse_document(input), None);
+        assert_eq!(blocks.len(), 2);
+        assert_eq!(blocks[0].source, "x\n```\n~~~~\n```text\n## inner");
+        assert_eq!(blocks[0].section.as_deref(), Some("A"));
+        assert_eq!(blocks[1].language, "rust");
+        assert_eq!(blocks[1].section.as_deref(), Some("B"));
+        // A longer closing run closes.
+        let longer = diagrams_from_content("```a\nx\n`````\nafter", None);
+        assert_eq!(longer.len(), 1);
+        assert_eq!(longer[0].source, "x");
+    }
+
+    #[trace("FR-010-AC-7")]
+    #[test]
+    fn fence_indent_up_to_three_spaces() {
+        let input = "   ```mermaid\na\n   ```\n    ```mermaid\nb\n    ```\n~~~mermaid\nc\n~~~\n``` x`y\nz\n```";
+        let blocks = diagrams_from_content(input, None);
+        let sources: Vec<&str> = blocks.iter().map(|b| b.source.as_str()).collect();
+        assert_eq!(sources, vec!["a", "c"]);
+        assert_eq!(blocks[1].line, 7);
+    }
+
+    #[trace("FR-010-AC-8")]
+    #[test]
+    fn language_is_read_after_the_whole_fence_and_index_counts_filtered() {
+        let input = "```rust\nr\n```\n````mermaid\nm1\n````\n~~~~mermaid\nm2\n~~~~";
+        let d = parse_document(input);
+        let m = extract_diagrams(&d, Some("mermaid"));
+        assert_eq!(m.len(), 2);
+        assert_eq!((m[0].index, m[0].line), (0, 4));
+        assert_eq!((m[1].index, m[1].line), (1, 7));
+        assert_eq!(extract_diagrams(&d, None)[2].index, 2);
     }
 
     // ─── search ─────────────────────────────────────────────────────────
