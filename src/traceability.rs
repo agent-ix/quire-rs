@@ -543,7 +543,7 @@ pub struct RequiredRelation {
     #[serde(rename = "where", skip_serializing_if = "Option::is_none")]
     pub selector: Option<WhereSelector>,
     /// Optional edge conditions narrowing the obligation to `from` documents
-    /// that have an edge matching at least one of them (FR-058-AC-23..28).
+    /// that have an edge matching at least one of them (FR-058-AC-30..35).
     /// Empty means no narrowing. Validated once, when the declaration is
     /// deserialized.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -610,7 +610,7 @@ pub enum EdgeSide {
     Incoming,
 }
 
-/// One condition of a `when_any` (FR-058-AC-23..28): the `from` document has
+/// One condition of a `when_any` (FR-058-AC-30..35): the `from` document has
 /// an edge of `verb`, on `side`, to or from a resolved document of one of the
 /// `other` kinds. Fields are private, so every value passed
 /// [`EdgeCondition::new`] validation.

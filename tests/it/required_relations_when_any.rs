@@ -1,4 +1,4 @@
-//! FR-058-AC-23..28 — the `when_any` edge-condition selector on a required
+//! FR-058-AC-30..35 — the `when_any` edge-condition selector on a required
 //! relation. Kinds, verbs and directions all come from manifests written here
 //! (FR-058-CON-4).
 
@@ -91,7 +91,7 @@ fn ids(report: &BundleReport, reason: &str) -> Vec<String> {
     v
 }
 
-#[trace("FR-058-AC-23")]
+#[trace("FR-058-AC-30")]
 #[test]
 fn tc_when_any_reports_only_in_scope_documents_lacking_the_edge() {
     let dir = module_with("23", WHEN_ANY);
@@ -111,7 +111,7 @@ fn tc_when_any_reports_only_in_scope_documents_lacking_the_edge() {
     fs::remove_dir_all(&dir).ok();
 }
 
-#[trace("FR-058-AC-24")]
+#[trace("FR-058-AC-31")]
 #[test]
 fn tc_a_document_in_scope_for_no_condition_is_never_reported() {
     let dir = module_with("24", WHEN_ANY);
@@ -133,7 +133,7 @@ fn tc_a_document_in_scope_for_no_condition_is_never_reported() {
     fs::remove_dir_all(&dir).ok();
 }
 
-#[trace("FR-058-AC-25")]
+#[trace("FR-058-AC-32")]
 #[test]
 fn tc_when_any_composes_with_where_and_exclude_by_intersection() {
     let dir = module_with(
@@ -161,7 +161,7 @@ fn tc_when_any_composes_with_where_and_exclude_by_intersection() {
     fs::remove_dir_all(&dir).ok();
 }
 
-#[trace("FR-058-AC-26")]
+#[trace("FR-058-AC-33")]
 #[test]
 fn tc_a_malformed_when_any_fails_module_load_naming_relation_and_when_any() {
     let bad = [
@@ -194,7 +194,7 @@ fn tc_a_malformed_when_any_fails_module_load_naming_relation_and_when_any() {
     }
 }
 
-#[trace("FR-058-AC-27")]
+#[trace("FR-058-AC-34")]
 #[test]
 fn tc_without_when_any_every_from_document_is_obliged_and_the_key_tunes_severity() {
     let root = tmpdir("27");
@@ -230,7 +230,7 @@ fn tc_without_when_any_every_from_document_is_obliged_and_the_key_tunes_severity
     fs::remove_dir_all(&scoped).ok();
 }
 
-#[trace("FR-058-AC-28")]
+#[trace("FR-058-AC-35")]
 #[test]
 fn tc_a_when_any_naming_a_dead_other_kind_reports_itself() {
     let dir = module_with(
