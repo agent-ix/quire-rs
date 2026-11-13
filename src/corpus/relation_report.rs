@@ -1,4 +1,4 @@
-//! Two-way relation coverage report (FR-084).
+//! Two-way relation coverage report.
 //!
 //! [`required_relations`](super::required_relations) reports a document that
 //! lacks a declared edge as an advisory finding. This module reads the same
@@ -7,8 +7,8 @@
 //!
 //! Nothing here is engine knowledge: no archetype, verb, field or value is
 //! written in this file. The rows exist because a module declared a
-//! `required_relations` entry, the `state` is the FR-058 satisfaction, and the
-//! verification is read from the FR-050 `coverage_matrix` the caller supplies.
+//! `required_relations` entry, the `state` is the declared-relation satisfaction, and the
+//! verification is read from the `coverage_matrix` the caller supplies.
 //! The report adds no declaration and no graph walk of its own, and writes
 //! nothing back to any document.
 
@@ -40,9 +40,6 @@ pub struct RelationReportMember<'a> {
 /// Why a relation report could not be produced.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum RelationReportError {
-    /// The loaded modules declare no `required_relations`.
-    #[error("no loaded module declares any required relation; there is nothing to report")]
-    NoRelationsDeclared,
     /// A named relation is declared by no loaded module.
     #[error("no loaded module declares required relation '{name}'")]
     UnknownRelation {
@@ -59,7 +56,7 @@ pub enum RelationReportError {
     },
 }
 
-/// A verification status (FR-084 "Verification status comes from the matrix").
+/// A verification status, derived from the `coverage_matrix`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum Verification {
@@ -73,7 +70,7 @@ pub enum Verification {
     NotTracked,
 }
 
-/// Whether the relation is satisfied for a row's document (FR-058).
+/// Whether the relation is satisfied for a row's document.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum RowState {
@@ -117,8 +114,9 @@ pub struct RowDocument {
     pub id: String,
     /// Path relative to the member's root.
     pub path: String,
-    /// The document's archetype.
-    pub archetype: String,
+    /// The document's archetype; absent for an untyped document.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub archetype: Option<String>,
     /// The member's declared identity, when it has one.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub repo: Option<String>,
@@ -137,34 +135,81 @@ pub struct RowSelector {
     pub value: serde_json::Value,
 }
 
+/// Whether a `linked` entry's counterpart is a loaded document.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum LinkResolution {
+    /// The counterpart resolved to a loaded document.
+    Resolved,
+    /// The counterpart is absent from the corpus.
+    Dangling,
+}
+
 /// A document on the other end of an accepted edge.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-#[serde(untagged)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LinkedEntry {
     /// The target or source resolved to a loaded document.
     Resolved {
         /// The counterpart document.
-        #[serde(flatten)]
         document: RowDocument,
         /// The accepted verb of the edge.
         verb: String,
-        /// Always `"resolved"`.
-        resolution: &'static str,
     },
     /// An accepted-verb edge whose target is absent, satisfying a relation
-    /// with `to: []`.
+    /// with `to: []`. It is never tracked: serialized `not-tracked` with zero
+    /// criteria.
     Dangling {
         /// The target as authored.
         reference: String,
         /// The accepted verb of the edge.
         verb: String,
-        /// Always `"dangling"`.
-        resolution: &'static str,
-        /// Always `not-tracked`.
-        verification: Verification,
-        /// Always zero.
-        criteria: Criteria,
     },
+}
+
+impl LinkedEntry {
+    /// Whether the counterpart resolved.
+    pub fn resolution(&self) -> LinkResolution {
+        match self {
+            Self::Resolved { .. } => LinkResolution::Resolved,
+            Self::Dangling { .. } => LinkResolution::Dangling,
+        }
+    }
+}
+
+impl Serialize for LinkedEntry {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        #[derive(Serialize)]
+        struct Resolved<'a> {
+            #[serde(flatten)]
+            document: &'a RowDocument,
+            verb: &'a str,
+            resolution: LinkResolution,
+        }
+        #[derive(Serialize)]
+        struct Dangling<'a> {
+            reference: &'a str,
+            verb: &'a str,
+            resolution: LinkResolution,
+            verification: Verification,
+            criteria: Criteria,
+        }
+        match self {
+            Self::Resolved { document, verb } => Resolved {
+                document,
+                verb,
+                resolution: LinkResolution::Resolved,
+            }
+            .serialize(serializer),
+            Self::Dangling { reference, verb } => Dangling {
+                reference,
+                verb,
+                resolution: LinkResolution::Dangling,
+                verification: Verification::NotTracked,
+                criteria: Criteria::default(),
+            }
+            .serialize(serializer),
+        }
+    }
 }
 
 /// An accepted-verb edge whose target is absent.
@@ -184,8 +229,9 @@ pub struct KindMismatchEntry {
     /// The target's member identity, when it has one.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub repo: Option<String>,
-    /// The target's archetype.
-    pub archetype: String,
+    /// The target's archetype; absent for an untyped document.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub archetype: Option<String>,
     /// The edge's verb.
     pub verb: String,
     /// The relation's `to` as declared.
@@ -206,7 +252,7 @@ pub struct RelationRow {
     /// Present only when the declaration has `where`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub selector: Option<RowSelector>,
-    /// FR-058 satisfaction.
+    /// Satisfaction of the declared relation.
     pub state: RowState,
     /// The aggregate over the row's tracked documents.
     pub verification: Verification,
@@ -267,14 +313,14 @@ pub struct RelationSection {
     pub rows: Vec<RelationRow>,
 }
 
-/// The two-way relation coverage report (FR-084).
+/// The two-way relation coverage report.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct RelationReport {
     /// One section per reported relation, in declaration order.
     pub relations: Vec<RelationSection>,
 }
 
-/// Implements: FR-084
+#[cfg_attr(test, ix_trace_rs::implements("FR-084"))]
 /// Produce the relation coverage report for `corpus`.
 ///
 /// `members` holds one input per corpus member, in member order. `names`
@@ -299,9 +345,6 @@ pub fn relation_report(
         .find(|n| !declared.iter().any(|r| &r.name == *n))
     {
         return Err(RelationReportError::UnknownRelation { name: name.clone() });
-    }
-    if declared.is_empty() {
-        return Err(RelationReportError::NoRelationsDeclared);
     }
     let model_exclude = ExcludeSet::compile_validated(model.map_or(&[][..], |m| &m.exclude));
     let standing: Vec<BTreeMap<String, Criteria>> =
@@ -405,7 +448,7 @@ impl Context<'_> {
         RowDocument {
             id: doc.id.clone(),
             path: relative_path(self.members[member].root, &doc.path),
-            archetype: doc.concept_type().unwrap_or("").to_string(),
+            archetype: doc.concept_type().map(str::to_string),
             repo: self.corpus.member_identity(member).map(str::to_string),
             verification: criteria.verification(),
             criteria,
@@ -450,7 +493,6 @@ impl Context<'_> {
                             LinkedEntry::Resolved {
                                 document: self.document(target),
                                 verb: edge.edge_type.clone(),
-                                resolution: "resolved",
                             },
                         );
                     }
@@ -461,7 +503,7 @@ impl Context<'_> {
                             KindMismatchEntry {
                                 id: corpus.doc(target).id.clone(),
                                 repo: corpus.member_identity(member).map(str::to_string),
-                                archetype: kind_of(target).to_string(),
+                                archetype: corpus.doc(target).concept_type().map(str::to_string),
                                 verb: edge.edge_type.clone(),
                                 accepted: relation.to.clone(),
                             },
@@ -493,7 +535,6 @@ impl Context<'_> {
                         LinkedEntry::Resolved {
                             document: self.document(edge.source_slot),
                             verb: edge.edge_type.clone(),
-                            resolution: "resolved",
                         },
                     );
                 }
@@ -510,9 +551,6 @@ impl Context<'_> {
                     .map(|(reference, verb)| LinkedEntry::Dangling {
                         reference: reference.clone(),
                         verb: verb.clone(),
-                        resolution: "dangling",
-                        verification: Verification::NotTracked,
-                        criteria: Criteria::default(),
                     }),
             );
         }

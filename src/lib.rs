@@ -139,9 +139,10 @@ pub use corpus::walk::{load_repo, load_repo_with, LoadedDocument, RepoLoad, Walk
 pub use corpus::{glossary_terms, glossary_terms_from_path, harvest_edges, Spec};
 // Two-way relation coverage report (FR-084).
 pub use corpus::{
-    relation_report, Criteria, DanglingEntry, KindMismatchEntry, LinkedEntry, RelationReport,
-    RelationReportError, RelationReportMember, RelationRow, RelationSection, RelationSummary,
-    RowDocument, RowSelector, RowState, StateCounts, Verification, VerificationCounts,
+    relation_report, Criteria, DanglingEntry, KindMismatchEntry, LinkResolution, LinkedEntry,
+    RelationReport, RelationReportError, RelationReportMember, RelationRow, RelationSection,
+    RelationSummary, RowDocument, RowSelector, RowState, StateCounts, Verification,
+    VerificationCounts,
 };
 // Bundle validation postures (OKF): strict archetype-conformance vs.
 // permissive foreign-bundle reading, plus index-completeness.

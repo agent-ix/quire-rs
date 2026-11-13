@@ -353,8 +353,8 @@ pub(crate) struct Obliged<'a> {
 }
 
 /// The documents `relation` obliges in the view `spec` sees: the `from` kind,
-/// then `where`, then `exclude`, in id order (FR-058). Shared by the finding
-/// check and the FR-084 report so the two select the same population.
+/// then `where`, then `exclude`, in id order. Shared by the finding
+/// check and the relation report so the two select the same population.
 pub(crate) fn obliged<'a>(
     spec: &'a Spec,
     relation: &RequiredRelation,
@@ -384,8 +384,8 @@ pub(crate) fn obliged<'a>(
     out
 }
 
-/// Whether the document at `slot` satisfies `relation` (FR-058). The one
-/// definition of satisfaction: the finding and the FR-084 `state` both read it.
+/// Whether the document at `slot` satisfies `relation`. The one
+/// definition of satisfaction: the finding and the report `state` both read it.
 pub(crate) fn is_satisfied(spec: &Spec, relation: &RequiredRelation, slot: usize) -> bool {
     let accepted_targets: BTreeSet<&str> = relation.to.iter().map(String::as_str).collect();
     let accepted_edges: BTreeSet<&str> = relation.edges.iter().map(String::as_str).collect();

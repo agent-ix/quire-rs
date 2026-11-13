@@ -1,4 +1,4 @@
-//! FR-084 — the two-way relation coverage report.
+//! The two-way relation coverage report.
 //!
 //! Every kind, verb and field below is authored in the fixture module
 //! (`tests/fixtures/traceability/relation-report`); the engine knows none.
@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 
 use ix_trace_rs::trace;
 use quire_rs::corpus::{
-    relation_report, validate_bundle, CorpusMember, LinkedEntry, RelationReport,
+    relation_report, validate_bundle, CorpusMember, LinkResolution, LinkedEntry, RelationReport,
     RelationReportError, RelationReportMember, RowState, Spec, Verification,
 };
 use quire_rs::coverage::{
@@ -94,7 +94,7 @@ fn repo(docs: &[(&str, String)], tagged: &[&str]) -> TempDir {
     dir
 }
 
-/// The real FR-050 matrix of `dir`, then the report over it.
+/// The real coverage matrix of `dir`, then the report over it.
 fn report_of(dir: &TempDir, registry: &Registry, names: &[&str]) -> RelationReport {
     let spec = Spec::from_path(&dir.path().join("spec"));
     let model = registry.traceability().cloned().unwrap_or_default();
@@ -256,17 +256,13 @@ fn linked_lists_accepted_counterparts_ordered_and_skips_other_verbs() {
     let report = report_over(&dir, &module("relation-report"), &matrix);
     let r = row(&report, "concern-is-addressed", "CON-001");
     assert_eq!(linked_ids(r), vec!["RULE-001", "RULE-002"]);
-    let LinkedEntry::Resolved {
-        document,
-        verb,
-        resolution,
-    } = &r.linked[1]
-    else {
+    let LinkedEntry::Resolved { document, verb } = &r.linked[1] else {
         panic!("resolved entry")
     };
-    assert_eq!(document.archetype, "Rule");
+    assert_eq!(r.linked[1].resolution(), LinkResolution::Resolved);
+    assert_eq!(document.archetype.as_deref(), Some("Rule"));
     assert_eq!(document.verification, Verification::Unverified);
-    assert_eq!((verb.as_str(), *resolution), ("addresses", "resolved"));
+    assert_eq!(verb, "addresses");
 }
 
 #[trace("FR-084-AC-3")]
@@ -568,65 +564,145 @@ fn an_empty_selection_has_a_zero_summary_and_counts_sum_to_the_rows() {
     );
 }
 
-#[trace("FR-084-AC-12")]
-#[test]
-fn serialization_is_byte_identical_in_the_stated_key_order() {
-    let dir = repo(
+/// Two members holding every serialized shape: a selector row with a resolved
+/// cross-member link, a dangling edge and a kind mismatch; forward rows from
+/// both members; open-relation links (resolved, untyped, dangling).
+fn two_member_corpus() -> (TempDir, TempDir, Spec) {
+    let a = repo(
         &[
-            ("CON-001", concern("CON-001", &[])),
             (
                 "RULE-001",
-                rule("RULE-001", Some("Gold"), &[("addresses", "CON-001")], &[]),
+                rule(
+                    "RULE-001",
+                    Some("Gold"),
+                    &[
+                        ("addresses", "ix://o/b/spec/CON-001"),
+                        ("addresses", "ghost"),
+                        ("addresses", "RULE-002"),
+                    ],
+                    &[],
+                ),
+            ),
+            ("RULE-002", rule("RULE-002", None, &[], &[])),
+            ("CON-009", concern("CON-009", &[])),
+            (
+                "MEMO-001",
+                simple(
+                    "MEMO-001",
+                    "Memo",
+                    &[
+                        ("cites", "ghost-b"),
+                        ("cites", "ghost-a"),
+                        ("cites", "ix://o/b/spec/UNT-001"),
+                        ("cites", "ix://o/b/spec/CON-001"),
+                    ],
+                ),
             ),
         ],
         &[],
     );
-    let matrix = [entry("RULE-001", &[S::Tagged])];
-    let first = serde_json::to_string(&report_over(&dir, &module("relation-report"), &matrix))
-        .expect("json");
-    let second = serde_json::to_string(&report_over(&dir, &module("relation-report"), &matrix))
-        .expect("json");
-    assert_eq!(first, second);
+    let b = repo(
+        &[
+            ("CON-001", concern("CON-001", &[])),
+            (
+                "RULE-005",
+                rule("RULE-005", None, &[("addresses", "CON-001")], &[]),
+            ),
+            (
+                "UNT-001",
+                "---\nid: UNT-001\ntitle: untyped\n---\n\n# UNT-001\n".into(),
+            ),
+        ],
+        &[],
+    );
+    let corpus = Spec::from_members(
+        [(&a, "o/a"), (&b, "o/b")]
+            .iter()
+            .map(|(d, id)| CorpusMember {
+                identity: Some((*id).to_string()),
+                load: quire_rs::corpus::walk::load_repo(&d.path().join("spec")),
+            })
+            .collect(),
+    )
+    .expect("corpus");
+    (a, b, corpus)
+}
 
-    let in_order = |keys: &[&str]| {
-        let mut at = 0;
-        for key in keys {
-            let found = first[at..]
-                .find(&format!("\"{key}\":"))
-                .unwrap_or_else(|| panic!("`{key}` missing or out of order after {at}"));
-            at += found + key.len();
-        }
+#[trace("FR-084-AC-12")]
+#[trace("FR-084-AC-2")]
+#[test]
+fn serialization_is_exactly_the_stated_shape_and_order_across_members() {
+    let (a, b, corpus) = two_member_corpus();
+    let matrix = [entry("RULE-001", &[S::Tagged])];
+    let render = || {
+        let report = relation_report(
+            &corpus,
+            &module("relation-report"),
+            &[
+                RelationReportMember {
+                    root: a.path(),
+                    matrix: &matrix,
+                },
+                RelationReportMember {
+                    root: b.path(),
+                    matrix: &[],
+                },
+            ],
+            &[],
+        )
+        .expect("report");
+        serde_json::to_string(&report).expect("json")
     };
-    in_order(&["relations", "name", "check", "direction", "summary", "rows"]);
-    in_order(&["rows", "state", "verification", "not-tracked"]);
-    // A row, in order, from its first key.
-    let gold = first
-        .find("\"relation\":\"gold-rule-addresses\"")
-        .expect("row");
-    let row = &first[gold..];
-    let mut at = 0;
-    for key in [
-        "relation",
-        "check",
-        "direction",
-        "document",
-        "selector",
-        "state",
-        "verification",
-        "linked",
-        "dangling",
-        "kind_mismatch",
-    ] {
-        at += row[at..]
-            .find(&format!("\"{key}\":"))
-            .unwrap_or_else(|| panic!("{key}"))
-            + key.len();
-    }
-    assert!(first.contains("\"selector\":{\"field\":\"tier\",\"value\":\"Gold\"}"));
-    assert!(first.contains(
-        "\"summary\":{\"rows\":0,\"state\":{\"uncovered\":0,\"covered\":0},\"verification\":{\"verified\":0,\"partial\":0,\"unverified\":0,\"not-tracked\":0}}"
-    ));
-    assert!(first.contains("\"criteria\":{\"backed\":1,\"unbacked\":0,\"not_measured\":0}"));
+    let first = render();
+    assert_eq!(first, render(), "byte-identical across runs");
+    assert_eq!(first, EXPECTED_TWO_MEMBER_JSON);
+}
+
+const EXPECTED_TWO_MEMBER_JSON: &str = r#"{"relations":[{"name":"concern-is-addressed","check":"unaddressed-concern","direction":"incoming","summary":{"rows":2,"state":{"uncovered":1,"covered":1},"verification":{"verified":1,"partial":0,"unverified":0,"not-tracked":1}},"rows":[{"relation":"concern-is-addressed","check":"unaddressed-concern","direction":"incoming","document":{"id":"CON-009","path":"spec/CON-009.md","archetype":"Concern","repo":"o/a","verification":"not-tracked","criteria":{"backed":0,"unbacked":0,"not_measured":0}},"state":"uncovered","verification":"not-tracked","linked":[],"dangling":[],"kind_mismatch":[]},{"relation":"concern-is-addressed","check":"unaddressed-concern","direction":"incoming","document":{"id":"CON-001","path":"spec/CON-001.md","archetype":"Concern","repo":"o/b","verification":"not-tracked","criteria":{"backed":0,"unbacked":0,"not_measured":0}},"state":"covered","verification":"verified","linked":[{"id":"RULE-001","path":"spec/RULE-001.md","archetype":"Rule","repo":"o/a","verification":"verified","criteria":{"backed":1,"unbacked":0,"not_measured":0},"verb":"addresses","resolution":"resolved"},{"id":"RULE-005","path":"spec/RULE-005.md","archetype":"Rule","repo":"o/b","verification":"not-tracked","criteria":{"backed":0,"unbacked":0,"not_measured":0},"verb":"addresses","resolution":"resolved"}],"dangling":[],"kind_mismatch":[]}]},{"name":"gold-rule-addresses","check":"gold-rule-idle","direction":"outgoing","summary":{"rows":1,"state":{"uncovered":0,"covered":1},"verification":{"verified":1,"partial":0,"unverified":0,"not-tracked":0}},"rows":[{"relation":"gold-rule-addresses","check":"gold-rule-idle","direction":"outgoing","document":{"id":"RULE-001","path":"spec/RULE-001.md","archetype":"Rule","repo":"o/a","verification":"verified","criteria":{"backed":1,"unbacked":0,"not_measured":0}},"selector":{"field":"tier","value":"Gold"},"state":"covered","verification":"verified","linked":[{"id":"CON-001","path":"spec/CON-001.md","archetype":"Concern","repo":"o/b","verification":"not-tracked","criteria":{"backed":0,"unbacked":0,"not_measured":0},"verb":"addresses","resolution":"resolved"}],"dangling":[{"reference":"ghost","verb":"addresses"}],"kind_mismatch":[{"id":"RULE-002","repo":"o/a","archetype":"Rule","verb":"addresses","accepted":["Concern"]}]}]},{"name":"memo-cites","check":"memo-uncited","direction":"outgoing","summary":{"rows":1,"state":{"uncovered":0,"covered":1},"verification":{"verified":0,"partial":0,"unverified":0,"not-tracked":1}},"rows":[{"relation":"memo-cites","check":"memo-uncited","direction":"outgoing","document":{"id":"MEMO-001","path":"spec/MEMO-001.md","archetype":"Memo","repo":"o/a","verification":"not-tracked","criteria":{"backed":0,"unbacked":0,"not_measured":0}},"state":"covered","verification":"not-tracked","linked":[{"id":"CON-001","path":"spec/CON-001.md","archetype":"Concern","repo":"o/b","verification":"not-tracked","criteria":{"backed":0,"unbacked":0,"not_measured":0},"verb":"cites","resolution":"resolved"},{"id":"UNT-001","path":"spec/UNT-001.md","repo":"o/b","verification":"not-tracked","criteria":{"backed":0,"unbacked":0,"not_measured":0},"verb":"cites","resolution":"resolved"},{"reference":"ghost-a","verb":"cites","resolution":"dangling","verification":"not-tracked","criteria":{"backed":0,"unbacked":0,"not_measured":0}},{"reference":"ghost-b","verb":"cites","resolution":"dangling","verification":"not-tracked","criteria":{"backed":0,"unbacked":0,"not_measured":0}}],"dangling":[{"reference":"ghost-a","verb":"cites"},{"reference":"ghost-b","verb":"cites"}],"kind_mismatch":[]}]},{"name":"note-cites-rule","check":"note-uncited","direction":"outgoing","summary":{"rows":0,"state":{"uncovered":0,"covered":0},"verification":{"verified":0,"partial":0,"unverified":0,"not-tracked":0}},"rows":[]}]}"#;
+
+#[trace("FR-084-AC-18")]
+#[test]
+fn a_module_declaring_no_relation_yields_an_empty_report() {
+    let dir = repo(&[("CON-001", concern("CON-001", &[]))], &[]);
+    let spec = Spec::from_path(&dir.path().join("spec"));
+    let report = relation_report(
+        &spec,
+        &module("iso-obligations"),
+        &[RelationReportMember {
+            root: dir.path(),
+            matrix: &[],
+        }],
+        &[],
+    )
+    .expect("an empty set of relations is not an error");
+    assert_eq!(
+        serde_json::to_string(&report).expect("json"),
+        "{\"relations\":[]}"
+    );
+}
+
+#[trace("FR-084-AC-19")]
+#[test]
+fn a_member_input_count_that_differs_from_the_corpus_is_an_error() {
+    let (a, _b, corpus) = two_member_corpus();
+    let err = relation_report(
+        &corpus,
+        &module("relation-report"),
+        &[RelationReportMember {
+            root: a.path(),
+            matrix: &[],
+        }],
+        &[],
+    )
+    .expect_err("one input for two members");
+    assert_eq!(
+        err,
+        RelationReportError::MemberCount {
+            members: 2,
+            supplied: 1
+        }
+    );
+    assert!(err.to_string().contains('2') && err.to_string().contains('1'));
 }
 
 #[trace("FR-084-AC-13")]
@@ -771,7 +847,7 @@ fn dangling_edges_satisfy_an_open_relation_and_never_a_constrained_one() {
     assert!(wrong.linked.is_empty());
     assert_eq!(wrong.kind_mismatch.len(), 1);
     assert_eq!(wrong.kind_mismatch[0].id, "CON-001");
-    assert_eq!(wrong.kind_mismatch[0].archetype, "Concern");
+    assert_eq!(wrong.kind_mismatch[0].archetype.as_deref(), Some("Concern"));
     assert_eq!(wrong.kind_mismatch[0].accepted, vec!["Rule".to_string()]);
 
     // FR-058 agrees with the states.
