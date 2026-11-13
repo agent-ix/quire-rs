@@ -16,7 +16,7 @@ use std::ops::Range;
 use std::path::Path;
 use std::sync::Arc;
 
-use crate::corpus::resolve::{resolve, Edge, Index};
+use crate::corpus::resolve::{ix_authority, resolve, Edge, Index};
 use crate::corpus::walk::{load_repo, LoadedDocument, RepoLoad};
 use crate::corpus::ArtifactId;
 use crate::diagnostic::Diagnostic;
@@ -341,6 +341,31 @@ impl Spec {
         Spec {
             inner: Arc::clone(&self.inner),
             scope: Some(member),
+        }
+    }
+
+    /// The slots of the documents member `member` holds.
+    pub(crate) fn member_slots(&self, member: usize) -> Range<usize> {
+        self.inner.members[member].slots.clone()
+    }
+
+    /// The member an authored reference `raw`, harvested from a document of
+    /// `source_member`, is looked up in (FR-085): the member declaring the
+    /// `ix://<org>/<repo>/` authority when members declare identities, the
+    /// source's own member otherwise. `None` when the authority names no
+    /// loaded member. Mirrors the lookup `resolve` makes.
+    pub(crate) fn reference_member(&self, source_member: usize, raw: &str) -> Option<usize> {
+        let identity_mode = self.inner.members.iter().any(|m| m.identity.is_some());
+        if !identity_mode {
+            return Some(0);
+        }
+        match ix_authority(raw) {
+            Some(authority) => self
+                .inner
+                .identities
+                .get(&fold_identity(&authority))
+                .copied(),
+            None => Some(source_member),
         }
     }
 

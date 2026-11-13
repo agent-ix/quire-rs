@@ -423,6 +423,11 @@ pub struct TraceabilityModel {
     /// states nothing, and no per-document check can see it.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub acyclic_edges: Vec<String>,
+    /// Names of the `required_relations` entries the design-element join
+    /// reports, in order (FR-086). Each names a relation another module may
+    /// declare, so the names are checked against the merged model, not here.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub design_relations: Vec<String>,
     /// Declared vocabularies whose values documents are expected to claim
     /// (FR-059). Empty means the module declares none and the check is a
     /// no-op, the same shape every other declaration in this model uses.
@@ -1495,6 +1500,7 @@ impl TraceabilityModel {
             // of "declared nothing", not a summary of it.
             && self.required_relations.is_empty()
             && self.acyclic_edges.is_empty()
+            && self.design_relations.is_empty()
             && self.vocabulary_coverage.is_empty()
         // CR-085: `source_exclude` is deliberately **absent** from this list,
         // mirroring the model-level `exclude` two fields above it. Both state
@@ -1840,6 +1846,26 @@ impl TraceabilityModel {
                 "exclude",
                 &relation.exclude,
             )?;
+        }
+
+        // FR-086-AC-10: a blank or repeated entry cannot name a relation, so it
+        // fails at load against the declaration. Whether a non-blank entry names
+        // a declared relation waits for the merged model, because the relation
+        // may come from another module.
+        let mut design_names: BTreeSet<&str> = BTreeSet::new();
+        for entry in &self.design_relations {
+            if entry.trim().is_empty() {
+                return Err(
+                    "traceability: design_relations contains a blank entry, which names no \
+                     required relation"
+                        .to_string(),
+                );
+            }
+            if !design_names.insert(entry.as_str()) {
+                return Err(format!(
+                    "traceability: design_relations lists '{entry}' twice"
+                ));
+            }
         }
 
         // An empty verb here would make `check_acyclic` walk a graph keyed on

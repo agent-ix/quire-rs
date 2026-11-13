@@ -9,6 +9,19 @@ bumps; once 1.0 ships, semver is strict.
 
 ### Added
 
+- PLAT-1418 (FR-086, FR-058 CR-416/417, FR-038 CR-418): the design-element join.
+  A module's `traceability.design_relations` names `required_relations`
+  entries, and `design_join` returns the FR-084 report for those relations in
+  that order, one row per obliged document, an `uncovered` row when nothing
+  realizes it, and `realized_criteria` on each resolved `linked` entry. Relation
+  matching now reads an edge authored with the counterpart label of a listed
+  verb from the opposite end (through the registry inverse index, a pair
+  counted once), and reads a dangling edge to a criterion id minted by one
+  document of the target member (a trace target named by an `obligations:`
+  source) as an edge to that document; such an edge draws no
+  `dangling-reference`. A blank or repeated `design_relations` entry fails
+  module load, and an entry naming no declared relation reports under
+  `trace:undeclared-relation-vocabulary` and fails the join.
 - PLAT-1554 (FR-084): the two-way relation coverage report. `relation_report`
   produces, for every declared `required_relations` entry, one row per obliged
   document with its `state` (FR-058 satisfaction), the documents linked to it,

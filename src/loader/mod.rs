@@ -1613,6 +1613,12 @@ fn merge_traceability(modules: &[LoadedModule]) -> crate::traceability::Traceabi
                 merged.acyclic_edges.push(verb.clone());
             }
         }
+        // FR-086: the design relations merge in module order without duplicates.
+        for name in &m.design_relations {
+            if !merged.design_relations.contains(name) {
+                merged.design_relations.push(name.clone());
+            }
+        }
         // FR-059: first-wins by name, like every other named entry.
         for coverage in &m.vocabulary_coverage {
             if !merged

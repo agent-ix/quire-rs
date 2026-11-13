@@ -21,7 +21,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
 use super::declared_tables::ExcludeSet;
-use super::resolve::Resolution;
+use super::relation_edges::{CriterionIndex, RelationEdges};
 use super::spec::Spec;
 use super::validate::{pack, BundleFinding, BundleReport};
 use super::vocabulary_coverage::{declares_property, enum_at};
@@ -49,12 +49,16 @@ pub(crate) fn validate_required_relations(
     spec: &Spec,
     registry: &Registry,
     root: &Path,
+    criteria: &CriterionIndex,
     report: &mut BundleReport,
 ) {
     let Some(model) = registry.traceability() else {
         return;
     };
-    if model.required_relations.is_empty() && model.acyclic_edges.is_empty() {
+    if model.required_relations.is_empty()
+        && model.acyclic_edges.is_empty()
+        && model.design_relations.is_empty()
+    {
         return;
     }
 
@@ -67,7 +71,23 @@ pub(crate) fn validate_required_relations(
 
     for relation in &model.required_relations {
         check_declaration_is_live(spec, registry, relation, root, &mut findings);
-        check_relation(spec, relation, root, &model_exclude, &mut findings);
+        let edges = RelationEdges::new(spec, registry, criteria, relation);
+        check_relation(spec, &edges, relation, root, &model_exclude, &mut findings);
+    }
+    // FR-086-AC-10: a design relation no loaded module declares names nothing
+    // for the join to report.
+    for entry in &model.design_relations {
+        if !model.required_relations.iter().any(|r| &r.name == entry) {
+            findings.push((
+                root.to_path_buf(),
+                String::new(),
+                "undeclared-relation-vocabulary".to_string(),
+                format!(
+                    "design_relations entry '{entry}' names no required relation declared by any \
+                     loaded module, so the design-element join cannot report it"
+                ),
+            ));
+        }
     }
     for verb in &model.acyclic_edges {
         check_acyclic(spec, verb, &mut findings);
@@ -223,6 +243,7 @@ fn check_selector_is_live(
 /// Every document of `relation.from` that lacks the declared edge.
 fn check_relation(
     spec: &Spec,
+    edges: &RelationEdges,
     relation: &RequiredRelation,
     root: &Path,
     model_exclude: &ExcludeSet,
@@ -237,33 +258,35 @@ fn check_relation(
     let check = relation.check.clone();
 
     let accepted_targets: BTreeSet<&str> = relation.to.iter().map(String::as_str).collect();
-    let accepted_edges: BTreeSet<&str> = relation.edges.iter().map(String::as_str).collect();
 
     for Obliged { slot, value } in obliged(spec, relation, root, model_exclude) {
         let doc = spec.doc(slot);
         // The authored value is kept for the finding text (AC-20).
         let selected_value = value.and_then(serde_json::Value::as_str);
-        let outgoing = spec.edges_from(slot);
-        // An accepted-verb edge from this document to a resolved target of a
-        // kind outside a non-empty `to` never satisfies the relation, and is
-        // reported whether or not the relation is otherwise satisfied.
+        let seen = edges.matches(relation.direction, slot);
+        // A listed-verb edge from this document to a resolved target of a kind
+        // outside a non-empty `to` never satisfies the relation, and is
+        // reported whether or not the relation is otherwise satisfied. Only the
+        // obliged document's own outgoing reading names a mismatch: under
+        // `incoming` a wrong-kind source simply leaves the relation
+        // unsatisfied (FR-085-AC-25).
         if !accepted_targets.is_empty() && relation.direction != RelationDirection::Incoming {
-            for edge in outgoing
-                .iter()
-                .filter(|e| accepted_edges.contains(e.edge_type.as_str()))
-            {
-                let Some(target) = edge.target_slot.map(|t| spec.doc(t)) else {
+            for found in seen.iter().filter(|m| m.outgoing) {
+                let Some(target) = found.counterpart else {
                     continue;
                 };
-                let actual = target.concept_type().unwrap_or("");
+                let actual = spec.doc(target).concept_type().unwrap_or("");
                 if accepted_targets.contains(actual) {
                     continue;
                 }
-                let reference = match &edge.target_repo {
-                    Some(repo) if edge.target_repo != edge.source_repo => {
-                        format!("{repo}:{}", edge.target)
+                let reading = found.reading;
+                // Qualified by the member only when the target lives in another.
+                let target_repo = spec.member_identity(spec.member_of(target));
+                let reference = match target_repo {
+                    Some(repo) if target_repo != spec.member_identity(spec.member_of(slot)) => {
+                        format!("{repo}:{}", reading.authored)
                     }
-                    _ => edge.target.clone(),
+                    _ => reading.authored.clone(),
                 };
                 out.push((
                     doc.path.clone(),
@@ -273,7 +296,7 @@ fn check_relation(
                         "'{}' has a '{}' edge to '{reference}' of archetype '{}', outside the \
                          accepted {} — declared by '{}'; the edge does not satisfy the relation",
                         doc.id,
-                        edge.edge_type,
+                        reading.verb,
                         if actual.is_empty() {
                             "(untyped)"
                         } else {
@@ -285,7 +308,7 @@ fn check_relation(
                 ));
             }
         }
-        let satisfied = is_satisfied(spec, relation, slot);
+        let satisfied = is_satisfied(spec, edges, relation, slot);
         if satisfied {
             continue;
         }
@@ -314,24 +337,20 @@ fn check_relation(
                 doc.id, relation.name
             ),
         };
-        // A dangling reference never satisfies the relation; name each one as
-        // authored so the author can see which target is missing (FR-085).
-        if relation.direction != RelationDirection::Incoming {
-            let dangling: BTreeSet<&str> = outgoing
-                .iter()
-                .filter(|e| {
-                    e.resolution == Resolution::Dangling
-                        && accepted_edges.contains(e.edge_type.as_str())
-                })
-                .flat_map(|e| e.references.iter().map(String::as_str))
-                .collect();
-            if !dangling.is_empty() {
-                let named: Vec<String> = dangling.iter().map(|r| format!("'{r}'")).collect();
-                message.push_str(&format!(
-                    ", dangling reference {} not in the corpus",
-                    named.join(", ")
-                ));
-            }
+        // A dangling reference never satisfies a relation whose `to` is
+        // constrained; name each one as authored so the author can see which
+        // target is missing (FR-085).
+        let dangling: BTreeSet<&str> = seen
+            .iter()
+            .filter(|m| m.counterpart.is_none())
+            .filter_map(|m| m.reading.reference.as_deref())
+            .collect();
+        if !dangling.is_empty() {
+            let named: Vec<String> = dangling.iter().map(|r| format!("'{r}'")).collect();
+            message.push_str(&format!(
+                ", dangling reference {} not in the corpus",
+                named.join(", ")
+            ));
         }
         if let (Some(sel), Some(value)) = (relation.selector.as_ref(), selected_value) {
             message.push_str(&format!(
@@ -386,26 +405,17 @@ pub(crate) fn obliged<'a>(
 
 /// Whether the document at `slot` satisfies `relation`. The one
 /// definition of satisfaction: the finding and the report `state` both read it.
-pub(crate) fn is_satisfied(spec: &Spec, relation: &RequiredRelation, slot: usize) -> bool {
+pub(crate) fn is_satisfied(
+    spec: &Spec,
+    edges: &RelationEdges,
+    relation: &RequiredRelation,
+    slot: usize,
+) -> bool {
     let accepted_targets: BTreeSet<&str> = relation.to.iter().map(String::as_str).collect();
-    let accepted_edges: BTreeSet<&str> = relation.edges.iter().map(String::as_str).collect();
-    let has_outgoing = || {
-        spec.edges_from(slot).iter().any(|e| {
-            accepted_edges.contains(e.edge_type.as_str())
-                && target_is_accepted(spec, e.target_slot, &accepted_targets)
-        })
-    };
-    let has_incoming = || {
-        spec.edges_to(slot).iter().any(|e| {
-            accepted_edges.contains(e.edge_type.as_str())
-                && target_is_accepted(spec, Some(e.source_slot), &accepted_targets)
-        })
-    };
-    match relation.direction {
-        RelationDirection::Outgoing => has_outgoing(),
-        RelationDirection::Incoming => has_incoming(),
-        RelationDirection::Either => has_outgoing() || has_incoming(),
-    }
+    edges
+        .matches(relation.direction, slot)
+        .iter()
+        .any(|m| target_is_accepted(spec, m.counterpart, &accepted_targets))
 }
 
 /// Whether the document at the other end of an edge is an accepted kind.

@@ -460,7 +460,7 @@ pub(crate) fn extract_target_id(target: &str) -> &str {
 /// case-insensitive, FR-038-AC-10). Only a URI with a third segment names a repo
 /// that way; `ix://<org>/<id>` has no repo segment, so it has no authority.
 /// `None` for a bare id.
-fn ix_authority(target: &str) -> Option<String> {
+pub(crate) fn ix_authority(target: &str) -> Option<String> {
     let rest = target.strip_prefix("ix://")?;
     let mut segments = rest.split('/').filter(|s| !s.is_empty());
     let (org, repo) = (segments.next()?, segments.next()?);
