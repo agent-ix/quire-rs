@@ -50,7 +50,7 @@ edge_types:
   realizes: { description: realizes, category: realization }
   classifies: { description: classifies, category: traceability }
 roles:
-  domain-object: Domain object
+  domain-object: { description: a business-model type }
 "#;
     let mut schemas = std::collections::BTreeMap::new();
     schemas.insert(
