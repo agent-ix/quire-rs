@@ -22,7 +22,7 @@ use crate::query::{self, ListPattern};
 /// [`glossary_terms_from_path`], which never loads the whole corpus.
 pub fn glossary_terms(spec: &Spec) -> Vec<String> {
     let mut terms: Vec<String> = Vec::new();
-    for doc in &spec.inner.documents {
+    for doc in spec.documents() {
         // Same cheap pre-filter as the path harvester (CR-047): only a
         // glossary-bearing document pays for a body parse, so
         // `validate_bundle` does not force every body in the corpus.

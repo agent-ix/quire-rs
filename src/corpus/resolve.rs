@@ -11,17 +11,19 @@
 
 use std::collections::btree_map::Entry;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::ops::Range;
 use std::path::{Component, Path, PathBuf};
 
 use regex::Regex;
 
-use crate::corpus::spec::artifact_key;
+use crate::corpus::spec::{artifact_key, fold_identity};
 use crate::corpus::walk::LoadedDocument;
 use crate::corpus::ArtifactId;
 use crate::diagnostic::Diagnostic;
 
 /// A resolved or dangling reference between two artifacts.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
+#[non_exhaustive]
 pub struct Edge {
     /// Source artifact id (the document the reference was harvested from).
     pub source: ArtifactId,
@@ -35,9 +37,40 @@ pub struct Edge {
     /// Sorted, deduplicated `<org>/<repo>` authorities of the `ix://`
     /// spellings of a target that did not resolve in this corpus. Empty for
     /// resolved edges and for targets also spelled as a bare id. Lets a
-    /// consumer tell a foreign-repo reference from a broken local one.
+    /// consumer tell a foreign-repo reference from a broken local one. In a
+    /// corpus whose members declare identities, an authority naming a loaded
+    /// member is not listed: that repository is visible, so a miss there is
+    /// genuinely dangling.
     pub authorities: Vec<String>,
+    /// Identity of the source document's member, when it declares one.
+    pub source_repo: Option<String>,
+    /// Identity of the resolved target's member, when resolved and declared.
+    pub target_repo: Option<String>,
+    /// Sorted, deduplicated spellings of the target as authored, so a report
+    /// can name a dangling reference exactly.
+    pub references: Vec<String>,
+    /// Corpus slot of the source document.
+    pub(crate) source_slot: usize,
+    /// Corpus slot of the resolved target document.
+    pub(crate) target_slot: Option<usize>,
 }
+
+/// Equality is over the public fields: two edges that read alike are equal
+/// whatever slots their corpora gave the documents.
+impl PartialEq for Edge {
+    fn eq(&self, other: &Self) -> bool {
+        self.source == other.source
+            && self.target == other.target
+            && self.edge_type == other.edge_type
+            && self.resolution == other.resolution
+            && self.authorities == other.authorities
+            && self.source_repo == other.source_repo
+            && self.target_repo == other.target_repo
+            && self.references == other.references
+    }
+}
+
+impl Eq for Edge {}
 
 /// Whether an [`Edge`]'s target was found in the corpus.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -46,130 +79,223 @@ pub enum Resolution {
     Dangling,
 }
 
+/// What [`resolve`] reads: the corpus indices built before resolution.
+pub(crate) struct Index<'a> {
+    pub documents: &'a [LoadedDocument],
+    /// Document slot → member.
+    pub member_of: &'a [usize],
+    pub member_count: usize,
+    /// Per member: artifact key → slot.
+    pub ids: &'a [HashMap<ArtifactId, usize>],
+    /// ASCII-folded member identity → member.
+    pub identities: &'a BTreeMap<String, usize>,
+    /// Whether members declare identities. When they do an `ix://<org>/<repo>/`
+    /// target is looked up in the member with that identity; when they do not
+    /// (a one-member corpus) it resolves lexically by its trailing id.
+    pub identity_mode: bool,
+    /// Per member: its declared identity as given.
+    pub declared: &'a [Option<std::sync::Arc<str>>],
+}
+
 /// Output of [`resolve`]: the edge set + forward/reverse indices +
 /// dangling diagnostics.
 pub(crate) struct ResolveOutput {
+    /// Edges grouped by source member, sorted within a member.
     pub edges: Vec<Edge>,
-    /// source id → edge slots (includes dangling).
-    pub outgoing: BTreeMap<ArtifactId, Vec<usize>>,
-    /// target id → edge slots (resolved only — dangling has no target doc).
-    pub incoming: BTreeMap<ArtifactId, Vec<usize>>,
+    /// Per member: its range in `edges`.
+    pub edge_spans: Vec<Range<usize>>,
+    /// source slot → edge slots (includes dangling).
+    pub outgoing: BTreeMap<usize, Vec<usize>>,
+    /// target slot → edge slots (resolved only — dangling has no target doc).
+    pub incoming: BTreeMap<usize, Vec<usize>>,
     pub diagnostics: Vec<Diagnostic>,
 }
 
-/// Resolve every reference in `documents` against `by_id`. Deterministic
-/// (stubs are collected into a sorted set before edges are built).
-pub(crate) fn resolve(
-    documents: &[LoadedDocument],
-    by_id: &HashMap<ArtifactId, usize>,
-) -> ResolveOutput {
+/// Sort key of a harvested reference: source member, source id, target id,
+/// edge type, then the resolved target's slot (`None` while dangling). Two
+/// members holding one id stay distinct targets.
+type StubKey = (usize, ArtifactId, ArtifactId, String, Option<usize>);
+
+/// What the spellings that collapsed into one stub carried.
+struct StubInfo {
+    /// Unloaded foreign authorities of the spellings; `None` once a spelling
+    /// claims the target visible (a bare id, or an authority naming a loaded
+    /// member).
+    authorities: Option<BTreeSet<String>>,
+    /// The spellings as authored.
+    references: BTreeSet<String>,
+}
+
+/// Resolve every reference in `ix.documents`. Deterministic (stubs are
+/// collected into a sorted map before edges are built).
+pub(crate) fn resolve(ix: &Index<'_>) -> ResolveOutput {
     let ix_link = ix_link_regex();
     let md_link = md_link_regex();
 
-    // Path→id index over the loaded set: the normalized on-disk path of
-    // each document maps to its artifact id. Internal relative-path links
-    // (ADR 0007) resolve through this (FR-026-AC-9).
-    let by_path = build_path_index(documents);
+    // Path→id index per member: the normalized on-disk path of each document
+    // maps to its artifact id. Internal relative-path links (ADR 0007) resolve
+    // through the source's own member (FR-026-AC-9, FR-085-AC-8).
+    let by_path = build_path_index(ix);
 
     // Harvest into a sorted, deduplicated stub map: identical
     // (source, target, type) triples from any source collapse to one
-    // (FR-026-AC-8/AC-11); same-pair-different-type stay distinct. The value
-    // is the set of foreign authorities of an unresolved target (`None` once a
-    // bare id claims it local); it never takes part in the key, so one absent
-    // target written several ways is still one edge.
-    let mut stubs: BTreeMap<(ArtifactId, ArtifactId, String), Option<BTreeSet<String>>> =
-        BTreeMap::new();
-    let mut add_target =
-        |source: &ArtifactId, target: &str, authority: Option<String>, edge_type: String| {
-            let authority = authority.map(|a| BTreeSet::from([a]));
-            match stubs.entry((source.clone(), target.to_string(), edge_type)) {
+    // (FR-026-AC-8/AC-11); same-pair-different-type stay distinct.
+    let mut stubs: BTreeMap<StubKey, StubInfo> = BTreeMap::new();
+    for (slot, doc) in ix.documents.iter().enumerate() {
+        let member = ix.member_of[slot];
+        let source = artifact_key(doc);
+        let mut add = |reference: Reference, edge_type: String| {
+            let (target, target_slot, authority) = locate(ix, member, &reference);
+            let info = StubInfo {
+                authorities: authority.map(|a| BTreeSet::from([a])),
+                references: BTreeSet::from([reference.raw.clone()]),
+            };
+            match stubs.entry((member, source.clone(), target, edge_type, target_slot)) {
                 Entry::Vacant(v) => {
-                    v.insert(authority);
+                    v.insert(info);
                 }
-                // A bare-id spelling claims the target is local, so it wins;
-                // ix:// spellings accumulate every authority, which the
-                // consumer compares with its own package.
+                // A spelling that claims the target visible wins; foreign
+                // spellings accumulate every authority.
                 Entry::Occupied(mut o) => {
-                    let merged = match (o.get_mut().take(), authority) {
+                    let existing = o.get_mut();
+                    existing.authorities = match (existing.authorities.take(), info.authorities) {
                         (Some(mut a), Some(b)) => {
                             a.extend(b);
                             Some(a)
                         }
                         _ => None,
                     };
-                    *o.get_mut() = merged;
+                    existing.references.extend(info.references);
                 }
             }
         };
-    // A frontmatter or `ix://` reference: reduce to its artifact id and keep the
-    // foreign authority when the id is absent from the corpus.
-    let ref_parts = |raw: &str| {
-        let target = extract_target_id(raw);
-        let authority = (!by_id.contains_key(target))
-            .then(|| ix_authority(raw))
-            .flatten();
-        (target.to_string(), authority)
-    };
-    for doc in documents {
-        let source = artifact_key(doc);
         for (target_raw, edge_type) in harvest_frontmatter(doc) {
-            let (target, authority) = ref_parts(&target_raw);
-            add_target(&source, &target, authority, edge_type);
+            add(Reference::authored(target_raw), edge_type);
         }
         for target_raw in harvest_body_links(doc, ix_link) {
-            let (target, authority) = ref_parts(&target_raw);
-            add_target(&source, &target, authority, "references".to_string());
+            add(Reference::authored(target_raw), "references".to_string());
         }
         // Internal relative-path links (ADR 0007). Navigation documents
         // (`index.md`) is excluded as a source so its contents links do not
         // flood the graph (FR-026-AC-10).
         if !is_nav_doc(&doc.path) {
-            for target in harvest_body_relative_links(doc, md_link, &by_path) {
+            for target in harvest_body_relative_links(doc, md_link, &by_path[member]) {
                 // Already an artifact key or a full relative path: no
                 // reduction to a last segment, no authority.
-                add_target(&source, &target, None, "references".to_string());
+                add(Reference::local(target), "references".to_string());
             }
         }
     }
 
     let mut edges = Vec::with_capacity(stubs.len());
-    let mut outgoing: BTreeMap<ArtifactId, Vec<usize>> = BTreeMap::new();
-    let mut incoming: BTreeMap<ArtifactId, Vec<usize>> = BTreeMap::new();
+    let mut edge_spans: Vec<Range<usize>> = vec![0..0; ix.member_count];
+    let mut outgoing: BTreeMap<usize, Vec<usize>> = BTreeMap::new();
+    let mut incoming: BTreeMap<usize, Vec<usize>> = BTreeMap::new();
     let mut diagnostics = Vec::new();
+    let identity_of = |member: usize| ix.declared[member].as_deref().map(str::to_string);
 
-    for ((source, target, edge_type), authorities) in stubs {
-        let resolution = if by_id.contains_key(&target) {
+    for ((member, source, target, edge_type, target_slot), info) in stubs {
+        let resolution = if target_slot.is_some() {
             Resolution::Resolved
         } else {
             Resolution::Dangling
         };
         let idx = edges.len();
-        outgoing.entry(source.clone()).or_default().push(idx);
-        match resolution {
-            Resolution::Resolved => {
-                incoming.entry(target.clone()).or_default().push(idx);
-            }
-            Resolution::Dangling => diagnostics.push(Diagnostic::DanglingReference {
+        let source_slot = ix.ids[member][&source];
+        outgoing.entry(source_slot).or_default().push(idx);
+        match target_slot {
+            Some(slot) => incoming.entry(slot).or_default().push(idx),
+            None => diagnostics.push(Diagnostic::DanglingReference {
                 source: source.clone(),
                 target: target.clone(),
                 edge_type: edge_type.clone(),
             }),
         }
+        let span = &mut edge_spans[member];
+        if span.start == span.end {
+            span.start = idx;
+        }
+        span.end = idx + 1;
         edges.push(Edge {
             source,
             target,
             edge_type,
             resolution,
-            authorities: authorities.into_iter().flatten().collect(),
+            authorities: info.authorities.into_iter().flatten().collect(),
+            source_repo: identity_of(member),
+            target_repo: target_slot.and_then(|slot| identity_of(ix.member_of[slot])),
+            references: info.references.into_iter().collect(),
+            source_slot,
+            target_slot,
         });
     }
 
     ResolveOutput {
         edges,
+        edge_spans,
         outgoing,
         incoming,
         diagnostics,
     }
+}
+
+/// A harvested target spelling.
+struct Reference {
+    /// The target exactly as authored.
+    raw: String,
+    /// Whether it is an `ix://`/bare reference to reduce to a trailing id and
+    /// read an authority from; relative-path links are already ids.
+    authored: bool,
+}
+
+impl Reference {
+    fn authored(raw: String) -> Self {
+        Self {
+            raw,
+            authored: true,
+        }
+    }
+
+    fn local(raw: String) -> Self {
+        Self {
+            raw,
+            authored: false,
+        }
+    }
+}
+
+/// Where a reference harvested in `member` points: its target id, the target
+/// document's slot when it resolves, and the unloaded foreign authority to
+/// record when it does not.
+fn locate(
+    ix: &Index<'_>,
+    member: usize,
+    reference: &Reference,
+) -> (ArtifactId, Option<usize>, Option<String>) {
+    let (id, authority) = if reference.authored {
+        (
+            extract_target_id(&reference.raw),
+            ix_authority(&reference.raw),
+        )
+    } else {
+        (reference.raw.as_str(), None)
+    };
+    // The member a target is looked up in. Without declared identities there
+    // is one member and the authority plays no part (FR-085-AC-10); with them,
+    // an authority picks the member declaring it, and everything else is the
+    // source's own member (FR-085-AC-8).
+    let (target_member, authority) = match (ix.identity_mode, authority) {
+        (true, Some(authority)) => match ix.identities.get(&fold_identity(&authority)) {
+            Some(&named) => (Some(named), None),
+            None => (None, Some(authority)),
+        },
+        (true, None) => (Some(member), None),
+        (false, authority) => (Some(0), authority),
+    };
+    let slot = target_member.and_then(|m| ix.ids[m].get(id).copied());
+    // A resolved target has no foreign authority to record.
+    let authority = if slot.is_some() { None } else { authority };
+    (id.to_string(), slot, authority)
 }
 
 /// Harvest *all* edge stubs (frontmatter + body `ix://` links) for a
@@ -276,12 +402,13 @@ fn is_nav_doc(path: &Path) -> bool {
     path.file_name().and_then(|n| n.to_str()) == Some("index.md")
 }
 
-/// Normalized on-disk path → artifact id for every loaded document.
-fn build_path_index(documents: &[LoadedDocument]) -> HashMap<PathBuf, ArtifactId> {
-    documents
-        .iter()
-        .map(|d| (normalize_lexical(&d.path), artifact_key(d)))
-        .collect()
+/// Per member: normalized on-disk path → artifact id for every loaded document.
+fn build_path_index(ix: &Index<'_>) -> Vec<HashMap<PathBuf, ArtifactId>> {
+    let mut by_path = vec![HashMap::new(); ix.member_count];
+    for (slot, doc) in ix.documents.iter().enumerate() {
+        by_path[ix.member_of[slot]].insert(normalize_lexical(&doc.path), artifact_key(doc));
+    }
+    by_path
 }
 
 /// Lexically normalize a path — collapse `.` and `..` segments without any
@@ -419,11 +546,23 @@ mod tests {
         )
     }
 
-    fn index(docs: &[LoadedDocument]) -> HashMap<ArtifactId, usize> {
-        docs.iter()
+    /// Resolve `docs` as a one-member corpus declaring no identity.
+    fn run(docs: &[LoadedDocument]) -> ResolveOutput {
+        let ids = vec![docs
+            .iter()
             .enumerate()
+            .rev()
             .map(|(i, d)| (artifact_key(d), i))
-            .collect()
+            .collect::<HashMap<_, _>>()];
+        resolve(&Index {
+            documents: docs,
+            member_of: &vec![0; docs.len()],
+            member_count: 1,
+            ids: &ids,
+            identities: &BTreeMap::new(),
+            identity_mode: false,
+            declared: &[None],
+        })
     }
 
     // frontmatter relationship to a present id -> Resolved.
@@ -438,7 +577,7 @@ mod tests {
             ),
             loaded("StR-005", "", "# need\n"),
         ];
-        let out = resolve(&docs, &index(&docs));
+        let out = run(&docs);
         let edge = out.edges.iter().find(|e| e.source == "FR-023").unwrap();
         assert_eq!(edge.target, "StR-005");
         assert_eq!(edge.edge_type, "implements");
@@ -457,7 +596,7 @@ mod tests {
             ),
             loaded("StR-005", "", "# need\n"),
         ];
-        let out = resolve(&docs, &index(&docs));
+        let out = run(&docs);
         let edge = out.edges.iter().find(|e| e.target == "StR-005").unwrap();
         assert_eq!(edge.edge_type, "references");
         assert_eq!(edge.resolution, Resolution::Resolved);
@@ -472,7 +611,7 @@ mod tests {
             "relationships:\n  - target: \"StR-999\"\n    type: implements\n",
             "# body\n",
         )];
-        let out = resolve(&docs, &index(&docs));
+        let out = run(&docs);
         let edge = &out.edges[0];
         assert_eq!(edge.target, "StR-999");
         assert_eq!(edge.resolution, Resolution::Dangling);
@@ -495,7 +634,7 @@ mod tests {
             "relationships:\n  - target: \"ix://other-org/other-repo/spec/stakeholder/StR-001\"\n    type: requires\n",
             "# body\n",
         )];
-        let out = resolve(&docs, &index(&docs));
+        let out = run(&docs);
         assert_eq!(out.edges[0].target, "StR-001");
         assert_eq!(out.edges[0].resolution, Resolution::Dangling);
     }
@@ -511,7 +650,7 @@ mod tests {
             "relationships:\n  - target: \"StR-999\"\n    type: references\n",
             "see [x](ix://o/r/spec/StR-999)\n",
         )];
-        let out = resolve(&docs, &index(&docs));
+        let out = run(&docs);
         assert_eq!(out.edges.len(), 1);
         assert_eq!(out.diagnostics.len(), 1);
         assert!(out.edges[0].authorities.is_empty());
@@ -537,9 +676,9 @@ mod tests {
             ),
             loaded("StR-005", "", "# need\n"),
         ];
-        let out = resolve(&docs, &index(&docs));
-        let from = out.outgoing.get("FR-023").unwrap();
-        let to = out.incoming.get("StR-005").unwrap();
+        let out = run(&docs);
+        let from = out.outgoing.get(&0).unwrap();
+        let to = out.incoming.get(&1).unwrap();
         assert_eq!(from.len(), 1);
         assert_eq!(to.len(), 1);
         assert_eq!(from[0], to[0]); // same edge slot
@@ -560,7 +699,7 @@ mod tests {
             ),
             loaded("StR-005", "", "# need\n"),
         ];
-        let out = resolve(&docs, &index(&docs));
+        let out = run(&docs);
         let to_str005: Vec<_> = out
             .edges
             .iter()
@@ -577,7 +716,7 @@ mod tests {
             ),
             loaded("StR-005", "", "# need\n"),
         ];
-        let out2 = resolve(&docs2, &index(&docs2));
+        let out2 = run(&docs2);
         let types: BTreeSet<_> = out2
             .edges
             .iter()
@@ -616,7 +755,7 @@ mod tests {
             loaded_at("spec/functional/FR-002-graph-edges.md", "FR-002", "# schema\n"),
             loaded_at("spec/stakeholder/StR-005-need.md", "StR-005", "# need\n"),
         ];
-        let out = resolve(&docs, &index(&docs));
+        let out = run(&docs);
         let to_fr002 = out
             .edges
             .iter()
@@ -636,7 +775,7 @@ mod tests {
             "FR-001",
             "see [missing](./FR-999-missing.md)\n",
         )];
-        let out2 = resolve(&docs2, &index(&docs2));
+        let out2 = run(&docs2);
         assert_eq!(out2.edges.len(), 1);
         assert_eq!(out2.edges[0].resolution, Resolution::Dangling);
     }
@@ -660,7 +799,7 @@ mod tests {
             ),
             idless,
         ];
-        let out = resolve(&docs, &index(&docs));
+        let out = run(&docs);
         let hit = out
             .edges
             .iter()
@@ -698,7 +837,7 @@ mod tests {
                 "# schema\n",
             ),
         ];
-        let out = resolve(&docs, &index(&docs));
+        let out = run(&docs);
         let refs_to_fr002: Vec<_> = out
             .edges
             .iter()
@@ -726,7 +865,7 @@ mod tests {
                 "# schema\n",
             ),
         ];
-        let out = resolve(&docs, &index(&docs));
+        let out = run(&docs);
         let edges: Vec<_> = out
             .edges
             .iter()
@@ -846,7 +985,7 @@ mod tests {
         // A truncated URI is discarded whole rather than matching its first
         // two segments — `ix://org/repo/...` is not a reference to `repo`.
         let docs = vec![loaded("FR-023", "", "see ix://agent-ix/quire-rs/...\n")];
-        let out = resolve(&docs, &index(&docs));
+        let out = run(&docs);
         assert!(
             out.edges.is_empty(),
             "a truncated URI must mint nothing, got {:?}",
@@ -860,7 +999,7 @@ mod tests {
             "",
             "A broken `ix://` link is tolerated as a warning.\n",
         )];
-        let out = resolve(&docs, &index(&docs));
+        let out = run(&docs);
         assert!(out.edges.is_empty(), "got {:?}", out.edges);
         assert!(out.diagnostics.is_empty(), "got {:?}", out.diagnostics);
     }
@@ -935,7 +1074,7 @@ mod tests {
              [mail](mailto:a@b.com.md) [phone](tel:+15551234.md) \
              [plain](./notes.txt)\n",
         )];
-        let out = resolve(&docs, &index(&docs));
+        let out = run(&docs);
         assert!(
             out.edges.is_empty(),
             "no excluded destination may mint an edge, got {:?}",

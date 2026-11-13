@@ -259,6 +259,10 @@ pub enum AssuranceError {
     ExtractionUnavailable(#[from] crate::symbols::ExtractionUnavailable),
     #[error("assurance serialization failed: {reason}")]
     Serialization { reason: String },
+    /// The export keys artifacts, obligations and relations by artifact id,
+    /// which a corpus of several repositories does not keep unique.
+    #[error("assurance export reads one repository; the corpus has {members} members")]
+    MultiMemberCorpus { members: usize },
 }
 
 /// Build a complete v1 export without external I/O.
@@ -266,6 +270,11 @@ pub fn build_assurance_export(
     input: AssuranceInput<'_>,
 ) -> Result<AssuranceExport, AssuranceError> {
     input.symbols.require_available()?;
+    if input.spec.member_count() > 1 {
+        return Err(AssuranceError::MultiMemberCorpus {
+            members: input.spec.member_count(),
+        });
+    }
     validate_registry(input.registry)?;
 
     let modules = module_premises(input.registry)?;

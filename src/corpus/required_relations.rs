@@ -31,6 +31,10 @@ use crate::traceability::{
     fold_selector_value, RelationDirection, RequiredRelation, WhereSelector,
 };
 
+/// The `trace:` check token of a resolved edge whose target kind is outside a
+/// relation's `to` (FR-085).
+const KIND_MISMATCH: &str = "target-kind-mismatch";
+
 /// Implements: FR-058
 /// Check every declared required relation, plus any declared acyclic edge sets.
 ///
@@ -117,9 +121,8 @@ fn check_declaration_is_live(
     // one. Either alone is enough: a declared kind with no documents yet is a
     // contract waiting for content, and an undeclared kind that documents do
     // use is a separate defect other checks already report.
-    let is_live = |kind: &str| {
-        registry.archetype_names().any(|n| n == kind) || !spec.by_type(kind).is_empty()
-    };
+    let is_live =
+        |kind: &str| registry.archetype_names().any(|n| n == kind) || spec.corpus_has_type(kind);
 
     let mut dead: Vec<String> = Vec::new();
     if !is_live(&relation.from) {
@@ -163,7 +166,7 @@ fn check_selector_is_live(
     out: &mut Vec<(PathBuf, String, String, String)>,
 ) {
     let field = selector.field();
-    let docs = spec.by_type(&relation.from);
+    let docs = spec.corpus_by_type(&relation.from);
     let schema = registry
         .archetype(&relation.from)
         .and_then(|a| a.frontmatter_schema.as_ref());
@@ -239,7 +242,8 @@ fn check_relation(
 
     let selector = relation.selector.as_ref();
 
-    for doc in spec.by_type(&relation.from) {
+    for slot in spec.by_type_slots(&relation.from) {
+        let doc = spec.doc(slot);
         // Selection order is `from`, then `where`, then `exclude` (FR-058).
         // The authored value is kept for the finding text (AC-20).
         let selected_value = match selector {
@@ -256,18 +260,60 @@ fn check_relation(
             continue; // nothing to key an edge on
         }
 
+        let outgoing = spec.edges_from(slot);
         let has_outgoing = || {
-            spec.outgoing(&doc.id).iter().any(|e| {
+            outgoing.iter().any(|e| {
                 accepted_edges.contains(e.edge_type.as_str())
-                    && target_is_accepted(spec, &e.target, e.resolution, &accepted_targets)
+                    && target_is_accepted(spec, e.target_slot, &accepted_targets)
             })
         };
         let has_incoming = || {
-            spec.referencing(&doc.id).iter().any(|e| {
+            spec.edges_to(slot).iter().any(|e| {
                 accepted_edges.contains(e.edge_type.as_str())
-                    && target_is_accepted(spec, &e.source, Resolution::Resolved, &accepted_targets)
+                    && target_is_accepted(spec, Some(e.source_slot), &accepted_targets)
             })
         };
+        // An accepted-verb edge from this document to a resolved target of a
+        // kind outside a non-empty `to` never satisfies the relation, and is
+        // reported whether or not the relation is otherwise satisfied.
+        if !accepted_targets.is_empty() && relation.direction != RelationDirection::Incoming {
+            for edge in outgoing
+                .iter()
+                .filter(|e| accepted_edges.contains(e.edge_type.as_str()))
+            {
+                let Some(target) = edge.target_slot.map(|t| spec.doc(t)) else {
+                    continue;
+                };
+                let actual = target.concept_type().unwrap_or("");
+                if accepted_targets.contains(actual) {
+                    continue;
+                }
+                let reference = match &edge.target_repo {
+                    Some(repo) if edge.target_repo != edge.source_repo => {
+                        format!("{repo}:{}", edge.target)
+                    }
+                    _ => edge.target.clone(),
+                };
+                out.push((
+                    doc.path.clone(),
+                    doc.id.clone(),
+                    KIND_MISMATCH.to_string(),
+                    format!(
+                        "'{}' has a '{}' edge to '{reference}' of archetype '{}', outside the \
+                         accepted {} — declared by '{}'; the edge does not satisfy the relation",
+                        doc.id,
+                        edge.edge_type,
+                        if actual.is_empty() {
+                            "(untyped)"
+                        } else {
+                            actual
+                        },
+                        relation.to.join("/"),
+                        relation.name
+                    ),
+                ));
+            }
+        }
         let satisfied = match relation.direction {
             RelationDirection::Outgoing => has_outgoing(),
             RelationDirection::Incoming => has_incoming(),
@@ -301,6 +347,25 @@ fn check_relation(
                 doc.id, relation.name
             ),
         };
+        // A dangling reference never satisfies the relation; name each one as
+        // authored so the author can see which target is missing (FR-085).
+        if relation.direction != RelationDirection::Incoming {
+            let dangling: BTreeSet<&str> = outgoing
+                .iter()
+                .filter(|e| {
+                    e.resolution == Resolution::Dangling
+                        && accepted_edges.contains(e.edge_type.as_str())
+                })
+                .flat_map(|e| e.references.iter().map(String::as_str))
+                .collect();
+            if !dangling.is_empty() {
+                let named: Vec<String> = dangling.iter().map(|r| format!("'{r}'")).collect();
+                message.push_str(&format!(
+                    ", dangling reference {} not in the corpus",
+                    named.join(", ")
+                ));
+            }
+        }
         if let (Some(sel), Some(value)) = (selector, selected_value) {
             message.push_str(&format!(
                 ", selected because `{}` is '{value}'",
@@ -313,25 +378,17 @@ fn check_relation(
 
 /// Whether the document at the other end of an edge is an accepted kind.
 ///
-/// A **dangling** edge cannot satisfy a relation whose targets are constrained:
-/// its target is not in the bundle, so nothing can say what archetype it is, and
-/// accepting it would let a typo satisfy the requirement it broke. With no
-/// declared targets the verb alone is the contract, and a cross-repo edge counts
-/// — which is the reading a module gets by declaring `to: []` deliberately.
-fn target_is_accepted(
-    spec: &Spec,
-    id: &str,
-    resolution: Resolution,
-    accepted: &BTreeSet<&str>,
-) -> bool {
+/// A **dangling** edge (`slot` is `None`) cannot satisfy a relation whose
+/// targets are constrained: its target is not in the corpus, so nothing can say
+/// what archetype it is, and accepting it would let a typo satisfy the
+/// requirement it broke. With no declared targets the verb alone is the
+/// contract, and a cross-repo edge counts — which is the reading a module gets
+/// by declaring `to: []` deliberately.
+fn target_is_accepted(spec: &Spec, slot: Option<usize>, accepted: &BTreeSet<&str>) -> bool {
     if accepted.is_empty() {
         return true;
     }
-    if resolution == Resolution::Dangling {
-        return false;
-    }
-    spec.by_id(id)
-        .and_then(|d| d.concept_type())
+    slot.and_then(|slot| spec.doc(slot).concept_type())
         .is_some_and(|ty| accepted.contains(ty))
 }
 
@@ -345,15 +402,31 @@ fn check_acyclic(spec: &Spec, verb: &str, out: &mut Vec<(PathBuf, String, String
     let check = format!("cyclic-{verb}");
 
     // Adjacency over the declared verb only, resolved edges only — a dangling
-    // edge leaves the bundle and cannot close a cycle inside it.
-    let mut adjacency: BTreeMap<&str, BTreeSet<&str>> = BTreeMap::new();
-    for edge in spec.edges() {
-        if edge.edge_type == verb && edge.resolution == Resolution::Resolved {
-            adjacency
-                .entry(edge.source.as_str())
-                .or_default()
-                .insert(edge.target.as_str());
+    // edge leaves the corpus and cannot close a cycle inside it. Nodes are
+    // labelled by id, qualified by repository once a corpus has several
+    // members, and the cycle search reads the corpus-wide edge set so a cycle
+    // through two repositories is found.
+    let label = |slot: usize| -> String {
+        let id = &spec.doc(slot).id;
+        match spec.member_identity(spec.member_of(slot)) {
+            Some(repo) if spec.member_count() > 1 => format!("{repo}:{id}"),
+            _ => id.clone(),
         }
+    };
+    let mut slots: BTreeMap<String, usize> = BTreeMap::new();
+    let mut pairs: Vec<(String, String)> = Vec::new();
+    for edge in spec.corpus_edges() {
+        let (Some(target), true) = (edge.target_slot, edge.edge_type == verb) else {
+            continue;
+        };
+        let (from, to) = (label(edge.source_slot), label(target));
+        slots.insert(from.clone(), edge.source_slot);
+        slots.insert(to.clone(), target);
+        pairs.push((from, to));
+    }
+    let mut adjacency: BTreeMap<&str, BTreeSet<&str>> = BTreeMap::new();
+    for (from, to) in &pairs {
+        adjacency.entry(from).or_default().insert(to);
     }
 
     let mut reported: BTreeSet<String> = BTreeSet::new();
@@ -368,7 +441,18 @@ fn check_acyclic(spec: &Spec, verb: &str, out: &mut Vec<(PathBuf, String, String
         if !reported.insert((*key).to_string()) {
             continue;
         }
-        let Some(doc) = spec.by_id(key) else { continue };
+        let Some(&slot) = slots.get(*key) else {
+            continue;
+        };
+        // Every member view sees the whole cycle; the one holding its key
+        // reports it.
+        if spec
+            .scope
+            .is_some_and(|member| spec.member_of(slot) != member)
+        {
+            continue;
+        }
+        let doc = spec.doc(slot);
         let mut path = cycle.clone();
         path.push(cycle[0]);
         out.push((

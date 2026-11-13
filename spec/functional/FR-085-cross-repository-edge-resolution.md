@@ -38,9 +38,15 @@ filesystem. The rules are:
 - A corpus of two or more members requires every member to declare an identity; a member without one
   is an error naming it, and no corpus is built.
 - Two members declaring the same identity are an error naming it.
+- A corpus of no members is an error: a corpus is built from one or more members.
 - A corpus of exactly one member MAY omit the identity. Such a corpus resolves exactly as
   [FR-025](./FR-025-spec-corpus-model.md) and [FR-026](./FR-026-intra-spec-reference-resolution.md)
   specify, with lexical `ix://` id resolution.
+
+`Spec::member_count` reports the number of members and `Spec::member_identity(i)` the identity member `i`
+declared, as given, or `None`. A corpus of several members fixes each identity at construction;
+declaring an identity on it afterwards through `Spec::with_bundle_package` is an error, since only a
+corpus of one member has a single identity to declare.
 
 Document ids are unique within a member, not across members. A document is addressed across the
 corpus by `(identity, id)` ([FR-027](./FR-027-whole-spec-query-api.md) `by_qualified_id`); a bare
@@ -72,7 +78,7 @@ archetype is in `to`.
 registry, posture, root)`. This FR extends it to a corpus of several members, the engine behaviour
 behind `quire validate --okf --repo` (quire-cli FR-030):
 
-- `validate_corpus(corpus, registry, posture, roots)` takes one `(document_root, reference_root)` pair per member, in member order, as `validate_bundle` takes them ([FR-049-AC-9](./FR-049-verification-reference-integrity.md)): the document root locates the member's `index.md` and the reference root is the member's repository root, against which model-declared `document:` paths and `exclude:` globs resolve. For a repository root `<DIR>`, the pair is `(<DIR>/spec, <DIR>)`. It runs the FR-038 bundle validation of each member against the shared corpus, so edges resolve
+- `validate_corpus(corpus, registry, posture, roots)` takes one `(document_root, reference_root)` pair per member, in member order, as `validate_bundle` takes them ([FR-049-AC-9](./FR-049-verification-reference-integrity.md)): the document root locates the member's `index.md` and the reference root is the member's repository root, against which the model's `exclude:` globs resolve. A number of pairs different from the number of members is an error. Load diagnostics, such as a markdown file without frontmatter, belong to the member whose load produced them, whatever spelling the roots take. For a repository root `<DIR>`, the pair is `(<DIR>/spec, <DIR>)`. It runs the FR-038 bundle validation of each member against the shared corpus, so edges resolve
   across members. The result is one report whose findings are the concatenation of each member's
   findings in member order. `posture` applies to every member.
 - A member's identity is that member's declared bundle package (`Spec::with_bundle_package`): the
@@ -96,7 +102,9 @@ that key reports a *trace reference* whose target is of the wrong kind, and this
 edge. The finding names the source document, the target
 reference (with repo identity when the target is in another member), the target's actual archetype,
 the accepted archetypes, and the relation. This applies equally within one member and across
-members.
+members. The finding is reported for the `from` document's own outgoing edges, under relations whose
+direction is `outgoing` or `either`; under an `incoming` relation a wrong-kind source only leaves the
+relation unsatisfied and yields no kind mismatch.
 
 ### Dangling references are named
 
@@ -124,12 +132,16 @@ loaded without the id ([FR-058-AC-4](./FR-058-upward-trace-completeness.md)).
 | FR-085-AC-13 | A corpus of two members in which one declares no identity is an error naming that member, and no corpus is built; two identity-less members are the same error. | Test |
 | FR-085-AC-14 | In a corpus of one member that declares identity `o/a`, an `ix://o/a/...` target resolves within that member and an `ix://o/b/...` target is `Dangling` even when the local member holds the id. | Test |
 | FR-085-AC-15 | In a two-member corpus where both members hold id `X`, no `DuplicateArtifactId` diagnostic is raised, a bare `X` link resolves within its own member, `by_id("X")` returns `None`, and `by_qualified_id` returns each member's document ([FR-027-AC-10](./FR-027-whole-spec-query-api.md)); two documents with one id inside a single member still raise `DuplicateArtifactId` ([FR-025-AC-3](./FR-025-spec-corpus-model.md)). | Test |
-| FR-085-AC-16 | `validate_corpus` over two members validates each member's documents against the shared corpus: a document in member A whose edge targets a document in member B raises no `dangling-reference`, and the same corpus without B raises it. | Test |
+| FR-085-AC-16 | `validate_corpus` over two members validates each member's documents against the shared corpus: a document in member A whose edge targets a document in member B raises no `dangling-reference`, and the same corpus with B loaded but not holding the target raises it. | Test |
 | FR-085-AC-17 | In `validate_corpus`, an `ix://o/b/...` reference to an id absent from loaded member `o/b` is a `dangling-reference` finding, while an `ix://o/c/...` reference whose authority names no loaded member is not reported as `dangling-reference` (FR-038-AC-9: the authority differs from the package, so the corpus cannot see it). | Test |
 | FR-085-AC-18 | Identity matching folds ASCII case: `ix://O/B/X` resolves to the member declared `o/b`, and two members declared `o/b` and `O/B` are the duplicate-identity error of AC-9. | Test |
 | FR-085-AC-19 | Every finding from `validate_corpus` carries the `repo` of its source document's member, for an FR-058 relation finding, a `trace:target-kind-mismatch` finding and a `dangling-reference`; a finding from a member with no identity carries no `repo`. | Test |
 | FR-085-AC-20 | A corpus of one member with no identity run through `validate_corpus` with the pair `(<DIR>/spec, <DIR>)` yields findings identical to `validate_bundle` called with the same document root and reference root. | Test |
-| FR-085-AC-21 | In a two-member corpus, a model-declared `document:` path (for example `spec/tests.md`) resolves against each member's own reference root: a member whose `<DIR>/spec/tests.md` exists mints its targets, and a member lacking it does not borrow the other member's file. | Test |
+| FR-085-AC-21 | In a two-member corpus, a model `exclude:` glob (for example `spec/fixtures/**`) resolves against each member's own reference root: a document under a member's `<DIR>/spec/fixtures/` is excluded when that member's pair is supplied, and a member given another member's reference root does not borrow that member's exclusion. | Test |
+| FR-085-AC-22 | `Spec::from_members` over no members is an error and builds no corpus; `validate_corpus` with a number of root pairs different from the member count is an error naming both counts; `Spec::with_bundle_package` on a corpus of several members is an error rather than a silent no-op. | Test |
+| FR-085-AC-23 | `Spec::member_count` and `Spec::member_identity(i)` report the member count and each member's declared identity as given, `None` for a member with none or an index past the last. | Test |
+| FR-085-AC-24 | In a two-member corpus whose roots are spelled differently from the loaded paths, a markdown file without frontmatter in each member yields a `no-frontmatter` warning from `validate_corpus` carrying that member's `repo`, once. | Test |
+| FR-085-AC-25 | Under an `incoming` relation, a source of a kind outside the relation's non-empty `to` leaves the relation unsatisfied and yields no `trace:target-kind-mismatch` finding. | Test |
 
 ## Dependencies
 

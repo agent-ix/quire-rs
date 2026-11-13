@@ -483,7 +483,7 @@ pub(crate) fn scan(
 ) -> Vec<ScannedRow> {
     let mut out = Vec::new();
     let mut of_archetype = 0usize;
-    for doc in &spec.inner.documents {
+    for doc in spec.documents() {
         // Header-tier gate first (CR-047): only an archetype-matching,
         // non-excluded document pays for a body parse.
         if doc.concept_type() != Some(scope.archetype) {
@@ -732,7 +732,7 @@ fn scan_text(
     };
     let mut out = Vec::new();
     let mut of_archetype = 0usize;
-    for doc in &spec.inner.documents {
+    for doc in spec.documents() {
         if doc.concept_type() != Some(scope.archetype) {
             continue;
         }

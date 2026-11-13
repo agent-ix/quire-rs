@@ -710,7 +710,7 @@ fn foreign_authority_target_is_not_dangling() {
     let run = |package: Option<&str>, posture| {
         let mut spec = quire_rs::Spec::from_path(&root);
         if let Some(p) = package {
-            spec = spec.with_bundle_package(p);
+            spec = spec.with_bundle_package(p).expect("one member");
         }
         quire_rs::validate_bundle(&spec, &bundle_registry(), posture, &root, &root)
     };
@@ -757,7 +757,7 @@ fn authority_comparison_folds_ascii_case() {
     let dangling = |package: Option<&str>| -> Vec<String> {
         let mut spec = quire_rs::Spec::from_path(&root);
         if let Some(p) = package {
-            spec = spec.with_bundle_package(p);
+            spec = spec.with_bundle_package(p).expect("one member");
         }
         let report =
             quire_rs::validate_bundle(&spec, &bundle_registry(), BundlePosture::Okf, &root, &root);

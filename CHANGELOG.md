@@ -7,6 +7,33 @@ bumps; once 1.0 ships, semver is strict.
 
 ## [Unreleased]
 
+### Added
+
+- PLAT-1556 (FR-085): a corpus of several repositories. `Spec::from_members`
+  takes `CorpusMember`s with a caller-declared `<org>/<repo>` identity;
+  `ix://<org>/<repo>/...` edges resolve into the member declaring that identity
+  (ASCII case folded), `Spec::by_qualified_id` addresses `(identity, id)`, and
+  `validate_corpus` validates each member against the shared corpus. Findings
+  carry a `repo` field, a relation edge to a resolved target outside its `to`
+  is reported as `trace:target-kind-mismatch`, and a relation finding names each
+  dangling reference as authored. `Edge` gains `source_repo`, `target_repo` and
+  `references`. `Spec::member_count` and `Spec::member_identity` describe the
+  members; `CorpusError` names every refusal.
+
+### Changed
+
+- **Breaking, PLAT-1556:** `Spec::with_bundle_package` now returns
+  `Result<Spec, CorpusError>` and re-resolves under the declared identity, so
+  an `ix://` target naming another repository stays dangling even when the local
+  corpus holds the id, and stops satisfying a relation with a constrained `to`.
+  It is an error on a corpus of several members.
+- **Breaking, PLAT-1556:** `Edge` is `#[non_exhaustive]` and its equality ignores
+  corpus-internal slots; it can no longer be constructed outside the crate.
+- **Breaking, PLAT-1556:** over a corpus of several members `by_id`, `outgoing`
+  and `referencing` answer nothing for an id more than one member holds; use
+  `by_qualified_id`. `build_assurance_export` refuses such a corpus with
+  `AssuranceError::MultiMemberCorpus`, and `BundleFinding` gains a `repo` field.
+
 ### Removed
 
 - **Breaking, PLAT-1501:** the public `audit_table::audit_spec_dir` is removed; it

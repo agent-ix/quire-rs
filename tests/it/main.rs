@@ -18,6 +18,7 @@ mod coverage_architecture;
 mod coverage_baseline;
 mod coverage_matrix;
 mod coverage_rollup;
+mod cross_repo;
 mod determinism;
 mod filament_boundary_audit;
 mod filament_core_fixtures;

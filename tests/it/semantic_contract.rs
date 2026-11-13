@@ -1380,7 +1380,9 @@ fn validate_bundle_passes_the_declared_bundle_package() {
     );
 
     // Declared identity: the row is checked (`holds` is not a registered verb).
-    let spec = spec.with_bundle_package(BUNDLE_PACKAGE);
+    let spec = spec
+        .with_bundle_package(BUNDLE_PACKAGE)
+        .expect("one member");
     assert_eq!(spec.bundle_package(), Some(BUNDLE_PACKAGE));
     let with = messages(&spec);
     assert!(
