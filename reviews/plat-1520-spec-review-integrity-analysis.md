@@ -40,6 +40,12 @@ Changes requested. FND-001 and FND-002 (high) are contradictions between ACs, an
 | --- | --- | --- | --- |
 | FND-008 | medium | The new Serialization section says "No other key is emitted" but leaves several shapes undefined, so the byte identity FR-084-AC-12 asks for is still open. It gives no shape for a `dangling` or `kind_mismatch` array entry. It gives no key for "the reference as authored" on a `linked` entry with `resolution: dangling`, which has no `id`, `path` or `archetype` to fill the document keys and no repo/id to order `linked` by. The obliged document is serialized as `{id, path, archetype, repo}` only, so the `backed`/`unbacked`/`not_measured` counts the verification section says "a document's entry carries" are emitted for linked documents but not for the obliged document, which is the one whose status decides a reverse-view row. Fix: give each entry shape and the dangling ordering key, and either emit `criteria` on `document` or narrow the counts sentence to linked entries. | spec/functional/FR-084-two-way-relation-coverage-report.md:108-120 |
 
+## New findings (disposition pass 2)
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-009 | medium | The round-2 Serialization text orders resolved `linked` entries "by repo then path then id", but FR-084-AC-2 (unchanged) requires `linked` "ordered by repo then id". Within one member, path order and id order differ whenever a file's path does not sort with its id (for example `a/FR-010-x.md` and `b/FR-002-y.md`), so an implementation cannot satisfy both, and the quire-cli FR-030 byte-identity snapshot inherits whichever one the coder picks. Fix: use one key in both places, either by changing AC-2 to repo, path, id to match the row ordering, or by changing the Serialization sentence to repo then id. | spec/functional/FR-084-two-way-relation-coverage-report.md:133 |
+
 ## Dispositions
 
 | FND | outcome | reason |
@@ -51,3 +57,4 @@ Changes requested. FND-001 and FND-002 (high) are contradictions between ACs, an
 | FND-005 | fixed | - |
 | FND-006 | fixed | - |
 | FND-007 | fixed | - |
+| FND-008 | fixed | - |

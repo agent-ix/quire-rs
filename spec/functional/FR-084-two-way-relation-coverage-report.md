@@ -130,7 +130,7 @@ value exactly as authored. The shapes of the remaining objects are:
 - **`kind_mismatch` entry**: `{"id", "repo", "archetype", "verb", "accepted"}` with `repo` omitted
   when the member has no identity and `accepted` the relation's `to` as declared.
 
-Ordering inside a row: `linked` resolved entries by repo then path then id, followed by dangling
+Ordering inside a row: `linked` resolved entries by repo then id, followed by dangling
 entries by `reference` then `verb`; `dangling` by `reference` then `verb`; `kind_mismatch` by repo,
 id, then `verb`. Absent `repo` sorts before any identity. Arrays are always present, empty when empty.
 No other key is emitted, and no timestamp, path outside the corpus, or run-specific value appears.

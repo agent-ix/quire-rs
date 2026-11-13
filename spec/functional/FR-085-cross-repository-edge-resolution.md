@@ -72,7 +72,7 @@ archetype is in `to`.
 registry, posture, root)`. This FR extends it to a corpus of several members, the engine behaviour
 behind `quire validate --okf --repo` (quire-cli FR-030):
 
-- `validate_corpus(corpus, registry, posture, roots)` takes one root per member, in member order,
+- `validate_corpus(corpus, registry, posture, roots)` takes one `(document_root, reference_root)` pair per member, in member order, as `validate_bundle` takes them ([FR-049-AC-9](./FR-049-verification-reference-integrity.md)): the document root locates the member's `index.md` and the reference root is the member's repository root, against which model-declared `document:` paths and `exclude:` globs resolve. For a repository root `<DIR>`, the pair is `(<DIR>/spec, <DIR>)`.
   and runs the FR-038 bundle validation of each member against the shared corpus, so edges resolve
   across members. The result is one report whose findings are the concatenation of each member's
   findings in member order. `posture` applies to every member.
@@ -129,7 +129,8 @@ loaded without the id ([FR-058-AC-4](./FR-058-upward-trace-completeness.md)).
 | FR-085-AC-17 | In `validate_corpus`, an `ix://o/b/...` reference to an id absent from loaded member `o/b` is a `dangling-reference` finding, while an `ix://o/c/...` reference whose authority names no loaded member is not reported as `dangling-reference` (FR-038-AC-9: the authority differs from the package, so the corpus cannot see it). | Test |
 | FR-085-AC-18 | Identity matching folds ASCII case: `ix://O/B/X` resolves to the member declared `o/b`, and two members declared `o/b` and `O/B` are the duplicate-identity error of AC-9. | Test |
 | FR-085-AC-19 | Every finding from `validate_corpus` carries the `repo` of its source document's member, for an FR-058 relation finding, a `trace:target-kind-mismatch` finding and a `dangling-reference`; a finding from a member with no identity carries no `repo`. | Test |
-| FR-085-AC-20 | A corpus of one member with no identity run through `validate_corpus` yields findings identical to `validate_bundle` for the same root. | Test |
+| FR-085-AC-20 | A corpus of one member with no identity run through `validate_corpus` with the pair `(<DIR>/spec, <DIR>)` yields findings identical to `validate_bundle` called with the same document root and reference root. | Test |
+| FR-085-AC-21 | In a two-member corpus, a model-declared `document:` path (for example `spec/tests.md`) resolves against each member's own reference root: a member whose `<DIR>/spec/tests.md` exists mints its targets, and a member lacking it does not borrow the other member's file. | Test |
 
 ## Dependencies
 
