@@ -320,7 +320,7 @@ pub struct RelationReport {
     pub relations: Vec<RelationSection>,
 }
 
-#[cfg_attr(test, ix_trace_rs::implements("FR-084"))]
+/// Implements: FR-084
 /// Produce the relation coverage report for `corpus`.
 ///
 /// `members` holds one input per corpus member, in member order. `names`

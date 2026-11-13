@@ -151,6 +151,14 @@ The report states what is linked and verified. It carries a `summary` per relati
 the count in each `state` and `verification`. Whether a gap blocks anything is policy for the
 consumer, and the engine writes nothing back to any document.
 
+> **CR-412 note:** "including none" was added to the first sentence of the Description. The original text said the report is produced for "any set of declared relations" without saying what an empty set yields; the first implementation raised an error for it, which review found to be an unstated behaviour. The report is `{"relations": []}` for no relations, and FR-084-AC-18 pins it.
+>
+> **CR-413 note:** The Serialization section now omits `archetype` for a document with no `type`, in a document and in a `kind_mismatch` entry. The original text did not define the untyped case, and the implementation had serialized an empty string.
+>
+> **CR-414 note:** FR-084-AC-18 was added with CR-412: a corpus whose modules declare no relation yields `{"relations": []}`.
+>
+> **CR-415 note:** FR-084-AC-19 and the sentence on one input per corpus member were added: the engine indexes its per-member inputs by corpus member, so a count that differs is an error rather than undefined behaviour.
+
 ## Acceptance Criteria
 
 | ID | Criteria | Verification |
