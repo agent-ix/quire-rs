@@ -134,4 +134,4 @@ consumer, and the engine writes nothing back to any document.
 ## Dependencies
 
 - **Upstream**: [FR-058](./FR-058-upward-trace-completeness.md) (the declarations), [FR-050](./FR-050-declarative-coverage-computation.md) (the matrix), [FR-085](./FR-085-cross-repository-edge-resolution.md) (edge resolution across repositories)
-- **Downstream**: the `quire-cli` relations subcommand (quire-cli FR-026), which renders this report
+- **Downstream**: the `quire-cli` relations subcommand (quire-cli FR-030), which renders this report
