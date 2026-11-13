@@ -48,7 +48,7 @@ impl Spec {
 
 ### Indexing
 
-- Each `LoadedDocument` is keyed by its `id` ([FR-024](./FR-024-parallel-repo-walk.md) id derivation). The corpus builds a `HashMap<ArtifactId, usize>` (id → document slot) at construction.
+- Each `LoadedDocument` is keyed by its `id` ([FR-024](./FR-024-parallel-repo-walk.md) id derivation). The corpus builds a `HashMap<ArtifactId, usize>` (id → document slot) at construction. A corpus of several members ([FR-085](./FR-085-cross-repository-edge-resolution.md)) keeps one such index per member plus a lookup keyed `(identity, id)`; the duplicate-id rule below applies within a member, and an id held by two members is not a duplicate.
 - **Duplicate ids** within the loaded set SHALL be recorded as a `Diagnostic::DuplicateArtifactId` (mirrors the duplicate-archetype handling in the Registry); the first occurrence wins for lookup, and the duplicate is queryable. Construction does not fail.
 - An `id` is treated as an opaque stable string; the corpus does not impose an id grammar (that is the schema's concern, per spec.md §2.2 "ID generation" exclusion).
 
@@ -59,7 +59,7 @@ impl Spec {
 
 ### Scope guard
 
-- The corpus SHALL expose **no** API to persist itself, to register a filesystem watcher, or to resolve a reference against anything outside the loaded set. The absence of these is a verifiable property of the public surface ([StR-006-AC-4](../stakeholder/StR-006-whole-spec-corpus.md)). Inter-spec and stateful concerns belong to the service layer ([StR-006](../stakeholder/StR-006-whole-spec-corpus.md)).
+- The corpus SHALL expose **no** API to persist itself, to register a filesystem watcher, or to resolve a reference against anything outside the loaded set. The loaded set is every member the caller supplied ([FR-085](./FR-085-cross-repository-edge-resolution.md)); a reference into a repository that was not supplied stays dangling. The absence of these is a verifiable property of the public surface ([StR-006-AC-4](../stakeholder/StR-006-whole-spec-corpus.md)). Fetching a spec that is not loaded, and stateful concerns, belong to the service layer ([StR-006](../stakeholder/StR-006-whole-spec-corpus.md)).
 
 ## Acceptance Criteria
 

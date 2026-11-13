@@ -36,10 +36,10 @@ This need exists because a spec is not a single document but a bounded set of re
 
 A graph engine was previously built into `filament-parser-lib` and torn out. The distinction that keeps this need inside `quire-rs` scope is **data structure vs. stateful engine**:
 
-- **In scope (data structure):** load → resolve references within the loaded set → query by-id / by-type / referencing / orphans. The lifecycle is *load, examine, discard*. No persistence, no query language to interpret, no incremental update, no change-watching, no cross-corpus state.
-- **Out of scope (stateful engine, → service layer):** persisting the resolved graph, a query DSL, caching across calls, incremental reparse on change, and resolving a reference that points into a *different* spec.
+- **In scope (data structure):** load → resolve references within the loaded set → query by-id / by-type / referencing / orphans. The lifecycle is *load, examine, discard*. No persistence, no query language to interpret, no incremental update, no change-watching, no cross-corpus state. A corpus MAY be built by the caller from several repositories at once (each a loaded member with a caller-supplied identity); resolving a reference between members is then resolution *within the loaded set* ([FR-085](../functional/FR-085-cross-repository-edge-resolution.md)).
+- **Out of scope (stateful engine, → service layer):** persisting the resolved graph, a query DSL, caching across calls, incremental reparse on change, and resolving a reference that points into a spec that is *not loaded* into the corpus: the engine never fetches, locates or loads a repository on its own.
 
-The rule: **intra-spec resolution is `quire-rs`; inter-spec or stateful is the service layer.** This is the bounded carve-out from the "cross-document graph queries" exclusion in `spec.md` §2.2 — it does not reopen the general graph engine.
+The rule: **resolution within the loaded set, however many members the caller loaded, is `quire-rs`; fetching a spec that is not loaded, or anything stateful, is the service layer.** This is the bounded carve-out from the "cross-document graph queries" exclusion in `spec.md` §2.2 — it does not reopen the general graph engine.
 
 ## Priority
 

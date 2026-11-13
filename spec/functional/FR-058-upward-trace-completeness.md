@@ -129,6 +129,8 @@ keys. Promotion to `error` requires a corpus sweep and is user-gated, as every c
 
 ### What a dangling edge cannot do
 
+An edge to a repository loaded into the same corpus is not dangling: [FR-085](./FR-085-cross-repository-edge-resolution.md) resolves it, and a resolved target outside `to` is a kind mismatch there rather than a silent non-match.
+
 An edge whose target is absent from the bundle SHALL NOT satisfy a relation whose `to` is
 constrained. The target is not loaded, so nothing can say what archetype it is, and accepting it
 would let a typo satisfy the very requirement it broke. With `to: []` the verb alone is the
@@ -219,4 +221,4 @@ case that needs no help.
 ## Dependencies
 
 - **Upstream**: [FR-026](./FR-026-intra-spec-reference-resolution.md) (the edge set this reads), [FR-057](./FR-057-corpus-check-severity.md) (the severity knob it ships behind), [FR-050](./FR-050-declarative-coverage-computation.md) (the declaration model it extends)
-- **Downstream**: `spec-objects-security#5` bidirectional hazard/threat coverage, which becomes declarations against this FR rather than engine code
+- **Downstream**: `spec-objects-security#5` bidirectional hazard/threat coverage, which becomes declarations against this FR rather than engine code; [FR-084](./FR-084-two-way-relation-coverage-report.md) (the coverage report over these declarations); [FR-085](./FR-085-cross-repository-edge-resolution.md) (edges between repositories loaded into one corpus)

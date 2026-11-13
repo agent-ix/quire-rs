@@ -83,3 +83,5 @@ description: "Index of artifacts in this directory."
 * [FR-081: Record-sections extraction to a module's own record keys](./FR-081-record-sections-extraction.md)
 * [FR-082: Requirement-level criticality in the coverage matrix](./FR-082-coverage-matrix-criticality.md)
 * [FR-083: Clause-set manifest declaration and publishability check](./FR-083-clause-set-publishability.md)
+* [FR-084: Two-way relation coverage report](./FR-084-two-way-relation-coverage-report.md)
+* [FR-085: Cross-repository edge resolution](./FR-085-cross-repository-edge-resolution.md)
