@@ -37,3 +37,10 @@ Ticket: PLAT-1417. Checked the new normative statements for EARS shape: the CR-4
 | --- | --- | --- |
 | FND-001 | fixed | Round 1: FR-086 now opens with "`quire-rs` SHALL produce the design-element join for any loaded corpus and any set of declared design relations, including none ...". |
 | FND-002 | fixed | Round 1: CR-416 now states its rules as SHALL statements ("For each verb `V` ... a relation SHALL accept", "The relation SHALL count an edge authored both ways ... once, and its FR-084 `linked` entry SHALL carry the listed verb"). |
+| FND-003 | fixed | Round 2 (0a89ebd): the FR-038 body now states, where `dangling-reference` is defined, that a reference to an id minted from exactly one document by a trace target named by an `obligations:` source is not a dangling reference and "the check SHALL NOT report it". |
+
+## New findings (disposition pass 2)
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-004 | low | The CR-417 SHALL sentence is split by a stray blank line (FR-058 line 161). One paragraph ends "...(the `target:` field of FR-053)," and the next begins "SHALL be read as an edge to `D`", so the rendered normative statement is two fragments and the second has no subject. Fix: delete the blank line. | spec/functional/FR-058-upward-trace-completeness.md:160-162 |

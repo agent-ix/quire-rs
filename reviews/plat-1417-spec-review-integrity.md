@@ -48,3 +48,5 @@ Ticket: PLAT-1417. Checked the diff against FR-026, FR-041, FR-084, FR-085 and t
 | FND-005 | fixed | Round 1: AC-24's byte-identity clause now covers "verbs the inverse index relates to nothing", and a verb that is an inverse label gains its forward verb. |
 | FND-006 | fixed | Round 1: the bullets under Authored inverse verbs and FR-058-AC-26 now fix the direction rule, the source and `repo` named (the normalized source), and the `to: []` dangling case. |
 | FND-007 | fixed | Round 1: FR-086 now scopes FR-084-CON-2 to the report and makes `design_relations` the join's own key. |
+| FND-008 | fixed | Round 2 (0a89ebd): a criterion target is now "a trace target named by an `obligations:` source" (FR-053 `target:`), with no engine name. This is applied throughout FR-058 CR-417, FR-038 (body, CR-418, AC-12) and FR-086 (Criteria, AC-15). AC-28 pins that a test-case target is never read this way. |
+| FND-009 | fixed | Round 2: the counterpart is now always normalized, even when both labels are listed ("adding a verb to `edges` never removes an edge a relation accepted"). FR-058-AC-25 asserts that listing `V` and listing `V`+`W` give the same result. |

@@ -158,7 +158,6 @@ element still realizes a criterion by an edge directly to the criterion's own id
 as a trace target ([FR-049](./FR-049-verification-reference-integrity.md),
 [FR-050](./FR-050-declarative-coverage-computation.md)). For **relation matching only**, an edge whose
 target id is not a document id of the target's member, and is an id minted from exactly one document `D` of that member by a **criterion target**, a trace target named by an `obligations:` source (the `target:` field of [FR-053](./FR-053-obligation-record.md)),
-
 SHALL be read as an edge to `D`, keeping the criterion id attached to the edge. A document id wins
 over a minted criterion id of the same spelling; a criterion id minted by two documents of one member
 stays dangling. The target's member is chosen as FR-085 chooses it, so `ix://o/b/FR-001-AC-1` is read
