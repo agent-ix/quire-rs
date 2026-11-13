@@ -129,4 +129,4 @@ no declared relation, and SHALL return no matrix.
 ## Dependencies
 
 - **Upstream**: [FR-050](./FR-050-declarative-coverage-computation.md), [FR-058](./FR-058-upward-trace-completeness.md), [FR-084](./FR-084-two-way-relation-coverage-report.md), [FR-086](./FR-086-design-element-join.md)
-- **Downstream**: the `quire matrix` design column and `--strict` (quire-cli FR-042); `quoin matrix` (quoin FR-162)
+- **Downstream**: the `quire matrix` design column and `--strict` (quire-cli FR-043); `quoin matrix` (quoin FR-165)
