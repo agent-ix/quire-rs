@@ -7,6 +7,18 @@ bumps; once 1.0 ships, semver is strict.
 
 ## [Unreleased]
 
+### Changed
+
+- PLAT-1689 (FR-040-AC-12..14): `edges:disallowed-edge-target` now judges a
+  target by its kind — its own archetype name as well as its `object:` type and
+  roles — so `[FR, NFR]` allow-lists are enforced on documents without
+  `object:`. Unconfigured it is posture-routed (error under `Strict`, warning
+  under `Okf`; was a warning in both) and stays overridable through
+  `grammar_severity` / `--severity`. The finding sits at the source document's
+  file path and its message names the source and target file paths, not only
+  their ids. **Breaking:** a `Strict` bundle with an existing wrong-kind edge now
+  fails validation.
+
 ## [0.60.0] — 2026-11-13
 
 ### Added

@@ -153,8 +153,9 @@ For a document with artifact archetype `T` and optional object archetype `O`:
   `type ∈ verbs(doc).keys()`.
 - It is **target-allowed** iff some token `t` in `verbs(doc)[type]` satisfies the
   resolved target archetype (`target_satisfies`): `t == "*"`, or `t` equals the
-  target's object type, or `t` is a role the target carries. Target checking is
-  skipped when the edge is dangling ([FR-026](./FR-026-intra-spec-reference-resolution.md)
+  target's object type, or `t` is a role the target carries, or `t` equals the
+  target document's own archetype name (its `type:` as the manifest declares it).
+  Target checking is skipped when the edge is dangling ([FR-026](./FR-026-intra-spec-reference-resolution.md)
   already reports that) or when the target list contains `"*"`.
 
 ### Validation tiers (advisory)
@@ -173,19 +174,28 @@ For a document with artifact archetype `T` and optional object archetype `O`:
   reduced set.
 - **Tier 2 — edge target (corpus-level).** During corpus validation
   ([FR-025](./FR-025-spec-corpus-model.md)), for each **resolved** edge the corpus
-  looks up the target document, reads its `object:` frontmatter, resolves that to
-  a `CompiledArchetype`, and evaluates `target_satisfies` against the verb's
-  target list. A mismatch yields a warning `DisallowedEdgeTarget { source, target,
-  edge_type, target_object_type, allowed_targets }`. Target checking is **skipped**
-  when the verb's target list contains `"*"`, when the target document declares no
-  `object:` (no object type to constrain), or when the edge is **dangling**
+  looks up the target document and evaluates the verb's target list against its
+  **kind**: the document's own archetype name, plus — when it declares `object:` —
+  that object type and the object type's roles. The list is satisfied when any
+  token matches any of these (`target_satisfies`); no archetype or object name is
+  known to the engine, only what the manifest declares. A mismatch yields a
+  `DisallowedEdgeTarget { source, target, edge_type, target_kind, allowed_targets }`
+  finding at the **file path** of the source document, whose message names the
+  source and target file paths. Its unconfigured tier is **posture-routed**: an
+  error under `Strict`, a warning under `Okf`, and overridable through the
+  existing `edges:disallowed-edge-target` `grammar_severity` key
+  ([FR-057](./FR-057-corpus-check-severity.md)). Target checking is **skipped**
+  when the verb's target list contains `"*"`, when the target document has no
+  `type:`, or when the edge is **dangling**
   ([FR-026](./FR-026-intra-spec-reference-resolution.md) already reports those).
   Because cross-repo `ix://` targets resolve as dangling, Tier-2 type-checks
   targets **only within a single loaded bundle** — cross-repo target typing is out
   of scope this revision.
 
-Both tiers are **warnings** ([FR-032](./FR-032-validate-document.md) structural
-errors are unaffected); neither blocks extraction, validation, or sync.
+Tier 1 is a **warning** ([FR-032](./FR-032-validate-document.md) structural
+errors are unaffected) and blocks neither extraction, validation, nor sync.
+Tier 2 is posture-routed as above; a Tier-2 error under `Strict` fails bundle
+validation but never blocks extraction or loading.
 Determinism ([NFR-006](../non-functional/NFR-006-determinism.md)) holds:
 diagnostics are sorted by `(source, target, edge_type)` — matching the corpus
 edge ordering ([FR-026](./FR-026-intra-spec-reference-resolution.md)) — and are
@@ -214,7 +224,10 @@ vocabulary; with no object, it lists the artifact vocabulary alone.
 | FR-040-AC-7 | `target_satisfies` is true when the token equals the target archetype's name, when the token is a role the target carries, or when the token is `"*"`; false otherwise. | Test |
 | FR-040-AC-8 | During [FR-032](./FR-032-validate-document.md), a document whose frontmatter-harvested edge `type` is not in `resolve_allowed_links` yields exactly one warning `DisallowedEdgeType` naming source and verb; in-vocabulary-only yields none; when `object:` is unknown, the vocabulary falls back to the artifact axis alone and Tier-1 still runs. | Test |
 | FR-040-AC-9 | During corpus validation, a resolved edge whose target document's `object:` archetype (and its roles) fails the verb's target list yields a warning `DisallowedEdgeTarget`; the same verb to a target carrying the required role passes, including cross-module source/target. Target checking is skipped for `"*"` lists, targets with no `object:`, and dangling (cross-repo) targets. | Test |
-| FR-040-AC-10 | Tier-1 and Tier-2 findings are warnings only — they do not block extraction or [FR-032](./FR-032-validate-document.md) structural validation, and a corpus with disallowed edges still loads; diagnostics are sorted by `(source, target, edge_type)` and identical across runs and thread counts ([NFR-006](../non-functional/NFR-006-determinism.md)). | Test |
+| FR-040-AC-10 | Tier-1 findings, and Tier-2 findings under `Okf`, are warnings only — they do not block extraction or [FR-032](./FR-032-validate-document.md) structural validation, and a corpus with disallowed edges still loads; diagnostics are sorted by `(source, target, edge_type)` and identical across runs and thread counts ([NFR-006](../non-functional/NFR-006-determinism.md)). | Test |
+| FR-040-AC-12 | A target list is matched against the target document's archetype name as well as its object type and roles: an `adr` source whose `realizes` list is `[FR, NFR]` passes to `FR`/`NFR` documents and is flagged to an `adr` document, none of them declaring `object:`. | Test |
+| FR-040-AC-13 | Under `Strict` a Tier-2 `disallowed-edge-target` is an error (bundle invalid); under `Okf` it is a warning. The finding's path is the source document's file path and its message names the source and target file paths, not only their ids. | Test |
+| FR-040-AC-14 | `edges:disallowed-edge-target` set to `error`, `warning` or `off` in `grammar_severity` overrides the posture-routed tier in both postures. | Test |
 | FR-040-AC-11 | `input_skeleton` for an archetype with an optional `object` argument renders a Relationships block listing each resolved verb with its category, description, and target list; without `object`, only the artifact vocabulary is listed. | Test |
 
 ## Dependencies
