@@ -86,6 +86,14 @@ Found at head `3483c6f` (branch merged with origin/main) while regression-checki
 | FND-015 | medium | Regression from the round-2 fix: the position of `carried` in a resolved `linked` entry is stated two ways. FR-084 defines a resolved `linked` entry as 'a document plus `verb` and `resolution`', and CR-419 puts `carried` last in the Document key order, so it falls before `verb` and `resolution`. That is also what the flattened `RowDocument` in src/corpus/relation_report.rs:179-190 would emit. FR-090-AC-9 says resolved `linked` entries carry `carried` 'as the last key', which is after `resolution`. A test written to AC-9 fails an implementation that follows FR-084, and the reverse. Fix: say in AC-9 that `carried` is the last key of the Document part (before `verb`, `resolution`), or state the full linked-entry key order in FR-084. | spec/functional/FR-090-declared-carried-fields.md:107; spec/functional/FR-084-two-way-relation-coverage-report.md:121-123,129 |
 | FND-016 | low | FR-091 now adds three declarations (`field_consistency`, `required_fields`, `vocabulary`), but AC-6 still says 'neither entry'. Nothing states that a module declaring none of the three, or no `vocabulary` entry, is unchanged. Fix: 'declares none of the three entries'. | spec/functional/FR-091-ordered-field-consistency.md:145 |
 
+## New findings (disposition pass 3)
+
+Found at head `3572ba8` while checking the renumbering and cross-references.
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-017 | low | Same stale count as FND-016: FR-091 now has three declarations, but CON-1 still says 'for either declaration', so on a literal reading the new `vocabulary` declaration is outside the no-names constraint. Fix-forward, not blocking: 'for any of the three declarations'. | spec/functional/FR-091-ordered-field-consistency.md:163 |
+
 ## Dispositions
 
 Round 1, at head `5f7b2fd`, checked against current main (quire-rs#668 merged).
@@ -112,3 +120,6 @@ Round 1, at head `5f7b2fd`, checked against current main (quire-rs#668 merged).
 | FND-014 | fixed | \| FR-091-AC-4 \| ... two allocations reaching the same part yield exactly one finding for that pair, which names both `via` documents in lexical id order. \| Test \| |
 | FND-015 | still-open | New in round 2; not yet fixed. |
 | FND-016 | still-open | New in round 2; not yet fixed. |
+| FND-015 | rejected | Moot at 3572ba8: relation-report `carried` was removed from FR-090 (text, old AC-9, FR-084 edge and dependency) and the FR-084 CR-419 note was deleted, so FR-084 is byte-identical to origin/main and no linked-entry key order is stated anywhere. The defect no longer exists in the artifact. |
+| FND-016 | fixed | \| FR-091-AC-6 \| A corpus whose modules declare none of the three (`field_consistency`, `required_fields`, `vocabulary`) yields no finding and output identical to the output before this requirement. \| Test \| |
+| FND-017 | deferred | Fix-forward, not blocking: one-word wording fix ('either' to 'any of the three'); rides with the PLAT-1578 implementation PR or a trailing commit. |

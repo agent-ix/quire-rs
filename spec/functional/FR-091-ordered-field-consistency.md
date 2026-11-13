@@ -160,7 +160,7 @@ documents are read.
 
 | ID | Constraint | Type | Validation |
 |----|-----------|------|------------|
-| FR-091-CON-1 | The engine holds no archetype, field, verb, rank or value for either declaration. | Design | Test (FR-091-AC-15) |
+| FR-091-CON-1 | The engine holds no archetype, field, verb, rank or value for any of the three declarations. | Design | Test (FR-091-AC-15) |
 | FR-091-CON-2 | No code path assigns, suggests or writes a field value; findings only name values people wrote. | Design | Inspection |
 
 ## Dependencies
