@@ -18,6 +18,7 @@ use std::path::Path;
 use serde::Serialize;
 
 use super::declared_tables::{relative_path, ExcludeSet};
+use super::relation_edges::{RelationContext, RelationEdges};
 use super::required_relations::{is_satisfied, obliged};
 use super::spec::Spec;
 use crate::coverage::{CoverageMatrixRequirement, CoverageMatrixStatus};
@@ -44,6 +45,14 @@ pub enum RelationReportError {
     #[error("no loaded module declares required relation '{name}'")]
     UnknownRelation {
         /// The name as supplied.
+        name: String,
+    },
+    /// A `design_relations` entry names a relation no loaded module declares.
+    #[error(
+        "design_relations entry '{name}' names no required relation declared by a loaded module"
+    )]
+    UnknownDesignRelation {
+        /// The entry as declared.
         name: String,
     },
     /// One [`RelationReportMember`] is supplied per corpus member.
@@ -154,6 +163,11 @@ pub enum LinkedEntry {
         document: RowDocument,
         /// The accepted verb of the edge.
         verb: String,
+        /// The distinct criterion ids of the pair's edges, in lexical order;
+        /// empty when the pair is linked as a whole. `None` outside the
+        /// design-element join (FR-086), which is the only report that carries
+        /// the key.
+        realized_criteria: Option<Vec<String>>,
     },
     /// An accepted-verb edge whose target is absent, satisfying a relation
     /// with `to: []`. It is never tracked: serialized `not-tracked` with zero
@@ -184,6 +198,8 @@ impl Serialize for LinkedEntry {
             document: &'a RowDocument,
             verb: &'a str,
             resolution: LinkResolution,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            realized_criteria: &'a Option<Vec<String>>,
         }
         #[derive(Serialize)]
         struct Dangling<'a> {
@@ -194,10 +210,15 @@ impl Serialize for LinkedEntry {
             criteria: Criteria,
         }
         match self {
-            Self::Resolved { document, verb } => Resolved {
+            Self::Resolved {
+                document,
+                verb,
+                realized_criteria,
+            } => Resolved {
                 document,
                 verb,
                 resolution: LinkResolution::Resolved,
+                realized_criteria,
             }
             .serialize(serializer),
             Self::Dangling { reference, verb } => Dangling {
@@ -332,12 +353,7 @@ pub fn relation_report(
     members: &[RelationReportMember<'_>],
     names: &[String],
 ) -> Result<RelationReport, RelationReportError> {
-    if members.len() != corpus.member_count() {
-        return Err(RelationReportError::MemberCount {
-            members: corpus.member_count(),
-            supplied: members.len(),
-        });
-    }
+    check_members(corpus, members)?;
     let model = registry.traceability();
     let declared = model.map_or(&[][..], |m| m.required_relations.as_slice());
     if let Some(name) = names
@@ -346,21 +362,98 @@ pub fn relation_report(
     {
         return Err(RelationReportError::UnknownRelation { name: name.clone() });
     }
-    let model_exclude = ExcludeSet::compile_validated(model.map_or(&[][..], |m| &m.exclude));
-    let standing: Vec<BTreeMap<String, Criteria>> =
-        members.iter().map(|m| standing_of(m)).collect();
-    let ctx = Context {
-        corpus,
-        members,
-        standing: &standing,
-    };
-
-    let relations = declared
+    let relations: Vec<&RequiredRelation> = declared
         .iter()
         .filter(|r| names.is_empty() || names.contains(&r.name))
-        .map(|relation| ctx.section(relation, &model_exclude))
         .collect();
-    Ok(RelationReport { relations })
+    Ok(report_of(
+        corpus,
+        registry,
+        members,
+        &relations,
+        Linking::Plain,
+    ))
+}
+
+/// Implements: FR-086
+/// Produce the design-element join for `corpus`: the [`relation_report`] over
+/// the relations the loaded modules name in `design_relations`, in that order.
+///
+/// A requirement with no design element is a row with state `uncovered`, never
+/// an absence, and each resolved `linked` entry carries `realized_criteria`.
+/// A corpus whose modules name no design relation yields no sections. An entry
+/// that names no declared relation is an error naming it, and no report.
+pub fn design_join(
+    corpus: &Spec,
+    registry: &Registry,
+    members: &[RelationReportMember<'_>],
+) -> Result<RelationReport, RelationReportError> {
+    check_members(corpus, members)?;
+    let Some(model) = registry.traceability() else {
+        return Ok(RelationReport { relations: vec![] });
+    };
+    let relations = model
+        .design_relations
+        .iter()
+        .map(|name| {
+            model
+                .required_relations
+                .iter()
+                .find(|r| &r.name == name)
+                .ok_or_else(|| RelationReportError::UnknownDesignRelation { name: name.clone() })
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(report_of(
+        corpus,
+        registry,
+        members,
+        &relations,
+        Linking::Join,
+    ))
+}
+
+fn check_members(
+    corpus: &Spec,
+    members: &[RelationReportMember<'_>],
+) -> Result<(), RelationReportError> {
+    if members.len() == corpus.member_count() {
+        return Ok(());
+    }
+    Err(RelationReportError::MemberCount {
+        members: corpus.member_count(),
+        supplied: members.len(),
+    })
+}
+
+fn report_of(
+    corpus: &Spec,
+    registry: &Registry,
+    members: &[RelationReportMember<'_>],
+    relations: &[&RequiredRelation],
+    linking: Linking,
+) -> RelationReport {
+    let model_exclude = ExcludeSet::compile_validated(
+        registry
+            .traceability()
+            .map_or(&[][..], |model| model.exclude.as_slice()),
+    );
+    let standing: Vec<BTreeMap<String, Criteria>> =
+        members.iter().map(|m| standing_of(m)).collect();
+    let roots: Vec<&Path> = members.iter().map(|m| m.root).collect();
+    let context = RelationContext::build(corpus, registry, &roots);
+    let ctx = Context {
+        corpus,
+        context: &context,
+        members,
+        standing: &standing,
+        linking,
+    };
+    RelationReport {
+        relations: relations
+            .iter()
+            .map(|relation| ctx.section(relation, &model_exclude))
+            .collect(),
+    }
 }
 
 /// Criteria counts per document path, from one member's matrix.
@@ -384,8 +477,20 @@ fn standing_of(member: &RelationReportMember<'_>) -> BTreeMap<String, Criteria> 
     out
 }
 
+/// What a resolved `linked` entry carries.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Linking {
+    /// The FR-084 shape.
+    Plain,
+    /// The FR-086 shape: plus `realized_criteria`.
+    Join,
+}
+
 struct Context<'a> {
     corpus: &'a Spec,
+    context: &'a RelationContext,
+    /// Whether `linked` entries carry `realized_criteria`.
+    linking: Linking,
     members: &'a [RelationReportMember<'a>],
     standing: &'a [BTreeMap<String, Criteria>],
 }
@@ -396,10 +501,19 @@ type LinkKey = (Option<String>, String, String);
 impl Context<'_> {
     fn section(&self, relation: &RequiredRelation, model_exclude: &ExcludeSet) -> RelationSection {
         let mut rows: Vec<RelationRow> = Vec::new();
+        let Some(edges) = self.context.edges_for(relation) else {
+            return RelationSection {
+                name: relation.name.clone(),
+                check: relation.check.clone(),
+                direction: relation.direction,
+                summary: RelationSummary::default(),
+                rows: Vec::new(),
+            };
+        };
         for (member, input) in self.members.iter().enumerate() {
             let view = self.corpus.member_view(member);
             for obliged in obliged(&view, relation, input.root, model_exclude) {
-                rows.push(self.row(relation, obliged.slot, obliged.value));
+                rows.push(self.row(relation, edges, obliged.slot, obliged.value));
             }
         }
         rows.sort_by(|a, b| {
@@ -458,17 +572,17 @@ impl Context<'_> {
     fn row(
         &self,
         relation: &RequiredRelation,
+        edges: &RelationEdges,
         slot: usize,
         value: Option<&serde_json::Value>,
     ) -> RelationRow {
         let corpus = self.corpus;
-        let accepted_edges: BTreeSet<&str> = relation.edges.iter().map(String::as_str).collect();
         let accepted_kinds: BTreeSet<&str> = relation.to.iter().map(String::as_str).collect();
         let kind_of = |slot: usize| corpus.doc(slot).concept_type().unwrap_or("");
         let accepts =
             |slot: usize| accepted_kinds.is_empty() || accepted_kinds.contains(kind_of(slot));
 
-        let mut resolved: BTreeMap<LinkKey, LinkedEntry> = BTreeMap::new();
+        let mut resolved: BTreeMap<LinkKey, (usize, BTreeSet<String>)> = BTreeMap::new();
         let mut dangling: BTreeSet<(String, String)> = BTreeSet::new();
         let mut mismatched: BTreeMap<LinkKey, KindMismatchEntry> = BTreeMap::new();
         let key_of = |slot: usize, verb: &str| -> LinkKey {
@@ -480,70 +594,52 @@ impl Context<'_> {
             )
         };
 
-        if relation.direction != RelationDirection::Incoming {
-            for edge in corpus
-                .edges_from(slot)
-                .into_iter()
-                .filter(|e| accepted_edges.contains(e.edge_type.as_str()))
-            {
-                match edge.target_slot {
-                    Some(target) if accepts(target) => {
-                        resolved.insert(
-                            key_of(target, &edge.edge_type),
-                            LinkedEntry::Resolved {
-                                document: self.document(target),
-                                verb: edge.edge_type.clone(),
-                            },
-                        );
-                    }
-                    Some(target) => {
-                        let member = corpus.member_of(target);
-                        mismatched.insert(
-                            key_of(target, &edge.edge_type),
-                            KindMismatchEntry {
-                                id: corpus.doc(target).id.clone(),
-                                repo: corpus.member_identity(member).map(str::to_string),
-                                archetype: corpus.doc(target).concept_type().map(str::to_string),
-                                verb: edge.edge_type.clone(),
-                                accepted: relation.to.clone(),
-                            },
-                        );
-                    }
-                    None => {
-                        let authored: Vec<&String> = if edge.references.is_empty() {
-                            vec![&edge.target]
-                        } else {
-                            edge.references.iter().collect()
-                        };
-                        for reference in authored {
-                            dangling.insert((reference.clone(), edge.edge_type.clone()));
-                        }
-                    }
+        for found in edges.matches(relation.direction, slot) {
+            let reading = found.reading;
+            match found.counterpart {
+                Some(other) if accepts(other) => {
+                    resolved
+                        .entry(key_of(other, &reading.verb))
+                        .or_insert_with(|| (other, BTreeSet::new()))
+                        .1
+                        .extend(reading.criteria.iter().cloned());
                 }
-            }
-        }
-        if relation.direction != RelationDirection::Outgoing {
-            for edge in corpus
-                .edges_to(slot)
-                .into_iter()
-                .filter(|e| accepted_edges.contains(e.edge_type.as_str()))
-            {
-                // As in FR-058, only the counterpart of an accepted kind counts.
-                if accepts(edge.source_slot) {
-                    resolved.insert(
-                        key_of(edge.source_slot, &edge.edge_type),
-                        LinkedEntry::Resolved {
-                            document: self.document(edge.source_slot),
-                            verb: edge.edge_type.clone(),
+                // Only the obliged document's own outgoing edge names a wrong
+                // kind; under `incoming` a wrong-kind source is not a link and
+                // not a mismatch (FR-085-AC-25).
+                Some(other) if found.outgoing => {
+                    let member = corpus.member_of(other);
+                    mismatched.insert(
+                        key_of(other, &reading.verb),
+                        KindMismatchEntry {
+                            id: corpus.doc(other).id.clone(),
+                            repo: corpus.member_identity(member).map(str::to_string),
+                            archetype: corpus.doc(other).concept_type().map(str::to_string),
+                            verb: reading.verb.clone(),
+                            accepted: relation.to.clone(),
                         },
                     );
+                }
+                Some(_) => {}
+                None => {
+                    if let Some(reference) = &reading.reference {
+                        dangling.insert((reference.clone(), reading.verb.clone()));
+                    }
                 }
             }
         }
 
         // `to: []` makes the verb alone the contract, so a dangling edge is
         // also listed as a link, never as a tracked document.
-        let mut linked: Vec<LinkedEntry> = resolved.into_values().collect();
+        let mut linked: Vec<LinkedEntry> = resolved
+            .into_iter()
+            .map(|((_, _, verb), (other, ids))| LinkedEntry::Resolved {
+                document: self.document(other),
+                verb,
+                realized_criteria: (self.linking == Linking::Join)
+                    .then(|| ids.into_iter().collect()),
+            })
+            .collect();
         if relation.to.is_empty() {
             linked.extend(
                 dangling
@@ -583,7 +679,7 @@ impl Context<'_> {
                     value: value.clone(),
                 }),
             document,
-            state: if is_satisfied(corpus, relation, slot) {
+            state: if is_satisfied(corpus, edges, relation, slot) {
                 RowState::Covered
             } else {
                 RowState::Uncovered

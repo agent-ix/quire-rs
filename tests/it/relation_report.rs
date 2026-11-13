@@ -256,7 +256,7 @@ fn linked_lists_accepted_counterparts_ordered_and_skips_other_verbs() {
     let report = report_over(&dir, &module("relation-report"), &matrix);
     let r = row(&report, "concern-is-addressed", "CON-001");
     assert_eq!(linked_ids(r), vec!["RULE-001", "RULE-002"]);
-    let LinkedEntry::Resolved { document, verb } = &r.linked[1] else {
+    let LinkedEntry::Resolved { document, verb, .. } = &r.linked[1] else {
         panic!("resolved entry")
     };
     assert_eq!(r.linked[1].resolution(), LinkResolution::Resolved);

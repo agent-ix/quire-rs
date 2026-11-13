@@ -1,0 +1,18 @@
+# FR-086-CON-1 fixture: a second module whose design relations merge after the
+# first module's, without repeating one.
+name: traceability-design-join-more
+version: 0.1.0
+description: Second module declaring design relations
+artifact_types:
+- name: Glyph
+  defaults:
+    id_pattern: GLY-{next:03d}
+traceability:
+  required_relations:
+  - name: glyph-extra
+    from: Glyph
+    edges: [kindles]
+    to: [Lantern]
+    direction: incoming
+    check: glyph-extra-dark
+  design_relations: [glyph-has-lantern, glyph-extra]
