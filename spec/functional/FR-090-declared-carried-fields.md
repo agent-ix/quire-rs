@@ -115,4 +115,4 @@ document. Each carried field is independent: it neither supplies, overrides nor 
 ## Dependencies
 
 - **Upstream**: [FR-050](./FR-050-declarative-coverage-computation.md), [FR-082](./FR-082-coverage-matrix-criticality.md), [FR-059](./FR-059-declared-vocabulary-coverage.md), [FR-058](./FR-058-upward-trace-completeness.md)
-- **Downstream**: [FR-091](./FR-091-ordered-field-consistency.md), [spec-artifacts-iso FR-009](ix://agent-ix/spec-artifacts-iso/FR-009) (declares the entry; lands after this engine requirement), [quoin FR-160](ix://agent-ix/quoin/FR-160) (reads `carried` and `carried_vocabulary`), quire-cli FR-028 renders the value
+- **Downstream**: [FR-091](./FR-091-ordered-field-consistency.md), [spec-artifacts-iso FR-009](ix://agent-ix/spec-artifacts-iso/FR-009) (declares the entry; lands after this engine requirement), [quoin FR-160](ix://agent-ix/quoin/FR-160) and [quoin FR-161](ix://agent-ix/quoin/FR-161) (read `carried` and `carried_vocabulary`), quire-cli FR-028 renders the value
