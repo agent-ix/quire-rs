@@ -49,6 +49,9 @@ bumps; once 1.0 ships, semver is strict.
   `dangling-reference`. A blank or repeated `design_relations` entry fails
   module load, and an entry naming no declared relation reports under
   `trace:undeclared-relation-vocabulary` and fails the join.
+- PLAT-1682 (FR-010 CR-008): `DiagramBlock::line`, the 1-based line of a fenced
+  block's opening fence (full-file coordinates, frontmatter counted, for
+  `extract_diagrams`; slice-relative for `diagrams_from_content`).
 - PLAT-1554 (FR-084): the two-way relation coverage report. `relation_report`
   produces, for every declared `required_relations` entry, one row per obliged
   document with its `state` (FR-058 satisfaction), the documents linked to it,
@@ -75,6 +78,16 @@ bumps; once 1.0 ships, semver is strict.
   appears only in a later table is minted and a later table's row is a rollup
   row. The id-column, status-column and inventory column findings are per
   section, and a combinatorial source builds its space from every table.
+- **Breaking, PLAT-1682:** `DiagramBlock` is now `#[non_exhaustive]` (it gains
+  fields without a further break), so it can no longer be built with a struct
+  literal outside the crate. Fence recognition follows CommonMark, measured from
+  the enclosing list item's content column, in the heading walk, `extract_diagrams`,
+  the `code_block` locator, list-item minting and table detection: a closing
+  fence must be at least as long as the opener and carry no info string, a fence
+  indented four columns past its container is not a fence, a backtick opening
+  line whose info string has a backtick is not a fence; a fence left open in a
+  list item ends with the item. `DiagramBlock::index`
+  documented as the ordinal among the returned (filtered) blocks.
 
 - **Breaking, PLAT-1556:** `Spec::with_bundle_package` now returns
   `Result<Spec, CorpusError>` and re-resolves under the declared identity, so
