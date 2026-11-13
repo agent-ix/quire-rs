@@ -542,6 +542,12 @@ pub struct RequiredRelation {
     /// deserialized, so a malformed one never reaches the check.
     #[serde(rename = "where", skip_serializing_if = "Option::is_none")]
     pub selector: Option<WhereSelector>,
+    /// Optional edge conditions narrowing the obligation to `from` documents
+    /// that have an edge matching at least one of them (FR-058-AC-23..28).
+    /// Empty means no narrowing. Validated once, when the declaration is
+    /// deserialized.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub when_any: Vec<EdgeCondition>,
 }
 
 /// The authored shape of a [`RequiredRelation`], before the `where` is
@@ -561,6 +567,9 @@ struct RawRequiredRelation {
     /// `where: null` stays `Some(Null)` so it is rejected, not read as absent.
     #[serde(default, rename = "where", deserialize_with = "deserialize_present")]
     selector: Option<serde_json::Value>,
+    /// `when_any: null` stays `Some(Null)` so it is rejected, not read as absent.
+    #[serde(default, deserialize_with = "deserialize_present")]
+    when_any: Option<serde_json::Value>,
 }
 
 impl TryFrom<RawRequiredRelation> for RequiredRelation {
@@ -572,6 +581,10 @@ impl TryFrom<RawRequiredRelation> for RequiredRelation {
             .as_ref()
             .map(|value| WhereSelector::parse("required_relations", &raw.name, value))
             .transpose()?;
+        let when_any = match raw.when_any.as_ref() {
+            Some(value) => EdgeCondition::parse_list(&raw.name, value)?,
+            None => Vec::new(),
+        };
         Ok(Self {
             name: raw.name,
             from: raw.from,
@@ -581,7 +594,84 @@ impl TryFrom<RawRequiredRelation> for RequiredRelation {
             check: raw.check,
             exclude: raw.exclude,
             selector,
+            when_any,
         })
+    }
+}
+
+/// One condition of a `when_any` (FR-058-AC-23..28): the `from` document has
+/// an edge of `verb`, in `direction`, to or from a resolved document of one of
+/// the `other` kinds.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct EdgeCondition {
+    /// Edge verb.
+    pub verb: String,
+    /// `Outgoing`: the `from` document is the edge's source. `Incoming`: it is
+    /// the target. `Either` is rejected at load.
+    pub direction: RelationDirection,
+    /// Archetypes the document at the other end must be one of.
+    pub other: Vec<String>,
+}
+
+impl EdgeCondition {
+    fn parse_list(relation: &str, raw: &serde_json::Value) -> Result<Vec<Self>, String> {
+        let bad = |why: &str| {
+            format!(
+                "traceability: required_relations entry '{relation}' has an invalid `when_any`: {why}"
+            )
+        };
+        let items = match raw {
+            serde_json::Value::Array(items) if !items.is_empty() => items,
+            serde_json::Value::Array(_) => return Err(bad("it is empty")),
+            _ => return Err(bad("it must be a list of conditions")),
+        };
+        items
+            .iter()
+            .map(|item| {
+                let map = item.as_object().ok_or_else(|| {
+                    bad("each condition must be a mapping of `verb`, `direction` and `other`")
+                })?;
+                if let Some(key) = map
+                    .keys()
+                    .find(|k| !matches!(k.as_str(), "verb" | "direction" | "other"))
+                {
+                    return Err(bad(&format!("unknown key '{key}'")));
+                }
+                let verb = match map.get("verb") {
+                    Some(serde_json::Value::String(v)) if !v.trim().is_empty() => v.clone(),
+                    Some(_) => return Err(bad("`verb` must be a non-blank string")),
+                    None => return Err(bad("`verb` is missing")),
+                };
+                let direction = match map.get("direction").and_then(serde_json::Value::as_str) {
+                    Some("outgoing") => RelationDirection::Outgoing,
+                    Some("incoming") => RelationDirection::Incoming,
+                    Some(_) => return Err(bad("`direction` must be `outgoing` or `incoming`")),
+                    None if map.contains_key("direction") => {
+                        return Err(bad("`direction` must be `outgoing` or `incoming`"))
+                    }
+                    None => return Err(bad("`direction` is missing")),
+                };
+                let other = match map.get("other") {
+                    Some(serde_json::Value::Array(kinds)) if !kinds.is_empty() => kinds
+                        .iter()
+                        .map(|k| {
+                            k.as_str()
+                                .filter(|t| !t.trim().is_empty())
+                                .map(str::to_string)
+                                .ok_or_else(|| bad("`other` entries must be non-blank strings"))
+                        })
+                        .collect::<Result<Vec<_>, _>>()?,
+                    Some(serde_json::Value::Array(_)) => return Err(bad("`other` is empty")),
+                    Some(_) => return Err(bad("`other` must be a list")),
+                    None => return Err(bad("`other` is missing")),
+                };
+                Ok(Self {
+                    verb,
+                    direction,
+                    other,
+                })
+            })
+            .collect()
     }
 }
 
