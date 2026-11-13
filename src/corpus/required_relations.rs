@@ -28,7 +28,8 @@ use super::vocabulary_coverage::{declares_property, enum_at};
 use crate::grammar::GrammarSeverity;
 use crate::registry::Registry;
 use crate::traceability::{
-    fold_selector_value, RelationDirection, RequiredRelation, WhereSelector,
+    fold_selector_value, EdgeCondition, EdgeSide, RelationDirection, RequiredRelation,
+    WhereSelector,
 };
 
 /// The `trace:` check token of a resolved edge whose target kind is outside a
@@ -165,6 +166,26 @@ fn check_declaration_is_live(
                  document in this bundle is one, so the relation matches nothing",
                 relation.name,
                 dead.join(", ")
+            ),
+        ));
+    }
+    // The `other` kinds of a `when_any` are checked like `to`.
+    let dead_other: BTreeSet<&str> = relation
+        .when_any
+        .iter()
+        .flat_map(|c| c.other().iter().map(String::as_str))
+        .filter(|kind| !is_live(kind))
+        .collect();
+    if !dead_other.is_empty() {
+        out.push((
+            root.to_path_buf(),
+            String::new(),
+            "undeclared-relation-vocabulary".to_string(),
+            format!(
+                "required relation '{}' names `when_any` other '{}' — no loaded module declares \
+                 that kind and no document in this bundle is one, so that condition matches nothing",
+                relation.name,
+                dead_other.iter().copied().collect::<Vec<_>>().join("', '")
             ),
         ));
     }
@@ -373,8 +394,9 @@ pub(crate) struct Obliged<'a> {
 }
 
 /// The documents `relation` obliges in the view `spec` sees: the `from` kind,
-/// then `where`, then `exclude`, in id order. Shared by the finding
-/// check and the relation report so the two select the same population.
+/// then `where`, then `when_any`, then `exclude`, in id order. Shared by the
+/// finding check, the relation report and the assurance projection so all
+/// three select the same population.
 pub(crate) fn obliged<'a>(
     spec: &'a Spec,
     relation: &RequiredRelation,
@@ -393,6 +415,9 @@ pub(crate) fn obliged<'a>(
             },
             None => None,
         };
+        if !relation.when_any.is_empty() && !in_scope_by_edge(spec, slot, &relation.when_any) {
+            continue;
+        }
         if exclude.excludes(root, &doc.path) || model_exclude.excludes(root, &doc.path) {
             continue;
         }
@@ -420,6 +445,27 @@ fn seen_satisfies(spec: &Spec, relation: &RequiredRelation, seen: &[Match<'_>]) 
     let accepted_targets: BTreeSet<&str> = relation.to.iter().map(String::as_str).collect();
     seen.iter()
         .any(|m| target_is_accepted(spec, m.counterpart, &accepted_targets))
+}
+
+/// Whether any `when_any` condition holds for the document at `slot`: an edge
+/// of the condition's verb and direction to or from a resolved document of one
+/// of its `other` kinds. A dangling edge holds no condition.
+fn in_scope_by_edge(spec: &Spec, slot: usize, conditions: &[EdgeCondition]) -> bool {
+    let kind_is = |other: Option<usize>, kinds: &[String]| {
+        other
+            .and_then(|s| spec.doc(s).concept_type())
+            .is_some_and(|ty| kinds.iter().any(|k| k == ty))
+    };
+    conditions.iter().any(|c| match c.direction() {
+        EdgeSide::Incoming => spec
+            .edges_to(slot)
+            .iter()
+            .any(|e| e.edge_type == c.verb() && kind_is(Some(e.source_slot), c.other())),
+        EdgeSide::Outgoing => spec
+            .edges_from(slot)
+            .iter()
+            .any(|e| e.edge_type == c.verb() && kind_is(e.target_slot, c.other())),
+    })
 }
 
 /// Whether the document at the other end of an edge is an accepted kind.

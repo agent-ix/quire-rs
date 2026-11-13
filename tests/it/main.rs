@@ -50,6 +50,7 @@ mod props_metamorphic;
 mod quality_lints;
 mod relation_report;
 mod required_relations;
+mod required_relations_when_any;
 mod required_relations_where;
 mod robustness;
 mod semantic_boundary;
