@@ -336,13 +336,22 @@ fn tc655_tier2_inverse_normalization() {
         report.warnings
     );
     let m = &targets[0].message;
+    let authored_source_path = root.join("B-001.md").display().to_string();
+    let authored_target_path = root.join("A-001.md").display().to_string();
+    assert_eq!(targets[0].path, root.join("B-001.md"));
     assert!(
         m.contains("consumed_by") && m.contains("B-001") && m.contains("A-001"),
         "reported with authored inverse edge: {m}"
     );
     assert!(
-        m.contains("object type 'producer'") && !m.contains("object type 'wrong-target-kind'"),
-        "kind describes authored target A-001, not normalized target B-001: {m}"
+        m.contains(&authored_source_path)
+            && m.contains(&authored_target_path)
+            && m.contains("targets 'A-001'")
+            && m.contains("normalized forward edge 'publishes' from 'A-001'")
+            && m.contains("to 'B-001'")
+            && m.contains("target type 'thing', object 'wrong-target-kind'")
+            && m.contains("forward target list [\"consumer\"]"),
+        "message names the normalized target and failed forward constraint while preserving authored context: {m}"
     );
     // Warn-tier: no hard errors from the edge check.
     assert!(

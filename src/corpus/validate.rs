@@ -563,12 +563,10 @@ fn validate_edge_targets(
                 continue; // no `type:` — nothing to constrain
             };
             let target_obj = document_object(target_doc);
+            let target_type_arch = registry.archetype(target_type);
             let target_obj_arch = target_obj.and_then(|o| registry.archetype(o));
             let satisfied = targets.iter().any(|t| {
-                registry
-                    .archetype(target_type)
-                    .is_some_and(|a| registry.target_satisfies(t, a))
-                    || crate::vocab::target_satisfies(t, target_type, &[])
+                target_type_arch.is_some_and(|a| registry.target_satisfies(t, a))
                     || target_obj_arch.is_some_and(|a| registry.target_satisfies(t, a))
             });
             if !satisfied {
@@ -577,11 +575,13 @@ fn validate_edge_targets(
                 // Posture-routed (FR-040-AC-13).
                 let authored_source = spec.doc(edge.source_slot);
                 let authored_target = spec.doc(edge_target);
-                let authored_target_obj = document_object(authored_target);
-                let authored_target_type = authored_target.concept_type().unwrap_or("unknown");
-                let kind = match authored_target_obj {
-                    Some(o) => format!("archetype '{authored_target_type}', object type '{o}'"),
-                    None => format!("archetype '{authored_target_type}'"),
+                let normalized_source = spec.doc(fwd_source);
+                let normalized_target = spec.doc(fwd_target);
+                let normalized_target_type = normalized_target.concept_type().unwrap_or("unknown");
+                let normalized_target_obj = document_object(normalized_target);
+                let normalized_target_kind = match normalized_target_obj {
+                    Some(o) => format!("type '{normalized_target_type}', object '{o}'"),
+                    None => format!("type '{normalized_target_type}'"),
                 };
                 report.route(
                     severity,
@@ -591,13 +591,18 @@ fn validate_edge_targets(
                         "disallowed-edge-target",
                         authored_source.path.clone(),
                         format!(
-                            "edge '{}' from '{}' ({}) targets '{}' ({}) of {}, which satisfies none of {:?}",
+                            "authored edge '{}' from '{}' ({}) targets '{}' ({}); normalized forward edge '{}' from '{}' ({}) to '{}' ({}), whose target {} does not satisfy the forward target list {:?}",
                             edge.edge_type,
                             edge.source,
                             authored_source.path.display(),
                             edge.target,
                             authored_target.path.display(),
-                            kind,
+                            fwd_verb,
+                            spec.doc(fwd_source).id,
+                            normalized_source.path.display(),
+                            spec.doc(fwd_target).id,
+                            normalized_target.path.display(),
+                            normalized_target_kind,
                             targets
                         ),
                     ),

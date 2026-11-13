@@ -49,6 +49,7 @@ artifact_types:
 edge_types:
   realizes: { description: realizes, category: realization }
   classifies: { description: classifies, category: traceability }
+  references: { description: references, category: traceability }
 roles:
   domain-object: { description: a business-model type }
 "#;
@@ -225,7 +226,7 @@ fn dangling_target_fails_strict() {
 
 /// Only declared `relationships` entries receive Tier-2 target-kind checks;
 /// frontmatter URIs, body URIs and relative navigation links stay references.
-#[trace("FR-040-AC-12")]
+#[trace("FR-040-AC-9", "FR-040-AC-12")]
 #[test]
 fn synthesized_reference_edges_are_not_target_kind_checked() {
     let source = "---\nid: ADR-1\ntype: adr\nrelationships:\n- target: ix://o/r/FR-1\n  type: realizes\n---\n# ADR-1\nSee ix://o/r/FR-1 and [the requirement](./FR-1.md).\n";
@@ -241,7 +242,7 @@ fn synthesized_reference_edges_are_not_target_kind_checked() {
 
 /// An unresolved `object:` contributes no object kind or roles, while the
 /// target's registered document archetype remains checked.
-#[trace("FR-040-AC-12")]
+#[trace("FR-040-AC-9", "FR-040-AC-12")]
 #[test]
 fn unresolved_object_uses_registered_document_archetype() {
     let target = "---\nid: ADR-2\ntype: adr\nobject: missing-object\n---\n# ADR-2\n";
@@ -257,5 +258,136 @@ fn unresolved_object_uses_registered_document_archetype() {
             .iter()
             .any(|f| f.reason == "disallowed-edge-target"),
         "known document archetype still participates in target matching: {r:?}"
+    );
+}
+
+/// A deduplicated edge keeps authored relationship provenance when the same
+/// target also appears as a synthesized body reference. A body-only reference
+/// remains navigation and receives no target-kind finding.
+#[trace("FR-040-AC-9", "FR-040-AC-12")]
+#[test]
+fn authored_and_synthetic_reference_edges_keep_authored_provenance() {
+    let authored_and_body = "---\nid: ADR-1\ntype: adr\nrelationships:\n- target: ix://o/r/FR-1\n  type: references\n---\n# ADR-1\nSee ix://o/r/FR-1.\n";
+    let authored = validate(
+        &[
+            ("ADR-1.md", authored_and_body.to_string()),
+            ("FR-1.md", doc("FR-1", "FR", None)),
+        ],
+        BundlePosture::Strict,
+    );
+    assert_eq!(
+        target_findings(&authored),
+        1,
+        "authored provenance is retained: {authored:?}"
+    );
+    assert!(
+        !authored.is_valid(),
+        "wrong-kind authored reference is enforced"
+    );
+
+    let body_only = "---\nid: ADR-1\ntype: adr\n---\n# ADR-1\nSee ix://o/r/FR-1.\n";
+    let control = validate(
+        &[
+            ("ADR-1.md", body_only.to_string()),
+            ("FR-1.md", doc("FR-1", "FR", None)),
+        ],
+        BundlePosture::Strict,
+    );
+    assert_eq!(
+        target_findings(&control),
+        0,
+        "body-only reference is synthetic: {control:?}"
+    );
+}
+
+/// An unregistered document `type:` string cannot satisfy an allow-list role.
+#[trace("FR-040-AC-9")]
+#[test]
+fn unregistered_target_type_does_not_satisfy_role_token() {
+    use quire_rs::grammar::{GrammarSeverityLevel, GrammarSeverityMap};
+
+    let root = tmpdir("unregistered-type");
+    write(&root, "ADR-1.md", &doc("ADR-1", "adr", Some("TARGET-1")));
+    write(
+        &root,
+        "TARGET-1.md",
+        "---\nid: TARGET-1\ntype: domain-object\n---\n# TARGET-1\n",
+    );
+    let mut severity = GrammarSeverityMap::new();
+    severity.insert(
+        "edges:disallowed-edge-target".to_string(),
+        GrammarSeverityLevel::Error,
+    );
+    let registry = registry().with_grammar_severity(severity);
+    let report = validate_bundle_at(&root, &registry, BundlePosture::Okf);
+    fs::remove_dir_all(root).expect("remove temporary bundle");
+    assert_eq!(
+        target_findings(&report),
+        1,
+        "unregistered type does not act as a role: {report:?}"
+    );
+}
+
+/// The real valid `order_schema.md` architecture fixture has an authored
+/// realization edge to FR-004. Its harvested navigation reference to the same
+/// target must not become a second Tier-2 kind check.
+#[trace("FR-040-AC-9")]
+#[test]
+fn architecture_order_schema_synthetic_reference_is_not_checked() {
+    let manifest = r#"
+name: architecture-edge-fixture
+artifact_types:
+- name: data_schema
+  frontmatter_schema_ref: schemas/c.schema.json
+  allowed_links:
+    realizes_requirement: [FR]
+    references: [data_schema]
+- name: FR
+  frontmatter_schema_ref: schemas/c.schema.json
+object_types:
+- name: data_schema
+edge_types:
+  realizes_requirement: { description: realizes requirement, category: realization }
+  references: { description: references, category: traceability }
+"#;
+    let mut schemas = std::collections::BTreeMap::new();
+    schemas.insert(
+        "schemas/c.schema.json".to_string(),
+        r#"{"type":"object","required":["id"],"properties":{"id":{"type":"string"}}}"#.to_string(),
+    );
+    let registry = Registry::from_inline_parts(manifest.as_bytes(), &schemas)
+        .expect("architecture fixture registry");
+    let root = tmpdir("architecture-order-schema");
+    write(
+        &root,
+        "design/order_schema.md",
+        include_str!("../fixtures/corpus_cases/plat-1689/failure/spec/design/order_schema.md"),
+    );
+    write(&root, "functional/FR-004.md", &doc("FR-004", "FR", None));
+    let report = validate_bundle_at(&root, &registry, BundlePosture::Strict);
+    fs::remove_dir_all(root).expect("remove architecture fixture bundle");
+    assert_eq!(
+        target_findings(&report),
+        0,
+        "the source-authored edge is valid; its synthetic reference is navigation: {report:?}"
+    );
+
+    let control_root = tmpdir("architecture-order-schema-control");
+    write(
+        &control_root,
+        "design/order_schema.md",
+        include_str!("../fixtures/corpus_cases/plat-1689/control/spec/design/order_schema.md"),
+    );
+    write(
+        &control_root,
+        "functional/FR-004.md",
+        include_str!("../fixtures/corpus_cases/plat-1689/control/spec/functional/FR-004.md"),
+    );
+    let control = validate_bundle_at(&control_root, &registry, BundlePosture::Strict);
+    fs::remove_dir_all(control_root).expect("remove architecture control bundle");
+    assert_eq!(
+        target_findings(&control),
+        0,
+        "healthy registered target control stays clear: {control:?}"
     );
 }
