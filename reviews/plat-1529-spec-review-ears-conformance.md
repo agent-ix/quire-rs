@@ -29,3 +29,9 @@ Units examined:
 | ID | Severity | Summary | Refs |
 | --- | --- | --- | --- |
 | FND-001 | low | The Errors statement is event-driven but puts its trigger last ("SHALL fail with ... when a `design_relations` entry names no declared relation, and SHALL return no matrix"), so the trigger reads as part of the error text. EARS form: "When a `design_relations` entry names no declared relation, `design_matrix` SHALL fail with the FR-086 error naming the entry and SHALL return no matrix." | spec/functional/FR-092-matrix-design-column.md:99-100 |
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | Disposition round 1 at e331f16: the Errors statement now reads "When ..., `design_matrix` SHALL fail ...". |

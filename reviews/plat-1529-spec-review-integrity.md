@@ -34,3 +34,12 @@ Units examined:
 | FND-002 | medium | AC-5 and the description say that with no `design_relations` the output is byte-identical to the FR-050 `coverage_matrix`. But `design_matrix` returns every member's entries and adds `repo` for an identified member, while FR-050 computes one member's matrix with no `repo`. For a multi-member or identified corpus the claim cannot hold. Fix: restrict the identity to a single member with no identity, or state the multi-member case as one concatenation of each member's FR-050 entries plus `repo`, ordered by `repo` then `document`. | spec/functional/FR-092-matrix-design-column.md:69; FR-092-AC-5 | wrong-requirement |
 | FND-003 | low | AC-15 sits before AC-14 in the table. AC-15 also joins two unrelated checks: same-path entries in two members, and an entry array present with no obligations. Fix: reorder, and split AC-15 into two ACs. | spec/functional/FR-092-matrix-design-column.md:119-120 | wrong-requirement |
 | FND-004 | low | "Attaches each row to the entry of the document the row obliges" does not name the join key. FR-084 rows carry `document.{id,path,repo}`, while a matrix entry carries the scope-relative `document` path. The engine joins by member and member-relative path (src/corpus/relation_report.rs:366-370, 445). Fix: state that a row attaches to the entry with the same member (`repo`) and `document` equal to the row's `document.path`. | spec/functional/FR-092-matrix-design-column.md:31 | missing-requirement |
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | Disposition round 1 at e331f16: a criteria-less entry has "the general shape above and `criteria: []`". |
+| FND-002 | fixed | Disposition round 1 at e331f16: AC-5 is limited to a single member with no identity, the description drops the unconditional byte-identity claim, and the coverage-report identity moved to AC-16. |
+| FND-003 | fixed | Disposition round 1 at e331f16: the table now runs AC-14, AC-15, AC-16, AC-17, AC-18, and AC-15 is split into AC-15 and AC-18. |
+| FND-004 | fixed | Disposition round 1 at e331f16: the join key is stated as same member (`repo`) and `document` equal to the row's `document.path`. |
