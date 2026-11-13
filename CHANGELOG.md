@@ -7,6 +7,8 @@ bumps; once 1.0 ships, semver is strict.
 
 ## [Unreleased]
 
+## [0.60.0] — 2026-11-13
+
 ### Added
 
 - PLAT-1597 (FR-053-AC-24..31): an obligation source may declare
@@ -19,6 +21,14 @@ bumps; once 1.0 ships, semver is strict.
   the rating too, and a blank `criticality_field` fails module load. **Breaking:** `ObligationSource` gains
   `criticality_field`, so struct literals of it need the new field. Sources
   declaring none are unchanged.
+- PLAT-1674 (FR-058, #667): `required_relations` entries accept an optional
+  `when_any` list of `{verb, direction: outgoing|incoming, other: [kinds]}`
+  conditions. A `from` document is in scope when any one condition holds over a
+  resolved edge; documents out of scope yield no finding. It composes with
+  `where` and `exclude` by intersection. A malformed `when_any` fails at load
+  naming the relation, and an `other` kind nothing declares reports under
+  `trace:undeclared-relation-vocabulary`. A manifest declaring `when_any` was
+  refused at load with `unknown field when_any` before this release.
 - PLAT-1587 (FR-092): `design_matrix`. Runs the FR-086 join once over the
   per-member `coverage_matrix` the caller supplies and returns the matrix with a
   `design` array on each requirement entry that a design relation obliges: one
