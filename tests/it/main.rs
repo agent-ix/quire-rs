@@ -36,6 +36,7 @@ mod legacy_implements_warning;
 mod located_findings;
 mod markdown_validation;
 mod no_hidden_recompile;
+mod obligation_criticality;
 mod obligations;
 mod output_contract;
 #[cfg(feature = "rust-symbols")]

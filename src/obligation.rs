@@ -57,8 +57,9 @@ pub struct Obligation {
     /// never defaulted: a threshold nobody wrote is not a threshold of zero.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub parameters: BTreeMap<String, String>,
-    /// Declared criticality. Absent for a source declaring no criticality
-    /// column — the ISO acceptance-criteria contract carries none.
+    /// Declared criticality: the `criticality_column` cell, else the stating
+    /// document's `criticality_field` value (FR-053 item 5). Absent when the
+    /// source declares neither or neither states a value.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub criticality: Option<String>,
     /// Test-case ids the method cell names, e.g. `Test (TC-707)` → `["TC-707"]`
@@ -87,7 +88,8 @@ pub struct Obligation {
 ///
 /// It is also what keeps [`crate::validate_document::classify_document_criteria`]
 /// text-only — a criterion's method and criticality are readable from the
-/// criterion's own row, where a document path is not.
+/// parsed document (its own row, or the `criticality_field` frontmatter), where
+/// a document path is not.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CriterionObligation {
     pub source: String,
@@ -143,12 +145,13 @@ pub fn for_document(
                 continue;
             }
         }
+        let rating = document_rating(source, doc.frontmatter.as_ref());
         // FR-061: a combinatorial source states ONE obligation about the
         // interaction of every row, so it is minted from the whole table and
         // needs no id column — the id comes from `id_format` alone.
         if let Some(combinatorial) = &source.combinatorial {
             if let Some((id, obligation)) =
-                combinatorial_obligation(source, combinatorial, &resolved, doc)
+                combinatorial_obligation(source, combinatorial, &resolved, doc, rating.clone())
             {
                 out.entry(id).or_insert(obligation);
             }
@@ -182,11 +185,7 @@ pub fn for_document(
                         .and_then(|c| row.cell(c))
                         .and_then(method_of),
                     parameters,
-                    criticality: source
-                        .criticality_column
-                        .as_deref()
-                        .and_then(|c| row.cell(c))
-                        .map(str::to_string),
+                    criticality: row_criticality(source, &row, rating.as_deref()),
                 });
         }
     }
@@ -205,6 +204,7 @@ fn combinatorial_obligation(
     columns: &crate::traceability::CombinatorialColumns,
     resolved: &Resolved<'_>,
     doc: &crate::ast::QuireDocument,
+    rating: Option<String>,
 ) -> Option<(String, CriterionObligation)> {
     use crate::combinatorial::{parse_exclusion, split_values, ConfigurationSpace, Dimension};
 
@@ -259,7 +259,7 @@ fn combinatorial_obligation(
             source: source.name.clone(),
             method: None,
             parameters,
-            criticality: None,
+            criticality: rating,
         },
     ))
 }
@@ -271,6 +271,38 @@ fn doc_id(doc: &crate::ast::QuireDocument) -> Option<String> {
         .get("id")
         .and_then(serde_json::Value::as_str)
         .map(str::to_string)
+}
+
+/// The criticality an obligation row carries (FR-053 item 5, FR-053-AC-24..25).
+///
+/// The row's own `criticality_column` cell wins: it rates this one criterion,
+/// where the document rating covers every criterion of the requirement. The
+/// document rating fills in only when the column is undeclared or the cell is
+/// empty. Neither is ever defaulted — with neither, the obligation has none.
+fn row_criticality(
+    source: &ObligationSource,
+    row: &ScannedRow,
+    rating: Option<&str>,
+) -> Option<String> {
+    source
+        .criticality_column
+        .as_deref()
+        .and_then(|column| row.cell(column))
+        .or(rating)
+        .map(str::to_string)
+}
+
+/// The rating the stating document carries under the source's declared
+/// `criticality_field`, as written. Only a non-blank string counts: a null,
+/// blank or non-string value is no rating, and nothing is inferred in its
+/// place. The engine learns the key from the module, never holds it.
+fn document_rating(
+    source: &ObligationSource,
+    frontmatter: Option<&serde_json::Map<String, serde_json::Value>>,
+) -> Option<String> {
+    let key = source.criticality_field.as_deref()?;
+    let value = frontmatter?.get(key)?.as_str()?;
+    (!value.trim().is_empty()).then(|| value.to_string())
 }
 
 /// Strip a trailing parenthetical annotation from a method cell.
@@ -376,6 +408,19 @@ pub fn derive(
             target_required: false,
         };
         let rows = declared_tables::scan(spec, root, scope, resolved.section, &mut ctx);
+        let ratings: BTreeMap<&Path, String> = match source.criticality_field {
+            Some(_) => spec
+                .documents()
+                .iter()
+                .filter_map(|doc| {
+                    Some((
+                        doc.path.as_path(),
+                        document_rating(source, doc.frontmatter())?,
+                    ))
+                })
+                .collect(),
+            None => BTreeMap::new(),
+        };
         // FR-061: a combinatorial source states ONE obligation per document
         // about the interaction of that document's rows, so it never reaches
         // the row-per-obligation path below.
@@ -392,6 +437,7 @@ pub fn derive(
                 &resolved,
                 combinatorial,
                 &rows,
+                &ratings,
                 root,
                 &mut out,
             );
@@ -427,6 +473,7 @@ pub fn derive(
             order,
             &resolved,
             &rows,
+            &ratings,
             root,
             &mut out,
             &mut skipped,
@@ -489,6 +536,7 @@ fn collect_combinatorial<'a>(
     resolved: &Resolved<'_>,
     columns: &crate::traceability::CombinatorialColumns,
     rows: impl IntoIterator<Item = &'a ScannedRow>,
+    ratings: &BTreeMap<&Path, String>,
     root: &Path,
     out: &mut Vec<(usize, Obligation)>,
 ) {
@@ -565,7 +613,7 @@ fn collect_combinatorial<'a>(
                 statement,
                 method: None,
                 parameters,
-                criticality: None,
+                criticality: ratings.get(path).cloned(),
                 // A configuration table declares no method cell and so names
                 // no test case; the obligation is over the space itself.
                 target_ids: Vec::new(),
@@ -579,6 +627,7 @@ fn collect(
     order: usize,
     resolved: &Resolved<'_>,
     rows: &[ScannedRow],
+    ratings: &BTreeMap<&Path, String>,
     root: &Path,
     out: &mut Vec<(usize, Obligation)>,
     skipped: &mut Vec<SkippedRow>,
@@ -593,7 +642,8 @@ fn collect(
         let n = *n;
         let document = declared_tables::relative_path(root, &row.path);
 
-        match row_obligation(source, resolved, row, n, &document) {
+        let rating = ratings.get(row.path.as_path()).map(String::as_str);
+        match row_obligation(source, resolved, row, n, &document, rating) {
             Some(obligation) => out.push((order, obligation)),
             None => skipped.push(SkippedRow {
                 source: source.name.clone(),
@@ -611,6 +661,7 @@ fn row_obligation(
     row: &ScannedRow,
     ordinal: usize,
     document: &str,
+    rating: Option<&str>,
 ) -> Option<Obligation> {
     let statement = row.cell(&source.statement_column)?;
     let id = match (resolved.id_column, resolved.id_format) {
@@ -635,11 +686,7 @@ fn row_obligation(
             .and_then(|column| row.cell(column))
             .and_then(method_of),
         parameters,
-        criticality: source
-            .criticality_column
-            .as_deref()
-            .and_then(|column| row.cell(column))
-            .map(str::to_string),
+        criticality: row_criticality(source, row, rating),
         target_ids: source
             .method_column
             .as_deref()
