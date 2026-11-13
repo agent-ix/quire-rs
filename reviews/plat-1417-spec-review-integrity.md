@@ -1,0 +1,31 @@
+---
+id: SR-20261113045747
+title: "integrity review of FR-086 design-element join and FR-058 CR-416 (quire-rs PR 668)"
+type: SpecReview
+analysis: integrity
+scope: "agent-ix/quire-rs@8f9a5b9; spec/functional/FR-086-design-element-join.md; spec/functional/FR-058-upward-trace-completeness.md; context FR-026, FR-041, FR-084, FR-085, src/corpus/resolve.rs, src/corpus/required_relations.rs, src/corpus/relation_report.rs"
+review_set: subset
+relationships:
+  - target: ix://agent-ix/quire-rs/FR-086
+    type: references
+  - target: ix://agent-ix/quire-rs/FR-058
+    type: references
+---
+
+# Integrity review of FR-086 and FR-058 CR-416 (quire-rs PR 668)
+
+## Summary
+
+Ticket: PLAT-1417. Checked the diff against FR-026, FR-041, FR-084, FR-085 and the code on main (`src/corpus/resolve.rs`, `required_relations.rs`, `relation_report.rs`). The fragment doubt is confirmed. `extract_target_id` keeps the `#fragment` in the target id, so `FR-001#FR-001-AC-1` (bare or `ix://`) is Dangling. This was reproduced with quire 0.44.0 (engine 0.59.1): `dangling reference 'FR-001#FR-001-AC-1'`. Relative `.md` links drop the fragment before the reference is recorded. Today's live `required_relations` (safety and security `mitigates`, incoming, `to: []`) list no verb that has an inverse, so CR-416 changes no current output. The changes below concern how CR-416 is defined and how FR-086 fits FR-084 and FR-085.
+
+## Findings
+
+| ID | Severity | Summary | Refs | Escape Cause |
+| --- | --- | --- | --- | --- |
+| FND-001 | high | FR-086 says "an edge to a criterion resolves, by FR-026, to the requirement document". FR-026 has no rule that strips a fragment, and main does not strip one: `extract_target_id` returns `FR-001#FR-001-AC-1`, the lookup misses and the edge is Dangling (reproduced). The relative-link harvest keeps only the id, so the fragment is lost there. FR-086-AC-8 cannot pass without an FR-026 amendment. That amendment changes resolution for every fragment-bearing reference in the ecosystem (for example `ix://agent-ix/ecaz/spire-leaf-v2#segment_tuple`, Dangling today) and must keep the fragment in `Edge.references`. Fix: add an FR-026 CR with its own AC and state that blast radius. | spec/functional/FR-086-design-element-join.md (Criteria, AC-8); src/corpus/resolve.rs:490-494, 375-382 | missing-requirement |
+| FND-002 | high | FR-086 adds `"criteria": ["<id>", ...]` to a resolved `linked` entry. Under FR-084 Serialization, that entry already carries `criteria` as the counts object `{"backed","unbacked","not_measured"}` (RowDocument flattened into the entry). Two different values would share one JSON key. FR-086-CON-2 ("no field beyond FR-084's except the `criteria` list") makes the clash binding. Fix: use a distinct key (for example `realized_criteria`) and amend CON-2 and AC-8. | spec/functional/FR-086-design-element-join.md (Criteria, AC-8, CON-2); spec/functional/FR-084-two-way-relation-coverage-report.md (Serialization); src/corpus/relation_report.rs:112-127, 180-190 | wrong-requirement |
+| FND-003 | high | FR-086-AC-7 lists an edge from a wrong-kind element in `kind_mismatch`. FR-086-AC-1 implies the element authors the realizing edge, so the relation on the requirement is `incoming`. FR-085 says that under an `incoming` relation a wrong-kind source only leaves the relation unsatisfied and yields no kind mismatch. relation_report.rs does the same: its incoming branch skips such sources silently. FR-086 also claims everything FR-084 decides is unchanged. Fix: either restrict AC-7 to an outgoing declaration (requirement-authored inverse) or amend FR-084 and FR-085 to report wrong-kind incoming sources. | spec/functional/FR-086-design-element-join.md (AC-7); spec/functional/FR-085-cross-repository-edge-resolution.md (Kind of a resolved target); src/corpus/relation_report.rs:525-541 | wrong-requirement |
+| FND-004 | medium | CR-416 defines the counterpart of `V` as "`V`'s declared inverse, or the forward verb whose declared inverse is `V`". It ignores FR-041's precedence rules: a label that is also a forward key is governed by its own entry, and a duplicate inverse is first-wins with `DuplicateInverseEdge`. Real vocabularies hit both: in one module `contains` and `aggregates` both declare `part_of`, and iso declares `satisfied_by` with inverse `satisfies`. "The forward verb" is singular, but there can be two. Fix: define the counterpart through `Registry::inverse_index` (FR-041-AC-1) so the precedence carries over. | spec/functional/FR-058-upward-trace-completeness.md (Authored inverse verbs) | wrong-requirement |
+| FND-005 | medium | "A verb with no declared inverse is matched exactly as before", and the AC-24 clause "a relation listing only verbs with no declared inverse is byte-identical", both contradict the counterpart rule. A listed verb that is itself an inverse label (for example `satisfies`) declares no inverse, yet it gains the counterpart `satisfied_by`. That is a behaviour change the byte-identity clause says cannot happen. Fix: say "a verb with no counterpart" in both places. | spec/functional/FR-058-upward-trace-completeness.md (Authored inverse verbs, AC-24) | wrong-requirement |
+| FND-006 | medium | FR-058-AC-24 leaves three questions open. (1) Under which `direction` an inverse-authored wrong-kind edge yields `trace:target-kind-mismatch` (FR-085 restricts it to outgoing/either). (2) Which document the finding names as source and whose `repo` it carries: authored `b` (FR-041 reports authored) or normalized `a` (FR-085-AC-19). (3) Whether an inverse-authored edge toward an absent document can satisfy an `incoming` relation with `to: []`. This is a case main never has, since `edges_to` holds resolved edges only. Fix: answer each and pin it in the AC. | spec/functional/FR-058-upward-trace-completeness.md (AC-24); spec/functional/FR-085-cross-repository-edge-resolution.md | missing-requirement |
+| FND-007 | low | FR-086 extends FR-084, whose FR-084-CON-2 says the report SHALL NOT introduce a manifest key, and adds `traceability.design_relations`. The key belongs to FR-086, not to FR-084's report, but the text never says so. Fix: one sentence in FR-086 scoping FR-084-CON-2. | spec/functional/FR-086-design-element-join.md (The declaration); spec/functional/FR-084-two-way-relation-coverage-report.md (CON-2) | missing-requirement |
