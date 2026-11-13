@@ -26,6 +26,7 @@ use std::borrow::Cow;
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
+use crate::corpus::relation_edges::RelationContext;
 use crate::corpus::resolve::Resolution;
 use crate::corpus::spec::{CorpusError, Spec};
 use crate::corpus::walk::LoadedDocument;
@@ -266,7 +267,15 @@ pub fn validate_bundle(
     document_root: &Path,
     reference_root: &Path,
 ) -> BundleReport {
-    validate_view(spec, registry, posture, document_root, reference_root)
+    let criteria = RelationContext::build(spec, registry, &[reference_root]);
+    validate_view(
+        spec,
+        registry,
+        posture,
+        document_root,
+        reference_root,
+        &criteria,
+    )
 }
 
 /// Implements: FR-085
@@ -291,6 +300,8 @@ pub fn validate_corpus(
         });
     }
     let mut report = BundleReport::default();
+    let reference_roots: Vec<&Path> = roots.iter().map(|(_, reference)| *reference).collect();
+    let criteria = RelationContext::build(corpus, registry, &reference_roots);
     for (member, (document_root, reference_root)) in roots.iter().enumerate() {
         let part = validate_view(
             &corpus.member_view(member),
@@ -298,6 +309,7 @@ pub fn validate_corpus(
             posture,
             document_root,
             reference_root,
+            &criteria,
         );
         report.errors.extend(part.errors);
         report.warnings.extend(part.warnings);
@@ -313,8 +325,16 @@ fn validate_view(
     posture: BundlePosture,
     document_root: &Path,
     reference_root: &Path,
+    criteria: &RelationContext,
 ) -> BundleReport {
-    let mut report = validate_view_findings(spec, registry, posture, document_root, reference_root);
+    let mut report = validate_view_findings(
+        spec,
+        registry,
+        posture,
+        document_root,
+        reference_root,
+        criteria,
+    );
     if let Some(repo) = spec.view_identity() {
         for finding in report.errors.iter_mut().chain(report.warnings.iter_mut()) {
             finding.repo = Some(repo.to_string());
@@ -329,6 +349,7 @@ fn validate_view_findings(
     posture: BundlePosture,
     document_root: &Path,
     reference_root: &Path,
+    criteria: &RelationContext,
 ) -> BundleReport {
     let mut report = BundleReport::default();
     // FR-057: the merged `<pack>:<check>` registry, already carrying whatever a
@@ -402,7 +423,13 @@ fn validate_view_findings(
             && spec
                 .member_identity(spec.member_of(edge.source_slot))
                 .is_some();
-        if edge.resolution == Resolution::Dangling && !cross_repo {
+        // An edge to an acceptance-criterion id minted by one document is the
+        // authoring pattern for realizing a criterion, not a broken reference
+        // (CR-418).
+        if edge.resolution == Resolution::Dangling
+            && !cross_repo
+            && !criteria.reads_every_spelling(spec, edge)
+        {
             report.route(
                 severity,
                 posture_tier(posture),
@@ -445,6 +472,7 @@ fn validate_view_findings(
         spec,
         registry,
         reference_root,
+        criteria,
         &mut report,
     );
     crate::corpus::vocabulary_coverage::validate_vocabulary_coverage(

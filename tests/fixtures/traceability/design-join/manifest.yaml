@@ -1,0 +1,87 @@
+# FR-086 fixture: the design-element join over kinds, verbs and fields that
+# belong to no real chain. The engine knows none of them.
+name: traceability-design-join
+version: 0.1.0
+description: Design-element join fixture with an inverse verb pair and criterion ids
+artifact_types:
+- name: Glyph
+  defaults:
+    id_pattern: GLY-{next:03d}
+- name: Prism
+  defaults:
+    id_pattern: PRI-{next:03d}
+- name: Lantern
+  defaults:
+    id_pattern: LAN-{next:03d}
+- name: Bulb
+  defaults:
+    id_pattern: BUL-{next:03d}
+edge_types:
+  kindles: { description: a Lantern kindles what it lights, category: traceability, inverse: kindled_by }
+  wards: { description: a Lantern wards what it guards, category: traceability }
+traceability:
+  trace_targets:
+  # Named by an `obligations:` source below: its ids are criterion ids.
+  - name: glyph-check
+    archetype: Glyph
+    section: Acceptance Criteria
+    id_column: ID
+  - name: prism-check
+    archetype: Prism
+    section: Acceptance Criteria
+    id_column: ID
+  # Named by no `obligations:` source: its ids are never criterion ids.
+  - name: lantern-case
+    archetype: Lantern
+    section: Test Cases
+    id_column: ID
+  obligations:
+  - name: glyph-check
+    target: glyph-check
+    statement_column: Criteria
+  - name: prism-check
+    target: prism-check
+    statement_column: Criteria
+  required_relations:
+  - name: glyph-has-lantern
+    from: Glyph
+    edges: [kindles]
+    to: [Lantern]
+    direction: incoming
+    check: glyph-dark
+  - name: prism-has-lantern
+    from: Prism
+    edges: [kindles]
+    to: [Lantern]
+    direction: incoming
+    check: prism-dark
+  # Outgoing: a Glyph reaches a Lantern by the inverse label.
+  - name: glyph-lit-by
+    from: Glyph
+    edges: [kindled_by]
+    to: [Lantern]
+    direction: outgoing
+    check: glyph-unlit
+  # Both labels of the pair listed.
+  - name: glyph-both
+    from: Glyph
+    edges: [kindles, kindled_by]
+    to: [Lantern]
+    direction: incoming
+    check: glyph-both-dark
+  # `to: []`: the verb alone is the contract.
+  - name: glyph-open
+    from: Glyph
+    edges: [kindles]
+    to: []
+    direction: incoming
+    check: glyph-open-dark
+  # A verb the index relates to nothing.
+  - name: glyph-warded
+    from: Glyph
+    edges: [wards]
+    to: [Lantern]
+    direction: incoming
+    check: glyph-unwarded
+  # Declared in a different order than the relations above.
+  design_relations: [prism-has-lantern, glyph-has-lantern, glyph-lit-by]

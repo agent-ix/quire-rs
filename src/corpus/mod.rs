@@ -19,6 +19,7 @@ mod body_cache;
 pub mod declared_tables;
 pub mod glossary;
 pub mod query;
+mod relation_edges;
 pub mod relation_report;
 pub mod required_relations;
 pub mod resolve;
@@ -31,10 +32,10 @@ pub mod walk;
 
 pub use glossary::{glossary_terms, glossary_terms_from_path};
 pub use relation_report::{
-    relation_report, Criteria, DanglingEntry, KindMismatchEntry, LinkResolution, LinkedEntry,
-    RelationReport, RelationReportError, RelationReportMember, RelationRow, RelationSection,
-    RelationSummary, RowDocument, RowSelector, RowState, StateCounts, Verification,
-    VerificationCounts,
+    design_join, relation_report, Criteria, DanglingEntry, KindMismatchEntry, LinkResolution,
+    LinkedEntry, RelationReport, RelationReportError, RelationReportMember, RelationRow,
+    RelationSection, RelationSummary, RowDocument, RowSelector, RowState, StateCounts,
+    Verification, VerificationCounts,
 };
 pub use resolve::{harvest_edges, Edge, Resolution};
 pub use spec::{CorpusError, CorpusMember, Spec};
