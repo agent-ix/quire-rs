@@ -670,7 +670,10 @@ fn the_matrix_is_byte_identical_across_runs_and_changes_no_document() {
         ),
         glyph("GLY-001", &[], &["chk-a"]),
     ]);
-    let b = repo(&[lantern("LAN-001", &[("kindles", "ix://o/a/spec/GLY-001")])]);
+    let b = repo(&[
+        lantern("LAN-001", &[("kindles", "ix://o/a/spec/GLY-001")]),
+        lantern("LAN-002", &[("kindles", "ix://o/a/spec/GLY-001")]),
+    ]);
     let (_m, registry) = temp_module(&manifest(LIT, "  design_relations: [glyph-has-lantern]\n"));
     let snapshot = |dir: &TempDir| {
         let mut out: Vec<(PathBuf, Vec<u8>)> = fs::read_dir(dir.path().join("spec"))

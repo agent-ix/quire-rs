@@ -32,3 +32,10 @@ Ticket: PLAT-1587. PR head: `e0d4c6f`. Code review with the rust-review lane, sc
 | --- | --- | --- | --- |
 | FND-001 | low | `entry_of` builds the entry from named fields of `CoverageMatrixRequirement` and hard-codes `carried: None`. When PLAT-1578 adds `carried` to `CoverageMatrixRequirement`, this still compiles and silently drops the value. FR-092-AC-5 byte identity then breaks for any module that declares `carried_fields`. Criteria-less entries will also need `carried` read from the document, as `criticality` is read. Destructure exhaustively (`let CoverageMatrixRequirement { document, criticality, criteria } = requirement;`) so that the FR-090 field turns into a compile error here. | src/corpus/design_matrix.rs:205, 214-238 |
 | FND-002 | low | Two maps share one key (`ids` and `blocks`). Each row clones `repo` and `path` for the key, plus `id`, even though the `RowDocument` is owned and is then discarded by `from_row`. The orphan loop also clones `key` again. A single `BTreeMap<key, (String, Vec<DesignBlock>)>` filled by moving `row.document` fields out of the owned row removes the twin lookups and the clones. | src/corpus/design_matrix.rs:165-193 |
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | baf9888: `entry_of` now destructures `CoverageMatrixRequirement { document, criticality, criteria }` exhaustively, so the FR-090 `carried` field is a compile error there until handled. The criteria-less path has a comment marking where `carried` is read from the document. |
+| FND-002 | fixed | baf9888: a single `obliged: BTreeMap<(repo, path), (id, Vec<DesignBlock>)>` replaces the twin maps. The matrix loop does one `remove`, and the orphan loop destructures the key with no clone. Each row still clones three short strings because `from_row` consumes the row; that is negligible. |

@@ -45,3 +45,11 @@ Ticket: PLAT-1587. PR head: `e0d4c6f`. Plan completion: not assessed (planless).
 | FR-092-AC-14 | examined | FND-003 |
 | FR-092-CON-1 | examined | Inspection clean |
 | FR-092-CON-2 | examined | Tagged and asserted |
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | baf9888: the new test `each_block_equals_the_join_row_and_a_wrong_kind_target_is_a_mismatch` compares every block's `check`, `state`, `dangling`, `kind_mismatch` and projected elements with the `design_join` row, and asserts exactly one kind mismatch (a Bulb target). Mutation check: forcing `kind_mismatch` to `[]` fails it, and so does dropping element `kind`. |
+| FND-002 | fixed | baf9888: the AC-13 test now asserts that every non-comment string literal in `design_matrix.rs` is `"Option::is_none"`. Mutation check: adding `let _verb = "realizes";` fails it. |
+| FND-003 | still-open | baf9888 does reverse `load.documents` after `load_repo`, for both member orders. The fixture still cannot show document order, because no row has two linked elements from one member. Mutation check: ordering the join's `resolved` map by document slot instead of id leaves all 16 tests green. With a second lantern (`LAN-002 kindles ix://o/a/spec/GLY-001`) added to member `o/b` in the AC-14 fixture, the same mutation fails the `reversed(a, b)` assertion, and the unmutated control passes. Separately, removing the final `sort_by` is caught by the AC-3 and AC-8/15 tests but not by the AC-14 test, so neither the reversed-document check nor the AC-14 test catches it alone. Fix: add that second lantern. |
