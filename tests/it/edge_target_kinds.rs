@@ -31,24 +31,27 @@ fn write(dir: &Path, rel: &str, body: &str) {
 
 /// `adr` may `realizes` only `FR` or `NFR` documents; `FR` and `NFR` are
 /// archetypes, not object types.
-fn registry(extra_manifest: &str) -> Registry {
-    let manifest = format!(
-        r#"
+fn registry() -> Registry {
+    let manifest = r#"
 name: edge-kinds
 artifact_types:
 - name: adr
   frontmatter_schema_ref: schemas/c.schema.json
   allowed_links:
     realizes: [FR, NFR]
+    references: [adr]
+    classifies: [domain-object]
 - name: FR
   frontmatter_schema_ref: schemas/c.schema.json
+  roles: [domain-object]
 - name: NFR
   frontmatter_schema_ref: schemas/c.schema.json
-{extra_manifest}
 edge_types:
   realizes: {{ description: realizes, category: realization }}
-"#
-    );
+  classifies: {{ description: classifies, category: traceability }}
+roles:
+  domain-object: Domain object
+"#;
     let mut schemas = std::collections::BTreeMap::new();
     schemas.insert(
         "schemas/c.schema.json".to_string(),
@@ -69,7 +72,9 @@ fn validate(files: &[(&str, String)], posture: BundlePosture) -> BundleReport {
     for (name, body) in files {
         write(&root, name, body);
     }
-    validate_bundle_at(&root, &registry(""), posture)
+    let report = validate_bundle_at(&root, &registry(), posture);
+    fs::remove_dir_all(root).expect("remove temporary bundle");
+    report
 }
 
 fn target_findings(r: &BundleReport) -> usize {
@@ -98,6 +103,23 @@ fn right_kind_by_archetype_name_passes() {
         assert_eq!(target_findings(&r), 0, "{posture:?}: {r:?}");
         assert!(r.is_valid(), "{posture:?}: {:?}", r.errors);
     }
+}
+
+/// Roles declared on an artifact archetype participate in target matching.
+#[trace("FR-040-AC-7", "FR-040-AC-12")]
+#[test]
+fn target_archetype_roles_satisfy_the_allow_list() {
+    let r = validate(
+        &[
+            (
+                "ADR-1.md",
+                "---\nid: ADR-1\ntype: adr\nrelationships:\n- target: FR-1\n  type: classifies\n---\n# ADR-1\n".to_string(),
+            ),
+            ("FR-1.md", doc("FR-1", "FR", None)),
+        ],
+        BundlePosture::Strict,
+    );
+    assert_eq!(target_findings(&r), 0, "archetype role: {r:?}");
 }
 
 /// Wrong kind fails: ADR realizing another ADR (no `object:` anywhere) is an
@@ -150,27 +172,47 @@ fn severity_map_overrides_target_tier() {
         write(&root, n, b);
     }
     let key = "edges:disallowed-edge-target".to_string();
-    for (level, strict_errors) in [
-        (GrammarSeverityLevel::Warning, 0),
-        (GrammarSeverityLevel::Off, 0),
+    for (posture, level, expected_errors, expected_warnings) in [
+        (BundlePosture::Strict, GrammarSeverityLevel::Error, 1, 0),
+        (BundlePosture::Strict, GrammarSeverityLevel::Warning, 0, 1),
+        (BundlePosture::Strict, GrammarSeverityLevel::Off, 0, 0),
+        (BundlePosture::Okf, GrammarSeverityLevel::Error, 1, 0),
+        (BundlePosture::Okf, GrammarSeverityLevel::Warning, 0, 1),
+        (BundlePosture::Okf, GrammarSeverityLevel::Off, 0, 0),
     ] {
         let mut map = GrammarSeverityMap::new();
         map.insert(key.clone(), level);
-        let reg = registry("").with_grammar_severity(map);
-        let r = validate_bundle_at(&root, &reg, BundlePosture::Strict);
-        assert_eq!(r.errors.len(), strict_errors, "{level:?}: {:?}", r.errors);
-        let expect_warn = usize::from(level == GrammarSeverityLevel::Warning);
-        assert_eq!(target_findings(&r), expect_warn, "{level:?}");
+        let reg = registry().with_grammar_severity(map);
+        let r = validate_bundle_at(&root, &reg, posture);
+        assert_eq!(
+            r.errors
+                .iter()
+                .filter(|f| f.reason == "disallowed-edge-target")
+                .count(),
+            expected_errors,
+            "{posture:?} + {level:?}: {:?}",
+            r.errors
+        );
+        assert_eq!(
+            r.warnings
+                .iter()
+                .filter(|f| f.reason == "disallowed-edge-target")
+                .count(),
+            expected_warnings,
+            "{posture:?} + {level:?}: {:?}",
+            r.warnings
+        );
+        assert_eq!(
+            r.is_valid(),
+            expected_errors == 0,
+            "{posture:?} + {level:?}"
+        );
     }
-    let mut map = GrammarSeverityMap::new();
-    map.insert(key, GrammarSeverityLevel::Error);
-    let reg = registry("").with_grammar_severity(map);
-    let r = validate_bundle_at(&root, &reg, BundlePosture::Okf);
-    assert!(!r.is_valid(), "error promotes under Okf");
+    fs::remove_dir_all(root).expect("remove temporary bundle");
 }
 
 /// Dangling target of a declared edge still fails under Strict.
-#[trace("FR-040-AC-12")]
+#[trace("FR-026-AC-3")]
 #[test]
 fn dangling_target_fails_strict() {
     let r = validate(
@@ -179,4 +221,41 @@ fn dangling_target_fails_strict() {
     );
     assert!(!r.is_valid());
     assert!(r.errors.iter().any(|f| f.reason == "dangling-reference"));
+}
+
+/// Only declared `relationships` entries receive Tier-2 target-kind checks;
+/// frontmatter URIs, body URIs and relative navigation links stay references.
+#[trace("FR-040-AC-12")]
+#[test]
+fn synthesized_reference_edges_are_not_target_kind_checked() {
+    let source = "---\nid: ADR-1\ntype: adr\nrelationships:\n- target: ix://o/r/FR-1\n  type: realizes\n---\n# ADR-1\nSee ix://o/r/FR-1 and [the requirement](./FR-1.md).\n";
+    let r = validate(
+        &[
+            ("ADR-1.md", source.to_string()),
+            ("FR-1.md", doc("FR-1", "FR", None)),
+        ],
+        BundlePosture::Strict,
+    );
+    assert_eq!(target_findings(&r), 0, "synthesized references: {r:?}");
+}
+
+/// An unresolved `object:` contributes no object kind or roles, while the
+/// target's registered document archetype remains checked.
+#[trace("FR-040-AC-12")]
+#[test]
+fn unresolved_object_uses_registered_document_archetype() {
+    let target = "---\nid: ADR-2\ntype: adr\nobject: missing-object\n---\n# ADR-2\n";
+    let r = validate(
+        &[
+            ("ADR-1.md", doc("ADR-1", "adr", Some("ADR-2"))),
+            ("ADR-2.md", target.to_string()),
+        ],
+        BundlePosture::Strict,
+    );
+    assert!(
+        r.errors
+            .iter()
+            .any(|f| f.reason == "disallowed-edge-target"),
+        "known document archetype still participates in target matching: {r:?}"
+    );
 }

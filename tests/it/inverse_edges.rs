@@ -308,6 +308,7 @@ fn tc655_tier2_inverse_normalization() {
         "forward-valid inverse edge passes: {:?}",
         report.warnings
     );
+    fs::remove_dir_all(root).expect("remove passing temporary bundle");
 
     // FAIL case: B=producer → A publishes B requires `consumer`, producer
     // does not satisfy → one disallowed-edge-target naming the authored edge.
@@ -317,7 +318,11 @@ fn tc655_tier2_inverse_normalization() {
         "A-001.md",
         "---\nid: A-001\ntitle: A\ntype: thing\nobject: producer\n---\n# A\n",
     );
-    write(&root, "B-001.md", &consumer_doc("B-001", "producer"));
+    write(
+        &root,
+        "B-001.md",
+        &consumer_doc("B-001", "wrong-target-kind"),
+    );
     let report = validate_bundle_at(&root, &tier2_registry(), BundlePosture::Okf);
     let targets: Vec<_> = report
         .warnings
@@ -335,6 +340,10 @@ fn tc655_tier2_inverse_normalization() {
         m.contains("consumed_by") && m.contains("B-001") && m.contains("A-001"),
         "reported with authored inverse edge: {m}"
     );
+    assert!(
+        m.contains("object type 'wrong-target-kind'") && !m.contains("object type 'producer'"),
+        "kind describes the authored target B-001, not the normalized forward target A-001: {m}"
+    );
     // Warn-tier: no hard errors from the edge check.
     assert!(
         !report
@@ -343,6 +352,7 @@ fn tc655_tier2_inverse_normalization() {
             .any(|e| e.reason == "disallowed-edge-target"),
         "edge findings are warnings, never errors"
     );
+    fs::remove_dir_all(root).expect("remove failing temporary bundle");
 }
 
 #[trace("FR-041-AC-5")]

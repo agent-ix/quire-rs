@@ -507,7 +507,7 @@ fn document_object(doc: &LoadedDocument) -> Option<&str> {
         .filter(|s| !s.is_empty())
 }
 
-/// Tier-2: for each **resolved** edge, check that the target document's kind
+/// Tier-2: for each **resolved, authored relationship** edge, check that the target document's kind
 /// — its own archetype name, or its `object:` type and that type's roles —
 /// satisfies the verb's target list in the source's resolved `allowed_links`
 /// (FR-040-AC-9, AC-12). Posture-routed (FR-040-AC-13).
@@ -523,6 +523,9 @@ fn validate_edge_targets(
     report: &mut BundleReport,
 ) {
     for edge in spec.edges() {
+        if !edge.authored_relationship {
+            continue;
+        }
         if let Some(edge_target) = edge.target_slot {
             // FR-041: normalize an inverse-verb edge `(source, I, target)`
             // to its forward orientation `(target, F, source)` before the
@@ -562,7 +565,10 @@ fn validate_edge_targets(
             let target_obj = document_object(target_doc);
             let target_obj_arch = target_obj.and_then(|o| registry.archetype(o));
             let satisfied = targets.iter().any(|t| {
-                crate::vocab::target_satisfies(t, target_type, &[])
+                registry
+                    .archetype(target_type)
+                    .is_some_and(|a| registry.target_satisfies(t, a))
+                    || crate::vocab::target_satisfies(t, target_type, &[])
                     || target_obj_arch.is_some_and(|a| registry.target_satisfies(t, a))
             });
             if !satisfied {
@@ -571,9 +577,11 @@ fn validate_edge_targets(
                 // Posture-routed (FR-040-AC-13).
                 let authored_source = spec.doc(edge.source_slot);
                 let authored_target = spec.doc(edge_target);
-                let kind = match target_obj {
-                    Some(o) => format!("archetype '{target_type}', object type '{o}'"),
-                    None => format!("archetype '{target_type}'"),
+                let authored_target_obj = document_object(authored_target);
+                let authored_target_type = authored_target.concept_type().unwrap_or("unknown");
+                let kind = match authored_target_obj {
+                    Some(o) => format!("archetype '{authored_target_type}', object type '{o}'"),
+                    None => format!("archetype '{authored_target_type}'"),
                 };
                 report.route(
                     severity,

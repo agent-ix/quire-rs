@@ -46,10 +46,11 @@ reverse of one canonical forward edge.
 entry. The forward edge remains the single source of truth (category, description,
 target list); the inverse is recognized for authoring and normalized to the
 forward direction for target enforcement. This is the decision recorded in
-[ADR-0008](../assets/adr/0008-authorable-inverse-edges.md). Posture is **advisory
-(warn-tier)**, consistent with [FR-040](./FR-040-object-edge-vocabulary.md);
-nothing here blocks extraction or [FR-032](./FR-032-validate-document.md)
-structural validation.
+[ADR-0008](../assets/adr/0008-authorable-inverse-edges.md). Tier-2 target
+enforcement follows [FR-040](./FR-040-object-edge-vocabulary.md): it checks
+only authored frontmatter `relationships` edges, and an unconfigured mismatch
+is an error under `Strict` and a warning under `Okf`. Nothing here blocks
+extraction or [FR-032](./FR-032-validate-document.md) structural validation.
 
 ## Behavior
 
@@ -89,14 +90,19 @@ structural validation.
   replaced by `F`, so the existing target-typing rule applies in the canonical
   direction against the forward source's resolved `allowed_links`. A mismatch
   yields [FR-040](./FR-040-object-edge-vocabulary.md)'s `DisallowedEdgeTarget`
-  warning, reported with the **authored** (inverse) `source`/`target`/`edge_type`
-  so the diagnostic points at the document the author wrote. As in
-  [FR-040](./FR-040-object-edge-vocabulary.md), target checking is bundle-local and
-  skipped for `"*"` lists, targets with no `object:`, and dangling/cross-repo
+  routed by bundle posture and reported with the **authored** (inverse)
+  `source`/`target`/`edge_type` so the diagnostic points at the document the
+  author wrote. Its target-kind description names the authored target document's
+  registered `type:` and, when resolvable, its `object:` type. An unresolved
+  `object:` contributes no type or roles; the registered document archetype
+  still participates in matching. As in
+  [FR-040](./FR-040-object-edge-vocabulary.md), target checking is bundle-local
+  and skipped for `"*"` lists, targets with no `type:`, and dangling/cross-repo
   edges.
 
-- **Warn-tier and determinism.** Inverse handling never errors and never blocks
-  ([FR-040](./FR-040-object-edge-vocabulary.md) posture). The inverse index uses a
+- **Posture and determinism.** Tier-2 inverse-edge findings use the
+  [FR-040](./FR-040-object-edge-vocabulary.md) posture-routed tier and severity
+  override. They never block extraction or loading. The inverse index uses a
   `BTreeMap` and diagnostics keep the `(source, target, edge_type)` ordering
   ([NFR-006](../non-functional/NFR-006-determinism.md)), identical across runs and
   thread counts.
