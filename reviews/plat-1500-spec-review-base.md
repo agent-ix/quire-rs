@@ -43,6 +43,7 @@ Ticket: PLAT-1500. Spec review of the FR-049 edit: the rewritten "The rule is no
 | FND-001 | fixed | Round 1 (fe3f6bb): the body names the FR-053 selected inventory and FR-061 combinatorial sources, and makes the inventory's `MissingColumn` cause per section. AC-30 includes the inventory and an inventory over a trailing legend being Complete. |
 | FND-002 | fixed | Round 1: body reads "one matched section is the unit; two sections sharing a heading text are two" and "no table of that section"; AC-30 says the same. |
 | FND-003 | fixed | Round 1: the citation now reads "(FR-049-AC-26, AC-30)". |
+| FND-004 | fixed | Round 3 (59032fa): the body and AC-32 limit the no-rows rule to a table "in a section where another table carries it". Where no table carries the column, the rows stay and both paths report it (skipped row and `obligation-row-states-nothing`; `MissingColumn`), consistent with AC-30. |
 
 ## New findings (disposition pass 2)
 
