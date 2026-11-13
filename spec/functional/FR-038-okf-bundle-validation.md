@@ -66,7 +66,9 @@ document it requires:
   frontmatter schema + `body_extraction` + heading uniqueness via the existing
   `validate_document` ([FR-032](./FR-032-validate-document.md));
 - resolvable `ix://` references — a dangling reference is an error (reason
-  `dangling-reference`);
+  `dangling-reference`). A reference whose target is an id minted from exactly one document of the
+  target's member by a trace target named by an `obligations:` source is NOT a dangling reference
+  (FR-058 CR-417), and the check SHALL NOT report it;
 - index completeness (below).
 
 ### Okf posture (permissive)
@@ -93,8 +95,8 @@ warning under Okf.
 > **CR-418 note:** a reference whose target is an acceptance-criterion id minted from exactly one
 > document of the target's member (FR-058 CR-417) is not `dangling-reference`. A design element
 > realizes a criterion by an edge to the criterion's own id, and without this the authoring pattern
-> would draw a warning on every such edge. FR-038-AC-12 was added; the check needs the module's
-> declared trace targets, and with none every such reference stays dangling.
+> would draw a warning on every such edge. FR-038-AC-12 was added. The minting set is the trace targets
+> named by an `obligations:` source; with none every such reference stays dangling.
 
 ## Acceptance Criteria
 
@@ -111,7 +113,7 @@ warning under Okf.
 | FR-038-AC-9 | An `ix://<org>/<repo>/<...>/<id>` reference (at least three path segments) to an artifact absent from the bundle is NOT reported as `dangling-reference` when the bundle declares its package (`<org>/<repo>`) and the reference's authority — its first two path segments joined with `/` — differs from that package under the comparison of AC-10. The same absent target under the declared package's own authority, any absent target when no package is declared, a two-segment `ix://<org>/<id>` reference (which names no repo, so has no authority), and a bare-id target are still `dangling-reference`. A target spelled both as a bare id and as a foreign `ix://` link is one edge and stays dangling. | Test |
 | FR-038-AC-10 | The authority-versus-package comparison of AC-9 folds ASCII case on both sides (GitHub org and repo names are case-insensitive); `Spec::with_bundle_package` stores the package as given and only the comparison folds. With declared package `acme/widgets`: absent `ix://Acme/widgets/X` is `dangling-reference` and absent `ix://Other/Repo/X` is skipped. With declared package `Acme/Widgets`: absent `ix://acme/WIDGETS/X` is `dangling-reference`. A target spelled as an own-repo `ix://` link (compared case-insensitively) and also as a foreign link is one edge that stays `dangling-reference` whatever the case or byte order of the foreign spelling, exactly as a bare-id spelling does: with package `acme/widgets`, own-repo `ix://acme/widgets/X` plus each of `ix://zz/o/X`, `ix://Zz/o/X` and `ix://aaa/b/X` is dangling. | Test |
 | FR-038-AC-11 | A `dangling-reference` finding carries the **source document's loaded path** (the root-joined `doc.path`, as every other bundle finding does) in `BundleFinding.path`, and a message that names the edge type and the missing target as harvested (a bare or `ix://` id for those sources; for a dangling relative-path link, which has no target id per FR-026, the raw destination string). Its tier is the posture's default — error under `Strict`, warning under `Okf` — unless FR-057 promotes, demotes or suppresses `refs:dangling-reference`, in which case the FR-057 tier applies and the path and message are unchanged. When two documents share a source id (FR-025-AC-3, first occurrence wins) edges are deduplicated by (source, target, type), so a broken edge declared in both is reported once, at the first document's path. Fixture: document `a.md` with a `mitigates` relationship to absent id `HZ-9`, in an otherwise conformant bundle, yields exactly one `dangling-reference` finding whose path ends in `a.md` and whose message contains `mitigates` and `HZ-9`. | Test |
-| FR-038-AC-12 | A relationship whose target is a criterion id minted from one document of the bundle raises no `dangling-reference`; one naming an id minted by no document, or by two, still does; with no declared acceptance-criterion trace target the first still does ([FR-058](./FR-058-upward-trace-completeness.md)-AC-27, AC-28). | Test |
+| FR-038-AC-12 | A relationship whose target is an id minted from one document of the bundle by a trace target named by an `obligations:` source raises no `dangling-reference`; one naming an id minted by no document, or by two, or by a trace target no `obligations:` source names, still does; with no `obligations:` source the first still does ([FR-058](./FR-058-upward-trace-completeness.md)-AC-27, AC-28). | Test |
 
 > **PLAT-1056 note:** AC-9 is new. `quire validate --okf` reported every correct
 > cross-repo `ix://` target as dangling, because this corpus cannot see a

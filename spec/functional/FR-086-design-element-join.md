@@ -92,7 +92,7 @@ the corpus, so the requirement is a gap there; the join sees what is loaded, as 
 resolution generally.
 
 **Criteria.** A requirement's acceptance criteria are rows in its table, not documents, and are
-addressed by their own ids, which are minted trace targets ([FR-049](./FR-049-verification-reference-integrity.md),
+addressed by their own ids, which are minted by a trace target named by an `obligations:` source ([FR-049](./FR-049-verification-reference-integrity.md),
 [FR-050](./FR-050-declarative-coverage-computation.md)). A design element that realizes a criterion
 authors the edge directly to the criterion id. FR-026 classifies such an edge `Dangling`, so FR-058
 (CR-417) reads it, for relation matching, as an edge to the requirement document that minted the
@@ -100,8 +100,8 @@ criterion. The join therefore attributes the element to the owning requirement, 
 `linked` entry carries `"realized_criteria": ["<id>", ...]`: the distinct criterion ids of the pair's
 edges, in lexical order, `[]` when the element realizes the requirement as a whole. The engine does not
 report which criteria no element realizes. The key is `realized_criteria`, because the `criteria` key
-of a document entry is FR-084's counts object. This needs the module's declared acceptance-criterion
-trace targets; with none, an edge to a criterion id stays dangling and the requirement is a gap.
+of a document entry is FR-084's counts object. This needs a trace target named by an `obligations:` source (the module's own declaration, no engine
+name); with none, an edge to a criterion id stays dangling and the requirement is a gap.
 
 ### No design relations
 
@@ -125,7 +125,7 @@ A corpus whose loaded modules declare no `design_relations` yields `{"relations"
 | FR-086-AC-12 | Over a fixture whose relation, archetype, verb, inverse and criterion-id spellings are all unrelated to requirements or design, the join is complete and correct. | Test |
 | FR-086-AC-13 | The engine source contains no requirement or design archetype name, no realizing verb and no inverse label. | Inspection |
 | FR-086-AC-14 | Two runs over one corpus give byte-identical joins independent of member and document order ([NFR-006](../non-functional/NFR-006-determinism.md)), and running the join leaves every document byte-identical. | Test |
-| FR-086-AC-15 | An edge to a criterion id, with no declared acceptance-criterion trace target in the loaded modules, leaves the requirement a gap and the edge in `dangling` as authored. | Test |
+| FR-086-AC-15 | An edge to a criterion id, with no `obligations:` source in the loaded modules, or whose id is minted only by a trace target no `obligations:` source names, leaves the requirement a gap and the edge in `dangling` as authored. | Test |
 
 ## Constraints
 
@@ -136,5 +136,5 @@ A corpus whose loaded modules declare no `design_relations` yields `{"relations"
 
 ## Dependencies
 
-- **Upstream**: [FR-058](./FR-058-upward-trace-completeness.md) (CR-416, CR-417), [FR-084](./FR-084-two-way-relation-coverage-report.md), [FR-085](./FR-085-cross-repository-edge-resolution.md), [FR-041](./FR-041-authorable-inverse-edges.md), [FR-026](./FR-026-intra-spec-reference-resolution.md), [FR-049](./FR-049-verification-reference-integrity.md), [FR-050](./FR-050-declarative-coverage-computation.md)
+- **Upstream**: [FR-058](./FR-058-upward-trace-completeness.md) (CR-416, CR-417), [FR-084](./FR-084-two-way-relation-coverage-report.md), [FR-085](./FR-085-cross-repository-edge-resolution.md), [FR-041](./FR-041-authorable-inverse-edges.md), [FR-026](./FR-026-intra-spec-reference-resolution.md), [FR-049](./FR-049-verification-reference-integrity.md), [FR-050](./FR-050-declarative-coverage-computation.md), [FR-053](./FR-053-obligation-record.md)
 - **Downstream**: the `quire-cli` relations subcommand's design mode (quire-cli FR-041); `spec-objects-architecture` FR-010, which declares the realizing verb and the design relations; the matrix design column (PLAT-1529)
