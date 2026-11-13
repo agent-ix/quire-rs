@@ -21,6 +21,7 @@ mod coverage_rollup;
 mod cross_repo;
 mod design_join;
 mod determinism;
+mod field_rules;
 mod filament_boundary_audit;
 mod filament_core_fixtures;
 mod id_column_lists;

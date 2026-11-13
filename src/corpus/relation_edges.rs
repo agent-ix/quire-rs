@@ -361,6 +361,31 @@ impl RelationEdges {
 pub(crate) struct RelationContext {
     criteria: CriterionIndex,
     edges: BTreeMap<String, RelationEdges>,
+    /// The hops of each `field_consistency` entry (FR-091), by entry name.
+    hops: BTreeMap<String, FieldHops>,
+}
+
+/// The edges a `field_consistency` entry reads: the optional `via` hop and the
+/// `edges` hop.
+#[derive(Debug)]
+pub(crate) struct FieldHops {
+    pub(crate) via: Option<RelationEdges>,
+    pub(crate) target: RelationEdges,
+}
+
+/// A hop's verbs as a relation, so the one edge reader serves it (FR-091). The
+/// reader keys on the verbs alone; kinds are filtered by the caller.
+fn hop_relation(name: &str, edges: &[String], direction: RelationDirection) -> RequiredRelation {
+    RequiredRelation {
+        name: name.to_string(),
+        from: String::new(),
+        edges: edges.to_vec(),
+        to: Vec::new(),
+        direction,
+        check: String::new(),
+        exclude: Vec::new(),
+        selector: None,
+    }
 }
 
 impl RelationContext {
@@ -383,7 +408,36 @@ impl RelationContext {
                     .collect()
             })
             .unwrap_or_default();
-        Self { criteria, edges }
+        let hops = registry
+            .traceability()
+            .map(|model| {
+                model
+                    .field_consistency
+                    .iter()
+                    .map(|rule| {
+                        let via = rule.via.as_ref().map(|via| {
+                            let relation =
+                                hop_relation(&rule.name, &via.edges, via.direction.as_relation());
+                            RelationEdges::new(spec, registry, &criteria, &relation)
+                        });
+                        let relation =
+                            hop_relation(&rule.name, &rule.edges, rule.direction.as_relation());
+                        let target = RelationEdges::new(spec, registry, &criteria, &relation);
+                        (rule.name.clone(), FieldHops { via, target })
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+        Self {
+            criteria,
+            edges,
+            hops,
+        }
+    }
+
+    /// The hops of the `field_consistency` entry `name`.
+    pub(crate) fn hops_for(&self, name: &str) -> Option<&FieldHops> {
+        self.hops.get(name)
     }
 
     /// Whether every spelling of the dangling `edge` reads as an edge to a

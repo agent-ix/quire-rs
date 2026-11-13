@@ -1,0 +1,51 @@
+# FR-090/FR-091 fixture, the "allocating" half. Prism has OPEN frontmatter (no
+# enum of its own); the rules here rank by Glyph's enum and hold Prism to the
+# vocabulary another module declares. It names Glyph and `tier` without
+# declaring them, so it only works beside field-rules-glyph.
+name: field-rules-prism
+version: 0.1.0
+description: Field consistency, required fields and vocabulary rules (quire-rs FR-091)
+archetypes:
+- kind: Prism
+  name: Prism
+  defaults:
+    id_pattern: PRI-{next:03d}
+- kind: Bridge
+  name: Bridge
+  defaults:
+    id_pattern: BRG-{next:03d}
+- kind: Pier
+  name: Pier
+  defaults:
+    id_pattern: PIR-{next:03d}
+edge_types:
+  bridges: { description: a Bridge bridges what it joins, category: traceability, inverse: bridged_by }
+  rests_on: { description: a Bridge rests on a Prism, category: traceability }
+traceability:
+  carried_fields:
+  - name: tier
+    from: [Prism]
+    key: tier
+  field_consistency:
+  - name: glyph-tier-below-prism
+    from: Glyph
+    field: tier
+    via: { archetype: Bridge, edges: [bridges], direction: incoming }
+    edges: [rests_on]
+    direction: outgoing
+    to: [Prism]
+    to_field: tier
+    order_from: { archetype: Glyph, field: tier }
+    rule: not_below
+    check: tier-below-prism
+  required_fields:
+  - name: prism-needs-tier
+    from: [Prism]
+    field: tier
+    check: unassigned-tier
+  vocabulary:
+  - name: prism-tier-in-vocabulary
+    from: [Prism]
+    field: tier
+    carried: tier
+    check: undeclared-tier-value

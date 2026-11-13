@@ -17,6 +17,7 @@
 
 mod body_cache;
 pub mod declared_tables;
+pub mod field_rules;
 pub mod glossary;
 pub mod query;
 mod relation_edges;

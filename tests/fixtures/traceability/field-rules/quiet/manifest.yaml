@@ -1,0 +1,18 @@
+# FR-091-AC-8 fixture: a module that ships its required-field check switched
+# off. A project that enables the check thereby declares the field required.
+name: field-rules-quiet
+version: 0.1.0
+description: A required-field check shipped off (quire-rs FR-091)
+archetypes:
+- kind: Prism
+  name: Prism
+  defaults:
+    id_pattern: PRI-{next:03d}
+grammar_severity:
+  "trace:unassigned-tier": off
+traceability:
+  required_fields:
+  - name: prism-needs-tier
+    from: [Prism]
+    field: tier
+    check: unassigned-tier

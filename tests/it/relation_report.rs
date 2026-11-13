@@ -116,6 +116,7 @@ fn report_of(dir: &TempDir, registry: &Registry, names: &[&str]) -> RelationRepo
 /// A synthetic matrix entry for `spec/<id>.md`.
 fn entry(id: &str, statuses: &[CoverageMatrixStatus]) -> CoverageMatrixRequirement {
     CoverageMatrixRequirement {
+        carried: None,
         document: format!("spec/{id}.md"),
         criticality: None,
         criteria: statuses
