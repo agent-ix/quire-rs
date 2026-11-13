@@ -467,3 +467,69 @@ fn accepted_module_premises_remain_sorted_contract_values() {
     let modules: Vec<&AssuranceModulePremise> = export.modules.iter().collect();
     assert_eq!(modules[0].name, "fixture-module");
 }
+
+#[trace("FR-068-AC-6")]
+#[test]
+fn tc_assurance_rows_follow_the_scope_of_where_and_when_any() {
+    let manifest = br#"
+name: scope-fixture
+version: 1.0.0
+artifact_types:
+- name: Ctl
+- name: Haz
+- name: Req
+traceability:
+  required_relations:
+  - name: ctl-has-req
+    from: Ctl
+    when_any:
+    - { verb: protects, direction: outgoing, other: [Haz] }
+    edges: [satisfies]
+    to: [Req]
+    direction: incoming
+    check: ctl-without-req
+  - name: nothing-in-scope
+    from: Ctl
+    when_any:
+    - { verb: protects, direction: incoming, other: [Req] }
+    edges: [satisfies]
+    direction: incoming
+    check: nothing-in-scope
+"#;
+    let registry = Registry::from_inline_parts(manifest, &BTreeMap::new()).expect("registry");
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let root = tmp.path();
+    let doc = |id: &str, kind: &str, edge: &str| {
+        format!("---\nid: {id}\ntype: {kind}\ntitle: T\n{edge}---\n\n## Description\n\nText.\n")
+    };
+    let protects = "relationships:\n  - target: ix://agent-ix/fixture/H-1\n    type: protects\n";
+    write(root, "spec/H-1.md", &doc("H-1", "Haz", ""));
+    write(root, "spec/C-1.md", &doc("C-1", "Ctl", protects));
+    write(root, "spec/C-2.md", &doc("C-2", "Ctl", ""));
+    let spec = Spec::from_repo(load_repo(&root.join("spec")));
+    let symbols = extract_tree(root);
+    let export = build_assurance_export(AssuranceInput {
+        spec: &spec,
+        registry: &registry,
+        corpus_root: root.join("spec").as_path(),
+        symbols: &symbols,
+        symbol_graph: &SymbolGraph::default(),
+    })
+    .expect("export");
+    let rows: Vec<_> = export
+        .relation_observations
+        .iter()
+        .map(|o| (o.declaration.as_str(), o.subject.as_deref(), o.availability))
+        .collect();
+    assert_eq!(
+        rows,
+        vec![
+            ("ctl-has-req", Some("C-1"), RelationAvailability::Missing),
+            (
+                "nothing-in-scope",
+                None,
+                RelationAvailability::NotApplicable
+            ),
+        ]
+    );
+}

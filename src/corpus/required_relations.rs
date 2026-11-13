@@ -28,7 +28,8 @@ use super::vocabulary_coverage::{declares_property, enum_at};
 use crate::grammar::GrammarSeverity;
 use crate::registry::Registry;
 use crate::traceability::{
-    fold_selector_value, EdgeCondition, RelationDirection, RequiredRelation, WhereSelector,
+    fold_selector_value, EdgeCondition, EdgeSide, RelationDirection, RequiredRelation,
+    WhereSelector,
 };
 
 /// The `trace:` check token of a resolved edge whose target kind is outside a
@@ -169,10 +170,10 @@ fn check_declaration_is_live(
         ));
     }
     // The `other` kinds of a `when_any` are checked like `to`.
-    let dead_other: Vec<&str> = relation
+    let dead_other: BTreeSet<&str> = relation
         .when_any
         .iter()
-        .flat_map(|c| c.other.iter().map(String::as_str))
+        .flat_map(|c| c.other().iter().map(String::as_str))
         .filter(|kind| !is_live(kind))
         .collect();
     if !dead_other.is_empty() {
@@ -184,7 +185,7 @@ fn check_declaration_is_live(
                 "required relation '{}' names `when_any` other '{}' — no loaded module declares \
                  that kind and no document in this bundle is one, so that condition matches nothing",
                 relation.name,
-                dead_other.join("', '")
+                dead_other.iter().copied().collect::<Vec<_>>().join("', '")
             ),
         ));
     }
@@ -454,15 +455,15 @@ fn in_scope_by_edge(spec: &Spec, slot: usize, conditions: &[EdgeCondition]) -> b
             .and_then(|s| spec.doc(s).concept_type())
             .is_some_and(|ty| kinds.iter().any(|k| k == ty))
     };
-    conditions.iter().any(|c| match c.direction {
-        RelationDirection::Incoming => spec
+    conditions.iter().any(|c| match c.direction() {
+        EdgeSide::Incoming => spec
             .edges_to(slot)
             .iter()
-            .any(|e| e.edge_type == c.verb && kind_is(Some(e.source_slot), &c.other)),
-        _ => spec
+            .any(|e| e.edge_type == c.verb() && kind_is(Some(e.source_slot), c.other())),
+        EdgeSide::Outgoing => spec
             .edges_from(slot)
             .iter()
-            .any(|e| e.edge_type == c.verb && kind_is(e.target_slot, &c.other)),
+            .any(|e| e.edge_type == c.verb() && kind_is(e.target_slot, c.other())),
     })
 }
 

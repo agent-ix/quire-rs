@@ -629,16 +629,11 @@ fn project_relation_observations(
     let model_exclude = ExcludeSet::compile_validated(&model.exclude);
     let mut observations = Vec::new();
     for relation in &model.required_relations {
-        let relation_exclude = ExcludeSet::compile_validated(&relation.exclude);
-        let subjects: Vec<_> = spec
-            .by_type(&relation.from)
-            .into_iter()
-            .filter(|document| {
-                !model_exclude.excludes(root, &document.path)
-                    && !relation_exclude.excludes(root, &document.path)
-                    && !document.id.is_empty()
-            })
-            .collect();
+        let subjects: Vec<_> =
+            crate::corpus::required_relations::obliged(spec, relation, root, &model_exclude)
+                .into_iter()
+                .map(|obliged| spec.doc(obliged.slot))
+                .collect();
         if subjects.is_empty() {
             observations.push(AssuranceRelationObservation {
                 declaration: relation.name.clone(),

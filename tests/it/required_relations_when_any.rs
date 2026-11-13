@@ -119,12 +119,15 @@ fn tc_a_document_in_scope_for_no_condition_is_never_reported() {
     let root = tmpdir("24");
     put(&root, "H-1", "Haz", &[]);
     put(&root, "R-1", "Req", &[("satisfies", "C-5")]);
-    put(&root, "C-1", "Ctl", &[]); // no edge at all
-    put(&root, "C-2", "Ctl", &[("assumes", "H-1")]); // wrong verb direction: outgoing assumes
+    put(&root, "C-1", "Ctl", &[("assumes", "E-1")]); // outgoing assumes, condition is incoming
+    put(&root, "C-2", "Ctl", &[("assumes", "H-1")]); // verb right, other end outside `other`
     put(&root, "C-3", "Ctl", &[("protects", "R-1")]); // other end outside `other`
     put(&root, "C-4", "Ctl", &[("protects", "H-404")]); // dangling
     put(&root, "C-5", "Ctl", &[]); // satisfied, out of scope
-    put(&root, "E-1", "Est", &[("protects", "C-1")]); // incoming protects, not outgoing
+                                   // Directions are not interchangeable: C-1 above assumes an Est (outgoing),
+                                   // and a Haz protecting C-2 (incoming) is not C-2 protecting a Haz.
+    put(&root, "E-1", "Est", &[]);
+    put(&root, "H-2", "Haz", &[("protects", "C-2")]);
     assert_eq!(reported(&root, &registry), Vec::<String>::new());
     fs::remove_dir_all(&root).ok();
     fs::remove_dir_all(&dir).ok();
@@ -207,6 +210,14 @@ fn tc_without_when_any_every_from_document_is_obliged_and_the_key_tunes_severity
     let registry = Registry::load_module(&scoped).expect("load");
     let first = reported(&root, &registry);
     assert_eq!(first, ["C-1"]);
+    for posture in [BundlePosture::Okf, BundlePosture::Strict] {
+        let report = validate_bundle_at(&root, &registry, posture);
+        assert!(
+            report.is_valid(),
+            "advisory by default: {:?}",
+            report.errors
+        );
+    }
     assert_eq!(first, reported(&root, &registry));
 
     let mut map = GrammarSeverityMap::new();
