@@ -33,9 +33,13 @@ to the renderer ([quire-cli FR-028](ix://agent-ix/quire-cli/spec/functional/FR-0
 ### Relation to FR-053 criticality
 
 [FR-053](./FR-053-obligation-record.md) carries a per-criterion `criticality`, read from a
-module-declared column of an obligation source table. The two are different facts at different
-levels: FR-053's rates one obligation row, and this field rates the requirement document. The
-engine SHALL keep both as read and SHALL NOT let either supply, override or fill in the other.
+module-declared column of an obligation source table (`criticality_column`) or from the stating
+document's frontmatter under a module-declared `criticality_field` ([FR-053](./FR-053-obligation-record.md)-AC-24).
+The two are different facts at different levels: FR-053's rates an obligation, and this field rates
+the requirement document. The engine SHALL NOT let either implicitly supply, override or fill in the
+other: the `requirements[]` entry is read from frontmatter as above whatever an obligation carries,
+and an obligation carries a document's rating only where its source declares `criticality_field`.
+A source declaring no `criticality_field` leaves its records carrying no document rating.
 Both use one missing-value convention: absent when not stated.
 
 ### No inference

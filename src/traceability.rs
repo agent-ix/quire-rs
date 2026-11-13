@@ -756,7 +756,7 @@ pub struct ObligationSource {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub criticality_column: Option<String>,
     /// Frontmatter key of the stating document whose string value rates every
-    /// obligation derived from it (FR-049-AC-60). Module data: the engine holds
+    /// obligation derived from it (FR-053 item 5, FR-053-AC-24..25). Module data: the engine holds
     /// no field name. A non-empty `criticality_column` cell wins over it for
     /// its own row; with neither, the obligation carries no criticality.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -1766,6 +1766,9 @@ impl TraceabilityModel {
                 "statement_column",
                 &source.statement_column,
             )?;
+            if let Some(field) = &source.criticality_field {
+                check_field("obligations", &source.name, "criticality_field", field)?;
+            }
             if let Some(combinatorial) = &source.combinatorial {
                 check_field(
                     "obligations",

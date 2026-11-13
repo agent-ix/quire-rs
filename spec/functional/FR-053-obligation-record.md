@@ -108,8 +108,9 @@ Records SHALL travel on the existing interfaces, adding no command:
   `documents[].document` — and repeating them would put the same fact in two
   places on one payload, which is the shape that eventually disagrees with
   itself. It is also what keeps the classification API text-only: a criterion's
-  method and criticality are all readable from the criterion's own row,
-  where a document path is not.
+  method and criticality are all readable from the parsed document (the
+  criterion's own row, or the `criticality_field` frontmatter value), where a
+  document path is not.
 - The [FR-050](./FR-050-declarative-coverage-computation.md) coverage report
   gains an `obligations` list — ordered by source **declaration** order, then
   document path, then row ordinal (AC-9) — so the rollup and the obligations are
@@ -184,7 +185,8 @@ section's table, and emit one record per row:
    declarations supply it, both module data:
    - `criticality_column`: the cell of the obligation's own row.
    - `criticality_field`: the key of the stating document's frontmatter whose
-     string value rates every obligation derived from that document, so a rating
+     string value rates every obligation derived from that document, a
+     configuration-space (combinatorial) obligation included, so a rating
      authored once on a requirement reaches each of its criteria.
 
    When both are declared, a non-empty `criticality_column` cell **wins** for its
@@ -409,9 +411,14 @@ change legacy `derive` behavior, or judge whether an obligation is discharged.
 | FR-053-AC-21 | Selection identity equality uses canonical root, resolved selected declarations/effective exclusions and the exact path/byte snapshot of selected documents: changes within a selected document, even outside its criterion table, or changes to selected membership reject cross-inventory lookup as a typed mismatch; repeated identical captures compare equal, changes confined to valid still-unselected nonmembers, wholly excluded documents or files outside the root leave identity equal, and caller-truncated Spec or deserialized rows cannot issue Complete. | Test |
 | FR-053-AC-22 | Repeated exhaustive enumeration yields equal origin-aware identities, records, counts and terminal state in model declaration, relative document-path and authored row order; explicit exclusions remove exactly their selected documents, preserve healthy unexcluded criteria, and a changed selection/exclusion contract changes identity even when emitted records remain equal. | Test |
 | FR-053-AC-23 | Existing derive, single-document obligation and coverage consumers retain legacy healthy/skipped/tolerant-bad-root outputs; tests check unchanged statements, absence of evidence/freshness/discharge verdicts and GrammarFinding creation, and a producer API needing neither an IR schema copy nor a manually authored revision/hash ledger. | Test |
-| FR-053-AC-24 | A source declaring `criticality_field: criticality` yields, for a row of a document whose frontmatter states `criticality: high`, a record carrying `high`; a document stating none, a null, a blank or a non-string value yields records with no `criticality`, never a default. | Test |
+| FR-053-AC-24 | A source declaring `criticality_field: criticality` yields, for a row of a document whose frontmatter states `criticality: high`, a record carrying `high`, on the coverage derivation and on the selected inventory; a document stating none, a null, a blank or a non-string value yields records with no `criticality`, never a default. | Test |
 | FR-053-AC-25 | A source declaring both `criticality_column` and `criticality_field` yields the row's non-empty column cell for that row and the document's frontmatter value for a row whose cell is empty; the same holds on the `obligation` of a property classification record. | Test |
-| FR-053-AC-26 | A document with `criticality: high` related to a document with none, by any relationship type, leaves the second's records with no `criticality`; a source declaring no `criticality_field` yields records identical to those before this criterion; the engine holds no frontmatter key name for it, and `quire coverage --json` carries the value on each `obligations` entry and validates against the published coverage schema. | Test |
+| FR-053-AC-26 | A document with `criticality: high` related to a document with none, by each relationship type in the corpus (`traces_to`, `satisfies`, `implements`, `refines`), leaves the second's records with no `criticality`. | Test |
+| FR-053-AC-27 | A source declaring no `criticality_field` yields records equal, field for field, to those the same source yields over the same corpus with the frontmatter rating removed. | Test |
+| FR-053-AC-28 | `quire coverage --json` carries the value on each `obligations` entry and validates against the published coverage schema. | Test |
+| FR-053-AC-29 | A combinatorial source declaring `criticality_field` yields its one obligation per document carrying that document's rating, on the coverage derivation, the single-document derivation and the selected inventory; a document stating none yields none. | Test |
+| FR-053-AC-30 | A source declaring an empty or blank `criticality_field` fails its module's load naming the entry. | Test |
+| FR-053-AC-31 | The engine's obligation derivation and traceability model source code holds no `criticality` frontmatter key literal; the key arrives only from the module's `criticality_field`. | Test |
 
 ## Dependencies
 

@@ -1086,6 +1086,7 @@ impl SelectedInventory {
         document_index: usize,
         options: &InventoryOptions<'_>,
     ) -> bool {
+        let rating = super::document_rating(source, document.frontmatter());
         let scanned =
             declared_tables::tables_of_sections(document.body(), &document.path, resolved.section);
         if scanned.is_empty() {
@@ -1191,7 +1192,7 @@ impl SelectedInventory {
                     &row,
                     ordinal,
                     &relative,
-                    super::document_rating(source, document.frontmatter()).as_deref(),
+                    rating.as_deref(),
                 ) else {
                     self.cause(
                         InventoryCauseCode::UnusableRow,
@@ -1252,6 +1253,7 @@ impl SelectedInventory {
                 source,
                 columns,
                 &combinatorial_rows,
+                rating.as_deref(),
                 document_index,
                 options,
             )
@@ -1266,6 +1268,7 @@ impl SelectedInventory {
         source: &ObligationSource,
         columns: &crate::traceability::CombinatorialColumns,
         rows: &[(usize, ScannedRow)],
+        rating: Option<&str>,
         document_index: usize,
         options: &InventoryOptions<'_>,
     ) -> bool {
@@ -1276,6 +1279,12 @@ impl SelectedInventory {
             self.validate_combinatorial_row(source, columns, *ordinal, row);
         }
         let mut obligations = Vec::new();
+        let ratings: BTreeMap<&Path, String> = rows
+            .first()
+            .zip(rating)
+            .map(|((_, row), rating)| (row.path.as_path(), rating.to_string()))
+            .into_iter()
+            .collect();
         let resolved = resolve(source, &self.request.model).expect("validated selected source");
         collect_combinatorial(
             source,
@@ -1283,6 +1292,7 @@ impl SelectedInventory {
             &resolved,
             columns,
             rows.iter().map(|(_, row)| row),
+            &ratings,
             root,
             &mut obligations,
         );

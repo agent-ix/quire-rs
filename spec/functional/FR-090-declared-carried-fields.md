@@ -26,7 +26,8 @@ only on the `requirements[]` entry of the `coverage_matrix` ([FR-050](./FR-050-d
 obligation records keep the criticality of their own FR-053 declaration, a column or a `criticality_field` ([FR-082](./FR-082-coverage-matrix-criticality.md)-AC-7, [FR-053](./FR-053-obligation-record.md)-AC-24).
 The software safety class ([spec-artifacts-iso FR-009](ix://agent-ix/spec-artifacts-iso/FR-009)) is a second such fact, so this
 requirement states the general mechanism, and the engine learns no field name from it. A consumer that needs the fact for an
-obligation joins the obligation to its requirement entry, as it does for FR-082 criticality.
+obligation joins the obligation to its requirement entry; unlike `criticality`, a carried field has no obligation-level
+declaration.
 
 `quire-rs` SHALL read the active modules' `traceability.carried_fields`, each entry naming:
 
