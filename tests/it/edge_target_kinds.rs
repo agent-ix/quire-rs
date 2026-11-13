@@ -307,7 +307,11 @@ fn unregistered_target_type_does_not_satisfy_role_token() {
     use quire_rs::grammar::{GrammarSeverityLevel, GrammarSeverityMap};
 
     let root = tmpdir("unregistered-type");
-    write(&root, "ADR-1.md", &doc("ADR-1", "adr", Some("TARGET-1")));
+    write(
+        &root,
+        "ADR-1.md",
+        "---\nid: ADR-1\ntype: adr\nrelationships:\n- target: TARGET-1\n  type: classifies\n---\n# ADR-1\n",
+    );
     write(
         &root,
         "TARGET-1.md",
@@ -321,10 +325,15 @@ fn unregistered_target_type_does_not_satisfy_role_token() {
     let registry = registry().with_grammar_severity(severity);
     let report = validate_bundle_at(&root, &registry, BundlePosture::Okf);
     fs::remove_dir_all(root).expect("remove temporary bundle");
+    let target_errors: Vec<_> = report
+        .errors
+        .iter()
+        .filter(|finding| finding.reason == "disallowed-edge-target")
+        .collect();
     assert_eq!(
-        target_findings(&report),
+        target_errors.len(),
         1,
-        "unregistered type does not act as a role: {report:?}"
+        "the registered classifies role is not satisfied by the unregistered type string: {report:?}"
     );
 }
 

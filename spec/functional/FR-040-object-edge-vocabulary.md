@@ -214,9 +214,12 @@ For a document with artifact archetype `T` and optional object archetype `O`:
   existing `edges:disallowed-edge-target` `grammar_severity` key
   ([FR-057](./FR-057-corpus-check-severity.md)). Target checking is **skipped**
   when the verb's target list contains `"*"`, when the target has no frontmatter
-  `type:` value, when it has neither a registered document archetype nor a
-  registered `object:` archetype, or when the edge is **dangling**
+  `type:` value, or when the edge is **dangling**
   ([FR-026](./FR-026-intra-spec-reference-resolution.md) already reports those).
+  A frontmatter `type:` value that names no registered archetype contributes no
+  document kind. If neither it nor a registered `object:` archetype and its roles
+  satisfy a constrained target list, the mismatch yields
+  `DisallowedEdgeTarget` at the posture-routed severity.
   Because cross-repo `ix://` targets resolve as dangling, Tier-2 type-checks
   targets **only within a single loaded bundle** — cross-repo target typing is out
   of scope this revision.
@@ -252,7 +255,7 @@ vocabulary; with no object, it lists the artifact vocabulary alone.
 | FR-040-AC-6 | `resolve_allowed_links(T, Some(O))` returns the union of both axes' verbs; for a verb present on both, the target lists are unioned and `"*"` absorbs concrete/role tokens. With `object = None` it returns the artifact vocabulary alone. | Test |
 | FR-040-AC-7 | `target_satisfies` is true when the token equals the target archetype's name, when the token is a role the target carries, or when the token is `"*"`; false otherwise. | Test |
 | FR-040-AC-8 | During [FR-032](./FR-032-validate-document.md), a document whose frontmatter-harvested edge `type` is not in `resolve_allowed_links` yields exactly one warning `DisallowedEdgeType` naming source and verb; in-vocabulary-only yields none; when `object:` is unknown, the vocabulary falls back to the artifact axis alone and Tier-1 still runs. | Test |
-| FR-040-AC-9 | During corpus validation, each resolved edge with authored frontmatter `relationships` provenance is checked once against the target's registered document archetype and, when resolvable, registered `object:` archetype and its roles, including across modules. A declared but unresolved `object:` contributes no kind or roles; the registered document archetype remains checked. A target with an unregistered `type:` contributes no document kind. Resolver-synthesized `references` edges from frontmatter URIs, body `ix://` links, or relative Markdown links are not checked when they have no authored relationship provenance. | Test |
+| FR-040-AC-9 | During corpus validation, each resolved edge with authored frontmatter `relationships` provenance is checked once against the target's registered document archetype and, when resolvable, registered `object:` archetype and its roles, including across modules. A declared but unresolved `object:` contributes no kind or roles; the registered document archetype remains checked. An unregistered `type:` contributes no document kind and cannot satisfy a constrained allow-list token; if no registered target kind satisfies that list, a posture-routed `DisallowedEdgeTarget` is yielded. Resolver-synthesized `references` edges from frontmatter URIs, body `ix://` links, or relative Markdown links are not checked when they have no authored relationship provenance. | Test |
 | FR-040-AC-10 | Tier-1 findings and Tier-2 findings under `Okf` are warnings only; they do not block extraction or [FR-032](./FR-032-validate-document.md) structural validation, and a corpus with disallowed edges still loads. Diagnostics are sorted by `(source, target, edge_type)` and identical across runs and thread counts ([NFR-006](../non-functional/NFR-006-determinism.md)). | Test |
 | FR-040-AC-11 | `input_skeleton` for an archetype with an optional `object` argument renders a Relationships block listing each resolved verb with its category, description, and target list; without `object`, only the artifact vocabulary is listed. | Test |
 | FR-040-AC-12 | A target list is matched against the target document's registered archetype name as well as its registered object type and roles: an `adr` source whose `realizes` list is `[FR, NFR]` passes to registered `FR`/`NFR` documents and is flagged to a registered `adr` document, none of them declaring `object:`. | Test |

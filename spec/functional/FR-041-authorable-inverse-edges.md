@@ -95,11 +95,14 @@ extraction or [FR-032](./FR-032-validate-document.md) structural validation.
   `source`/`target`/`edge_type` and file paths so the diagnostic preserves the
   document the author wrote. Its message also names the normalized forward
   endpoint whose kind failed and the forward source's target allow-list. An
-  unresolved `object:` contributes no type or roles; the registered document archetype
-  still participates in matching. As in
+  unresolved `object:` contributes no type or roles; the registered document
+  archetype still participates in matching. An unregistered frontmatter
+  `type:` contributes no document kind and does not satisfy a constrained
+  allow-list; if no registered kind matches, the mismatch follows FR-040's
+  posture-routed severity. As in
   [FR-040](./FR-040-object-edge-vocabulary.md), target checking is bundle-local
-  and skipped for `"*"` lists, targets with no `type:`, targets without any
-  registered candidate archetype, and dangling/cross-repo edges.
+  and skipped for `"*"` lists, targets with no `type:`, and dangling/cross-repo
+  edges.
 
 - **Posture and determinism.** Tier-2 inverse-edge findings use the
   [FR-040](./FR-040-object-edge-vocabulary.md) posture-routed tier and severity
