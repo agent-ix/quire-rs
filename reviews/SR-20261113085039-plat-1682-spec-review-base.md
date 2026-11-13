@@ -38,3 +38,11 @@ ix-flow run.
 | FND-001 | medium | CR-008 and FR-007 rule 6 say "Fences follow the CommonMark rules", but they measure indentation as an absolute count ("indented at most three spaces"). CommonMark measures from the containing block. The spec never says that container blocks (list items, block quotes) are out of scope, though FR-042 already treats nested blocks as unsupported, so the claim is wider than the behaviour, and list-nested blocks drop silently. State "top-level blocks only" or specify indentation relative to the container. | spec/functional/FR-010-query-api.md:51-67; spec/functional/FR-007-fenced-block-heading-walk.md:24 |
 | FND-002 | low | "Info word" is not defined. CommonMark's first word runs to whitespace; the code takes the leading `\w*` run, so `c++` gives `c`, `objective-c` gives `objective`, and `{.mermaid}` gives the empty string. Two implementers would read CR-008 differently. | spec/functional/FR-010-query-api.md:60; src/query.rs:72 |
 | FND-003 | low | CR-008 says it "extends FR-011 CR-004", but FR-011 CR-004 was not amended or back-linked. It still describes the scanner behind `code_block` as closing on any matching-character fence line, so FR-011, the locator's owning requirement, now understates the rule. | spec/functional/FR-011-body-extraction-dsl.md:62-81 |
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | FR-007 rules 1, 3 and 5 measure indentation from the list-item content column, and rule 6 puts block quotes, indented code and marker-line fences out of scope. CR-008 refers to them. |
+| FND-002 | fixed | CR-008 defines the info word as the leading `\w*` run, with examples (`c++` gives `c`, `{.mermaid}` gives the empty string), and AC-8 asserts it. |
+| FND-003 | fixed | FR-011 gains the CR-004a note and FR-011-AC-22 for `code_block` on list-nested fences. |

@@ -977,7 +977,7 @@ fn fenced_lines(content: &str) -> Vec<bool> {
     let mut tracker = FenceTracker::default();
     content
         .split('\n')
-        .map(|line| tracker.feed(line) != LineKind::Outside)
+        .map(|line| tracker.feed(line).kind != LineKind::Outside)
         .collect()
 }
 

@@ -65,7 +65,8 @@ bumps; once 1.0 ships, semver is strict.
   the `code_block` locator, list-item minting and table detection: a closing
   fence must be at least as long as the opener and carry no info string, a fence
   indented four columns past its container is not a fence, a backtick opening
-  line whose info string has a backtick is not a fence. `DiagramBlock::index`
+  line whose info string has a backtick is not a fence; a fence left open in a
+  list item ends with the item. `DiagramBlock::index`
   documented as the ordinal among the returned (filtered) blocks.
 
 - **Breaking, PLAT-1556:** `Spec::with_bundle_package` now returns

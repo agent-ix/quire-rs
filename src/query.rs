@@ -397,7 +397,7 @@ pub(crate) fn list_item_lines(content: &str) -> Vec<(usize, &str)> {
     let mut tracker = FenceTracker::default();
     let mut out = Vec::new();
     for (index, line) in content.split('\n').enumerate() {
-        if tracker.feed(line) != LineKind::Outside {
+        if tracker.feed(line).kind != LineKind::Outside {
             continue;
         }
         if let Some(item) = re_list_item().captures(line.trim()).and_then(|c| c.get(1)) {
@@ -498,7 +498,26 @@ fn scan_fenced_blocks(
     let mut open = false;
 
     for (line_index, line) in body.split('\n').enumerate() {
-        match tracker.feed(line) {
+        let fed = tracker.feed(line);
+        if fed.ended {
+            // The list item holding the open block ended without a closing
+            // fence; like an unclosed block, it is kept when non-empty.
+            if !block_lines.is_empty() {
+                push_block(
+                    &mut out,
+                    fence_line,
+                    &mut block_index,
+                    &block_lang,
+                    &block_lines,
+                    &current_section,
+                    language,
+                );
+            }
+            open = false;
+            block_lang.clear();
+            block_lines.clear();
+        }
+        match fed.kind {
             LineKind::Outside => {
                 if track_headings {
                     if let Some(cap) = re_heading().captures(line) {
@@ -996,7 +1015,7 @@ mod tests {
     #[trace("FR-010-AC-9")]
     #[test]
     fn list_nested_fences_are_found_with_lines_and_sections() {
-        let input = "## Steps\n1.  step\n\n    ```mermaid\na\n    ```\n\n    - nested\n\n      ~~~mermaid\n      b\n      ~~~\n\n          ```mermaid\n          c\n          ```\n## After\n- x\n\n  ````mermaid\n  d\n  ````";
+        let input = "## Steps\n1.  step\n\n    ```mermaid\n    a\n    ```\n\n    - nested\n\n      ~~~mermaid\n      b\n      ~~~\n\n          ```mermaid\n          c\n          ```\n## After\n- x\n\n  ````mermaid\n  d\n  ````";
         let blocks = extract_diagrams(&parse_document(input), None);
         let got: Vec<(usize, &str, Option<&str>)> = blocks
             .iter()
@@ -1010,6 +1029,21 @@ mod tests {
                 (20, "d", Some("After"))
             ]
         );
+    }
+
+    #[trace("FR-010-AC-11")]
+    #[test]
+    fn fence_left_open_in_a_list_item_ends_with_the_item() {
+        let input = "- item\n\n  ```mermaid\n  x\n## H\n```mermaid\ny\n```";
+        let blocks = extract_diagrams(&parse_document(input), None);
+        let got: Vec<(usize, &str, Option<&str>)> = blocks
+            .iter()
+            .map(|b| (b.line, b.source.trim(), b.section.as_deref()))
+            .collect();
+        assert_eq!(got, vec![(3, "x", None), (6, "y", Some("H"))]);
+        // A lazy continuation line keeps the item open.
+        let lazy = diagrams_from_content("- item\ntext\n\n    ```mermaid\n    z\n    ```", None);
+        assert_eq!(lazy.len(), 1);
     }
 
     #[trace("FR-010-AC-10")]

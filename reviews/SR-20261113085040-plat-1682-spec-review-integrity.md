@@ -31,3 +31,10 @@ matching-character rule, which CR-008 refines.
 | --- | --- | --- | --- |
 | FND-001 | medium | FR-007 contradicts itself. Rule 1 says "A line whose `trim_start()` begins with three backticks toggles `in_fence`", and rule 3 says the same of tildes. Rule 6 says only a run indented at most three spaces opens, and a fence closes only on a same-character run at least as long as the opener with whitespace after it. A four-space `` ``` `` or a `` ``` text `` line inside a fence obeys rule 1 and breaks rule 6. Rules 1 and 3 must be rewritten or removed, not added to. | spec/functional/FR-007-fenced-block-heading-walk.md:18-24 |
 | FND-002 | low | FR-007 still says the walk follows "the TS/Py reference algorithm" (StR-003 parity). Rule 6 deliberately diverges from TS/Py (`trimStart().startsWith('```')` toggling), and no CR note records the change or the divergence, unlike FR-010 CR-008 and FR-011 CR-004. Repo CLAUDE.md: a spec change requires a CR note. | spec/functional/FR-007-fenced-block-heading-walk.md:16 |
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | FR-007 rules 1 to 6 are rewritten as a single model, and the trim_start toggle rules are gone. |
+| FND-002 | fixed | The FR-007 description no longer claims the TS/Py algorithm, and the CR-009 note records the deliberate divergence. |

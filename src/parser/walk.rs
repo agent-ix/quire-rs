@@ -46,7 +46,7 @@ pub fn walk_headings(lines: &[&str]) -> Vec<Heading> {
             in_comment = !line.contains("-->");
             continue;
         }
-        if tracker.feed(line) != LineKind::Outside {
+        if tracker.feed(line).kind != LineKind::Outside {
             continue;
         }
         if let Some((level, mut text)) = parse_heading(line) {
@@ -182,35 +182,94 @@ fn fence_run(line: &str, container: usize) -> Option<(FenceKind, usize, &str)> {
     Some((kind, len, &text[len..]))
 }
 
-/// The content column of a list item whose marker starts `line` (a bullet or
-/// an ordered marker of up to nine digits, followed by whitespace or the end
-/// of the line), or `None` when `line` is not a list item.
-fn item_content_column(line: &str) -> Option<usize> {
+/// A list marker starting a line.
+#[derive(Debug, Clone, Copy)]
+struct Marker {
+    /// Column of the marker.
+    col: usize,
+    /// Column the item's content starts at.
+    content: usize,
+    /// The item has no content on its first line.
+    empty: bool,
+    /// The number of an ordered marker; `None` for a bullet.
+    number: Option<u64>,
+}
+
+impl Marker {
+    /// Whether a list started by this marker may interrupt a paragraph: it
+    /// has content, and an ordered marker starts at 1.
+    fn interrupts_paragraph(&self) -> bool {
+        !self.empty && self.number.is_none_or(|n| n == 1)
+    }
+}
+
+/// The list marker (a bullet, or up to nine digits followed by `.` or `)`,
+/// then whitespace or the end of the line) that starts `line`, if any. A
+/// thematic break is not a marker.
+fn list_marker(line: &str) -> Option<Marker> {
+    if is_thematic_break(line) {
+        return None;
+    }
     let (col, bytes) = leading_columns(line);
     let text: &str = &line[bytes..];
-    let marker: usize = match text.as_bytes().first()? {
-        b'-' | b'*' | b'+' => 1,
+    let (width, number): (usize, Option<u64>) = match text.as_bytes().first()? {
+        b'-' | b'*' | b'+' => (1, None),
         b'0'..=b'9' => {
             let digits: usize = text.bytes().take_while(u8::is_ascii_digit).count();
             if digits > 9 || !matches!(text.as_bytes().get(digits), Some(b'.' | b')')) {
                 return None;
             }
-            digits + 1
+            (digits + 1, text[..digits].parse().ok())
         }
         _ => return None,
     };
-    let after: &str = &text[marker..];
-    let spaces: usize = after.bytes().take_while(|&b| b == b' ').count();
-    if after.is_empty() || after.trim().is_empty() {
-        return Some(col + marker + 1);
+    let after: &str = &text[width..];
+    if after.trim().is_empty() {
+        return Some(Marker {
+            col,
+            content: col + width + 1,
+            empty: true,
+            number,
+        });
     }
+    let spaces: usize = after.bytes().take_while(|&b| b == b' ').count();
     if spaces == 0 && !after.starts_with('\t') {
         return None;
     }
     // Five or more spaces after the marker: the content is an indented code
     // block, so the item content column is one space past the marker.
     let gap: usize = if (1..=4).contains(&spaces) { spaces } else { 1 };
-    Some(col + marker + gap)
+    Some(Marker {
+        col,
+        content: col + width + gap,
+        empty: false,
+        number,
+    })
+}
+
+/// A line of three or more `-`, `*` or `_` (one kind, spaces between allowed).
+fn is_thematic_break(line: &str) -> bool {
+    let text: &str = line.trim();
+    let Some(first) = text.chars().next().filter(|c| matches!(c, '-' | '*' | '_')) else {
+        return false;
+    };
+    text.chars().all(|c| c == first || c == ' ' || c == '\t')
+        && text.chars().filter(|&c| c == first).count() >= 3
+}
+
+/// A line that starts a block other than a paragraph without being a list
+/// item or a fence: an ATX heading, a block quote or a thematic break. Such a
+/// line is never a lazy paragraph continuation.
+fn starts_other_block(line: &str) -> bool {
+    let (_, bytes) = leading_columns(line);
+    let text: &str = &line[bytes..];
+    let hashes: usize = text.bytes().take_while(|&b| b == b'#').count();
+    let heading: bool = (1..=6).contains(&hashes)
+        && text[hashes..]
+            .chars()
+            .next()
+            .is_none_or(|c| c == ' ' || c == '\t');
+    heading || text.starts_with('>') || is_thematic_break(line)
 }
 
 /// What a line is, as seen by [`FenceTracker::feed`].
@@ -226,42 +285,109 @@ pub(crate) enum LineKind<'a> {
     Closes,
 }
 
-/// Line-by-line fence state: the open fence, if any, and the content columns
-/// of the list items enclosing the current line, which the three-column
-/// indent limit is measured from.
+/// The result of [`FenceTracker::feed`] for one line.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct Fed<'a> {
+    /// A fence that was open before this line ended without a closing fence,
+    /// because this line is indented less than the list item holding it.
+    pub(crate) ended: bool,
+    /// What this line itself is.
+    pub(crate) kind: LineKind<'a>,
+}
+
+/// An enclosing list item.
+#[derive(Debug, Clone, Copy)]
+struct Item {
+    marker_col: usize,
+    content: usize,
+}
+
+/// Line-by-line fence state: the open fence, if any, and the list items
+/// enclosing the current line, whose content columns the three-column indent
+/// limit is measured from. List structure is the CommonMark container rule
+/// for bullets and ordered items: a line indented less than an item's content
+/// column leaves it unless it continues the item's paragraph lazily.
 #[derive(Debug, Default)]
 pub(crate) struct FenceTracker<'a> {
     open: Option<Fence<'a>>,
-    containers: Vec<usize>,
+    items: Vec<Item>,
+    /// The previous line was paragraph text (so a lazy continuation or a
+    /// paragraph-interrupting rule applies to this one).
+    paragraph: bool,
 }
 
 impl<'a> FenceTracker<'a> {
-    /// Classify the next line of the input. An unclosed fence stays open to
-    /// the end of the input.
-    pub(crate) fn feed(&mut self, line: &'a str) -> LineKind<'a> {
-        if let Some(open) = self.open {
-            if open.closes(line) {
-                self.open = None;
-                return LineKind::Closes;
-            }
-            return LineKind::Inside;
-        }
-        if line.trim().is_empty() {
-            return LineKind::Outside;
-        }
+    /// Classify the next line of the input. A fence left open runs to the end
+    /// of the input, or until a line indented less than the list item that
+    /// holds it.
+    pub(crate) fn feed(&mut self, line: &'a str) -> Fed<'a> {
+        let blank: bool = line.trim().is_empty();
         let (col, _) = leading_columns(line);
-        while self.containers.last().is_some_and(|&c| col < c) {
-            self.containers.pop();
+        let mut ended: bool = false;
+        if let Some(open) = self.open {
+            if !blank && col < open.container {
+                self.open = None;
+                ended = true;
+            } else {
+                let kind = if open.closes(line) {
+                    self.open = None;
+                    LineKind::Closes
+                } else {
+                    LineKind::Inside
+                };
+                return Fed { ended, kind };
+            }
         }
-        let container: usize = self.containers.last().copied().unwrap_or(0);
+        if blank {
+            self.paragraph = false;
+            return Fed {
+                ended,
+                kind: LineKind::Outside,
+            };
+        }
+        let marker: Option<Marker> = list_marker(line);
+        // The innermost item the line leaves, and whether it starts a sibling
+        // item of the same list (indented from that item's marker).
+        let left: Option<Item> = self.items.iter().rev().find(|i| col < i.content).copied();
+        let sibling: bool = left.is_some_and(|i| col >= i.marker_col);
+        let marker: Option<Marker> =
+            marker.filter(|m| sibling || !self.paragraph || m.interrupts_paragraph());
+        let lazy: bool = left.is_some()
+            && self.paragraph
+            && marker.is_none()
+            && !starts_other_block(line)
+            && Fence::opening(line, 0).is_none();
+        if lazy {
+            return Fed {
+                ended,
+                kind: LineKind::Outside,
+            };
+        }
+        while self.items.last().is_some_and(|i| col < i.content) {
+            self.items.pop();
+        }
+        let container: usize = self.items.last().map_or(0, |i| i.content);
         if let Some(fence) = Fence::opening(line, container) {
             self.open = Some(fence);
-            return LineKind::Opens(fence);
+            self.paragraph = false;
+            return Fed {
+                ended,
+                kind: LineKind::Opens(fence),
+            };
         }
-        if let Some(content) = item_content_column(line) {
-            self.containers.push(content);
+        if let Some(m) = marker {
+            self.items.push(Item {
+                marker_col: m.col,
+                content: m.content,
+            });
+            self.paragraph = !m.empty;
+        } else {
+            self.paragraph = !starts_other_block(line);
         }
-        LineKind::Outside
+        Fed {
+            ended,
+            kind: LineKind::Outside,
+        }
     }
 }
 
@@ -380,9 +506,78 @@ mod tests {
             .map(|h| h.text)
             .collect();
         assert_eq!(texts, vec!["Real"]);
-        // After the list ends, indentation is measured from column 0 again.
-        let after = "- item\ntext\n\n    ```\n## H";
-        assert_eq!(walk_headings(&lines(after)).len(), 1);
+    }
+
+    #[trace("FR-007-AC-8")]
+    #[test]
+    fn fence_left_open_in_a_list_item_ends_with_the_item() {
+        // The unclosed fence holds `x`; `## H` is indented less than the item
+        // content column, so the item and the fence end and `H` is a heading.
+        let input = "- item\n\n  ```\n  x\n## H";
+        let texts: Vec<String> = walk_headings(&lines(input))
+            .into_iter()
+            .map(|h| h.text)
+            .collect();
+        assert_eq!(texts, vec!["H"]);
+        // At top level an unclosed fence runs to the end of the document.
+        assert!(walk_headings(&lines("```\nx\n## H")).is_empty());
+        let mut t = FenceTracker::default();
+        let kinds: Vec<(bool, bool)> = ["- item", "", "  ```", "  x", "## H"]
+            .iter()
+            .map(|l| {
+                let f = t.feed(l);
+                (f.ended, matches!(f.kind, LineKind::Outside))
+            })
+            .collect();
+        assert_eq!(
+            kinds,
+            vec![
+                (false, true),
+                (false, true),
+                (false, false),
+                (false, false),
+                (true, true)
+            ]
+        );
+    }
+
+    #[trace("FR-007-AC-9")]
+    #[test]
+    fn lazy_continuation_keeps_the_item_and_interrupt_rule_limits_markers() {
+        fn opens(lines: &[&'static str]) -> Vec<bool> {
+            let mut t = FenceTracker::default();
+            lines
+                .iter()
+                .map(|l| matches!(t.feed(l).kind, LineKind::Opens(_)))
+                .collect()
+        }
+        // `text` is a lazy continuation of the item, so the item (content
+        // column 2) still holds the line after the blank: a fence four
+        // spaces in is within three columns of it.
+        assert_eq!(
+            opens(&["- item", "text", "", "    ```"]),
+            vec![false, false, false, true]
+        );
+        // After a block-level line the item is gone; four spaces is no fence.
+        assert_eq!(
+            opens(&["- item", "# H", "", "    ```"]),
+            vec![false, false, false, false]
+        );
+        // `2.` cannot interrupt a paragraph, so it opens no item and five
+        // spaces is no fence; `1.` can, so there it is a fence.
+        assert_eq!(
+            opens(&["para", "2. not an item", "     ```"]),
+            vec![false, false, false]
+        );
+        assert_eq!(
+            opens(&["para", "1. an item", "     ```"]),
+            vec![false, false, true]
+        );
+        // A sibling `2.` of an open list is an item.
+        assert_eq!(
+            opens(&["1. a", "2. b", "     ```"]),
+            vec![false, false, true]
+        );
     }
 
     #[test]

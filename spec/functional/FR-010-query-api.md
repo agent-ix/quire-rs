@@ -83,6 +83,7 @@ Semantics match `agent-ix/quire/src/core/query.ts` exactly:
 | FR-010-AC-8 | (CR-008) The info word is read after the whole opening run: ` ````mermaid ` and ` ~~~~mermaid ` are `mermaid` blocks and a `mermaid` filter selects them; ` ```c++ ` has the language `c` and ` ```{.mermaid} ` the empty language. With a language filter, `index` counts only blocks of that language. | Test |
 | FR-010-AC-9 | (CR-008) Fences nested in list items (an ordered `1.  ` item and a nested bullet, whose content columns are 4 and 6) are returned by `extract_diagrams` with the right `line`, `source` and `section`; a fence indented four spaces past the item content is not a fence. | Test |
 | FR-010-AC-10 | (CR-008) `line` of a block in a document with CRLF line endings, and in one with a leading byte-order mark, equals the 1-based position of its opening fence line in the file text, with and without frontmatter. | Test |
+| FR-010-AC-11 | (CR-008) A fence left open inside a list item ends the block at the first non-blank line indented less than the item's content column (the block keeps the lines before it, and `section` follows later headings); a lazy continuation line keeps the item open. | Test |
 
 ## Dependencies
 
