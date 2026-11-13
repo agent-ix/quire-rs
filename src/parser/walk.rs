@@ -346,10 +346,14 @@ impl<'a> FenceTracker<'a> {
             };
         }
         let marker: Option<Marker> = list_marker(line);
-        // The innermost item the line leaves, and whether it starts a sibling
-        // item of the same list (indented from that item's marker).
+        // Whether the line leaves an item, and whether it starts a sibling of
+        // ANY enclosing item (indented from that item's marker but short of
+        // its content column), however deeply the previous line was nested.
         let left: Option<Item> = self.items.iter().rev().find(|i| col < i.content).copied();
-        let sibling: bool = left.is_some_and(|i| col >= i.marker_col);
+        let sibling: bool = self
+            .items
+            .iter()
+            .any(|i| col >= i.marker_col && col < i.content);
         let marker: Option<Marker> =
             marker.filter(|m| sibling || !self.paragraph || m.interrupts_paragraph());
         let lazy: bool = left.is_some()
@@ -573,10 +577,24 @@ mod tests {
             opens(&["para", "1. an item", "     ```"]),
             vec![false, false, true]
         );
-        // A sibling `2.` of an open list is an item.
+        // Siblings with markers of different widths: `10.` is an item, so its
+        // content column is 4 and a fence seven columns in opens; read as a
+        // lazy continuation of `9.` (content column 3) it would not.
         assert_eq!(
-            opens(&["1. a", "2. b", "     ```"]),
+            opens(&["9. a", "10. b", "       ```"]),
             vec![false, false, true]
+        );
+        // `2. two` is a sibling of the OUTER item, ending the nested one: the
+        // content column is 3, so seven columns is indented code and six a
+        // fence. Were the nested item (column 5) still in force, seven would
+        // open a fence.
+        assert_eq!(
+            opens(&["1. one", "   - nested", "2. two", "       ```"]),
+            vec![false, false, false, false]
+        );
+        assert_eq!(
+            opens(&["1. one", "   - nested", "2. two", "      ```"]),
+            vec![false, false, false, true]
         );
     }
 
