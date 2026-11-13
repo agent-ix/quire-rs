@@ -71,3 +71,18 @@ The new field is `pub carried: Option<serde_json::Map<String, serde_json::Value>
 ## Verification
 
 `CARGO_PROFILE_DEV_DEBUG=0 locked-build.sh <scratch>/target cargo test --test it field_rules` on `6d569a7`: 27 passed. The cross-member probe was a local, uncommitted test in a scratch worktree, reverted afterwards.
+
+## New findings (disposition pass 1)
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-005 | low | Inserting `carried_for` split a doc comment. The old `carried_values` comment ("Each document's declared carried values … keyed by the scope-relative path …") now sits on top of `carried_for`'s own comment, so `carried_for` documents a path-keyed map it does not return, and `carried_values` has no doc comment. Fix: move the first four lines back above `fn carried_values`. | src/coverage.rs:669-676 |
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | fb79f77: consistency reads `from` documents corpus-wide (`corpus_documents_of`) and reports an out-of-enum value only when that end is `in_view`, and a comparison only when the `from` end is. The new two-member test `an_out_of_enum_target_in_another_member_is_reported_once_by_its_own_member` asserts one finding with repo o/b and o/b's path. Mutants that drop either gate, or revert to view-only `from` documents, are killed. |
+| FND-002 | fixed | fb79f77: `dead_selector` runs from `check_required_is_live` (dead field, or values outside the enum held by no document, trimmed and ASCII folded as FR-058-AC-22). Test `a_where_that_selects_nothing_reports_under_undeclared_relation_vocabulary`; removing the call and removing the fold are both killed. Ruling: acceptable, not a spec deviation. FR-091 says the `where` narrows "exactly as for required_relations" and that field existence reports under `trace:undeclared-relation-vocabulary`. No AC owns it yet (see SR-20261113091250 FND-005). |
+| FND-003 | fixed | fb79f77: `compared` removed; the let-else now gates on `from_here`. |
+| FND-004 | fixed | fb79f77: `hop_relation` removed; the hops use `RelationEdges::over_verbs(spec, registry, criteria, verbs)`, and `RelationEdges::new` delegates to it. |

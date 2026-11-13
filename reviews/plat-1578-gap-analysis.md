@@ -68,3 +68,18 @@ Ticket: PLAT-1578. PR head: `6d569a7`. Plan completion: not assessed. All 13 FR-
 | FR-091-AC-18 | examined | FND-004 |
 | FR-090-CON-1, FR-091-CON-1 | examined | Inspection: no names in non-test source; the AC-15 neutral fixture passes |
 | FR-090-CON-2, FR-091-CON-2 | examined | Inspection: no assign or write path |
+
+## New findings (disposition pass 1)
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-005 | low | `a_where_that_selects_nothing_reports_under_undeclared_relation_vocabulary` is tagged `FR-091-AC-5`, but AC-5 states only that a part with no value is reported and one with a value is not. No FR-091 AC states `where` liveness, so the test inflates AC-5 and the behaviour has no owning criterion. Fix: drop the AC-5 tag, and add an FR-091 AC for `where` liveness through a spec note (CR pattern), not a silent spec edit. | tests/it/field_rules.rs:1176-1215 |
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | fb79f77: AC-14's fixture adds PRI-003 to BRG-001's targets and counts `undeclared-field-value`, so emission order (below, outside, below, unassigned, undeclared-tier-value) is not lexical. The mutant deleting `found.sort()` is now killed. |
+| FND-002 | fixed | fb79f77: the second via is file `spec/ZZ-file.md` with id BRG-000, so slot order and id order disagree. The mutant deleting `via_ids.sort()` is now killed. |
+| FND-003 | fixed | fb79f77: `required_fields_exclude_where_and_the_model_exclusion_narrow_the_obliged` and `the_via_hop_reads_only_documents_of_its_archetype_and_the_model_exclusion_applies`. The mutants dropping required `exclude`, `where`, the via archetype filter and the model `exclude` are all killed. |
+| FND-004 | fixed | fb79f77: AC-12 compares a run without carried_fields (self-identical, and equal to the with-run once the two keys are removed). AC-6 asserts the bundle report equals the bare module's and the coverage output matches without the keys. AC-18 runs on prism+loose (no enum anywhere) in both load orders. |

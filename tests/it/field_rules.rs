@@ -1173,7 +1173,7 @@ fn required_fields_exclude_where_and_the_model_exclusion_narrow_the_obliged() {
     assert!(hits[0].message.contains("AL-001"), "{hits:?}");
 }
 
-#[trace("FR-091-AC-5")]
+#[trace("FR-091-AC-19")]
 #[test]
 fn a_where_that_selects_nothing_reports_under_undeclared_relation_vocabulary() {
     let dead_field = alpha_module(

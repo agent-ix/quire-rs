@@ -666,10 +666,6 @@ fn document_criticality(doc: &crate::corpus::walk::LoadedDocument) -> Option<ser
         .cloned()
 }
 
-/// Each document's declared carried values, as written (FR-090), keyed by the
-/// scope-relative path the obligations carry. A document that states none has
-/// no entry. The value is read from the document alone: never inferred from a
-/// related document, another field, or `criticality`.
 /// The values one document states for the declared carried fields, as written;
 /// `None` when it states none (FR-090). The per-document read behind
 /// [`carried_values`], for any entry that needs it without an obligation.
@@ -690,6 +686,10 @@ pub(crate) fn carried_for(
     (!carried.is_empty()).then_some(carried)
 }
 
+/// Each document's declared carried values, as written (FR-090), keyed by the
+/// scope-relative path the obligations carry. A document that states none has
+/// no entry. The value is read from the document alone: never inferred from a
+/// related document, another field, or `criticality`.
 fn carried_values(
     spec: &Spec,
     root: &Path,

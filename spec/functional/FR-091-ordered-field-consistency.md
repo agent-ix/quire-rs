@@ -155,6 +155,7 @@ documents are read.
 | FR-091-AC-16 | A corpus where a `field_consistency` entry's `order_from` names a field with no `enum` reports `trace:undeclared-relation-vocabulary` naming the entry and compares nothing. | Test |
 | FR-091-AC-17 | With the `vocabulary` entry above, a `part` stating `class-9` or `Class-1` yields one `trace:undeclared-class-value` finding naming the part, the field and the value; one stating a value in `carried_vocabulary` yields none; one stating nothing yields none. | Test |
 | FR-091-AC-18 | A `vocabulary` entry whose `carried` name has no `carried_vocabulary` entry reports `trace:undeclared-relation-vocabulary` naming the entry and produces no value finding; the same finding set results whichever module loads first. | Test |
+| FR-091-AC-19 | A `required_fields` entry with a `where` reports `trace:undeclared-relation-vocabulary` naming the entry when the `where` `field` is neither a property of the `from` archetypes' frontmatter schemas nor carried by any `from` document, or when a `values` entry is outside that field's schema `enum` and held by no `from` document, both compared after trimming and ASCII case folding; a `where` that is live by either route yields no such finding. | Test |
 
 ## Constraints
 
@@ -167,3 +168,5 @@ documents are read.
 
 - **Upstream**: [FR-058](./FR-058-upward-trace-completeness.md) (relation matching incl. CR-416), [FR-057](./FR-057-corpus-check-severity.md), [FR-059](./FR-059-declared-vocabulary-coverage.md), [FR-085](./FR-085-cross-repository-edge-resolution.md), [spec-artifacts-iso FR-009](ix://agent-ix/spec-artifacts-iso/FR-009) (the field and its enum), [FR-090](./FR-090-declared-carried-fields.md) (the same frontmatter reading)
 - **Downstream**: [spec-objects-architecture FR-012](ix://agent-ix/spec-objects-architecture/FR-012) declares the entries; they land after this engine requirement. The design-join work (PLAT-1417, FR-086 (quire-rs#668, merging first)) is a separate report over the same edges.
+
+> **CR note (PLAT-1578):** FR-091-AC-19 was added. The `where` of a `required_fields` entry is checked for liveness exactly as FR-058-AC-22 checks a `required_relations` `where`: trimmed and ASCII-folded comparison, finding token `trace:undeclared-relation-vocabulary`, reported when the corpus is merged.
