@@ -1421,6 +1421,34 @@ pub fn flatten_into_registry(mut outcome: LoadOutcome) -> RegistryShape {
             break;
         }
     }
+    // FR-090-AC-10: one name, two keys, is not one carried field. Both
+    // declaring modules fail, naming each other, and no model is exposed.
+    if let Some((name, declared)) = carried_field_conflict(&outcome.modules) {
+        let named = declared
+            .iter()
+            .map(|(module, key)| format!("module '{module}' (key '{key}')"))
+            .collect::<Vec<_>>()
+            .join(" and ");
+        for module in &outcome.modules {
+            if module
+                .traceability
+                .carried_fields
+                .iter()
+                .any(|c| c.name == name)
+            {
+                outcome.failures.push(ArchetypeLoadFailure {
+                    module: module.name.clone(),
+                    archetype: "<manifest>".to_string(),
+                    path: module.root.join("manifest.yaml"),
+                    reason: format!(
+                        "merged selected traceability model: carried_fields entry '{name}' is \
+                         declared with different keys by {named}"
+                    ),
+                });
+            }
+        }
+        traceability = crate::traceability::TraceabilityModel::default();
+    }
     let declaration_origins = merge_declaration_origins(&outcome.modules);
 
     // ── FR-041: derive the inverse-label → forward-verb index from the
@@ -1629,6 +1657,43 @@ fn merge_traceability(modules: &[LoadedModule]) -> crate::traceability::Traceabi
                 merged.vocabulary_coverage.push(coverage.clone());
             }
         }
+        // FR-090: one carried field per name; entries sharing a name and a key
+        // unite their `from` lists, so the result does not depend on load
+        // order. A name with two different keys is reported by
+        // `carried_field_conflict`; the first key is kept here.
+        for carried in &m.carried_fields {
+            match merged
+                .carried_fields
+                .iter_mut()
+                .find(|c| c.name == carried.name)
+            {
+                None => merged.carried_fields.push(carried.clone()),
+                Some(existing) if existing.key == carried.key => {
+                    for from in &carried.from {
+                        if !existing.from.contains(from) {
+                            existing.from.push(from.clone());
+                        }
+                    }
+                }
+                Some(_) => {}
+            }
+        }
+        // FR-091: first-wins by name, like every other named entry.
+        for rule in &m.field_consistency {
+            if !merged.field_consistency.iter().any(|r| r.name == rule.name) {
+                merged.field_consistency.push(rule.clone());
+            }
+        }
+        for rule in &m.required_fields {
+            if !merged.required_fields.iter().any(|r| r.name == rule.name) {
+                merged.required_fields.push(rule.clone());
+            }
+        }
+        for rule in &m.vocabulary {
+            if !merged.vocabulary.iter().any(|r| r.name == rule.name) {
+                merged.vocabulary.push(rule.clone());
+            }
+        }
         for marker in &m.trace_tags.markers {
             if !merged
                 .trace_tags
@@ -1686,6 +1751,31 @@ fn merge_traceability(modules: &[LoadedModule]) -> crate::traceability::Traceabi
         }
     }
     merged
+}
+
+/// The first carried field two modules declare under one name with different
+/// keys (FR-090-AC-10): `(name, [(module, key), (module, key)])`.
+///
+/// Modules are scanned in load order, but the pair is reported by name so the
+/// failure does not depend on which module loaded first.
+fn carried_field_conflict(modules: &[LoadedModule]) -> Option<(String, Vec<(String, String)>)> {
+    let mut seen: BTreeMap<&str, (&str, &str)> = BTreeMap::new();
+    for module in modules {
+        for carried in &module.traceability.carried_fields {
+            let (first_module, first_key) = *seen
+                .entry(carried.name.as_str())
+                .or_insert((module.name.as_str(), carried.key.as_str()));
+            if first_key != carried.key {
+                let mut pair = vec![
+                    (first_module.to_string(), first_key.to_string()),
+                    (module.name.clone(), carried.key.clone()),
+                ];
+                pair.sort();
+                return Some((carried.name.clone(), pair));
+            }
+        }
+    }
+    None
 }
 
 /// Merge source origins with the same first-wins rules as the declarations

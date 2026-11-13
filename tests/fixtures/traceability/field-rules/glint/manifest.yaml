@@ -1,0 +1,16 @@
+# FR-090-AC-13 fixture: a second archetype whose `tier` enum has the same
+# members as Glyph's in another order, so the two vocabularies disagree.
+name: field-rules-glint
+version: 0.1.0
+description: Carried field whose enum disagrees with Glyph's (quire-rs FR-090)
+archetypes:
+- kind: Glint
+  name: Glint
+  frontmatter_schema_ref: schemas/glint.schema.json
+  defaults:
+    id_pattern: GLN-{next:03d}
+traceability:
+  carried_fields:
+  - name: tier
+    from: [Glint]
+    key: tier

@@ -9,6 +9,26 @@ bumps; once 1.0 ships, semver is strict.
 
 ### Added
 
+- **Breaking, PLAT-1578:** `CoverageMatrixRequirement` gains `carried:
+  Option<serde_json::Map<..>>`, `CoverageReport` gains `carried_vocabulary:
+  BTreeMap<String, Vec<String>>`, and `TraceabilityModel` gains `carried_fields`,
+  `field_consistency`, `required_fields` and `vocabulary`, so struct literals of
+  these types need the new fields. `coverage-v1.schema.json` adds the optional
+  `carried` and `carried_vocabulary` keys and no other.
+- PLAT-1578 (FR-090, FR-091): ordered-field consistency, declared as module
+  data. `traceability.carried_fields` carries a frontmatter value as written onto
+  a `coverage_matrix` requirement entry under `carried`, and reports the `enum`
+  of its key once per run as `carried_vocabulary`; archetypes whose enums differ
+  report `trace:carried-vocabulary-mismatch`, and one name read from two keys
+  fails the merge naming both modules. `field_consistency` (with an optional
+  `via` hop) reports `trace:<check>` when a document states a value ranked below
+  the document its edges reach, ranked by an `enum` in a frontmatter schema, and
+  `trace:undeclared-field-value` for a value outside that `enum`.
+  `required_fields` reports a document that states no value, and `vocabulary`
+  holds a stated value to a carried field's vocabulary. A declaration naming an
+  archetype, field or carried name the merged registry lacks reports
+  `trace:undeclared-relation-vocabulary`. The engine holds no archetype, field,
+  verb, rank or value, and never assigns, fills in or writes one.
 - **Breaking, PLAT-1418:** `LinkedEntry::Resolved` gains `realized_criteria:
   Option<Vec<String>>` (`Some` only in `design_join`), so downstream pattern
   matches need `..`. FR-084 behaviour changes with FR-058 CR-416/417: an edge

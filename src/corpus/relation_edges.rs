@@ -226,17 +226,27 @@ impl RelationEdges {
         criteria: &CriterionIndex,
         relation: &RequiredRelation,
     ) -> Self {
+        Self::over_verbs(spec, registry, criteria, &relation.edges)
+    }
+
+    /// The edges that carry any of `verbs`, read in the orientation each is
+    /// listed (the one reader behind a relation and a field-consistency hop).
+    pub(crate) fn over_verbs(
+        spec: &Spec,
+        registry: &Registry,
+        criteria: &CriterionIndex,
+        verbs: &[String],
+    ) -> Self {
         let inverse = registry.inverse_index();
         // A pair listed by both labels is read one way only, as its forward
         // verb: reading it both ways would count one edge between one pair
         // twice and accept edges listing only one label does not.
-        let listed: Vec<&String> = relation
-            .edges
+        let listed: Vec<&String> = verbs
             .iter()
             .filter(|verb| {
                 inverse
                     .get(verb.as_str())
-                    .is_none_or(|forward| !relation.edges.contains(forward))
+                    .is_none_or(|forward| !verbs.contains(forward))
             })
             .collect();
         // Authored label -> (listed verb, orientation).
@@ -361,6 +371,16 @@ impl RelationEdges {
 pub(crate) struct RelationContext {
     criteria: CriterionIndex,
     edges: BTreeMap<String, RelationEdges>,
+    /// The hops of each `field_consistency` entry (FR-091), by entry name.
+    hops: BTreeMap<String, FieldHops>,
+}
+
+/// The edges a `field_consistency` entry reads: the optional `via` hop and the
+/// `edges` hop.
+#[derive(Debug)]
+pub(crate) struct FieldHops {
+    pub(crate) via: Option<RelationEdges>,
+    pub(crate) target: RelationEdges,
 }
 
 impl RelationContext {
@@ -383,7 +403,33 @@ impl RelationContext {
                     .collect()
             })
             .unwrap_or_default();
-        Self { criteria, edges }
+        let hops = registry
+            .traceability()
+            .map(|model| {
+                model
+                    .field_consistency
+                    .iter()
+                    .map(|rule| {
+                        let via = rule.via.as_ref().map(|via| {
+                            RelationEdges::over_verbs(spec, registry, &criteria, &via.edges)
+                        });
+                        let target =
+                            RelationEdges::over_verbs(spec, registry, &criteria, &rule.edges);
+                        (rule.name.clone(), FieldHops { via, target })
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+        Self {
+            criteria,
+            edges,
+            hops,
+        }
+    }
+
+    /// The hops of the `field_consistency` entry `name`.
+    pub(crate) fn hops_for(&self, name: &str) -> Option<&FieldHops> {
+        self.hops.get(name)
     }
 
     /// Whether every spelling of the dangling `edge` reads as an edge to a

@@ -19,6 +19,13 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
 
+mod field_rules;
+
+pub use field_rules::{
+    CarriedField, ConsistencyRule, FieldConsistency, HopDirection, OrderFrom, RequiredField,
+    ViaHop, VocabularyRule,
+};
+
 /// A source language an adapter and a trace-marker form can bind to (FR-051).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -433,6 +440,20 @@ pub struct TraceabilityModel {
     /// no-op, the same shape every other declaration in this model uses.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub vocabulary_coverage: Vec<VocabularyCoverage>,
+    /// Frontmatter values carried as written onto the coverage matrix's
+    /// requirement entries (FR-090).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub carried_fields: Vec<CarriedField>,
+    /// Pairs of documents an edge joins that must agree on an ordered value
+    /// (FR-091).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub field_consistency: Vec<FieldConsistency>,
+    /// Values documents of a kind must state (FR-091).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub required_fields: Vec<RequiredField>,
+    /// Stated values that must be in a carried field's vocabulary (FR-091).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub vocabulary: Vec<VocabularyRule>,
 }
 
 /// One vocabulary whose values documents are expected to claim (FR-059).
@@ -549,7 +570,7 @@ impl TryFrom<RawRequiredRelation> for RequiredRelation {
         let selector = raw
             .selector
             .as_ref()
-            .map(|value| WhereSelector::parse(&raw.name, value))
+            .map(|value| WhereSelector::parse("required_relations", &raw.name, value))
             .transpose()?;
         Ok(Self {
             name: raw.name,
@@ -602,11 +623,9 @@ impl WhereSelector {
     }
 
     /// Parse and validate an authored `where`, naming `relation` on failure.
-    fn parse(relation: &str, raw: &serde_json::Value) -> Result<Self, String> {
+    fn parse(section: &str, relation: &str, raw: &serde_json::Value) -> Result<Self, String> {
         let bad = |why: &str| {
-            format!(
-                "traceability: required_relations entry '{relation}' has an invalid `where`: {why}"
-            )
+            format!("traceability: {section} entry '{relation}' has an invalid `where`: {why}")
         };
         let map = raw
             .as_object()
@@ -1502,6 +1521,11 @@ impl TraceabilityModel {
             && self.acyclic_edges.is_empty()
             && self.design_relations.is_empty()
             && self.vocabulary_coverage.is_empty()
+            // FR-090/FR-091: each does something once declared.
+            && self.carried_fields.is_empty()
+            && self.field_consistency.is_empty()
+            && self.required_fields.is_empty()
+            && self.vocabulary.is_empty()
         // CR-085: `source_exclude` is deliberately **absent** from this list,
         // mirroring the model-level `exclude` two fields above it. Both state
         // what is *not* traceable data; neither reconciles anything, so a module
@@ -1935,6 +1959,8 @@ impl TraceabilityModel {
                 &coverage.exclude,
             )?;
         }
+
+        self.validate_field_rules()?;
 
         if let Some(status) = &self.status {
             check_field("status", &status.column, "column", &status.column)?;

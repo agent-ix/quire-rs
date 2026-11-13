@@ -1,0 +1,43 @@
+# FR-091-AC-15 fixture: the whole declaration with neutral archetypes, fields
+# and verbs, and no name from the specification. No `via`.
+name: field-rules-neutral
+version: 0.1.0
+description: Field consistency with neutral names (quire-rs FR-091)
+archetypes:
+- kind: alpha
+  name: alpha
+  frontmatter_schema_ref: schemas/alpha.schema.json
+  defaults:
+    id_pattern: AL-{next:03d}
+- kind: beta
+  name: beta
+  defaults:
+    id_pattern: BE-{next:03d}
+- kind: gamma
+  name: gamma
+  defaults:
+    id_pattern: GA-{next:03d}
+edge_types:
+  links_to: { description: an alpha links to a beta, category: traceability }
+traceability:
+  carried_fields:
+  - name: rank_field
+    from: [alpha, beta]
+    key: rank_field
+  field_consistency:
+  - name: alpha-below-beta
+    from: [alpha]
+    field: rank_field
+    edges: [links_to]
+    direction: outgoing
+    to: [beta]
+    to_field: rank_field
+    order_from: { archetype: alpha, field: rank_field }
+    rule: not_below
+    check: rank-below
+  vocabulary:
+  - name: beta-rank-in-vocabulary
+    from: [beta]
+    field: rank_field
+    carried: rank_field
+    check: rank-outside

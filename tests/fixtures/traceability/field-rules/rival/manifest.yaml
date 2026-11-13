@@ -1,0 +1,15 @@
+# FR-090-AC-10 fixture: the same carried name as field-rules-glyph, read from a
+# different key.
+name: field-rules-rival
+version: 0.1.0
+description: A carried name that disagrees about its key (quire-rs FR-090)
+archetypes:
+- kind: Prism
+  name: Prism
+  defaults:
+    id_pattern: PRI-{next:03d}
+traceability:
+  carried_fields:
+  - name: tier
+    from: [Prism]
+    key: level

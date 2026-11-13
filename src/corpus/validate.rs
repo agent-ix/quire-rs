@@ -483,6 +483,16 @@ fn validate_view_findings(
         &mut report,
     );
 
+    // FR-090/FR-091: carried-field vocabularies, field consistency, required
+    // fields and vocabulary rules. A no-op when the module declares none.
+    crate::corpus::field_rules::validate_field_rules(
+        spec,
+        registry,
+        reference_root,
+        criteria,
+        &mut report,
+    );
+
     check_index_completeness(spec, posture, severity, document_root, &mut report);
 
     report
