@@ -341,8 +341,8 @@ fn tc655_tier2_inverse_normalization() {
         "reported with authored inverse edge: {m}"
     );
     assert!(
-        m.contains("object type 'wrong-target-kind'") && !m.contains("object type 'producer'"),
-        "kind describes the authored target B-001, not the normalized forward target A-001: {m}"
+        m.contains("object type 'producer'") && !m.contains("object type 'wrong-target-kind'"),
+        "kind describes authored target A-001, not normalized target B-001: {m}"
     );
     // Warn-tier: no hard errors from the edge check.
     assert!(
