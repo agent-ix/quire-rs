@@ -9,6 +9,20 @@ bumps; once 1.0 ships, semver is strict.
 
 ### Added
 
+- PLAT-1587 (FR-092): `design_matrix`. Runs the FR-086 join once over the
+  per-member `coverage_matrix` the caller supplies and returns the matrix with a
+  `design` array on each requirement entry that a design relation obliges: one
+  block per relation in `design_relations` order (`relation`, `check`, `state`,
+  `elements`, `dangling`, `kind_mismatch`), each element carrying its archetype
+  as `kind`. Entries gain `repo` and `id`, each criterion gains `design_elements`,
+  a requirement with no criteria that a relation obliges gets an entry with
+  `criteria: []`, and a requirement no relation obliges has no `design` key.
+  Entries are ordered by `repo` then `document`. Without `design_relations` and
+  without a member identity the output is byte-identical to `coverage_matrix`;
+  the `coverage` report is unchanged. An entry naming no declared relation fails
+  with `RelationReportError::UnknownDesignRelation`. An entry carries `carried`
+  (FR-090) as the matrix entry states it, or, for a requirement with no criteria,
+  as its document states it.
 - **Breaking, PLAT-1578:** `CoverageMatrixRequirement` gains `carried:
   Option<serde_json::Map<..>>`, `CoverageReport` gains `carried_vocabulary:
   BTreeMap<String, Vec<String>>`, and `TraceabilityModel` gains `carried_fields`,

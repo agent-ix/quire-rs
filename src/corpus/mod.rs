@@ -17,6 +17,7 @@
 
 mod body_cache;
 pub mod declared_tables;
+pub mod design_matrix;
 pub mod field_rules;
 pub mod glossary;
 pub mod query;
@@ -31,6 +32,10 @@ pub mod validate;
 pub mod vocabulary_coverage;
 pub mod walk;
 
+pub use design_matrix::{
+    design_matrix, DesignBlock, DesignElement, DesignElementRef, DesignMatrixCriterion,
+    DesignMatrixEntry,
+};
 pub use glossary::{glossary_terms, glossary_terms_from_path};
 pub use relation_report::{
     design_join, relation_report, Criteria, DanglingEntry, KindMismatchEntry, LinkResolution,
