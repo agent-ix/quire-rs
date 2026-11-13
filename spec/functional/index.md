@@ -85,5 +85,6 @@ description: "Index of artifacts in this directory."
 * [FR-083: Clause-set manifest declaration and publishability check](./FR-083-clause-set-publishability.md)
 * [FR-084: Two-way relation coverage report](./FR-084-two-way-relation-coverage-report.md)
 * [FR-085: Cross-repository edge resolution](./FR-085-cross-repository-edge-resolution.md)
+* [FR-086: Design-element join from requirement](./FR-086-design-element-join.md)
 * [FR-090: Declared carried fields: a stated value reaches the requirement entries of the coverage matrix as written](./FR-090-declared-carried-fields.md)
 * [FR-091: Ordered-field consistency and required-field findings, declared as module data](./FR-091-ordered-field-consistency.md)
