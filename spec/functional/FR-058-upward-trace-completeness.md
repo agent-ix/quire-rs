@@ -47,6 +47,7 @@ module's declared `traceability.required_relations`, each entry naming:
 | `check` | The `<check>` half of the `trace:<check>` severity key ([FR-057](./FR-057-corpus-check-severity.md)) |
 | `exclude` | Scope-relative globs exempt from this relation |
 | `where` | Optional. Narrows the obligation to `from` documents whose frontmatter `field` holds one of the declared `values` |
+| `when_any` | Optional. Narrows the obligation to `from` documents that have an edge matching at least one declared condition: `verb`, `direction`, and `other` kinds |
 
 **Direction is why this is one declaration and not two checks.** "Every FR traces to a need" and
 "every need is implemented" are the same edge read from opposite ends, so they are one type with a
@@ -181,6 +182,44 @@ is minted for this purpose and every such edge stays dangling.
 > The minting set is defined by the `obligations:` source's `target:` field because trace targets carry no kind and the engine may not name one. `#fragment` addressing was rejected because it would change FR-026 resolution for every
 > fragment-bearing reference in the ecosystem.
 
+### Narrowing the obligation by an edge
+
+Some obligations belong only to documents already used a certain way in the graph. "Every control
+that mitigates a hazard, or that a risk estimate assumes, has an implementing requirement" applies
+to those controls and not to every control in the bundle. `where` cannot say it, because it reads a
+field of the `from` document and not its edges. An optional `when_any` on a relation does:
+
+```yaml
+required_relations:
+  - name: control-has-requirement
+    from: control
+    when_any:
+      - { verb: mitigates, direction: outgoing, other: [hazard, failure_mode] }
+      - { verb: assumes, direction: incoming, other: [risk_estimate] }
+    edges: [satisfies]
+    to: [FR, NFR]
+    direction: incoming
+    check: control-without-requirement
+```
+
+`when_any` is a non-empty list of conditions. Each condition is a mapping of exactly three keys:
+`verb`, one non-blank edge verb; `direction`, `outgoing` (the `from` document is the edge's source)
+or `incoming` (it is the target); and `other`, a non-empty list of non-blank archetype names the
+document at the other end must be one of. A `from` document is **in scope** when at least one
+condition holds, that is when it has an edge of that verb in that direction to or from a **resolved**
+document of one of the `other` kinds. A dangling edge, or an edge to a document of another kind,
+does not hold a condition. A document in scope for no condition is out of scope and yields no
+finding of any kind. The engine holds no verb, direction or kind of its own: the manifest names all
+three.
+
+`when_any` composes with `where` and `exclude` by intersection. The order of selection is `from`
+kind, then `where`, then `when_any`, then `exclude`. It narrows only the obliged side, as `where`
+does; `edges`, `to` and `direction` govern the satisfying edge alone, so an edge that puts a
+document in scope is not thereby counted as satisfying the relation. A relation without `when_any`
+selects exactly the documents it selected before. A relation naming an `other` kind that no module
+declares and no document is reports under `trace:undeclared-relation-vocabulary`, as for `from` and
+`to`. A malformed `when_any` fails at module load naming the relation and `when_any`.
+
 ### Severity
 
 Findings ship **advisory**, tunable per declaration through the FR-057 registry — the `check` token
@@ -276,6 +315,14 @@ case that needs no help.
 | FR-058-AC-27 | Given a trace target named by an `obligations:` source that mints `X-AC-1` from document `X`, an edge whose target is `X-AC-1` satisfies a relation on `X` as an edge to `X`, keeps `X-AC-1` attached, is not listed as `dangling`, and leaves FR-026's classification of the edge `Dangling`. | Test |
 | FR-058-AC-28 | A document whose id equals a minted criterion id takes precedence; a criterion id minted by two documents of one member stays dangling and is named as authored; an id minted by a trace target no `obligations:` source names (a test-case target, say) is never read as an edge to its document; with no `obligations:` source every such edge stays dangling. | Test |
 | FR-058-AC-29 | In a two-member corpus, `ix://o/b/X-AC-1` is read against the criteria member `o/b` minted and is dangling when `o/b` holds no such criterion, even if member `o/a` mints it; the engine reads no id prefix (a fixture with neutral id spellings behaves identically). | Test |
+
+| FR-058-AC-30 | A relation with `when_any` reports an in-scope `from` document that has no accepted edge and does not report one that has it. A `from` document is in scope when any one condition holds, so a document holding the first condition only, one holding the second only, and one holding both are each reported when unsatisfied. | Test |
+| FR-058-AC-31 | A `from` document with no condition holding is never reported, with or without the satisfying edge. An outgoing condition is not held by an incoming edge of the same verb, and the reverse; an edge to a dangling target, or to a document outside `other`, holds no condition. | Test |
+| FR-058-AC-32 | `when_any` composes with `where` and `exclude` by intersection: a document selected by `when_any` but outside `where`, or exempted by `exclude`, is not reported. | Test |
+| FR-058-AC-33 | Module load rejects a `when_any` that cannot be executed, naming the relation and `when_any`: not a list, empty, a condition that is not a mapping, any key other than `verb`, `direction` and `other`, a missing key, a blank `verb`, a `direction` other than `outgoing` or `incoming`, and an `other` that is empty, not a list or holds a blank entry. | Test |
+| FR-058-AC-34 | A relation without `when_any` selects exactly the documents it selected before; a relation with it reports under its own `trace:<check>` key, advisory by default, and its findings are identical across runs. | Test |
+| FR-058-AC-35 | A relation whose `when_any` names an `other` kind that no module declares and no document is reports under `trace:undeclared-relation-vocabulary`, naming the declaration and the kind. | Test |
+
 ## Constraints
 
 | ID | Constraint | Type | Validation |
@@ -283,8 +330,9 @@ case that needs no help.
 | FR-058-CON-1 | Every field of `TraceabilityModel` SHALL survive both `is_empty` and the cross-module merge. Neither is an exhaustive `match`, so a field added to the struct and to nothing else compiles and is silently dropped — which is exactly what happened while building this FR, twice in one change. | Design | Test |
 | FR-058-CON-2 | The engine SHALL contain no archetype name, verb, or direction belonging to any particular traceability chain. A second chain is a manifest entry, never a second check. | Design | Inspection |
 | FR-058-CON-3 | The engine SHALL contain no frontmatter field name and no field value for `where`. The manifest declares both, and the engine holds no enumeration of permitted values: any vocabulary it checks `values` against comes from the `from` archetype's frontmatter schema. | Design | Inspection |
+| FR-058-CON-4 | The engine SHALL contain no verb, direction or archetype name for `when_any`; the manifest declares all three. | Design | Inspection |
 
 ## Dependencies
 
-- **Upstream**: [FR-026](./FR-026-intra-spec-reference-resolution.md) (the edge set this reads), [FR-057](./FR-057-corpus-check-severity.md) (the severity knob it ships behind), [FR-050](./FR-050-declarative-coverage-computation.md) (the declaration model it extends)
-- **Downstream**: `spec-objects-security#5` bidirectional hazard/threat coverage, which becomes declarations against this FR rather than engine code; [FR-084](./FR-084-two-way-relation-coverage-report.md) (the coverage report over these declarations); [FR-085](./FR-085-cross-repository-edge-resolution.md) (edges between repositories loaded into one corpus); [FR-086](./FR-086-design-element-join.md) (the design-element join over named relations)
+- **Upstream**: [FR-026](./FR-026-intra-spec-reference-resolution.md) (the edge set this reads), [FR-057](./FR-057-corpus-check-severity.md) (the severity knob it ships behind), [FR-050](./FR-050-declarative-coverage-computation.md) (the declaration model it extends); the `filament-core-data` manifest schema (FR-149) that declares `required_relations` keys, which needs the `when_any` key (PLAT-1678)
+- **Downstream**: `spec-objects-security#5` bidirectional hazard/threat coverage, which becomes declarations against this FR rather than engine code; [FR-084](./FR-084-two-way-relation-coverage-report.md) (the coverage report over these declarations); [FR-085](./FR-085-cross-repository-edge-resolution.md) (edges between repositories loaded into one corpus); [FR-086](./FR-086-design-element-join.md) (the design-element join over named relations); `spec-objects-safety` FR-302 (control completeness rules scoped by `when_any`)
