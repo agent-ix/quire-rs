@@ -65,3 +65,11 @@ Ticket: PLAT-1500. PR head `0191395`, scope `git diff origin/main...HEAD`. Code 
 | FND-003 | fixed | Round 1: tc2323 asserts `minted_targets` contains FR-001-AC-3. With `tables_in` truncated to the first table, it fails at coverage_rollup.rs:4303. |
 | FND-004 | fixed | Round 1: `exact` removed, condition is `if lacks_status && status_shaped`. The added "adds no row" assertion is vacuous; see FND-007. |
 | FND-005 | fixed | Round 1: trailing space and dangling line removed; the PLAT-1491 entry now cites AC-23..25 and AC-27. |
+| FND-006 | fixed | Round 2 (19030cf): `derive()` filters out rows whose table lacks the statement or id column before `collect`, and the inventory advances `ordinal` only after `missing_header`. Probe: a legend gives no skipped row and no `obligation-row-states-nothing`, and inventory `id_format` ids are unchanged. `a_legend_grid_is_no_skipped_row_and_does_not_shift_rendered_ids` fails when the derive filter is reverted. The new filter is too broad; see FND-008. |
+| FND-007 | fixed | Round 2: tc2322 compares `unbacked_rows` with the single-table baseline (`assert_eq!(report.unbacked_rows, baseline, ...)`), as suggested. |
+
+## New findings (disposition pass 2)
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-008 | medium | Regression introduced by the round-2 fix (19030cf). `derive()` drops every row of a table that lacks the statement or id column, whether or not another table in the same section has that column. When an obligation section's only table misspells the statement header (`\| ID \| Criterion \| Verification \|`), `quire coverage` now derives 0 obligations and 0 skipped rows and raises no diagnostic. Reproduced. With the filter removed, which matches main for a single table, the same document raises `obligation-row-states-nothing`. The inventory still reports `MissingColumn`, so the two surfaces disagree again, and coverage gets a silent zero (the CR-117 class). Fix: drop a table's rows only when `section_lacks` says another table of that section carries the column. Otherwise keep a section-level signal on the coverage path, for example the first table's rows as skipped, or a column diagnostic mirroring the inventory's `MissingColumn`. Add a test for the misspelled-header case. | src/obligation.rs:400-413 |

@@ -43,3 +43,9 @@ Ticket: PLAT-1500. Spec review of the FR-049 edit: the rewritten "The rule is no
 | FND-001 | fixed | Round 1 (fe3f6bb): the body names the FR-053 selected inventory and FR-061 combinatorial sources, and makes the inventory's `MissingColumn` cause per section. AC-30 includes the inventory and an inventory over a trailing legend being Complete. |
 | FND-002 | fixed | Round 1: body reads "one matched section is the unit; two sections sharing a heading text are two" and "no table of that section"; AC-30 says the same. |
 | FND-003 | fixed | Round 1: the citation now reads "(FR-049-AC-26, AC-30)". |
+
+## New findings (disposition pass 2)
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-004 | medium | FR-049-AC-32 and the round-2 body sentence say any table lacking a required column "contributes no rows ... no `obligation-row-states-nothing` diagnostic", with no per-section qualifier. Read literally, a section whose only table misspells the statement column must report nothing on the coverage path, while AC-30 requires the inventory to raise `MissingColumn` for the same section. That specifies a silent zero and contradicts the per-section rule. Fix: limit AC-32 to a table whose section has another table carrying the column, and state the coverage-path signal when no table does. | spec/functional/FR-049-verification-reference-integrity.md:150, 208 |

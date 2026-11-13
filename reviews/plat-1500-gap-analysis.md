@@ -43,3 +43,9 @@ Ticket: PLAT-1500. This is a planless gap analysis of the PR diff. Plan completi
 | FND-001 | fixed | Round 1 (fe3f6bb): `id_column_finding_is_per_section_on_its_first_table` covers all three AC-30 clauses for the id column, including the case with three tables and none carrying it, plus the two-sections case. `inventory_reports_one_missing_column_cause_when_no_table_has_it` covers the inventory. The status finding shares `section_lacks`. Under mutation, all of these fail. |
 | FND-002 | fixed | Round 1: tc2322 asserts that a fenced TC-010 is not an unbacked row, and the obligations test asserts that fenced FR-001-AC-9 derives nothing, in both the derive and inventory paths. |
 | FND-003 | fixed | Round 1: FR-049 body and new AC-31 specify the combinatorial widening. tc2327 asserts 3 dimensions and 12 tuples on both the corpus path and the single-document path, and fails when only the first table is read. |
+
+## New findings (disposition pass 2)
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-004 | low | FR-049-AC-32 says "on every obligation path", but only `derive()` is tested. Moving the inventory's `ordinal += 1` back before the `missing_header` check fails no committed test (the full obligations and evidence filters pass). Only a review probe shows that inventory `id_format` ids shift with a legend between tables. Add the two-table NFR legend case to an inventory assertion. | src/obligation/inventory.rs:1176-1182; tests/it/obligations.rs:1577-1639 |

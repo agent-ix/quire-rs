@@ -22,6 +22,9 @@ pub(crate) struct ScannedRow {
     /// The table's headers in column order; `cells` is keyed by them but does
     /// not keep their order.
     pub columns: Vec<String>,
+    /// Ordinal of the matched section the row's table sits under, within its
+    /// document (see [`tables_of_sections`]).
+    pub section: usize,
     /// 1-based line of the row in its document, frontmatter included — the
     /// same numbering `validate` findings use, so a consumer can render
     /// `path:line:` and an editor can jump to the authored row.
@@ -910,9 +913,12 @@ pub(crate) fn tables_of_sections(
         .enumerate()
         .flat_map(|(ordinal, sec)| {
             let heading = sec.heading.trim().to_string();
-            tables_in(doc, path, sec)
-                .into_iter()
-                .map(move |table| (ordinal, heading.clone(), table))
+            tables_in(doc, path, sec).into_iter().map(move |mut table| {
+                if let ScannedTable::Table { rows, .. } = &mut table {
+                    rows.iter_mut().for_each(|row| row.section = ordinal);
+                }
+                (ordinal, heading.clone(), table)
+            })
         })
         .collect()
 }
@@ -1041,6 +1047,7 @@ fn table_of_parsed(
                 path: path.to_path_buf(),
                 cells,
                 columns: headers.clone(),
+                section: 0,
                 // `validate_document::to_doc_line` arithmetic over the row's
                 // body line: content index `rel` sits `rel + 1` lines below
                 // the 0-based heading line, and `+ 1` converts to 1-based.
@@ -1422,6 +1429,7 @@ mod ac63_id_column_order {
             ]),
             // Table order is the reverse of key order and of id order.
             columns: vec!["Zeta".to_string(), "Alpha".to_string()],
+            section: 0,
             line: 1,
         };
         let declared = IdColumns::new(vec!["Alpha".to_string(), "Zeta".to_string()]);

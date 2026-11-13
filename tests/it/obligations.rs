@@ -1636,4 +1636,56 @@ fn a_legend_grid_is_no_skipped_row_and_does_not_shift_rendered_ids() {
         .collect();
     assert_eq!(plain, ["NFR-006-M-1", "NFR-006-M-2"]);
     assert_eq!(with_legend, plain);
+
+    // The inventory agrees: the legend neither raises a cause nor advances the
+    // ordinal.
+    let inventory = quire_rs::obligation::inventory(
+        &nfr,
+        &model_of("obligations-nfr"),
+        &["nfr-metric"],
+        Default::default(),
+    );
+    let inv_ids: Vec<_> = inventory
+        .entries()
+        .map(|entry| entry.obligation().id.clone())
+        .collect();
+    assert_eq!(inv_ids, plain);
+    assert!(inventory.causes().is_empty(), "{:?}", inventory.causes());
+}
+
+#[trace("FR-049-AC-32")]
+#[test]
+fn a_misspelled_statement_header_keeps_the_skipped_row_signal() {
+    let scope = tmpdir("1500e").join("spec");
+    fs::create_dir_all(&scope).expect("mkdir");
+    write(
+        &scope,
+        "FR-001.md",
+        "---\nid: FR-001\ntype: FR\ntitle: A requirement\n---\n\n## Acceptance Criteria\n\n\
+         | ID | Criterion | Verification | Priority |\n|----|-----------|--------------|----------|\n\
+         | FR-001-AC-1 | The system shall do it. | Test (TC-001) | P1 |\n",
+    );
+    let source = scope.parent().unwrap().join("src");
+    fs::create_dir_all(&source).expect("mkdir");
+    write(&source, "lib.rs", "//! empty\n");
+    let registry = Registry::load_module(&fixture_module("obligations")).expect("load module");
+    let spec = Spec::from_path(&scope);
+    let model = registry.traceability().cloned().unwrap();
+    let (obligations, skipped) = derive(&spec, &scope, &model);
+    assert!(obligations.is_empty());
+    assert_eq!(skipped.len(), 1, "{skipped:?}");
+    let graph = trace::bind(&extract_tree(&source), &model);
+    let report = compute(&spec, &registry, &graph, &scope).expect("report");
+    let states_nothing = report
+        .diagnostics
+        .iter()
+        .filter(|d| d.reason == "obligation-row-states-nothing")
+        .count();
+    assert_eq!(states_nothing, 1, "{:#?}", report.diagnostics);
+    let inventory = selected_at(&scope);
+    let causes: Vec<_> = inventory.causes().iter().map(|c| c.code()).collect();
+    assert_eq!(
+        causes,
+        [quire_rs::obligation::inventory::InventoryCauseCode::MissingColumn]
+    );
 }
