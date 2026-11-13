@@ -19,7 +19,10 @@ use super::vocabulary_coverage::{declares_property, enum_at};
 use super::walk::LoadedDocument;
 use crate::grammar::GrammarSeverity;
 use crate::registry::Registry;
-use crate::traceability::{FieldConsistency, RequiredField, TraceabilityModel, VocabularyRule};
+use crate::traceability::{
+    fold_selector_value, FieldConsistency, RequiredField, TraceabilityModel, VocabularyRule,
+    WhereSelector,
+};
 
 /// The `trace:` check token of a stated value outside its ranking `enum`.
 const UNDECLARED_VALUE: &str = "undeclared-field-value";
@@ -253,6 +256,20 @@ impl Run<'_> {
         slots
     }
 
+    /// Like [`Self::documents_of`], but over the whole corpus whatever the
+    /// view: a pair is read where either end lives, so each document's own
+    /// findings are reported once, by its own member's view.
+    fn corpus_documents_of(&self, archetypes: &[String]) -> Vec<usize> {
+        let mut slots: Vec<usize> = sorted(archetypes)
+            .into_iter()
+            .flat_map(|archetype| self.spec.corpus_type_slots(archetype))
+            .filter(|&slot| !self.exclude.excludes(self.root, &self.spec.doc(slot).path))
+            .collect();
+        slots.sort_unstable();
+        slots.dedup();
+        slots
+    }
+
     // ── liveness against the merged registry ──────────────────────────────
 
     fn undeclared<'n>(&self, archetypes: impl IntoIterator<Item = &'n String>) -> Vec<String> {
@@ -344,7 +361,54 @@ impl Run<'_> {
     fn check_required_is_live(&mut self, rule: &RequiredField) {
         let mut problems = self.undeclared(&rule.from);
         problems.extend(self.dead_field(&rule.from, &rule.field, "field"));
+        if let Some(selector) = &rule.selector {
+            problems.extend(self.dead_selector(&rule.from, selector));
+        }
         self.report_problems("required_fields", &rule.name, problems);
+    }
+
+    /// A `where` that selects nothing (FR-058-AC-22): a field no `from`
+    /// archetype or document has, or a value outside the field's `enum` that
+    /// no `from` document holds. Both compare trimmed and ASCII folded.
+    fn dead_selector(&self, from: &[String], selector: &WhereSelector) -> Vec<String> {
+        let field = selector.field();
+        if let Some(problem) = self.dead_field(from, field, "where field") {
+            return vec![problem];
+        }
+        let members: BTreeSet<String> = from
+            .iter()
+            .filter_map(|name| self.registry.archetype(name)?.frontmatter_schema.as_deref())
+            .filter_map(|schema| enum_at(schema, field))
+            .flatten()
+            .map(|member| fold_selector_value(&member))
+            .collect();
+        if members.is_empty() {
+            return Vec::new();
+        }
+        let held: BTreeSet<String> = from
+            .iter()
+            .flat_map(|name| self.spec.corpus_by_type(name))
+            .filter_map(|doc| {
+                doc.frontmatter()?
+                    .get(field)?
+                    .as_str()
+                    .map(fold_selector_value)
+            })
+            .collect();
+        selector
+            .values()
+            .iter()
+            .filter(|entry| {
+                let folded = fold_selector_value(entry);
+                !members.contains(&folded) && !held.contains(&folded)
+            })
+            .map(|entry| {
+                format!(
+                    "where value '{entry}' for field '{field}' is outside the field's enum and \
+                     held by no document"
+                )
+            })
+            .collect()
     }
 
     fn check_vocabulary_is_live(&mut self, model: &TraceabilityModel, rule: &VocabularyRule) {
@@ -430,25 +494,24 @@ impl Run<'_> {
         };
         let owner = format!("{}.{}", rule.order_from.archetype, rule.order_from.field);
         let spec = self.spec;
-        for slot in self.documents_of(&rule.from) {
+        for slot in self.corpus_documents_of(&rule.from) {
             let from = spec.doc(slot);
             for (target_slot, vias) in self.reached(rule, slot) {
+                let (from_here, target_here) = (spec.in_view(slot), spec.in_view(target_slot));
                 let target = spec.doc(target_slot);
                 let (from_standing, to_standing) = (
                     standing(from, &rule.field, &order),
                     standing(target, &rule.to_field, &order),
                 );
-                let mut compared = true;
-                if let Standing::Outside(value) = &from_standing {
+                // A document's own value is reported by its own member's view.
+                if let (true, Standing::Outside(value)) = (from_here, &from_standing) {
                     self.outside_enum(from, &rule.field, value, &owner);
-                    compared = false;
                 }
-                if let Standing::Outside(value) = &to_standing {
+                if let (true, Standing::Outside(value)) = (target_here, &to_standing) {
                     self.outside_enum(target, &rule.to_field, value, &owner);
-                    compared = false;
                 }
                 let (Standing::Rank(low), Standing::Rank(high), true) =
-                    (from_standing, to_standing, compared)
+                    (from_standing, to_standing, from_here)
                 else {
                     continue;
                 };

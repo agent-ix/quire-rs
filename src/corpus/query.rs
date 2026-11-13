@@ -30,6 +30,18 @@ impl Spec {
             .unwrap_or_default()
     }
 
+    /// Slots of every document of type `ty` in the whole corpus, whatever the
+    /// view, in slot order.
+    pub(crate) fn corpus_type_slots(&self, ty: &str) -> Vec<usize> {
+        self.inner.by_type.get(ty).cloned().unwrap_or_default()
+    }
+
+    /// Whether `slot` is in the member this view sees.
+    pub(crate) fn in_view(&self, slot: usize) -> bool {
+        self.scope
+            .is_none_or(|member| self.member_of(slot) == member)
+    }
+
     /// Slots of the documents of type `ty` this view sees, sorted by id.
     pub(crate) fn by_type_slots(&self, ty: &str) -> Vec<usize> {
         let mut slots: Vec<usize> = self

@@ -106,6 +106,38 @@ fn coverage(dir: &TempDir, registry: &Registry) -> CoverageReport {
     compute(&spec, registry, &graph, dir.path()).expect("model declared")
 }
 
+/// The glyph module with `carried_fields` removed: the "before" the specs
+/// compare against. (The schema reference goes too, as nothing reads it.)
+fn bare_glyph() -> (TempDir, Registry) {
+    let dir = TempDir::new().expect("tempdir");
+    let manifest = fs::read_to_string(fixture("glyph").join("manifest.yaml")).expect("read");
+    let (without, _) = manifest
+        .split_once("  carried_fields:")
+        .expect("fixture declares carried_fields");
+    write(
+        dir.path(),
+        "manifest.yaml",
+        &without.replace("  frontmatter_schema_ref: schemas/glyph.schema.json\n", ""),
+    );
+    let registry = Registry::load_module(dir.path()).expect("loads");
+    (dir, registry)
+}
+
+/// A coverage payload with the FR-090 keys removed.
+fn without_carried_keys(report: &CoverageReport) -> Value {
+    let mut json = serde_json::to_value(report).expect("serializes");
+    json.as_object_mut()
+        .expect("object")
+        .remove("carried_vocabulary");
+    for requirement in json["coverage_matrix"].as_array_mut().into_iter().flatten() {
+        requirement
+            .as_object_mut()
+            .expect("object")
+            .remove("carried");
+    }
+    json
+}
+
 fn entry(report: &CoverageReport, document: &str) -> Value {
     serde_json::to_value(report).expect("serializes")["coverage_matrix"]
         .as_array()
@@ -193,17 +225,7 @@ fn carried_and_criticality_are_independent_and_obligations_are_untouched() {
     assert_eq!(both["carried"], json!({"tier": "bright"}));
 
     // The same module without `carried_fields`: obligation records identical.
-    let bare = TempDir::new().expect("tempdir");
-    let manifest = fs::read_to_string(fixture("glyph").join("manifest.yaml")).expect("read");
-    let (without_carried, _) = manifest
-        .split_once("  carried_fields:")
-        .expect("fixture declares carried_fields");
-    write(
-        bare.path(),
-        "manifest.yaml",
-        &without_carried.replace("  frontmatter_schema_ref: schemas/glyph.schema.json\n", ""),
-    );
-    let registry = Registry::load_module(bare.path()).expect("loads");
+    let (_bare, registry) = bare_glyph();
     let without = coverage(&dir, &registry);
     assert_eq!(
         serde_json::to_string(&with.obligations).expect("serializes"),
@@ -451,6 +473,18 @@ fn running_leaves_documents_byte_identical_and_serializes_identically() {
     let second = serde_json::to_string(&coverage(&dir, &registry)).expect("serializes");
     let report = validate(&dir, &registry);
     assert_eq!(first, second);
+    // A run without the keys serializes identically to itself, and equals the
+    // run with them once the two keys are removed.
+    let (_bare, bare) = bare_glyph();
+    let bare_one = serde_json::to_string(&coverage(&dir, &bare)).expect("serializes");
+    assert_eq!(
+        bare_one,
+        serde_json::to_string(&coverage(&dir, &bare)).expect("serializes")
+    );
+    assert_eq!(
+        without_carried_keys(&coverage(&dir, &registry)),
+        without_carried_keys(&coverage(&dir, &bare))
+    );
     assert_eq!(before, snapshot(&dir), "no document was written");
     assert!(!report.warnings.is_empty(), "the corpus has findings");
 
@@ -520,8 +554,9 @@ fn each_outranking_target_is_one_finding_and_routes_to_one_target_are_one_pair()
             "BRG-001",
             bridge("BRG-001", &["GLY-001"], &["PRI-001", "PRI-002"]),
         ),
-        // A second route to PRI-001, authored before the first by id.
-        ("BRG-000", bridge("BRG-000", &["GLY-001"], &["PRI-001"])),
+        // A second route to PRI-001. Its file name sorts AFTER BRG-001's while
+        // its id sorts before, so walk order and id order disagree.
+        ("ZZ-file", bridge("BRG-000", &["GLY-001"], &["PRI-001"])),
         ("PRI-001", prism("PRI-001", Some("bright"))),
         ("PRI-002", prism("PRI-002", Some("dim"))),
     ]);
@@ -613,7 +648,7 @@ fn an_inverse_authored_edge_and_a_pair_authored_both_ways_are_each_compared_once
     );
 }
 
-fn cross_member(second: Option<&TempDir>) -> usize {
+fn cross_member_report(second: Option<&TempDir>) -> BundleReport {
     let a = repo(&[
         ("GLY-001", glyph("GLY-001", Some("dim"), &[])),
         (
@@ -648,8 +683,23 @@ fn cross_member(second: Option<&TempDir>) -> usize {
         .iter()
         .map(|(d, r)| (d.as_path(), r.as_path()))
         .collect();
-    let report = validate_corpus(&corpus, &both(), BundlePosture::Okf, &refs).expect("validates");
-    found(&report, "tier-below-prism").len()
+    validate_corpus(&corpus, &both(), BundlePosture::Okf, &refs).expect("validates")
+}
+
+fn cross_member(second: Option<&TempDir>) -> usize {
+    found(&cross_member_report(second), "tier-below-prism").len()
+}
+
+#[trace("FR-091-AC-7")]
+#[test]
+fn an_out_of_enum_target_in_another_member_is_reported_once_by_its_own_member() {
+    let b = repo(&[("PRI-001", prism("PRI-001", Some("blazing")))]);
+    let report = cross_member_report(Some(&b));
+    let hits = found(&report, "undeclared-field-value");
+    assert_eq!(hits.len(), 1, "{hits:?}");
+    assert_eq!(hits[0].repo.as_deref(), Some("o/b"));
+    assert!(hits[0].path.starts_with(b.path()), "{:?}", hits[0].path);
+    assert!(found(&report, "tier-below-prism").is_empty());
 }
 
 #[trace("FR-091-AC-13")]
@@ -685,7 +735,11 @@ fn findings_are_ordered_by_check_path_via_and_target_whatever_the_read_order() {
             ("GLY-002", glyph("GLY-002", Some("soft"), &[])),
             (
                 "BRG-001",
-                bridge("BRG-001", &["GLY-001", "GLY-002"], &["PRI-002", "PRI-001"]),
+                bridge(
+                    "BRG-001",
+                    &["GLY-001", "GLY-002"],
+                    &["PRI-002", "PRI-001", "PRI-003"],
+                ),
             ),
             ("PRI-001", prism("PRI-001", Some("bright"))),
             ("PRI-002", prism("PRI-002", None)),
@@ -709,6 +763,7 @@ fn findings_are_ordered_by_check_path_via_and_target_whatever_the_read_order() {
                     "tier-below-prism",
                     "unassigned-tier",
                     "undeclared-tier-value",
+                    "undeclared-field-value",
                 ]
                 .contains(&f.reason.as_ref())
             })
@@ -722,6 +777,9 @@ fn findings_are_ordered_by_check_path_via_and_target_whatever_the_read_order() {
     let mut sorted = checks.clone();
     sorted.sort_unstable();
     assert_eq!(checks, sorted, "ordered by check first");
+    // The pair that reports an out-of-enum value is emitted before the pair
+    // that reports a lower value, so emission order alone is not report order.
+    assert!(checks.contains(&"undeclared-field-value") && checks.contains(&"tier-below-prism"));
     let below: Vec<&String> = one
         .iter()
         .filter(|(c, _)| c == "tier-below-prism")
@@ -848,16 +906,13 @@ fn a_module_declaring_none_of_the_three_yields_no_finding() {
     ] {
         assert!(found(&report, reason).is_empty(), "{reason}");
     }
-    // And a registry with no traceability at all.
-    let bare = TempDir::new().expect("tempdir");
-    write(
-        bare.path(),
-        "manifest.yaml",
-        "name: bare\nversion: 0.1.0\ndescription: x\n",
-    );
-    let registry = Registry::load_module(bare.path()).expect("loads");
-    let before = validate(&dir, &registry);
-    assert!(found(&before, "undeclared-relation-vocabulary").is_empty());
+    // Output identical to the same module without the declarations.
+    let (_bare, bare) = bare_glyph();
+    assert_eq!(report, validate(&dir, &bare));
+    let with = coverage(&dir, &modules(&["glyph"]));
+    let without = coverage(&dir, &bare);
+    assert_eq!(without_carried_keys(&with), without_carried_keys(&without));
+    assert!(found(&validate(&dir, &bare), "undeclared-relation-vocabulary").is_empty());
 }
 
 #[trace("FR-091-AC-8")]
@@ -951,6 +1006,20 @@ fn a_vocabulary_entry_with_no_carried_vocabulary_reports_and_finds_no_value() {
         all.sort();
         all
     };
+    // Both modules declare the carried name and neither has an enum: the
+    // state the AC names, under both load orders.
+    let first = messages(&["prism", "loose"]);
+    assert_eq!(first, messages(&["loose", "prism"]));
+    assert!(
+        first
+            .iter()
+            .any(|m| m.starts_with("undeclared-relation-vocabulary|")
+                && m.contains("prism-tier-in-vocabulary")),
+        "{first:?}"
+    );
+    assert!(first
+        .iter()
+        .all(|m| !m.starts_with("undeclared-tier-value")));
     assert_eq!(messages(&["glyph", "prism"]), messages(&["prism", "glyph"]));
 }
 
@@ -1059,4 +1128,122 @@ fn an_entry_naming_another_modules_archetype_loads_and_reports_when_that_module_
     let together = validate(&dir, &both());
     assert_eq!(found(&together, "tier-below-prism").len(), 1);
     assert!(found(&together, "undeclared-relation-vocabulary").is_empty());
+}
+
+// ── narrowing: exclude, where, the via filter, the model-level exclusion ──
+
+fn alpha_module(extra_model: &str, required: &str) -> (TempDir, Registry) {
+    let dir = TempDir::new().expect("tempdir");
+    write(
+        dir.path(),
+        "manifest.yaml",
+        &format!(
+            "name: narrow\nversion: 0.1.0\ndescription: x\nartifact_types:\n- name: alpha\n  \
+             defaults:\n    id_pattern: AL-{{next:03d}}\ntraceability:\n{extra_model}  \
+             required_fields:\n{required}"
+        ),
+    );
+    let registry = Registry::load_module(dir.path()).expect("loads");
+    (dir, registry)
+}
+
+#[trace("FR-091-AC-5")]
+#[test]
+fn required_fields_exclude_where_and_the_model_exclusion_narrow_the_obliged() {
+    let (_module, registry) = alpha_module(
+        "  exclude: ['spec/skip/**']\n",
+        "  - name: needs\n    from: [alpha]\n    field: f\n    check: unset\n    \
+         exclude: ['spec/legacy/**']\n    where: { field: kind, values: [live] }\n",
+    );
+    let at = |path: &str, id: &str, extra: &str| (path.to_string(), doc(id, "alpha", extra, &[]));
+    let docs = [
+        at("spec/obliged.md", "AL-001", "kind: live\n"),
+        at("spec/draft.md", "AL-002", "kind: draft\n"),
+        at("spec/legacy/old.md", "AL-003", "kind: live\n"),
+        at("spec/skip/fixture.md", "AL-004", "kind: live\n"),
+        at("spec/stated.md", "AL-005", "kind: live\nf: x\n"),
+    ];
+    let dir = TempDir::new().expect("tempdir");
+    for (path, text) in &docs {
+        write(dir.path(), path, text);
+    }
+    let report = validate(&dir, &registry);
+    let hits = found(&report, "unset");
+    assert_eq!(hits.len(), 1, "{hits:?}");
+    assert!(hits[0].message.contains("AL-001"), "{hits:?}");
+}
+
+#[trace("FR-091-AC-5")]
+#[test]
+fn a_where_that_selects_nothing_reports_under_undeclared_relation_vocabulary() {
+    let dead_field = alpha_module(
+        "",
+        "  - name: needs\n    from: [alpha]\n    field: f\n    check: unset\n    \
+         where: { field: nosuch, values: [x] }\n",
+    );
+    let dir = repo(&[("AL-001", doc("AL-001", "alpha", "f: x\n", &[]))]);
+    let report = validate(&dir, &dead_field.1);
+    assert!(
+        found(&report, "undeclared-relation-vocabulary")
+            .iter()
+            .any(|f| f.message.contains("'needs'") && f.message.contains("nosuch")),
+        "{report:?}"
+    );
+
+    // A value outside the field's enum that no document holds; a value that
+    // differs only by case or whitespace is live.
+    let dir = repo(&[("GLY-001", glyph("GLY-001", Some("dim"), &[]))]);
+    let entry = |values: &str| {
+        let (module, _) = alpha_module(
+            "",
+            &format!(
+                "  - name: needs\n    from: [Glyph]\n    field: tier\n    check: unset\n    \
+                 where: {{ field: tier, values: [{values}] }}\n"
+            ),
+        );
+        let registry =
+            Registry::load_module_set(&[fixture("glyph").as_path(), module.path()]).expect("loads");
+        (module, validate(&dir, &registry))
+    };
+    let (_m, dead) = entry("shiny");
+    assert!(found(&dead, "undeclared-relation-vocabulary")
+        .iter()
+        .any(|f| f.message.contains("'shiny'")));
+    let (_m, live) = entry("' DIM '");
+    assert!(found(&live, "undeclared-relation-vocabulary").is_empty());
+}
+
+#[trace("FR-091-AC-1")]
+#[test]
+fn the_via_hop_reads_only_documents_of_its_archetype_and_the_model_exclusion_applies() {
+    // A Pier, not a Bridge, joins the glyph to the prism: no pair.
+    let pier = repo(&[
+        ("GLY-001", glyph("GLY-001", Some("dim"), &[])),
+        (
+            "PIR-001",
+            doc(
+                "PIR-001",
+                "Pier",
+                "",
+                &[("bridges", "GLY-001"), ("rests_on", "PRI-001")],
+            ),
+        ),
+        ("PRI-001", prism("PRI-001", Some("bright"))),
+    ]);
+    assert!(found(&validate(&pier, &both()), "tier-below-prism").is_empty());
+
+    // The model-level exclusion removes a `from` document from every rule.
+    let (_module, registry) = alpha_module(
+        "  exclude: ['spec/skip/**']\n",
+        "  - name: needs\n    from: [alpha]\n    field: f\n    check: unset\n",
+    );
+    let dir = TempDir::new().expect("tempdir");
+    write(
+        dir.path(),
+        "spec/skip/x.md",
+        &doc("AL-001", "alpha", "", &[]),
+    );
+    write(dir.path(), "spec/y.md", &doc("AL-002", "alpha", "", &[]));
+    let hits = found(&validate(&dir, &registry), "unset").len();
+    assert_eq!(hits, 1);
 }

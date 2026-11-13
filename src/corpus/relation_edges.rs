@@ -226,17 +226,27 @@ impl RelationEdges {
         criteria: &CriterionIndex,
         relation: &RequiredRelation,
     ) -> Self {
+        Self::over_verbs(spec, registry, criteria, &relation.edges)
+    }
+
+    /// The edges that carry any of `verbs`, read in the orientation each is
+    /// listed (the one reader behind a relation and a field-consistency hop).
+    pub(crate) fn over_verbs(
+        spec: &Spec,
+        registry: &Registry,
+        criteria: &CriterionIndex,
+        verbs: &[String],
+    ) -> Self {
         let inverse = registry.inverse_index();
         // A pair listed by both labels is read one way only, as its forward
         // verb: reading it both ways would count one edge between one pair
         // twice and accept edges listing only one label does not.
-        let listed: Vec<&String> = relation
-            .edges
+        let listed: Vec<&String> = verbs
             .iter()
             .filter(|verb| {
                 inverse
                     .get(verb.as_str())
-                    .is_none_or(|forward| !relation.edges.contains(forward))
+                    .is_none_or(|forward| !verbs.contains(forward))
             })
             .collect();
         // Authored label -> (listed verb, orientation).
@@ -373,21 +383,6 @@ pub(crate) struct FieldHops {
     pub(crate) target: RelationEdges,
 }
 
-/// A hop's verbs as a relation, so the one edge reader serves it (FR-091). The
-/// reader keys on the verbs alone; kinds are filtered by the caller.
-fn hop_relation(name: &str, edges: &[String], direction: RelationDirection) -> RequiredRelation {
-    RequiredRelation {
-        name: name.to_string(),
-        from: String::new(),
-        edges: edges.to_vec(),
-        to: Vec::new(),
-        direction,
-        check: String::new(),
-        exclude: Vec::new(),
-        selector: None,
-    }
-}
-
 impl RelationContext {
     /// Read every declared relation's edges. `roots` is each member's
     /// repository root, in member order.
@@ -416,13 +411,10 @@ impl RelationContext {
                     .iter()
                     .map(|rule| {
                         let via = rule.via.as_ref().map(|via| {
-                            let relation =
-                                hop_relation(&rule.name, &via.edges, via.direction.as_relation());
-                            RelationEdges::new(spec, registry, &criteria, &relation)
+                            RelationEdges::over_verbs(spec, registry, &criteria, &via.edges)
                         });
-                        let relation =
-                            hop_relation(&rule.name, &rule.edges, rule.direction.as_relation());
-                        let target = RelationEdges::new(spec, registry, &criteria, &relation);
+                        let target =
+                            RelationEdges::over_verbs(spec, registry, &criteria, &rule.edges);
                         (rule.name.clone(), FieldHops { via, target })
                     })
                     .collect()

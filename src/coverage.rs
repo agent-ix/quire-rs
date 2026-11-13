@@ -670,6 +670,26 @@ fn document_criticality(doc: &crate::corpus::walk::LoadedDocument) -> Option<ser
 /// scope-relative path the obligations carry. A document that states none has
 /// no entry. The value is read from the document alone: never inferred from a
 /// related document, another field, or `criticality`.
+/// The values one document states for the declared carried fields, as written;
+/// `None` when it states none (FR-090). The per-document read behind
+/// [`carried_values`], for any entry that needs it without an obligation.
+pub(crate) fn carried_for(
+    doc: &crate::corpus::walk::LoadedDocument,
+    model: &TraceabilityModel,
+) -> Option<serde_json::Map<String, serde_json::Value>> {
+    let (kind, frontmatter) = (doc.concept_type()?, doc.frontmatter()?);
+    let carried: serde_json::Map<_, _> = model
+        .carried_fields
+        .iter()
+        .filter(|field| field.from.iter().any(|from| from == kind))
+        .filter_map(|field| {
+            let value = frontmatter.get(&field.key).filter(|v| !v.is_null())?;
+            Some((field.name.clone(), value.clone()))
+        })
+        .collect();
+    (!carried.is_empty()).then_some(carried)
+}
+
 fn carried_values(
     spec: &Spec,
     root: &Path,
@@ -680,19 +700,7 @@ fn carried_values(
         return out;
     }
     for doc in spec.documents() {
-        let (Some(kind), Some(frontmatter)) = (doc.concept_type(), doc.frontmatter()) else {
-            continue;
-        };
-        let carried: serde_json::Map<_, _> = model
-            .carried_fields
-            .iter()
-            .filter(|field| field.from.iter().any(|from| from == kind))
-            .filter_map(|field| {
-                let value = frontmatter.get(&field.key).filter(|v| !v.is_null())?;
-                Some((field.name.clone(), value.clone()))
-            })
-            .collect();
-        if !carried.is_empty() {
+        if let Some(carried) = carried_for(doc, model) {
             out.insert(declared_tables::relative_path(root, &doc.path), carried);
         }
     }
