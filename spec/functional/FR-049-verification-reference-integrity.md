@@ -137,16 +137,18 @@ own row's line (FR-049-AC-19..22). A table inside a fenced code block is an
 example, not data, and is not read; this applies to every table the reference
 scan reads, so a document whose only table sits in a fence is no longer scanned.
 
-The rule belongs to this requirement's bundle check alone. A trace target's
+The rule is not this requirement's bundle check alone: a trace target's
 `id_column` mint, an obligation source and the
 [FR-050](./FR-050-declarative-coverage-computation.md) rollup (its
-`unbacked_rows`, row binding and status-column check) continue to read a
-section's **first** table, so that the rollup's row population equals the ids
-that are minted and the obligations that are derived. Consequently an id that
-appears only in a later table is never minted: a reference to it dangles, and a
-row of a later table adds no `unbacked_rows` entry. This asymmetry is stated
-rather than hidden; reading every table for minting and obligations is a
-separate requirement, tracked as PLAT-1500.
+`unbacked_rows`, row binding and status-column check) read **every** table
+under a declared section, outside fenced code blocks, by the same rule, so the
+rollup's row population equals the ids that are minted and the obligations
+that are derived, and a reference to an id that appears only in a later table
+resolves. A table lacking the declared id column contributes no rows. The
+`id-column-matches-nothing` and status-column findings describe the section,
+not a table: they are raised on the section's first table, and only when no
+table under that heading carries the column, so a legend or summary grid after
+the matrix raises none (FR-049-AC-29, AC-30).
 
 ### Located findings (PLAT-1476)
 
@@ -192,9 +194,11 @@ without such repeats orders as before.
 | FR-049-AC-23 | Rows of a second table under the same declared section are scanned like the first: with table 1 holding `K-1 \| north \| L-1` (resolving), a prose line, and table 2 holding `K-2 \| north \| R-1` (target outside the kind's targets) and `K-3 \| north \| L-7` (resolving nowhere), the bundle yields one `reference-kind-mismatch` and one `dangling-trace-reference` finding for the table-2 rows, and the same rows under a later section yield the same two findings. | Test |
 | FR-049-AC-24 | Each finding from a later table carries the 1-based document line of its own row (frontmatter lines counted), not that of the first table or the heading, and a bundle whose rows sit in one table, with or without an unrelated further table, reports exactly the findings and lines it reported with the first table alone (a single dangling row and a single kind-mismatch row yield those two findings at their own lines). | Test |
 | FR-049-AC-25 | The `column` and `kind_column` headers are matched per table: a second table with the `column` header and no `kind_column` header yields one `kind-column-matches-nothing` finding for that table only, a second table with neither header yields no finding and contributes no rows, and a first table with both headers is unaffected. | Test |
-| FR-049-AC-26 | The FR-050 rollup reads the first table of a declared section only: a row of a second table adds no `unbacked_rows` entry and no status-column finding (a legend grid raises none), while the same row in the first table does. | Test |
+| FR-049-AC-26 | The FR-050 rollup reads every table of a declared section: a row of a second table adds an `unbacked_rows` entry exactly as the same row in the first table does, and a second table lacking the status column (a legend grid) raises no status-column finding. | Test |
 | FR-049-AC-27 | A table inside a fenced code block (CommonMark rules: a fence closes only with the same character and at least the opening length, and a backtick fence's info string holds no backtick) under a declared section, after the real table or alone, yields no row and no finding, and the real table is unaffected. | Test |
-| FR-049-AC-28 | An id that appears only in a second table of a trace target's section is not minted: a reference to it from a declared cell yields `dangling-trace-reference`. | Test |
+| FR-049-AC-28 | An id that appears only in a second table of a trace target's section (outside a fenced code block) is minted: a reference to it from a declared cell yields no `dangling-trace-reference`, while the same id in a fenced table still dangles. | Test |
+| FR-049-AC-29 | An obligation source derives obligations from every table under its declared section (outside fenced code blocks): a row of a second table yields its obligation, with the same id and statement as the same row in the first table. | Test |
+| FR-049-AC-30 | `id-column-matches-nothing` and the status-column finding are raised per section, on its first table: a section whose first table lacks the column while a later table carries it raises none, a section where no table carries it raises exactly one, and a later table lacking the column raises none. | Test |
 | FR-049-AC-14 | A target cell that matches no pattern (`-`, empty) extracts no id and yields no reference and no finding, whatever the row's kind; a multi-id cell classifies each id independently and reports only the mismatched ones. | Test |
 | FR-049-AC-15 | Module load rejects, naming the declaration and the field at fault and applying no part of it, each malformed kind declaration: `kind_column` without `kind_targets` or the reverse, an empty `kind_column`, `kind_column` equal to `column`, an empty map, an empty or duplicate kind key, an empty target list, and a listed target not in `targets`. | Test |
 | FR-049-AC-16 | A declaration without `kind_column` and `kind_targets` behaves exactly as before: the engine contains no kind name, and a fixture module declaring different kind values and column names is resolved by its own declaration. | Test |
@@ -210,6 +214,14 @@ without such repeats orders as before.
 > surfacing as 123 new `dangling-trace-reference` findings on this repo's
 > own spec. `validate_bundle_at` keeps single-root semantics for
 > self-contained bundles (agent-ix/quire-rs#91, umbrella #90).
+
+> **CR-419 note (PLAT-1500):** FR-049-AC-23..28 left minting, obligation
+> sources and the FR-050 rollup reading a declared section's first table only,
+> so an id appearing only in a later table was never minted and a reference to
+> it dangled. All three now read every table outside fenced code blocks, the
+> same rule as the reference scan. AC-26 and AC-28 are reversed, AC-29 and
+> AC-30 are new. The section-level findings stay per section so a legend grid
+> raises none.
 
 ## Dependencies
 

@@ -29,6 +29,12 @@ bumps; once 1.0 ships, semver is strict.
 
 ### Changed
 
+- PLAT-1500 (CR-419, FR-049-AC-26..30): trace-target minting, obligation
+  sources and the FR-050 rollup read every table under a declared section
+  outside fenced code blocks, as the document-reference scan does. An id that
+  appears only in a later table is minted and a later table's row is a rollup
+  row. The id-column and status-column findings are per section.
+
 - **Breaking, PLAT-1556:** `Spec::with_bundle_package` now returns
   `Result<Spec, CorpusError>` and re-resolves under the declared identity, so
   an `ix://` target naming another repository stays dangling even when the local
@@ -59,9 +65,8 @@ bumps; once 1.0 ships, semver is strict.
   (FR-069-AC-30/31).
 - PLAT-1491: a document-reference declaration reads every table under its
   declared section, not only the first, so findings for later tables are no
-  longer silently dropped; tables inside fenced code blocks are not read. The
-  FR-050 rollup, minting and obligations keep reading the first table
-  (FR-049-AC-23..28; follow-up PLAT-1500).
+  longer silently dropped; tables inside fenced code blocks are not read. 
+  (FR-049-AC-23..28).
 
 ## [0.59.0] — 2026-11-12
 

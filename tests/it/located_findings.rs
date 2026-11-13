@@ -502,7 +502,7 @@ fn tc2325_a_fenced_table_is_an_example_not_data() {
 
 #[trace("FR-049-AC-28")]
 #[test]
-fn tc2326_an_id_only_in_a_second_target_table_is_not_minted() {
+fn tc2326_an_id_only_in_a_second_target_table_is_minted() {
     let root = bundle_dir("2326");
     write(
         &root,
@@ -518,6 +518,19 @@ fn tc2326_an_id_only_in_a_second_target_table_is_not_minted() {
         &root,
         "links.md",
         &format!("{LINKS_HEAD}| K-1 | north | L-1 |\n| K-2 | north | L-2 |\n"),
+    );
+    let report = validate_bundle_at(&root, &kinds_registry(), BundlePosture::Okf);
+    assert!(
+        with_reason(&report, "dangling-trace-reference").is_empty(),
+        "{:?}",
+        report.errors
+    );
+
+    // Control: the same id in a fenced second table is an example, not minted.
+    write(
+        &root,
+        "left.md",
+        "---\nid: LD-001\ntype: Left\ntitle: Left\n---\n\n## Items\n\n| Item |\n|------|\n| L-1 |\n\n```\n| Item |\n|------|\n| L-2 |\n```\n",
     );
     let report = validate_bundle_at(&root, &kinds_registry(), BundlePosture::Okf);
     let dangling = with_reason(&report, "dangling-trace-reference");

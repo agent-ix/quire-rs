@@ -4208,12 +4208,12 @@ fn tc2222_strict_decision_passes_exempt_only_rows_and_keeps_every_other_premise(
         .contains(&StrictCause::UnbackedRows));
 }
 
-/// PLAT-1491: the rollup keeps reading the first table of a section, so its
-/// rows equal what is minted; a second table adds neither a row nor a status
-/// finding (FR-049-AC-26).
-#[trace("FR-049-AC-26")]
+/// PLAT-1500: the rollup reads every table of a section, so a row of a second
+/// table is a rollup row; a legend grid raises no status finding
+/// (FR-049-AC-26).
+#[trace("FR-049-AC-26", "FR-049-AC-30")]
 #[test]
-fn tc2322_a_second_table_under_the_declared_section_is_not_a_rollup_row() {
+fn tc2322_a_second_table_under_the_declared_section_is_a_rollup_row() {
     let bundle = iso_bundle("2322", &[("TC-001", "FR-001-AC-1", "✅")], &["TC-001"]);
     let tests = bundle.scope.join("tests.md");
     let first = fs::read_to_string(&tests).expect("read");
@@ -4231,20 +4231,20 @@ fn tc2322_a_second_table_under_the_declared_section_is_not_a_rollup_row() {
             .any(|u| u.row_id.as_deref() == Some(id))
     };
 
-    // Rows of a second table are not rollup rows.
     let report = second_table(
         "| ID | Traces To | Status |\n|----|-----------|--------|\n| TC-009 | FR-001-AC-2 | 🚧 |\n",
     );
-    assert!(!unbacked(&report, "TC-009"), "{:?}", report.unbacked_rows);
+    assert!(unbacked(&report, "TC-009"), "{:?}", report.unbacked_rows);
 
-    // Control: the same row in the first table is an unbacked row.
+    // Control: the same row in the first table is an unbacked row too.
     let mut matrix = first.clone();
     matrix.push_str("| TC-009 | FR-001-AC-2 | 🚧 |\n");
     fs::write(&tests, matrix).expect("write");
     let report = report_for(&bundle, "iso").expect("model declared");
     assert!(unbacked(&report, "TC-009"), "{:?}", report.unbacked_rows);
 
-    // A legend grid after the matrix raises no status-column finding.
+    // A legend grid after the matrix raises no status-column finding and
+    // adds no row.
     let report =
         second_table("| Status Symbol | Meaning |\n|---------------|---------|\n| ✅ | done |\n");
     assert!(
@@ -4255,4 +4255,49 @@ fn tc2322_a_second_table_under_the_declared_section_is_not_a_rollup_row() {
         "{:?}",
         report.diagnostics
     );
+    assert!(
+        !report
+            .diagnostics
+            .iter()
+            .any(|d| d.reason == "id-column-matches-nothing"),
+        "{:?}",
+        report.diagnostics
+    );
+}
+
+/// PLAT-1500: an id only in a second table of a minting section is minted, and
+/// an obligation source derives from that table too (FR-049-AC-28, AC-29).
+#[trace("FR-049-AC-28", "FR-049-AC-29")]
+#[test]
+fn tc2323_second_table_ids_are_minted_and_derive_obligations() {
+    let bundle = iso_bundle("2323", &[("TC-001", "FR-001-AC-3", "✅")], &["TC-001"]);
+    let fr = bundle.scope.join("FR-001.md");
+    let mut doc = fs::read_to_string(&fr).expect("read");
+    doc.push_str(
+        "\nMore criteria.\n\n| ID | Criteria | Verification |\n|----|----------|--------------|\n\
+         | FR-001-AC-3 | The system shall do a third thing. | Test (TC-001) |\n",
+    );
+    fs::write(&fr, doc).expect("write");
+
+    // Mint: the matrix row traces to AC-3, which only the second table holds.
+    let spec = Spec::from_path(&bundle.scope);
+    let registry = Registry::load_module(&fixture_module("iso-obligations")).expect("module");
+    let model = registry.traceability().expect("model");
+    let report = validate_bundle_at(&bundle.scope, &registry, BundlePosture::Okf);
+    assert!(
+        !report
+            .errors
+            .iter()
+            .any(|f| f.reason == "dangling-trace-reference"),
+        "{:?}",
+        report.errors
+    );
+
+    // Obligation: the second table's row yields its own obligation.
+    let (obligations, _skipped) = quire_rs::obligation::derive(&spec, &bundle.scope, model);
+    let third = obligations
+        .iter()
+        .find(|o| o.id == "FR-001-AC-3")
+        .unwrap_or_else(|| panic!("{obligations:?}"));
+    assert_eq!(third.statement, "The system shall do a third thing.");
 }
