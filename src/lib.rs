@@ -144,6 +144,10 @@ pub use corpus::{
     RelationSection, RelationSummary, RowDocument, RowSelector, RowState, StateCounts,
     Verification, VerificationCounts,
 };
+pub use corpus::{
+    design_matrix, DesignBlock, DesignElement, DesignElementRef, DesignMatrixCriterion,
+    DesignMatrixEntry,
+};
 // Bundle validation postures (OKF): strict archetype-conformance vs.
 // permissive foreign-bundle reading, plus index-completeness.
 pub use corpus::{

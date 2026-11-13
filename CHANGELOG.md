@@ -9,6 +9,18 @@ bumps; once 1.0 ships, semver is strict.
 
 ### Added
 
+- PLAT-1587 (FR-092): `design_matrix`. Runs the FR-086 join once over the
+  per-member `coverage_matrix` the caller supplies and returns the matrix with a
+  `design` array on each requirement entry that a design relation obliges: one
+  block per relation in `design_relations` order (`relation`, `check`, `state`,
+  `elements`, `dangling`, `kind_mismatch`), each element carrying its archetype
+  as `kind`. Entries gain `repo` and `id`, each criterion gains `design_elements`,
+  a requirement with no criteria that a relation obliges gets an entry with
+  `criteria: []`, and a requirement no relation obliges has no `design` key.
+  Entries are ordered by `repo` then `document`. Without `design_relations` and
+  without a member identity the output is byte-identical to `coverage_matrix`;
+  the `coverage` report is unchanged. An entry naming no declared relation fails
+  with `RelationReportError::UnknownDesignRelation`.
 - **Breaking, PLAT-1418:** `LinkedEntry::Resolved` gains `realized_criteria:
   Option<Vec<String>>` (`Some` only in `design_join`), so downstream pattern
   matches need `..`. FR-084 behaviour changes with FR-058 CR-416/417: an edge
