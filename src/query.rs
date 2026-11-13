@@ -15,7 +15,7 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 
 use crate::ast::{QuireDocument, QuireSection};
-use crate::parser::walk::Fence;
+use crate::parser::walk::{FenceTracker, LineKind};
 
 /// The document's concept **type** — the discriminator that selects which
 /// archetype validates it. Reads frontmatter `type` exclusively. `None`
@@ -114,6 +114,7 @@ pub enum ListPattern {
 
 /// One fenced code block found by [`extract_diagrams`].
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
 pub struct DiagramBlock {
     /// 0-based ordinal of this block among the returned blocks: with no
     /// language filter it counts every fenced block; with a language filter
@@ -390,39 +391,20 @@ fn re_list_item() -> &'static Regex {
 
 /// The text of every bullet or ordered list item in `content`, at any
 /// nesting depth, with its 0-based line index. Lines inside fenced code
-/// blocks are not list items. A fence closes only on a run of its own
-/// character at least as long as the opening run, with nothing after it
-/// (CommonMark), so a shorter fence inside a longer one stays content.
+/// blocks are not list items; fences follow the shared CommonMark model of
+/// [`FenceTracker`].
 pub(crate) fn list_item_lines(content: &str) -> Vec<(usize, &str)> {
-    let mut fence: Option<(char, usize)> = None;
+    let mut tracker = FenceTracker::default();
     let mut out = Vec::new();
     for (index, line) in content.split('\n').enumerate() {
-        let trimmed = line.trim();
-        match fence {
-            Some((open, len)) => {
-                if fence_run(trimmed)
-                    .is_some_and(|(ch, run, rest)| ch == open && run >= len && rest.is_empty())
-                {
-                    fence = None;
-                }
-            }
-            None => {
-                if let Some((ch, run, _)) = fence_run(trimmed) {
-                    fence = Some((ch, run));
-                } else if let Some(item) = re_list_item().captures(trimmed).and_then(|c| c.get(1)) {
-                    out.push((index, item.as_str()));
-                }
-            }
+        if tracker.feed(line) != LineKind::Outside {
+            continue;
+        }
+        if let Some(item) = re_list_item().captures(line.trim()).and_then(|c| c.get(1)) {
+            out.push((index, item.as_str()));
         }
     }
     out
-}
-
-/// A fence line's character, run length (at least 3) and trimmed remainder.
-fn fence_run(line: &str) -> Option<(char, usize, &str)> {
-    let ch = line.chars().next().filter(|c| matches!(c, '`' | '~'))?;
-    let run = line.len() - line.trim_start_matches(ch).len();
-    (run >= 3).then(|| (ch, run, line[run..].trim()))
 }
 
 fn classify_bullet(raw: &str, pattern: ListPattern) -> ListItem {
@@ -477,9 +459,9 @@ pub fn extract_diagrams(doc: &QuireDocument, language: Option<&str>) -> Vec<Diag
     // closing `---` line, so body line `i` is full-file line `base + i + 1`.
     let skipped: &str = &doc.raw[..doc.raw.len() - body.len()];
     let base: usize = skipped.matches('\n').count();
-    scan_fenced_blocks_with_lines(body, language, true)
+    scan_fenced_blocks(body, language, true)
         .into_iter()
-        .map(|(_, block)| DiagramBlock {
+        .map(|block| DiagramBlock {
             line: block.line + base,
             ..block
         })
@@ -495,60 +477,46 @@ pub fn extract_diagrams(doc: &QuireDocument, language: Option<&str>) -> Vec<Diag
 /// caller passes the target section's (or iteration unit's) `.content`,
 /// guaranteeing containment and determinism under multi-yield.
 pub fn diagrams_from_content(content: &str, language: Option<&str>) -> Vec<DiagramBlock> {
-    diagrams_from_content_with_lines(content, language)
-        .into_iter()
-        .map(|(_, block)| block)
-        .collect()
-}
-
-/// [`diagrams_from_content`] with the 0-based line index, within `content`, of
-/// each block's opening fence (FR-033-AC-18).
-pub(crate) fn diagrams_from_content_with_lines(
-    content: &str,
-    language: Option<&str>,
-) -> Vec<(usize, DiagramBlock)> {
-    scan_fenced_blocks_with_lines(content, language, false)
+    scan_fenced_blocks(content, language, false)
 }
 
 /// Core fenced-block scanner shared by [`extract_diagrams`] (whole-doc,
 /// heading-tracking) and [`diagrams_from_content`] (slice, no headings).
 /// When `track_headings` is false, every block's `section` is `None`.
-fn scan_fenced_blocks_with_lines(
+fn scan_fenced_blocks(
     body: &str,
     language: Option<&str>,
     track_headings: bool,
-) -> Vec<(usize, DiagramBlock)> {
-    let mut out: Vec<(usize, DiagramBlock)> = Vec::new();
+) -> Vec<DiagramBlock> {
+    let mut out: Vec<DiagramBlock> = Vec::new();
     let mut fence_line: usize = 0;
     let mut current_section: Option<String> = None;
-    // `Some(fence)` while inside a block opened by `fence`; `None` otherwise.
-    let mut open_fence: Option<Fence<'_>> = None;
+    let mut tracker = FenceTracker::default();
     let mut block_lang: String = String::new();
     let mut block_lines: Vec<String> = Vec::new();
     let mut block_index: usize = 0;
+    let mut open = false;
 
     for (line_index, line) in body.split('\n').enumerate() {
-        if open_fence.is_none() && track_headings {
-            if let Some(cap) = re_heading().captures(line) {
-                current_section = Some(cap.get(2).unwrap().as_str().trim().to_string());
-                continue;
-            }
-        }
-        match open_fence {
-            None => {
-                if let Some(fence) = Fence::opening(line) {
-                    block_lang = re_info_word()
-                        .captures(fence.info)
-                        .map(|c| c[1].to_string())
-                        .unwrap_or_default();
-                    open_fence = Some(fence);
-                    block_lines.clear();
-                    fence_line = line_index;
+        match tracker.feed(line) {
+            LineKind::Outside => {
+                if track_headings {
+                    if let Some(cap) = re_heading().captures(line) {
+                        current_section = Some(cap.get(2).unwrap().as_str().trim().to_string());
+                    }
                 }
             }
-            // Close only on a fence of the same character and at least the
-            // opening length; any other line is content (FR-010-AC-6).
-            Some(open) if open.closes(line) => {
+            LineKind::Opens(fence) => {
+                block_lang = re_info_word()
+                    .captures(fence.info)
+                    .map(|c| c[1].to_string())
+                    .unwrap_or_default();
+                block_lines.clear();
+                fence_line = line_index;
+                open = true;
+            }
+            LineKind::Inside => block_lines.push(line.to_string()),
+            LineKind::Closes => {
                 push_block(
                     &mut out,
                     fence_line,
@@ -558,16 +526,13 @@ fn scan_fenced_blocks_with_lines(
                     &current_section,
                     language,
                 );
-                open_fence = None;
+                open = false;
                 block_lang.clear();
                 block_lines.clear();
             }
-            Some(_) => {
-                block_lines.push(line.to_string());
-            }
         }
     }
-    if open_fence.is_some() && !block_lines.is_empty() {
+    if open && !block_lines.is_empty() {
         push_block(
             &mut out,
             fence_line,
@@ -582,7 +547,7 @@ fn scan_fenced_blocks_with_lines(
 }
 
 fn push_block(
-    out: &mut Vec<(usize, DiagramBlock)>,
+    out: &mut Vec<DiagramBlock>,
     fence_line: usize,
     index: &mut usize,
     lang: &str,
@@ -599,17 +564,14 @@ fn push_block(
     let tag: Option<String> = re_type_annotation()
         .captures(&source)
         .map(|c| c.get(1).unwrap().as_str().to_string());
-    out.push((
-        fence_line,
-        DiagramBlock {
-            index: *index,
-            line: fence_line + 1,
-            language: lang.to_string(),
-            source,
-            section: section.clone(),
-            tag,
-        },
-    ));
+    out.push(DiagramBlock {
+        index: *index,
+        line: fence_line + 1,
+        language: lang.to_string(),
+        source,
+        section: section.clone(),
+        tag,
+    });
     *index += 1;
 }
 
@@ -1005,6 +967,8 @@ mod tests {
         let longer = diagrams_from_content("```a\nx\n`````\nafter", None);
         assert_eq!(longer.len(), 1);
         assert_eq!(longer[0].source, "x");
+        let c = diagrams_from_content("```c++\nx\n```\n```{.mermaid}\ny\n```", None);
+        assert_eq!((c[0].language.as_str(), c[1].language.as_str()), ("c", ""));
     }
 
     #[trace("FR-010-AC-7")]
@@ -1027,6 +991,43 @@ mod tests {
         assert_eq!((m[0].index, m[0].line), (0, 4));
         assert_eq!((m[1].index, m[1].line), (1, 7));
         assert_eq!(extract_diagrams(&d, None)[2].index, 2);
+    }
+
+    #[trace("FR-010-AC-9")]
+    #[test]
+    fn list_nested_fences_are_found_with_lines_and_sections() {
+        let input = "## Steps\n1.  step\n\n    ```mermaid\na\n    ```\n\n    - nested\n\n      ~~~mermaid\n      b\n      ~~~\n\n          ```mermaid\n          c\n          ```\n## After\n- x\n\n  ````mermaid\n  d\n  ````";
+        let blocks = extract_diagrams(&parse_document(input), None);
+        let got: Vec<(usize, &str, Option<&str>)> = blocks
+            .iter()
+            .map(|b| (b.line, b.source.trim(), b.section.as_deref()))
+            .collect();
+        assert_eq!(
+            got,
+            vec![
+                (4, "a", Some("Steps")),
+                (10, "b", Some("Steps")),
+                (20, "d", Some("After"))
+            ]
+        );
+    }
+
+    #[trace("FR-010-AC-10")]
+    #[test]
+    fn fence_line_counts_with_crlf_and_bom() {
+        let bare = "## A\r\n```mermaid\r\ng\r\n```\r\n";
+        for text in [
+            bare.to_string(),
+            format!("\u{FEFF}{bare}"),
+            format!("---\r\ntitle: x\r\n---\r\n{bare}"),
+            format!("\u{FEFF}---\r\ntitle: x\r\n---\r\n{bare}"),
+        ] {
+            let blocks = extract_diagrams(&parse_document(&text), None);
+            assert_eq!(blocks.len(), 1, "{text:?}");
+            let at = text.split('\n').nth(blocks[0].line - 1).unwrap();
+            assert!(at.trim_end().ends_with("```mermaid"), "{text:?} -> {at:?}");
+            assert_eq!(blocks[0].source, "g\r");
+        }
     }
 
     // ─── search ─────────────────────────────────────────────────────────

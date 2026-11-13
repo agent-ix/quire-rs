@@ -4,12 +4,13 @@
 //! `(level, heading_text, line_index)` tuples for every ATX heading
 //! (`#`..`######`) that is NOT inside a fenced code block.
 //!
-//! Ports the TS (`~/dev/quire/src/core/parser.ts`) and Py
-//! (`~/dev/quire-py/quire/parser.py`) fence-tracking algorithm with
-//! one extension per FR-007-AC-4: fence types are tracked
-//! independently, so a mismatched fence character does not close an
-//! open fence (e.g. `~~~` inside a `` ``` `` block is content, not a
-//! close).
+//! Fences follow the CommonMark fence rules, measured from the enclosing
+//! list item's content column (FR-007-AC-5/AC-6); this deliberately diverges
+//! from the TS (`~/dev/quire/src/core/parser.ts`) and Py
+//! (`~/dev/quire-py/quire/parser.py`) toggle-on-three-backticks algorithm
+//! (FR-007 CR-009). The scanner here is the single fence model for the
+//! heading walk, `extract_diagrams`, the `code_block` locator, list-item
+//! minting and table detection.
 
 /// A heading found by [`walk_headings`].
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -35,7 +36,7 @@ pub struct Heading {
 /// Walk `lines` and collect every ATX heading outside fenced code blocks.
 pub fn walk_headings(lines: &[&str]) -> Vec<Heading> {
     let mut out: Vec<Heading> = Vec::new();
-    let mut fence: Option<Fence<'_>> = None;
+    let mut tracker = FenceTracker::default();
     let mut in_comment = false;
     for (i, line) in lines.iter().enumerate() {
         // A line inside a multi-line `<!-- ... -->` block is comment text, not
@@ -45,14 +46,7 @@ pub fn walk_headings(lines: &[&str]) -> Vec<Heading> {
             in_comment = !line.contains("-->");
             continue;
         }
-        if let Some(open) = &fence {
-            if open.closes(line) {
-                fence = None;
-            }
-            continue;
-        }
-        if let Some(open) = Fence::opening(line) {
-            fence = Some(open);
+        if tracker.feed(line) != LineKind::Outside {
             continue;
         }
         if let Some((level, mut text)) = parse_heading(line) {
@@ -109,55 +103,73 @@ pub(crate) fn strip_trailing_block_id(text: &mut String) -> Option<String> {
 
 /// The character of a fence run.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum FenceKind {
+enum FenceKind {
     Backtick,
     Tilde,
 }
 
-/// An opening code fence recognised under the CommonMark fence rules
-/// (FR-007-AC-5): at most three spaces of indentation, a run of at least
-/// three backticks or tildes, and for a backtick fence an info string with
-/// no backtick.
+/// An opening code fence recognised under the CommonMark fence rules: a run
+/// of three or more backticks or tildes indented at most three columns past
+/// the enclosing list item's content column, and for a backtick fence an info
+/// string with no backtick.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct Fence<'a> {
     kind: FenceKind,
     /// Length of the opening run; a closing fence must be at least this long.
     len: usize,
+    /// Content column of the enclosing list item (0 at top level).
+    container: usize,
     /// Everything after the opening run, untrimmed.
     pub(crate) info: &'a str,
 }
 
 impl<'a> Fence<'a> {
-    /// The fence `line` opens, if any.
-    pub(crate) fn opening(line: &'a str) -> Option<Self> {
-        let (kind, len, rest) = fence_run(line)?;
+    fn opening(line: &'a str, container: usize) -> Option<Self> {
+        let (kind, len, rest) = fence_run(line, container)?;
         if kind == FenceKind::Backtick && rest.contains('`') {
             return None;
         }
         Some(Self {
             kind,
             len,
+            container,
             info: rest,
         })
     }
 
     /// Whether `line` closes this fence: same character, a run at least as
-    /// long as the opener, indented at most three spaces, and nothing but
-    /// whitespace after the run.
-    pub(crate) fn closes(&self, line: &str) -> bool {
-        fence_run(line).is_some_and(|(kind, len, rest)| {
+    /// long as the opener, indented at most three columns past the
+    /// container, and nothing but whitespace after the run.
+    fn closes(&self, line: &str) -> bool {
+        fence_run(line, self.container).is_some_and(|(kind, len, rest)| {
             kind == self.kind && len >= self.len && rest.trim().is_empty()
         })
     }
 }
 
+/// Width in columns of the leading whitespace of `line` (a tab advances to
+/// the next multiple of four) and its byte length.
+fn leading_columns(line: &str) -> (usize, usize) {
+    let mut col: usize = 0;
+    let mut bytes: usize = 0;
+    for b in line.bytes() {
+        match b {
+            b' ' => col += 1,
+            b'\t' => col += 4 - col % 4,
+            _ => break,
+        }
+        bytes += 1;
+    }
+    (col, bytes)
+}
+
 /// Split a fence line into its character, run length and remainder.
-fn fence_run(line: &str) -> Option<(FenceKind, usize, &str)> {
-    let indent: usize = line.bytes().take_while(|&b| b == b' ').count();
-    if indent > 3 {
+fn fence_run(line: &str, container: usize) -> Option<(FenceKind, usize, &str)> {
+    let (col, bytes) = leading_columns(line);
+    if col > container + 3 {
         return None;
     }
-    let text: &str = &line[indent..];
+    let text: &str = &line[bytes..];
     let (kind, ch) = match text.as_bytes().first()? {
         b'`' => (FenceKind::Backtick, '`'),
         b'~' => (FenceKind::Tilde, '~'),
@@ -168,6 +180,89 @@ fn fence_run(line: &str) -> Option<(FenceKind, usize, &str)> {
         return None;
     }
     Some((kind, len, &text[len..]))
+}
+
+/// The content column of a list item whose marker starts `line` (a bullet or
+/// an ordered marker of up to nine digits, followed by whitespace or the end
+/// of the line), or `None` when `line` is not a list item.
+fn item_content_column(line: &str) -> Option<usize> {
+    let (col, bytes) = leading_columns(line);
+    let text: &str = &line[bytes..];
+    let marker: usize = match text.as_bytes().first()? {
+        b'-' | b'*' | b'+' => 1,
+        b'0'..=b'9' => {
+            let digits: usize = text.bytes().take_while(u8::is_ascii_digit).count();
+            if digits > 9 || !matches!(text.as_bytes().get(digits), Some(b'.' | b')')) {
+                return None;
+            }
+            digits + 1
+        }
+        _ => return None,
+    };
+    let after: &str = &text[marker..];
+    let spaces: usize = after.bytes().take_while(|&b| b == b' ').count();
+    if after.is_empty() || after.trim().is_empty() {
+        return Some(col + marker + 1);
+    }
+    if spaces == 0 && !after.starts_with('\t') {
+        return None;
+    }
+    // Five or more spaces after the marker: the content is an indented code
+    // block, so the item content column is one space past the marker.
+    let gap: usize = if (1..=4).contains(&spaces) { spaces } else { 1 };
+    Some(col + marker + gap)
+}
+
+/// What a line is, as seen by [`FenceTracker::feed`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum LineKind<'a> {
+    /// Not part of any fenced block.
+    Outside,
+    /// The opening fence line of a block.
+    Opens(Fence<'a>),
+    /// A content line of an open block.
+    Inside,
+    /// The closing fence line of a block.
+    Closes,
+}
+
+/// Line-by-line fence state: the open fence, if any, and the content columns
+/// of the list items enclosing the current line, which the three-column
+/// indent limit is measured from.
+#[derive(Debug, Default)]
+pub(crate) struct FenceTracker<'a> {
+    open: Option<Fence<'a>>,
+    containers: Vec<usize>,
+}
+
+impl<'a> FenceTracker<'a> {
+    /// Classify the next line of the input. An unclosed fence stays open to
+    /// the end of the input.
+    pub(crate) fn feed(&mut self, line: &'a str) -> LineKind<'a> {
+        if let Some(open) = self.open {
+            if open.closes(line) {
+                self.open = None;
+                return LineKind::Closes;
+            }
+            return LineKind::Inside;
+        }
+        if line.trim().is_empty() {
+            return LineKind::Outside;
+        }
+        let (col, _) = leading_columns(line);
+        while self.containers.last().is_some_and(|&c| col < c) {
+            self.containers.pop();
+        }
+        let container: usize = self.containers.last().copied().unwrap_or(0);
+        if let Some(fence) = Fence::opening(line, container) {
+            self.open = Some(fence);
+            return LineKind::Opens(fence);
+        }
+        if let Some(content) = item_content_column(line) {
+            self.containers.push(content);
+        }
+        LineKind::Outside
+    }
 }
 
 /// Parse an ATX heading line per the TS/Py regex `^(#{1,6})\s+(.+)$`,
@@ -257,6 +352,37 @@ mod tests {
         // Four spaces of indent is not a fence, so the heading stays live.
         let indented = "    ```\n## Live";
         assert_eq!(walk_headings(&lines(indented)).len(), 1);
+    }
+
+    #[trace("FR-007-AC-6")]
+    #[test]
+    fn heading_walk_closing_rules() {
+        // A closing line with an info string is content, so the fence stays
+        // open and swallows the heading.
+        let info = "```\n```text\n## inside\n```\n## Out";
+        let texts: Vec<String> = walk_headings(&lines(info))
+            .into_iter()
+            .map(|h| h.text)
+            .collect();
+        assert_eq!(texts, vec!["Out"]);
+        // A shorter tilde run does not close a longer tilde fence.
+        let tilde = "~~~~\n~~~\n## inside\n~~~~\n## Out";
+        assert_eq!(walk_headings(&lines(tilde)).len(), 1);
+    }
+
+    #[trace("FR-007-AC-7")]
+    #[test]
+    fn list_nested_fences_measure_from_the_item_content() {
+        // Ordered item (content column 4), nested bullet (column 6).
+        let input = "1.  item\n\n    ```\n    # fake\n    ```\n\n    - nested\n\n      ```\n      ## fake2\n      ```\n## Real";
+        let texts: Vec<String> = walk_headings(&lines(input))
+            .into_iter()
+            .map(|h| h.text)
+            .collect();
+        assert_eq!(texts, vec!["Real"]);
+        // After the list ends, indentation is measured from column 0 again.
+        let after = "- item\ntext\n\n    ```\n## H";
+        assert_eq!(walk_headings(&lines(after)).len(), 1);
     }
 
     #[test]
