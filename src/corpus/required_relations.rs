@@ -228,7 +228,6 @@ fn check_relation(
     model_exclude: &ExcludeSet,
     out: &mut Vec<(PathBuf, String, String, String)>,
 ) {
-    let exclude = ExcludeSet::compile_validated(&relation.exclude);
     // Owned, not leaked. The check token is the `<check>` half of a
     // `trace:<check>` severity key and comes from the manifest, so it cannot be
     // a `&'static str` without leaking one per call — and a corpus sweep calls
@@ -240,39 +239,11 @@ fn check_relation(
     let accepted_targets: BTreeSet<&str> = relation.to.iter().map(String::as_str).collect();
     let accepted_edges: BTreeSet<&str> = relation.edges.iter().map(String::as_str).collect();
 
-    let selector = relation.selector.as_ref();
-
-    for slot in spec.by_type_slots(&relation.from) {
+    for Obliged { slot, value } in obliged(spec, relation, root, model_exclude) {
         let doc = spec.doc(slot);
-        // Selection order is `from`, then `where`, then `exclude` (FR-058).
         // The authored value is kept for the finding text (AC-20).
-        let selected_value = match selector {
-            Some(sel) => match doc.frontmatter().and_then(|fm| fm.get(sel.field())) {
-                Some(value) if sel.selects(value) => value.as_str(),
-                _ => continue,
-            },
-            None => None,
-        };
-        if exclude.excludes(root, &doc.path) || model_exclude.excludes(root, &doc.path) {
-            continue;
-        }
-        if doc.id.is_empty() {
-            continue; // nothing to key an edge on
-        }
-
+        let selected_value = value.and_then(serde_json::Value::as_str);
         let outgoing = spec.edges_from(slot);
-        let has_outgoing = || {
-            outgoing.iter().any(|e| {
-                accepted_edges.contains(e.edge_type.as_str())
-                    && target_is_accepted(spec, e.target_slot, &accepted_targets)
-            })
-        };
-        let has_incoming = || {
-            spec.edges_to(slot).iter().any(|e| {
-                accepted_edges.contains(e.edge_type.as_str())
-                    && target_is_accepted(spec, Some(e.source_slot), &accepted_targets)
-            })
-        };
         // An accepted-verb edge from this document to a resolved target of a
         // kind outside a non-empty `to` never satisfies the relation, and is
         // reported whether or not the relation is otherwise satisfied.
@@ -314,11 +285,7 @@ fn check_relation(
                 ));
             }
         }
-        let satisfied = match relation.direction {
-            RelationDirection::Outgoing => has_outgoing(),
-            RelationDirection::Incoming => has_incoming(),
-            RelationDirection::Either => has_outgoing() || has_incoming(),
-        };
+        let satisfied = is_satisfied(spec, relation, slot);
         if satisfied {
             continue;
         }
@@ -366,13 +333,78 @@ fn check_relation(
                 ));
             }
         }
-        if let (Some(sel), Some(value)) = (selector, selected_value) {
+        if let (Some(sel), Some(value)) = (relation.selector.as_ref(), selected_value) {
             message.push_str(&format!(
                 ", selected because `{}` is '{value}'",
                 sel.field()
             ));
         }
         out.push((doc.path.clone(), doc.id.clone(), check.clone(), message));
+    }
+}
+
+/// A document a relation obliges, with the `where` value that selected it.
+pub(crate) struct Obliged<'a> {
+    /// Corpus slot of the obliged document.
+    pub(crate) slot: usize,
+    /// The selector field's value as authored; `None` when the relation has no
+    /// `where`.
+    pub(crate) value: Option<&'a serde_json::Value>,
+}
+
+/// The documents `relation` obliges in the view `spec` sees: the `from` kind,
+/// then `where`, then `exclude`, in id order (FR-058). Shared by the finding
+/// check and the FR-084 report so the two select the same population.
+pub(crate) fn obliged<'a>(
+    spec: &'a Spec,
+    relation: &RequiredRelation,
+    root: &Path,
+    model_exclude: &ExcludeSet,
+) -> Vec<Obliged<'a>> {
+    let exclude = ExcludeSet::compile_validated(&relation.exclude);
+    let selector = relation.selector.as_ref();
+    let mut out = Vec::new();
+    for slot in spec.by_type_slots(&relation.from) {
+        let doc = spec.doc(slot);
+        let value = match selector {
+            Some(sel) => match doc.frontmatter().and_then(|fm| fm.get(sel.field())) {
+                Some(value) if sel.selects(value) => Some(value),
+                _ => continue,
+            },
+            None => None,
+        };
+        if exclude.excludes(root, &doc.path) || model_exclude.excludes(root, &doc.path) {
+            continue;
+        }
+        if doc.id.is_empty() {
+            continue; // nothing to key an edge on
+        }
+        out.push(Obliged { slot, value });
+    }
+    out
+}
+
+/// Whether the document at `slot` satisfies `relation` (FR-058). The one
+/// definition of satisfaction: the finding and the FR-084 `state` both read it.
+pub(crate) fn is_satisfied(spec: &Spec, relation: &RequiredRelation, slot: usize) -> bool {
+    let accepted_targets: BTreeSet<&str> = relation.to.iter().map(String::as_str).collect();
+    let accepted_edges: BTreeSet<&str> = relation.edges.iter().map(String::as_str).collect();
+    let has_outgoing = || {
+        spec.edges_from(slot).iter().any(|e| {
+            accepted_edges.contains(e.edge_type.as_str())
+                && target_is_accepted(spec, e.target_slot, &accepted_targets)
+        })
+    };
+    let has_incoming = || {
+        spec.edges_to(slot).iter().any(|e| {
+            accepted_edges.contains(e.edge_type.as_str())
+                && target_is_accepted(spec, Some(e.source_slot), &accepted_targets)
+        })
+    };
+    match relation.direction {
+        RelationDirection::Outgoing => has_outgoing(),
+        RelationDirection::Incoming => has_incoming(),
+        RelationDirection::Either => has_outgoing() || has_incoming(),
     }
 }
 

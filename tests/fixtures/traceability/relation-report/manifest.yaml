@@ -1,0 +1,71 @@
+# FR-084 fixture: two-way relation coverage over kinds, verbs and fields that
+# belong to no real chain. The engine knows none of them.
+name: traceability-relation-report
+version: 0.1.0
+description: Relation coverage report fixture with an obligations source
+artifact_types:
+- name: Concern
+  defaults:
+    id_pattern: CON-{next:03d}
+- name: Rule
+  defaults:
+    id_pattern: RULE-{next:03d}
+- name: Memo
+  defaults:
+    id_pattern: MEMO-{next:03d}
+- name: Note
+  defaults:
+    id_pattern: NOTE-{next:03d}
+traceability:
+  trace_targets:
+  - name: acceptance-criterion
+    archetype: Rule
+    section: Acceptance Criteria
+    id_column: ID
+  obligations:
+  - name: acceptance-criterion
+    target: acceptance-criterion
+    statement_column: Criteria
+    method_column: Verification
+  vocabularies:
+    test_type_column: Verification
+    test_type: [Test, Inspection]
+    no_source_symbol: [Inspection]
+  trace_tags:
+    markers:
+    - name: rust-trace-attribute
+      language: rust
+      pattern: '#\[trace\(([^)]*)\)\]'
+      template: '#[trace({ids})]'
+  required_relations:
+  # Forward view: every Concern is reached by `addresses` from a Rule.
+  - name: concern-is-addressed
+    from: Concern
+    edges: [addresses]
+    to: [Rule]
+    direction: incoming
+    check: unaddressed-concern
+  # Reverse view: every gold-tier Rule reaches a Concern by `addresses`.
+  - name: gold-rule-addresses
+    from: Rule
+    where:
+      field: tier
+      values: [gold]
+    edges: [addresses]
+    to: [Concern]
+    direction: outgoing
+    check: gold-rule-idle
+  # `to: []`: the verb alone is the contract.
+  - name: memo-cites
+    from: Memo
+    edges: [cites]
+    to: []
+    direction: outgoing
+    check: memo-uncited
+  # A constrained `to`: a wrong-kind or absent target never satisfies it.
+  - name: note-cites-rule
+    from: Note
+    edges: [cites]
+    to: [Rule]
+    direction: outgoing
+    check: note-uncited

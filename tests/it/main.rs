@@ -45,6 +45,7 @@ mod plat_validation_batch;
 mod props_fr_040;
 mod props_metamorphic;
 mod quality_lints;
+mod relation_report;
 mod required_relations;
 mod required_relations_where;
 mod robustness;
