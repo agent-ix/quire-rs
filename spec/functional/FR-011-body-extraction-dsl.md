@@ -61,6 +61,14 @@ and a `code_block` assert under iteration checks only that unit's content.
 
 ### Fence-character parity for `code_block` — CR-004
 
+> **Superseded in part by CR-004a (PLAT-1682):** fence recognition is now the
+> CommonMark model of [FR-007](./FR-007-fenced-block-heading-walk.md) rules 1 to 6
+> ([FR-010](./FR-010-query-api.md) CR-008): a closing fence must also be at least as
+> long as the opener and carry no info string, indentation is measured from the
+> enclosing list item, and fences nested in list items are recognised by the
+> `code_block` locator ([FR-011-AC-22](#acceptance-criteria)). The matching-character
+> rule below stands.
+
 The fenced-code-block scanner that backs `code_block` (and the document-wide
 `extract_diagrams` harvest) SHALL recognize **both** ` ``` ` (backtick) and `~~~`
 (tilde) fences, capturing the info-string (language word) after either fence, and
@@ -219,6 +227,7 @@ Single-yield DSLs return `records.len() <= 1`; multi-yield returns one record pe
 | FR-011-AC-19 | A `body_extraction` declaring `emit_edges: [{from: <field>, type: <t>}]` projects one `{record_index, type, target}` edge per extracted record whose `<field>` resolves to a target, in `ExtractionResult.edges` (single- and multi-yield); records lacking the field emit no edge. These record-derived edges are distinct from `harvest_edges` (frontmatter/`ix://`) and both flow through the Python `extract()` envelope's `edges` key. | Test |
 | FR-011-AC-20 | (CR-005) A `from: heading` locator resolves and projects the section-number-normalized heading text: against a document with `## 2. Scope`, a `regex: ^Scope$` heading locator matches (and a level-only heading locator projects `Scope`, not `2. Scope`) — the same `\d+(\.\d+)*\.?` normalization `section_body`/`after_heading` applies. A bare `## Scope` matches identically. | Test |
 | FR-011-AC-21 | (CR-006) A locator with `multiple: true` yields every resolved value as a JSON array, in document order — a `code_block(mermaid under Workflow)` locator against a section holding two mermaid blocks yields both. Without the flag the same locator yields only the first (unchanged first-wins contract). In a fallback chain the flag is read from the hit primitive; under multi-yield each iteration unit keeps its own full list. | Test |
+| FR-011-AC-22 | (CR-004a) A `code_block` locator resolves a fence nested in an ordered list item and in a nested bullet, measured from the item content column, and its `at` line is the opening fence line. | Test |
 
 ## Dependencies
 

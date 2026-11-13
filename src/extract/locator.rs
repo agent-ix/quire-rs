@@ -15,7 +15,7 @@ use serde_json::Value;
 
 use crate::ast::QuireDocument;
 use crate::query::{
-    diagrams_from_content_with_lines, parse_bullet_list_with_lines, parse_tables_with_lines,
+    diagrams_from_content, parse_bullet_list_with_lines, parse_tables_with_lines,
     section as q_section, sections as q_sections, ListPattern, TableResult,
 };
 
@@ -772,11 +772,11 @@ fn eval_code_block(
     let Some(scope) = Scope::of(doc, under_section) else {
         return Vec::new();
     };
-    diagrams_from_content_with_lines(&scope.content, language)
+    diagrams_from_content(&scope.content, language)
         .into_iter()
-        .map(|(fence, block)| Located {
+        .map(|block| Located {
             value: Value::String(block.source),
-            at: At::Body(scope.body_line(fence)),
+            at: At::Body(scope.body_line(block.line - 1)),
         })
         .collect()
 }
@@ -1038,6 +1038,28 @@ mod tests {
         );
         assert_eq!(v.len(), 1);
         assert!(v[0].as_str().unwrap().contains("WANT-->ME"));
+    }
+
+    #[test]
+    #[trace("FR-011-AC-22")]
+    fn code_block_resolves_list_nested_fences() {
+        let d = parse_document(
+            "## Steps\n1.  step\n\n    ```mermaid\n    graph TD; ORDERED\n    ```\n\n    - nested\n\n      ```mermaid\n      graph TD; NESTED\n      ```\n",
+        );
+        let found = eval(
+            &d,
+            &LocatorPrimitive::CodeBlock {
+                language: Some("mermaid".into()),
+                under_section: Some("Steps".into()),
+                required: false,
+                multiple: true,
+                regex: None,
+                assert: None,
+            },
+        );
+        assert_eq!(found.len(), 2);
+        assert!(found[0].as_str().unwrap().contains("ORDERED"));
+        assert!(found[1].as_str().unwrap().contains("NESTED"));
     }
 
     #[test]
