@@ -77,6 +77,15 @@ Found at head `5f7b2fd` while regression-checking the fix round.
 | FND-013 | medium | After the cross-module merge, the `from` list is a union, and its order (so 'the first `from` archetype') depends on module load order. The architecture entry `from: [part]` merges with the ISO entry. `part` states the key through the open ObjectFrontmatter with no `enum` (sibling FR-012). If `part` comes first, 'first archetype's enum' gives nothing while another `from` schema has one, which contradicts 'no enum in any `from` schema'. Two implementers would emit different vocabularies for the same corpus. Fix: define the vocabulary independent of order, for example the enum of the first `from` archetype that has one in a stated order, or require all `from` enums that exist to be equal and report a mismatch. | spec/functional/FR-090-declared-carried-fields.md:51-53, 68-70 |
 | FND-014 | medium | Two allocations reaching the same part yield one pair, but each finding must name 'the `via` document', and findings are ordered by `via` id. With two routes there are two `via` documents, and the spec does not say which one the single finding names (lowest id, all of them as a list, or the first read). One implementer names one, another lists both. Fix: state it, for example 'names every `via` document of the pair, in lexical id order, and orders by the first', and assert it in AC-4. | spec/functional/FR-091-ordered-field-consistency.md:62-63, 76-77, 85 |
 
+## New findings (disposition pass 2)
+
+Found at head `3483c6f` (branch merged with origin/main) while regression-checking the round-2 fixes.
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-015 | medium | Regression from the round-2 fix: the position of `carried` in a resolved `linked` entry is stated two ways. FR-084 defines a resolved `linked` entry as 'a document plus `verb` and `resolution`', and CR-419 puts `carried` last in the Document key order, so it falls before `verb` and `resolution`. That is also what the flattened `RowDocument` in src/corpus/relation_report.rs:179-190 would emit. FR-090-AC-9 says resolved `linked` entries carry `carried` 'as the last key', which is after `resolution`. A test written to AC-9 fails an implementation that follows FR-084, and the reverse. Fix: say in AC-9 that `carried` is the last key of the Document part (before `verb`, `resolution`), or state the full linked-entry key order in FR-084. | spec/functional/FR-090-declared-carried-fields.md:107; spec/functional/FR-084-two-way-relation-coverage-report.md:121-123,129 |
+| FND-016 | low | FR-091 now adds three declarations (`field_consistency`, `required_fields`, `vocabulary`), but AC-6 still says 'neither entry'. Nothing states that a module declaring none of the three, or no `vocabulary` entry, is unchanged. Fix: 'declares none of the three entries'. | spec/functional/FR-091-ordered-field-consistency.md:145 |
+
 ## Dispositions
 
 Round 1, at head `5f7b2fd`, checked against current main (quire-rs#668 merged).
@@ -97,3 +106,9 @@ Round 1, at head `5f7b2fd`, checked against current main (quire-rs#668 merged).
 | FND-012 | still-open | New in round 1; not yet fixed. |
 | FND-013 | still-open | New in round 1; not yet fixed. |
 | FND-014 | still-open | New in round 1; not yet fixed. |
+| FND-011 | fixed | `carried_vocabulary`, on the **top-level coverage report object** (the object that holds the `coverage_matrix` array; the matrix itself is an array and gains no key) ... add ... the optional `carried_vocabulary` object (string-keyed arrays of strings) on the top-level report object, and no other key. |
+| FND-012 | fixed | The FR-084 relation report has no published schema; its `document` object gains `carried` as its last key by the CR-419 note on FR-084 and keeps the key order that FR-084-AC-12 fixes otherwise. (FR-084: Document `{"id", "path", "archetype", "repo", "verification", "criteria", "carried"}` + CR-419 note.) |
+| FND-013 | fixed | The vocabulary does not depend on module load order. The `enum`s that exist among the `from` archetypes' frontmatter schemas for `key` must all be identical in content and order; the vocabulary is that enum. A `from` archetype with no `enum` for `key` ... contributes nothing and does not conflict. When two existing `enum`s differ, the engine reports `trace:carried-vocabulary-mismatch` ... (FR-090-AC-14) |
+| FND-014 | fixed | \| FR-091-AC-4 \| ... two allocations reaching the same part yield exactly one finding for that pair, which names both `via` documents in lexical id order. \| Test \| |
+| FND-015 | still-open | New in round 2; not yet fixed. |
+| FND-016 | still-open | New in round 2; not yet fixed. |

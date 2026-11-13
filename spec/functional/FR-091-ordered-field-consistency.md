@@ -142,7 +142,7 @@ documents are read.
 | FR-091-AC-3 | An `FR` stating no class, and a part stating no class, each yield no consistency finding for the pair. | Test |
 | FR-091-AC-4 | A requirement allocated through two allocations to two parts of different classes yields a finding for each part whose class outranks the requirement's, and none for the others; two allocations reaching the same part yield exactly one finding for that pair, which names both `via` documents in lexical id order. | Test |
 | FR-091-AC-5 | With the `required_fields` entry above, a `part` with no `software_safety_class` yields one `trace:unassigned-class` finding naming the part and the field; a part with one yields none. | Test |
-| FR-091-AC-6 | A corpus whose modules declare neither entry yields no finding and output identical to the output before this requirement. | Test |
+| FR-091-AC-6 | A corpus whose modules declare none of the three (`field_consistency`, `required_fields`, `vocabulary`) yields no finding and output identical to the output before this requirement. | Test |
 | FR-091-AC-7 | A stated value outside the `order_from` `enum`, on either side, yields one `trace:undeclared-field-value` finding for that document and that document is excluded from comparison. | Test |
 | FR-091-AC-8 | Findings are advisory by default and tunable per `check` through the FR-057 registry; a `part` fixture with the severity key `off` produces no `trace:unassigned-class` finding. | Test |
 | FR-091-AC-9 | After a run over a corpus with findings of each kind, every document is byte-identical and no output key carries a class value that no document states. | Test |
