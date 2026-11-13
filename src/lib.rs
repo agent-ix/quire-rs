@@ -137,6 +137,13 @@ pub use symbol_table::{build as build_symbol_table, SymbolTableReport};
 // Corpus: parallel repo walk (FR-024) + Spec corpus (FR-025); resolution/query in FR-026..027.
 pub use corpus::walk::{load_repo, load_repo_with, LoadedDocument, RepoLoad, WalkOptions};
 pub use corpus::{glossary_terms, glossary_terms_from_path, harvest_edges, Spec};
+// Two-way relation coverage report (FR-084).
+pub use corpus::{
+    relation_report, Criteria, DanglingEntry, KindMismatchEntry, LinkResolution, LinkedEntry,
+    RelationReport, RelationReportError, RelationReportMember, RelationRow, RelationSection,
+    RelationSummary, RowDocument, RowSelector, RowState, StateCounts, Verification,
+    VerificationCounts,
+};
 // Bundle validation postures (OKF): strict archetype-conformance vs.
 // permissive foreign-bundle reading, plus index-completeness.
 pub use corpus::{

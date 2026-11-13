@@ -9,6 +9,13 @@ bumps; once 1.0 ships, semver is strict.
 
 ### Added
 
+- PLAT-1554 (FR-084): the two-way relation coverage report. `relation_report`
+  produces, for every declared `required_relations` entry, one row per obliged
+  document with its `state` (FR-058 satisfaction), the documents linked to it,
+  dangling and kind-mismatch edges, and verification read from the FR-050
+  `coverage_matrix`. The engine holds no archetype, verb or field name of any
+  chain. `required_relations` selection and satisfaction are now shared by the
+  finding check and the report.
 - PLAT-1556 (FR-085): a corpus of several repositories. `Spec::from_members`
   takes `CorpusMember`s with a caller-declared `<org>/<repo>` identity;
   `ix://<org>/<repo>/...` edges resolve into the member declaring that identity

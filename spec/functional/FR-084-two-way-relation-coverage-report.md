@@ -23,7 +23,9 @@ documents that pass, and it does not say whether that cover is verified. This FR
 over the same declarations: one row per obliged document, listing what is linked to it and how well
 that is verified.
 
-`quire-rs` SHALL produce this report for any loaded corpus and any set of declared relations.
+`quire-rs` SHALL produce this report for any loaded corpus and any set of declared relations,
+including none: a corpus whose modules declare no relation yields `{"relations": []}`. The caller supplies
+one input (repository root and `coverage_matrix`) per corpus member; any other number is an error.
 The report is a function of the loaded corpus, the module's `traceability.required_relations`, and
 the `coverage_matrix` of [FR-050](./FR-050-declarative-coverage-computation.md). It adds no
 declaration, no walk and no second graph.
@@ -116,7 +118,8 @@ declaration has no `where`, and `selector` is `{"field": F, "value": V}` with `V
 value exactly as authored. The shapes of the remaining objects are:
 
 - **Document** (the obliged `document` and a resolved `linked` entry): `{"id", "path", "archetype",
-  "repo", "verification", "criteria"}` with `repo` omitted when the member has no identity, and
+  "repo", "verification", "criteria"}` with `repo` omitted when the member has no identity,
+  `archetype` omitted when the document has no `type`, and
   `verification` and `criteria` present for the obliged document and for every linked document alike.
   `criteria` is `{"backed": n, "unbacked": n, "not_measured": n}` and is always present, with zero
   counts and `verification` `not-tracked` for a document with no matrix entry. The obliged document
@@ -128,7 +131,7 @@ value exactly as authored. The shapes of the remaining objects are:
   `archetype` or `repo`.
 - **`dangling` entry**: `{"reference", "verb"}`, `reference` the target as authored.
 - **`kind_mismatch` entry**: `{"id", "repo", "archetype", "verb", "accepted"}` with `repo` omitted
-  when the member has no identity and `accepted` the relation's `to` as declared.
+  when the member has no identity, `archetype` omitted when the target has no `type`, and `accepted` the relation's `to` as declared.
 
 Ordering inside a row: `linked` resolved entries by repo then id, followed by dangling
 entries by `reference` then `verb`; `dangling` by `reference` then `verb`; `kind_mismatch` by repo,
@@ -147,6 +150,14 @@ over one corpus ([NFR-006](../non-functional/NFR-006-determinism.md)).
 The report states what is linked and verified. It carries a `summary` per relation: row count and
 the count in each `state` and `verification`. Whether a gap blocks anything is policy for the
 consumer, and the engine writes nothing back to any document.
+
+> **CR-412 note:** "including none" was added to the first sentence of the Description. The original text said the report is produced for "any set of declared relations" without saying what an empty set yields; the first implementation raised an error for it, which review found to be an unstated behaviour. The report is `{"relations": []}` for no relations, and FR-084-AC-18 pins it.
+>
+> **CR-413 note:** The Serialization section now omits `archetype` for a document with no `type`, in a document and in a `kind_mismatch` entry. The original text did not define the untyped case, and the implementation had serialized an empty string.
+>
+> **CR-414 note:** FR-084-AC-18 was added with CR-412: a corpus whose modules declare no relation yields `{"relations": []}`.
+>
+> **CR-415 note:** FR-084-AC-19 and the sentence on one input per corpus member were added: the engine indexes its per-member inputs by corpus member, so a count that differs is an error rather than undefined behaviour.
 
 ## Acceptance Criteria
 
@@ -169,6 +180,8 @@ consumer, and the engine writes nothing back to any document.
 | FR-084-AC-15 | A criterion with status `method-without-symbol` is excluded from the denominator and counted in `not_measured`: a document with one `tagged` and one `method-without-symbol` criterion is `verified`, a document whose only non-retired criterion is `method-without-symbol` is `not-tracked`, and a document with one `untagged` and one `method-without-symbol` criterion is `unverified`. | Test |
 | FR-084-AC-16 | For a relation with `to: []`, a document whose only accepted-verb edge targets an absent document is `covered`, lists that edge in `linked` with `resolution` `dangling` and in `dangling`, and FR-058 raises no finding for it; for a relation with a non-empty `to` the same edge leaves the row `uncovered`, in `dangling` only, and FR-058 reports the document. | Test |
 | FR-084-AC-17 | The engine source contains no hazard, threat, mitigation or safety-classification name ([FR-058](./FR-058-upward-trace-completeness.md)-CON-2). | Inspection |
+| FR-084-AC-18 | When no loaded module declares a `required_relations` entry, the report is produced and serializes as `{"relations": []}`. | Test |
+| FR-084-AC-19 | Supplying a number of member inputs different from the corpus's member count is an error naming both counts, and no report is produced. | Test |
 
 ## Constraints
 
