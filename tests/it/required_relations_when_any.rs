@@ -15,7 +15,10 @@ const WHEN_ANY: &str = "    when_any:\n      - { verb: protects, direction: outg
 
 fn tmpdir(tag: &str) -> PathBuf {
     let mut p = std::env::temp_dir();
-    p.push(format!("quire_reqrel_when_any_{tag}_{}", std::process::id()));
+    p.push(format!(
+        "quire_reqrel_when_any_{tag}_{}",
+        std::process::id()
+    ));
     let _ = fs::remove_dir_all(&p);
     fs::create_dir_all(&p).expect("mkdir");
     p
@@ -140,7 +143,12 @@ fn tc_when_any_composes_with_where_and_exclude_by_intersection() {
     let root = tmpdir("25");
     put(&root, "H-1", "Haz", &[]);
     let with_class = |id: &str, class: &str| {
-        doc(id, "Ctl", &format!("class: {class}\n"), &[("protects", "H-1")])
+        doc(
+            id,
+            "Ctl",
+            &format!("class: {class}\n"),
+            &[("protects", "H-1")],
+        )
     };
     write(&root, "C-1.md", &with_class("C-1", "safety"));
     write(&root, "C-2.md", &with_class("C-2", "other"));
