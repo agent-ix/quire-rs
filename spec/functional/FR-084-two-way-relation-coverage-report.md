@@ -23,6 +23,7 @@ documents that pass, and it does not say whether that cover is verified. This FR
 over the same declarations: one row per obliged document, listing what is linked to it and how well
 that is verified.
 
+`quire-rs` SHALL produce this report for any loaded corpus and any set of declared relations.
 The report is a function of the loaded corpus, the module's `traceability.required_relations`, and
 the `coverage_matrix` of [FR-050](./FR-050-declarative-coverage-computation.md). It adds no
 declaration, no walk and no second graph.
@@ -63,9 +64,15 @@ A row carries:
 A `linked` entry carries the document's `id`, `path`, `archetype`, `repo` when present, the accepted
 verb, and its own `verification`.
 
-`state` is `uncovered` when `linked` is empty and `covered` otherwise. A `dangling` or
-`kind_mismatch` entry never makes a row covered: it is evidence of an attempted edge that does not
-count ([FR-058](./FR-058-upward-trace-completeness.md), [FR-085](./FR-085-cross-repository-edge-resolution.md)).
+`state` follows FR-058 satisfaction exactly: a row is `covered` when the relation is satisfied for
+the document and `uncovered` otherwise, so the report and the FR-058 finding always agree. For a
+relation with a non-empty `to`, only edges to a loaded target of an accepted archetype satisfy it,
+so a `dangling` or `kind_mismatch` entry never makes the row covered. For a relation with
+`to: []` the verb alone is the contract ([FR-058](./FR-058-upward-trace-completeness.md)), so an
+accepted-verb edge whose target is absent satisfies it: the row is `covered`, and the edge is listed
+in `linked` with `"resolution": "dangling"`, the reference as authored, and `verification`
+`not-tracked`. The same edge is also listed in `dangling`, so the reader sees that it points at
+nothing loaded. A `linked` entry for a resolved target carries `"resolution": "resolved"`.
 
 ### Verification status comes from the matrix
 
@@ -73,14 +80,20 @@ The verification status of a document is read from its `requirements[]` entry in
 `coverage_matrix` ([FR-050-AC-48](./FR-050-declarative-coverage-computation.md)); the report
 computes no second notion of tested. A criterion is **backed** when its computed `status`
 ([FR-050-AC-49](./FR-050-declarative-coverage-computation.md)) is `tagged` or `qualified-record`. A
-criterion with status `retired` is not counted. The document's status is:
+criterion with status `retired` is not counted. A criterion with status `method-without-symbol` is
+**not measured**: its declared method (inspection, analysis) mints no source symbol, so the matrix
+cannot evidence it by a tag, and counting it as unbacked would leave a requirement verified by
+inspection permanently `unverified`. Such a criterion is excluded from the denominator, and a
+document whose only non-retired criteria are not measured is `not-tracked`. A document's entry
+carries the counts `backed`, `unbacked` and `not_measured`, so exclusion is visible. The report
+claims verification by tag or record only. The document's status is:
 
 | Status | Condition |
 |---|---|
-| `verified` | At least one non-retired criterion, and every one is backed |
-| `partial` | At least one backed and at least one non-retired criterion not backed |
-| `unverified` | At least one non-retired criterion, none backed |
-| `not-tracked` | No `requirements[]` entry for the document, or an entry with no non-retired criterion |
+| `verified` | At least one measured criterion, and every one is backed |
+| `partial` | At least one backed and at least one measured criterion not backed |
+| `unverified` | At least one measured criterion, none backed |
+| `not-tracked` | No `requirements[]` entry for the document, or an entry with no non-retired measured criterion |
 
 A row's aggregate `verification` is computed over its **tracked** documents: the obliged document
 and every `linked` document whose status is not `not-tracked`. It is `verified` when all are
@@ -91,6 +104,20 @@ obliged requirement itself, since a risk-bearing document carries no criteria.
 
 A module declaring no `obligations:` source has no `coverage_matrix` ([FR-050-AC-51](./FR-050-declarative-coverage-computation.md));
 every status is then `not-tracked` and the report is still produced.
+
+### Serialization
+
+The report serializes as JSON with the keys in this order: `{"relations": [...]}`. Each relation is
+`{"name", "check", "direction", "summary", "rows"}`. `summary` is `{"rows": n, "state": {"uncovered": n,
+"covered": n}, "verification": {"verified": n, "partial": n, "unverified": n, "not-tracked": n}}`, every
+count present even at zero. Each row is `{"relation", "check", "direction", "document", "selector",
+"state", "verification", "linked", "dangling", "kind_mismatch"}` with `selector` omitted when the
+declaration has no `where`, and `selector` is `{"field": F, "value": V}` with `V` the document's
+value exactly as authored. A document is `{"id", "path", "archetype", "repo"}` with `repo` omitted
+when the member has no identity. A `linked` entry is a document plus `"verb"`, `"resolution"`,
+`"verification"` and `"criteria": {"backed", "unbacked", "not_measured"}` when the document is
+tracked. Arrays are always present, empty when empty. No other key is emitted, and no
+timestamp, path outside the corpus, or run-specific value appears.
 
 ### Selecting and ordering
 
@@ -113,16 +140,19 @@ consumer, and the engine writes nothing back to any document.
 | FR-084-AC-2 | A row's `linked` lists each accepted-edge counterpart with its archetype and its own `verification`, ordered by repo then id, and a counterpart reached by a verb outside `edges` is not listed. | Test |
 | FR-084-AC-3 | Given a relation `from: R, where: {field: F, values: [V]}, edges: [e], to: [K], direction: outgoing`, a `R` document with `F: V` and no `e` edge to a `K` document is a row with `state: uncovered` (a gap), one with an edge is `covered`, and a `R` document whose `F` is outside `values` or absent has no row. | Test |
 | FR-084-AC-4 | A row from a relation with `where` carries `selector` with the field and the document's value as authored; a row from a relation without `where` has no `selector` key. | Test |
-| FR-084-AC-5 | Document verification is derived from the `coverage_matrix` criteria: all non-retired criteria `tagged` or `qualified-record` gives `verified`; a mix gives `partial`; none backed (`untagged`, `tagged-by-ignored-test`, `method-without-symbol`) gives `unverified`; a retired criterion is not counted; a document with no entry or only retired criteria gives `not-tracked`. | Test |
+| FR-084-AC-5 | Document verification is derived from the `coverage_matrix` criteria: all measured criteria `tagged` or `qualified-record` gives `verified`; a mix gives `partial`; none backed (`untagged`, `tagged-by-ignored-test`) gives `unverified`; a retired criterion is not counted; a document with no entry or only retired criteria gives `not-tracked`. | Test |
 | FR-084-AC-6 | A hazard-like row linked only to documents with status `not-tracked` is `covered` with `verification: not-tracked`; a row linked to one `verified` and one `unverified` document is `partial`; the aggregate ignores `not-tracked` documents when any tracked document exists. | Test |
 | FR-084-AC-7 | In the reverse view the row aggregate is that of the obliged requirement itself when its linked documents are `not-tracked`, so a classified requirement with a tagged criterion and a linked risk document is `covered` and `verified`. | Test |
 | FR-084-AC-8 | A module declaring no `obligations:` source yields rows with every `verification` equal to `not-tracked`, and the report is produced without error. | Test |
 | FR-084-AC-9 | Naming a relation that no loaded module declares is an error naming the relation and produces no report; naming a declared relation produces rows for it alone. | Test |
 | FR-084-AC-10 | A relation selecting zero documents yields a `summary` with zero rows rather than an absent relation, so an empty selection is distinguishable from an unreported relation. | Test |
 | FR-084-AC-11 | The `summary` of each relation counts its rows by `state` and by `verification`, and the counts sum to the row count. | Test |
-| FR-084-AC-12 | Two runs over one corpus produce byte-identical serialized reports, ordered by relation declaration order, then repo, path and id ([NFR-006](../non-functional/NFR-006-determinism.md)). | Test |
+| FR-084-AC-12 | Two runs over one corpus produce byte-identical reports in the serialization above, ordered by relation declaration order, then repo, path and id ([NFR-006](../non-functional/NFR-006-determinism.md)); the keys appear in the stated order, `selector` holds the value as authored, and `summary` carries every count including zeros. | Test |
 | FR-084-AC-13 | Running the report leaves every document byte-identical and raises no FR-058 finding or severity that the same corpus does not already raise without it. | Test |
-| FR-084-AC-14 | Over a fixture whose relation, kind, verb and field names are all unrelated to hazards or threats, the report is complete and correct, and the engine source contains no hazard, threat, mitigation or safety-classification name ([FR-058](./FR-058-upward-trace-completeness.md)-CON-2). | Test |
+| FR-084-AC-14 | Over a fixture whose relation, kind, verb and field names are all unrelated to hazards or threats, the report is complete and correct. | Test |
+| FR-084-AC-15 | A criterion with status `method-without-symbol` is excluded from the denominator and counted in `not_measured`: a document with one `tagged` and one `method-without-symbol` criterion is `verified`, a document whose only non-retired criterion is `method-without-symbol` is `not-tracked`, and a document with one `untagged` and one `method-without-symbol` criterion is `unverified`. | Test |
+| FR-084-AC-16 | For a relation with `to: []`, a document whose only accepted-verb edge targets an absent document is `covered`, lists that edge in `linked` with `resolution` `dangling` and in `dangling`, and FR-058 raises no finding for it; for a relation with a non-empty `to` the same edge leaves the row `uncovered`, in `dangling` only, and FR-058 reports the document. | Test |
+| FR-084-AC-17 | The engine source contains no hazard, threat, mitigation or safety-classification name ([FR-058](./FR-058-upward-trace-completeness.md)-CON-2). | Inspection |
 
 ## Constraints
 

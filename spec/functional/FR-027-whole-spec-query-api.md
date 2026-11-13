@@ -32,6 +32,7 @@ relationships:
 impl Spec {
     // direct lookups
     pub fn by_id(&self, id: &str) -> Option<&LoadedDocument>;
+    pub fn by_qualified_id(&self, identity: &str, id: &str) -> Option<&LoadedDocument>;
     pub fn by_type(&self, artifact_type: &str) -> impl Iterator<Item = &LoadedDocument>;
 
     // edge navigation (over FR-026 resolved edges)
@@ -47,7 +48,8 @@ impl Spec {
 
 ### Query semantics
 
-- **`by_id`** — O(1) hash lookup against the id index ([FR-025](./FR-025-spec-corpus-model.md)).
+- **`by_id`** — O(1) hash lookup against the id index ([FR-025](./FR-025-spec-corpus-model.md)). On a corpus of several members ([FR-085](./FR-085-cross-repository-edge-resolution.md)) it returns the document when exactly one member holds the id, and `None` when no member or more than one member holds it: an ambiguous id is never answered by picking a member.
+- **`by_qualified_id`** — O(1) lookup of `(identity, id)` in the member with that identity; `None` when that member is absent or does not hold the id.
 - **`by_type`** — every loaded document whose frontmatter `type`/`artifact_type` matches. The corpus does not interpret the type beyond string equality. A document with **no** `type`/`artifact_type` frontmatter field is *untyped*: it is never returned by any `by_type` query and is reachable only via `by_id`. Untyped documents are recorded as a `Diagnostic::UntypedArtifact` at construction so coverage audits can surface them.
 - **`outgoing(id)`** — resolved + dangling edges whose source is `id`.
 - **`referencing(id)`** — resolved edges whose target is `id` (reverse-edge lookup). Dangling edges have no resolved target document, so they appear only in `outgoing` and `dangling`, never in `referencing` ([US-012-AC-3](../usecase/US-012-agent-audits-whole-spec.md)).
@@ -75,6 +77,7 @@ impl Spec {
 | FR-027-AC-7 | A test (tracing/strace-style, parity with [FR-013-AC-5](./FR-013-archetype-loader.md)) confirms no filesystem read occurs during any query after construction ([StR-006-AC-1](../stakeholder/StR-006-whole-spec-corpus.md), [US-012-AC-5](../usecase/US-012-agent-audits-whole-spec.md)). | Test |
 | FR-027-AC-8 | A criterion bench measures `by_id`, `referencing`, and `orphans` over a 200-artifact corpus and confirms sub-millisecond per-query latency ([US-012](../usecase/US-012-agent-audits-whole-spec.md)-PC-2; feeds TC-458). | Test |
 | FR-027-AC-9 | A document lacking a `type`/`artifact_type` field is never returned by `by_type`, is returned by `by_id`, and produces a `Diagnostic::UntypedArtifact` at construction. | Test |
+| FR-027-AC-10 | On a two-member corpus where both members hold id `X`, `by_id("X")` returns `None`, `by_qualified_id` with each identity returns that member's document, and an id held by exactly one member is returned by `by_id`. | Test |
 
 ## Dependencies
 
