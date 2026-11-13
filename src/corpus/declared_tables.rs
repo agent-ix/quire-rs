@@ -22,6 +22,9 @@ pub(crate) struct ScannedRow {
     /// The table's headers in column order; `cells` is keyed by them but does
     /// not keep their order.
     pub columns: Vec<String>,
+    /// Ordinal of the matched section the row's table sits under, within its
+    /// document (see [`tables_of_sections`]).
+    pub section: usize,
     /// 1-based line of the row in its document, frontmatter included — the
     /// same numbering `validate` findings use, so a consumer can render
     /// `path:line:` and an editor can jump to the authored row.
@@ -58,17 +61,6 @@ impl ScannedRow {
         }
         out
     }
-}
-
-/// Which tables under a declared section a scan reads (FR-049-AC-23).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum TableScan {
-    /// The section's first table: trace-target minting, obligation sources and
-    /// the FR-050 rollup, so the rollup's rows equal what is minted.
-    First,
-    /// Every table outside a fenced code block, in document order: the
-    /// FR-049 reference check, which reads every id from the declared cells.
-    Every,
 }
 
 /// What one declaration says about where its rows live: every bundle document
@@ -115,8 +107,6 @@ pub(crate) struct DeclaredScope<'a> {
     /// a table with the first header and not the second is reported per
     /// table, rows or no rows (FR-049-AC-18).
     pub kind_column: Option<(&'a str, &'a str)>,
-    /// Which of a declared section's tables are read (FR-049-AC-23).
-    pub tables: TableScan,
     /// Whether absence of a matching archetype or minting section is itself a
     /// finding. This is independent of `mints`: an optional target still scans
     /// and validates a present section (#327).
@@ -498,7 +488,7 @@ pub(crate) fn scan(
         // section that is there and holds no table (CR-117). Only the first is
         // a minting defect; the second is an empty matrix, which is a
         // repository with no tests yet.
-        let scanned = tables_in_sections(doc.body(), &doc.path, sections, scope.tables);
+        let scanned = tables_of_sections(doc.body(), &doc.path, sections);
         if scope.mints.is_some() && (scope.target_required || !scanned.is_empty()) {
             ctx.census.selected += 1;
             if !scanned.is_empty() {
@@ -532,18 +522,35 @@ pub(crate) fn scan(
             && !scanned.is_empty()
             && !scanned
                 .iter()
-                .any(|(_, t)| matches!(t, ScannedTable::Table { .. }))
+                .any(|(_, _, t)| matches!(t, ScannedTable::Table { .. }))
         {
             ctx.note(
                 scope.name,
                 ScanDiagnostic::SectionHoldsNoTable {
                     document: relative_path(root, &doc.path),
                     sections: sections.names().to_vec(),
-                    matched: scanned.iter().map(|(h, _)| h.clone()).collect(),
+                    matched: scanned.iter().map(|(_, h, _)| h.clone()).collect(),
                 },
             );
         }
-        for (heading, table) in scanned {
+        // The id-column and status-column findings describe the section
+        // (FR-049-AC-30), see [`section_lacks`].
+        let lacks_id = match scope.mints {
+            Some(ids) => section_lacks(&scanned, &|hs| hs.iter().any(|h| ids.matches(h))),
+            None => vec![false; scanned.len()],
+        };
+        let lacks_status = match scope.status_column {
+            Some(selected) => {
+                let column = selected.column();
+                section_lacks(&scanned, &|hs| {
+                    hs.iter().any(|h| h.eq_ignore_ascii_case(column))
+                })
+            }
+            None => vec![false; scanned.len()],
+        };
+        for (((_, heading, table), lacks_id), lacks_status) in
+            scanned.into_iter().zip(lacks_id).zip(lacks_status)
+        {
             let ScannedTable::Table {
                 headers,
                 rows,
@@ -569,7 +576,7 @@ pub(crate) fn scan(
             // one broken one, and a check over "the" table can only describe
             // one of them.
             if let Some(id_columns) = scope.mints {
-                if !headers.iter().any(|h| id_columns.matches(h)) {
+                if lacks_id {
                     ctx.note(
                         scope.name,
                         ScanDiagnostic::IdColumnMatchesNothing {
@@ -583,13 +590,10 @@ pub(crate) fn scan(
             }
             if let Some(selected) = scope.status_column {
                 let status_column = selected.column();
-                let exact = headers
-                    .iter()
-                    .any(|header| header.eq_ignore_ascii_case(status_column));
                 let status_shaped = headers
                     .iter()
                     .any(|header| header.to_ascii_lowercase().contains("status"));
-                if !exact && status_shaped {
+                if lacks_status && status_shaped {
                     ctx.note(
                         scope.name,
                         ScanDiagnostic::StatusColumnMatchesNothing {
@@ -663,7 +667,6 @@ pub(crate) fn mint(
         mints: target.id_columns(),
         status_column: None,
         kind_column: None,
-        tables: TableScan::First,
         target_required: target.required,
     };
     match &target.source {
@@ -875,8 +878,9 @@ pub(crate) fn rows_of(
         .collect()
 }
 
-/// Every section of `doc` a declaration names, in document order, paired with
-/// what it held (CR-118).
+/// Every table under every section of `doc` a declaration names, in document
+/// order, paired with its section heading (CR-118, FR-049-AC-23). Several
+/// tables under one heading appear as several entries sharing that heading.
 ///
 /// An empty result is the one shape that means **no declared section is in this
 /// document at all** — the `section-matches-nothing` defect, whose near-miss
@@ -889,47 +893,73 @@ pub(crate) fn tables_of(
     path: &Path,
     sections: &SectionNames,
 ) -> Vec<(String, ScannedTable)> {
-    tables_in_sections(doc, path, sections, TableScan::First)
+    tables_of_sections(doc, path, sections)
+        .into_iter()
+        .map(|(_, heading, table)| (heading, table))
+        .collect()
 }
 
-/// [`tables_of`], reading the first table of each matched section or every
-/// table in it (`tables`, FR-049-AC-23). Several tables under one
-/// heading appear as several entries sharing that heading, in document order.
-fn tables_in_sections(
+/// [`tables_of`] with the ordinal of the matched section each table sits
+/// under, so a check can treat the section, not the heading text, as the unit
+/// (two sections may share a heading, CR-118).
+pub(crate) fn tables_of_sections(
     doc: &QuireDocument,
     path: &Path,
     sections: &SectionNames,
-    tables: TableScan,
-) -> Vec<(String, ScannedTable)> {
+) -> Vec<SectionTable> {
     crate::query::sections(doc, None)
         .into_iter()
         .filter(|sec| sections.matches(&sec.heading))
-        .flat_map(|sec| {
+        .enumerate()
+        .flat_map(|(ordinal, sec)| {
             let heading = sec.heading.trim().to_string();
-            tables_in(doc, path, sec, tables)
-                .into_iter()
-                .map(move |table| (heading.clone(), table))
+            tables_in(doc, path, sec).into_iter().map(move |mut table| {
+                if let ScannedTable::Table { rows, .. } = &mut table {
+                    rows.iter_mut().for_each(|row| row.section = ordinal);
+                }
+                (ordinal, heading.clone(), table)
+            })
         })
         .collect()
 }
 
-/// The tables one already-selected section holds: its first, or every one when
-/// `tables`. A section holding none is one [`ScannedTable::NoTable`].
+/// One table (or [`ScannedTable::NoTable`]) with its matched-section ordinal
+/// and heading.
+pub(crate) type SectionTable = (usize, String, ScannedTable);
+
+/// Per entry: whether a column finding for a section is raised here. A section
+/// holds several tables (FR-049-AC-23) and the finding describes the section
+/// (FR-049-AC-30), so it is raised on the section's first table, and only when
+/// no table of that section satisfies `has`; a legend grid after the matrix
+/// raises none.
+pub(crate) fn section_lacks(
+    scanned: &[SectionTable],
+    has: &dyn Fn(&[String]) -> bool,
+) -> Vec<bool> {
+    scanned
+        .iter()
+        .enumerate()
+        .map(|(i, (ordinal, _, _))| {
+            let first = !scanned[..i].iter().any(|(o, _, _)| o == ordinal);
+            first
+                && !scanned.iter().any(|(o, _, t)| {
+                    o == ordinal && matches!(t, ScannedTable::Table { headers, .. } if has(headers))
+                })
+        })
+        .collect()
+}
+
+/// The tables one already-selected section holds outside fenced code blocks
+/// (a fenced table is an example, not data, FR-049-AC-27), in document order.
+/// A section holding none is one [`ScannedTable::NoTable`].
 fn tables_in(
     doc: &QuireDocument,
     path: &Path,
     sec: &crate::ast::QuireSection,
-    tables: TableScan,
 ) -> Vec<ScannedTable> {
     let mut parsed = crate::query::parse_tables_with_lines(&sec.content);
-    match tables {
-        TableScan::First => parsed.truncate(1),
-        TableScan::Every => {
-            // A fenced table is an example, not data (FR-049-AC-27).
-            let fenced = fenced_lines(&sec.content);
-            parsed.retain(|(_, _, header_line)| !fenced[*header_line]);
-        }
-    }
+    let fenced = fenced_lines(&sec.content);
+    parsed.retain(|(_, _, header_line)| !fenced[*header_line]);
     if parsed.is_empty() {
         return vec![ScannedTable::NoTable];
     }
@@ -1017,6 +1047,7 @@ fn table_of_parsed(
                 path: path.to_path_buf(),
                 cells,
                 columns: headers.clone(),
+                section: 0,
                 // `validate_document::to_doc_line` arithmetic over the row's
                 // body line: content index `rel` sits `rel + 1` lines below
                 // the 0-based heading line, and `+ 1` converts to 1-based.
@@ -1398,6 +1429,7 @@ mod ac63_id_column_order {
             ]),
             // Table order is the reverse of key order and of id order.
             columns: vec!["Zeta".to_string(), "Alpha".to_string()],
+            section: 0,
             line: 1,
         };
         let declared = IdColumns::new(vec!["Alpha".to_string(), "Zeta".to_string()]);
@@ -1625,7 +1657,7 @@ mod cr069_regressions {
 mod cr135_archetype_matches_nothing {
     use ix_trace_rs::trace;
 
-    use super::{scan, DeclaredScope, ExcludeSet, ScanContext, ScanDiagnostic, TableScan};
+    use super::{scan, DeclaredScope, ExcludeSet, ScanContext, ScanDiagnostic};
     use crate::corpus::spec::Spec;
     use crate::traceability::IdColumns;
     use crate::traceability::SectionNames;
@@ -1692,7 +1724,6 @@ mod cr135_archetype_matches_nothing {
                 mints: Some(&IdColumns::from("Test ID")),
                 status_column: None,
                 kind_column: None,
-                tables: TableScan::First,
                 target_required: true,
             },
             &sections,
@@ -1716,7 +1747,6 @@ mod cr135_archetype_matches_nothing {
                 mints: None,
                 status_column: None,
                 kind_column: None,
-                tables: TableScan::First,
                 target_required: false,
             },
             &sections,
@@ -1749,7 +1779,6 @@ mod cr135_archetype_matches_nothing {
             mints: Some(&id),
             status_column: None,
             kind_column: None,
-            tables: TableScan::First,
             target_required: required,
         };
 

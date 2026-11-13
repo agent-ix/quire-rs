@@ -1086,7 +1086,8 @@ impl SelectedInventory {
         document_index: usize,
         options: &InventoryOptions<'_>,
     ) -> bool {
-        let scanned = declared_tables::tables_of(document.body(), &document.path, resolved.section);
+        let scanned =
+            declared_tables::tables_of_sections(document.body(), &document.path, resolved.section);
         if scanned.is_empty() {
             self.cause(
                 InventoryCauseCode::MissingSection,
@@ -1106,7 +1107,7 @@ impl SelectedInventory {
         }
         if !scanned
             .iter()
-            .any(|(_, table)| matches!(table, ScannedTable::Table { .. }))
+            .any(|(_, _, table)| matches!(table, ScannedTable::Table { .. }))
         {
             self.cause(
                 InventoryCauseCode::MissingTable,
@@ -1116,14 +1117,30 @@ impl SelectedInventory {
                 None,
                 InventoryCauseDetail::Scan {
                     expected: resolved.section.names().to_vec(),
-                    observed: scanned.iter().map(|(heading, _)| heading.clone()).collect(),
+                    observed: scanned
+                        .iter()
+                        .map(|(_, heading, _)| heading.clone())
+                        .collect(),
                 },
             );
             return true;
         }
         let mut ordinal = 0;
         let mut combinatorial_rows = Vec::new();
-        for (_, table) in scanned {
+        // A column cause describes the section, not a table (FR-049-AC-30): a
+        // legend grid after the table raises none.
+        let required: Vec<&str> = std::iter::once(source.statement_column.as_str())
+            .chain(resolved.id_column)
+            .collect();
+        let lacks: Vec<Vec<bool>> = required
+            .iter()
+            .map(|column| {
+                declared_tables::section_lacks(&scanned, &|hs| {
+                    hs.iter().any(|h| h.eq_ignore_ascii_case(column))
+                })
+            })
+            .collect();
+        for (index, (_, _, table)) in scanned.into_iter().enumerate() {
             let ScannedTable::Table {
                 headers,
                 rows,
@@ -1132,14 +1149,16 @@ impl SelectedInventory {
             else {
                 continue;
             };
-            let required =
-                std::iter::once(source.statement_column.as_str()).chain(resolved.id_column);
             let mut missing_header = false;
-            for column in required {
+            for (column, lacks) in required.iter().zip(&lacks) {
                 if !headers
                     .iter()
                     .any(|header| header.eq_ignore_ascii_case(column))
                 {
+                    missing_header = true;
+                    if !lacks[index] {
+                        continue;
+                    }
                     self.cause(
                         InventoryCauseCode::MissingColumn,
                         Some(&source.name),
@@ -1151,17 +1170,16 @@ impl SelectedInventory {
                             observed: headers.clone(),
                         },
                     );
-                    missing_header = true;
                 }
             }
             for row in rows {
                 if self.interrupted(options) {
                     return false;
                 }
-                ordinal += 1;
                 if missing_header {
                     continue;
                 }
+                ordinal += 1;
                 if source.combinatorial.is_some() {
                     combinatorial_rows.push((ordinal, row));
                     continue;

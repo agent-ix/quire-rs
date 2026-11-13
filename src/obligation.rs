@@ -373,7 +373,6 @@ pub fn derive(
             mints: None,
             status_column: None,
             kind_column: None,
-            tables: declared_tables::TableScan::First,
             target_required: false,
         };
         let rows = declared_tables::scan(spec, root, scope, resolved.section, &mut ctx);
@@ -398,6 +397,31 @@ pub fn derive(
             );
             continue;
         }
+        // A table lacking a required column contributes no rows when another
+        // table of the same section has it (a legend grid): it is neither a
+        // skipped row nor an advance of the `{row}` ordinal (FR-049-AC-32).
+        // Where no table of the section has the column its rows stay, so the
+        // skipped-row signal is kept.
+        let required: Vec<&str> = std::iter::once(source.statement_column.as_str())
+            .chain(resolved.id_column)
+            .collect();
+        let complete = |row: &ScannedRow| {
+            required
+                .iter()
+                .all(|column| row.columns.iter().any(|h| h.eq_ignore_ascii_case(column)))
+        };
+        let sections_with_columns: std::collections::BTreeSet<(&Path, usize)> = rows
+            .iter()
+            .filter(|row| complete(row))
+            .map(|row| (row.path.as_path(), row.section))
+            .collect();
+        let rows: Vec<ScannedRow> = rows
+            .iter()
+            .filter(|row| {
+                complete(row) || !sections_with_columns.contains(&(row.path.as_path(), row.section))
+            })
+            .cloned()
+            .collect();
         collect(
             source,
             order,

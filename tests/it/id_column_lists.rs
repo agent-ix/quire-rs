@@ -308,3 +308,36 @@ fn row_binding_never_joins_a_list_target_while_a_single_name_target_joins() {
         );
     }
 }
+
+#[trace("FR-049-AC-30")]
+#[test]
+fn id_column_finding_is_per_section_on_its_first_table() {
+    let with_id = "| ID | Name |\n|----|------|\n| X-1 | a |\n";
+    let without_id = "| Symbol | Meaning |\n|--------|---------|\n| x | y |\n";
+    let findings = |body: &str| -> usize {
+        run(&manifest("ID"), &[("tests.md", &matrix(body))], &[])
+            .diagnostics
+            .iter()
+            .filter(|d| d.reason == "id-column-matches-nothing")
+            .count()
+    };
+    // The first table lacks the column and a later one has it: none.
+    assert_eq!(findings(&format!("{without_id}\nnote\n\n{with_id}")), 0);
+    // A later table lacking it, after a table that has it: none.
+    assert_eq!(findings(&format!("{with_id}\nnote\n\n{without_id}")), 0);
+    // No table carries it: exactly one finding for the section.
+    assert_eq!(
+        findings(&format!(
+            "{without_id}\nnote\n\n{without_id}\n\nmore\n\n{without_id}"
+        )),
+        1
+    );
+    // Two sections sharing a heading are two sections: the second one, whose
+    // only table lacks the column, is reported though the first has it.
+    assert_eq!(
+        findings(&format!(
+            "{with_id}\n## Other\n\ntext\n\n## Test Cases\n\n{without_id}"
+        )),
+        1
+    );
+}
