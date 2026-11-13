@@ -121,6 +121,66 @@ the declaration, and the selector: the field, and the value the document holds a
 reader sees that an NFR is reported *because* it is classified `security`, rather than being
 handed a bare "has no edge" for a document that looks unrelated to the rule.
 
+### Authored inverse verbs
+
+For each verb `V` in its `edges`, a relation SHALL accept an edge authored with the counterpart
+label `W` of `V` from the opposite end, reading the authored edge `(b, W, a)` as `(a, V, b)` before
+`direction`, `to`, `exclude` and the dangling and kind-mismatch rules of
+[FR-085](./FR-085-cross-repository-edge-resolution.md) apply. The counterpart is defined entirely by
+the merged registry's inverse index ([FR-041](./FR-041-authorable-inverse-edges.md)-AC-1), so its
+forward-key-wins and first-wins precedence carry over: `W` is the counterpart of `V` when the index
+maps `W` to `V` (the declared inverse of `V`), or maps `V` to `W` (`V` is itself an inverse label, and
+gains its forward verb). A verb the index relates to nothing has no counterpart. The counterpart
+is always normalized, even when the relation lists both labels of a pair, so adding a verb to `edges`
+never removes an edge a relation accepted. The relation SHALL count an edge between one pair once however
+it is authored or listed, and its
+[FR-084](./FR-084-two-way-relation-coverage-report.md) `linked` entry SHALL carry the **listed** verb
+`V`, the accepted verb, not the authored one. The edge set still records edges as authored (FR-041);
+only relation matching normalizes. The manifest declares the pair once, as vocabulary; the engine
+knows no verb.
+
+The reading is by the normalized edge, so the cases FR-085 leaves to the edge's direction follow it:
+
+- A wrong-kind normalized source under an `incoming` relation leaves the relation unsatisfied and
+  yields no `trace:target-kind-mismatch` (FR-085-AC-25), whichever end authored the edge.
+- Under an `outgoing` or `either` relation, a normalized target outside a non-empty `to` yields one
+  `trace:target-kind-mismatch`, naming the normalized source (the obliged document) and carrying that
+  document's member as `repo` (FR-085-AC-19), the target as authored, and the listed verb.
+- An inverse-authored edge `(b, W, a)` whose target `a` is absent is dangling like any edge: it
+  satisfies a relation on `b` whose `to` is `[]`, is named as authored in the report's `dangling`
+  list, and does not satisfy a relation whose `to` is non-empty.
+
+### Edges to a criterion
+
+An acceptance criterion is a row, not a document, so FR-026 resolves an edge to a criterion id as
+`Dangling` (measured on main: `FR-001-AC-1` as an `ix://` target is a dangling reference). A design
+element still realizes a criterion by an edge directly to the criterion's own id, an id already minted
+as a trace target ([FR-049](./FR-049-verification-reference-integrity.md),
+[FR-050](./FR-050-declarative-coverage-computation.md)). For **relation matching only**, an edge whose
+target id is not a document id of the target's member, and is an id minted from exactly one document `D` of that member by a **criterion target**, a trace target named by an `obligations:` source (the `target:` field of [FR-053](./FR-053-obligation-record.md)),
+SHALL be read as an edge to `D`, keeping the criterion id attached to the edge. A document id wins
+over a minted criterion id of the same spelling; a criterion id minted by two documents of one member
+stays dangling. The target's member is chosen as FR-085 chooses it, so `ix://o/b/FR-001-AC-1` is read
+against the criteria member `o/b` minted. The engine parses no id shape and derives no document from a
+prefix: the owner is the document the minted obligation belongs to. Resolution, the edge set and the
+`Dangling` classification are unchanged, and a relation report does not list a read edge as
+`dangling`. Which trace targets count is the module's declaration, not an engine name: only a target
+named by an `obligations:` source, so an id minted by a trace target no such source names (for example a
+test-case or requirement-document target) is never read this way. With no `obligations:` source no id
+is minted for this purpose and every such edge stays dangling.
+
+> **CR-416 note:** the first section and FR-058-AC-23 to AC-26 were added, and AC-2 now reads "a verb
+> the declaration does not list, or the counterpart of one it lists". The original text matched
+> only the verb as authored, so a requirement that authored the inverse of a listed verb toward a
+> design element was reported as having no edge ([FR-086](./FR-086-design-element-join.md)).
+> [FR-084](./FR-084-two-way-relation-coverage-report.md) follows unchanged: its `state` equals FR-058
+> satisfaction, and its `linked` `verb` is the accepted (listed) verb it already names.
+>
+> **CR-417 note:** the second section and FR-058-AC-27 to AC-29 were added. Design elements realize
+> criteria, and the only way to address a criterion is its own id, which resolution cannot find.
+> The minting set is defined by the `obligations:` source's `target:` field because trace targets carry no kind and the engine may not name one. `#fragment` addressing was rejected because it would change FR-026 resolution for every
+> fragment-bearing reference in the ecosystem.
+
 ### Severity
 
 Findings ship **advisory**, tunable per declaration through the FR-057 registry — the `check` token
@@ -188,7 +248,7 @@ case that needs no help.
 | ID | Criteria | Verification |
 |----|----------|--------------|
 | FR-058-AC-1 | A document of the declared `from` archetype with no accepted edge is reported, naming the document and the declaration that asked for it; one that has the edge is not reported. | Test |
-| FR-058-AC-2 | Any one of the declared `edges` satisfies the relation; a verb the declaration does not list does not. | Test |
+| FR-058-AC-2 | Any one of the declared `edges` satisfies the relation; a verb the declaration does not list, and is not the counterpart of one it lists, does not. | Test |
 | FR-058-AC-3 | `direction: incoming` reports a document nothing points at over the accepted verbs — the same declaration read the other way. | Test |
 | FR-058-AC-4 | A **dangling** edge does not satisfy a relation whose `to` is non-empty, so a typo'd target cannot satisfy the requirement it broke. | Test |
 | FR-058-AC-5 | A cycle over a declared `acyclic_edges` verb is reported exactly once, naming the path; the finding is keyed on the cycle's smallest member so rotations collapse. | Test |
@@ -209,7 +269,13 @@ case that needs no help.
 | FR-058-AC-20 | A finding from a relation with `where` names the document, the declaration, the selector `field`, and the document's field value as authored; a finding from a relation without `where` is byte-identical to the pre-change text. | Test |
 | FR-058-AC-21 | A relation without `where` selects exactly the documents it selected before this amendment, and over one bundle repeated runs of a relation with `where` yield identical findings in document-then-id order ([NFR-006](../non-functional/NFR-006-determinism.md)). | Test |
 | FR-058-AC-22 | A relation with `where` reports under `trace:undeclared-relation-vocabulary`, naming the declaration and the entry, when `field` is neither a property of the `from` archetype's frontmatter schema nor carried by any `from` document, or when a `values` entry is outside that field's schema `enum` and held by no `from` document, where "outside" and "held" both compare after trimming and ASCII case folding as in FR-058-AC-14, so a `values` entry differing from an `enum` member only by case or surrounding whitespace is not reported; a field or entry that is live by either route yields no such finding, and a field whose schema declares no `enum` has its `values` unchecked. | Test |
-
+| FR-058-AC-23 | Given a verb `V` declaring `inverse: W` and a relation listing `V` with `direction: incoming`, an edge authored `(a, V, b)` and an edge authored `(b, W, a)` each satisfy the relation for `b`; a document with neither is reported, and the same relation with `direction: outgoing` is satisfied for `a` by either spelling. | Test |
+| FR-058-AC-24 | A relation listing only verbs the inverse index relates to nothing is byte-identical in output to before this amendment. A relation listing a verb that is itself an inverse label (`satisfies`, inverse of `satisfied_by`) gains its forward verb as counterpart; where two forward verbs declare one inverse, the index's first-wins entry is the only counterpart; a label that is a forward key is not read as an inverse. | Test |
+| FR-058-AC-25 | A pair authored both ways yields one edge and one `linked` entry carrying the listed verb `V`. A relation listing only `V` and the same relation listing `V` and `W` accept the same edges and report the same documents: a document satisfied by `(b, W, a)` under `incoming` `V` stays satisfied after `W` is added to `edges`, and a pair counts once under either listing. | Test |
+| FR-058-AC-26 | For an inverse-authored edge: under an `incoming` relation a wrong-kind normalized source yields no `trace:target-kind-mismatch` and leaves the relation unsatisfied; under an `outgoing` relation a normalized target outside a non-empty `to` yields one finding naming the normalized source, its `repo`, the target as authored and the listed verb; an edge to an absent document satisfies a relation with `to: []` (named in `dangling`) and does not satisfy one with a non-empty `to`. | Test |
+| FR-058-AC-27 | Given a trace target named by an `obligations:` source that mints `X-AC-1` from document `X`, an edge whose target is `X-AC-1` satisfies a relation on `X` as an edge to `X`, keeps `X-AC-1` attached, is not listed as `dangling`, and leaves FR-026's classification of the edge `Dangling`. | Test |
+| FR-058-AC-28 | A document whose id equals a minted criterion id takes precedence; a criterion id minted by two documents of one member stays dangling and is named as authored; an id minted by a trace target no `obligations:` source names (a test-case target, say) is never read as an edge to its document; with no `obligations:` source every such edge stays dangling. | Test |
+| FR-058-AC-29 | In a two-member corpus, `ix://o/b/X-AC-1` is read against the criteria member `o/b` minted and is dangling when `o/b` holds no such criterion, even if member `o/a` mints it; the engine reads no id prefix (a fixture with neutral id spellings behaves identically). | Test |
 ## Constraints
 
 | ID | Constraint | Type | Validation |
@@ -221,4 +287,4 @@ case that needs no help.
 ## Dependencies
 
 - **Upstream**: [FR-026](./FR-026-intra-spec-reference-resolution.md) (the edge set this reads), [FR-057](./FR-057-corpus-check-severity.md) (the severity knob it ships behind), [FR-050](./FR-050-declarative-coverage-computation.md) (the declaration model it extends)
-- **Downstream**: `spec-objects-security#5` bidirectional hazard/threat coverage, which becomes declarations against this FR rather than engine code; [FR-084](./FR-084-two-way-relation-coverage-report.md) (the coverage report over these declarations); [FR-085](./FR-085-cross-repository-edge-resolution.md) (edges between repositories loaded into one corpus)
+- **Downstream**: `spec-objects-security#5` bidirectional hazard/threat coverage, which becomes declarations against this FR rather than engine code; [FR-084](./FR-084-two-way-relation-coverage-report.md) (the coverage report over these declarations); [FR-085](./FR-085-cross-repository-edge-resolution.md) (edges between repositories loaded into one corpus); [FR-086](./FR-086-design-element-join.md) (the design-element join over named relations)
