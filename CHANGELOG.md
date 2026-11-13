@@ -9,6 +9,15 @@ bumps; once 1.0 ships, semver is strict.
 
 ### Added
 
+- PLAT-1597 (FR-053-AC-24..26): an obligation source may declare
+  `criticality_field`, the frontmatter key of the stating document whose string
+  value rates every obligation derived from it, so a rating authored once on a
+  requirement reaches each criterion (`quire coverage --json` `obligations[].criticality`;
+  the published schema already carries the key). A non-empty `criticality_column`
+  cell wins for its own row; a null, blank or non-string value is no rating;
+  nothing is defaulted or inferred. **Breaking:** `ObligationSource` gains
+  `criticality_field`, so struct literals of it need the new field. Sources
+  declaring none are unchanged.
 - PLAT-1587 (FR-092): `design_matrix`. Runs the FR-086 join once over the
   per-member `coverage_matrix` the caller supplies and returns the matrix with a
   `design` array on each requirement entry that a design relation obliges: one

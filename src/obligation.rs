@@ -157,6 +157,7 @@ pub fn for_document(
         let Some(id_column) = resolved.id_column else {
             continue;
         };
+        let rating = document_rating(source, doc.frontmatter.as_ref());
         // The path is only used to stamp `ScannedRow.path`, which this caller
         // does not read — the rows come from the one document it was handed.
         for row in declared_tables::rows_of(doc, Path::new(""), resolved.section) {
@@ -182,11 +183,7 @@ pub fn for_document(
                         .and_then(|c| row.cell(c))
                         .and_then(method_of),
                     parameters,
-                    criticality: source
-                        .criticality_column
-                        .as_deref()
-                        .and_then(|c| row.cell(c))
-                        .map(str::to_string),
+                    criticality: row_criticality(source, &row, rating.as_deref()),
                 });
         }
     }
@@ -271,6 +268,38 @@ fn doc_id(doc: &crate::ast::QuireDocument) -> Option<String> {
         .get("id")
         .and_then(serde_json::Value::as_str)
         .map(str::to_string)
+}
+
+/// The criticality an obligation row carries (FR-053, FR-049-AC-60).
+///
+/// The row's own `criticality_column` cell wins: it rates this one criterion,
+/// where the document rating covers every criterion of the requirement. The
+/// document rating fills in only when the column is undeclared or the cell is
+/// empty. Neither is ever defaulted — with neither, the obligation has none.
+fn row_criticality(
+    source: &ObligationSource,
+    row: &ScannedRow,
+    rating: Option<&str>,
+) -> Option<String> {
+    source
+        .criticality_column
+        .as_deref()
+        .and_then(|column| row.cell(column))
+        .or(rating)
+        .map(str::to_string)
+}
+
+/// The rating the stating document carries under the source's declared
+/// `criticality_field`, as written. Only a non-blank string counts: a null,
+/// blank or non-string value is no rating, and nothing is inferred in its
+/// place. The engine learns the key from the module, never holds it.
+fn document_rating(
+    source: &ObligationSource,
+    frontmatter: Option<&serde_json::Map<String, serde_json::Value>>,
+) -> Option<String> {
+    let key = source.criticality_field.as_deref()?;
+    let value = frontmatter?.get(key)?.as_str()?;
+    (!value.trim().is_empty()).then(|| value.to_string())
 }
 
 /// Strip a trailing parenthetical annotation from a method cell.
@@ -422,11 +451,25 @@ pub fn derive(
             })
             .cloned()
             .collect();
+        let ratings: BTreeMap<&Path, String> = match source.criticality_field {
+            Some(_) => spec
+                .documents()
+                .iter()
+                .filter_map(|doc| {
+                    Some((
+                        doc.path.as_path(),
+                        document_rating(source, doc.frontmatter())?,
+                    ))
+                })
+                .collect(),
+            None => BTreeMap::new(),
+        };
         collect(
             source,
             order,
             &resolved,
             &rows,
+            &ratings,
             root,
             &mut out,
             &mut skipped,
@@ -579,6 +622,7 @@ fn collect(
     order: usize,
     resolved: &Resolved<'_>,
     rows: &[ScannedRow],
+    ratings: &BTreeMap<&Path, String>,
     root: &Path,
     out: &mut Vec<(usize, Obligation)>,
     skipped: &mut Vec<SkippedRow>,
@@ -593,7 +637,8 @@ fn collect(
         let n = *n;
         let document = declared_tables::relative_path(root, &row.path);
 
-        match row_obligation(source, resolved, row, n, &document) {
+        let rating = ratings.get(row.path.as_path()).map(String::as_str);
+        match row_obligation(source, resolved, row, n, &document, rating) {
             Some(obligation) => out.push((order, obligation)),
             None => skipped.push(SkippedRow {
                 source: source.name.clone(),
@@ -611,6 +656,7 @@ fn row_obligation(
     row: &ScannedRow,
     ordinal: usize,
     document: &str,
+    rating: Option<&str>,
 ) -> Option<Obligation> {
     let statement = row.cell(&source.statement_column)?;
     let id = match (resolved.id_column, resolved.id_format) {
@@ -635,11 +681,7 @@ fn row_obligation(
             .and_then(|column| row.cell(column))
             .and_then(method_of),
         parameters,
-        criticality: source
-            .criticality_column
-            .as_deref()
-            .and_then(|column| row.cell(column))
-            .map(str::to_string),
+        criticality: row_criticality(source, row, rating),
         target_ids: source
             .method_column
             .as_deref()

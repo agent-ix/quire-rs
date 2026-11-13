@@ -55,7 +55,7 @@ document.
 | FR-082-AC-4 | For a corpus with values `low`, `medium`, `high` and one missing, each entry reports its own value and only the missing one lacks the key. | Test |
 | FR-082-AC-5 | A document with no `criticality` that is related to a `criticality: high` document by each relationship type in the corpus (`traces_to`, `satisfies`, `implements`, `refines`) has no `criticality` key under any of them. | Test |
 | FR-082-AC-6 | A document with an out-of-enumeration `criticality` is carried as written; the engine neither drops it nor replaces it. | Test |
-| FR-082-AC-7 | For a document with a `criticality: high` frontmatter value whose obligation records ([FR-053](./FR-053-obligation-record.md)) carry no criticality, the obligation records still carry none and the `requirements[]` entry carries `high`; for a document with no frontmatter value whose obligation records carry a criticality, the entry has no `criticality` key and the obligation records keep theirs. | Test |
+| FR-082-AC-7 | For a document with a `criticality: high` frontmatter value whose obligation records ([FR-053](./FR-053-obligation-record.md)) carry no criticality, the obligation records of a source declaring no `criticality_field` still carry none and the `requirements[]` entry carries `high`; for a document with no frontmatter value whose obligation records carry a criticality, the entry has no `criticality` key and the obligation records keep theirs. | Test |
 | FR-082-AC-8 | Running the matrix leaves every requirement file byte-identical. | Test |
 | FR-082-AC-9 | Two runs over an identical corpus serialize `requirements[]` byte-identically, with and without the key (the FR-050-AC-51 determinism applies). | Test |
 

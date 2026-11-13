@@ -1185,8 +1185,14 @@ impl SelectedInventory {
                     continue;
                 }
                 let relative = declared_tables::relative_path(root, &row.path);
-                let Some(obligation) = row_obligation(source, resolved, &row, ordinal, &relative)
-                else {
+                let Some(obligation) = row_obligation(
+                    source,
+                    resolved,
+                    &row,
+                    ordinal,
+                    &relative,
+                    super::document_rating(source, document.frontmatter()).as_deref(),
+                ) else {
                     self.cause(
                         InventoryCauseCode::UnusableRow,
                         Some(&source.name),

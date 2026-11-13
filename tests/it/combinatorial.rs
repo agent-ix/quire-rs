@@ -171,6 +171,7 @@ fn tc931_a_declared_space_mints_one_obligation() {
             statement_column: "Dimension".to_string(),
             method_column: None,
             criticality_column: None,
+            criticality_field: None,
             parameters: Default::default(),
             combinatorial: Some(CombinatorialColumns {
                 dimension_column: "Dimension".to_string(),
@@ -233,6 +234,7 @@ fn tc932_a_space_with_no_interaction_mints_nothing() {
             statement_column: "Dimension".to_string(),
             method_column: None,
             criticality_column: None,
+            criticality_field: None,
             parameters: Default::default(),
             combinatorial: Some(CombinatorialColumns {
                 dimension_column: "Dimension".to_string(),
@@ -272,6 +274,7 @@ fn tc933_strength_zero_is_rejected() {
             statement_column: "Dimension".to_string(),
             method_column: None,
             criticality_column: None,
+            criticality_field: None,
             parameters: Default::default(),
             combinatorial: Some(CombinatorialColumns {
                 dimension_column: "Dimension".to_string(),
@@ -318,6 +321,7 @@ fn tc934_the_corpus_path_mints_the_same_one_obligation() {
             statement_column: "Dimension".to_string(),
             method_column: None,
             criticality_column: None,
+            criticality_field: None,
             parameters: Default::default(),
             combinatorial: Some(CombinatorialColumns {
                 dimension_column: "Dimension".to_string(),
@@ -401,6 +405,7 @@ fn tc2327_the_configuration_space_is_built_from_every_table() {
             statement_column: "Dimension".to_string(),
             method_column: None,
             criticality_column: None,
+            criticality_field: None,
             parameters: Default::default(),
             combinatorial: Some(CombinatorialColumns {
                 dimension_column: "Dimension".to_string(),

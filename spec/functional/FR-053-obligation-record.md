@@ -17,6 +17,8 @@ relationships:
 ---
 # FR-053: Obligation Record
 
+> **CR note (PLAT-1597, 2026-11-13):** An obligation source may declare `criticality_field`, the frontmatter key of the stating document whose string value rates the obligations derived from it. A non-empty `criticality_column` cell wins for its own row.
+
 ## Description
 
 `quire-rs` SHALL derive an **obligation record** for every normative statement a
@@ -51,6 +53,7 @@ traceability:
     statement_column: Criteria
     method_column: Verification
     criticality_column: Priority       # optional
+    criticality_field: criticality     # optional
   - name: nfr-metric
     archetype: NFR
     section: Measurement and Evaluation
@@ -177,11 +180,21 @@ section's table, and emit one record per row:
    ([FR-054](./FR-054-verification-method-catalog.md)) and the auditor's.
 4. `parameters` — a `BTreeMap` of declared key to cell value; absent keys are
    omitted, never defaulted.
-5. `criticality` — the `criticality_column` cell, or absent when the module
-   declares no such column. Criticality is genuinely optional today: the ISO FR
-   acceptance-criteria contract is `ID | Criteria | Verification` and carries no
-   priority column, so declaring one is a module's choice rather than a
-   precondition for obligations to exist at all.
+5. `criticality` — the source's declared rating, or absent. Two optional
+   declarations supply it, both module data:
+   - `criticality_column`: the cell of the obligation's own row.
+   - `criticality_field`: the key of the stating document's frontmatter whose
+     string value rates every obligation derived from that document, so a rating
+     authored once on a requirement reaches each of its criteria.
+
+   When both are declared, a non-empty `criticality_column` cell **wins** for its
+   own row (it rates that one criterion); the document's `criticality_field`
+   value fills in only where the cell is absent or empty. A frontmatter value
+   that is null, blank or not a string is no rating. With neither supplying a
+   value the record carries none: the engine never defaults, infers from a
+   related document, or holds a field name. Criticality stays optional: the ISO
+   FR acceptance-criteria contract is `ID | Criteria | Verification` and carries
+   no priority column.
 
 Ordering SHALL be by `(source declaration order, document id, row ordinal)` and
 every map SHALL be a `BTreeMap`, so two runs over identical inputs serialize
@@ -396,6 +409,9 @@ change legacy `derive` behavior, or judge whether an obligation is discharged.
 | FR-053-AC-21 | Selection identity equality uses canonical root, resolved selected declarations/effective exclusions and the exact path/byte snapshot of selected documents: changes within a selected document, even outside its criterion table, or changes to selected membership reject cross-inventory lookup as a typed mismatch; repeated identical captures compare equal, changes confined to valid still-unselected nonmembers, wholly excluded documents or files outside the root leave identity equal, and caller-truncated Spec or deserialized rows cannot issue Complete. | Test |
 | FR-053-AC-22 | Repeated exhaustive enumeration yields equal origin-aware identities, records, counts and terminal state in model declaration, relative document-path and authored row order; explicit exclusions remove exactly their selected documents, preserve healthy unexcluded criteria, and a changed selection/exclusion contract changes identity even when emitted records remain equal. | Test |
 | FR-053-AC-23 | Existing derive, single-document obligation and coverage consumers retain legacy healthy/skipped/tolerant-bad-root outputs; tests check unchanged statements, absence of evidence/freshness/discharge verdicts and GrammarFinding creation, and a producer API needing neither an IR schema copy nor a manually authored revision/hash ledger. | Test |
+| FR-053-AC-24 | A source declaring `criticality_field: criticality` yields, for a row of a document whose frontmatter states `criticality: high`, a record carrying `high`; a document stating none, a null, a blank or a non-string value yields records with no `criticality`, never a default. | Test |
+| FR-053-AC-25 | A source declaring both `criticality_column` and `criticality_field` yields the row's non-empty column cell for that row and the document's frontmatter value for a row whose cell is empty; the same holds on the `obligation` of a property classification record. | Test |
+| FR-053-AC-26 | A document with `criticality: high` related to a document with none, by any relationship type, leaves the second's records with no `criticality`; a source declaring no `criticality_field` yields records identical to those before this criterion; the engine holds no frontmatter key name for it, and `quire coverage --json` carries the value on each `obligations` entry and validates against the published coverage schema. | Test |
 
 ## Dependencies
 

@@ -23,7 +23,7 @@ Tracked by Linear PLAT-1526 (implemented by PLAT-1577 and PLAT-1579).
 A person states some facts on a requirement that downstream tools must read beside its coverage.
 [FR-082](./FR-082-coverage-matrix-criticality.md) does this for `criticality`, with the field name known to the engine, and
 only on the `requirements[]` entry of the `coverage_matrix` ([FR-050](./FR-050-declarative-coverage-computation.md)-AC-48):
-obligation records keep the criticality of their own FR-053 column ([FR-082](./FR-082-coverage-matrix-criticality.md)-AC-7).
+obligation records keep the criticality of their own FR-053 declaration, a column or a `criticality_field` ([FR-082](./FR-082-coverage-matrix-criticality.md)-AC-7, [FR-053](./FR-053-obligation-record.md)-AC-24).
 The software safety class ([spec-artifacts-iso FR-009](ix://agent-ix/spec-artifacts-iso/FR-009)) is a second such fact, so this
 requirement states the general mechanism, and the engine learns no field name from it. A consumer that needs the fact for an
 obligation joins the obligation to its requirement entry, as it does for FR-082 criticality.
