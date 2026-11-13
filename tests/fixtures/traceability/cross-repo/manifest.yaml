@@ -1,0 +1,33 @@
+# FR-085 fixture: relations that cross repository boundaries. The kinds and
+# verbs are authored here; the engine knows none of them.
+name: traceability-cross-repo
+version: 0.1.0
+description: Required relations read over a multi-repository corpus (quire-rs FR-085)
+artifact_types:
+- name: Req
+  defaults:
+    id_pattern: REQ-{next:03d}
+- name: Haz
+  defaults:
+    id_pattern: HAZ-{next:03d}
+- name: Note
+  defaults:
+    id_pattern: NOTE-{next:03d}
+traceability:
+  exclude:
+  - "spec/fixtures/**"
+  required_relations:
+  # Incoming: every Haz must be reached by `mitigates` from a Req.
+  - name: haz-is-mitigated
+    from: Haz
+    edges: [mitigates]
+    to: [Req]
+    direction: incoming
+    check: unmitigated-haz
+  # Outgoing: every Req must reach a Haz by `mitigates`.
+  - name: req-mitigates
+    from: Req
+    edges: [mitigates]
+    to: [Haz]
+    direction: outgoing
+    check: req-no-haz

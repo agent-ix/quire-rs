@@ -12,42 +12,102 @@
 //! by the `resolve`/`query` modules on top of this skeleton.
 
 use std::collections::{BTreeMap, HashMap};
+use std::ops::Range;
 use std::path::Path;
 use std::sync::Arc;
 
-use crate::corpus::resolve::{resolve, Edge};
+use crate::corpus::resolve::{resolve, Edge, Index};
 use crate::corpus::walk::{load_repo, LoadedDocument, RepoLoad};
 use crate::corpus::ArtifactId;
 use crate::diagnostic::Diagnostic;
+
+/// One repository supplied to a multi-repository corpus (FR-085): a loaded
+/// repository plus the `<org>/<repo>` identity the caller declares for it.
+/// Identity is never derived from content or the filesystem.
+#[derive(Debug, Clone)]
+pub struct CorpusMember {
+    /// Declared `<org>/<repo>` identity. Optional only in a one-member corpus.
+    pub identity: Option<String>,
+    /// The member's loaded documents.
+    pub load: RepoLoad,
+}
+
+/// Why a corpus could not be built or validated (FR-085).
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+pub enum CorpusError {
+    /// A corpus of two or more members requires an identity on every member.
+    #[error(
+        "corpus member {member} declares no repository identity; a corpus of several members \
+         requires one per member"
+    )]
+    MissingIdentity {
+        /// Zero-based position of the member in the supplied order.
+        member: usize,
+    },
+    /// Two members declared one identity (compared with ASCII case folded).
+    #[error("corpus members declare the same repository identity '{identity}'")]
+    DuplicateIdentity {
+        /// The identity as the later member spelled it.
+        identity: String,
+    },
+    /// `validate_corpus` takes exactly one root pair per member.
+    #[error("corpus has {members} member(s) but {roots} root pair(s) were supplied")]
+    RootCount {
+        /// Members in the corpus.
+        members: usize,
+        /// Root pairs supplied.
+        roots: usize,
+    },
+}
 
 /// Compiled, immutable spec corpus. `Send + Sync`, cheap to clone
 /// (`Arc<Inner>`).
 #[derive(Clone)]
 pub struct Spec {
     pub(crate) inner: Arc<SpecInner>,
-    /// Declared repository identity `<org>/<repo>` (FR-076). Declared by the
-    /// caller, never derived from paths; `None` until
-    /// [`Spec::with_bundle_package`] is called.
-    pub(crate) bundle_package: Option<Arc<str>>,
+    /// When set, this value is a view of one member of a multi-member corpus:
+    /// document-iterating queries and by-id lookups see only that member while
+    /// edges still resolve across the whole corpus (FR-085).
+    pub(crate) scope: Option<usize>,
+}
+
+/// One member's place in the corpus.
+pub(crate) struct Member {
+    /// Declared identity, stored as given.
+    pub(crate) identity: Option<Arc<str>>,
+    /// The member's document slots (members are stored contiguously).
+    pub(crate) slots: Range<usize>,
+    /// The member's edges, which `resolve` emits grouped by source member.
+    pub(crate) edges: Range<usize>,
 }
 
 pub(crate) struct SpecInner {
-    /// Loaded documents, path-sorted (stable order from `load_repo`).
+    /// Loaded documents: members in supplied order, each path-sorted (stable
+    /// order from `load_repo`).
     pub(crate) documents: Vec<LoadedDocument>,
-    /// Artifact key → document slot. First-wins on duplicates. A point
-    /// lookup, so a `HashMap` is fine (iteration order never observed).
-    pub(crate) by_id: HashMap<ArtifactId, usize>,
+    pub(crate) members: Vec<Member>,
+    /// Document slot → member.
+    pub(crate) member_of: Vec<usize>,
+    /// Per member: artifact key → document slot. First-wins on duplicates. A
+    /// point lookup, so a `HashMap` is fine (iteration order never observed).
+    pub(crate) ids: Vec<HashMap<ArtifactId, usize>>,
+    /// Artifact key → the slot in each member holding it (member order).
+    pub(crate) holders: HashMap<ArtifactId, Vec<usize>>,
+    /// ASCII-folded member identity → member.
+    pub(crate) identities: BTreeMap<String, usize>,
     /// Frontmatter type → document slots. `BTreeMap` keeps `by_type`
     /// iteration deterministic (NFR-006).
     pub(crate) by_type: BTreeMap<String, Vec<usize>>,
-    /// Resolved + dangling reference edges (FR-026).
+    /// Resolved + dangling reference edges (FR-026), grouped by source member.
     pub(crate) edges: Vec<Edge>,
-    /// source id → edge slots (includes dangling).
-    pub(crate) outgoing: BTreeMap<ArtifactId, Vec<usize>>,
-    /// target id → edge slots (resolved only).
-    pub(crate) incoming: BTreeMap<ArtifactId, Vec<usize>>,
+    /// source slot → edge slots (includes dangling).
+    pub(crate) outgoing: BTreeMap<usize, Vec<usize>>,
+    /// target slot → edge slots (resolved only).
+    pub(crate) incoming: BTreeMap<usize, Vec<usize>>,
     /// Load + indexing + resolution diagnostics.
     pub(crate) diagnostics: Vec<Diagnostic>,
+    /// The diagnostics the loads carried, kept so the corpus can be rebuilt.
+    load_diagnostics: Vec<Diagnostic>,
 }
 
 impl std::fmt::Debug for Spec {
@@ -60,20 +120,71 @@ impl std::fmt::Debug for Spec {
     }
 }
 
-impl Spec {
-    /// Build a corpus from a completed [`RepoLoad`].
-    pub fn from_repo(load: RepoLoad) -> Self {
-        let RepoLoad {
-            documents,
-            mut diagnostics,
-        } = load;
+/// ASCII-case-folded identity, the comparison form (FR-038-AC-10).
+pub(crate) fn fold_identity(identity: &str) -> String {
+    identity.to_ascii_lowercase()
+}
 
-        let mut by_id: HashMap<ArtifactId, usize> = HashMap::with_capacity(documents.len());
+impl Spec {
+    /// Build a one-member corpus from a completed [`RepoLoad`]. It declares no
+    /// identity, so `ix://` targets resolve lexically by their trailing id
+    /// (FR-026); [`Spec::with_bundle_package`] declares one.
+    pub fn from_repo(load: RepoLoad) -> Self {
+        Self::build(vec![CorpusMember {
+            identity: None,
+            load,
+        }])
+        .expect("a one-member corpus has no identity to reject")
+    }
+
+    /// Build a corpus from one or more repositories (FR-085). Every member of
+    /// a corpus of two or more must declare a distinct `<org>/<repo>` identity;
+    /// identities compare with ASCII case folded.
+    pub fn from_members(members: Vec<CorpusMember>) -> Result<Self, CorpusError> {
+        Self::build(members)
+    }
+
+    fn build(members: Vec<CorpusMember>) -> Result<Self, CorpusError> {
+        let several = members.len() > 1;
+        let mut identities: BTreeMap<String, usize> = BTreeMap::new();
+        let mut declared: Vec<Option<Arc<str>>> = Vec::with_capacity(members.len());
+        for (index, member) in members.iter().enumerate() {
+            let identity = member.identity.as_deref().filter(|i| !i.is_empty());
+            match identity {
+                None if several => return Err(CorpusError::MissingIdentity { member: index }),
+                None => declared.push(None),
+                Some(identity) => {
+                    if identities.insert(fold_identity(identity), index).is_some() {
+                        return Err(CorpusError::DuplicateIdentity {
+                            identity: identity.to_string(),
+                        });
+                    }
+                    declared.push(Some(Arc::from(identity)));
+                }
+            }
+        }
+        let identity_mode = declared.iter().any(Option::is_some);
+
+        let mut documents: Vec<LoadedDocument> = Vec::new();
+        let mut member_of: Vec<usize> = Vec::new();
+        let mut spans: Vec<Range<usize>> = Vec::with_capacity(members.len());
+        let mut load_diagnostics: Vec<Diagnostic> = Vec::new();
+        for (index, member) in members.into_iter().enumerate() {
+            let start = documents.len();
+            member_of.extend(std::iter::repeat_n(index, member.load.documents.len()));
+            documents.extend(member.load.documents);
+            spans.push(start..documents.len());
+            load_diagnostics.extend(member.load.diagnostics);
+        }
+        let mut diagnostics = load_diagnostics.clone();
+
+        let mut ids: Vec<HashMap<ArtifactId, usize>> = vec![HashMap::new(); spans.len()];
+        let mut holders: HashMap<ArtifactId, Vec<usize>> = HashMap::with_capacity(documents.len());
         let mut by_type: BTreeMap<String, Vec<usize>> = BTreeMap::new();
 
         for (slot, doc) in documents.iter().enumerate() {
             let key = artifact_key(doc);
-            match by_id.entry(key.clone()) {
+            match ids[member_of[slot]].entry(key.clone()) {
                 std::collections::hash_map::Entry::Occupied(existing) => {
                     let first = &documents[*existing.get()];
                     diagnostics.push(Diagnostic::DuplicateArtifactId {
@@ -84,6 +195,7 @@ impl Spec {
                 }
                 std::collections::hash_map::Entry::Vacant(vacancy) => {
                     vacancy.insert(slot);
+                    holders.entry(key).or_default().push(slot);
                 }
             }
 
@@ -96,37 +208,78 @@ impl Spec {
             }
         }
 
-        // Resolve intra-spec references against the id index (FR-026).
-        let resolved = resolve(&documents, &by_id);
+        let resolved = resolve(&Index {
+            documents: &documents,
+            member_of: &member_of,
+            member_count: spans.len(),
+            ids: &ids,
+            identities: &identities,
+            identity_mode,
+            declared: &declared,
+        });
         diagnostics.extend(resolved.diagnostics);
 
-        Spec {
+        let members = spans
+            .into_iter()
+            .zip(declared)
+            .zip(resolved.edge_spans)
+            .map(|((slots, identity), edges)| Member {
+                identity,
+                slots,
+                edges,
+            })
+            .collect();
+
+        Ok(Spec {
             inner: Arc::new(SpecInner {
                 documents,
-                by_id,
+                members,
+                member_of,
+                ids,
+                holders,
+                identities,
                 by_type,
                 edges: resolved.edges,
                 outgoing: resolved.outgoing,
                 incoming: resolved.incoming,
                 diagnostics,
+                load_diagnostics,
             }),
-            bundle_package: None,
-        }
+            scope: None,
+        })
     }
 
-    /// Declare the repository identity `<org>/<repo>` this corpus belongs to.
-    /// `validate_bundle` qualifies `## Relationships` targets under it
-    /// (FR-076); without it a relationships table is reported `unavailable`
-    /// with reason `no-bundle-package`. An empty string clears the identity.
+    /// Declare the repository identity `<org>/<repo>` of a one-member corpus.
+    /// Resolution re-runs under it: an `ix://<org>/<repo>/...` target resolves
+    /// within the member only when it names this identity, and one naming a
+    /// repository no member declares stays dangling (FR-085); `validate_bundle`
+    /// also qualifies `## Relationships` targets under it (FR-076); without it
+    /// a relationships table is reported `unavailable` with reason
+    /// `no-bundle-package`. An empty string clears the identity. A corpus of
+    /// several members fixes each identity at [`Spec::from_members`] and is
+    /// returned unchanged.
     #[must_use]
-    pub fn with_bundle_package(mut self, package: &str) -> Self {
-        self.bundle_package = (!package.is_empty()).then(|| Arc::from(package));
-        self
+    pub fn with_bundle_package(self, package: &str) -> Self {
+        if self.inner.members.len() != 1 {
+            return self;
+        }
+        let load = RepoLoad {
+            documents: self.inner.documents.clone(),
+            diagnostics: self.inner.load_diagnostics.clone(),
+        };
+        Self::build(vec![CorpusMember {
+            identity: (!package.is_empty()).then(|| package.to_string()),
+            load,
+        }])
+        .expect("a one-member corpus has no identity to reject")
     }
 
-    /// The declared repository identity, if any.
+    /// The declared repository identity of a one-member corpus, if any.
     pub fn bundle_package(&self) -> Option<&str> {
-        self.bundle_package.as_deref()
+        match self.inner.members.as_slice() {
+            [only] => only.identity.as_deref(),
+            _ => None,
+        }
     }
 
     /// Convenience: walk `root` with default options, then build the
@@ -136,27 +289,57 @@ impl Spec {
         Self::from_repo(load_repo(root))
     }
 
+    /// Number of members in the corpus.
+    pub fn member_count(&self) -> usize {
+        self.inner.members.len()
+    }
+
+    /// The identity member `member` declared, stored as given.
+    pub fn member_identity(&self, member: usize) -> Option<&str> {
+        self.inner.members.get(member)?.identity.as_deref()
+    }
+
+    /// A view of one member: queries that walk documents or look up by id see
+    /// that member only, while its edges still resolve across the corpus.
+    pub(crate) fn member_view(&self, member: usize) -> Spec {
+        Spec {
+            inner: Arc::clone(&self.inner),
+            scope: Some(member),
+        }
+    }
+
+    /// The view's member, or the identity of the lone member of an unscoped
+    /// corpus, which is what labels findings.
+    pub(crate) fn view_identity(&self) -> Option<&str> {
+        match self.scope {
+            Some(member) => self.member_identity(member),
+            None => self.bundle_package(),
+        }
+    }
+
     /// Number of loaded documents.
     pub fn len(&self) -> usize {
-        self.inner.documents.len()
+        self.documents().len()
     }
 
     /// Whether the corpus is empty.
     pub fn is_empty(&self) -> bool {
-        self.inner.documents.is_empty()
+        self.documents().is_empty()
     }
 
-    /// Every loaded document in stable path order.
+    /// Every loaded document in stable path order (member order across a
+    /// multi-member corpus; one member for a member view).
     ///
     /// This is a read-only view over the corpus header tier. Consumers such as
     /// the assurance exporter can project authoritative identities and exact
     /// source bytes without re-walking or re-parsing the repository.
     pub fn documents(&self) -> &[LoadedDocument] {
-        &self.inner.documents
+        match self.scope {
+            Some(member) => &self.inner.documents[self.inner.members[member].slots.clone()],
+            None => &self.inner.documents,
+        }
     }
 
-    /// Look up a document by its artifact key (human `id`, else uuid,
-    /// else path). `None` if absent. O(1).
     /// Every loaded document, in the stable path order `load_repo` produced.
     ///
     /// Crate-internal: the public query surface is `by_id`/`by_type`, and a
@@ -167,11 +350,46 @@ impl Spec {
         self.documents()
     }
 
+    /// The slot `id` names: in this view's member, or, over a whole corpus, the
+    /// one member holding it. `None` when absent or held by several members.
+    pub(crate) fn slot_of(&self, id: &str) -> Option<usize> {
+        match self.scope {
+            Some(member) => self.inner.ids[member].get(id).copied(),
+            None => match self.inner.holders.get(id)?.as_slice() {
+                [only] => Some(*only),
+                _ => None,
+            },
+        }
+    }
+
+    /// The document at a slot.
+    pub(crate) fn doc(&self, slot: usize) -> &LoadedDocument {
+        &self.inner.documents[slot]
+    }
+
+    /// The member a slot belongs to.
+    pub(crate) fn member_of(&self, slot: usize) -> usize {
+        self.inner.member_of[slot]
+    }
+
+    /// Whether any member holds a document of `ty`, whatever the view.
+    pub(crate) fn corpus_has_type(&self, ty: &str) -> bool {
+        self.inner.by_type.contains_key(ty)
+    }
+
+    /// Look up a document by its artifact key (human `id`, else uuid,
+    /// else path). O(1). Over a corpus of several members it answers only when
+    /// exactly one member holds the id (FR-027).
     pub fn by_id(&self, id: &str) -> Option<&LoadedDocument> {
-        self.inner
-            .by_id
-            .get(id)
-            .map(|&slot| &self.inner.documents[slot])
+        self.slot_of(id).map(|slot| self.doc(slot))
+    }
+
+    /// Look up `id` in the member declaring `identity` (compared with ASCII
+    /// case folded). `None` when no member declares it or it does not hold the
+    /// id. O(1).
+    pub fn by_qualified_id(&self, identity: &str, id: &str) -> Option<&LoadedDocument> {
+        let member = *self.inner.identities.get(&fold_identity(identity))?;
+        self.inner.ids[member].get(id).map(|&slot| self.doc(slot))
     }
 
     /// Load + indexing diagnostics (unreadable files, missing uuids,

@@ -27,7 +27,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
 use crate::corpus::resolve::Resolution;
-use crate::corpus::spec::Spec;
+use crate::corpus::spec::{CorpusError, Spec};
 use crate::corpus::walk::LoadedDocument;
 use crate::grammar::{GrammarSeverity, GrammarSeverityLevel, GrammarSeverityMap};
 use crate::query::section;
@@ -104,6 +104,9 @@ pub struct BundleFinding {
     /// referencing row of a trace-reference finding, or the line a bridged
     /// document-level result carries. `None` for every other finding.
     pub line: Option<usize>,
+    /// Identity of the corpus member holding the source document, omitted for
+    /// a member that declares none (FR-085).
+    pub repo: Option<String>,
 }
 
 impl BundleFinding {
@@ -121,6 +124,7 @@ impl BundleFinding {
             pack: Some(pack),
             severity: GrammarSeverity::Warning,
             line: None,
+            repo: None,
         }
     }
 
@@ -144,6 +148,7 @@ impl BundleFinding {
             pack: None,
             severity: GrammarSeverity::Error,
             line: None,
+            repo: None,
         }
     }
 
@@ -261,6 +266,70 @@ pub fn validate_bundle(
     document_root: &Path,
     reference_root: &Path,
 ) -> BundleReport {
+    validate_view(spec, registry, posture, document_root, reference_root)
+}
+
+/// Implements: FR-085
+/// Validate a corpus of several members (FR-085), the engine behaviour behind
+/// `quire validate --okf --repo`. `roots` holds one `(document_root,
+/// reference_root)` pair per member, in member order, each with the meaning it
+/// has for [`validate_bundle`]; for a repository root `<DIR>` the pair is
+/// `(<DIR>/spec, <DIR>)`. Each member is validated against the shared corpus,
+/// so an edge into another member resolves, and the report concatenates the
+/// members' findings in member order. Every finding carries the `repo` of its
+/// source document's member.
+pub fn validate_corpus(
+    corpus: &Spec,
+    registry: &Registry,
+    posture: BundlePosture,
+    roots: &[(&Path, &Path)],
+) -> Result<BundleReport, CorpusError> {
+    if roots.len() != corpus.member_count() {
+        return Err(CorpusError::RootCount {
+            members: corpus.member_count(),
+            roots: roots.len(),
+        });
+    }
+    let mut report = BundleReport::default();
+    for (member, (document_root, reference_root)) in roots.iter().enumerate() {
+        let part = validate_view(
+            &corpus.member_view(member),
+            registry,
+            posture,
+            document_root,
+            reference_root,
+        );
+        report.errors.extend(part.errors);
+        report.warnings.extend(part.warnings);
+    }
+    Ok(report)
+}
+
+/// Validate what `spec` sees — a whole one-member corpus, or one member of a
+/// larger corpus — and label every finding with the member's identity.
+fn validate_view(
+    spec: &Spec,
+    registry: &Registry,
+    posture: BundlePosture,
+    document_root: &Path,
+    reference_root: &Path,
+) -> BundleReport {
+    let mut report = validate_view_findings(spec, registry, posture, document_root, reference_root);
+    if let Some(repo) = spec.view_identity() {
+        for finding in report.errors.iter_mut().chain(report.warnings.iter_mut()) {
+            finding.repo = Some(repo.to_string());
+        }
+    }
+    report
+}
+
+fn validate_view_findings(
+    spec: &Spec,
+    registry: &Registry,
+    posture: BundlePosture,
+    document_root: &Path,
+    reference_root: &Path,
+) -> BundleReport {
     let mut report = BundleReport::default();
     // FR-057: the merged `<pack>:<check>` registry, already carrying whatever a
     // surface layered over the module map via `Registry::with_grammar_severity`
@@ -276,6 +345,11 @@ pub fn validate_bundle(
     for diag in spec.diagnostics() {
         if let crate::diagnostic::Diagnostic::DocumentWithoutFrontmatter { path, malformed } = diag
         {
+            // The diagnostics are the whole corpus's; a member view reports
+            // only the files under its own document root.
+            if spec.scope.is_some() && spec.member_count() > 1 && !path.starts_with(document_root) {
+                continue;
+            }
             // The two flavors carry distinct reasons (CR-051): a consumer
             // triaging the machine surface acts differently on "this file was
             // never meant to be a document" than on "someone wrote a
@@ -310,31 +384,29 @@ pub fn validate_bundle(
     let project_terms = crate::corpus::glossary_terms(spec);
     let lexicon = registry.lexicon_with(&project_terms);
 
-    for doc in &spec.inner.documents {
+    for doc in spec.documents() {
         validate_concept(
             doc,
             registry,
             posture,
             &lexicon,
-            spec.bundle_package(),
+            spec.view_identity(),
             &mut report,
         );
     }
 
     // Reference resolution: a dangling `ix://` ref is a hard error under
     // Strict, a warning under OKF. Foreign-authority targets are skipped when the bundle's package is declared.
-    for edge in spec.inner.edges.iter() {
-        // A target under another repo's authority is cross-repo, not dangling:
-        // this corpus cannot see it. Needs the bundle's own package declared
-        // to tell the two apart; without one, every miss stays dangling.
-        // Any own-repo spelling (or a bare id) claims the target local.
-        let cross_repo = spec.bundle_package().is_some_and(|package| {
-            !edge.authorities.is_empty()
-                && edge
-                    .authorities
-                    .iter()
-                    .all(|authority| !authority.eq_ignore_ascii_case(package))
-        });
+    for edge in spec.edges() {
+        // A target under an authority no member declares is cross-repo, not
+        // dangling: this corpus cannot see it. Needs the source's member to
+        // declare an identity to tell the two apart; without one, every miss
+        // stays dangling. `authorities` lists only such unloaded authorities,
+        // and any bare-id or loaded-member spelling claims the target visible.
+        let cross_repo = !edge.authorities.is_empty()
+            && spec
+                .member_identity(spec.member_of(edge.source_slot))
+                .is_some();
         if edge.resolution == Resolution::Dangling && !cross_repo {
             report.route(
                 severity,
@@ -342,13 +414,9 @@ pub fn validate_bundle(
                 BundleFinding::in_pack(
                     pack::REFS,
                     "dangling-reference",
-                    // The edge source is a loaded document's artifact key, so it
-                    // is always indexed; the finding sits at that document's
-                    // path (first occurrence on a duplicate id, FR-025-AC-3).
-                    spec.by_id(&edge.source)
-                        .expect("edge source is a loaded document")
-                        .path
-                        .clone(),
+                    // The finding sits at the source document's path (first
+                    // occurrence on a duplicate id, FR-025-AC-3).
+                    spec.doc(edge.source_slot).path.clone(),
                     format!(
                         "dangling reference '{}' (edge '{}') has no target in the bundle",
                         edge.target, edge.edge_type
@@ -420,25 +488,19 @@ fn validate_edge_targets(
     severity: &GrammarSeverityMap,
     report: &mut BundleReport,
 ) {
-    for edge in spec.inner.edges.iter() {
-        if edge.resolution != Resolution::Dangling {
+    for edge in spec.edges() {
+        if let Some(edge_target) = edge.target_slot {
             // FR-041: normalize an inverse-verb edge `(source, I, target)`
             // to its forward orientation `(target, F, source)` before the
             // target check, so the canonical-direction allowed_links rule
             // applies. A forward edge passes through unchanged.
-            let (fwd_source_id, fwd_verb, fwd_target_id): (&str, &str, &str) =
+            let (fwd_source, fwd_verb, fwd_target): (usize, &str, usize) =
                 match registry.inverse_index().get(&edge.edge_type) {
-                    Some(forward) => (edge.target.as_str(), forward.as_str(), edge.source.as_str()),
-                    None => (
-                        edge.source.as_str(),
-                        edge.edge_type.as_str(),
-                        edge.target.as_str(),
-                    ),
+                    Some(forward) => (edge_target, forward.as_str(), edge.source_slot),
+                    None => (edge.source_slot, edge.edge_type.as_str(), edge_target),
                 };
             // Resolve the forward source's vocabulary for the forward verb.
-            let Some(source_doc) = spec.by_id(fwd_source_id) else {
-                continue;
-            };
+            let source_doc = spec.doc(fwd_source);
             let Some(source_type) = source_doc.concept_type() else {
                 continue;
             };
@@ -457,9 +519,7 @@ fn validate_edge_targets(
                 continue;
             }
             // Resolve the forward target's object archetype.
-            let Some(target_doc) = spec.by_id(fwd_target_id) else {
-                continue;
-            };
+            let target_doc = spec.doc(fwd_target);
             let Some(target_obj_name) = document_object(target_doc) else {
                 continue; // no `object:` — nothing to constrain
             };
@@ -616,7 +676,7 @@ fn check_index_completeness(
 ) {
     // Group documents by parent directory.
     let mut by_dir: BTreeMap<PathBuf, Vec<&LoadedDocument>> = BTreeMap::new();
-    for doc in &spec.inner.documents {
+    for doc in spec.documents() {
         let dir = doc.path.parent().map(Path::to_path_buf).unwrap_or_default();
         by_dir.entry(dir).or_default().push(doc);
     }

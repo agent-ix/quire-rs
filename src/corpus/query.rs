@@ -15,14 +15,37 @@ impl Spec {
     /// `ty`, sorted by id. Untyped documents are never returned (they
     /// were diagnosed as `UntypedArtifact` at construction, FR-027-AC-9).
     pub fn by_type(&self, ty: &str) -> Vec<&LoadedDocument> {
-        let mut docs: Vec<&LoadedDocument> = self
+        self.by_type_slots(ty)
+            .into_iter()
+            .map(|slot| self.doc(slot))
+            .collect()
+    }
+
+    /// Every document of type `ty` in the whole corpus, whatever the view.
+    pub(crate) fn corpus_by_type(&self, ty: &str) -> Vec<&LoadedDocument> {
+        self.inner
+            .by_type
+            .get(ty)
+            .map(|slots| slots.iter().map(|&slot| self.doc(slot)).collect())
+            .unwrap_or_default()
+    }
+
+    /// Slots of the documents of type `ty` this view sees, sorted by id.
+    fn by_type_slots(&self, ty: &str) -> Vec<usize> {
+        let mut slots: Vec<usize> = self
             .inner
             .by_type
             .get(ty)
-            .map(|slots| slots.iter().map(|&s| &self.inner.documents[s]).collect())
+            .map(|slots| {
+                slots
+                    .iter()
+                    .copied()
+                    .filter(|&slot| self.scope.is_none_or(|m| self.member_of(slot) == m))
+                    .collect()
+            })
             .unwrap_or_default();
-        docs.sort_by_key(|d| artifact_key(d));
-        docs
+        slots.sort_by_key(|&slot| (artifact_key(self.doc(slot)), slot));
+        slots
     }
 
     /// Resolved edges whose target is `id` (reverse-edge lookup),
@@ -30,12 +53,15 @@ impl Spec {
     /// never appear here.
     pub fn referencing(&self, id: &str) -> Vec<&Edge> {
         let mut edges: Vec<&Edge> = self
-            .inner
-            .incoming
-            .get(id)
-            .map(|slots| slots.iter().map(|&i| &self.inner.edges[i]).collect())
+            .slot_of(id)
+            .map(|slot| self.edges_to(slot))
             .unwrap_or_default();
-        edges.sort_by(|a, b| a.source.cmp(&b.source).then(a.edge_type.cmp(&b.edge_type)));
+        edges.sort_by(|a, b| {
+            a.source
+                .cmp(&b.source)
+                .then(a.source_repo.cmp(&b.source_repo))
+                .then(a.edge_type.cmp(&b.edge_type))
+        });
         edges
     }
 
@@ -43,25 +69,56 @@ impl Spec {
     /// by target id.
     pub fn outgoing(&self, id: &str) -> Vec<&Edge> {
         let mut edges: Vec<&Edge> = self
-            .inner
-            .outgoing
-            .get(id)
-            .map(|slots| slots.iter().map(|&i| &self.inner.edges[i]).collect())
+            .slot_of(id)
+            .map(|slot| self.edges_from(slot))
             .unwrap_or_default();
-        edges.sort_by(|a, b| a.target.cmp(&b.target).then(a.edge_type.cmp(&b.edge_type)));
+        edges.sort_by(|a, b| {
+            a.target
+                .cmp(&b.target)
+                .then(a.edge_type.cmp(&b.edge_type))
+                .then(a.target_repo.cmp(&b.target_repo))
+        });
         edges
+    }
+
+    /// Edges whose source is the document at `slot`.
+    pub(crate) fn edges_from(&self, slot: usize) -> Vec<&Edge> {
+        self.inner
+            .outgoing
+            .get(&slot)
+            .map(|edges| edges.iter().map(|&i| &self.inner.edges[i]).collect())
+            .unwrap_or_default()
+    }
+
+    /// Resolved edges whose target is the document at `slot`.
+    pub(crate) fn edges_to(&self, slot: usize) -> Vec<&Edge> {
+        self.inner
+            .incoming
+            .get(&slot)
+            .map(|edges| edges.iter().map(|&i| &self.inner.edges[i]).collect())
+            .unwrap_or_default()
+    }
+
+    /// Every edge of the whole corpus, whatever the view: a relation reads the
+    /// corpus-wide edge set (FR-085).
+    pub(crate) fn corpus_edges(&self) -> &[Edge] {
+        &self.inner.edges
     }
 
     /// Every dangling edge in the corpus (target absent from the loaded
     /// set), sorted by `(source, target)`.
     pub fn dangling(&self) -> Vec<&Edge> {
         let mut edges: Vec<&Edge> = self
-            .inner
-            .edges
+            .edges()
             .iter()
             .filter(|e| e.resolution == Resolution::Dangling)
             .collect();
-        edges.sort_by(|a, b| a.source.cmp(&b.source).then(a.target.cmp(&b.target)));
+        edges.sort_by(|a, b| {
+            a.source
+                .cmp(&b.source)
+                .then(a.target.cmp(&b.target))
+                .then(a.source_repo.cmp(&b.source_repo))
+        });
         edges
     }
 
@@ -77,37 +134,30 @@ impl Spec {
         missing_edge_type: &str,
         toward_type: Option<&str>,
     ) -> Vec<&LoadedDocument> {
-        self.by_type(of_type)
+        self.by_type_slots(of_type)
             .into_iter()
-            .filter(|doc| {
-                let src = artifact_key(doc);
-                let has_edge = self
-                    .inner
-                    .outgoing
-                    .get(&src)
-                    .map(|slots| {
-                        slots.iter().any(|&i| {
-                            let e = &self.inner.edges[i];
-                            e.resolution == Resolution::Resolved
-                                && e.edge_type == missing_edge_type
-                                && toward_type.is_none_or(|tt| self.target_has_type(&e.target, tt))
+            .filter(|&slot| {
+                !self.edges_from(slot).iter().any(|e| {
+                    e.resolution == Resolution::Resolved
+                        && e.edge_type == missing_edge_type
+                        && toward_type.is_none_or(|tt| {
+                            e.target_slot
+                                .and_then(|t| artifact_type(self.doc(t)))
+                                .is_some_and(|t| t == tt)
                         })
-                    })
-                    .unwrap_or(false);
-                !has_edge
+                })
             })
+            .map(|slot| self.doc(slot))
             .collect()
     }
 
-    /// All resolved + dangling edges, in stored (deterministic) order.
+    /// All resolved + dangling edges, in stored (deterministic) order. A member
+    /// view yields the edges whose source is in that member.
     pub fn edges(&self) -> &[Edge] {
-        &self.inner.edges
-    }
-
-    fn target_has_type(&self, target: &str, ty: &str) -> bool {
-        self.by_id(target)
-            .and_then(artifact_type)
-            .is_some_and(|t| t == ty)
+        match self.scope {
+            Some(member) => &self.inner.edges[self.inner.members[member].edges.clone()],
+            None => &self.inner.edges,
+        }
     }
 }
 

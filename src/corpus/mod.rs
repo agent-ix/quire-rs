@@ -30,10 +30,11 @@ pub mod walk;
 
 pub use glossary::{glossary_terms, glossary_terms_from_path};
 pub use resolve::{harvest_edges, Edge, Resolution};
-pub use spec::Spec;
+pub use spec::{CorpusError, CorpusMember, Spec};
 pub use unlinked::{unlinked_references, UnlinkedFix, UnlinkedReason, UnlinkedReference};
 pub use validate::{
-    validate_bundle, validate_bundle_at, BundleFinding, BundlePosture, BundleReport,
+    validate_bundle, validate_bundle_at, validate_corpus, BundleFinding, BundlePosture,
+    BundleReport,
 };
 
 /// Opaque, stable human artifact id (e.g. `"FR-023"`). Used as the

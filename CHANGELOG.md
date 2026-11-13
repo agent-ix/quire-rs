@@ -7,6 +7,21 @@ bumps; once 1.0 ships, semver is strict.
 
 ## [Unreleased]
 
+### Added
+
+- PLAT-1556 (FR-085): a corpus of several repositories. `Spec::from_members`
+  takes `CorpusMember`s with a caller-declared `<org>/<repo>` identity;
+  `ix://<org>/<repo>/...` edges resolve into the member declaring that identity
+  (ASCII case folded), `Spec::by_qualified_id` addresses `(identity, id)`, and
+  `validate_corpus` validates each member against the shared corpus. Findings
+  carry a `repo` field, a relation edge to a resolved target outside its `to`
+  is reported as `trace:target-kind-mismatch`, and a relation finding names each
+  dangling reference as authored. `Edge` gains `source_repo`, `target_repo` and
+  `references`. `Spec::with_bundle_package` now re-resolves under the declared
+  identity, so an `ix://` target naming another repository stays dangling even
+  when the local corpus holds the id; `by_id` answers only when exactly one
+  member holds the id.
+
 ### Removed
 
 - **Breaking, PLAT-1501:** the public `audit_table::audit_spec_dir` is removed; it
