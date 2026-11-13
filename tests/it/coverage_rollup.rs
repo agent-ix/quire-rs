@@ -4211,7 +4211,7 @@ fn tc2222_strict_decision_passes_exempt_only_rows_and_keeps_every_other_premise(
 /// PLAT-1500: the rollup reads every table of a section, so a row of a second
 /// table is a rollup row; a legend grid raises no status finding
 /// (FR-049-AC-26).
-#[trace("FR-049-AC-26", "FR-049-AC-30")]
+#[trace("FR-049-AC-26", "FR-049-AC-27", "FR-049-AC-30")]
 #[test]
 fn tc2322_a_second_table_under_the_declared_section_is_a_rollup_row() {
     let bundle = iso_bundle("2322", &[("TC-001", "FR-001-AC-1", "✅")], &["TC-001"]);
@@ -4243,6 +4243,12 @@ fn tc2322_a_second_table_under_the_declared_section_is_a_rollup_row() {
     let report = report_for(&bundle, "iso").expect("model declared");
     assert!(unbacked(&report, "TC-009"), "{:?}", report.unbacked_rows);
 
+    // A fenced table is an example, not a rollup row (FR-049-AC-27).
+    let report = second_table(
+        "```\n| ID | Traces To | Status |\n|----|-----------|--------|\n| TC-010 | FR-001-AC-2 | 🚧 |\n```\n",
+    );
+    assert!(!unbacked(&report, "TC-010"), "{:?}", report.unbacked_rows);
+
     // A legend grid after the matrix raises no status-column finding and
     // adds no row.
     let report =
@@ -4254,6 +4260,14 @@ fn tc2322_a_second_table_under_the_declared_section_is_a_rollup_row() {
             .any(|d| d.reason == "status-column-matches-nothing"),
         "{:?}",
         report.diagnostics
+    );
+    assert!(
+        report
+            .unbacked_rows
+            .iter()
+            .all(|u| u.row_id.as_deref() != Some("✅")),
+        "{:?}",
+        report.unbacked_rows
     );
     assert!(
         !report
@@ -4283,15 +4297,10 @@ fn tc2323_second_table_ids_are_minted_and_derive_obligations() {
     let spec = Spec::from_path(&bundle.scope);
     let registry = Registry::load_module(&fixture_module("iso-obligations")).expect("module");
     let model = registry.traceability().expect("model");
-    let report = validate_bundle_at(&bundle.scope, &registry, BundlePosture::Okf);
-    assert!(
-        !report
-            .errors
-            .iter()
-            .any(|f| f.reason == "dangling-trace-reference"),
-        "{:?}",
-        report.errors
-    );
+    let minted = report_for(&bundle, "iso")
+        .expect("model declared")
+        .minted_targets;
+    assert!(minted.iter().any(|m| m.id == "FR-001-AC-3"), "{minted:?}");
 
     // Obligation: the second table's row yields its own obligation.
     let (obligations, _skipped) = quire_rs::obligation::derive(&spec, &bundle.scope, model);

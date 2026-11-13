@@ -485,7 +485,7 @@ pub(crate) fn scan(
         // section that is there and holds no table (CR-117). Only the first is
         // a minting defect; the second is an empty matrix, which is a
         // repository with no tests yet.
-        let scanned = tables_of(doc.body(), &doc.path, sections);
+        let scanned = tables_of_sections(doc.body(), &doc.path, sections);
         if scope.mints.is_some() && (scope.target_required || !scanned.is_empty()) {
             ctx.census.selected += 1;
             if !scanned.is_empty() {
@@ -519,43 +519,35 @@ pub(crate) fn scan(
             && !scanned.is_empty()
             && !scanned
                 .iter()
-                .any(|(_, t)| matches!(t, ScannedTable::Table { .. }))
+                .any(|(_, _, t)| matches!(t, ScannedTable::Table { .. }))
         {
             ctx.note(
                 scope.name,
                 ScanDiagnostic::SectionHoldsNoTable {
                     document: relative_path(root, &doc.path),
                     sections: sections.names().to_vec(),
-                    matched: scanned.iter().map(|(h, _)| h.clone()).collect(),
+                    matched: scanned.iter().map(|(_, h, _)| h.clone()).collect(),
                 },
             );
         }
-        // A section may hold several tables (FR-049-AC-23). The id-column and
-        // status-column findings describe the section, not a table: a legend
-        // grid after the matrix is data to skip, so they fire on the section's
-        // first table, and only when no table under that heading has the column.
-        let any_table_in = |heading: &str, has: &dyn Fn(&[String]) -> bool| {
-            scanned.iter().any(|(h, t)| {
-                h == heading && matches!(t, ScannedTable::Table { headers, .. } if has(headers))
-            })
+        // The id-column and status-column findings describe the section
+        // (FR-049-AC-30), see [`section_lacks`].
+        let lacks_id = match scope.mints {
+            Some(ids) => section_lacks(&scanned, &|hs| hs.iter().any(|h| ids.matches(h))),
+            None => vec![false; scanned.len()],
         };
-        let mut section_lacks: Vec<(bool, bool)> = Vec::with_capacity(scanned.len());
-        for (i, (heading, _)) in scanned.iter().enumerate() {
-            let first = !scanned[..i].iter().any(|(h, _)| h == heading);
-            let lacks_id = first
-                && scope.mints.is_some_and(|ids| {
-                    !any_table_in(heading, &|hs| hs.iter().any(|h| ids.matches(h)))
-                });
-            let lacks_status = first
-                && scope.status_column.is_some_and(|selected| {
-                    let column = selected.column();
-                    !any_table_in(heading, &|hs| {
-                        hs.iter().any(|h| h.eq_ignore_ascii_case(column))
-                    })
-                });
-            section_lacks.push((lacks_id, lacks_status));
-        }
-        for ((heading, table), (lacks_id, lacks_status)) in scanned.into_iter().zip(section_lacks) {
+        let lacks_status = match scope.status_column {
+            Some(selected) => {
+                let column = selected.column();
+                section_lacks(&scanned, &|hs| {
+                    hs.iter().any(|h| h.eq_ignore_ascii_case(column))
+                })
+            }
+            None => vec![false; scanned.len()],
+        };
+        for (((_, heading, table), lacks_id), lacks_status) in
+            scanned.into_iter().zip(lacks_id).zip(lacks_status)
+        {
             let ScannedTable::Table {
                 headers,
                 rows,
@@ -595,11 +587,10 @@ pub(crate) fn scan(
             }
             if let Some(selected) = scope.status_column {
                 let status_column = selected.column();
-                let exact = !lacks_status;
                 let status_shaped = headers
                     .iter()
                     .any(|header| header.to_ascii_lowercase().contains("status"));
-                if !exact && status_shaped {
+                if lacks_status && status_shaped {
                     ctx.note(
                         scope.name,
                         ScanDiagnostic::StatusColumnMatchesNothing {
@@ -899,14 +890,55 @@ pub(crate) fn tables_of(
     path: &Path,
     sections: &SectionNames,
 ) -> Vec<(String, ScannedTable)> {
+    tables_of_sections(doc, path, sections)
+        .into_iter()
+        .map(|(_, heading, table)| (heading, table))
+        .collect()
+}
+
+/// [`tables_of`] with the ordinal of the matched section each table sits
+/// under, so a check can treat the section, not the heading text, as the unit
+/// (two sections may share a heading, CR-118).
+pub(crate) fn tables_of_sections(
+    doc: &QuireDocument,
+    path: &Path,
+    sections: &SectionNames,
+) -> Vec<SectionTable> {
     crate::query::sections(doc, None)
         .into_iter()
         .filter(|sec| sections.matches(&sec.heading))
-        .flat_map(|sec| {
+        .enumerate()
+        .flat_map(|(ordinal, sec)| {
             let heading = sec.heading.trim().to_string();
             tables_in(doc, path, sec)
                 .into_iter()
-                .map(move |table| (heading.clone(), table))
+                .map(move |table| (ordinal, heading.clone(), table))
+        })
+        .collect()
+}
+
+/// One table (or [`ScannedTable::NoTable`]) with its matched-section ordinal
+/// and heading.
+pub(crate) type SectionTable = (usize, String, ScannedTable);
+
+/// Per entry: whether a column finding for a section is raised here. A section
+/// holds several tables (FR-049-AC-23) and the finding describes the section
+/// (FR-049-AC-30), so it is raised on the section's first table, and only when
+/// no table of that section satisfies `has`; a legend grid after the matrix
+/// raises none.
+pub(crate) fn section_lacks(
+    scanned: &[SectionTable],
+    has: &dyn Fn(&[String]) -> bool,
+) -> Vec<bool> {
+    scanned
+        .iter()
+        .enumerate()
+        .map(|(i, (ordinal, _, _))| {
+            let first = !scanned[..i].iter().any(|(o, _, _)| o == ordinal);
+            first
+                && !scanned.iter().any(|(o, _, t)| {
+                    o == ordinal && matches!(t, ScannedTable::Table { headers, .. } if has(headers))
+                })
         })
         .collect()
 }

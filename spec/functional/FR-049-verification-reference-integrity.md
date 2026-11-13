@@ -138,17 +138,22 @@ example, not data, and is not read; this applies to every table the reference
 scan reads, so a document whose only table sits in a fence is no longer scanned.
 
 The rule is not this requirement's bundle check alone: a trace target's
-`id_column` mint, an obligation source and the
+`id_column` mint, an obligation source (including the
+[FR-053](./FR-053-obligation-record.md) selected inventory and an
+[FR-061](./FR-061-combinatorial-obligations.md) combinatorial source, whose
+configuration space is built from the rows of every table) and the
 [FR-050](./FR-050-declarative-coverage-computation.md) rollup (its
 `unbacked_rows`, row binding and status-column check) read **every** table
 under a declared section, outside fenced code blocks, by the same rule, so the
 rollup's row population equals the ids that are minted and the obligations
 that are derived, and a reference to an id that appears only in a later table
 resolves. A table lacking the declared id column contributes no rows. The
-`id-column-matches-nothing` and status-column findings describe the section,
-not a table: they are raised on the section's first table, and only when no
-table under that heading carries the column, so a legend or summary grid after
-the matrix raises none (FR-049-AC-29, AC-30).
+`id-column-matches-nothing` finding, the status-column finding and the
+inventory's `MissingColumn` cause describe the section (one matched section is
+the unit; two sections sharing a heading text are two): each is raised on the
+section's first table, and only when no table of that section carries the
+column, so a legend or summary grid after the matrix raises none (FR-049-AC-26,
+AC-30).
 
 ### Located findings (PLAT-1476)
 
@@ -198,7 +203,8 @@ without such repeats orders as before.
 | FR-049-AC-27 | A table inside a fenced code block (CommonMark rules: a fence closes only with the same character and at least the opening length, and a backtick fence's info string holds no backtick) under a declared section, after the real table or alone, yields no row and no finding, and the real table is unaffected. | Test |
 | FR-049-AC-28 | An id that appears only in a second table of a trace target's section (outside a fenced code block) is minted: a reference to it from a declared cell yields no `dangling-trace-reference`, while the same id in a fenced table still dangles. | Test |
 | FR-049-AC-29 | An obligation source derives obligations from every table under its declared section (outside fenced code blocks): a row of a second table yields its obligation, with the same id and statement as the same row in the first table. | Test |
-| FR-049-AC-30 | `id-column-matches-nothing` and the status-column finding are raised per section, on its first table: a section whose first table lacks the column while a later table carries it raises none, a section where no table carries it raises exactly one, and a later table lacking the column raises none. | Test |
+| FR-049-AC-30 | `id-column-matches-nothing`, the status-column finding and the FR-053 inventory's `MissingColumn` cause are raised per matched section (two sections sharing a heading are two), on its first table: a section whose first table lacks the column while a later table carries it raises none, a section where no table carries it raises exactly one however many tables it holds, and a later table lacking the column raises none; an inventory over a section with a trailing legend grid is Complete. | Test |
+| FR-049-AC-31 | A combinatorial obligation source builds its configuration space from the rows of every table under its declared section, on both the single-document and corpus paths, so a dimension in a later table counts toward the dimensions and tuples. | Test |
 | FR-049-AC-14 | A target cell that matches no pattern (`-`, empty) extracts no id and yields no reference and no finding, whatever the row's kind; a multi-id cell classifies each id independently and reports only the mismatched ones. | Test |
 | FR-049-AC-15 | Module load rejects, naming the declaration and the field at fault and applying no part of it, each malformed kind declaration: `kind_column` without `kind_targets` or the reverse, an empty `kind_column`, `kind_column` equal to `column`, an empty map, an empty or duplicate kind key, an empty target list, and a listed target not in `targets`. | Test |
 | FR-049-AC-16 | A declaration without `kind_column` and `kind_targets` behaves exactly as before: the engine contains no kind name, and a fixture module declaring different kind values and column names is resolved by its own declaration. | Test |
@@ -219,8 +225,8 @@ without such repeats orders as before.
 > sources and the FR-050 rollup reading a declared section's first table only,
 > so an id appearing only in a later table was never minted and a reference to
 > it dangled. All three now read every table outside fenced code blocks, the
-> same rule as the reference scan. AC-26 and AC-28 are reversed, AC-29 and
-> AC-30 are new. The section-level findings stay per section so a legend grid
+> same rule as the reference scan. AC-26 and AC-28 are reversed, AC-29 to
+> AC-31 are new. The section-level findings stay per section so a legend grid
 > raises none.
 
 ## Dependencies

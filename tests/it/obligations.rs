@@ -1510,3 +1510,66 @@ fn coverage_json_obligations_carry_id_and_statement() {
         ]
     );
 }
+
+const LEGEND: &str = "\nSymbols.\n\n| Symbol | Meaning |\n|--------|---------|\n| x | y |\n";
+
+#[trace("FR-049-AC-29", "FR-049-AC-30")]
+#[test]
+fn every_table_under_an_obligation_section_derives_and_a_legend_raises_no_cause() {
+    use quire_rs::obligation::inventory::InventoryTerminal;
+    let scope = ac_bundle(
+        "1500a",
+        "| FR-001-AC-1 | The system shall do it. | Test (TC-001) | P1 |\n",
+    );
+    let fr = scope.join("FR-001.md");
+    let mut text = fs::read_to_string(&fr).expect("read");
+    text.push_str(LEGEND);
+    text.push_str(
+        "\nMore.\n\n| ID | Criteria | Verification | Priority |\n\
+         |----|----------|--------------|----------|\n\
+         | FR-001-AC-2 | The system shall also do it. | Analysis | P2 |\n",
+    );
+    // A fenced table is an example and derives nothing (FR-049-AC-27).
+    text.push_str(
+        "\n```\n| ID | Criteria | Verification | Priority |\n\
+         |----|----------|--------------|----------|\n\
+         | FR-001-AC-9 | Example. | Test | P3 |\n```\n",
+    );
+    fs::write(&fr, text).expect("write");
+
+    let ids: Vec<_> = derive_at(&scope, "obligations")
+        .into_iter()
+        .map(|o| o.id)
+        .collect();
+    assert_eq!(ids, ["FR-001-AC-1", "FR-001-AC-2"]);
+
+    let inventory = selected_at(&scope);
+    let inv_ids: Vec<_> = inventory
+        .entries()
+        .map(|entry| entry.obligation().id.clone())
+        .collect();
+    assert_eq!(inv_ids, ids);
+    assert!(inventory.causes().is_empty(), "{:?}", inventory.causes());
+    assert_eq!(inventory.terminal(), InventoryTerminal::Complete);
+}
+
+#[trace("FR-049-AC-30")]
+#[test]
+fn inventory_reports_one_missing_column_cause_when_no_table_has_it() {
+    let scope = tmpdir("1500b").join("spec");
+    fs::create_dir_all(&scope).expect("mkdir");
+    let grid = "| ID | Notes |\n|----|-------|\n| FR-001-AC-1 | n |\n";
+    write(
+        &scope,
+        "FR-001.md",
+        &format!(
+            "---\nid: FR-001\ntype: FR\ntitle: A requirement\n---\n\n## Acceptance Criteria\n\n{grid}\nmore\n\n{grid}"
+        ),
+    );
+    let inventory = selected_at(&scope);
+    let causes: Vec<_> = inventory.causes().iter().map(|c| c.code()).collect();
+    assert_eq!(
+        causes,
+        [quire_rs::obligation::inventory::InventoryCauseCode::MissingColumn]
+    );
+}

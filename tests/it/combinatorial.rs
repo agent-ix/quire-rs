@@ -383,3 +383,54 @@ fn tc934_the_corpus_path_mints_the_same_one_obligation() {
 
     std::fs::remove_dir_all(&root).ok();
 }
+
+#[trace("FR-049-AC-31")]
+#[test]
+fn tc2327_the_configuration_space_is_built_from_every_table() {
+    use quire_rs::corpus::Spec;
+    use quire_rs::traceability::{CombinatorialColumns, ObligationSource, TraceabilityModel};
+
+    let model = TraceabilityModel {
+        obligations: vec![ObligationSource {
+            name: "configuration-space".to_string(),
+            target: None,
+            archetype: Some("FR".to_string()),
+            section: Some("Configuration Dimensions".into()),
+            id_format: Some("{document}-COMB".to_string()),
+            exclude: vec![],
+            statement_column: "Dimension".to_string(),
+            method_column: None,
+            criticality_column: None,
+            parameters: Default::default(),
+            combinatorial: Some(CombinatorialColumns {
+                dimension_column: "Dimension".to_string(),
+                values_column: "Values".to_string(),
+                excludes_column: None,
+                strength: 2,
+            }),
+        }],
+        ..TraceabilityModel::default()
+    };
+    // Two dimensions in the first table and one in a second table: 3 pairs of
+    // 2x2x2 dimensions is 12 tuples, where the first table alone gives 4.
+    let text = "---\nid: FR-001\ntype: FR\ntitle: A requirement\n---\n\n\
+        ## Configuration Dimensions\n\n\
+        | Dimension | Values |\n|---|---|\n| a | 1, 2 |\n| b | x, y |\n\n\
+        More.\n\n| Dimension | Values |\n|---|---|\n| c | p, q |\n";
+    let root = tempfile::tempdir().expect("scope");
+    std::fs::write(root.path().join("FR-001.md"), text).unwrap();
+    let spec = Spec::from_path(root.path());
+    let (obligations, _) = quire_rs::obligation::derive(&spec, root.path(), &model);
+    assert_eq!(obligations.len(), 1, "{obligations:?}");
+    let get = |k: &str| obligations[0].parameters.get(k).map(String::as_str);
+    assert_eq!(get("dimensions"), Some("3"));
+    assert_eq!(get("tuples"), Some("12"));
+
+    let doc = quire_rs::parse_document(text);
+    let by_document = quire_rs::obligation::for_document(&model, "FR", &doc, None);
+    let single = by_document.get("FR-001-COMB").expect("one obligation");
+    assert_eq!(
+        single.parameters.get("tuples").map(String::as_str),
+        Some("12")
+    );
+}
