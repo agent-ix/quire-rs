@@ -121,6 +121,26 @@ the declaration, and the selector: the field, and the value the document holds a
 reader sees that an NFR is reported *because* it is classified `security`, rather than being
 handed a bare "has no edge" for a document that looks unrelated to the rule.
 
+### Authored inverse verbs
+
+A verb in `edges` may declare an `inverse:` label ([FR-041](./FR-041-authorable-inverse-edges.md)).
+A relation that lists verb `V` SHALL accept an edge authored with the counterpart label `W` of
+`V` (`V`'s declared inverse, or the forward verb whose declared inverse is `V`) from the opposite
+end: the authored edge `(b, W, a)` is read as `(a, V, b)` before `direction`, `to`, `exclude` and
+the dangling and kind-mismatch rules of [FR-085](./FR-085-cross-repository-edge-resolution.md) apply.
+An edge authored both ways between one pair counts once. The edge set itself still records edges as
+authored (FR-041); only relation matching normalizes. A verb with no declared inverse is matched
+exactly as before, so a module that lists no verb having an inverse sees no change. This is what
+lets a relation be satisfied from either document without the engine knowing any verb: the
+manifest declares the pair, once, as vocabulary.
+
+> **CR-416 note:** this section and FR-058-AC-23 and AC-24 were added, and AC-2 now reads "a verb
+> the declaration does not list, or the counterpart of one it lists". The original text matched
+> only the verb as authored, so a requirement that authored the inverse of a listed verb toward a
+> design element was reported as having no edge ([FR-086](./FR-086-design-element-join.md)).
+> [FR-084](./FR-084-two-way-relation-coverage-report.md) follows unchanged: its `state` equals FR-058
+> satisfaction, and its `verb` field names the verb as authored.
+
 ### Severity
 
 Findings ship **advisory**, tunable per declaration through the FR-057 registry — the `check` token
@@ -188,7 +208,7 @@ case that needs no help.
 | ID | Criteria | Verification |
 |----|----------|--------------|
 | FR-058-AC-1 | A document of the declared `from` archetype with no accepted edge is reported, naming the document and the declaration that asked for it; one that has the edge is not reported. | Test |
-| FR-058-AC-2 | Any one of the declared `edges` satisfies the relation; a verb the declaration does not list does not. | Test |
+| FR-058-AC-2 | Any one of the declared `edges` satisfies the relation; a verb the declaration does not list, and is not the counterpart of one it lists, does not. | Test |
 | FR-058-AC-3 | `direction: incoming` reports a document nothing points at over the accepted verbs — the same declaration read the other way. | Test |
 | FR-058-AC-4 | A **dangling** edge does not satisfy a relation whose `to` is non-empty, so a typo'd target cannot satisfy the requirement it broke. | Test |
 | FR-058-AC-5 | A cycle over a declared `acyclic_edges` verb is reported exactly once, naming the path; the finding is keyed on the cycle's smallest member so rotations collapse. | Test |
@@ -209,6 +229,8 @@ case that needs no help.
 | FR-058-AC-20 | A finding from a relation with `where` names the document, the declaration, the selector `field`, and the document's field value as authored; a finding from a relation without `where` is byte-identical to the pre-change text. | Test |
 | FR-058-AC-21 | A relation without `where` selects exactly the documents it selected before this amendment, and over one bundle repeated runs of a relation with `where` yield identical findings in document-then-id order ([NFR-006](../non-functional/NFR-006-determinism.md)). | Test |
 | FR-058-AC-22 | A relation with `where` reports under `trace:undeclared-relation-vocabulary`, naming the declaration and the entry, when `field` is neither a property of the `from` archetype's frontmatter schema nor carried by any `from` document, or when a `values` entry is outside that field's schema `enum` and held by no `from` document, where "outside" and "held" both compare after trimming and ASCII case folding as in FR-058-AC-14, so a `values` entry differing from an `enum` member only by case or surrounding whitespace is not reported; a field or entry that is live by either route yields no such finding, and a field whose schema declares no `enum` has its `values` unchecked. | Test |
+| FR-058-AC-23 | Given a verb `V` declaring `inverse: W` and a relation listing `V` with `direction: incoming`, an edge authored `(a, V, b)` and an edge authored `(b, W, a)` each satisfy the relation for `b`; a document with neither is reported, and the same relation with `direction: outgoing` is satisfied for `a` by either spelling. | Test |
+| FR-058-AC-24 | A pair authored both ways counts as one edge; an inverse-authored edge whose resolved target is outside a non-empty `to` yields one `trace:target-kind-mismatch` and leaves the relation unsatisfied; an inverse-authored dangling edge is named as authored; a relation listing only verbs with no declared inverse is byte-identical in output to before this amendment. | Test |
 
 ## Constraints
 
@@ -221,4 +243,4 @@ case that needs no help.
 ## Dependencies
 
 - **Upstream**: [FR-026](./FR-026-intra-spec-reference-resolution.md) (the edge set this reads), [FR-057](./FR-057-corpus-check-severity.md) (the severity knob it ships behind), [FR-050](./FR-050-declarative-coverage-computation.md) (the declaration model it extends)
-- **Downstream**: `spec-objects-security#5` bidirectional hazard/threat coverage, which becomes declarations against this FR rather than engine code; [FR-084](./FR-084-two-way-relation-coverage-report.md) (the coverage report over these declarations); [FR-085](./FR-085-cross-repository-edge-resolution.md) (edges between repositories loaded into one corpus)
+- **Downstream**: `spec-objects-security#5` bidirectional hazard/threat coverage, which becomes declarations against this FR rather than engine code; [FR-084](./FR-084-two-way-relation-coverage-report.md) (the coverage report over these declarations); [FR-085](./FR-085-cross-repository-edge-resolution.md) (edges between repositories loaded into one corpus); [FR-086](./FR-086-design-element-join.md) (the design-element join over named relations)
