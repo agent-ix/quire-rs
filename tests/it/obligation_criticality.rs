@@ -1,4 +1,4 @@
-//! FR-053-AC-24..26 — a requirement's rating reaches the obligations derived
+//! FR-053-AC-24..31 — a requirement's rating reaches the obligations derived
 //! from it, declared by `criticality_field` module data (PLAT-1597).
 
 use std::fs;

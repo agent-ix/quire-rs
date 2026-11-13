@@ -57,3 +57,20 @@ The value flows through `Obligation` and `CriterionObligation` into coverage `ob
 | tests/it/obligation_criticality.rs | examined | FND-006 |
 | tests/fixtures/traceability/obligations-rated/manifest.yaml | examined | Invented key `rating` |
 | CHANGELOG.md | examined | Breaking change noted |
+
+## New findings (disposition pass 1)
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-007 | low | The module doc of the test file still reads `FR-053-AC-24..26`, but the file now carries tests for FR-053-AC-24..31 after the AC split. | tests/it/obligation_criticality.rs:1 |
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | f8289aa: `for_document` passes `document_rating` into `combinatorial_obligation` (`criticality: rating`). `derive` builds `ratings` before the combinatorial branch, and `collect_combinatorial` sets `criticality: ratings.get(path).cloned()`. The selected inventory passes the per-document rating into its combinatorial collector. With no `criticality_field`, `document_rating` returns None and `ratings` is empty, so the output is unchanged. FR-053 item 5 now names combinatorial obligations. New AC-29 is covered by `tc_combinatorial_obligation_carries_the_rating_on_every_surface` (derive, for_document, inventory). |
+| FND-002 | fixed | f8289aa: both citations now read `FR-053 item 5, FR-053-AC-24..25`. `quire trace --id FR-049-AC-60` reports no claims and no citations. |
+| FND-003 | fixed | f8289aa: the `Obligation::criticality` and `CriterionObligation` doc comments name both declarations. |
+| FND-004 | fixed | f8289aa: `validate` runs `check_field(..., "criticality_field", field)` (src/traceability.rs:1904). New AC-30 is covered by `tc_blank_criticality_field_fails_module_load` ("" and "   "). |
+| FND-005 | fixed | f8289aa: `let rating = super::document_rating(source, document.frontmatter());` is computed once per document (src/obligation/inventory.rs:1089) and reused for rows and combinatorial rows. |
+| FND-006 | fixed | f8289aa: `fn bundle(docs: &[(&str, String)])`; the unused parameter is gone. |

@@ -45,3 +45,11 @@ two AC-26 clauses are asserted more narrowly than they are stated.
 | FR-082-AC-7 | context_only | Existing tests unchanged; still pass |
 | src/obligation.rs row_criticality / document_rating | examined | Traced to AC-24/25 through tests |
 | src/obligation/inventory.rs | examined | FND-001 |
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | f8289aa: `tc_selected_inventory_carries_the_rating` (FR-053-AC-24) builds `obligation::inventory` with `criticality_field` and asserts FR-001-AC-1 = high and FR-002-AC-1 = None. `tc_combinatorial_obligation_carries_the_rating_on_every_surface` covers the inventory's combinatorial path. FR-053-AC-24 now names the selected inventory. |
+| FND-002 | fixed | f8289aa: AC-26 was split. `tc_rating_is_not_inferred_across_any_relationship_type` (FR-053-AC-26) loops over traces_to, satisfies, implements and refines. `tc_undeclared_source_records_equal_those_without_the_rating` (FR-053-AC-27) asserts `with_rating == without` on whole `Obligation` records. |
+| FND-003 | fixed | f8289aa: `tc_column_cell_wins_over_the_document_rating` also calls `classify_document_criteria` and asserts `AcClassification::obligation.criticality` is P1 or high per row. |

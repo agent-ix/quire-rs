@@ -51,3 +51,12 @@ However, FR-082's unamended description contradicts the new rule.
 | FR-082-AC-7 (rescoped) | examined | Does not weaken: opt-in only |
 | FR-082 "Relation to FR-053 criticality" | examined | FND-001 |
 | FR-090 description | examined | FND-004 |
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | f8289aa: FR-082 "Relation to FR-053 criticality" now reads: "The engine SHALL NOT let either implicitly supply, override or fill in the other: the `requirements[]` entry is read from frontmatter as above whatever an obligation carries, and an obligation carries a document's rating only where its source declares `criticality_field`." This agrees with FR-053 item 5. |
+| FND-002 | fixed | f8289aa: AC-26 was split into AC-26 (no inference, four verbs), AC-27 (undeclared source unchanged), AC-28 (coverage JSON plus schema) and AC-31 (no key literal, now a falsifiable source-text check). New AC-29 (combinatorial) and AC-30 (blank-field load error) were added. Each has one tagged test. |
+| FND-003 | fixed | f8289aa: FR-053:111-113 now reads "readable from the parsed document (the criterion's own row, or the `criticality_field` frontmatter value)". |
+| FND-004 | fixed | f8289aa: FR-090:29-30 now reads "joins the obligation to its requirement entry; unlike `criticality`, a carried field has no obligation-level declaration." |
