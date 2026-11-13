@@ -4,12 +4,13 @@
 //! `(level, heading_text, line_index)` tuples for every ATX heading
 //! (`#`..`######`) that is NOT inside a fenced code block.
 //!
-//! Ports the TS (`~/dev/quire/src/core/parser.ts`) and Py
-//! (`~/dev/quire-py/quire/parser.py`) fence-tracking algorithm with
-//! one extension per FR-007-AC-4: fence types are tracked
-//! independently, so a mismatched fence character does not close an
-//! open fence (e.g. `~~~` inside a `` ``` `` block is content, not a
-//! close).
+//! Fences follow the CommonMark fence rules, measured from the enclosing
+//! list item's content column (FR-007-AC-5/AC-6); this deliberately diverges
+//! from the TS (`~/dev/quire/src/core/parser.ts`) and Py
+//! (`~/dev/quire-py/quire/parser.py`) toggle-on-three-backticks algorithm
+//! (FR-007 CR-009). The scanner here is the single fence model for the
+//! heading walk, `extract_diagrams`, the `code_block` locator, list-item
+//! minting and table detection.
 
 /// A heading found by [`walk_headings`].
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -35,7 +36,7 @@ pub struct Heading {
 /// Walk `lines` and collect every ATX heading outside fenced code blocks.
 pub fn walk_headings(lines: &[&str]) -> Vec<Heading> {
     let mut out: Vec<Heading> = Vec::new();
-    let mut fence: Option<FenceKind> = None;
+    let mut tracker = FenceTracker::default();
     let mut in_comment = false;
     for (i, line) in lines.iter().enumerate() {
         // A line inside a multi-line `<!-- ... -->` block is comment text, not
@@ -45,18 +46,7 @@ pub fn walk_headings(lines: &[&str]) -> Vec<Heading> {
             in_comment = !line.contains("-->");
             continue;
         }
-        if let Some(kind) = fence_kind(line) {
-            match fence {
-                None => fence = Some(kind),
-                Some(open) if open == kind => fence = None,
-                Some(_) => {
-                    // Mismatched fence character (e.g. tilde line inside
-                    // a backtick block) — treat as content per FR-007-AC-4.
-                }
-            }
-            continue;
-        }
-        if fence.is_some() {
+        if tracker.feed(line).kind != LineKind::Outside {
             continue;
         }
         if let Some((level, mut text)) = parse_heading(line) {
@@ -111,22 +101,297 @@ pub(crate) fn strip_trailing_block_id(text: &mut String) -> Option<String> {
     Some(id)
 }
 
+/// The character of a fence run.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum FenceKind {
     Backtick,
     Tilde,
 }
 
-/// Return the fence kind if `line` (post `trim_start`) opens or closes a
-/// fenced code block. `None` otherwise.
-fn fence_kind(line: &str) -> Option<FenceKind> {
-    let trimmed: &str = line.trim_start();
-    if trimmed.starts_with("```") {
-        Some(FenceKind::Backtick)
-    } else if trimmed.starts_with("~~~") {
-        Some(FenceKind::Tilde)
-    } else {
-        None
+/// An opening code fence recognised under the CommonMark fence rules: a run
+/// of three or more backticks or tildes indented at most three columns past
+/// the enclosing list item's content column, and for a backtick fence an info
+/// string with no backtick.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct Fence<'a> {
+    kind: FenceKind,
+    /// Length of the opening run; a closing fence must be at least this long.
+    len: usize,
+    /// Content column of the enclosing list item (0 at top level).
+    container: usize,
+    /// Everything after the opening run, untrimmed.
+    pub(crate) info: &'a str,
+}
+
+impl<'a> Fence<'a> {
+    fn opening(line: &'a str, container: usize) -> Option<Self> {
+        let (kind, len, rest) = fence_run(line, container)?;
+        if kind == FenceKind::Backtick && rest.contains('`') {
+            return None;
+        }
+        Some(Self {
+            kind,
+            len,
+            container,
+            info: rest,
+        })
+    }
+
+    /// Whether `line` closes this fence: same character, a run at least as
+    /// long as the opener, indented at most three columns past the
+    /// container, and nothing but whitespace after the run.
+    fn closes(&self, line: &str) -> bool {
+        fence_run(line, self.container).is_some_and(|(kind, len, rest)| {
+            kind == self.kind && len >= self.len && rest.trim().is_empty()
+        })
+    }
+}
+
+/// Width in columns of the leading whitespace of `line` (a tab advances to
+/// the next multiple of four) and its byte length.
+fn leading_columns(line: &str) -> (usize, usize) {
+    let mut col: usize = 0;
+    let mut bytes: usize = 0;
+    for b in line.bytes() {
+        match b {
+            b' ' => col += 1,
+            b'\t' => col += 4 - col % 4,
+            _ => break,
+        }
+        bytes += 1;
+    }
+    (col, bytes)
+}
+
+/// Split a fence line into its character, run length and remainder.
+fn fence_run(line: &str, container: usize) -> Option<(FenceKind, usize, &str)> {
+    let (col, bytes) = leading_columns(line);
+    if col > container + 3 {
+        return None;
+    }
+    let text: &str = &line[bytes..];
+    let (kind, ch) = match text.as_bytes().first()? {
+        b'`' => (FenceKind::Backtick, '`'),
+        b'~' => (FenceKind::Tilde, '~'),
+        _ => return None,
+    };
+    let len: usize = text.chars().take_while(|&c| c == ch).count();
+    if len < 3 {
+        return None;
+    }
+    Some((kind, len, &text[len..]))
+}
+
+/// A list marker starting a line.
+#[derive(Debug, Clone, Copy)]
+struct Marker {
+    /// Column of the marker.
+    col: usize,
+    /// Column the item's content starts at.
+    content: usize,
+    /// The item has no content on its first line.
+    empty: bool,
+    /// The number of an ordered marker; `None` for a bullet.
+    number: Option<u64>,
+}
+
+impl Marker {
+    /// Whether a list started by this marker may interrupt a paragraph: it
+    /// has content, and an ordered marker starts at 1.
+    fn interrupts_paragraph(&self) -> bool {
+        !self.empty && self.number.is_none_or(|n| n == 1)
+    }
+}
+
+/// The list marker (a bullet, or up to nine digits followed by `.` or `)`,
+/// then whitespace or the end of the line) that starts `line`, if any. A
+/// thematic break is not a marker.
+fn list_marker(line: &str) -> Option<Marker> {
+    if is_thematic_break(line) {
+        return None;
+    }
+    let (col, bytes) = leading_columns(line);
+    let text: &str = &line[bytes..];
+    let (width, number): (usize, Option<u64>) = match text.as_bytes().first()? {
+        b'-' | b'*' | b'+' => (1, None),
+        b'0'..=b'9' => {
+            let digits: usize = text.bytes().take_while(u8::is_ascii_digit).count();
+            if digits > 9 || !matches!(text.as_bytes().get(digits), Some(b'.' | b')')) {
+                return None;
+            }
+            (digits + 1, text[..digits].parse().ok())
+        }
+        _ => return None,
+    };
+    let after: &str = &text[width..];
+    if after.trim().is_empty() {
+        return Some(Marker {
+            col,
+            content: col + width + 1,
+            empty: true,
+            number,
+        });
+    }
+    let spaces: usize = after.bytes().take_while(|&b| b == b' ').count();
+    if spaces == 0 && !after.starts_with('\t') {
+        return None;
+    }
+    // Five or more spaces after the marker: the content is an indented code
+    // block, so the item content column is one space past the marker.
+    let gap: usize = if (1..=4).contains(&spaces) { spaces } else { 1 };
+    Some(Marker {
+        col,
+        content: col + width + gap,
+        empty: false,
+        number,
+    })
+}
+
+/// A line of three or more `-`, `*` or `_` (one kind, spaces between allowed).
+fn is_thematic_break(line: &str) -> bool {
+    let text: &str = line.trim();
+    let Some(first) = text.chars().next().filter(|c| matches!(c, '-' | '*' | '_')) else {
+        return false;
+    };
+    text.chars().all(|c| c == first || c == ' ' || c == '\t')
+        && text.chars().filter(|&c| c == first).count() >= 3
+}
+
+/// A line that starts a block other than a paragraph without being a list
+/// item or a fence: an ATX heading, a block quote or a thematic break. Such a
+/// line is never a lazy paragraph continuation.
+fn starts_other_block(line: &str) -> bool {
+    let (_, bytes) = leading_columns(line);
+    let text: &str = &line[bytes..];
+    let hashes: usize = text.bytes().take_while(|&b| b == b'#').count();
+    let heading: bool = (1..=6).contains(&hashes)
+        && text[hashes..]
+            .chars()
+            .next()
+            .is_none_or(|c| c == ' ' || c == '\t');
+    heading || text.starts_with('>') || is_thematic_break(line)
+}
+
+/// What a line is, as seen by [`FenceTracker::feed`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum LineKind<'a> {
+    /// Not part of any fenced block.
+    Outside,
+    /// The opening fence line of a block.
+    Opens(Fence<'a>),
+    /// A content line of an open block.
+    Inside,
+    /// The closing fence line of a block.
+    Closes,
+}
+
+/// The result of [`FenceTracker::feed`] for one line.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct Fed<'a> {
+    /// A fence that was open before this line ended without a closing fence,
+    /// because this line is indented less than the list item holding it.
+    pub(crate) ended: bool,
+    /// What this line itself is.
+    pub(crate) kind: LineKind<'a>,
+}
+
+/// An enclosing list item.
+#[derive(Debug, Clone, Copy)]
+struct Item {
+    marker_col: usize,
+    content: usize,
+}
+
+/// Line-by-line fence state: the open fence, if any, and the list items
+/// enclosing the current line, whose content columns the three-column indent
+/// limit is measured from. List structure is the CommonMark container rule
+/// for bullets and ordered items: a line indented less than an item's content
+/// column leaves it unless it continues the item's paragraph lazily.
+#[derive(Debug, Default)]
+pub(crate) struct FenceTracker<'a> {
+    open: Option<Fence<'a>>,
+    items: Vec<Item>,
+    /// The previous line was paragraph text (so a lazy continuation or a
+    /// paragraph-interrupting rule applies to this one).
+    paragraph: bool,
+}
+
+impl<'a> FenceTracker<'a> {
+    /// Classify the next line of the input. A fence left open runs to the end
+    /// of the input, or until a line indented less than the list item that
+    /// holds it.
+    pub(crate) fn feed(&mut self, line: &'a str) -> Fed<'a> {
+        let blank: bool = line.trim().is_empty();
+        let (col, _) = leading_columns(line);
+        let mut ended: bool = false;
+        if let Some(open) = self.open {
+            if !blank && col < open.container {
+                self.open = None;
+                ended = true;
+            } else {
+                let kind = if open.closes(line) {
+                    self.open = None;
+                    LineKind::Closes
+                } else {
+                    LineKind::Inside
+                };
+                return Fed { ended, kind };
+            }
+        }
+        if blank {
+            self.paragraph = false;
+            return Fed {
+                ended,
+                kind: LineKind::Outside,
+            };
+        }
+        let marker: Option<Marker> = list_marker(line);
+        // Whether the line leaves an item, and whether it starts a sibling of
+        // ANY enclosing item (indented from that item's marker but short of
+        // its content column), however deeply the previous line was nested.
+        let left: Option<Item> = self.items.iter().rev().find(|i| col < i.content).copied();
+        let sibling: bool = self
+            .items
+            .iter()
+            .any(|i| col >= i.marker_col && col < i.content);
+        let marker: Option<Marker> =
+            marker.filter(|m| sibling || !self.paragraph || m.interrupts_paragraph());
+        let lazy: bool = left.is_some()
+            && self.paragraph
+            && marker.is_none()
+            && !starts_other_block(line)
+            && Fence::opening(line, 0).is_none();
+        if lazy {
+            return Fed {
+                ended,
+                kind: LineKind::Outside,
+            };
+        }
+        while self.items.last().is_some_and(|i| col < i.content) {
+            self.items.pop();
+        }
+        let container: usize = self.items.last().map_or(0, |i| i.content);
+        if let Some(fence) = Fence::opening(line, container) {
+            self.open = Some(fence);
+            self.paragraph = false;
+            return Fed {
+                ended,
+                kind: LineKind::Opens(fence),
+            };
+        }
+        if let Some(m) = marker {
+            self.items.push(Item {
+                marker_col: m.col,
+                content: m.content,
+            });
+            self.paragraph = !m.empty;
+        } else {
+            self.paragraph = !starts_other_block(line);
+        }
+        Fed {
+            ended,
+            kind: LineKind::Outside,
+        }
     }
 }
 
@@ -203,6 +468,134 @@ mod tests {
         let hs = walk_headings(&lines(input));
         assert_eq!(hs.len(), 1);
         assert_eq!(hs[0].text, "Real");
+    }
+
+    #[trace("FR-007-AC-5")]
+    #[test]
+    fn commonmark_fence_length_and_indent_rules() {
+        let longer = "## A\n````\n```\n# fake\n````\n## B";
+        let texts: Vec<String> = walk_headings(&lines(longer))
+            .into_iter()
+            .map(|h| h.text)
+            .collect();
+        assert_eq!(texts, vec!["A", "B"]);
+        // Four spaces of indent is not a fence, so the heading stays live.
+        let indented = "    ```\n## Live";
+        assert_eq!(walk_headings(&lines(indented)).len(), 1);
+    }
+
+    #[trace("FR-007-AC-6")]
+    #[test]
+    fn heading_walk_closing_rules() {
+        // A closing line with an info string is content, so the fence stays
+        // open and swallows the heading.
+        let info = "```\n```text\n## inside\n```\n## Out";
+        let texts: Vec<String> = walk_headings(&lines(info))
+            .into_iter()
+            .map(|h| h.text)
+            .collect();
+        assert_eq!(texts, vec!["Out"]);
+        // A shorter tilde run does not close a longer tilde fence.
+        let tilde = "~~~~\n~~~\n## inside\n~~~~\n## Out";
+        assert_eq!(walk_headings(&lines(tilde)).len(), 1);
+    }
+
+    #[trace("FR-007-AC-7")]
+    #[test]
+    fn list_nested_fences_measure_from_the_item_content() {
+        // Ordered item (content column 4), nested bullet (column 6).
+        let input = "1.  item\n\n    ```\n    # fake\n    ```\n\n    - nested\n\n      ```\n      ## fake2\n      ```\n## Real";
+        let texts: Vec<String> = walk_headings(&lines(input))
+            .into_iter()
+            .map(|h| h.text)
+            .collect();
+        assert_eq!(texts, vec!["Real"]);
+    }
+
+    #[trace("FR-007-AC-8")]
+    #[test]
+    fn fence_left_open_in_a_list_item_ends_with_the_item() {
+        // The unclosed fence holds `x`; `## H` is indented less than the item
+        // content column, so the item and the fence end and `H` is a heading.
+        let input = "- item\n\n  ```\n  x\n## H";
+        let texts: Vec<String> = walk_headings(&lines(input))
+            .into_iter()
+            .map(|h| h.text)
+            .collect();
+        assert_eq!(texts, vec!["H"]);
+        // At top level an unclosed fence runs to the end of the document.
+        assert!(walk_headings(&lines("```\nx\n## H")).is_empty());
+        let mut t = FenceTracker::default();
+        let kinds: Vec<(bool, bool)> = ["- item", "", "  ```", "  x", "## H"]
+            .iter()
+            .map(|l| {
+                let f = t.feed(l);
+                (f.ended, matches!(f.kind, LineKind::Outside))
+            })
+            .collect();
+        assert_eq!(
+            kinds,
+            vec![
+                (false, true),
+                (false, true),
+                (false, false),
+                (false, false),
+                (true, true)
+            ]
+        );
+    }
+
+    #[trace("FR-007-AC-9")]
+    #[test]
+    fn lazy_continuation_keeps_the_item_and_interrupt_rule_limits_markers() {
+        fn opens(lines: &[&'static str]) -> Vec<bool> {
+            let mut t = FenceTracker::default();
+            lines
+                .iter()
+                .map(|l| matches!(t.feed(l).kind, LineKind::Opens(_)))
+                .collect()
+        }
+        // `text` is a lazy continuation of the item, so the item (content
+        // column 2) still holds the line after the blank: a fence four
+        // spaces in is within three columns of it.
+        assert_eq!(
+            opens(&["- item", "text", "", "    ```"]),
+            vec![false, false, false, true]
+        );
+        // After a block-level line the item is gone; four spaces is no fence.
+        assert_eq!(
+            opens(&["- item", "# H", "", "    ```"]),
+            vec![false, false, false, false]
+        );
+        // `2.` cannot interrupt a paragraph, so it opens no item and five
+        // spaces is no fence; `1.` can, so there it is a fence.
+        assert_eq!(
+            opens(&["para", "2. not an item", "     ```"]),
+            vec![false, false, false]
+        );
+        assert_eq!(
+            opens(&["para", "1. an item", "     ```"]),
+            vec![false, false, true]
+        );
+        // Siblings with markers of different widths: `10.` is an item, so its
+        // content column is 4 and a fence seven columns in opens; read as a
+        // lazy continuation of `9.` (content column 3) it would not.
+        assert_eq!(
+            opens(&["9. a", "10. b", "       ```"]),
+            vec![false, false, true]
+        );
+        // `2. two` is a sibling of the OUTER item, ending the nested one: the
+        // content column is 3, so seven columns is indented code and six a
+        // fence. Were the nested item (column 5) still in force, seven would
+        // open a fence.
+        assert_eq!(
+            opens(&["1. one", "   - nested", "2. two", "       ```"]),
+            vec![false, false, false, false]
+        );
+        assert_eq!(
+            opens(&["1. one", "   - nested", "2. two", "      ```"]),
+            vec![false, false, false, true]
+        );
     }
 
     #[test]
