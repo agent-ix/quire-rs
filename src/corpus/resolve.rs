@@ -22,7 +22,8 @@ use crate::corpus::ArtifactId;
 use crate::diagnostic::Diagnostic;
 
 /// A resolved or dangling reference between two artifacts.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
+#[non_exhaustive]
 pub struct Edge {
     /// Source artifact id (the document the reference was harvested from).
     pub source: ArtifactId,
@@ -53,6 +54,23 @@ pub struct Edge {
     /// Corpus slot of the resolved target document.
     pub(crate) target_slot: Option<usize>,
 }
+
+/// Equality is over the public fields: two edges that read alike are equal
+/// whatever slots their corpora gave the documents.
+impl PartialEq for Edge {
+    fn eq(&self, other: &Self) -> bool {
+        self.source == other.source
+            && self.target == other.target
+            && self.edge_type == other.edge_type
+            && self.resolution == other.resolution
+            && self.authorities == other.authorities
+            && self.source_repo == other.source_repo
+            && self.target_repo == other.target_repo
+            && self.references == other.references
+    }
+}
+
+impl Eq for Edge {}
 
 /// Whether an [`Edge`]'s target was found in the corpus.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

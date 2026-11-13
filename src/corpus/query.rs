@@ -31,7 +31,7 @@ impl Spec {
     }
 
     /// Slots of the documents of type `ty` this view sees, sorted by id.
-    fn by_type_slots(&self, ty: &str) -> Vec<usize> {
+    pub(crate) fn by_type_slots(&self, ty: &str) -> Vec<usize> {
         let mut slots: Vec<usize> = self
             .inner
             .by_type

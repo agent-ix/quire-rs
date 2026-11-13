@@ -242,7 +242,8 @@ fn check_relation(
 
     let selector = relation.selector.as_ref();
 
-    for doc in spec.by_type(&relation.from) {
+    for slot in spec.by_type_slots(&relation.from) {
+        let doc = spec.doc(slot);
         // Selection order is `from`, then `where`, then `exclude` (FR-058).
         // The authored value is kept for the finding text (AC-20).
         let selected_value = match selector {
@@ -259,9 +260,6 @@ fn check_relation(
             continue; // nothing to key an edge on
         }
 
-        let Some(slot) = spec.slot_of(&doc.id) else {
-            continue;
-        };
         let outgoing = spec.edges_from(slot);
         let has_outgoing = || {
             outgoing.iter().any(|e| {

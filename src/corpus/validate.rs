@@ -342,14 +342,9 @@ fn validate_view_findings(
     // is not a document, so nothing structural can be wrong with it as one).
     // Walk diagnostics live on `Spec`, not in this report, so the finding is
     // bridged here or `quire validate` would never show it.
-    for diag in spec.diagnostics() {
+    for diag in spec.load_diagnostics() {
         if let crate::diagnostic::Diagnostic::DocumentWithoutFrontmatter { path, malformed } = diag
         {
-            // The diagnostics are the whole corpus's; a member view reports
-            // only the files under its own document root.
-            if spec.scope.is_some() && spec.member_count() > 1 && !path.starts_with(document_root) {
-                continue;
-            }
             // The two flavors carry distinct reasons (CR-051): a consumer
             // triaging the machine surface acts differently on "this file was
             // never meant to be a document" than on "someone wrote a

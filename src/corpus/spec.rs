@@ -35,6 +35,15 @@ pub struct CorpusMember {
 /// Why a corpus could not be built or validated (FR-085).
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum CorpusError {
+    /// A corpus is built from one or more members.
+    #[error("a corpus is built from one or more members; none were supplied")]
+    NoMembers,
+    /// A corpus of several members fixes each identity at construction.
+    #[error("the corpus has {members} members; each declares its identity at construction")]
+    IdentityFixed {
+        /// Members in the corpus.
+        members: usize,
+    },
     /// A corpus of two or more members requires an identity on every member.
     #[error(
         "corpus member {member} declares no repository identity; a corpus of several members \
@@ -72,6 +81,7 @@ pub struct Spec {
 }
 
 /// One member's place in the corpus.
+#[derive(Clone)]
 pub(crate) struct Member {
     /// Declared identity, stored as given.
     pub(crate) identity: Option<Arc<str>>,
@@ -79,8 +89,11 @@ pub(crate) struct Member {
     pub(crate) slots: Range<usize>,
     /// The member's edges, which `resolve` emits grouped by source member.
     pub(crate) edges: Range<usize>,
+    /// The member's slice of the load diagnostics.
+    pub(crate) load_diagnostics: Range<usize>,
 }
 
+#[derive(Clone)]
 pub(crate) struct SpecInner {
     /// Loaded documents: members in supplied order, each path-sorted (stable
     /// order from `load_repo`).
@@ -104,10 +117,37 @@ pub(crate) struct SpecInner {
     pub(crate) outgoing: BTreeMap<usize, Vec<usize>>,
     /// target slot → edge slots (resolved only).
     pub(crate) incoming: BTreeMap<usize, Vec<usize>>,
-    /// Load + indexing + resolution diagnostics.
+    /// Load + indexing + resolution diagnostics: the members' load
+    /// diagnostics first (member order), then indexing, then resolution.
     pub(crate) diagnostics: Vec<Diagnostic>,
-    /// The diagnostics the loads carried, kept so the corpus can be rebuilt.
-    load_diagnostics: Vec<Diagnostic>,
+    /// Where the resolution diagnostics begin, so resolution can re-run.
+    resolved_from: usize,
+}
+
+impl SpecInner {
+    /// Resolve every reference under the members' current identities. Run at
+    /// construction and again when a one-member corpus declares one.
+    fn resolve_edges(&mut self) {
+        let declared: Vec<Option<Arc<str>>> =
+            self.members.iter().map(|m| m.identity.clone()).collect();
+        let resolved = resolve(&Index {
+            documents: &self.documents,
+            member_of: &self.member_of,
+            member_count: self.members.len(),
+            ids: &self.ids,
+            identities: &self.identities,
+            identity_mode: declared.iter().any(Option::is_some),
+            declared: &declared,
+        });
+        self.diagnostics.truncate(self.resolved_from);
+        self.diagnostics.extend(resolved.diagnostics);
+        for (member, edges) in self.members.iter_mut().zip(resolved.edge_spans) {
+            member.edges = edges;
+        }
+        self.edges = resolved.edges;
+        self.outgoing = resolved.outgoing;
+        self.incoming = resolved.incoming;
+    }
 }
 
 impl std::fmt::Debug for Spec {
@@ -145,6 +185,9 @@ impl Spec {
     }
 
     fn build(members: Vec<CorpusMember>) -> Result<Self, CorpusError> {
+        if members.is_empty() {
+            return Err(CorpusError::NoMembers);
+        }
         let several = members.len() > 1;
         let mut identities: BTreeMap<String, usize> = BTreeMap::new();
         let mut declared: Vec<Option<Arc<str>>> = Vec::with_capacity(members.len());
@@ -163,20 +206,19 @@ impl Spec {
                 }
             }
         }
-        let identity_mode = declared.iter().any(Option::is_some);
 
         let mut documents: Vec<LoadedDocument> = Vec::new();
         let mut member_of: Vec<usize> = Vec::new();
-        let mut spans: Vec<Range<usize>> = Vec::with_capacity(members.len());
-        let mut load_diagnostics: Vec<Diagnostic> = Vec::new();
+        let mut spans: Vec<(Range<usize>, Range<usize>)> = Vec::with_capacity(members.len());
+        let mut diagnostics: Vec<Diagnostic> = Vec::new();
         for (index, member) in members.into_iter().enumerate() {
             let start = documents.len();
+            let diag_start = diagnostics.len();
             member_of.extend(std::iter::repeat_n(index, member.load.documents.len()));
             documents.extend(member.load.documents);
-            spans.push(start..documents.len());
-            load_diagnostics.extend(member.load.diagnostics);
+            diagnostics.extend(member.load.diagnostics);
+            spans.push((start..documents.len(), diag_start..diagnostics.len()));
         }
-        let mut diagnostics = load_diagnostics.clone();
 
         let mut ids: Vec<HashMap<ArtifactId, usize>> = vec![HashMap::new(); spans.len()];
         let mut holders: HashMap<ArtifactId, Vec<usize>> = HashMap::with_capacity(documents.len());
@@ -208,43 +250,33 @@ impl Spec {
             }
         }
 
-        let resolved = resolve(&Index {
-            documents: &documents,
-            member_of: &member_of,
-            member_count: spans.len(),
-            ids: &ids,
-            identities: &identities,
-            identity_mode,
-            declared: &declared,
-        });
-        diagnostics.extend(resolved.diagnostics);
-
         let members = spans
             .into_iter()
             .zip(declared)
-            .zip(resolved.edge_spans)
-            .map(|((slots, identity), edges)| Member {
+            .map(|((slots, load_diagnostics), identity)| Member {
                 identity,
                 slots,
-                edges,
+                edges: 0..0,
+                load_diagnostics,
             })
             .collect();
-
+        let mut inner = SpecInner {
+            documents,
+            members,
+            member_of,
+            ids,
+            holders,
+            identities,
+            by_type,
+            edges: Vec::new(),
+            outgoing: BTreeMap::new(),
+            incoming: BTreeMap::new(),
+            resolved_from: diagnostics.len(),
+            diagnostics,
+        };
+        inner.resolve_edges();
         Ok(Spec {
-            inner: Arc::new(SpecInner {
-                documents,
-                members,
-                member_of,
-                ids,
-                holders,
-                identities,
-                by_type,
-                edges: resolved.edges,
-                outgoing: resolved.outgoing,
-                incoming: resolved.incoming,
-                diagnostics,
-                load_diagnostics,
-            }),
+            inner: Arc::new(inner),
             scope: None,
         })
     }
@@ -256,22 +288,26 @@ impl Spec {
     /// also qualifies `## Relationships` targets under it (FR-076); without it
     /// a relationships table is reported `unavailable` with reason
     /// `no-bundle-package`. An empty string clears the identity. A corpus of
-    /// several members fixes each identity at [`Spec::from_members`] and is
-    /// returned unchanged.
-    #[must_use]
-    pub fn with_bundle_package(self, package: &str) -> Self {
-        if self.inner.members.len() != 1 {
-            return self;
+    /// several members fixes each identity at [`Spec::from_members`], so this
+    /// is [`CorpusError::IdentityFixed`] there.
+    pub fn with_bundle_package(self, package: &str) -> Result<Self, CorpusError> {
+        let members = self.inner.members.len();
+        if members != 1 {
+            return Err(CorpusError::IdentityFixed { members });
         }
-        let load = RepoLoad {
-            documents: self.inner.documents.clone(),
-            diagnostics: self.inner.load_diagnostics.clone(),
-        };
-        Self::build(vec![CorpusMember {
-            identity: (!package.is_empty()).then(|| package.to_string()),
-            load,
-        }])
-        .expect("a one-member corpus has no identity to reject")
+        // Reuse the documents and indices when this is the only handle.
+        let mut inner = Arc::try_unwrap(self.inner).unwrap_or_else(|shared| (*shared).clone());
+        let identity = (!package.is_empty()).then(|| Arc::<str>::from(package));
+        inner.identities.clear();
+        if identity.is_some() {
+            inner.identities.insert(fold_identity(package), 0);
+        }
+        inner.members[0].identity = identity;
+        inner.resolve_edges();
+        Ok(Spec {
+            inner: Arc::new(inner),
+            scope: None,
+        })
     }
 
     /// The declared repository identity of a one-member corpus, if any.
@@ -390,6 +426,18 @@ impl Spec {
     pub fn by_qualified_id(&self, identity: &str, id: &str) -> Option<&LoadedDocument> {
         let member = *self.inner.identities.get(&fold_identity(identity))?;
         self.inner.ids[member].get(id).map(|&slot| self.doc(slot))
+    }
+
+    /// The diagnostics the loads of the members this view sees carried
+    /// (unreadable files, files without frontmatter), in member order.
+    pub(crate) fn load_diagnostics(&self) -> &[Diagnostic] {
+        let inner = &self.inner;
+        match self.scope {
+            Some(member) => &inner.diagnostics[inner.members[member].load_diagnostics.clone()],
+            None => {
+                &inner.diagnostics[..inner.members.last().map_or(0, |m| m.load_diagnostics.end)]
+            }
+        }
     }
 
     /// Load + indexing diagnostics (unreadable files, missing uuids,

@@ -352,20 +352,39 @@ fn an_unconstrained_to_has_no_kind_mismatch_and_the_finding_is_tunable() {
 #[trace("FR-085-AC-8")]
 #[test]
 fn bare_ids_and_relative_links_resolve_only_within_the_sources_member() {
-    let a = repo(&[
-        (
-            "REQ-001.md",
-            doc(
-                "REQ-001",
-                "Req",
-                &[("mitigates", "HAZ-001")],
-                "see [other repo](../../b/spec/HAZ-001.md) and [local](./REQ-002.md)",
+    // Both repositories live under one parent, so `../../b/spec/HAZ-001.md`
+    // from o/a names a file that exists: a single corpus-wide path index
+    // would resolve it.
+    let parent = TempDir::new().expect("parent");
+    let write_repo = |name: &str, files: &[(&str, String)]| {
+        for (rel, text) in files {
+            let path = parent.path().join(name).join("spec").join(rel);
+            fs::create_dir_all(path.parent().expect("parent")).expect("mkdir");
+            fs::write(path, text).expect("write");
+        }
+        CorpusMember {
+            identity: Some(format!("o/{name}")),
+            load: quire_rs::corpus::walk::load_repo(&parent.path().join(name).join("spec")),
+        }
+    };
+    let a = write_repo(
+        "a",
+        &[
+            (
+                "REQ-001.md",
+                doc(
+                    "REQ-001",
+                    "Req",
+                    &[("mitigates", "HAZ-001")],
+                    "see [other repo](../../b/spec/HAZ-001.md) and [local](./REQ-002.md)",
+                ),
             ),
-        ),
-        ("REQ-002.md", doc("REQ-002", "Req", &[], "")),
-    ]);
-    let b = repo(&[("HAZ-001.md", doc("HAZ-001", "Haz", &[], ""))]);
-    let corpus = corpus(&[(&a, "o/a"), (&b, "o/b")]);
+            ("REQ-002.md", doc("REQ-002", "Req", &[], "")),
+        ],
+    );
+    let b = write_repo("b", &[("HAZ-001.md", doc("HAZ-001", "Haz", &[], ""))]);
+    assert!(parent.path().join("b/spec/HAZ-001.md").exists());
+    let corpus = Spec::from_members(vec![a, b]).expect("corpus");
     let out = corpus.outgoing("REQ-001");
 
     let bare = out
@@ -450,6 +469,8 @@ fn classification_is_independent_of_member_order_and_reads_nothing_after_build()
     let ba = corpus(&[(&b, "o/b"), (&a, "o/a")]);
     // `edges()` of an unscoped corpus is the whole set in either order.
     assert_eq!(classify(&ab), classify(&ba));
+    // Edges compare on what they say, not on the slots their corpus gave them.
+    assert!(ab.edges().iter().all(|e| ba.edges().contains(e)));
     assert_eq!(
         classify(&ab),
         classify(&corpus(&[(&a, "o/a"), (&b, "o/b")]))
@@ -763,8 +784,14 @@ fn model_paths_resolve_against_each_members_own_reference_root() {
     );
 }
 
+#[trace("FR-085-AC-22")]
 #[test]
-fn validate_corpus_needs_one_root_pair_per_member() {
+fn a_corpus_needs_members_root_pairs_and_a_fixed_identity() {
+    assert_eq!(
+        Spec::from_members(vec![]).expect_err("none"),
+        CorpusError::NoMembers
+    );
+
     let (a, b) = two_repo_fixture();
     let spec = corpus(&[(&a, "o/a"), (&b, "o/b")]);
     let only = (a.path().join("spec"), a.path().to_path_buf());
@@ -782,4 +809,131 @@ fn validate_corpus_needs_one_root_pair_per_member() {
             roots: 1
         }
     );
+    assert!(err.to_string().contains('2') && err.to_string().contains('1'));
+
+    let err = spec
+        .with_bundle_package("o/z")
+        .map(|_| ())
+        .expect_err("fixed");
+    assert_eq!(err, CorpusError::IdentityFixed { members: 2 });
+}
+
+#[trace("FR-085-AC-23")]
+#[test]
+fn members_report_their_count_and_declared_identity() {
+    let (a, b) = two_repo_fixture();
+    let spec = corpus(&[(&a, "o/a"), (&b, "O/B")]);
+    assert_eq!(spec.member_count(), 2);
+    assert_eq!(spec.member_identity(0), Some("o/a"));
+    assert_eq!(spec.member_identity(1), Some("O/B"));
+    assert_eq!(spec.member_identity(2), None);
+    let bare = Spec::from_members(vec![member(&a, None)]).expect("corpus");
+    assert_eq!(bare.member_count(), 1);
+    assert_eq!(bare.member_identity(0), None);
+}
+
+#[trace("FR-085-AC-24")]
+#[test]
+fn load_warnings_belong_to_their_member_whatever_the_root_spelling() {
+    let note = |name: &str| (name.to_string(), "plain text, no frontmatter\n".to_string());
+    let a = repo(&[("REQ-001.md", doc("REQ-001", "Req", &[], ""))]);
+    let b = repo(&[("HAZ-001.md", doc("HAZ-001", "Haz", &[], ""))]);
+    for (dir, name) in [(&a, "a-notes.md"), (&b, "b-notes.md")] {
+        let (rel, text) = note(name);
+        fs::write(dir.path().join("spec").join(rel), text).expect("write");
+    }
+    let spec = corpus(&[(&a, "o/a"), (&b, "o/b")]);
+    // Roots spelled with `..`, which a lexical prefix test against the loaded
+    // paths would not match.
+    let spelled: Vec<(PathBuf, PathBuf)> = [&a, &b]
+        .iter()
+        .map(|d| {
+            (
+                d.path().join("spec").join("..").join("spec"),
+                d.path().to_path_buf(),
+            )
+        })
+        .collect();
+    let refs: Vec<(&Path, &Path)> = spelled
+        .iter()
+        .map(|(d, r)| (d.as_path(), r.as_path()))
+        .collect();
+    let report = validate_corpus(&spec, &registry(), BundlePosture::Okf, &refs).expect("validates");
+    let warned: Vec<(String, Option<String>)> = found(&report, "no-frontmatter")
+        .iter()
+        .map(|f| {
+            (
+                f.path
+                    .file_name()
+                    .expect("name")
+                    .to_string_lossy()
+                    .into_owned(),
+                f.repo.clone(),
+            )
+        })
+        .collect();
+    assert_eq!(
+        warned,
+        vec![
+            ("a-notes.md".to_string(), Some("o/a".to_string())),
+            ("b-notes.md".to_string(), Some("o/b".to_string())),
+        ]
+    );
+}
+
+#[trace("FR-085-AC-25")]
+#[test]
+fn a_wrong_kind_source_on_an_incoming_relation_leaves_it_unsatisfied_without_a_mismatch() {
+    // A Note mitigates the hazard; the relation wants a Req.
+    let a = repo(&[(
+        "NOTE-001.md",
+        doc(
+            "NOTE-001",
+            "Note",
+            &[("mitigates", "ix://o/b/spec/HAZ-001")],
+            "",
+        ),
+    )]);
+    let b = repo(&[("HAZ-001.md", doc("HAZ-001", "Haz", &[], ""))]);
+    let report = validate(&corpus(&[(&a, "o/a"), (&b, "o/b")]), &registry(), &[&a, &b]);
+    assert!(found(&report, "target-kind-mismatch").is_empty());
+    let unmet = found(&report, "unmitigated-haz");
+    assert_eq!(unmet.len(), 1, "{unmet:?}");
+    assert_eq!(unmet[0].repo.as_deref(), Some("o/b"));
+}
+
+#[test]
+fn the_assurance_export_refuses_a_multi_member_corpus() {
+    use quire_rs::symbols::trace::SymbolGraph;
+    use quire_rs::symbols::SymbolExtraction;
+    use quire_rs::{build_assurance_export, AssuranceError, AssuranceInput};
+
+    let (a, b) = two_repo_fixture();
+    let spec = corpus(&[(&a, "o/a"), (&b, "o/b")]);
+    let registry = registry();
+    let err = build_assurance_export(AssuranceInput {
+        spec: &spec,
+        registry: &registry,
+        corpus_root: a.path(),
+        symbols: &SymbolExtraction::default(),
+        symbol_graph: &SymbolGraph::default(),
+    })
+    .expect_err("several members");
+    assert_eq!(err, AssuranceError::MultiMemberCorpus { members: 2 });
+}
+
+#[test]
+fn an_id_shared_by_two_members_is_still_checked_in_each() {
+    let a = repo(&[("X.md", doc("X", "Req", &[], ""))]);
+    let b = repo(&[("X.md", doc("X", "Req", &[], ""))]);
+    let spec = corpus(&[(&a, "o/a"), (&b, "o/b")]);
+    // The whole-corpus entry point walks every member's documents.
+    let report = validate_bundle(
+        &spec,
+        &registry(),
+        BundlePosture::Okf,
+        &a.path().join("spec"),
+        a.path(),
+    );
+    assert_eq!(found(&report, "req-no-haz").len(), 2);
 }
