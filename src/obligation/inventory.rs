@@ -1176,10 +1176,10 @@ impl SelectedInventory {
                 if self.interrupted(options) {
                     return false;
                 }
-                ordinal += 1;
                 if missing_header {
                     continue;
                 }
+                ordinal += 1;
                 if source.combinatorial.is_some() {
                     combinatorial_rows.push((ordinal, row));
                     continue;

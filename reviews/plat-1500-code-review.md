@@ -48,3 +48,20 @@ Ticket: PLAT-1500. PR head `0191395`, scope `git diff origin/main...HEAD`. Code 
 | tests/it/located_findings.rs tc2326 | examined | Clean; discriminating, fenced control present |
 | CHANGELOG.md | examined | FND-005 |
 | src/corpus/relation_report.rs, required_relations.rs | context_only | Do not use the scan; no regression |
+
+## New findings (disposition pass 1)
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-006 | medium | Missed in the review pass and still present at fe3f6bb: legend rows still enter `derive()`. The scan keeps every row of a table that lacks the statement and id columns, so `collect` turns each legend row into a `SkippedRow`. The coverage report then raises one `obligation-row-states-nothing` per legend row ("the source's statement column is empty"). Reproduced: an AC table plus a 2-row `\| Symbol \| Meaning \|` legend gives two such diagnostics, while the inventory is `Complete` with no cause. This contradicts the FR-049 body ("A table lacking the declared id column contributes no rows") and AC-30's legend intent. The same rows also advance the per-document `{row}` ordinal in both `collect` and the inventory. A legend between two `id_format` tables therefore shifts every later id by the legend's row count. Fix: drop the rows of a table that lacks a required column before ordinals and skipped rows are counted, and add a coverage test asserting no `obligation-row-states-nothing` for a legend. | src/obligation.rs:552-579; src/obligation/inventory.rs:1173-1180; src/coverage/reconcile.rs:565-577 |
+| FND-007 | low | The new tc2322 assertion `all(\|u\| u.row_id.as_deref() != Some("✅"))` cannot fail. The legend has no `ID` or `Traces To` column, so it never yields a reference row and no unbacked row can carry `row_id == "✅"`. Assert that `unbacked_rows` is unchanged from the single-table baseline instead. | tests/it/coverage_rollup.rs:4262-4270 |
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | Round 1 (fe3f6bb): `scan_document` applies `section_lacks` per required column. Probe: AC table plus legend gives causes `[]`, terminal `Complete`. Pinned by `every_table_under_an_obligation_section_derives_and_a_legend_raises_no_cause`, which fails when the per-table cause is restored. |
+| FND-002 | fixed | Round 1: `tables_of_sections` carries a matched-section ordinal, and `section_lacks` groups on it. The two-sections-same-heading case is pinned in `id_column_finding_is_per_section_on_its_first_table`, which fails when grouping reverts to heading text. |
+| FND-003 | fixed | Round 1: tc2323 asserts `minted_targets` contains FR-001-AC-3. With `tables_in` truncated to the first table, it fails at coverage_rollup.rs:4303. |
+| FND-004 | fixed | Round 1: `exact` removed, condition is `if lacks_status && status_shaped`. The added "adds no row" assertion is vacuous; see FND-007. |
+| FND-005 | fixed | Round 1: trailing space and dangling line removed; the PLAT-1491 entry now cites AC-23..25 and AC-27. |

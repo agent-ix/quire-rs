@@ -35,3 +35,11 @@ Ticket: PLAT-1500. This is a planless gap analysis of the PR diff. Plan completi
 | FR-049-AC-29 | examined | Backed by tc2323 (discriminating) |
 | FR-049-AC-30 | examined | FND-001 |
 | FR-049-AC-23..25 | context_only | Unchanged; tests unchanged and passing |
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | Round 1 (fe3f6bb): `id_column_finding_is_per_section_on_its_first_table` covers all three AC-30 clauses for the id column, including the case with three tables and none carrying it, plus the two-sections case. `inventory_reports_one_missing_column_cause_when_no_table_has_it` covers the inventory. The status finding shares `section_lacks`. Under mutation, all of these fail. |
+| FND-002 | fixed | Round 1: tc2322 asserts that a fenced TC-010 is not an unbacked row, and the obligations test asserts that fenced FR-001-AC-9 derives nothing, in both the derive and inventory paths. |
+| FND-003 | fixed | Round 1: FR-049 body and new AC-31 specify the combinatorial widening. tc2327 asserts 3 dimensions and 12 tuples on both the corpus path and the single-document path, and fails when only the first table is read. |

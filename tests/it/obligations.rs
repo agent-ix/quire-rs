@@ -1573,3 +1573,67 @@ fn inventory_reports_one_missing_column_cause_when_no_table_has_it() {
         [quire_rs::obligation::inventory::InventoryCauseCode::MissingColumn]
     );
 }
+
+#[trace("FR-049-AC-32")]
+#[test]
+fn a_legend_grid_is_no_skipped_row_and_does_not_shift_rendered_ids() {
+    let scope = ac_bundle(
+        "1500c",
+        "| FR-001-AC-1 | The system shall do it. | Test (TC-001) | P1 |\n",
+    );
+    let fr = scope.join("FR-001.md");
+    let mut text = fs::read_to_string(&fr).expect("read");
+    text.push_str(LEGEND);
+    text.push_str("| p | q |\n");
+    fs::write(&fr, text).expect("write");
+
+    let source = scope.parent().unwrap().join("src");
+    fs::create_dir_all(&source).expect("mkdir");
+    write(&source, "lib.rs", "//! empty\n");
+    let registry = Registry::load_module(&fixture_module("obligations")).expect("load module");
+    let spec = Spec::from_path(&scope);
+    let model = registry.traceability().cloned().unwrap();
+    let graph = trace::bind(&extract_tree(&source), &model);
+    let report = compute(&spec, &registry, &graph, &scope).expect("report");
+    assert!(
+        !report
+            .diagnostics
+            .iter()
+            .any(|d| d.reason == "obligation-row-states-nothing"),
+        "{:#?}",
+        report.diagnostics
+    );
+    let (_, skipped) = derive(&spec, &scope, &model);
+    assert!(skipped.is_empty(), "{skipped:?}");
+
+    // A legend between two id_format tables does not shift the later ids.
+    let nfr = tmpdir("1500d").join("spec");
+    fs::create_dir_all(&nfr).expect("mkdir");
+    let head =
+        "---\nid: NFR-006\ntype: NFR\ntitle: Determinism\n---\n\n## Measurement and Evaluation\n\n";
+    let table = |rows: &str| {
+        format!("| Metric | Target | Threshold | Method |\n|--------|--------|-----------|--------|\n{rows}")
+    };
+    let a = "| first | 1 | 2 | Proptest |\n";
+    let b = "| second | 3 | 4 | Benchmark |\n";
+    write(
+        &nfr,
+        "NFR-006-determinism.md",
+        &format!("{head}{}", table(&format!("{a}{b}"))),
+    );
+    let plain: Vec<_> = derive_at(&nfr, "obligations-nfr")
+        .into_iter()
+        .map(|o| o.id)
+        .collect();
+    write(
+        &nfr,
+        "NFR-006-determinism.md",
+        &format!("{head}{}{LEGEND}\nmore\n\n{}", table(a), table(b)),
+    );
+    let with_legend: Vec<_> = derive_at(&nfr, "obligations-nfr")
+        .into_iter()
+        .map(|o| o.id)
+        .collect();
+    assert_eq!(plain, ["NFR-006-M-1", "NFR-006-M-2"]);
+    assert_eq!(with_legend, plain);
+}

@@ -4218,6 +4218,9 @@ fn tc2322_a_second_table_under_the_declared_section_is_a_rollup_row() {
     let tests = bundle.scope.join("tests.md");
     let first = fs::read_to_string(&tests).expect("read");
 
+    let baseline = report_for(&bundle, "iso")
+        .expect("model declared")
+        .unbacked_rows;
     let second_table = |table: &str| {
         let mut matrix = first.clone();
         matrix.push_str("\nA second grid.\n\n");
@@ -4261,14 +4264,7 @@ fn tc2322_a_second_table_under_the_declared_section_is_a_rollup_row() {
         "{:?}",
         report.diagnostics
     );
-    assert!(
-        report
-            .unbacked_rows
-            .iter()
-            .all(|u| u.row_id.as_deref() != Some("✅")),
-        "{:?}",
-        report.unbacked_rows
-    );
+    assert_eq!(report.unbacked_rows, baseline, "a legend grid adds no row");
     assert!(
         !report
             .diagnostics

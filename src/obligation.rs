@@ -397,6 +397,20 @@ pub fn derive(
             );
             continue;
         }
+        // A table lacking a required column (a legend grid) contributes no rows,
+        // so it is neither a skipped row nor an advance of the `{row}` ordinal
+        // (FR-049-AC-32).
+        let required: Vec<&str> = std::iter::once(source.statement_column.as_str())
+            .chain(resolved.id_column)
+            .collect();
+        let rows: Vec<ScannedRow> = rows
+            .into_iter()
+            .filter(|row| {
+                required
+                    .iter()
+                    .all(|column| row.columns.iter().any(|h| h.eq_ignore_ascii_case(column)))
+            })
+            .collect();
         collect(
             source,
             order,
