@@ -11,7 +11,8 @@ use std::path::{Path, PathBuf};
 
 use ix_trace_rs::trace;
 use quire_rs::corpus::{
-    design_matrix, CorpusMember, DesignMatrixEntry, RelationReportError, RelationReportMember, Spec,
+    design_join, design_matrix, CorpusMember, DesignMatrixEntry, RelationReportError,
+    RelationReportMember, Spec,
 };
 use quire_rs::coverage::{compute, CoverageMatrixStatus, CoverageReport};
 use quire_rs::symbols::{extract_tree, trace as sym_trace};
@@ -641,28 +642,20 @@ fn a_retired_criterion_keeps_its_place_under_the_design_block() {
 
 #[trace("FR-092-AC-13")]
 #[test]
-fn the_engine_source_names_no_archetype_verb_or_verdict() {
+fn the_engine_source_holds_no_string_literal_but_the_serde_skip_predicate() {
+    // Every kind, verb and relation name reaches the engine as data; the only
+    // string literal in code is the serde attribute predicate.
     let source = fs::read_to_string(
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/corpus/design_matrix.rs"),
     )
     .expect("source");
-    let code: String = source
-        .lines()
-        .filter(|l| !l.trim_start().starts_with("//"))
-        .collect::<Vec<_>>()
-        .join("\n");
-    for word in [
-        "Requirement\"",
-        "Architecture",
-        "Part\"",
-        "Connection\"",
-        "ADR\"",
-        "realizes",
-        "implements",
-        "verdict",
-        "strict",
-    ] {
-        assert!(!code.contains(word), "engine source names {word}");
+    for line in source.lines().filter(|l| !l.trim_start().starts_with("//")) {
+        for (n, literal) in line.split('"').enumerate().filter(|(n, _)| n % 2 == 1) {
+            assert!(
+                literal == "Option::is_none",
+                "string literal {literal:?} (segment {n}) in: {line}"
+            );
+        }
     }
 }
 
@@ -694,9 +687,41 @@ fn the_matrix_is_byte_identical_across_runs_and_changes_no_document() {
     let before = (snapshot(&a), snapshot(&b));
     let render =
         |dirs: &[(&TempDir, &str)]| serde_json::to_string(&multi(dirs, &registry)).expect("json");
+    // `load_repo` sorts by path, so document order is varied after the load.
+    let reversed = |dirs: &[(&TempDir, &str)]| {
+        let corpus = Spec::from_members(
+            dirs.iter()
+                .map(|(dir, identity)| {
+                    let mut load = quire_rs::corpus::walk::load_repo(&dir.path().join("spec"));
+                    load.documents.reverse();
+                    CorpusMember {
+                        identity: Some((*identity).to_string()),
+                        load,
+                    }
+                })
+                .collect(),
+        )
+        .expect("corpus");
+        let reports: Vec<CoverageReport> = dirs
+            .iter()
+            .map(|(d, _)| coverage_of(d, &registry))
+            .collect();
+        let members: Vec<RelationReportMember<'_>> = dirs
+            .iter()
+            .zip(&reports)
+            .map(|((dir, _), report)| RelationReportMember {
+                root: dir.path(),
+                matrix: &report.coverage_matrix,
+            })
+            .collect();
+        serde_json::to_string(&design_matrix(&corpus, &registry, &members).expect("matrix"))
+            .expect("json")
+    };
     let first = render(&[(&a, "o/a"), (&b, "o/b")]);
     assert_eq!(first, render(&[(&a, "o/a"), (&b, "o/b")]));
     assert_eq!(first, render(&[(&b, "o/b"), (&a, "o/a")]));
+    assert_eq!(first, reversed(&[(&a, "o/a"), (&b, "o/b")]));
+    assert_eq!(first, reversed(&[(&b, "o/b"), (&a, "o/a")]));
     assert_eq!((snapshot(&a), snapshot(&b)), before);
 }
 
@@ -731,4 +756,73 @@ fn the_entry_keys_serialize_in_the_fixed_order() {
         "{text}"
     );
     assert!(text.contains("\"criticality\":\"high\""), "{text}");
+}
+
+#[trace("FR-092-AC-7")]
+#[test]
+fn each_block_equals_the_join_row_and_a_wrong_kind_target_is_a_mismatch() {
+    let dir = repo(&[
+        glyph("GLY-001", &[("kindled_by", "BUL-001")], &["chk-a"]),
+        glyph("GLY-002", &[("kindled_by", "LAN-001")], &["chk-b"]),
+        lantern("LAN-001", &[("kindles", "chk-a")]),
+        doc("BUL-001", "Bulb", "", &[], "Notes", &[]),
+    ]);
+    let registry = module("design-join");
+    let spec = Spec::from_path(&dir.path().join("spec"));
+    let report = coverage_of(&dir, &registry);
+    let members = [RelationReportMember {
+        root: dir.path(),
+        matrix: &report.coverage_matrix,
+    }];
+    let join =
+        serde_json::to_value(design_join(&spec, &registry, &members).expect("join")).expect("json");
+    let matrix = json_of(&design_matrix(&spec, &registry, &members).expect("matrix"));
+
+    let mut mismatches = 0;
+    let mut blocks = 0;
+    for section in join["relations"].as_array().expect("sections") {
+        for row in section["rows"].as_array().expect("rows") {
+            let path = row["document"]["path"].as_str().expect("path");
+            let block = entry(&matrix, path)["design"]
+                .as_array()
+                .expect("design")
+                .iter()
+                .find(|b| b["relation"] == section["name"])
+                .unwrap_or_else(|| panic!("no block for {path}"));
+            blocks += 1;
+            for key in ["check", "state", "dangling", "kind_mismatch"] {
+                assert_eq!(block[key], row[key], "{key} of {path}");
+            }
+            let projected: Vec<Value> = row["linked"]
+                .as_array()
+                .expect("linked")
+                .iter()
+                .filter(|l| l["resolution"] == "resolved")
+                .map(|l| {
+                    let mut out = serde_json::Map::new();
+                    for (to, from) in [
+                        ("id", "id"),
+                        ("kind", "archetype"),
+                        ("path", "path"),
+                        ("repo", "repo"),
+                        ("verb", "verb"),
+                        ("realized_criteria", "realized_criteria"),
+                    ] {
+                        if let Some(v) = l.get(from) {
+                            out.insert(to.into(), v.clone());
+                        }
+                    }
+                    Value::Object(out)
+                })
+                .collect();
+            assert_eq!(
+                block["elements"],
+                Value::Array(projected),
+                "elements of {path}"
+            );
+            mismatches += block["kind_mismatch"].as_array().expect("list").len();
+        }
+    }
+    assert!(blocks >= 2, "{blocks}");
+    assert_eq!(mismatches, 1, "the Bulb target is a kind mismatch");
 }

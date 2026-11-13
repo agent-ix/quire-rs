@@ -161,17 +161,18 @@ pub fn design_matrix(
 ) -> Result<Vec<DesignMatrixEntry>, RelationReportError> {
     let join = design_join(corpus, registry, members)?;
 
-    // Blocks per (repo, document path), in section (design_relations) order.
-    let mut blocks: BTreeMap<(Option<String>, String), Vec<DesignBlock>> = BTreeMap::new();
-    let mut ids: BTreeMap<(Option<String>, String), String> = BTreeMap::new();
+    // The obliged document's id and blocks per (repo, document path), the
+    // blocks in section (design_relations) order.
+    let mut obliged: BTreeMap<(Option<String>, String), (String, Vec<DesignBlock>)> =
+        BTreeMap::new();
     for section in join.relations {
         for row in section.rows {
             let key = (row.document.repo.clone(), row.document.path.clone());
-            ids.entry(key.clone())
-                .or_insert_with(|| row.document.id.clone());
-            blocks
+            let id = row.document.id.clone();
+            obliged
                 .entry(key)
-                .or_default()
+                .or_insert_with(|| (id, Vec::new()))
+                .1
                 .push(DesignBlock::from_row(row));
         }
     }
@@ -181,26 +182,27 @@ pub fn design_matrix(
         let repo = corpus.member_identity(index).map(str::to_string);
         for requirement in member.matrix {
             let key = (repo.clone(), requirement.document.clone());
-            let id = ids.remove(&key);
-            let design = blocks.remove(&key);
+            let (id, design) = match obliged.remove(&key) {
+                Some((id, blocks)) => (Some(id), Some(blocks)),
+                None => (None, None),
+            };
             entries.push(entry_of(requirement, repo.clone(), id, design));
         }
     }
     // Obliged documents the matrix holds no entry for: no criterion yields one.
-    for (key, design) in blocks {
-        let (repo, document) = key.clone();
-        let id = ids.remove(&key);
-        let criticality = id
-            .as_deref()
-            .and_then(|id| match repo.as_deref() {
-                Some(identity) => corpus.by_qualified_id(identity, id),
-                None => corpus.by_id(id),
-            })
-            .and_then(crate::coverage::document_criticality);
+    for ((repo, document), (id, design)) in obliged {
+        // Hook for FR-090: a `carried` value of a criteria-less entry has no
+        // matrix entry to come from and is read from this document, as
+        // `criticality` is.
+        let doc = match repo.as_deref() {
+            Some(identity) => corpus.by_qualified_id(identity, &id),
+            None => corpus.by_id(&id),
+        };
+        let criticality = doc.and_then(crate::coverage::document_criticality);
         entries.push(DesignMatrixEntry {
             document,
             repo,
-            id,
+            id: Some(id),
             criticality,
             carried: None,
             criteria: Vec::new(),
@@ -217,8 +219,14 @@ fn entry_of(
     id: Option<String>,
     design: Option<Vec<DesignBlock>>,
 ) -> DesignMatrixEntry {
-    let criteria = requirement
-        .criteria
+    // Exhaustive: a field added to the matrix entry (FR-090 `carried`) is a
+    // compile error here until this entry decides what to do with it.
+    let CoverageMatrixRequirement {
+        document,
+        criticality,
+        criteria,
+    } = requirement;
+    let criteria = criteria
         .iter()
         .map(|criterion| DesignMatrixCriterion {
             design_elements: design
@@ -228,10 +236,10 @@ fn entry_of(
         })
         .collect();
     DesignMatrixEntry {
-        document: requirement.document.clone(),
+        document: document.clone(),
         repo,
         id,
-        criticality: requirement.criticality.clone(),
+        criticality: criticality.clone(),
         carried: None,
         criteria,
         design,
