@@ -56,3 +56,11 @@ Units examined:
 | ID | Severity | Summary | Refs |
 | --- | --- | --- | --- |
 | FND-001 | low | Both FRs list FR-059 under Upstream in `## Dependencies` and rely on it for the enum read, but neither has a FR-059 `relationships:` edge. FR-091 also takes its rank vocabulary from spec-artifacts-iso FR-009 and its target value from an extracted record, with no frontmatter edge to either. The relationship graph is therefore missing the edges that impact analysis would follow. Fix: add `requires` edges to FR-059 in both FRs, and to spec-artifacts-iso FR-009 (and the record-extraction FR, see SR base FND-008) in FR-091. | spec/functional/FR-091-ordered-field-consistency.md:1-16, 104 |
+
+## Dispositions
+
+Round 1, at head `5f7b2fd`.
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | FR-090 relationships: FR-059 `requires`; FR-091 relationships: FR-059 `requires`, FR-085 `requires`, spec-artifacts-iso FR-009 `requires` (the record-extraction edge is moot: both sides now read frontmatter). |

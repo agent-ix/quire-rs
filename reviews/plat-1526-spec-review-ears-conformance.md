@@ -56,3 +56,11 @@ Units examined:
 | ID | Severity | Summary | Refs |
 | --- | --- | --- | --- |
 | FND-001 | low | The normative statements bind the authored data, not the system. 'the `from` value SHALL NOT rank lower than the target value' constrains a document, and the system's response (report a finding) is stated without SHALL. The `required_fields` paragraph has no SHALL at all ('yields a finding'). EARS form: 'When a `from` document's value ranks lower than a reached target's, the engine SHALL report a `trace:<check>` finding naming ...'; likewise 'When a `from` document states no `field`, the engine SHALL report ...'. | spec/functional/FR-091-ordered-field-consistency.md:46, 66 |
+
+## Dispositions
+
+Round 1, at head `5f7b2fd`.
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | For each pair where both documents state their field, under `rule: not_below` the engine SHALL report a `trace:<check>` finding when the `from` value ranks lower than the target value ... When a `from` document states no `field` (absent, null or empty), the engine SHALL report a `trace:<check>` finding naming the document and the field. |

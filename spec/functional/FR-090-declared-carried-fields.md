@@ -42,22 +42,30 @@ obligation joins the obligation to its requirement entry, as it does for FR-082 
 
 For every document of a `from` archetype that states `key` with a non-null value, the engine SHALL carry the value as written
 under `name` inside **one fixed key**, `carried`, an object, on the document's `requirements[]` entry, and on the `document`
-object of each row of a relation report ([FR-084](./FR-084-two-way-relation-coverage-report.md)) for that document. A document
+object of each row, and each resolved `linked` entry, of a relation report ([FR-084](./FR-084-two-way-relation-coverage-report.md)) for that document. A document
 that states nothing has no `carried` key on its entry; a document that states some but not all of the declared names has
 `carried` holding only those it states. The engine adds no other key to any entry, row or obligation record, writes no label,
 default or placeholder, and leaves obligation records untouched.
 
 The engine SHALL also report, once per run, the **ordered** permitted values of each carried field as a second fixed key,
-`carried_vocabulary`, an object on the `coverage_matrix`, keyed by `name`, each value the array of `enum` values of `key` in the
-first `from` archetype's frontmatter schema, in schema order ([FR-059](./FR-059-declared-vocabulary-coverage.md) reads a field's
-vocabulary the same way). A `name` whose `key` has no `enum` in any `from` schema has no `carried_vocabulary` entry. A consumer
-therefore learns the legal values and their rank from the run and never holds a list. A stated value outside the `enum` is
-carried as written and left to schema validation; the engine neither drops nor replaces it.
+`carried_vocabulary`, on the **top-level coverage report object** (the object that holds the `coverage_matrix` array; the matrix
+itself is an array and gains no key). `carried_vocabulary` is an object keyed by `name`, each value the array of `enum` values of
+`key` in schema order ([FR-059](./FR-059-declared-vocabulary-coverage.md) reads a field's vocabulary the same way).
 
-The published coverage schema (`schemas/output/coverage-v1.schema.json`) is `additionalProperties: false` on both
-`CoverageMatrixRequirement` and the row document object. This requirement SHALL amend it to add the optional
-`carried` object (any string-keyed values) on both, and the optional `carried_vocabulary` object (string-keyed arrays of strings)
-on the matrix, and no other key.
+The vocabulary does not depend on module load order. The `enum`s that exist among the `from` archetypes' frontmatter schemas for
+`key` must all be identical in content and order; the vocabulary is that enum. A `from` archetype with no `enum` for `key` (for
+example an object type whose frontmatter is open) contributes nothing and does not conflict. When two existing `enum`s differ, the
+engine reports `trace:carried-vocabulary-mismatch` naming the entry, the two archetypes and their modules, and emits no
+`carried_vocabulary` entry for that `name`. A `name` whose `key` has no `enum` in any `from` schema has no entry. A consumer
+therefore learns the legal values and their rank from the run and never holds a list. A stated value outside the `enum` is carried
+as written and left to schema validation; the engine neither drops nor replaces it.
+
+The published coverage schema (`schemas/output/coverage-v1.schema.json`) is `additionalProperties: false` on
+`CoverageMatrixRequirement` and on the top-level report object. This requirement SHALL amend it to add the optional `carried`
+object (any string-keyed values) on `CoverageMatrixRequirement` and the optional `carried_vocabulary` object (string-keyed arrays
+of strings) on the top-level report object, and no other key. The FR-084 relation report has no published schema; its
+`document` object gains `carried` as its last key by the CR-419 note on
+[FR-084](./FR-084-two-way-relation-coverage-report.md) and keeps the key order that FR-084-AC-12 fixes otherwise.
 
 ### Names, ownership and merging
 
@@ -96,11 +104,12 @@ document. Each carried field is independent: it neither supplies, overrides nor 
 | FR-090-AC-6 | A value outside the field's `enum` is carried as written. | Test |
 | FR-090-AC-7 | A `carried_fields` entry with a blank or malformed `name`, a blank `key` or an empty `from` fails the declaring module's load naming the entry. | Test |
 | FR-090-AC-8 | An entry whose `from` names an archetype that no loaded module declares, or whose `key` is a property of none of the `from` frontmatter schemas and carried by no document, reports `trace:undeclared-relation-vocabulary` naming the entry when the corpus is merged; the same entry in a module whose `from` archetype another loaded module declares reports nothing and does not fail that module's load. | Test |
-| FR-090-AC-9 | The relation report row `document` objects of FR-084 carry `carried` for a document that states a value, and no `carried` key otherwise. | Test |
-| FR-090-AC-10 | The coverage matrix carries `carried_vocabulary.software_safety_class` equal to the `enum` of the key in the `from` schema, in schema order, and no entry for a name whose key has no `enum`. | Test |
+| FR-090-AC-9 | The relation report row `document` objects and resolved `linked` entries of FR-084 carry `carried` as the last key for a document that states a value, and no `carried` key otherwise; the key order of FR-084-AC-12 is otherwise unchanged. | Test |
+| FR-090-AC-10 | The top-level coverage report carries `carried_vocabulary.software_safety_class` equal to the `enum` of the key in the `from` schemas, in schema order, and no entry for a name whose key has no `enum`; `coverage_matrix` remains an array of entries. | Test |
 | FR-090-AC-11 | Two entries with the same `name` and `key` in two modules merge to one field whose `from` is the union; the same `name` with different `key` fails the merge naming both modules. | Test |
-| FR-090-AC-12 | The published coverage schema validates a run's output carrying `carried` and `carried_vocabulary`, and still rejects any other unknown key on the entry, the row document and the matrix. | Test |
+| FR-090-AC-12 | The published coverage schema validates a run's output carrying `carried` on a requirement entry and `carried_vocabulary` on the top-level report, and still rejects any other unknown key on the entry and on the top-level report. | Test |
 | FR-090-AC-13 | Running the matrix leaves every document byte-identical, and two runs over an identical corpus serialize identically, with and without the keys. | Test |
+| FR-090-AC-14 | When the `from` archetypes' `enum`s for the key are identical except that one archetype (an open frontmatter) has none, the vocabulary is the existing enum whichever module loads first; when two existing `enum`s differ, `trace:carried-vocabulary-mismatch` names the entry, both archetypes and modules, and no vocabulary entry is emitted. | Test |
 
 ## Constraints
 
