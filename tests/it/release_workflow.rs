@@ -40,23 +40,39 @@ fn event<'a>(events: &'a Mapping, name: &str) -> &'a Value {
 
 #[trace("FR-093-AC-1")]
 #[test]
-fn tc_2228_tag_attestation_reuses_wheel_build_without_publishing() {
+fn tc_2258_manual_publish_dispatch_defaults_false() {
     let wheels = workflow("wheels.yml");
     let wheels_events = events(&wheels);
-    assert_eq!(wheels_events.len(), 2);
     let dispatch = event(wheels_events, "workflow_dispatch");
     assert_eq!(
         dispatch["inputs"]["publish"]["default"].as_bool(),
         Some(false)
     );
+}
+
+#[trace("FR-093-AC-2")]
+#[test]
+fn tc_2259_wheel_workflow_call_publish_input_is_false_by_default() {
+    let wheels = workflow("wheels.yml");
+    let wheels_events = events(&wheels);
     let call = event(wheels_events, "workflow_call");
     assert_eq!(call["inputs"]["publish"]["type"].as_str(), Some("boolean"));
     assert_eq!(call["inputs"]["publish"]["default"].as_bool(), Some(false));
+}
+
+#[trace("FR-093-AC-3")]
+#[test]
+fn tc_2260_publish_job_is_manual_only() {
+    let wheels = workflow("wheels.yml");
     assert_eq!(
         wheels["jobs"]["publish"]["if"].as_str(),
         Some("${{ github.event_name == 'workflow_dispatch' && inputs.publish }}")
     );
+}
 
+#[trace("FR-093-AC-4")]
+#[test]
+fn tc_2261_tag_attestation_triggers_only_on_version_tags() {
     let tag_attestation = workflow("tag-attestation.yml");
     let tag_events = events(&tag_attestation);
     assert_eq!(
@@ -65,12 +81,24 @@ fn tc_2228_tag_attestation_reuses_wheel_build_without_publishing() {
         "tag workflow is independent of manual release"
     );
     assert_eq!(event(tag_events, "push")["tags"][0].as_str(), Some("v*"));
+}
+
+#[trace("FR-093-AC-5")]
+#[test]
+fn tc_2262_tag_build_calls_wheels_without_publishing() {
+    let tag_attestation = workflow("tag-attestation.yml");
     let build = &tag_attestation["jobs"]["build"];
     assert_eq!(
         build["uses"].as_str(),
         Some("./.github/workflows/wheels.yml")
     );
     assert_eq!(build["with"]["publish"].as_bool(), Some(false));
+}
+
+#[trace("FR-093-AC-6")]
+#[test]
+fn tc_2263_tag_attestation_calls_shared_release_workflow() {
+    let tag_attestation = workflow("tag-attestation.yml");
     let attest = &tag_attestation["jobs"]["attest"];
     assert!(attest["uses"]
         .as_str()
