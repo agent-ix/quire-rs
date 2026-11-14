@@ -1,0 +1,62 @@
+name: tag attestation
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions: {}
+
+jobs:
+  build:
+    permissions:
+      contents: read
+    uses: ./.github/workflows/wheels.yml
+
+  release-artifacts:
+    name: collect release wheels
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - name: Collect all wheel matrix outputs
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          path: dist
+          pattern: wheels-*
+          merge-multiple: true
+
+      - name: Upload release files
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: release-artifacts
+          path: dist/*.whl
+          if-no-files-found: error
+
+  retained-evidence:
+    name: require retained release evidence
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - name: Fail closed when no retained Quoin evidence store exists
+        run: |
+          echo '::error::no_retained_evidence_store'
+          exit 1
+
+  attest:
+    needs: [release-artifacts, retained-evidence]
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    uses: agent-ix/engineering-assurance/.github/workflows/release-attestation.yml@v0.9.0
+    with:
+      tag: ${{ github.ref_name }}
+      ea_tooling_tag: v0.9.0
+      quoin_tooling_tag: 0.30.1
+      record_path: ${{ vars.RELEASE_RECORD_PATH }}
+      allowed_signers_path: ${{ vars.ALLOWED_SIGNERS_PATH }}
+      artifact_name: release-artifacts
+      evidence_artifact: release-evidence
