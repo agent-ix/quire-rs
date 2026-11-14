@@ -11,6 +11,12 @@ name: wheels
 
 on:
   workflow_call:
+    inputs:
+      publish:
+        description: "Upload built wheels to the internal AgentIX GCP PyPI"
+        required: false
+        type: boolean
+        default: false
     secrets:
       GCP_SERVICE_ACCOUNT_KEY:
         required: false
