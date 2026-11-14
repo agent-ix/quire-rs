@@ -19,6 +19,8 @@ publish wheels.
 |----|----------|--------------|
 | FR-093-AC-1 | A repository-local workflow test confirms that `.github/workflows/wheels.yml` retains its `workflow_dispatch` publish input (default `false`) and permits `workflow_call` for the additive tag-attestation build, while its publish job runs only for manual dispatch with `inputs.publish` true. It confirms that `.github/workflows/tag-attestation.yml` is triggered only by pushes of `v*` tags, calls the wheel workflow with `publish: false`, and calls the shared Engineering Assurance release-attestation workflow. | Test |
 
+> **CR-420 note (EA-110):** FR-093 adds signed-tag attestation while keeping manual wheel publication as the only publishing path. The tag caller invokes the wheel workflow with `publish: false` and the shared Engineering Assurance attestation workflow.
+
 ## Dependencies
 
 The wheel workflow is the only publisher of Quire-rs release wheels. The
