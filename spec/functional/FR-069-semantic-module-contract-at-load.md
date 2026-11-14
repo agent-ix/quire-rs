@@ -19,6 +19,12 @@ relationships:
   - target: "ix://agent-ix/quire-rs/spec/functional/FR-067"
     type: "requires"
     cardinality: "1:1"
+  - target: "ix://agent-ix/quire-rs/spec/functional/FR-072"
+    type: "requires"
+    cardinality: "1:1"
+  - target: "ix://agent-ix/quire-rs/spec/functional/FR-081"
+    type: "requires"
+    cardinality: "1:1"
 ---
 # FR-069: Semantic module contract at load
 
@@ -247,21 +253,39 @@ Filament extraction API:
 
 ### Located record validation (PLAT-1476)
 
+> **CR-420 note (PLAT-1519 item 1):** Registry-backed semantic extraction
+> projects authored domain frontmatter into the existing nested
+> `SemanticExtraction.record`, composing it with FR-081 section-extracted and
+> semantic declaration values for `data_schema` validation. This adds no
+> arbitrary top-level keys to the `semantic-v1` envelope. The separate `record_validation` schema
+> continues to validate only the FR-011 yield record. This note supersedes the
+> earlier statement that `data_schema` cannot validate authored fields from
+> the document.
+
 `validate_document` validates the *declaration record*
 ([FR-072](./FR-072-semantic-extraction-surface.md) /
 [FR-075](./FR-075-model-feature-extraction.md) /
 [FR-081](./FR-081-record-sections-extraction.md)) against the archetype's
 resolved `data_schema`, reports its first error only, and does so only for a
-resolved `object:` archetype. The record that `body_extraction.yield_pattern`
-builds ([FR-011](./FR-011-body-extraction-dsl.md): `extract::extract`) is built
-by extraction and by Filament, and the validate path never builds it. A module
-that wants conditional checks over the artifact's own fields (a `resolution`
-required only when a frontmatter `status` is `closed`) has them checked by no
-one inside the engine, and no requirement gives their findings a line. Its
-`data_schema` cannot carry them: the data schema describes the *emitted*
-record (a `description` object with line spans, a computed `provenance`, rows
-with a computed `line`), which no yield record can satisfy, and the declaration
-record and the yield record have different keys and sources.
+resolved `object:` archetype. Quire composes authored domain frontmatter into
+the existing nested `SemanticExtraction.record`, alongside semantic
+declaration and FR-081 record-section values. Quire document and concept
+metadata (`id`, `title`, `type`, `object`, `uuid`, `relationships`,
+`description`, and `tags`) are not projected as record values; other authored
+frontmatter keys are projected, including unknown keys so a closed
+`data_schema` can reject them. Projected values retain their JSON types and
+source lines. No arbitrary top-level keys are added to the `semantic-v1`
+envelope. The record that
+`body_extraction.yield_pattern` builds ([FR-011](./FR-011-body-extraction-dsl.md):
+`extract::extract`) is a distinct yield record; the data-schema validation path
+does not substitute it for the declaration record. A module can express
+conditions over frontmatter values in `data_schema` when those values are part
+of the declaration record. For conditions over yield-record values or fields
+not present in the declaration record, a separate `record_validation` schema
+is used. A data schema may also describe values absent from the yield record,
+such as a `description` object with line spans, computed `provenance`, or rows
+with a computed `line`; the declaration and yield records keep their distinct
+keys and sources.
 
 An archetype of a module with a `semantic` block MAY therefore carry a
 `record_validation` object, a sibling of `data_schema` and independent of it:
@@ -276,8 +300,9 @@ record_validation:
   under the same rules as a reference-form `data_schema` (AC-4, AC-5, with the
   refusal path `<section>[<type>].record_validation.schema`). Property names in
   it are the archetype's `yield_pattern.match` keys verbatim; the engine
-  performs no name mapping. `data_schema` keeps validating the declaration
-  record only, and the two schemas are unrelated.
+  performs no name mapping. `data_schema` validates the composed declaration
+  record, while `record_validation` validates the yield record; the two schemas
+  remain independent.
 - `locate_absence_at` is required and SHALL name a key of the archetype's own
   `yield_pattern.match`. The engine knows no archetype, field or key name; the
   declaration carries them.
@@ -382,7 +407,7 @@ stricter of the two.
 | FR-069-AC-18 | A module declaring an import that none of its own data schemas references by a `$ref` under the package's schema base loads with the warning `semantic.unused-import` naming the package; the same module with one such `$ref` emits no `semantic.unused-import`. | Test |
 | FR-069-AC-19 | A `$ref` under the schema base of a declared import is admitted without being followed or fetched, and a value that would violate the provider's schema validates against the module's own compiled validator (the `$ref` accepts any value); with the provider loaded, one whose type name (file stem without `.json` and `.schema`, `#fragment` ignored) the provider does not export fails `semantic.unknown-import-type` at `<section>[<type>].data_schema.schema`; a `$ref` under the schema base of a package not in `semantic.imports` still fails `semantic.schema-ref-unshipped` naming the `$ref`. | Test |
 | FR-069-AC-20 | Two modules whose `$ref`s give a type-level cycle (`<org>/<repo>#<Type>` nodes) fail with `semantic.import-cycle` naming the types that form the cycle; two modules whose packages import each other with no type-level edges fail naming the packages; a cycle where one module has no `$ref`s into it is still refused and named over packages; a package cycle refused although the `$ref` edges form no type-level cycle is named over packages. | Test |
-| FR-069-AC-21 | A module with a `semantic` block whose archetype declares `record_validation: { schema: schemas/AnomalyFields.json, locate_absence_at: status }` over a `yield_pattern.match` key `status` loads and records the declaration and its resolved schema on the compiled archetype; `data_schema` still validates the declaration record only; the same manifest without `record_validation` loads and validates exactly as before. | Test |
+| FR-069-AC-21 | A module with a `semantic` block whose archetype declares `record_validation: { schema: schemas/AnomalyFields.json, locate_absence_at: status }` over a `yield_pattern.match` key `status` loads and records the declaration and its resolved schema on the compiled archetype; `data_schema` validates the composed declaration record, including projected frontmatter fields, while `record_validation` validates the yield record; the same manifest without `record_validation` loads and validates exactly as before. | Test |
 | FR-069-AC-22 | Each of `record_validation` in a module without a `semantic` block; on an archetype whose `yield_pattern` has no `match` (absent, or `iterate_over` only); with an unknown sibling key; with `schema` absent or unresolvable; and with `locate_absence_at` absent, empty, non-string or naming a key absent from `yield_pattern.match`, is refused with `semantic.invalid-value` or the AC-4/AC-5 code at its manifest path in the AC-14 reason form, and a valid declaration in the same module is not refused. | Test |
 | FR-069-AC-23 | `validate_document_in_registry` over an artifact dispatched by frontmatter `type:` to an opted-in archetype validates FR-011's yield record (`extract::extract` over `yield_pattern.match`, unmodified) against `record_validation.schema` and reports one `semantic.record-invalid` finding per validator error in the validator's order, so two missing required properties give two findings and a conforming document none; the type-only `validate_document` reports none. | Test |
 | FR-069-AC-24 | A `required` error (outright or from an `if`/`then` conditional) is located at the document line of the value the `locate_absence_at` locator located; when that locator located nothing the finding is at line 1; no archetype, field or key name appears in the engine. | Test |
@@ -393,6 +418,12 @@ stricter of the two.
 | FR-069-AC-29 | An archetype declaring `record_validation: null` (a key present with no value) is refused with `semantic.invalid-value` at `<section>[<type>].record_validation` in the AC-14 reason form, the message naming that `record_validation` must be a mapping or omitted, whether or not the module has a `semantic` block; the same archetype with the key omitted loads, and a valid declaration is recorded unchanged. | Test |
 | FR-069-AC-30 | An archetype declaring `data_schema`, `body_extraction`, `frontmatter_schema_ref`, `grammar_ref`, `defaults`, `allowed_links` or `roles` authored as `null` is refused with `semantic.invalid-value` at `<section>[<type>].<key>` in the AC-14 reason form, naming the archetype, with or without a `semantic` block, in a directory module as in an inline one, and also when it sits in `archetypes:` with no other owned key; a valid sibling archetype in the same module still loads, and the same archetype with the key omitted loads. | Test |
 | FR-069-AC-31 | A manifest whose top-level `semantic` is `null` fails to load with `semantic.invalid-value` naming `semantic`, and the same manifest with the key omitted loads with no semantic block. | Test |
+| FR-069-AC-32 | For an object archetype with a resolved `data_schema`, registry-backed semantic extraction projects authored domain frontmatter into the existing nested `SemanticExtraction.record`, composing it with FR-081 section-extracted and semantic declaration values; the top-level `semantic-v1` envelope remains unchanged. | Test |
+| FR-069-AC-33 | In the nested record, a present frontmatter list value `known_anomalies: []` remains an empty array, an absent `known_anomalies` key remains absent, `supplier: unknown` remains the string `unknown`, and an authored `disposition_clause` is retained unchanged; no field is inferred or defaulted. | Test |
+| FR-069-AC-34 | The frontmatter projection excludes `id`, `title`, `type`, `object`, `uuid`, `relationships`, `description`, and `tags`; every other authored frontmatter key, including undeclared keys, is retained with its JSON type so the resolved `data_schema` validates it and can reject unknown properties under a closed schema. | Test |
+| FR-069-AC-35 | A valid composed declaration record validates against the resolved `data_schema`; a wrong JSON type, invalid `support_status`/`severity` enum, invalid `end_of_support` format/date, or undeclared `digest` under a closed schema makes document validation invalid with a `semantic.record-invalid` diagnostic naming the failing property path, while conforming values pass. | Test |
+| FR-069-AC-36 | An invalid frontmatter value is located at the source line of its key; a missing required property is located at the opening frontmatter line; unknown-property findings name the undeclared property and use its source line. | Test |
+| FR-069-AC-37 | An archetype without a resolved `data_schema` produces no frontmatter-projection schema findings, and the existing semantic extraction output remains valid against `semantic-v1.schema.json`. | Test |
 
 ## Dependencies
 
