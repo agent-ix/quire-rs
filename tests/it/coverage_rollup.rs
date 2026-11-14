@@ -300,13 +300,20 @@ fn tc734_unbacked_rows() {
 }
 
 /// Provenance: PLAT-2.
-#[trace("FR-050-AC-3", "FR-050-AC-67")]
+#[trace("FR-050-AC-3", "FR-050-AC-67", "FR-050-AC-68")]
 #[test]
 fn a_criterion_tag_only_backs_its_own_matrix_row() {
     let cases: serde_json::Value = serde_json::from_str(include_str!(
         "../fixtures/corpus_cases/row-aware-trace-binding.json"
     ))
     .expect("row-aware binding fixture JSON");
+    let schema: serde_json::Value =
+        serde_json::from_str(include_str!("../../schemas/output/coverage-v1.schema.json"))
+            .expect("published coverage schema");
+    let schema = jsonschema::options()
+        .with_draft(jsonschema::Draft::Draft202012)
+        .build(&schema)
+        .expect("compile published schema");
     for case in cases.as_array().expect("row-aware binding cases") {
         assert!(
             case["issue_ref"]
@@ -339,9 +346,62 @@ fn a_criterion_tag_only_backs_its_own_matrix_row() {
 
         let registry = Registry::load_module(&module).expect("fixture module");
         let model = registry.traceability().cloned().unwrap_or_default();
-        let graph = trace::bind(&extract_tree(&source), &model);
+        let graph = trace::bind(&extract_tree(root.path()), &model);
         let report = compute(&Spec::from_path(&scope), &registry, &graph, &scope)
             .unwrap_or_else(|error| panic!("{name}: fixture coverage: {error}"));
+        let wire = serde_json::to_value(&report).expect("coverage report JSON");
+        let errors: Vec<String> = schema
+            .iter_errors(&wire)
+            .map(|error| format!("{}: {error}", error.instance_path()))
+            .collect();
+        assert!(errors.is_empty(), "{name}: {errors:?}");
+        if case["expect"]["unbacked_claims"]
+            .as_object()
+            .is_some_and(|claims| {
+                claims
+                    .values()
+                    .any(|claims| claims.as_array().is_some_and(|items| !items.is_empty()))
+            })
+        {
+            let mut malformed = wire.clone();
+            let claim = malformed["coverage_matrix"]
+                .as_array_mut()
+                .into_iter()
+                .flatten()
+                .flat_map(|requirement| {
+                    requirement["criteria"].as_array_mut().into_iter().flatten()
+                })
+                .find_map(|criterion| {
+                    criterion["unbacked_claims"]
+                        .as_array_mut()
+                        .and_then(|claims| claims.first_mut())
+                })
+                .expect("present unbacked claim");
+            claim
+                .as_object_mut()
+                .expect("claim is an object")
+                .insert("unexpected".to_string(), serde_json::json!(true));
+            assert!(
+                !schema.is_valid(&malformed),
+                "{name}: claim schema is closed"
+            );
+
+            let mut empty_claims = wire.clone();
+            let claims = empty_claims["coverage_matrix"]
+                .as_array_mut()
+                .into_iter()
+                .flatten()
+                .flat_map(|requirement| {
+                    requirement["criteria"].as_array_mut().into_iter().flatten()
+                })
+                .find_map(|criterion| criterion["unbacked_claims"].as_array_mut())
+                .expect("present claims array");
+            claims.clear();
+            assert!(
+                !schema.is_valid(&empty_claims),
+                "{name}: empty claims must be omitted"
+            );
+        }
 
         assert_eq!(
             report.totals.backed,
@@ -378,6 +438,55 @@ fn a_criterion_tag_only_backs_its_own_matrix_row() {
             .flat_map(|requirement| &requirement.criteria)
             .map(|criterion| (criterion.id.as_str(), criterion))
             .collect();
+        let expected_claims = case["expect"]["unbacked_claims"]
+            .as_object()
+            .cloned()
+            .unwrap_or_default();
+        let outside_marker: Vec<_> = report
+            .diagnostics
+            .iter()
+            .filter(|diagnostic| diagnostic.reason == "trace-id-outside-marker")
+            .collect();
+        if name == "python-docstring-only-criterion-id" {
+            assert_eq!(outside_marker.len(), 1, "{name}: {report:?}");
+            assert_eq!(
+                outside_marker[0].path.as_deref(),
+                Some("src/test_security.py")
+            );
+            assert_eq!(outside_marker[0].line, Some(2));
+            assert!(outside_marker[0].message.contains("FR-001-AC-2"));
+            assert!(outside_marker[0]
+                .message
+                .contains("test_security_docstring_only"));
+        } else {
+            assert!(outside_marker.is_empty(), "{name}: {outside_marker:?}");
+        }
+        for criterion in criteria.values() {
+            let expected = expected_claims
+                .get(criterion.id.as_str())
+                .cloned()
+                .unwrap_or_else(|| serde_json::json!([]));
+            assert_eq!(
+                serde_json::to_value(&criterion.unbacked_claims).expect("claim JSON"),
+                expected,
+                "{name}: unbacked claims for {}",
+                criterion.id
+            );
+            let criterion_wire = serde_json::to_value(criterion).expect("criterion JSON");
+            if criterion.unbacked_claims.is_empty() {
+                assert!(
+                    criterion_wire.get("unbacked_claims").is_none(),
+                    "{name}: empty claims are omitted for {}",
+                    criterion.id
+                );
+            } else {
+                assert!(
+                    criterion_wire.get("unbacked_claims").is_some(),
+                    "{name}: nonempty claims are present for {}",
+                    criterion.id
+                );
+            }
+        }
         for (id, expected) in case["expect"]["criterion_backed"]
             .as_object()
             .expect("expected criterion backing")
@@ -393,6 +502,12 @@ fn a_criterion_tag_only_backs_its_own_matrix_row() {
                 },
                 "{name}: coverage matrix status for {id}"
             );
+            if !expected {
+                assert!(
+                    criteria[id.as_str()].binders.is_empty(),
+                    "{name}: rejected or unmarked claims do not add binders for {id}"
+                );
+            }
         }
 
         let diagnostics: Vec<_> = report

@@ -27,6 +27,17 @@
       "criterion_backed": {
         "FR-001-AC-1": true,
         "FR-001-AC-2": false
+      },
+      "unbacked_claims": {
+        "FR-001-AC-2": [
+          {
+            "reason": "tagged-without-citing-matrix-row",
+            "id": "FR-001-AC-2",
+            "path": "src/lib.rs",
+            "line": 9,
+            "symbol": "tests::tc002_wrong_row_for_second_behavior"
+          }
+        ]
       }
     }
   },
@@ -232,6 +243,117 @@
       ],
       "backed": 2,
       "total": 3
+    }
+  },
+  {
+    "name": "python-criterion-tagged-outside-matrix-row",
+    "issue_ref": "https://linear.app/agent-ix/issue/PLAT-1692",
+    "tags": [
+      "PLAT-2",
+      "binding",
+      "coverage"
+    ],
+    "comment": "A pytest trace marker that cites a different matrix row leaves the criterion unbacked and names the claim.",
+    "input": {
+      "module": "name: row-aware-binding\nversion: 0.1.0\nartifact_types:\n- name: FR\n- name: TestMatrix\ntraceability:\n  trace_targets:\n  - name: acceptance-criterion\n    archetype: FR\n    section: Acceptance Criteria\n    id_column: ID\n  - name: test-case\n    archetype: TestMatrix\n    section: Test Cases\n    id_column: ID\n  document_references:\n  - name: verification\n    archetype: FR\n    section: Acceptance Criteria\n    row_id_column: ID\n    column: Verification\n    pattern: '\\b(TC-\\d+)\\b'\n    targets: [test-case]\n  - name: traces-to\n    archetype: TestMatrix\n    section: Test Cases\n    row_id_column: ID\n    column: Traces To\n    pattern: '\\b((?:FR|TC)-\\d+(?:-AC-\\d+)?)\\b'\n    targets: [acceptance-criterion, test-case]\n  status:\n    column: Status\n    complete: [\"✅\"]\n    pending: [\"🚧\"]\n  obligations:\n  - name: acceptance-criteria\n    target: acceptance-criterion\n    statement_column: Criteria\n    method_column: Verification\n  trace_tags:\n    markers:\n    - name: rust-trace-attribute\n      language: rust\n      pattern: '#\\[trace\\(([^)]*)\\)\\]'\n      template: '#[trace({ids})]'\n    - name: pytest-trace-decorator\n      language: python\n      pattern: '@pytest\\.mark\\.trace\\(([^)]*)\\)'\n      template: '@pytest.mark.trace({ids})'\n",
+      "documents": {
+        "FR-001.md": "---\nid: FR-001\ntype: FR\n---\n\n## Acceptance Criteria\n\n| ID | Criteria | Verification |\n|---|---|---|\n| FR-001-AC-1 | The first behavior shall work. | Test (TC-001) |\n| FR-001-AC-2 | The second behavior shall work. | Test (TC-002) |\n",
+        "tests.md": "---\nid: TM-001\ntype: TestMatrix\n---\n\n## Test Cases\n\n| ID | Traces To | Status |\n|---|---|---|\n| TC-001 | FR-001-AC-1 | ✅ |\n| TC-002 | FR-001-AC-2 | 🚧 |\n| TC-003 | FR-001-AC-1 | 🚧 |\n"
+      },
+      "sources": {
+        "test_security.py": "import pytest\n\n@pytest.mark.trace(\"TC-003\", \"FR-001-AC-2\")\ndef test_security_criterion_row_mismatch():\n    assert True\n"
+      }
+    },
+    "expect": {
+      "backed": 1,
+      "total": 5,
+      "diagnostic_reasons": [
+        "criterion-tagged-outside-row"
+      ],
+      "criterion_backed": {
+        "FR-001-AC-2": false
+      },
+      "unbacked_claims": {
+        "FR-001-AC-2": [
+          {
+            "reason": "tagged-without-citing-matrix-row",
+            "id": "FR-001-AC-2",
+            "path": "src/test_security.py",
+            "line": 4,
+            "symbol": "test_security_criterion_row_mismatch"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "name": "python-criterion-tagged-on-citing-matrix-row",
+    "issue_ref": "https://linear.app/agent-ix/issue/PLAT-1692",
+    "tags": [
+      "PLAT-2",
+      "binding",
+      "coverage"
+    ],
+    "comment": "A pytest trace marker on the matrix row that cites the criterion remains ordinary backing.",
+    "input": {
+      "module": "name: row-aware-binding\nversion: 0.1.0\nartifact_types:\n- name: FR\n- name: TestMatrix\ntraceability:\n  trace_targets:\n  - name: acceptance-criterion\n    archetype: FR\n    section: Acceptance Criteria\n    id_column: ID\n  - name: test-case\n    archetype: TestMatrix\n    section: Test Cases\n    id_column: ID\n  document_references:\n  - name: verification\n    archetype: FR\n    section: Acceptance Criteria\n    row_id_column: ID\n    column: Verification\n    pattern: '\\b(TC-\\d+)\\b'\n    targets: [test-case]\n  - name: traces-to\n    archetype: TestMatrix\n    section: Test Cases\n    row_id_column: ID\n    column: Traces To\n    pattern: '\\b((?:FR|TC)-\\d+(?:-AC-\\d+)?)\\b'\n    targets: [acceptance-criterion, test-case]\n  status:\n    column: Status\n    complete: [\"✅\"]\n    pending: [\"🚧\"]\n  obligations:\n  - name: acceptance-criteria\n    target: acceptance-criterion\n    statement_column: Criteria\n    method_column: Verification\n  trace_tags:\n    markers:\n    - name: rust-trace-attribute\n      language: rust\n      pattern: '#\\[trace\\(([^)]*)\\)\\]'\n      template: '#[trace({ids})]'\n    - name: pytest-trace-decorator\n      language: python\n      pattern: '@pytest\\.mark\\.trace\\(([^)]*)\\)'\n      template: '@pytest.mark.trace({ids})'\n",
+      "documents": {
+        "FR-001.md": "---\nid: FR-001\ntype: FR\n---\n\n## Acceptance Criteria\n\n| ID | Criteria | Verification |\n|---|---|---|\n| FR-001-AC-1 | The first behavior shall work. | Test (TC-001) |\n| FR-001-AC-2 | The second behavior shall work. | Test (TC-002) |\n",
+        "tests.md": "---\nid: TM-001\ntype: TestMatrix\n---\n\n## Test Cases\n\n| ID | Traces To | Status |\n|---|---|---|\n| TC-001 | FR-001-AC-1 | ✅ |\n| TC-002 | FR-001-AC-2 | 🚧 |\n| TC-003 | FR-001-AC-1 | 🚧 |\n"
+      },
+      "sources": {
+        "test_security.py": "import pytest\n\n@pytest.mark.trace(\"TC-002\", \"FR-001-AC-2\")\ndef test_security_criterion_row_match():\n    assert True\n"
+      }
+    },
+    "expect": {
+      "backed": 2,
+      "total": 5,
+      "diagnostic_reasons": [],
+      "criterion_backed": {
+        "FR-001-AC-2": true
+      },
+      "unbacked_claims": {
+        "FR-001-AC-2": []
+      }
+    }
+  },
+  {
+    "name": "python-docstring-only-criterion-id",
+    "issue_ref": "https://linear.app/agent-ix/issue/PLAT-1692",
+    "tags": [
+      "PLAT-2",
+      "binding",
+      "coverage"
+    ],
+    "comment": "A Trace id in a Python docstring is reported as an unmarked claim and does not bind.",
+    "input": {
+      "module": "name: row-aware-binding\nversion: 0.1.0\nartifact_types:\n- name: FR\n- name: TestMatrix\ntraceability:\n  trace_targets:\n  - name: acceptance-criterion\n    archetype: FR\n    section: Acceptance Criteria\n    id_column: ID\n  - name: test-case\n    archetype: TestMatrix\n    section: Test Cases\n    id_column: ID\n  document_references:\n  - name: verification\n    archetype: FR\n    section: Acceptance Criteria\n    row_id_column: ID\n    column: Verification\n    pattern: '\\b(TC-\\d+)\\b'\n    targets: [test-case]\n  - name: traces-to\n    archetype: TestMatrix\n    section: Test Cases\n    row_id_column: ID\n    column: Traces To\n    pattern: '\\b((?:FR|TC)-\\d+(?:-AC-\\d+)?)\\b'\n    targets: [acceptance-criterion, test-case]\n  status:\n    column: Status\n    complete: [\"✅\"]\n    pending: [\"🚧\"]\n  obligations:\n  - name: acceptance-criteria\n    target: acceptance-criterion\n    statement_column: Criteria\n    method_column: Verification\n  trace_tags:\n    markers:\n    - name: rust-trace-attribute\n      language: rust\n      pattern: '#\\[trace\\(([^)]*)\\)\\]'\n      template: '#[trace({ids})]'\n    - name: pytest-trace-decorator\n      language: python\n      pattern: '@pytest\\.mark\\.trace\\(([^)]*)\\)'\n      template: '@pytest.mark.trace({ids})'\n",
+      "documents": {
+        "FR-001.md": "---\nid: FR-001\ntype: FR\n---\n\n## Acceptance Criteria\n\n| ID | Criteria | Verification |\n|---|---|---|\n| FR-001-AC-1 | The first behavior shall work. | Test (TC-001) |\n| FR-001-AC-2 | The second behavior shall work. | Test (TC-002) |\n",
+        "tests.md": "---\nid: TM-001\ntype: TestMatrix\n---\n\n## Test Cases\n\n| ID | Traces To | Status |\n|---|---|---|\n| TC-001 | FR-001-AC-1 | ✅ |\n| TC-002 | FR-001-AC-2 | 🚧 |\n| TC-003 | FR-001-AC-1 | 🚧 |\n"
+      },
+      "sources": {
+        "test_security.py": "def test_security_docstring_only():\n    \"\"\"Trace: FR-001-AC-2\"\"\"\n    assert True\n\ndef test_security_no_trace_control():\n    assert True\n"
+      }
+    },
+    "expect": {
+      "backed": 0,
+      "total": 5,
+      "diagnostic_reasons": [],
+      "criterion_backed": {
+        "FR-001-AC-2": false
+      },
+      "unbacked_claims": {
+        "FR-001-AC-2": [
+          {
+            "reason": "unmarked-trace-id",
+            "id": "FR-001-AC-2",
+            "path": "src/test_security.py",
+            "line": 2,
+            "symbol": "test_security_docstring_only"
+          }
+        ]
+      }
     }
   }
 ]

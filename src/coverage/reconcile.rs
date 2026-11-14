@@ -14,9 +14,10 @@ use super::binding_diagnostics::{
     near_miss_diagnostics, outside_marker_diagnostics, shell_finding_diagnostics,
 };
 use super::{
-    relative, CoverageDiagnostic, CoverageReport, CoverageTotals, GroupCounts, ImplementsRecord,
-    MintedTargetRecord, NoSymbolRow, RetiredRow, SharedTraceId, SharedTraceSymbol, StatusLie,
-    UnbackedRow, UndeclaredStatus, UntrackedSymbol, COVERAGE_DIAGNOSTIC_REASONS,
+    relative, CoverageDiagnostic, CoverageMatrixClaimReason, CoverageMatrixUnbackedClaim,
+    CoverageReport, CoverageTotals, GroupCounts, ImplementsRecord, MintedTargetRecord, NoSymbolRow,
+    RetiredRow, SharedTraceId, SharedTraceSymbol, StatusLie, UnbackedRow, UndeclaredStatus,
+    UntrackedSymbol, COVERAGE_DIAGNOSTIC_REASONS,
 };
 
 /// Whether a status cell is `planned`, `blocked` or `parked` (FR-050-AC-64):
@@ -112,7 +113,18 @@ pub(super) fn reconcile(
         &reference_rows,
         &minted_by_target,
     );
-    let (verifies, mut row_diagnostics) = row_bindings.eligible_relations(graph);
+    let (verifies, mut row_diagnostics, rejected_relations) =
+        row_bindings.eligible_relations(graph);
+    let mut unbacked_claims: Vec<CoverageMatrixUnbackedClaim> = rejected_relations
+        .iter()
+        .map(|relation| CoverageMatrixUnbackedClaim {
+            reason: CoverageMatrixClaimReason::TaggedWithoutCitingMatrixRow,
+            id: relation.trace_id.clone(),
+            path: relation.path.clone(),
+            line: relation.line,
+            symbol: relation.symbol.clone(),
+        })
+        .collect();
     let backed: BTreeSet<&str> = verifies
         .iter()
         .map(|relation| relation.trace_id.as_str())
@@ -533,6 +545,24 @@ pub(super) fn reconcile(
         .cloned()
         .collect();
     diagnostics.extend(outside_marker_diagnostics(&outside_marker, model));
+    unbacked_claims.extend(
+        outside_marker
+            .iter()
+            .filter(|finding| {
+                model
+                    .trace_tags
+                    .markers
+                    .iter()
+                    .any(|marker| marker.language == finding.language)
+            })
+            .map(|finding| CoverageMatrixUnbackedClaim {
+                reason: CoverageMatrixClaimReason::UnmarkedTraceId,
+                id: finding.trace_id.clone(),
+                path: finding.path.clone(),
+                line: finding.line,
+                symbol: finding.symbol.clone(),
+            }),
+    );
 
     // FR-051-AC-39, AC-44: a shell marker that matched and bound nothing.
     diagnostics.extend(shell_finding_diagnostics(&graph.shell_findings));
@@ -670,6 +700,7 @@ pub(super) fn reconcile(
         root,
         &obligations,
         &verifies,
+        &unbacked_claims,
         model,
         &retired_obligations,
         evidence,
@@ -812,6 +843,7 @@ fn coverage_matrix(
     root: &Path,
     obligations: &[crate::obligation::Obligation],
     verifies: &[&VerifiesRelation],
+    unbacked_claims: &[CoverageMatrixUnbackedClaim],
     model: &TraceabilityModel,
     retired: &[bool],
     evidence: Option<&crate::evidence::ReconciledEvidence<'_>>,
@@ -820,6 +852,14 @@ fn coverage_matrix(
         CoverageMatrixBinder, CoverageMatrixCriterion, CoverageMatrixRequirement,
         CoverageMatrixStatus,
     };
+
+    let mut claims_by_id: BTreeMap<&str, Vec<CoverageMatrixUnbackedClaim>> = BTreeMap::new();
+    for claim in unbacked_claims {
+        claims_by_id
+            .entry(claim.id.as_str())
+            .or_default()
+            .push(claim.clone());
+    }
 
     // Binders per obligation id, deduped by (path, line, column) — the
     // binding symbol's own declaration site, never its qualified name alone:
@@ -897,11 +937,25 @@ fn coverage_matrix(
             CoverageMatrixStatus::Tagged
         };
 
+        let mut criterion_claims = claims_by_id
+            .get(obligation.id.as_str())
+            .cloned()
+            .unwrap_or_default();
+        criterion_claims.sort_by(|left, right| left.sort_key().cmp(&right.sort_key()));
+        criterion_claims.dedup_by(|left, right| {
+            left.reason == right.reason
+                && left.id == right.id
+                && left.path == right.path
+                && left.line == right.line
+                && left.symbol == right.symbol
+        });
+
         let criterion = CoverageMatrixCriterion {
             id: obligation.id.clone(),
             statement: obligation.statement.clone(),
             method: obligation.method.clone(),
             binders,
+            unbacked_claims: criterion_claims,
             record_binders,
             identity: evidence.and_then(|evidence| {
                 evidence.input.inventory.entries().nth(index).map(|entry| {
