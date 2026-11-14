@@ -141,7 +141,18 @@
         "TC-001",
         "TC-002",
         "TC-003"
-      ]
+      ],
+      "unbacked_claims": {
+        "FR-001-AC-2": [
+          {
+            "reason": "tagged-without-citing-matrix-row",
+            "id": "FR-001-AC-2",
+            "path": "src/lib.rs",
+            "line": 3,
+            "symbol": "missing_row_for_second_behavior"
+          }
+        ]
+      }
     }
   },
   {
@@ -179,7 +190,18 @@
         "TC-001",
         "TC-002",
         "TC-003"
-      ]
+      ],
+      "unbacked_claims": {
+        "FR-001-AC-2": [
+          {
+            "reason": "tagged-without-citing-matrix-row",
+            "id": "FR-001-AC-2",
+            "path": "src/lib.rs",
+            "line": 3,
+            "symbol": "unknown_row_for_second_behavior"
+          }
+        ]
+      }
     }
   },
   {
