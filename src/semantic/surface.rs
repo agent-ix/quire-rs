@@ -798,13 +798,29 @@ impl SemanticExtraction {
     /// declaration record omits such a kind's key, which is the shape of "nothing
     /// was declared"; a consumer must not validate that omission as a record.
     pub fn any_kind_unavailable(&self) -> bool {
+        self.any_kind_unavailable_except(&BTreeSet::new())
+    }
+
+    /// Whether any declaration kind other than `omitted_record_keys` could not
+    /// be read. Duplicate record keys are deliberately omitted from the
+    /// declaration, but do not prevent schema validation of the remaining
+    /// unambiguous values.
+    pub(crate) fn any_kind_unavailable_except(
+        &self,
+        omitted_record_keys: &BTreeSet<String>,
+    ) -> bool {
         let a = &self.availability;
         [Some(&a.fields), Some(&a.clauses), Some(&a.operations)]
             .into_iter()
             .chain([a.model.as_ref(), a.relations.as_ref()])
-            .chain(a.record_keys.iter().flat_map(BTreeMap::values).map(Some))
             .flatten()
             .any(|k| k.state == AvailabilityState::Unavailable)
+            || a.record_keys.as_ref().is_some_and(|keys| {
+                keys.iter().any(|(key, availability)| {
+                    !omitted_record_keys.contains(key)
+                        && availability.state == AvailabilityState::Unavailable
+                })
+            })
     }
 
     pub fn has_errors(&self) -> bool {
