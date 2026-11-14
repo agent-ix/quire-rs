@@ -394,6 +394,7 @@ fn compile_with_imports(
     }
     let registry = registry.prepare().map_err(|e| not_schema(&e))?;
     schema_options(schema)
+        .should_validate_formats(true)
         .with_registry(&registry)
         .build(schema)
         .map_err(|e| not_schema(&e))

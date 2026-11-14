@@ -199,11 +199,13 @@
       "diagnostics": []
     },
     {
-      "id": "frontmatter-status-ignored",
+      "id": "frontmatter-status-not-body-reader",
       "ac": "FR-081-AC-2",
       "schema": "Lifecycle",
       "artifact": "---\nid: hazard-001\ntitle: \"Fixture hazard-001\"\nobject: hazard\nstatus: accepted\n---\n# [hazard-001] Fixture\n\n## Notes\n\nprose\n",
-      "record": null,
+      "record": {
+        "status": "accepted"
+      },
       "recordSources": [],
       "availability": {
         "assessment": {
@@ -236,7 +238,7 @@
         }
       },
       "diagnostics": [],
-      "recordValid": true
+      "recordValid": false
     },
     {
       "id": "evidence-rows",
