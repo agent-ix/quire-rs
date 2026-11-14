@@ -40,6 +40,13 @@ FR-122-CON-2, FR-123-CON-1). This requirement extends
 [FR-072](./FR-072-semantic-extraction-surface.md): it adds output keys beside
 the declaration arrays and does not change them.
 
+> **CR-420 note (PLAT-1519 item 1):** The prohibition on frontmatter keys below
+> applies to the `record-sections` body reader. Registry-backed object
+> extraction separately projects authored domain frontmatter into the same
+> nested `SemanticExtraction.record` object used for the body-derived fields,
+> as specified by [FR-069](./FR-069-semantic-module-contract-at-load.md).
+> Reserved `id`, `title`, `type`, and `object` metadata is not projected.
+
 ## Inputs
 
 - The document and the `SemanticContext` of
@@ -108,7 +115,9 @@ Token and key resolution:
 - If the artifact holds a second section naming the same key, then
   the engine SHALL emit `semantic.duplicate-section` at the second heading with `reason`
   `second-section`.
-- The engine SHALL NOT read a record key from frontmatter.
+- The `record-sections` body reader SHALL NOT read a record key from
+  frontmatter. The separate frontmatter projection into the nested record is
+  specified by [FR-069](./FR-069-semantic-module-contract-at-load.md).
 - The engine SHALL omit a key whose section is absent, reporting it
   `not_applicable`.
 
