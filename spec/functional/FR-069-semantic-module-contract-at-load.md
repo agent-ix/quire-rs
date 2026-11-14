@@ -274,8 +274,13 @@ metadata (`id`, `title`, `type`, `object`, `uuid`, `relationships`,
 `description`, and `tags`) are not projected as record values; other authored
 frontmatter keys are projected, including unknown keys so a closed
 `data_schema` can reject them. Projected values retain their JSON types and
-source lines. No arbitrary top-level keys are added to the `semantic-v1`
-envelope. The record that
+source lines. When multiple sources provide the same record key, semantic
+declaration values take precedence over FR-081 section values, which take
+precedence over frontmatter values. Each lower-precedence duplicate emits a
+`semantic.duplicate-record-key` error at that later source's line, naming the
+key; the higher-precedence value and its source location remain in the record
+and are the value validated by `data_schema`. No arbitrary top-level keys are
+added to the `semantic-v1` envelope. The record that
 `body_extraction.yield_pattern` builds ([FR-011](./FR-011-body-extraction-dsl.md):
 `extract::extract`) is a distinct yield record; the data-schema validation path
 does not substitute it for the declaration record. A module can express
@@ -424,6 +429,7 @@ stricter of the two.
 | FR-069-AC-35 | A valid composed declaration record validates against the resolved `data_schema`; a wrong JSON type, invalid `support_status`/`severity` enum, invalid `end_of_support` format/date, or undeclared `digest` under a closed schema makes document validation invalid with a `semantic.record-invalid` diagnostic naming the failing property path, while conforming values pass. | Test |
 | FR-069-AC-36 | An invalid frontmatter value is located at the source line of its key; a missing required property is located at the opening frontmatter line; unknown-property findings name the undeclared property and use its source line. | Test |
 | FR-069-AC-37 | An archetype without a resolved `data_schema` produces no frontmatter-projection schema findings, and the existing semantic extraction output remains valid against `semantic-v1.schema.json`. | Test |
+| FR-069-AC-38 | When semantic declaration, FR-081 section, and frontmatter sources provide the same record key, semantic declaration wins over section, and section wins over frontmatter; each lower-precedence duplicate emits `semantic.duplicate-record-key` at the later source's line naming the key, while the retained higher-precedence value and source location are used for `data_schema` validation. | Test |
 
 ## Dependencies
 
