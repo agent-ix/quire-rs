@@ -1,0 +1,128 @@
+name: tag attestation
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions: {}
+
+jobs:
+  build:
+    name: ${{ matrix.label }}
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: apple (arm64)
+            runner: macos-15
+            target: aarch64-apple-darwin
+            smoke: true
+          - label: apple-intel (x86_64, cross-built)
+            runner: macos-15
+            target: x86_64-apple-darwin
+            smoke: false
+          - label: intel + amd / luna (linux x86_64)
+            runner: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+            smoke: true
+          - label: arm / graviton (linux aarch64)
+            runner: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+            smoke: true
+          - label: windows (x86_64)
+            runner: windows-2025
+            target: x86_64-pc-windows-msvc
+            smoke: false
+    steps:
+      - name: Allow checkout of trees with reserved DOS names (windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: git config --system core.protectNTFS false
+
+      - name: Check out source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          submodules: true
+          sparse-checkout: |
+            src
+            benches
+            crates
+            examples
+            schemas
+            tools
+            .cargo
+
+      - name: Build abi3 wheel
+        uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b
+        with:
+          target: ${{ matrix.target }}
+          args: --locked --release --out dist
+          manylinux: auto
+          sccache: true
+
+      - name: Smoke-import the wheel
+        if: ${{ matrix.smoke }}
+        shell: bash
+        run: |
+          python3 -m venv .wheeltest
+          .wheeltest/bin/pip install --no-index --find-links dist quire
+          .wheeltest/bin/python -c "import quire; print('import ok:', quire.__name__)"
+
+      - name: Upload wheel matrix output
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: wheels-${{ matrix.target }}
+          path: dist/*.whl
+          if-no-files-found: error
+
+  release-artifacts:
+    name: collect release wheels
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - name: Collect all wheel matrix outputs
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          path: dist
+          pattern: wheels-*
+          merge-multiple: true
+
+      - name: Upload release files
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: release-artifacts
+          path: dist/*.whl
+          if-no-files-found: error
+
+  retained-evidence:
+    name: require retained release evidence
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - name: Fail closed when no retained Quoin evidence store exists
+        run: |
+          echo '::error::no_retained_evidence_store'
+          exit 1
+
+  attest:
+    needs: [release-artifacts, retained-evidence]
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    uses: agent-ix/engineering-assurance/.github/workflows/release-attestation.yml@v0.9.0
+    with:
+      tag: ${{ github.ref_name }}
+      ea_tooling_tag: v0.9.0
+      record_path: ${{ vars.RELEASE_RECORD_PATH }}
+      allowed_signers_path: ${{ vars.ALLOWED_SIGNERS_PATH }}
+      artifact_name: release-artifacts
+      evidence_artifact: release-evidence
