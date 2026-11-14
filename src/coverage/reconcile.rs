@@ -941,14 +941,7 @@ fn coverage_matrix(
             .get(obligation.id.as_str())
             .cloned()
             .unwrap_or_default();
-        criterion_claims.sort_by(|left, right| left.sort_key().cmp(&right.sort_key()));
-        criterion_claims.dedup_by(|left, right| {
-            left.reason == right.reason
-                && left.id == right.id
-                && left.path == right.path
-                && left.line == right.line
-                && left.symbol == right.symbol
-        });
+        CoverageMatrixUnbackedClaim::sort_and_dedup(&mut criterion_claims);
 
         let criterion = CoverageMatrixCriterion {
             id: obligation.id.clone(),

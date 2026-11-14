@@ -789,6 +789,11 @@ impl CoverageMatrixUnbackedClaim {
             &self.id,
         )
     }
+
+    fn sort_and_dedup(claims: &mut Vec<Self>) {
+        claims.sort_by(|left, right| left.sort_key().cmp(&right.sort_key()));
+        claims.dedup_by(|left, right| left == right);
+    }
 }
 
 /// One binding test symbol of a `coverage_matrix` criterion (CR-187,
@@ -1148,4 +1153,76 @@ fn coverage_metrics(
 /// normalization (CR-038).
 pub(crate) fn relative(root: &Path, path: &Path) -> String {
     declared_tables::relative_path(root, path)
+}
+
+#[cfg(test)]
+mod coverage_matrix_unbacked_claim_tests {
+    use ix_trace_rs::trace;
+
+    use super::{CoverageMatrixClaimReason, CoverageMatrixUnbackedClaim};
+
+    fn claim(
+        reason: CoverageMatrixClaimReason,
+        path: &str,
+        line: usize,
+        symbol: &str,
+    ) -> CoverageMatrixUnbackedClaim {
+        CoverageMatrixUnbackedClaim {
+            reason,
+            id: "FR-001-AC-2".to_string(),
+            path: path.to_string(),
+            line,
+            symbol: symbol.to_string(),
+        }
+    }
+
+    #[trace("FR-050-AC-68")]
+    #[test]
+    fn unbacked_claims_sort_and_deduplicate_exact_records() {
+        let duplicate = claim(
+            CoverageMatrixClaimReason::TaggedWithoutCitingMatrixRow,
+            "src/a.rs",
+            4,
+            "tests::alpha",
+        );
+        let later = claim(
+            CoverageMatrixClaimReason::UnmarkedTraceId,
+            "src/z.rs",
+            9,
+            "tests::omega",
+        );
+        let earlier = claim(
+            CoverageMatrixClaimReason::UnmarkedTraceId,
+            "src/a.rs",
+            2,
+            "tests::zeta",
+        );
+        let same_locus_other_reason = claim(
+            CoverageMatrixClaimReason::UnmarkedTraceId,
+            "src/a.rs",
+            4,
+            "tests::alpha",
+        );
+        let mut claims = vec![
+            later.clone(),
+            same_locus_other_reason.clone(),
+            duplicate.clone(),
+            earlier.clone(),
+            duplicate.clone(),
+        ];
+
+        CoverageMatrixUnbackedClaim::sort_and_dedup(&mut claims);
+
+        assert_eq!(
+            claims,
+            vec![earlier, duplicate, same_locus_other_reason, later],
+            "claims sort by path, line, symbol, reason, then id and exact duplicates collapse"
+        );
+        let sorted = claims.clone();
+        CoverageMatrixUnbackedClaim::sort_and_dedup(&mut claims);
+        assert_eq!(
+            claims, sorted,
+            "normalization is deterministic and idempotent"
+        );
+    }
 }
