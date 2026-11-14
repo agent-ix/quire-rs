@@ -15,6 +15,7 @@ use std::path::{Path, PathBuf};
 
 use ix_trace_rs::trace;
 use quire_rs::extract::locator::{eval_located, eval_locator_located};
+use quire_rs::semantic::python_entry::extract_semantic_json;
 use quire_rs::{
     parse_document, validate_bundle_at, validate_document, validate_document_in_registry,
     BundlePosture, BundleReport, Locator, LocatorPrimitive, Registry, ValidationResult,
@@ -662,6 +663,281 @@ fn record_invalid(result: &ValidationResult) -> Vec<(Option<usize>, String)> {
 
 fn record_lines(result: &ValidationResult) -> Vec<Option<usize>> {
     record_invalid(result).into_iter().map(|(l, _)| l).collect()
+}
+
+fn semantic_record_request(markdown: &str, schema: Value, mappings: &[&str]) -> Value {
+    json!({
+        "markdown": markdown,
+        "module": {
+            "contractVersion": "1.0.0",
+            "package": "agent-ix/record-fixture",
+            "exports": ["Thing"],
+            "targets": ["json-schema", "markdown"],
+            "mappings": mappings
+        },
+        "objectType": "Thing",
+        "dataSchema": schema
+    })
+}
+
+fn semantic_record_registry(schema: &Value) -> Registry {
+    let manifest = "name: record-fixture\nversion: 0.1.0\nartifact_types:\n- name: Doc\nobject_types:\n- name: Thing\n  data_schema:\n    schema: schemas/Thing.json\nsemantic:\n  contract_version: 1.0.0\n  package: agent-ix/record-fixture\n  exports: [Thing]\n  targets: [json-schema, markdown]\n  mappings: [record-sections]\n";
+    let schema = schema.to_string();
+    inline(manifest, &[("schemas/Thing.json", &schema)])
+}
+
+fn semantic_object_doc(frontmatter: &str, body: &str) -> String {
+    format!("---\nid: DOC-001\ntitle: Record fixture\ntype: Doc\nobject: Thing\n{frontmatter}---\n\n{body}")
+}
+
+#[trace("FR-069-AC-32", "FR-069-AC-33", "FR-069-AC-34", "FR-069-AC-37")]
+#[test]
+fn tc2432_frontmatter_composes_as_a_typed_record_without_changing_the_envelope() {
+    let data_schema = json!({
+        "$schema": DRAFT,
+        "type": "object",
+        "properties": {
+            "fields": {"type": "array"},
+            "known_anomalies": {"type": "array", "items": {"type": "string"}},
+            "supplier": {"type": "string"},
+            "disposition_clause": {"type": "string"},
+            "rationale": {"type": "string"}
+        },
+        "additionalProperties": false
+    });
+    let doc = "---\nid: DOC-001\ntitle: Record fixture\ntype: Doc\nobject: Thing\nuuid: 00000000-0000-7000-8000-000000000001\nrelationships: []\ndescription: metadata\ntags: [record]\nknown_anomalies: []\nsupplier: unknown\ndisposition_clause: EX-1\nextra_record: {enabled: true}\n---\n\n## Rationale\n\n`Authored section.`\n\n## Properties\n\n| Field | Type | Multiplicity | Constraints |\n|-------|------|--------------|-------------|\n| code  | String | 1 | |\n";
+    let request = semantic_record_request(doc, data_schema.clone(), &["record-sections"]);
+    let extraction = extract_semantic_json(&request).expect("semantic extraction");
+    let record = extraction.record.as_ref().expect("composed record");
+    assert_eq!(record["known_anomalies"], json!([]));
+    assert_eq!(record["supplier"], json!("unknown"));
+    assert_eq!(record["disposition_clause"], json!("EX-1"));
+    assert_eq!(record["extra_record"], json!({"enabled": true}));
+    assert_eq!(record["rationale"], json!("Authored section."));
+    for metadata in [
+        "id",
+        "title",
+        "type",
+        "object",
+        "uuid",
+        "relationships",
+        "description",
+        "tags",
+    ] {
+        assert!(!record.contains_key(metadata), "{metadata}: {record:?}");
+    }
+    assert!(
+        extraction.fields.is_some(),
+        "semantic declarations remain present"
+    );
+
+    let output = serde_json::to_value(&extraction).expect("serialize extraction");
+    let semantic_schema: Value =
+        serde_json::from_str(quire_rs::semantic::SEMANTIC_V1_SCHEMA).expect("semantic-v1 schema");
+    let validator = quire_rs::semantic::compile_module_schema(
+        &semantic_schema,
+        &|_| None,
+        "https://agent-ix.github.io/quire-rs/schemas/output/",
+    )
+    .expect("compile semantic-v1 schema");
+    assert!(validator.is_valid(&output), "{output:#}");
+
+    let absent_doc = doc.replace("known_anomalies: []\n", "");
+    let absent_request =
+        semantic_record_request(&absent_doc, data_schema.clone(), &["record-sections"]);
+    let absent = extract_semantic_json(&absent_request).expect("absent-list extraction");
+    assert!(!absent
+        .record
+        .as_ref()
+        .expect("record still has other keys")
+        .contains_key("known_anomalies"));
+
+    let no_schema_request = json!({
+        "markdown": doc,
+        "module": {
+            "contractVersion": "1.0.0",
+            "package": "agent-ix/record-fixture",
+            "exports": ["Thing"],
+            "targets": ["json-schema", "markdown"]
+        },
+        "objectType": "Thing"
+    });
+    let without = extract_semantic_json(&no_schema_request).expect("no-schema extraction");
+    assert!(without.record.is_none());
+    assert!(!without
+        .diagnostics
+        .iter()
+        .any(|diagnostic| diagnostic.code == "semantic.record-invalid"));
+    let without_value = serde_json::to_value(&without).expect("serialize no-schema result");
+    assert!(validator.is_valid(&without_value), "{without_value:#}");
+}
+
+#[trace("FR-069-AC-35", "FR-069-AC-36")]
+#[test]
+fn tc2433_data_schema_checks_projected_types_formats_closed_keys_and_source_lines() {
+    let data_schema = json!({
+        "$schema": DRAFT,
+        "type": "object",
+        "properties": {
+            "support_status": {"enum": ["supported", "unsupported"]},
+            "severity": {"enum": ["low", "medium", "high"]},
+            "end_of_support": {"type": "string", "format": "date"}
+        },
+        "required": ["support_status", "severity", "end_of_support"],
+        "additionalProperties": false
+    });
+    let registry = semantic_record_registry(&data_schema);
+    assert!(registry.failures().is_empty(), "{:?}", registry.failures());
+    let valid = semantic_object_doc(
+        "support_status: supported\nseverity: medium\nend_of_support: 2030-12-31\n",
+        "",
+    );
+    assert!(validate(&registry, "Doc", &valid).is_valid);
+
+    let wrong_type = semantic_object_doc(
+        "support_status: true\nseverity: medium\nend_of_support: 2030-12-31\n",
+        "",
+    );
+    let result = validate(&registry, "Doc", &wrong_type);
+    assert!(!result.is_valid);
+    let (line, message) = record_invalid(&result)
+        .into_iter()
+        .next()
+        .expect("record finding");
+    assert_eq!(line, Some(line_of(&wrong_type, "support_status:")));
+    assert!(message.contains("support_status"), "{message}");
+
+    let invalid_support_status = semantic_object_doc(
+        "support_status: unknown\nseverity: medium\nend_of_support: 2030-12-31\n",
+        "",
+    );
+    let result = validate(&registry, "Doc", &invalid_support_status);
+    assert_eq!(
+        record_lines(&result),
+        [Some(line_of(&invalid_support_status, "support_status:"))]
+    );
+    assert!(record_invalid(&result)[0].1.contains("support_status"));
+
+    let invalid_enum = semantic_object_doc(
+        "support_status: supported\nseverity: critical\nend_of_support: 2030-12-31\n",
+        "",
+    );
+    let result = validate(&registry, "Doc", &invalid_enum);
+    assert_eq!(
+        record_lines(&result),
+        [Some(line_of(&invalid_enum, "severity:"))]
+    );
+    assert!(record_invalid(&result)[0].1.contains("severity"));
+
+    let invalid_date = semantic_object_doc(
+        "support_status: supported\nseverity: medium\nend_of_support: 2030-02-31\n",
+        "",
+    );
+    let result = validate(&registry, "Doc", &invalid_date);
+    assert_eq!(
+        record_lines(&result),
+        [Some(line_of(&invalid_date, "end_of_support:"))]
+    );
+    assert!(record_invalid(&result)[0].1.contains("end_of_support"));
+
+    let unknown = semantic_object_doc(
+        "support_status: supported\nseverity: medium\nend_of_support: 2030-12-31\ndigest: sha256\n",
+        "",
+    );
+    let result = validate(&registry, "Doc", &unknown);
+    assert!(!result.is_valid);
+    let (line, message) = record_invalid(&result)
+        .into_iter()
+        .next()
+        .expect("unknown key finding");
+    assert_eq!(line, Some(line_of(&unknown, "digest:")));
+    assert!(message.contains("digest"), "{message}");
+
+    let missing = semantic_object_doc("severity: medium\nend_of_support: 2030-12-31\n", "");
+    let result = validate(&registry, "Doc", &missing);
+    assert_eq!(record_lines(&result), [Some(1)]);
+}
+
+#[trace("FR-069-AC-38")]
+#[test]
+fn tc2434_duplicate_record_sources_are_diagnosed_and_omitted() {
+    let data_schema = json!({
+        "$schema": DRAFT,
+        "type": "object",
+        "properties": {
+            "fields": {"type": "array"},
+            "status": {"type": "string"}
+        },
+        "additionalProperties": false
+    });
+    let fields_doc = semantic_object_doc(
+        "fields: authored\n",
+        "## Properties\n\n| Field | Type | Multiplicity | Constraints |\n|-------|------|--------------|-------------|\n| code | String | 1 | |\n",
+    );
+    let mut request =
+        semantic_record_request(&fields_doc, data_schema.clone(), &["record-sections"]);
+    let fields = extract_semantic_json(&request).expect("fields extraction");
+    let field_duplicate = fields
+        .diagnostics
+        .iter()
+        .find(|diagnostic| diagnostic.code == "semantic.duplicate-record-key")
+        .expect("field duplicate");
+    assert_eq!(field_duplicate.line, Some(line_of(&fields_doc, "| code |")));
+    assert!(field_duplicate.message.contains("frontmatter"));
+    assert!(field_duplicate.message.contains("semantic declaration"));
+    assert!(fields
+        .record
+        .as_ref()
+        .is_none_or(|record| !record.contains_key("fields")));
+    assert!(!fields
+        .declaration_record()
+        .expect("filtered declaration")
+        .as_object()
+        .unwrap()
+        .contains_key("fields"));
+
+    let section_doc = semantic_object_doc("status: authored\n", "## Status\n\n`section value`\n");
+    request["markdown"] = json!(section_doc);
+    let section = extract_semantic_json(&request).expect("section extraction");
+    let section_duplicate = section
+        .diagnostics
+        .iter()
+        .find(|diagnostic| diagnostic.code == "semantic.duplicate-record-key")
+        .expect("section duplicate");
+    assert_eq!(
+        section_duplicate.line,
+        Some(line_of(&section_doc, "## Status"))
+    );
+    assert!(section_duplicate.message.contains("frontmatter"));
+    assert!(section_duplicate.message.contains("FR-081 section"));
+    assert!(section
+        .record
+        .as_ref()
+        .is_none_or(|record| !record.contains_key("status")));
+    assert!(section
+        .record_sources
+        .as_ref()
+        .is_none_or(|sources| !sources.iter().any(|source| source.key == "status")));
+    assert!(!section
+        .declaration_record()
+        .expect("filtered declaration")
+        .as_object()
+        .unwrap()
+        .contains_key("status"));
+
+    let registry = semantic_record_registry(&data_schema);
+    for (doc, source_line) in [
+        (&fields_doc, line_of(&fields_doc, "| code |")),
+        (&section_doc, line_of(&section_doc, "## Status")),
+    ] {
+        let result = validate(&registry, "Doc", doc);
+        let duplicate = result
+            .errors
+            .iter()
+            .find(|error| error.message.starts_with("semantic.duplicate-record-key"))
+            .expect("duplicate source validation error");
+        assert_eq!(duplicate.line, Some(source_line));
+    }
 }
 
 const SEMANTIC: &str = "semantic:\n  contract_version: 1.0.0\n  package: agent-ix/record-fixture\n  exports: [Anomaly]\n  targets: [json-schema, markdown]\n";
