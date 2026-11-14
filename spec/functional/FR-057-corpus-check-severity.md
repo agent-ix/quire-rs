@@ -68,7 +68,7 @@ declared tier **is its current behaviour**:
 | `trace:reference-kind-mismatch` | posture-routed (FR-049-AC-12) |
 | `bundle:index-incomplete`, `bundle:index-okf-version` | posture-routed |
 | `bundle:no-frontmatter`, `bundle:malformed-frontmatter` | warning in both postures (CR-048) |
-| `edges:disallowed-edge-target` | warning in both postures (FR-040-AC-10) |
+| `edges:disallowed-edge-target` | posture-routed (FR-040-AC-13) |
 | `trace:archetype-matches-nothing` | warning in both postures (CR-054) |
 | `trace:kind-column-matches-nothing` | warning in both postures (FR-049-AC-18) |
 
@@ -97,7 +97,7 @@ already guarantees is preserved (NFR-006).
 | FR-057-AC-1 | Validating a bundle on disk under `Okf` with a registry mapping `refs:dangling-reference` to `error` puts the dangling-reference finding in `errors` and makes `is_valid()` false, where the same bundle with no mapping reports it as a warning. | Test |
 | FR-057-AC-2 | The same key mapped `warning` under `Strict` demotes a finding that is a hard error by default, and `is_valid()` becomes true — the promotion lever works in both directions. | Test |
 | FR-057-AC-3 | A check mapped `off` records no finding in `errors` and none in `warnings`, in either posture. | Test |
-| FR-057-AC-4 | With no entry for its key, every check in the pack table keeps the exact tier it had before this FR — for the checks that existed before this FR: posture-routed for the four posture-routed checks, warning-in-both-postures for the three that are fixed — verified per check rather than in aggregate; checks added after this FR are covered by their own criteria (FR-057-AC-11). | Test |
+| FR-057-AC-4 | With no entry for its key, every check in the pack table keeps the exact tier it had before this FR — for the checks that existed before this FR: posture-routed for the four posture-routed checks, warning-in-both-postures for the fixed ones other than `edges:disallowed-edge-target`, which FR-040-AC-13 later made posture-routed — verified per check rather than in aggregate; checks added after this FR are covered by their own criteria (FR-057-AC-11). | Test |
 | FR-057-AC-5 | Overrides layered through `Registry::with_grammar_severity` (the path `quire validate --severity` takes, FR-048-AC-5) apply to corpus checks, and a CLI-shaped entry wins over a conflicting module-declared entry for the same key. | Test |
 | FR-057-AC-6 | Mapping one check `off` leaves its siblings reporting: with `refs:dangling-reference=off`, a bundle that also has a dangling **trace** reference still reports `trace:dangling-trace-reference`. | Test |
 | FR-057-AC-7 | Every `BundleFinding` carries the severity that was applied, so a surface renders the configured level rather than inferring it from which vector the finding landed in. | Test |

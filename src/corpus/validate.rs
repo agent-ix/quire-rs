@@ -450,9 +450,9 @@ fn validate_view_findings(
 
     // Tier-2 edge-target validation (FR-040-AC-9). `spec.inner.edges` is
     // already sorted by `(source, target, type)` (resolver collects into a
-    // BTreeSet), so findings come out deterministically. Warn-tier always
-    // (FR-040-AC-10) — never degraded to a Strict error this revision.
-    validate_edge_targets(spec, registry, severity, &mut report);
+    // BTreeSet), so findings come out deterministically. Posture-routed
+    // (FR-040-AC-13).
+    validate_edge_targets(spec, registry, severity, posture, &mut report);
 
     // FR-049: declared table-cell trace references get the same dangling
     // check `ix://` edges get, driven entirely by the module's traceability
@@ -507,21 +507,25 @@ fn document_object(doc: &LoadedDocument) -> Option<&str> {
         .filter(|s| !s.is_empty())
 }
 
-/// Tier-2: for each **resolved** edge, check that the target document's
-/// `object:` archetype (or any role it carries) satisfies the verb's
-/// target list in the source's resolved `allowed_links` (FR-040-AC-9).
+/// Tier-2: for each **resolved, authored relationship** edge, check that the target document's kind
+/// — its own archetype name, or its `object:` type and that type's roles —
+/// satisfies the verb's target list in the source's resolved `allowed_links`
+/// (FR-040-AC-9, AC-12). Posture-routed (FR-040-AC-13).
 ///
 /// Skipped when the source type/verb is unknown, the verb's target list
-/// is `"*"` or empty (unconstrained), the target declares no `object:`
-/// (no object type to constrain), or its object archetype is unknown.
+/// is `"*"` or empty (unconstrained), or the target has no `type:`.
 /// Cross-repo targets never reach here — they resolve as dangling.
 fn validate_edge_targets(
     spec: &Spec,
     registry: &Registry,
     severity: &GrammarSeverityMap,
+    posture: BundlePosture,
     report: &mut BundleReport,
 ) {
     for edge in spec.edges() {
+        if !edge.authored_relationship {
+            continue;
+        }
         if let Some(edge_target) = edge.target_slot {
             // FR-041: normalize an inverse-verb edge `(source, I, target)`
             // to its forward orientation `(target, F, source)` before the
@@ -551,30 +555,55 @@ fn validate_edge_targets(
             if targets.is_empty() || targets.iter().any(|t| t == "*") {
                 continue;
             }
-            // Resolve the forward target's object archetype.
+            // The target's kind: its own archetype name (`type:`), plus —
+            // when it declares `object:` — that object type and its roles.
+            // Both come from the manifest; nothing is named here.
             let target_doc = spec.doc(fwd_target);
-            let Some(target_obj_name) = document_object(target_doc) else {
-                continue; // no `object:` — nothing to constrain
+            let Some(target_type) = target_doc.concept_type() else {
+                continue; // no `type:` — nothing to constrain
             };
-            let Some(target_arch) = registry.archetype(target_obj_name) else {
-                continue;
-            };
-            if !targets
-                .iter()
-                .any(|t| registry.target_satisfies(t, target_arch))
-            {
+            let target_obj = document_object(target_doc);
+            let target_type_arch = registry.archetype(target_type);
+            let target_obj_arch = target_obj.and_then(|o| registry.archetype(o));
+            let satisfied = targets.iter().any(|t| {
+                target_type_arch.is_some_and(|a| registry.target_satisfies(t, a))
+                    || target_obj_arch.is_some_and(|a| registry.target_satisfies(t, a))
+            });
+            if !satisfied {
                 // Report with the edge as authored (inverse source/target/
-                // verb), per FR-041-AC-4. Warn tier always (FR-040-AC-10).
+                // verb), per FR-041-AC-4, at the authored source's file path.
+                // Posture-routed (FR-040-AC-13).
+                let authored_source = spec.doc(edge.source_slot);
+                let authored_target = spec.doc(edge_target);
+                let normalized_source = spec.doc(fwd_source);
+                let normalized_target = spec.doc(fwd_target);
+                let normalized_target_type = normalized_target.concept_type().unwrap_or("unknown");
+                let normalized_target_obj = document_object(normalized_target);
+                let normalized_target_kind = match normalized_target_obj {
+                    Some(o) => format!("type '{normalized_target_type}', object '{o}'"),
+                    None => format!("type '{normalized_target_type}'"),
+                };
                 report.route(
                     severity,
-                    GrammarSeverity::Warning,
+                    posture_tier(posture),
                     BundleFinding::in_pack(
                         pack::EDGES,
                         "disallowed-edge-target",
-                        PathBuf::from(&edge.source),
+                        authored_source.path.clone(),
                         format!(
-                            "edge '{}' from '{}' targets '{}' (object type '{}'), which satisfies none of {:?}",
-                            edge.edge_type, edge.source, edge.target, target_obj_name, targets
+                            "authored edge '{}' from '{}' ({}) targets '{}' ({}); normalized forward edge '{}' from '{}' ({}) to '{}' ({}), whose target {} does not satisfy the forward target list {:?}",
+                            edge.edge_type,
+                            edge.source,
+                            authored_source.path.display(),
+                            edge.target,
+                            authored_target.path.display(),
+                            fwd_verb,
+                            spec.doc(fwd_source).id,
+                            normalized_source.path.display(),
+                            spec.doc(fwd_target).id,
+                            normalized_target.path.display(),
+                            normalized_target_kind,
+                            targets
                         ),
                     ),
                 );

@@ -7,6 +7,20 @@ bumps; once 1.0 ships, semver is strict.
 
 ## [Unreleased]
 
+### Changed
+
+- **Breaking, PLAT-1689:** `edges:disallowed-edge-target` checks resolved,
+  frontmatter-authored relationships against the target document's registered
+  archetype and, when resolvable, its `object:` type and roles. Synthesized
+  `references` links without authored relationship provenance remain navigation
+  edges and are not kind-checked. A same-key deduplicated edge with authored
+  relationship provenance is checked once. A
+  mismatch is an error under `Strict` and a warning under `Okf` (previously a
+  warning in both), with both levels still overridable through
+  `grammar_severity` / `--severity`. Findings use the source file path and name
+  both source and target file paths. A `Strict` bundle with an existing
+  wrong-kind authored relationship now fails validation.
+
 ## [0.60.0] — 2026-11-13
 
 ### Added
