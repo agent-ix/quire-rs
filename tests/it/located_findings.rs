@@ -781,7 +781,12 @@ fn tc2433_data_schema_checks_projected_types_formats_closed_keys_and_source_line
         "properties": {
             "support_status": {"enum": ["supported", "unsupported"]},
             "severity": {"enum": ["low", "medium", "high"]},
-            "end_of_support": {"type": "string", "format": "date"}
+            "end_of_support": {"type": "string", "format": "date"},
+            "metadata": {
+                "type": "object",
+                "properties": {"allowed": {"type": "string"}},
+                "additionalProperties": false
+            }
         },
         "required": ["support_status", "severity", "end_of_support"],
         "additionalProperties": false
@@ -853,6 +858,28 @@ fn tc2433_data_schema_checks_projected_types_formats_closed_keys_and_source_line
     assert_eq!(line, Some(line_of(&unknown, "digest:")));
     assert!(message.contains("digest"), "{message}");
 
+    let nested_unknown = semantic_object_doc(
+        "support_status: supported\nseverity: medium\nend_of_support: 2030-12-31\nmetadata:\n  allowed: yes\n  extra_one: one\n  extra_two: two\n",
+        "",
+    );
+    let result = validate(&registry, "Doc", &nested_unknown);
+    let findings = record_invalid(&result);
+    assert_eq!(findings.len(), 2, "{findings:?}");
+    assert!(
+        findings.iter().any(|(line, message)| {
+            *line == Some(line_of(&nested_unknown, "extra_one:"))
+                && message.contains("metadata.extra_one")
+        }),
+        "{findings:?}"
+    );
+    assert!(
+        findings.iter().any(|(line, message)| {
+            *line == Some(line_of(&nested_unknown, "extra_two:"))
+                && message.contains("metadata.extra_two")
+        }),
+        "{findings:?}"
+    );
+
     let missing = semantic_object_doc("severity: medium\nend_of_support: 2030-12-31\n", "");
     let result = validate(&registry, "Doc", &missing);
     assert_eq!(record_lines(&result), [Some(1)]);
@@ -866,12 +893,13 @@ fn tc2434_duplicate_record_sources_are_diagnosed_and_omitted() {
         "type": "object",
         "properties": {
             "fields": {"type": "array"},
-            "status": {"type": "string"}
+            "status": {"type": "string"},
+            "severity": {"enum": ["low", "medium", "high"]}
         },
         "additionalProperties": false
     });
     let fields_doc = semantic_object_doc(
-        "fields: authored\n",
+        "severity: critical\nfields: authored\n",
         "## Properties\n\n| Field | Type | Multiplicity | Constraints |\n|-------|------|--------------|-------------|\n| code | String | 1 | |\n",
     );
     let mut request =
@@ -926,6 +954,20 @@ fn tc2434_duplicate_record_sources_are_diagnosed_and_omitted() {
         .contains_key("status"));
 
     let registry = semantic_record_registry(&data_schema);
+    let fields_validation = validate(&registry, "Doc", &fields_doc);
+    let duplicate = fields_validation
+        .errors
+        .iter()
+        .find(|error| error.message.starts_with("semantic.duplicate-record-key"))
+        .expect("duplicate key finding remains visible");
+    assert_eq!(duplicate.line, Some(line_of(&fields_doc, "| code |")));
+    let schema = fields_validation
+        .errors
+        .iter()
+        .find(|error| error.message.starts_with("semantic.record-invalid"))
+        .expect("remaining unambiguous values still receive schema validation");
+    assert_eq!(schema.line, Some(line_of(&fields_doc, "severity:")));
+    assert!(schema.message.contains("severity"), "{}", schema.message);
     for (doc, source_line) in [
         (&fields_doc, line_of(&fields_doc, "| code |")),
         (&section_doc, line_of(&section_doc, "## Status")),
