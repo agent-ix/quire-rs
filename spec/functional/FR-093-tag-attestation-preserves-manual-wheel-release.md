@@ -11,7 +11,11 @@ type: FR
 Quire-rs SHALL add release-tag attestation alongside its existing manually
 dispatched wheel release. Adding the tag-attestation caller SHALL leave the
 manual release controls intact, and the attestation build SHALL be unable to
-publish wheels.
+publish wheels. FR-093-AC-1 concerns the Quire-rs repository's release-CI
+workflow only: the tag workflow calls the shared Engineering Assurance
+release-attestation workflow, while wheel publication remains manual-only. The
+quire-rs library and engine do not create, sign, or retain attestations or run
+records.
 
 ## Acceptance Criteria
 
