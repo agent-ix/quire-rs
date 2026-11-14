@@ -28,6 +28,11 @@ use crate::extract::locator::{
     eval_locator, eval_locator_located_at, is_whole_value_mustache, Locator,
 };
 
+/// The 1-based source line of an authored frontmatter key path.
+pub(crate) fn frontmatter_key_line(raw: &str, path: &[String]) -> Option<usize> {
+    frontmatter_lines::key_line(raw, path)
+}
+
 /// FR-011-AC-17: drop resolved values that are a whole-value `{{…}}`
 /// placeholder marker. Used on the extract path so a placeholder-only
 /// locator contributes nothing (a required miss if nothing remains).

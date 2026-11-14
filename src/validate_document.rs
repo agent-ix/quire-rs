@@ -21,6 +21,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
+use jsonschema::error::ValidationErrorKind;
 use serde_json::{Map, Value};
 
 use crate::ast::{QuireDocument, QuireSection};
@@ -458,7 +459,8 @@ fn semantic_findings(
         if record.any_kind_unavailable() {
             return;
         }
-        let first: Option<(String, usize)> = match record.declaration_record() {
+        let omitted = record.duplicate_record_keys();
+        let first: Option<(String, usize)> = match record.declaration_record_omitting(&omitted) {
             Err(err @ crate::semantic::DeclarationError::MultipleSystemsRecords) => Some((
                 format!("semantic.record-invalid: {err}; FR-075 admits at most one per artifact"),
                 FRONTMATTER_LINE,
@@ -469,6 +471,23 @@ fn semantic_findings(
             )),
             Ok(declaration) => validator.iter_errors(&declaration).next().map(|err| {
                 let detail = crate::validate::schema_validation_detail(&err);
+                if let ValidationErrorKind::AdditionalProperties { unexpected } = err.kind() {
+                    if let [key] = unexpected.as_slice() {
+                        let path = if detail.path == "<root>" {
+                            key.clone()
+                        } else {
+                            format!("{}.{key}", detail.path)
+                        };
+                        return (
+                            format!(
+                                "semantic.record-invalid: declaration record fails the resolved data schema at {path}: {}",
+                                detail.message
+                            ),
+                            crate::extract::frontmatter_key_line(doc_text, std::slice::from_ref(key))
+                                .unwrap_or(FRONTMATTER_LINE),
+                        );
+                    }
+                }
                 (
                     format!(
                         "semantic.record-invalid: declaration record fails the resolved data schema at {}: {}",
@@ -515,6 +534,26 @@ fn record_key_line(
             if let Some(source) = source {
                 return source.source_span.start_line;
             }
+        }
+    }
+    if let Some(source) = record
+        .record_sources
+        .as_deref()
+        .unwrap_or_default()
+        .iter()
+        .find(|source| source.key == key)
+    {
+        return source.source_span.start_line;
+    }
+    let frontmatter_path: Vec<String> = path
+        .split(['.', '/', '['])
+        .map(|part| part.trim_end_matches(']'))
+        .filter(|part| !part.is_empty() && part.parse::<usize>().is_err())
+        .map(str::to_string)
+        .collect();
+    if !frontmatter_path.is_empty() {
+        if let Some(line) = crate::extract::frontmatter_key_line(doc_text, &frontmatter_path) {
+            return line;
         }
     }
     let heading = match key {
