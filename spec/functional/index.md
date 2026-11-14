@@ -89,3 +89,4 @@ description: "Index of artifacts in this directory."
 * [FR-090: Declared carried fields: a stated value reaches the requirement entries of the coverage matrix as written](./FR-090-declared-carried-fields.md)
 * [FR-091: Ordered-field consistency, required-field and vocabulary findings, declared as module data](./FR-091-ordered-field-consistency.md)
 * [FR-092: Design column on the coverage matrix](./FR-092-matrix-design-column.md)
+* [FR-093: Tag attestation preserves the manual wheel release](./FR-093-tag-attestation-preserves-manual-wheel-release.md)
