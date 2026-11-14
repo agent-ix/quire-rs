@@ -23,12 +23,12 @@ and engine do not create, sign, or retain attestations or run records.
 
 | ID | Criteria | Verification |
 |----|----------|--------------|
-| FR-093-AC-1 | `.github/workflows/wheels.yml` declares `workflow_dispatch` with a `publish` input whose default is `false`. | Test (TC-2258) |
-| FR-093-AC-2 | `.github/workflows/wheels.yml` accepts `workflow_call` with a Boolean `publish` input whose default is `false`. | Test (TC-2259) |
-| FR-093-AC-3 | The `publish` job in `.github/workflows/wheels.yml` runs only when the event is `workflow_dispatch` and `inputs.publish` is `true`. | Test (TC-2260) |
-| FR-093-AC-4 | `.github/workflows/tag-attestation.yml` is triggered only by pushes of `v*` tags. | Test (TC-2261) |
-| FR-093-AC-5 | The tag-attestation workflow calls `.github/workflows/wheels.yml` with `publish: false`. | Test (TC-2262) |
-| FR-093-AC-6 | The tag-attestation workflow calls the shared Engineering Assurance release-attestation workflow. | Test (TC-2263) |
+| FR-093-AC-1 | `.github/workflows/wheels.yml` declares `workflow_dispatch` with a `publish` input whose default is `false`. | Test |
+| FR-093-AC-2 | `.github/workflows/wheels.yml` accepts `workflow_call` with a Boolean `publish` input whose default is `false`. | Test |
+| FR-093-AC-3 | The `publish` job in `.github/workflows/wheels.yml` runs only when the event is `workflow_dispatch` and `inputs.publish` is `true`. | Test |
+| FR-093-AC-4 | `.github/workflows/tag-attestation.yml` is triggered only by pushes of `v*` tags. | Test |
+| FR-093-AC-5 | The tag-attestation workflow calls `.github/workflows/wheels.yml` with `publish: false`. | Test |
+| FR-093-AC-6 | The tag-attestation workflow calls the shared Engineering Assurance release-attestation workflow. | Test |
 
 > **CR-420 note (EA-110):** FR-093 adds signed-tag attestation while keeping manual wheel publication as the only publishing path. The tag caller invokes the wheel workflow with `publish: false` and the shared Engineering Assurance attestation workflow.
 
