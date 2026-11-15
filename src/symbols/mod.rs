@@ -31,12 +31,12 @@ pub mod python;
 // feature's own Cargo.toml comment): `quire-code-extraction` pulls in a
 // tree-sitter grammar with a C build script that cannot cross-compile for
 // `wasm32-unknown-unknown` here (PLAT-843).
+pub(crate) mod qsl;
 #[cfg(feature = "rust-symbols")]
 pub mod rust;
 // Gated by `shell-symbols` (on by default; off under `wasm`), the same shape as
 // the other adapters: `tree-sitter-bash`'s C build script cannot cross-compile
 // for `wasm32-unknown-unknown` here either (PLAT-362).
-pub(crate) mod qsl;
 #[cfg(feature = "shell-symbols")]
 pub mod shell;
 pub mod shell_trace;

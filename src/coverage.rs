@@ -861,6 +861,19 @@ impl CoverageReport {
     }
 }
 
+/// Drop from `graph` the `formalizes` relations whose id the corpus does not
+/// resolve (FR-094-AC-5), so the relations that search and the symbol table
+/// read name only requirements that exist. [`compute`] still reports each
+/// dropped id as `formalizes-unknown-id`.
+///
+/// A registry that declares no traceability model resolves nothing, so the
+/// graph is left as bound.
+pub fn resolve_formalizes(graph: &mut SymbolGraph, spec: &Spec, registry: &Registry, root: &Path) {
+    if let Some(model) = registry.traceability() {
+        reconcile::resolve_formalizes(graph, spec, model, root);
+    }
+}
+
 /// Reconcile declared targets, declared reference rows, and scanned source
 /// trace tags into a coverage report.
 ///

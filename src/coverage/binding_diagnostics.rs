@@ -311,18 +311,23 @@ pub(super) fn formalizes_diagnostics(
             ),
         });
     }
-    out.extend(graph.unknown_formalizes(is_known).map(|relation| {
-        diagnostic(
-            "formalizes-unknown-id",
-            &relation.trace_id,
-            &relation.path,
-            relation.line,
-            format!(
-                "`{}` at {}:{} names no requirement or criterion in the loaded corpus",
-                relation.trace_id, relation.path, relation.line
-            ),
-        )
-    }));
+    let dropped = graph.formalizes_unknown.iter();
+    out.extend(
+        dropped
+            .chain(graph.unknown_formalizes(is_known))
+            .map(|relation| {
+                diagnostic(
+                    "formalizes-unknown-id",
+                    &relation.trace_id,
+                    &relation.path,
+                    relation.line,
+                    format!(
+                        "`{}` at {}:{} names no requirement or criterion in the loaded corpus",
+                        relation.trace_id, relation.path, relation.line
+                    ),
+                )
+            }),
+    );
     out.sort_by(|a, b| {
         (&a.path, a.line, &a.reason, &a.value).cmp(&(&b.path, b.line, &b.reason, &b.value))
     });

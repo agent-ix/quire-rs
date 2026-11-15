@@ -365,10 +365,13 @@ pub struct SymbolGraph {
     /// closed.
     pub implements: Vec<ImplementsRelation>,
     /// QSL declaration → requirement (FR-094). Like [`Self::implements`], never
-    /// consulted by [`Self::backed_trace_ids`]. Ids absent from the corpus are
-    /// still listed here: the graph knows no corpus, and
-    /// [`Self::unknown_formalizes`] is how a caller that has one finds them.
+    /// consulted by [`Self::backed_trace_ids`]. `bind` knows no corpus, so ids
+    /// absent from it are listed here until
+    /// [`Self::retain_known_formalizes`] is how a caller that has one drops them.
     pub formalizes: Vec<FormalizesRelation>,
+    /// Relations [`Self::retain_known_formalizes`] dropped because the corpus
+    /// does not resolve their id. Diagnostic input only: nothing else reads it.
+    pub formalizes_unknown: Vec<FormalizesRelation>,
     /// Markers that bound nothing or named something unreadable (FR-094).
     pub formalizes_findings: Vec<FormalizesFinding>,
     /// Textual Rust `implements` uses, for the FR-050-AC-62 coverage warning.
@@ -591,8 +594,7 @@ impl SymbolGraph {
     }
 
     /// The `formalizes` relations whose id `is_known` rejects (FR-094-AC-5):
-    /// a requirement that is absent, renamed or retired. Callers drop these from
-    /// what they report as relations.
+    /// a requirement that is absent, renamed or retired.
     pub fn unknown_formalizes<'g>(
         &'g self,
         is_known: impl Fn(&str) -> bool + 'g,
@@ -600,6 +602,22 @@ impl SymbolGraph {
         self.formalizes
             .iter()
             .filter(move |relation| !is_known(&relation.trace_id))
+    }
+
+    /// Move every `formalizes` relation whose id `is_known` rejects out of
+    /// [`Self::formalizes`] and into [`Self::formalizes_unknown`] (FR-094-AC-5).
+    ///
+    /// `bind` knows no corpus, so it mints every grammar-valid id. After this
+    /// call the relation lists that search and the symbol table read hold only
+    /// ids the corpus resolves, while the dropped ones stay available to the
+    /// diagnostic. [`crate::coverage::resolve_formalizes`] is the corpus-aware
+    /// caller.
+    pub fn retain_known_formalizes(&mut self, is_known: impl Fn(&str) -> bool) {
+        let (known, unknown) = std::mem::take(&mut self.formalizes)
+            .into_iter()
+            .partition(|relation| is_known(&relation.trace_id));
+        self.formalizes = known;
+        self.formalizes_unknown.extend(unknown);
     }
 
     /// Trace ids backed by at least one symbol.
@@ -991,6 +1009,7 @@ fn find_mentions(extraction: &SymbolExtraction, graph: &SymbolGraph) -> Vec<Ment
     let marker_lines: BTreeSet<(&str, usize)> = graph
         .formalizes
         .iter()
+        .chain(graph.formalizes_unknown.iter())
         .map(|r| (r.path.as_str(), r.line))
         .chain(
             graph
@@ -1573,17 +1592,27 @@ fn bind_formalizes(
         return;
     }
     let id_grammar = formalizes_id_pattern();
+    // Indexed once, not per file: declaration heads by path, then by line.
+    let mut declarations_by_path: BTreeMap<&str, BTreeMap<usize, &Symbol>> = BTreeMap::new();
+    for symbol in extraction
+        .symbols
+        .iter()
+        .filter(|s| s.language == SourceLanguage::Qsl)
+    {
+        declarations_by_path
+            .entry(symbol.path.as_str())
+            .or_default()
+            .insert(symbol.line, symbol);
+    }
+    let no_declarations = BTreeMap::new();
     for file in &extraction.files {
         if file.language != SourceLanguage::Qsl || file.unbalanced_braces {
             continue;
         }
         let lines: Vec<&str> = file.source.lines().collect();
-        let declarations: BTreeMap<usize, &Symbol> = extraction
-            .symbols
-            .iter()
-            .filter(|s| s.path == file.path)
-            .map(|s| (s.line, s))
-            .collect();
+        let declarations = declarations_by_path
+            .get(file.path.as_str())
+            .unwrap_or(&no_declarations);
         // Ids already minted on each declaration, by line, for the duplicate rule.
         let mut minted: BTreeMap<usize, BTreeSet<&str>> = BTreeMap::new();
         for (index, text) in lines.iter().enumerate() {
@@ -1592,11 +1621,14 @@ fn bind_formalizes(
             if !comment.starts_with("//") {
                 continue;
             }
-            for form in &model.trace_tags.formalizes {
-                let Some(re) = patterns.formalizes(&form.pattern) else {
-                    continue;
-                };
-                let Some(args) = re.captures(comment).and_then(|caps| caps.get(1)) else {
+            // One marker per line: the first declared form that matches reads
+            // it, so a second matching form cannot claim the same ids again.
+            {
+                let Some((form, args)) = model.trace_tags.formalizes.iter().find_map(|form| {
+                    let re = patterns.formalizes(&form.pattern)?;
+                    let args = re.captures(comment)?.get(1)?;
+                    Some((form, args))
+                }) else {
                     continue;
                 };
                 let target = lines[index + 1..]

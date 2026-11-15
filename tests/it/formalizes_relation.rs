@@ -8,7 +8,8 @@ use std::fs;
 use std::path::Path;
 
 use ix_trace_rs::trace;
-use quire_rs::coverage::{compute, CoverageReport};
+use quire_rs::coverage::{compute, resolve_formalizes, CoverageReport};
+use quire_rs::symbol_table;
 use quire_rs::symbols::trace::{bind, FormalizesFindingKind, SymbolGraph};
 use quire_rs::symbols::trace_search::{language_confidence, search, Confidence, Query};
 use quire_rs::symbols::{extract_tree, SymbolExtraction};
@@ -323,24 +324,6 @@ fn an_id_in_a_plain_comment_is_a_mention_and_qsl_is_line_heuristic() {
     assert_eq!(language_confidence("qsl"), Confidence::LineHeuristic);
 }
 
-#[trace("FR-094-AC-8")]
-#[test]
-fn a_module_without_formalizes_forms_binds_nothing() {
-    let (_dir, extraction) = tree(&[
-        ("rules.native", &format!("// formalizes: FR-001\n{DECL}")),
-        ("lib.rs", "#[test]\nfn t() {}\n"),
-    ]);
-    let with_files = bind(&extraction, &TraceabilityModel::default());
-    assert!(with_files.formalizes.is_empty() && with_files.formalizes_findings.is_empty());
-
-    let (_dir, rust_only) = tree(&[("lib.rs", "#[test]\nfn t() {}\n")]);
-    let without = bind(&rust_only, &TraceabilityModel::default());
-    assert_eq!(with_files.verifies, without.verifies);
-    assert_eq!(with_files.implements, without.implements);
-    assert_eq!(with_files.binding_census, without.binding_census);
-    assert_eq!(with_files.unmatched_tags, without.unmatched_tags);
-}
-
 #[trace("FR-062-AC-28")]
 #[test]
 fn a_qsl_form_is_refused_outside_formalizes_and_a_foreign_form_inside_it() {
@@ -404,8 +387,17 @@ const REQUIREMENT: &str = "---\nid: FR-001\ntype: FR\ntitle: A requirement\n---\
      | ID | Criteria | Verification |\n|----|----------|--------------|\n\
      | FR-001-AC-1 | The system shall do it. | Test |\n";
 
-/// Coverage over `spec/FR-001.md` and the given `src/` files.
-fn report(spec_body: &str, sources: &[(&str, &str)]) -> (CoverageReport, SymbolGraph) {
+/// One coverage run: the report, the corpus-resolved graph and its extraction.
+struct Run {
+    report: CoverageReport,
+    graph: SymbolGraph,
+    extraction: SymbolExtraction,
+}
+
+/// Coverage over `spec/FR-001.md` and the given `src/` files. With
+/// `declare_form` the module declares the `formalizes` form; without it the
+/// module is the unmodified fixture.
+fn run(spec_body: &str, sources: &[(&str, &str)], declare_form: bool) -> Run {
     let dir = tempfile::tempdir().expect("tempdir");
     let scope = dir.path().join("spec");
     write(&scope, "FR-001.md", spec_body);
@@ -416,11 +408,24 @@ fn report(spec_body: &str, sources: &[(&str, &str)]) -> (CoverageReport, SymbolG
         .join("tests/fixtures/traceability/obligations-catalog");
     let registry = Registry::load_module(&module).expect("load module");
     let mut model = registry.traceability().cloned().expect("model");
-    model.trace_tags.formalizes.push(formalizes_form());
-    let graph = bind(&extract_tree(&dir.path().join("src")), &model);
+    if declare_form {
+        model.trace_tags.formalizes.push(formalizes_form());
+    }
+    let extraction = extract_tree(&dir.path().join("src"));
+    let mut graph = bind(&extraction, &model);
     let spec = Spec::from_path(&scope);
+    resolve_formalizes(&mut graph, &spec, &registry, &scope);
     let report = compute(&spec, &registry, &graph, &scope).expect("report");
-    (report, graph)
+    Run {
+        report,
+        graph,
+        extraction,
+    }
+}
+
+fn report(spec_body: &str, sources: &[(&str, &str)]) -> (CoverageReport, SymbolGraph) {
+    let run = run(spec_body, sources, true);
+    (run.report, run.graph)
 }
 
 fn reasons(report: &CoverageReport) -> Vec<(&str, &str, Option<usize>)> {
@@ -439,47 +444,59 @@ fn reasons(report: &CoverageReport) -> Vec<(&str, &str, Option<usize>)> {
 
 #[trace("FR-094-AC-5")]
 #[test]
-fn an_id_absent_from_the_corpus_is_reported_with_file_and_line() {
-    let (report, graph) = report(
+fn an_id_absent_from_the_corpus_is_reported_and_never_minted() {
+    let run = run(
         REQUIREMENT,
         &[(
             "rules.native",
             &format!("// formalizes: FR-001, FR-999\n{DECL}"),
         )],
+        true,
     );
     assert_eq!(
-        reasons(&report),
+        reasons(&run.report),
         [("formalizes-unknown-id", "FR-999", Some(1))]
     );
-    let diagnostic = report
+    let diagnostic = run
+        .report
         .diagnostics
         .iter()
         .find(|d| d.reason == "formalizes-unknown-id")
         .expect("diagnostic");
     assert_eq!(diagnostic.path.as_deref(), Some("rules.native"));
     assert!(diagnostic.message.contains("FR-999"));
-    let unknown: Vec<_> = graph
-        .unknown_formalizes(|id| id == "FR-001")
-        .map(|r| r.trace_id.as_str())
-        .collect();
-    assert_eq!(unknown, ["FR-999"]);
+
+    // Absent from the graph, the symbol table and search.
+    assert_eq!(relations(&run.graph), [("rules.native", "P1", "FR-001")]);
+    let table = symbol_table::build(&run.extraction, Some(&run.graph));
+    let record = table.symbols.iter().find(|s| s.symbol == "P1").expect("P1");
+    assert_eq!(record.formalizes, ["FR-001"]);
+    let found = search(&run.graph, &run.extraction, &Query::Id("FR-999".into())).expect("search");
+    assert!(found.formalizes.is_empty() && !found.resolved);
 }
 
 #[trace("FR-094-AC-6")]
 #[test]
 fn renumbering_the_requirement_orphans_the_marker() {
     let renumbered = REQUIREMENT.replace("FR-001", "FR-050");
-    let (report, _) = report(
+    let run = run(
         &renumbered,
         &[("rules.native", &format!("// formalizes: FR-001\n{DECL}"))],
+        true,
     );
     assert_eq!(
-        reasons(&report),
+        reasons(&run.report),
         [("formalizes-unknown-id", "FR-001", Some(1))]
     );
+    assert!(run.graph.formalizes.is_empty());
+    let table = symbol_table::build(&run.extraction, Some(&run.graph));
+    assert!(table.symbols.iter().all(|s| s.formalizes.is_empty()));
+    let found = search(&run.graph, &run.extraction, &Query::Id("FR-001".into())).expect("search");
+    assert!(found.formalizes.is_empty());
 
-    let (healthy, _) = report_ok();
+    let (healthy, graph) = report_ok();
     assert!(reasons(&healthy).is_empty());
+    assert_eq!(relations(&graph), [("rules.native", "Pre1", "FR-001")]);
 }
 
 fn report_ok() -> (CoverageReport, SymbolGraph) {
@@ -543,4 +560,125 @@ fn formalizes_never_backs_a_criterion_or_moves_a_total() {
     assert!(with.implements.is_empty());
     assert!(with_graph.backed_trace_ids().is_empty());
     assert!(with_graph.verifies.is_empty());
+}
+
+#[trace("FR-094-AC-8")]
+#[test]
+fn native_files_under_a_module_without_the_form_change_no_other_output() {
+    let rust = ("lib.rs", "#[test]\nfn t() {}\n");
+    let native = ("rules.native", &*format!("// formalizes: FR-001\n{DECL}"));
+    let with = run(REQUIREMENT, &[rust, (native.0, native.1)], false);
+    let without = run(REQUIREMENT, &[rust], false);
+
+    // No relation and no formalizes-* diagnostic, though the marker is there.
+    assert!(with.graph.formalizes.is_empty() && with.graph.formalizes_findings.is_empty());
+    assert!(reasons(&with.report).is_empty());
+
+    // Everything the report says is identical to the tree without the file.
+    assert_eq!(
+        serde_json::to_value(&with.report).expect("report"),
+        serde_json::to_value(&without.report).expect("report")
+    );
+
+    // The symbol table differs only by the `.native` records, which carry no
+    // relation.
+    let table = symbol_table::build(&with.extraction, Some(&with.graph));
+    let other = symbol_table::build(&without.extraction, Some(&without.graph));
+    let kept: Vec<_> = table
+        .symbols
+        .iter()
+        .filter(|s| !s.path.ends_with(".native"))
+        .collect();
+    assert_eq!(kept, other.symbols.iter().collect::<Vec<_>>());
+    assert!(table
+        .symbols
+        .iter()
+        .filter(|s| s.path.ends_with(".native"))
+        .all(|s| s.formalizes.is_empty()));
+}
+
+#[trace("FR-051-AC-52")]
+#[test]
+fn native_files_read_as_qsl_declarations_and_only_when_present() {
+    assert_eq!(
+        serde_json::to_string(&SourceLanguage::Qsl).expect("serialize"),
+        "\"qsl\""
+    );
+    assert_eq!(SourceLanguage::Qsl.as_str(), "qsl");
+
+    let (_dir, extraction) = tree(&[
+        ("rules.native", &format!("// formalizes: FR-001\n{DECL}")),
+        ("lib.rs", "fn f() {}\n"),
+    ]);
+    let qsl: Vec<_> = extraction
+        .symbols
+        .iter()
+        .filter(|s| s.language == SourceLanguage::Qsl)
+        .collect();
+    assert_eq!(qsl.len(), 1);
+    assert_eq!(qsl[0].kind.as_str(), "declaration");
+    assert_eq!(qsl[0].path, "rules.native");
+    assert_eq!(qsl[0].qualified_name, "P1");
+
+    // Under a model declaring no form the declaration carries no relation.
+    let graph = bind(&extraction, &TraceabilityModel::default());
+    let table = symbol_table::build(&extraction, Some(&graph));
+    let row = table.symbols.iter().find(|s| s.symbol == "P1").expect("P1");
+    assert!(row.formalizes.is_empty());
+
+    // No `.native` file, no `qsl` language anywhere.
+    let (_dir, plain) = tree(&[("lib.rs", "fn f() {}\n")]);
+    assert!(plain
+        .files
+        .iter()
+        .all(|f| f.language != SourceLanguage::Qsl));
+    let table = symbol_table::build(&plain, None);
+    assert!(table.by_language.iter().all(|l| l.language != "qsl"));
+}
+
+#[trace("FR-051-AC-53")]
+#[test]
+fn unbalanced_braces_warn_per_file_and_the_rest_of_the_tree_extracts() {
+    let (_dir, extraction) = tree(&[
+        ("bad.native", "pre A {\n  x {\n}\n"),
+        ("good.native", "pre B\n"),
+        ("lib.rs", "fn f() {}\n"),
+    ]);
+    let warnings: Vec<_> = extraction
+        .diagnostics
+        .iter()
+        .filter(|d| d.reason.starts_with("qsl-unbalanced-braces"))
+        .collect();
+    assert_eq!(warnings.len(), 1);
+    assert_eq!(warnings[0].path, "bad.native");
+    assert!(warnings[0].reason.contains("bad.native:1"));
+    let names: Vec<_> = extraction
+        .symbols
+        .iter()
+        .map(|s| (s.path.as_str(), s.qualified_name.as_str()))
+        .collect();
+    assert_eq!(names, [("good.native", "B"), ("lib.rs", "f")]);
+}
+
+#[trace("FR-094-AC-10")]
+#[test]
+fn two_forms_matching_one_line_read_it_once() {
+    let mut second = formalizes_form();
+    second.name = "also-matches".to_string();
+    let mut both = model();
+    both.trace_tags.formalizes.push(second);
+    let (_dir, extraction) = tree(&[(
+        "rules.native",
+        &format!("// formalizes: FR-001, FR-002\n{DECL}"),
+    )]);
+    let graph = bind(&extraction, &both);
+    assert_eq!(
+        relations(&graph),
+        [
+            ("rules.native", "P1", "FR-001"),
+            ("rules.native", "P1", "FR-002")
+        ]
+    );
+    assert_eq!(graph.formalizes[0].form, "qsl-formalizes-comment");
+    assert!(graph.formalizes_findings.is_empty());
 }

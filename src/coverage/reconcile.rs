@@ -55,6 +55,35 @@ fn formalizes_id_is_known(spec: &Spec, id: &str, minted: impl Fn(&str) -> bool) 
             && known(bare))
 }
 
+/// Resolve the graph's `formalizes` relations against the corpus (FR-094-AC-5):
+/// an id that no minted target, obligation or document carries is moved to
+/// [`SymbolGraph::formalizes_unknown`].
+pub(super) fn resolve_formalizes(
+    graph: &mut SymbolGraph,
+    spec: &Spec,
+    model: &TraceabilityModel,
+    root: &Path,
+) {
+    if graph.formalizes.is_empty() {
+        return;
+    }
+    let model_exclude = declared_tables::ExcludeSet::compile_validated(&model.exclude);
+    let mut minted: BTreeSet<String> = BTreeSet::new();
+    for target in &model.trace_targets {
+        let mut ctx = declared_tables::ScanContext::default();
+        minted.extend(
+            declared_tables::mint(spec, root, target, &model_exclude, &mut ctx)
+                .into_iter()
+                .map(|minted_id| minted_id.id),
+        );
+    }
+    let (obligations, _) = crate::obligation::derive(spec, root, model);
+    minted.extend(obligations.into_iter().map(|obligation| obligation.id));
+    graph.retain_known_formalizes(|id| {
+        formalizes_id_is_known(spec, id, |bare| minted.contains(bare))
+    });
+}
+
 pub(super) fn reconcile(
     spec: &Spec,
     model: &TraceabilityModel,
@@ -585,7 +614,7 @@ pub(super) fn reconcile(
     // FR-094: a `formalizes` marker that bound nothing or names an absent id.
     diagnostics.extend(formalizes_diagnostics(graph, |id| {
         formalizes_id_is_known(spec, id, |bare| {
-            declared_ids.contains(bare) || row_ids.contains(bare) || obligation_ids.contains(bare)
+            declared_ids.contains(bare) || obligation_ids.contains(bare)
         })
     }));
 
