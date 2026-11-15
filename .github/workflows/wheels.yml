@@ -10,6 +10,16 @@ name: wheels
 # goes ONLY to the GCP Artifact Registry below — NEVER to public PyPI.
 
 on:
+  workflow_call:
+    inputs:
+      publish:
+        description: "Upload built wheels to the internal AgentIX GCP PyPI"
+        required: false
+        type: boolean
+        default: false
+    secrets:
+      GCP_SERVICE_ACCOUNT_KEY:
+        required: false
   workflow_dispatch:
     inputs:
       publish:
@@ -128,7 +138,7 @@ jobs:
   publish:
     name: publish → internal AgentIX PyPI (GCP)
     needs: build
-    if: ${{ inputs.publish }}
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish }}
     runs-on: ubuntu-24.04
     steps:
       - name: Collect all wheels
