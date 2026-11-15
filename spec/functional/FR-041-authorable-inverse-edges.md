@@ -46,10 +46,11 @@ reverse of one canonical forward edge.
 entry. The forward edge remains the single source of truth (category, description,
 target list); the inverse is recognized for authoring and normalized to the
 forward direction for target enforcement. This is the decision recorded in
-[ADR-0008](../assets/adr/0008-authorable-inverse-edges.md). Posture is **advisory
-(warn-tier)**, consistent with [FR-040](./FR-040-object-edge-vocabulary.md);
-nothing here blocks extraction or [FR-032](./FR-032-validate-document.md)
-structural validation.
+[ADR-0008](../assets/adr/0008-authorable-inverse-edges.md). Tier-2 target
+enforcement follows [FR-040](./FR-040-object-edge-vocabulary.md): it checks
+only authored frontmatter `relationships` edges, and an unconfigured mismatch
+is an error under `Strict` and a warning under `Okf`. Nothing here blocks
+extraction or [FR-032](./FR-032-validate-document.md) structural validation.
 
 ## Behavior
 
@@ -82,21 +83,30 @@ structural validation.
   `DisallowedEdgeType` warning.
 
 - **Tier-2 — enforcement (corpus-level).** During corpus validation
-  ([FR-025](./FR-025-spec-corpus-model.md)), an edge `(source, I, target)` whose
-  verb `I` is an inverse label SHALL be **normalized to its forward form**
+  ([FR-025](./FR-025-spec-corpus-model.md)), the corpus validator SHALL
+  **normalize an edge `(source, I, target)` whose verb `I` is an inverse label
+  to its forward form**
   `(target, F, source)` before [FR-040](./FR-040-object-edge-vocabulary.md)'s
   `target_satisfies` check runs — i.e. source and target are swapped and `I` is
   replaced by `F`, so the existing target-typing rule applies in the canonical
   direction against the forward source's resolved `allowed_links`. A mismatch
   yields [FR-040](./FR-040-object-edge-vocabulary.md)'s `DisallowedEdgeTarget`
-  warning, reported with the **authored** (inverse) `source`/`target`/`edge_type`
-  so the diagnostic points at the document the author wrote. As in
-  [FR-040](./FR-040-object-edge-vocabulary.md), target checking is bundle-local and
-  skipped for `"*"` lists, targets with no `object:`, and dangling/cross-repo
+  routed by bundle posture and reported with the **authored** (inverse)
+  `source`/`target`/`edge_type` and file paths so the diagnostic preserves the
+  document the author wrote. Its message also names the normalized forward
+  endpoint whose kind failed and the forward source's target allow-list. An
+  unresolved `object:` contributes no type or roles; the registered document
+  archetype still participates in matching. An unregistered frontmatter
+  `type:` contributes no document kind and does not satisfy a constrained
+  allow-list; if no registered kind matches, the mismatch follows FR-040's
+  posture-routed severity. As in
+  [FR-040](./FR-040-object-edge-vocabulary.md), target checking is bundle-local
+  and skipped for `"*"` lists, targets with no `type:`, and dangling/cross-repo
   edges.
 
-- **Warn-tier and determinism.** Inverse handling never errors and never blocks
-  ([FR-040](./FR-040-object-edge-vocabulary.md) posture). The inverse index uses a
+- **Posture and determinism.** Tier-2 inverse-edge findings use the
+  [FR-040](./FR-040-object-edge-vocabulary.md) posture-routed tier and severity
+  override. They never block extraction or loading. The inverse index uses a
   `BTreeMap` and diagnostics keep the `(source, target, edge_type)` ordering
   ([NFR-006](../non-functional/NFR-006-determinism.md)), identical across runs and
   thread counts.
@@ -124,7 +134,7 @@ structural validation.
 | FR-041-AC-2 | A frontmatter-harvested edge whose `type` is a declared inverse label is type-allowed during [FR-032](./FR-032-validate-document.md) (no `DisallowedEdgeType`), even when the label is absent from `resolve_allowed_links`; a `type` that is neither a resolved key nor a known inverse still yields exactly one `DisallowedEdgeType` warning | Test |
 | FR-041-AC-3 | When a label is both a forward `edge_types` key and an inverse of another verb, the forward registration governs; when two forward verbs declare the same inverse label, resolution is first-wins and emits a non-fatal `DuplicateInverseEdge` diagnostic (default load succeeds) | Test |
 | FR-041-AC-4 | During corpus validation, an inverse-verb edge `(source, I, target)` is normalized to `(target, F, source)` before `target_satisfies`; a target valid in the forward direction passes, and a forward-direction mismatch yields one `DisallowedEdgeTarget` reported with the authored inverse source/target/edge_type | Test |
-| FR-041-AC-5 | Inverse recognition and normalization are warnings only — they never block extraction or [FR-032](./FR-032-validate-document.md) structural validation; the inverse index and diagnostics are deterministic across runs and thread counts ([NFR-006](../non-functional/NFR-006-determinism.md)) | Test |
+| FR-041-AC-5 | Inverse recognition and Tier-1 findings remain warnings only. A Tier-2 inverse target mismatch follows FR-040's posture-routed severity and override; even when it is an error under `Strict`, it does not block edge extraction or document loading. Neither Tier-1 nor Tier-2 findings block [FR-032](./FR-032-validate-document.md) structural validation. The inverse index and diagnostics are deterministic across runs and thread counts ([NFR-006](../non-functional/NFR-006-determinism.md)). | Test |
 
 ## Dependencies
 

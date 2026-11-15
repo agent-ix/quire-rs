@@ -45,11 +45,16 @@ another module's type names.
   artifact's nor the object's resolved vocabulary surfaces a `DisallowedEdgeType`
   finding naming the document and the offending verb (exercises
   [FR-040](../functional/FR-040-object-edge-vocabulary.md)).
-- **US-015-AC-3**: Declaring an edge to a target whose object type — or any role
-  it carries — does not satisfy that verb's target list surfaces a
-  `DisallowedEdgeTarget` finding; an edge whose target carries the required
-  **role** passes even when source and target live in different modules
-  (exercises [FR-040](../functional/FR-040-object-edge-vocabulary.md)).
+- **US-015-AC-3**: Declaring an authored frontmatter relationship to a resolved
+  target whose registered document archetype, registered `object:` archetype,
+  or object role does not satisfy the verb's target list surfaces a
+  `DisallowedEdgeTarget` finding. An edge whose target carries the required
+  **role** passes even when source and target live in different modules. A
+  declared but unresolved `object:` adds no candidate type or roles, while the
+  registered document archetype remains checked. An unregistered target
+  `type:` is not a candidate kind. Resolver-synthesized reference links without
+  authored relationship provenance are not target-kind checked (exercises
+  [FR-040](../functional/FR-040-object-edge-vocabulary.md)).
 - **US-015-AC-4**: A verb absent from the merged `edge_types` registry, or a role
   absent from the merged `roles` registry, is rejected at module load — the
   author cannot reference an undefined edge or role (exercises

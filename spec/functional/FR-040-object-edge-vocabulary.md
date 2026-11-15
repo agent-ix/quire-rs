@@ -143,6 +143,24 @@ contract change recorded here per the CR-note convention (FR-024 CR-002 pattern)
 FR-031-AC-3's array assertion is superseded by FR-040-AC-5. No silent edit to
 FR-031 is made from the implementation branch.
 
+### CR-002 — PLAT-1689 target-kind enforcement
+
+The original Tier-2 rule checked only a target's `object:` archetype and roles,
+and treated every mismatch as a warning. FR-040-AC-9 asserted that rule. The
+target-kind rule now also checks the target document's registered `type:`
+archetype and routes an unconfigured mismatch by bundle posture: error under
+`Strict`, warning under `Okf`. Tier-2 applies only to an edge declared in the
+source document's frontmatter `relationships` array. Resolver-synthesized
+`references` edges from `ix://` links or relative Markdown links are not subject
+to Tier-2 unless that same deduplicated edge also has authored frontmatter
+relationship provenance; such an edge is checked once. If a target declares an
+`object:` name that is not in
+the loaded registry, its registered document `type:` still participates in
+matching; the unresolved object contributes neither an object type nor roles.
+Dangling edges remain covered by FR-026. These changes supersede the earlier
+Tier-2 wording in this requirement; the authored relationship vocabulary and
+the corpus graph are unchanged.
+
 ### Resolution and target matching
 
 For a document with artifact archetype `T` and optional object archetype `O`:
@@ -152,12 +170,15 @@ For a document with artifact archetype `T` and optional object archetype `O`:
   [FR-026](./FR-026-intra-spec-reference-resolution.md) is **type-allowed** iff
   `type ∈ verbs(doc).keys()`.
 - It is **target-allowed** iff some token `t` in `verbs(doc)[type]` satisfies the
-  resolved target archetype (`target_satisfies`): `t == "*"`, or `t` equals the
-  target's object type, or `t` is a role the target carries. Target checking is
-  skipped when the edge is dangling ([FR-026](./FR-026-intra-spec-reference-resolution.md)
+  resolved target archetype (`target_satisfies`): `t == "*"`, or `t` matches a
+  registered target archetype's name or role, or `t` matches the name or role of
+  the target's registered `object:` archetype. A document's frontmatter `type:`
+  names its document archetype; an unregistered value is not a candidate kind and
+  cannot satisfy an allow-list token.
+  Target checking is skipped when the edge is dangling ([FR-026](./FR-026-intra-spec-reference-resolution.md)
   already reports that) or when the target list contains `"*"`.
 
-### Validation tiers (advisory)
+### Validation tiers
 
 - **Tier 1 — edge type (document-level).** During
   [FR-032](./FR-032-validate-document.md), after the object archetype is composed,
@@ -172,20 +193,41 @@ For a document with artifact archetype `T` and optional object archetype `O`:
   archetype is available to contribute verbs); Tier-1 still runs against that
   reduced set.
 - **Tier 2 — edge target (corpus-level).** During corpus validation
-  ([FR-025](./FR-025-spec-corpus-model.md)), for each **resolved** edge the corpus
-  looks up the target document, reads its `object:` frontmatter, resolves that to
-  a `CompiledArchetype`, and evaluates `target_satisfies` against the verb's
-  target list. A mismatch yields a warning `DisallowedEdgeTarget { source, target,
-  edge_type, target_object_type, allowed_targets }`. Target checking is **skipped**
-  when the verb's target list contains `"*"`, when the target document declares no
-  `object:` (no object type to constrain), or when the edge is **dangling**
+  ([FR-025](./FR-025-spec-corpus-model.md)), for each **resolved edge declared
+  in the source document's frontmatter `relationships` array**, the corpus looks
+  up the target document and evaluates the verb's target list against its
+  **registered kinds**: its registered document archetype, plus — when it declares a
+  registered `object:` — that object archetype and its roles. If `object:` is
+  declared but unresolved, only a registered document archetype is considered;
+  the unknown object contributes no kind or roles. An unregistered frontmatter
+  `type:` is not a candidate kind. Tier-2 checks only declared frontmatter
+  relationship edges. Resolver-synthesized `references` edges from frontmatter
+  URIs, body `ix://` links or relative Markdown links are not checked when they
+  have no authored relationship provenance; a deduplicated edge with authored
+  relationship provenance is checked once. The list is satisfied when any
+  token matches any candidate kind (`target_satisfies`); no archetype or object
+  name is known to the engine, only what the manifest declares. A mismatch yields a
+  `DisallowedEdgeTarget { source, target, edge_type, target_kind, allowed_targets }`
+  finding at the **file path** of the source document, whose message names the
+  source and target file paths. Its unconfigured tier is **posture-routed**: an
+  error under `Strict`, a warning under `Okf`, and overridable through the
+  existing `edges:disallowed-edge-target` `grammar_severity` key
+  ([FR-057](./FR-057-corpus-check-severity.md)). Target checking is **skipped**
+  when the verb's target list contains `"*"`, when the target has no frontmatter
+  `type:` value, or when the edge is **dangling**
   ([FR-026](./FR-026-intra-spec-reference-resolution.md) already reports those).
+  A frontmatter `type:` value that names no registered archetype contributes no
+  document kind. If neither it nor a registered `object:` archetype and its roles
+  satisfy a constrained target list, the mismatch yields
+  `DisallowedEdgeTarget` at the posture-routed severity.
   Because cross-repo `ix://` targets resolve as dangling, Tier-2 type-checks
   targets **only within a single loaded bundle** — cross-repo target typing is out
   of scope this revision.
 
-Both tiers are **warnings** ([FR-032](./FR-032-validate-document.md) structural
-errors are unaffected); neither blocks extraction, validation, or sync.
+Tier 1 is a **warning** ([FR-032](./FR-032-validate-document.md) structural
+errors are unaffected) and blocks neither extraction, validation, nor sync.
+Tier 2 is posture-routed as above; a Tier-2 error under `Strict` fails bundle
+validation but never blocks extraction or loading.
 Determinism ([NFR-006](../non-functional/NFR-006-determinism.md)) holds:
 diagnostics are sorted by `(source, target, edge_type)` — matching the corpus
 edge ordering ([FR-026](./FR-026-intra-spec-reference-resolution.md)) — and are
@@ -213,9 +255,12 @@ vocabulary; with no object, it lists the artifact vocabulary alone.
 | FR-040-AC-6 | `resolve_allowed_links(T, Some(O))` returns the union of both axes' verbs; for a verb present on both, the target lists are unioned and `"*"` absorbs concrete/role tokens. With `object = None` it returns the artifact vocabulary alone. | Test |
 | FR-040-AC-7 | `target_satisfies` is true when the token equals the target archetype's name, when the token is a role the target carries, or when the token is `"*"`; false otherwise. | Test |
 | FR-040-AC-8 | During [FR-032](./FR-032-validate-document.md), a document whose frontmatter-harvested edge `type` is not in `resolve_allowed_links` yields exactly one warning `DisallowedEdgeType` naming source and verb; in-vocabulary-only yields none; when `object:` is unknown, the vocabulary falls back to the artifact axis alone and Tier-1 still runs. | Test |
-| FR-040-AC-9 | During corpus validation, a resolved edge whose target document's `object:` archetype (and its roles) fails the verb's target list yields a warning `DisallowedEdgeTarget`; the same verb to a target carrying the required role passes, including cross-module source/target. Target checking is skipped for `"*"` lists, targets with no `object:`, and dangling (cross-repo) targets. | Test |
-| FR-040-AC-10 | Tier-1 and Tier-2 findings are warnings only — they do not block extraction or [FR-032](./FR-032-validate-document.md) structural validation, and a corpus with disallowed edges still loads; diagnostics are sorted by `(source, target, edge_type)` and identical across runs and thread counts ([NFR-006](../non-functional/NFR-006-determinism.md)). | Test |
+| FR-040-AC-9 | During corpus validation, each resolved edge with authored frontmatter `relationships` provenance is checked once against the target's registered document archetype and, when resolvable, registered `object:` archetype and its roles, including across modules. A declared but unresolved `object:` contributes no kind or roles; the registered document archetype remains checked. An unregistered `type:` contributes no document kind and cannot satisfy a constrained allow-list token; if no registered target kind satisfies that list, a posture-routed `DisallowedEdgeTarget` is yielded. Resolver-synthesized `references` edges from frontmatter URIs, body `ix://` links, or relative Markdown links are not checked when they have no authored relationship provenance. | Test |
+| FR-040-AC-10 | Tier-1 findings and Tier-2 findings under `Okf` are warnings only; they do not block extraction or [FR-032](./FR-032-validate-document.md) structural validation, and a corpus with disallowed edges still loads. Diagnostics are sorted by `(source, target, edge_type)` and identical across runs and thread counts ([NFR-006](../non-functional/NFR-006-determinism.md)). | Test |
 | FR-040-AC-11 | `input_skeleton` for an archetype with an optional `object` argument renders a Relationships block listing each resolved verb with its category, description, and target list; without `object`, only the artifact vocabulary is listed. | Test |
+| FR-040-AC-12 | A target list is matched against the target document's registered archetype name as well as its registered object type and roles: an `adr` source whose `realizes` list is `[FR, NFR]` passes to registered `FR`/`NFR` documents and is flagged to a registered `adr` document, none of them declaring `object:`. | Test |
+| FR-040-AC-13 | Under `Strict` a Tier-2 `disallowed-edge-target` is an error (bundle invalid); under `Okf` it is a warning. The finding's path is the source document's file path and its message names the source and target file paths, not only their ids. | Test |
+| FR-040-AC-14 | `edges:disallowed-edge-target` set to `error`, `warning` or `off` in `grammar_severity` overrides the posture-routed tier in both postures. | Test |
 
 ## Dependencies
 

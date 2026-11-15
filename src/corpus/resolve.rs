@@ -49,6 +49,10 @@ pub struct Edge {
     /// Sorted, deduplicated spellings of the target as authored, so a report
     /// can name a dangling reference exactly.
     pub references: Vec<String>,
+    /// Whether any spelling came from a declared frontmatter `relationships`
+    /// entry. Resolver-synthesized links remain navigable but do not acquire
+    /// the target-kind policy of an authored relationship.
+    pub(crate) authored_relationship: bool,
     /// Corpus slot of the source document.
     pub(crate) source_slot: usize,
     /// Corpus slot of the resolved target document.
@@ -124,6 +128,7 @@ struct StubInfo {
     authorities: Option<BTreeSet<String>>,
     /// The spellings as authored.
     references: BTreeSet<String>,
+    authored_relationship: bool,
 }
 
 /// Resolve every reference in `ix.documents`. Deterministic (stubs are
@@ -144,11 +149,12 @@ pub(crate) fn resolve(ix: &Index<'_>) -> ResolveOutput {
     for (slot, doc) in ix.documents.iter().enumerate() {
         let member = ix.member_of[slot];
         let source = artifact_key(doc);
-        let mut add = |reference: Reference, edge_type: String| {
+        let mut add = |reference: Reference, edge_type: String, authored_relationship: bool| {
             let (target, target_slot, authority) = locate(ix, member, &reference);
             let info = StubInfo {
                 authorities: authority.map(|a| BTreeSet::from([a])),
                 references: BTreeSet::from([reference.raw.clone()]),
+                authored_relationship,
             };
             match stubs.entry((member, source.clone(), target, edge_type, target_slot)) {
                 Entry::Vacant(v) => {
@@ -166,14 +172,19 @@ pub(crate) fn resolve(ix: &Index<'_>) -> ResolveOutput {
                         _ => None,
                     };
                     existing.references.extend(info.references);
+                    existing.authored_relationship |= info.authored_relationship;
                 }
             }
         };
         for (target_raw, edge_type) in harvest_frontmatter(doc) {
-            add(Reference::authored(target_raw), edge_type);
+            add(Reference::authored(target_raw), edge_type, true);
         }
         for target_raw in harvest_body_links(doc, ix_link) {
-            add(Reference::authored(target_raw), "references".to_string());
+            add(
+                Reference::authored(target_raw),
+                "references".to_string(),
+                false,
+            );
         }
         // Internal relative-path links (ADR 0007). Navigation documents
         // (`index.md`) is excluded as a source so its contents links do not
@@ -182,7 +193,7 @@ pub(crate) fn resolve(ix: &Index<'_>) -> ResolveOutput {
             for target in harvest_body_relative_links(doc, md_link, &by_path[member]) {
                 // Already an artifact key or a full relative path: no
                 // reduction to a last segment, no authority.
-                add(Reference::local(target), "references".to_string());
+                add(Reference::local(target), "references".to_string(), false);
             }
         }
     }
@@ -225,6 +236,7 @@ pub(crate) fn resolve(ix: &Index<'_>) -> ResolveOutput {
             source_repo: identity_of(member),
             target_repo: target_slot.and_then(|slot| identity_of(ix.member_of[slot])),
             references: info.references.into_iter().collect(),
+            authored_relationship: info.authored_relationship,
             source_slot,
             target_slot,
         });
