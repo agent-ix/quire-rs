@@ -21,6 +21,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
+use jsonschema::error::ValidationErrorKind;
 use serde_json::{Map, Value};
 
 use crate::ast::{QuireDocument, QuireSection};
@@ -455,30 +456,54 @@ fn semantic_findings(
         // duplicate section) carries its own diagnostic, and its key is absent
         // from the record because it could not be read, not because nothing was
         // declared (FR-072).
-        if record.any_kind_unavailable() {
+        let omitted = record.duplicate_record_keys();
+        if record.any_kind_unavailable_except(&omitted) {
             return;
         }
-        let first: Option<(String, usize)> = match record.declaration_record() {
-            Err(err @ crate::semantic::DeclarationError::MultipleSystemsRecords) => Some((
+        let findings: Vec<(String, usize)> = match record.declaration_record_omitting(&omitted) {
+            Err(err @ crate::semantic::DeclarationError::MultipleSystemsRecords) => vec![(
                 format!("semantic.record-invalid: {err}; FR-075 admits at most one per artifact"),
                 FRONTMATTER_LINE,
-            )),
-            Err(err @ crate::semantic::DeclarationError::Serialize(_)) => Some((
-                format!("semantic.record-invalid: {err}"),
-                FRONTMATTER_LINE,
-            )),
-            Ok(declaration) => validator.iter_errors(&declaration).next().map(|err| {
-                let detail = crate::validate::schema_validation_detail(&err);
-                (
-                    format!(
-                        "semantic.record-invalid: declaration record fails the resolved data schema at {}: {}",
-                        detail.path, detail.message
-                    ),
-                    record_key_line(&record, doc_text, &detail.path),
-                )
-            }),
+            )],
+            Err(err @ crate::semantic::DeclarationError::Serialize(_)) => {
+                vec![(format!("semantic.record-invalid: {err}"), FRONTMATTER_LINE)]
+            }
+            Ok(declaration) => {
+                let mut additional_properties = Vec::new();
+                let mut first_other = None;
+                for err in validator.iter_errors(&declaration) {
+                    let detail = crate::validate::schema_validation_detail(&err);
+                    if let ValidationErrorKind::AdditionalProperties { unexpected } = err.kind() {
+                        let parent_path = json_pointer_segments(&err.instance_path().to_string());
+                        for key in unexpected {
+                            let mut path_segments = parent_path.clone();
+                            path_segments.push(key.clone());
+                            let path = path_segments.join(".");
+                            additional_properties.push((
+                                format!(
+                                    "semantic.record-invalid: declaration record fails the resolved data schema at {path}: {}",
+                                    detail.message
+                                ),
+                                record_key_line(&record, doc_text, &path),
+                            ));
+                        }
+                    } else if first_other.is_none() {
+                        first_other = Some((
+                            format!(
+                                "semantic.record-invalid: declaration record fails the resolved data schema at {}: {}",
+                                detail.path, detail.message
+                            ),
+                            record_key_line(&record, doc_text, &detail.path),
+                        ));
+                    }
+                }
+                first_other
+                    .into_iter()
+                    .chain(additional_properties)
+                    .collect()
+            }
         };
-        if let Some((message, line)) = first {
+        for (message, line) in findings {
             errors.push(ValidationError {
                 message,
                 line: Some(line),
@@ -486,6 +511,16 @@ fn semantic_findings(
             });
         }
     }
+}
+
+/// Decode the object-key segments of a JSON Pointer for source localization.
+fn json_pointer_segments(pointer: &str) -> Vec<String> {
+    pointer
+        .split('/')
+        .skip(1)
+        .map(|segment| segment.replace("~1", "/").replace("~0", "~"))
+        .filter(|segment| segment.parse::<usize>().is_err())
+        .collect()
 }
 
 /// The line a record finding falls back to when its key has no source block:
@@ -515,6 +550,26 @@ fn record_key_line(
             if let Some(source) = source {
                 return source.source_span.start_line;
             }
+        }
+    }
+    if let Some(source) = record
+        .record_sources
+        .as_deref()
+        .unwrap_or_default()
+        .iter()
+        .find(|source| source.key == key)
+    {
+        return source.source_span.start_line;
+    }
+    let frontmatter_path: Vec<String> = path
+        .split(['.', '/', '['])
+        .map(|part| part.trim_end_matches(']'))
+        .filter(|part| !part.is_empty() && part.parse::<usize>().is_err())
+        .map(str::to_string)
+        .collect();
+    if !frontmatter_path.is_empty() {
+        if let Some(line) = crate::extract::frontmatter_key_line(doc_text, &frontmatter_path) {
+            return line;
         }
     }
     let heading = match key {

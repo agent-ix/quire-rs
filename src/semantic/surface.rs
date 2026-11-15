@@ -2,7 +2,7 @@
 //! per-kind availability and `lossy`, ordered diagnostics, and the published
 //! `semantic-v1` shape.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -331,14 +331,7 @@ pub fn extract_semantic(
         });
     let record = record.unwrap_or_default();
     diagnostics.extend(record.diagnostics.iter().cloned());
-    diagnostics.sort_by(|a, b| {
-        (a.line.unwrap_or(0), a.column.unwrap_or(0), a.code.as_str()).cmp(&(
-            b.line.unwrap_or(0),
-            b.column.unwrap_or(0),
-            b.code.as_str(),
-        ))
-    });
-    SemanticExtraction {
+    let mut extraction = SemanticExtraction {
         format_version: SEMANTIC_FORMAT_VERSION,
         contract_version: ctx.module.contract_version.clone(),
         package: ctx.module.package.clone(),
@@ -368,7 +361,271 @@ pub fn extract_semantic(
         record_sources: (!record.sources.is_empty()).then_some(record.sources),
         availability,
         diagnostics,
+    };
+    compose_frontmatter_record(raw, ctx, &mut extraction);
+    extraction.diagnostics.sort_by(|a, b| {
+        (a.line.unwrap_or(0), a.column.unwrap_or(0), a.code.as_str()).cmp(&(
+            b.line.unwrap_or(0),
+            b.column.unwrap_or(0),
+            b.code.as_str(),
+        ))
+    });
+    extraction
+}
+
+const RESERVED_FRONTMATTER_KEYS: [&str; 8] = [
+    "id",
+    "title",
+    "type",
+    "object",
+    "uuid",
+    "relationships",
+    "description",
+    "tags",
+];
+
+#[derive(Clone, PartialEq, Eq)]
+struct RecordOccurrence {
+    key: String,
+    kind: &'static str,
+    line: usize,
+}
+
+fn compose_frontmatter_record(
+    raw: &str,
+    ctx: &SemanticContext,
+    extraction: &mut SemanticExtraction,
+) {
+    if ctx.record_schema.is_none() {
+        return;
     }
+    let Some(frontmatter) = crate::parser::frontmatter::extract_frontmatter_ref(raw).frontmatter
+    else {
+        return;
+    };
+
+    let mut occurrences = declaration_occurrences(raw, ctx, extraction);
+    let mut projected = BTreeMap::new();
+    for (key, value) in frontmatter {
+        if RESERVED_FRONTMATTER_KEYS.contains(&key.as_str()) {
+            continue;
+        }
+        let line =
+            crate::extract::frontmatter_key_line(raw, std::slice::from_ref(&key)).unwrap_or(1);
+        projected.insert(key.clone(), value);
+        occurrences.push(RecordOccurrence {
+            key,
+            kind: "frontmatter",
+            line,
+        });
+    }
+
+    let mut by_key: BTreeMap<String, Vec<RecordOccurrence>> = BTreeMap::new();
+    for occurrence in occurrences {
+        let group = by_key.entry(occurrence.key.clone()).or_default();
+        if !group.contains(&occurrence) {
+            group.push(occurrence);
+        }
+    }
+
+    let mut duplicate_keys = BTreeSet::new();
+    for (key, group) in &mut by_key {
+        group.sort_by_key(|source| source.line);
+        let Some(first) = group.first() else {
+            continue;
+        };
+        for later in group.iter().skip(1) {
+            duplicate_keys.insert(key.clone());
+            extraction.diagnostics.push(
+                SemanticDiagnostic::new(
+                    "semantic.duplicate-record-key",
+                    super::SemanticSeverity::Error,
+                    later.line,
+                    format!(
+                        "record key `{key}` is provided by {} at line {} and later by {} at line {}",
+                        first.kind, first.line, later.kind, later.line
+                    ),
+                )
+                .with_reason(key),
+            );
+        }
+    }
+
+    for key in &duplicate_keys {
+        projected.remove(key);
+        if let Some(record) = extraction.record.as_mut() {
+            record.remove(key);
+        }
+        if let Some(sources) = extraction.record_sources.as_mut() {
+            sources.retain(|source| source.key != *key);
+        }
+        if let Some(keys) = extraction.availability.record_keys.as_mut() {
+            keys.insert(
+                key.clone(),
+                KindAvailability::unavailable("duplicate-record-key"),
+            );
+        }
+    }
+    if !projected.is_empty() {
+        let record = extraction.record.get_or_insert_with(BTreeMap::new);
+        record.extend(projected);
+    }
+}
+
+fn declaration_occurrences(
+    raw: &str,
+    ctx: &SemanticContext,
+    extraction: &SemanticExtraction,
+) -> Vec<RecordOccurrence> {
+    let mut out = Vec::new();
+    let line_for = |sources: &[SourceLocus], heading: &str| {
+        sources
+            .first()
+            .map_or_else(|| section_line(raw, heading), |source| source.start_line)
+    };
+    if extraction.fields.is_some() {
+        out.push(RecordOccurrence {
+            key: "fields".to_string(),
+            kind: "semantic declaration",
+            line: line_for(
+                extraction.field_sources.as_deref().unwrap_or_default(),
+                "Properties",
+            ),
+        });
+    }
+    if extraction.clauses.is_some() {
+        let sources: Vec<SourceLocus> = extraction
+            .clauses
+            .as_deref()
+            .unwrap_or_default()
+            .iter()
+            .filter_map(|clause| clause.source_span.clone())
+            .collect();
+        out.push(RecordOccurrence {
+            key: "clauses".to_string(),
+            kind: "semantic declaration",
+            line: line_for(&sources, "Invariants"),
+        });
+    }
+    if extraction.operations.is_some() {
+        let sources: Vec<SourceLocus> = extraction
+            .operation_sources
+            .as_deref()
+            .unwrap_or_default()
+            .iter()
+            .flat_map(|source| source.params.iter().chain(source.returns.iter()))
+            .cloned()
+            .collect();
+        out.push(RecordOccurrence {
+            key: "operations".to_string(),
+            kind: "semantic declaration",
+            line: line_for(&sources, "Operations"),
+        });
+    }
+    if extraction.relations.is_some() {
+        let sources: Vec<SourceLocus> = extraction
+            .relation_sources
+            .as_deref()
+            .unwrap_or_default()
+            .iter()
+            .map(|source| source.source_span.clone())
+            .collect();
+        out.push(RecordOccurrence {
+            key: "relations".to_string(),
+            kind: "semantic declaration",
+            line: line_for(&sources, "Relationships"),
+        });
+    }
+    if let Some(order) = extraction
+        .model
+        .as_ref()
+        .and_then(|model| model.feature_order.as_deref())
+    {
+        out.push(RecordOccurrence {
+            key: "featureOrder".to_string(),
+            kind: "semantic declaration",
+            line: order.first().map_or_else(
+                || section_line(raw, "Features"),
+                |entry| entry.source_span.start_line,
+            ),
+        });
+    }
+    for key in extraction.typed_relations.keys() {
+        let line = extraction
+            .relation_sources
+            .as_deref()
+            .unwrap_or_default()
+            .iter()
+            .find(|source| source.verb.as_deref() == Some(key.as_str()))
+            .map_or_else(
+                || section_line(raw, "Relationships"),
+                |source| source.source_span.start_line,
+            );
+        out.push(RecordOccurrence {
+            key: key.clone(),
+            kind: "semantic declaration",
+            line,
+        });
+    }
+    if let Some(model) = &extraction.model {
+        if let Some(declaration) = &model.part {
+            add_system_occurrences(&mut out, &declaration.record, &declaration.source_span);
+        }
+        if let Some(declaration) = &model.port {
+            add_system_occurrences(&mut out, &declaration.record, &declaration.source_span);
+        }
+        if let Some(declaration) = &model.connection {
+            add_system_occurrences(&mut out, &declaration.record, &declaration.source_span);
+        }
+        if let Some(declaration) = &model.allocation {
+            add_system_occurrences(&mut out, &declaration.record, &declaration.source_span);
+        }
+    }
+    if let Some(record) = &extraction.record {
+        for key in record.keys() {
+            let Some(source) = extraction
+                .record_sources
+                .as_deref()
+                .unwrap_or_default()
+                .iter()
+                .find(|source| source.key == *key)
+            else {
+                continue;
+            };
+            let kind = if ctx.declared_tables.section_of(key).is_some() {
+                "semantic declaration"
+            } else {
+                "FR-081 section"
+            };
+            out.push(RecordOccurrence {
+                key: key.clone(),
+                kind,
+                line: source.source_span.start_line,
+            });
+        }
+    }
+    out
+}
+
+fn add_system_occurrences<T: Serialize>(
+    out: &mut Vec<RecordOccurrence>,
+    record: &T,
+    source: &SourceLocus,
+) {
+    if let Ok(Value::Object(values)) = serde_json::to_value(record) {
+        out.extend(values.into_iter().map(|(key, _)| RecordOccurrence {
+            key,
+            kind: "semantic declaration",
+            line: source.start_line,
+        }));
+    }
+}
+
+fn section_line(raw: &str, heading: &str) -> usize {
+    let lines = super::scan::lines(raw);
+    super::scan::level2_sections(&lines, heading)
+        .first()
+        .map_or(1, |(line, _)| *line)
 }
 
 /// The value a data schema validates: the declaration arrays and the one
@@ -478,47 +735,92 @@ impl SemanticExtraction {
     ///
     /// As [`Self::declaration`], or the record does not serialize.
     pub fn declaration_record(&self) -> Result<Value, DeclarationError> {
+        self.declaration_record_omitting(&self.duplicate_record_keys())
+    }
+
+    /// The declaration record with keys omitted after duplicate source errors.
+    pub(crate) fn declaration_record_omitting(
+        &self,
+        omitted: &BTreeSet<String>,
+    ) -> Result<Value, DeclarationError> {
         let declaration = self.declaration()?;
-        let value = serde_json::to_value(&declaration)?;
+        let mut value = serde_json::to_value(&declaration)?;
+        if let Some(object) = value.as_object_mut() {
+            for key in omitted {
+                object.remove(key);
+            }
+        }
         #[cfg(debug_assertions)]
         {
-            let systems_keys = match declaration.systems.map(serde_json::to_value) {
-                Some(Ok(Value::Object(keys))) => keys.len(),
-                _ => 0,
-            };
-            let arrays = [
-                declaration.fields.is_some(),
-                declaration.clauses.is_some(),
-                declaration.relations.is_some(),
-                declaration.operations.is_some(),
-                declaration.feature_order.is_some(),
-            ]
-            .into_iter()
-            .filter(|present| *present)
-            .count();
+            let mut expected_keys = BTreeSet::new();
+            for (key, present) in [
+                ("fields", declaration.fields.is_some()),
+                ("clauses", declaration.clauses.is_some()),
+                ("relations", declaration.relations.is_some()),
+                ("operations", declaration.operations.is_some()),
+                ("featureOrder", declaration.feature_order.is_some()),
+            ] {
+                if present {
+                    expected_keys.insert(key.to_string());
+                }
+            }
+            if let Some(Ok(Value::Object(keys))) = declaration.systems.map(serde_json::to_value) {
+                expected_keys.extend(keys.into_iter().map(|(key, _)| key));
+            }
+            expected_keys.extend(declaration.typed_relations.keys().cloned());
+            if let Some(record) = declaration.record {
+                expected_keys.extend(record.keys().cloned());
+            }
+            for key in omitted {
+                expected_keys.remove(key);
+            }
             debug_assert_eq!(
                 value.as_object().map_or(0, serde_json::Map::len),
-                arrays
-                    + systems_keys
-                    + declaration.typed_relations.len()
-                    + declaration.record.map_or(0, BTreeMap::len),
-                "a systems-model record key or typed relation key collides with a declaration array"
+                expected_keys.len(),
+                "declaration record serialization does not preserve its distinct keys"
             );
         }
         Ok(value)
+    }
+
+    /// Keys whose multiple authored sources make their composed value
+    /// ambiguous. The diagnostic reason carries the source key for the
+    /// validation layer's filtered declaration record.
+    pub(crate) fn duplicate_record_keys(&self) -> BTreeSet<String> {
+        self.diagnostics
+            .iter()
+            .filter(|diagnostic| diagnostic.code == "semantic.duplicate-record-key")
+            .filter_map(|diagnostic| diagnostic.reason.clone())
+            .collect()
     }
 
     /// Whether any declaration kind could not be read (`unavailable`). The
     /// declaration record omits such a kind's key, which is the shape of "nothing
     /// was declared"; a consumer must not validate that omission as a record.
     pub fn any_kind_unavailable(&self) -> bool {
+        self.any_kind_unavailable_except(&BTreeSet::new())
+    }
+
+    /// Whether any declaration kind other than `omitted_record_keys` could not
+    /// be read. Duplicate record keys are deliberately omitted from the
+    /// declaration, but do not prevent schema validation of the remaining
+    /// unambiguous values.
+    pub(crate) fn any_kind_unavailable_except(
+        &self,
+        omitted_record_keys: &BTreeSet<String>,
+    ) -> bool {
         let a = &self.availability;
         [Some(&a.fields), Some(&a.clauses), Some(&a.operations)]
             .into_iter()
             .chain([a.model.as_ref(), a.relations.as_ref()])
-            .chain(a.record_keys.iter().flat_map(BTreeMap::values).map(Some))
             .flatten()
             .any(|k| k.state == AvailabilityState::Unavailable)
+            || a.record_keys.as_ref().is_some_and(|keys| {
+                keys.iter().any(|(key, availability)| {
+                    !omitted_record_keys.contains(key)
+                        && availability.state == AvailabilityState::Unavailable
+                })
+            })
     }
 
     pub fn has_errors(&self) -> bool {
