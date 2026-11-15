@@ -588,6 +588,15 @@
           "statement": "Tagged by a running test.",
           "method": "Test",
           "binders": [],
+          "unbacked_claims": [
+            {
+              "reason": "tagged-without-citing-matrix-row",
+              "id": "FR-003-AC-1",
+              "path": "src/lib.rs",
+              "line": 28,
+              "symbol": "tests::covers_ac1"
+            }
+          ],
           "status": "untagged"
         },
         {
@@ -602,6 +611,15 @@
           "statement": "Tagged only by an ignored test.",
           "method": "Test",
           "binders": [],
+          "unbacked_claims": [
+            {
+              "reason": "tagged-without-citing-matrix-row",
+              "id": "FR-003-AC-3",
+              "path": "src/lib.rs",
+              "line": 35,
+              "symbol": "tests::covers_ac3_ignored"
+            }
+          ],
           "status": "untagged"
         },
         {
