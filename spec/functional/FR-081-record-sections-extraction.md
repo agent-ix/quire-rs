@@ -120,12 +120,14 @@ Token and key resolution:
     `frontmatter-owned`, read no value from the section, and produce no
     `record` entry, no `recordSources` entry and no `availability.recordKeys`
     entry for the key.
-  - If a heading names a frontmatter-owned key and the frontmatter carries the
-    value (the explicit `null` of FR-069 counts as carried), then the engine
-    SHALL emit the warning `semantic.feature-not-extractable` at the heading
-    with `reason` `frontmatter-owned`, ignore the section, and keep only the
-    frontmatter value in `record`. It SHALL NOT emit
-    `semantic.duplicate-record-key` for this pair, and the section adds no
+  - Where an artifact carries both a frontmatter-owned value (the explicit
+    `null` of FR-069 counts as carried) and a section with that key, then the
+    engine SHALL emit the warning `semantic.feature-not-extractable` at the
+    heading with `reason` `frontmatter-owned`. Where an artifact carries both,
+    the engine SHALL ignore the section. Where an artifact carries both, the
+    engine SHALL keep only the frontmatter value in `record`. Where an artifact
+    carries both, the engine SHALL NOT emit `semantic.duplicate-record-key` for
+    the pair. Where an artifact carries both, the section SHALL add no
     `recordSources` entry.
 - If a heading names a property whose schema shape no mapping can read (not a
   scalar, an object, an array of scalars or of objects, nor `associated_types`
