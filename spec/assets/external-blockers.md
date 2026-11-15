@@ -1,4 +1,18 @@
+---
+type: index
+title: External Blockers
+description: Index of external dependencies that affect quire-rs delivery.
+okf_version: "0.1"
+---
+
 # External Blockers
+
+## Contents
+
+- [ix-cli sync counterparty](#ix-cli-sync-counterparty)
+- [filament-parser-lib API stability](#filament-parser-lib-api-stability)
+- [Validator crate choice](#validator-crate-choice)
+- [Windows support](#windows-support)
 
 Tracks dependencies on external systems or repos whose state affects when `quire-rs` can ship.
 

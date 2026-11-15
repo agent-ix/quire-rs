@@ -12,12 +12,12 @@ relationships: []
 
 # Specific property-shape census
 
-## Decision Objective
+## Decision Use
 
 Measure how many binding acceptance criteria expose a specific property shape
 that downstream test-quality analysis can inspect.
 
-## Population and Scope
+## Population
 
 Include binding acceptance criteria in one pinned corpus entry.
 
@@ -26,7 +26,7 @@ Include binding acceptance criteria in one pinned corpus entry.
 `properties.specific_shaped_pct` is `specific_shaped / criteria * 100`,
 definition `properties.specific-shaped-v1`; retain both counts.
 
-## Collection and Provenance
+## Collection Procedure
 
 Collect from the raw properties payload and retain configuration and
 timestamp.
@@ -35,7 +35,7 @@ timestamp.
 
 Keep property idioms and module vocabulary fixed for comparison.
 
-## Interpretation and Limitations
+## Interpretation
 
 Specific shape makes an oracle inspectable; it does not prove the requirement
 or test is semantically correct.

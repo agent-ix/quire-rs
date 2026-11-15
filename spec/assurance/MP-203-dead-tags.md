@@ -12,11 +12,11 @@ relationships: []
 
 # Dead trace-tag count
 
-## Decision Objective
+## Decision Use
 
 Identify trace tags that bind to source symbols but match no declared row.
 
-## Population and Scope
+## Population
 
 Include trace markers written in source for one pinned corpus entry.
 
@@ -26,7 +26,7 @@ Include trace markers written in source for one pinned corpus entry.
 `coverage.dead-tags-v1`. It is count-shaped; zero is a valid observation and
 is not subject to ratio silent-zero rules.
 
-## Collection and Provenance
+## Collection Procedure
 
 Retain the raw coverage payload, configuration, and timestamp.
 
@@ -35,7 +35,7 @@ Retain the raw coverage payload, configuration, and timestamp.
 Keep repository scope, languages, exclusions, and module configuration fixed
 for baseline comparisons.
 
-## Interpretation and Limitations
+## Interpretation
 
 A dead tag can be a typo, stale test, or declaration gap. The count does not
 choose among those repairs and does not measure test quality.

@@ -12,12 +12,12 @@ relationships: []
 
 # Coverage binding-read premise
 
-## Decision Objective
+## Decision Use
 
 Determine whether the binder read enough of each language's evidence-symbol
 population for downstream coverage figures to be interpretable.
 
-## Population and Scope
+## Population
 
 For each language in one coverage invocation, include every evidence-symbol
 candidate examined by the declared trace forms. Preserve language rows; do not
@@ -31,7 +31,7 @@ an unambiguous premise failure. The current 5% boundary only triggers the
 uncertainty-shaped `low-symbol-binding` observation; it is not a health target
 and does not diagnose whether sparse tagging or a pattern mismatch caused it.
 
-## Collection and Provenance
+## Collection Procedure
 
 Collect from the `binding_census` in the raw `quire coverage --json` payload.
 Record capabilities, command configuration, and timestamp.
@@ -41,7 +41,7 @@ Record capabilities, command configuration, and timestamp.
 Record language, module set, and exclusions.
 Use zero, below-boundary, exactly-at-boundary, and above-boundary controls.
 
-## Interpretation and Limitations
+## Interpretation
 
 This is a premise metric, not test coverage. Low values cannot distinguish a
 working binder over mostly untagged tests from a near-miss marker convention.

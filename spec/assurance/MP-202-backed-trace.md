@@ -12,12 +12,12 @@ relationships: []
 
 # Backed trace census
 
-## Decision Objective
+## Decision Use
 
 Show how a change affects the fraction of declared matrix rows reconciled to
 evidence within one pinned corpus.
 
-## Population and Scope
+## Population
 
 Include reference rows examined by the declared model for one corpus entry.
 Keep each repository and corpus separate.
@@ -28,7 +28,7 @@ Keep each repository and corpus separate.
 `coverage.backed-v1`. Store numerator and denominator. This is a structural
 trace census, never a repository-wide test-quality target.
 
-## Collection and Provenance
+## Collection Procedure
 
 Collect the raw coverage envelope and record capabilities, configuration, and
 timestamp.
@@ -38,7 +38,7 @@ timestamp.
 Use the exact repository, scope, module set, and exclusions named by the corpus
 entry. A changed population remains visible.
 
-## Interpretation and Limitations
+## Interpretation
 
 Backing shows a readable relation, not that the test is meaningful or passing.
 A population correction may lower the percentage without degrading quality.
