@@ -36,6 +36,7 @@ pub mod rust;
 // Gated by `shell-symbols` (on by default; off under `wasm`), the same shape as
 // the other adapters: `tree-sitter-bash`'s C build script cannot cross-compile
 // for `wasm32-unknown-unknown` here either (PLAT-362).
+pub(crate) mod qsl;
 #[cfg(feature = "shell-symbols")]
 pub mod shell;
 pub mod shell_trace;
@@ -77,6 +78,9 @@ pub enum SymbolKind {
     /// target, and binds ids only where the binding stage finds its path under
     /// a declared `entry_paths` glob (AC-38).
     EntryPoint,
+    /// A QSL declaration head (FR-094). Neither evidence nor production code:
+    /// it carries only `formalizes`, so it is a census candidate for nothing.
+    Declaration,
 }
 
 impl SymbolKind {
@@ -89,6 +93,7 @@ impl SymbolKind {
             Self::Benchmark => "benchmark",
             Self::FuzzTarget => "fuzz_target",
             Self::EntryPoint => "entry_point",
+            Self::Declaration => "declaration",
         }
     }
 
@@ -234,6 +239,8 @@ impl Symbol {
             // A shell function is named by its own name alone, and the name
             // may itself contain `.` (FR-051-AC-35).
             SourceLanguage::Shell => return self.qualified_name.as_str(),
+            // A QSL declaration is named by its label alone (FR-094).
+            SourceLanguage::Qsl => return self.qualified_name.as_str(),
         };
         match self.qualified_name.rsplit_once(separator) {
             Some((_, tail)) => tail,
@@ -261,6 +268,9 @@ pub struct SourceFile {
     /// which of them a declared `typescript_wrapper` form names. Empty for other
     /// languages.
     pub unattached_calls: Vec<SourceAttribute>,
+    /// A `.native` file whose braces do not balance (FR-094-AC-16): it mints no
+    /// symbol and binds no `formalizes` marker. `false` for other languages.
+    pub unbalanced_braces: bool,
 }
 
 /// A per-file problem. Extraction degrades per file: one unreadable or
@@ -359,6 +369,7 @@ pub fn language_of(path: &Path) -> Option<SourceLanguage> {
         // Only `.sh` (FR-051-AC-34): not `.bash`, and not an extension-less
         // file with a `#!` line.
         Some("sh") => Some(SourceLanguage::Shell),
+        Some("native") => Some(SourceLanguage::Qsl),
         _ => None,
     }
 }
@@ -564,7 +575,23 @@ impl SymbolExtraction {
         let mut file_comments: Vec<SourceAttribute> = Vec::new();
         #[cfg_attr(not(feature = "typescript-symbols"), allow(unused_mut))]
         let mut unattached_calls: Vec<SourceAttribute> = Vec::new();
+        let mut unbalanced_braces = false;
         let parsed: Option<Result<Vec<RawSymbol>, String>> = match language {
+            SourceLanguage::Qsl => {
+                let scanned = qsl::scan(&source);
+                if let Some(line) = scanned.unbalanced_at {
+                    unbalanced_braces = true;
+                    self.diagnostics.push(SymbolDiagnostic {
+                        path: path.to_string(),
+                        reason: format!(
+                            "qsl-unbalanced-braces: {path}:{line} braces do not balance; the \
+                             file yields no symbol and binds no formalizes marker"
+                        ),
+                        severity: DiagnosticSeverity::Warning,
+                    });
+                }
+                Some(Ok(scanned.symbols))
+            }
             #[cfg(feature = "rust-symbols")]
             SourceLanguage::Rust => Some(rust::parse(&source)),
             #[cfg(not(feature = "rust-symbols"))]
@@ -645,6 +672,7 @@ impl SymbolExtraction {
             source,
             comments: file_comments,
             unattached_calls,
+            unbalanced_braces,
         });
         self.files.sort_by(|a, b| a.path.cmp(&b.path));
     }

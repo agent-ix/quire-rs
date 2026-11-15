@@ -4,7 +4,8 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use crate::symbols::shell_trace::{ShellFinding, FUNCTION_NOT_EVIDENCE, OUTSIDE_ENTRY_PATHS};
 use crate::symbols::trace::{
-    quoted_id_list, BindingCensus, LegacyImplementsUse, OutsideMarkerId, OutsideMarkerOwner,
+    quoted_id_list, BindingCensus, FormalizesFindingKind, LegacyImplementsUse, OutsideMarkerId,
+    OutsideMarkerOwner, SymbolGraph,
 };
 use crate::traceability::{SourceLanguage, TraceMarkerSyntax, TraceabilityModel};
 
@@ -262,6 +263,70 @@ pub(super) fn outside_marker_diagnostics(
             })
         })
         .collect()
+}
+
+/// One warning per `formalizes` marker problem (FR-094): a marker that binds no
+/// declaration, an entry that is not an id or names an id `is_known` rejects, and
+/// an id claimed twice on one declaration.
+///
+/// Diagnostic only: no relation is counted anywhere in the rollup.
+pub(super) fn formalizes_diagnostics(
+    graph: &SymbolGraph,
+    is_known: impl Fn(&str) -> bool,
+) -> Vec<CoverageDiagnostic> {
+    let diagnostic =
+        |reason: &str, id: &str, path: &str, line: usize, message: String| CoverageDiagnostic {
+            declaration: "traceability.trace_tags.formalizes".to_string(),
+            reason: reason.to_string(),
+            message,
+            path: Some(path.to_string()),
+            line: Some(line),
+            value: Some(id.to_string()),
+            guidance: None,
+        };
+    let mut out: Vec<CoverageDiagnostic> = Vec::new();
+    for finding in &graph.formalizes_findings {
+        let (path, line, id) = (finding.path.as_str(), finding.line, finding.id.as_str());
+        out.push(match finding.kind {
+            FormalizesFindingKind::Unbound => diagnostic(
+                "formalizes-unbound",
+                id,
+                path,
+                line,
+                format!("the formalizes marker at {path}:{line} has no declaration directly below it"),
+            ),
+            FormalizesFindingKind::NotAnId => diagnostic(
+                "formalizes-unknown-id",
+                id,
+                path,
+                line,
+                format!("the formalizes marker at {path}:{line} names `{id}`, which is not a requirement or criterion id"),
+            ),
+            FormalizesFindingKind::Duplicate => diagnostic(
+                "duplicate-formalizes-claim",
+                id,
+                path,
+                line,
+                format!("`{id}` is named more than once on the declaration at {path}:{line}"),
+            ),
+        });
+    }
+    out.extend(graph.unknown_formalizes(is_known).map(|relation| {
+        diagnostic(
+            "formalizes-unknown-id",
+            &relation.trace_id,
+            &relation.path,
+            relation.line,
+            format!(
+                "`{}` at {}:{} names no requirement or criterion in the loaded corpus",
+                relation.trace_id, relation.path, relation.line
+            ),
+        )
+    }));
+    out.sort_by(|a, b| {
+        (&a.path, a.line, &a.reason, &a.value).cmp(&(&b.path, b.line, &b.reason, &b.value))
+    });
+    out
 }
 
 /// One diagnostic per shell marker that matched a comment and bound nothing,

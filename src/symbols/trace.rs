@@ -68,6 +68,49 @@ pub struct ImplementsRelation {
     pub form: String,
 }
 
+/// One `formalizes` relation: a QSL declaration is the formal statement of a
+/// requirement or criterion (FR-094).
+///
+/// A third type beside [`VerifiesRelation`] and [`ImplementsRelation`], never
+/// either with a flag (FR-094-CON-4): it is neither evidence nor scope, and it
+/// never backs an acceptance criterion.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FormalizesRelation {
+    /// Identity of the formalizing declaration.
+    pub symbol_id: String,
+    /// The declaration label.
+    pub symbol: String,
+    pub path: String,
+    /// The id the marker names, exactly as written.
+    pub trace_id: String,
+    /// Name of the declared form that bound it.
+    pub form: String,
+    /// 1-based line of the marker that named the id.
+    pub line: usize,
+}
+
+/// Why a `formalizes` marker minted nothing, or less than it named (FR-094).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum FormalizesFindingKind {
+    /// The marker binds no declaration.
+    Unbound,
+    /// An entry is not an id, or the marker has no entry at all.
+    NotAnId,
+    /// The id appears twice on one declaration.
+    Duplicate,
+}
+
+/// One `formalizes` finding, located at its marker line (FR-094).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FormalizesFinding {
+    pub kind: FormalizesFindingKind,
+    pub path: String,
+    /// 1-based marker line.
+    pub line: usize,
+    /// The entry verbatim; empty for an id-less marker or an unbound marker.
+    pub id: String,
+}
+
 /// One textual `implements` use in Rust: a binding made by a Rust implements
 /// form that declares no `syntax` (FR-050-AC-62).
 ///
@@ -321,6 +364,13 @@ pub struct SymbolGraph {
     /// back an acceptance criterion is exactly the coverage backdoor CR-061
     /// closed.
     pub implements: Vec<ImplementsRelation>,
+    /// QSL declaration → requirement (FR-094). Like [`Self::implements`], never
+    /// consulted by [`Self::backed_trace_ids`]. Ids absent from the corpus are
+    /// still listed here: the graph knows no corpus, and
+    /// [`Self::unknown_formalizes`] is how a caller that has one finds them.
+    pub formalizes: Vec<FormalizesRelation>,
+    /// Markers that bound nothing or named something unreadable (FR-094).
+    pub formalizes_findings: Vec<FormalizesFinding>,
     /// Textual Rust `implements` uses, for the FR-050-AC-62 coverage warning.
     /// Diagnostic input only: the same occurrences also bind in
     /// [`Self::implements`].
@@ -540,6 +590,18 @@ impl SymbolGraph {
         self.outside_marker.retain(|o| kinds.admits(&o.trace_id));
     }
 
+    /// The `formalizes` relations whose id `is_known` rejects (FR-094-AC-5):
+    /// a requirement that is absent, renamed or retired. Callers drop these from
+    /// what they report as relations.
+    pub fn unknown_formalizes<'g>(
+        &'g self,
+        is_known: impl Fn(&str) -> bool + 'g,
+    ) -> impl Iterator<Item = &'g FormalizesRelation> {
+        self.formalizes
+            .iter()
+            .filter(move |relation| !is_known(&relation.trace_id))
+    }
+
     /// Trace ids backed by at least one symbol.
     pub fn backed_trace_ids(&self) -> BTreeSet<&str> {
         self.verifies.iter().map(|v| v.trace_id.as_str()).collect()
@@ -551,6 +613,7 @@ impl SymbolGraph {
 struct CompiledTracePatterns {
     markers: BTreeMap<String, Option<Regex>>,
     implements: BTreeMap<String, Option<Regex>>,
+    formalizes: BTreeMap<String, Option<Regex>>,
 }
 
 impl CompiledTracePatterns {
@@ -567,9 +630,16 @@ impl CompiledTracePatterns {
             .iter()
             .map(|marker| (marker.pattern.clone(), Regex::new(&marker.pattern).ok()))
             .collect();
+        let formalizes = model
+            .trace_tags
+            .formalizes
+            .iter()
+            .map(|marker| (marker.pattern.clone(), Regex::new(&marker.pattern).ok()))
+            .collect();
         Self {
             markers,
             implements,
+            formalizes,
         }
     }
 
@@ -579,6 +649,10 @@ impl CompiledTracePatterns {
 
     fn implements(&self, pattern: &str) -> Option<&Regex> {
         self.implements.get(pattern)?.as_ref()
+    }
+
+    fn formalizes(&self, pattern: &str) -> Option<&Regex> {
+        self.formalizes.get(pattern)?.as_ref()
     }
 }
 
@@ -727,6 +801,7 @@ pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolG
     }
 
     bind_unattached_wrappers(extraction, model, &patterns, &mut graph);
+    bind_formalizes(extraction, model, &patterns, &mut graph);
 
     // Appending is cheap in the symbol loop. Sort once after every symbol has
     // been visited; sorting in `bind_symbol` would invalidate the per-symbol
@@ -911,6 +986,20 @@ fn find_mentions(extraction: &SymbolExtraction, graph: &SymbolGraph) -> Vec<Ment
     // time the same way `RangeInTraceTag::line` was computed.
     let range_endpoints = range_endpoints(graph);
 
+    // A `formalizes` marker line is a claim or a finding, never a citation
+    // (FR-094-AC-18).
+    let marker_lines: BTreeSet<(&str, usize)> = graph
+        .formalizes
+        .iter()
+        .map(|r| (r.path.as_str(), r.line))
+        .chain(
+            graph
+                .formalizes_findings
+                .iter()
+                .map(|f| (f.path.as_str(), f.line)),
+        )
+        .collect();
+
     let pattern = generic_id_pattern();
     let mut mentions = Vec::new();
 
@@ -923,6 +1012,9 @@ fn find_mentions(extraction: &SymbolExtraction, graph: &SymbolGraph) -> Vec<Ment
 
         for (idx, text) in file.source.lines().enumerate() {
             let line = idx + 1;
+            if marker_lines.contains(&(file.path.as_str(), line)) {
+                continue;
+            }
             for matched in pattern.find_iter(text) {
                 let trace_id = matched.as_str().to_string();
 
@@ -1454,6 +1546,127 @@ fn bind_implements(
     ranges
 }
 
+/// The id grammar of a `formalizes` entry: a requirement or criterion id,
+/// optionally qualified as `ix://<org>/<repo>/<id>` (FR-094).
+fn formalizes_id_pattern() -> &'static Regex {
+    static ID: OnceLock<Regex> = OnceLock::new();
+    ID.get_or_init(|| {
+        Regex::new(r"^(?:ix://[A-Za-z0-9._-]+/[A-Za-z0-9._-]+/)?[A-Za-z]{2,}-[0-9]+(?:-[A-Za-z]+-[0-9]+)*$")
+            .expect("formalizes id pattern compiles")
+    })
+}
+
+/// Bind each declared `formalizes` marker in a QSL file to the declaration
+/// below it (FR-094).
+///
+/// A marker is a `//` line the declared form matches. It binds to the first
+/// declaration after it when only blank or further `//` lines lie between;
+/// otherwise it is reported unbound. A file whose braces do not balance
+/// yields no symbol and is skipped (FR-094-AC-16).
+fn bind_formalizes(
+    extraction: &SymbolExtraction,
+    model: &TraceabilityModel,
+    patterns: &CompiledTracePatterns,
+    graph: &mut SymbolGraph,
+) {
+    if model.trace_tags.formalizes.is_empty() {
+        return;
+    }
+    let id_grammar = formalizes_id_pattern();
+    for file in &extraction.files {
+        if file.language != SourceLanguage::Qsl || file.unbalanced_braces {
+            continue;
+        }
+        let lines: Vec<&str> = file.source.lines().collect();
+        let declarations: BTreeMap<usize, &Symbol> = extraction
+            .symbols
+            .iter()
+            .filter(|s| s.path == file.path)
+            .map(|s| (s.line, s))
+            .collect();
+        // Ids already minted on each declaration, by line, for the duplicate rule.
+        let mut minted: BTreeMap<usize, BTreeSet<&str>> = BTreeMap::new();
+        for (index, text) in lines.iter().enumerate() {
+            let line = index + 1;
+            let comment = text.trim_start();
+            if !comment.starts_with("//") {
+                continue;
+            }
+            for form in &model.trace_tags.formalizes {
+                let Some(re) = patterns.formalizes(&form.pattern) else {
+                    continue;
+                };
+                let Some(args) = re.captures(comment).and_then(|caps| caps.get(1)) else {
+                    continue;
+                };
+                let target = lines[index + 1..]
+                    .iter()
+                    .position(|next| {
+                        let next = next.trim_start();
+                        !(next.is_empty() || next.starts_with("//"))
+                    })
+                    .map(|offset| line + 1 + offset)
+                    .and_then(|at| declarations.get(&at).copied());
+                let Some(declaration) = target else {
+                    graph.formalizes_findings.push(FormalizesFinding {
+                        kind: FormalizesFindingKind::Unbound,
+                        path: file.path.clone(),
+                        line,
+                        id: String::new(),
+                    });
+                    continue;
+                };
+                let entries: Vec<&str> = args
+                    .as_str()
+                    .split(',')
+                    .map(str::trim)
+                    .filter(|entry| !entry.is_empty())
+                    .collect();
+                if entries.is_empty() {
+                    graph.formalizes_findings.push(FormalizesFinding {
+                        kind: FormalizesFindingKind::NotAnId,
+                        path: file.path.clone(),
+                        line,
+                        id: String::new(),
+                    });
+                }
+                for entry in entries {
+                    let kind = if !id_grammar.is_match(entry) {
+                        Some(FormalizesFindingKind::NotAnId)
+                    } else if !minted.entry(declaration.line).or_default().insert(entry) {
+                        Some(FormalizesFindingKind::Duplicate)
+                    } else {
+                        None
+                    };
+                    match kind {
+                        Some(kind) => graph.formalizes_findings.push(FormalizesFinding {
+                            kind,
+                            path: file.path.clone(),
+                            line,
+                            id: entry.to_string(),
+                        }),
+                        None => graph.formalizes.push(FormalizesRelation {
+                            symbol_id: declaration.id.clone(),
+                            symbol: declaration.qualified_name.clone(),
+                            path: file.path.clone(),
+                            trace_id: entry.to_string(),
+                            form: form.name.clone(),
+                            line,
+                        }),
+                    }
+                }
+            }
+        }
+    }
+    // Stable: ids stay in marker order within a declaration (FR-094-AC-3).
+    graph
+        .formalizes
+        .sort_by(|a, b| (&a.path, &a.symbol).cmp(&(&b.path, &b.symbol)));
+    graph
+        .formalizes_findings
+        .sort_by(|a, b| (&a.path, a.line, &a.id, a.kind).cmp(&(&b.path, b.line, &b.id, b.kind)));
+}
+
 /// Report each curried call a declared `typescript_wrapper` form names in full
 /// but that no wrapper chain attaches to a declarator (FR-062). It binds nothing;
 /// a call written as a decorator is never among these candidates.
@@ -1828,7 +2041,7 @@ fn annotation_channel(source: &str, language: SourceLanguage) -> Option<String> 
         SourceLanguage::Typescript | SourceLanguage::Python => {
             Some(mask_script_string_contents(source, language, true, false))
         }
-        SourceLanguage::Shell => None,
+        SourceLanguage::Shell | SourceLanguage::Qsl => None,
     }
 }
 
@@ -1841,7 +2054,7 @@ pub(crate) fn mask_source_string_contents(span: &str, language: SourceLanguage) 
         SourceLanguage::Typescript | SourceLanguage::Python => {
             mask_script_string_contents(span, language, false, true)
         }
-        SourceLanguage::Shell => span.to_string(),
+        SourceLanguage::Shell | SourceLanguage::Qsl => span.to_string(),
     }
 }
 

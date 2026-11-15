@@ -10,8 +10,9 @@ use crate::symbols::trace::{IdKinds, OutsideMarkerId, SymbolGraph, VerifiesRelat
 use crate::traceability::{StatusClass, TraceTargetEvidence, TraceabilityModel};
 
 use super::binding_diagnostics::{
-    binding_diagnostics, legacy_implements_diagnostics, minted_child_diagnostics,
-    near_miss_diagnostics, outside_marker_diagnostics, shell_finding_diagnostics,
+    binding_diagnostics, formalizes_diagnostics, legacy_implements_diagnostics,
+    minted_child_diagnostics, near_miss_diagnostics, outside_marker_diagnostics,
+    shell_finding_diagnostics,
 };
 use super::{
     relative, CoverageDiagnostic, CoverageMatrixClaimReason, CoverageMatrixUnbackedClaim,
@@ -38,6 +39,20 @@ fn is_strict_exempt_status(status: &str) -> bool {
             && rest[..n].eq_ignore_ascii_case(word.as_bytes())
             && rest.get(n).is_none_or(|b| !b.is_ascii_alphanumeric())
     })
+}
+
+/// Whether a `formalizes` id names something in the loaded corpus (FR-094-AC-5,
+/// AC-12): a minted id or a document id, either bare or qualified as
+/// `ix://<org>/<repo>/<id>` and resolved the way the corpus resolves it.
+fn formalizes_id_is_known(spec: &Spec, id: &str, minted: impl Fn(&str) -> bool) -> bool {
+    let known = |bare: &str| minted(bare) || spec.by_id(bare).is_some();
+    let Some(authority) = crate::corpus::resolve::ix_authority(id) else {
+        return known(id);
+    };
+    let bare = crate::corpus::resolve::extract_target_id(id);
+    spec.by_qualified_id(&authority, bare).is_some()
+        || ((0..spec.member_count()).all(|member| spec.member_identity(member).is_none())
+            && known(bare))
 }
 
 pub(super) fn reconcile(
@@ -566,6 +581,13 @@ pub(super) fn reconcile(
 
     // FR-051-AC-39, AC-44: a shell marker that matched and bound nothing.
     diagnostics.extend(shell_finding_diagnostics(&graph.shell_findings));
+
+    // FR-094: a `formalizes` marker that bound nothing or names an absent id.
+    diagnostics.extend(formalizes_diagnostics(graph, |id| {
+        formalizes_id_is_known(spec, id, |bare| {
+            declared_ids.contains(bare) || row_ids.contains(bare) || obligation_ids.contains(bare)
+        })
+    }));
 
     // PLAT-2: a criterion tag on a test whose declared matrix row does not
     // reference that criterion is visible, but is not evidence for it.

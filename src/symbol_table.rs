@@ -89,6 +89,12 @@ pub struct SymbolRecord {
     /// evidence: this is scope, and letting it back a criterion is the coverage
     /// backdoor CR-061 closed.
     pub implements: Vec<String>,
+    /// Requirement ids this QSL declaration formalizes (FR-094). Never
+    /// evidence and never scope. Omitted when empty, so a table with no
+    /// `.native` declaration is byte-identical to one from an engine without
+    /// the relation.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub formalizes: Vec<String>,
     /// Whether a statically decidable language form marks this test-kind or
     /// suite-kind symbol ignored, inherited from a container (CR-187,
     /// FR-051-AC-27). Serialized only when `true`, so a corpus with no
@@ -168,6 +174,7 @@ pub fn build(extraction: &SymbolExtraction, graph: Option<&SymbolGraph>) -> Symb
     // silently merge their tags.
     let mut verifies: BTreeMap<&str, Vec<String>> = BTreeMap::new();
     let mut implements: BTreeMap<&str, Vec<String>> = BTreeMap::new();
+    let mut formalizes: BTreeMap<&str, Vec<String>> = BTreeMap::new();
     if let Some(graph) = graph {
         for relation in &graph.verifies {
             verifies
@@ -177,6 +184,12 @@ pub fn build(extraction: &SymbolExtraction, graph: Option<&SymbolGraph>) -> Symb
         }
         for relation in &graph.implements {
             implements
+                .entry(relation.symbol_id.as_str())
+                .or_default()
+                .push(relation.trace_id.clone());
+        }
+        for relation in &graph.formalizes {
+            formalizes
                 .entry(relation.symbol_id.as_str())
                 .or_default()
                 .push(relation.trace_id.clone());
@@ -206,6 +219,7 @@ pub fn build(extraction: &SymbolExtraction, graph: Option<&SymbolGraph>) -> Symb
             carries_implements: symbol.kind.carries_implements(),
             trace_ids: tidy(verifies.remove(symbol.id.as_str()).unwrap_or_default()),
             implements: tidy(implements.remove(symbol.id.as_str()).unwrap_or_default()),
+            formalizes: tidy(formalizes.remove(symbol.id.as_str()).unwrap_or_default()),
             ignored: symbol.ignored,
         })
         .collect();
