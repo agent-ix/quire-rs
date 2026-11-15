@@ -91,6 +91,8 @@ pub enum KeyOwner {
     Unmapped,
     /// This mapping (quire-rs FR-081; quoin FR-121 and FR-122).
     RecordSections,
+    /// A `frontmatter_field` locator of the object type (quire-rs FR-069).
+    Frontmatter,
 }
 
 /// The scalar a cell or list item is typed as.
@@ -321,6 +323,9 @@ impl RecordSchema {
             "featureOrder" => return Some(KeyOwner::FeatureOrder),
             _ => {}
         }
+        if ctx.frontmatter_owned.owns(name) {
+            return Some(KeyOwner::Frontmatter);
+        }
         if MODEL_TABLE_KEYS
             .iter()
             .any(|feature| feature.name() == name && ctx.declared_tables.declares(*feature))
@@ -357,7 +362,7 @@ impl RecordSchema {
         readable.then_some(KeyOwner::RecordSections)
     }
 
-    fn has(&self, name: &str) -> bool {
+    pub(crate) fn has(&self, name: &str) -> bool {
         self.properties.iter().any(|p| p.name == name)
     }
 }
@@ -484,6 +489,12 @@ pub(crate) fn extract_record(raw: &str, ctx: &SemanticContext) -> Option<RecordO
             .or_default()
             .push(property);
     }
+    let frontmatter_valued: BTreeSet<String> = ctx
+        .frontmatter_owned
+        .project(raw, |key| schema.has(key))
+        .into_iter()
+        .map(|projected| projected.key)
+        .collect();
     let layout_declared = architecture && FENCE_KEYS.iter().any(|k| schema.has(k));
     let mut outcome = RecordOutcome::default();
     let mut seen: BTreeSet<String> = BTreeSet::new();
@@ -504,6 +515,30 @@ pub(crate) fn extract_record(raw: &str, ctx: &SemanticContext) -> Option<RecordO
             let Some(group) = groups.get(&norm) else {
                 continue;
             };
+            if let Some(owned) = group
+                .iter()
+                .find(|p| schema.owner(ctx, p) == Some(KeyOwner::Frontmatter))
+            {
+                // The frontmatter value is the only source (quoin FR-121):
+                // the section is never read, and an artifact carrying both
+                // keeps the value and is warned.
+                let diagnostic = reader.finding(
+                    "semantic.feature-not-extractable",
+                    "frontmatter-owned",
+                    sec,
+                    line,
+                    format!(
+                        "record key `{}` is read from frontmatter, not from a section",
+                        owned.name
+                    ),
+                );
+                outcome.diagnostics.push(if frontmatter_valued.contains(&owned.name) {
+                    Reader::severity(diagnostic, SemanticSeverity::Warning)
+                } else {
+                    diagnostic
+                });
+                continue;
+            }
             let readable: Vec<&RecordProperty> = group
                 .iter()
                 .copied()

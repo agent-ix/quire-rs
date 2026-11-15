@@ -484,7 +484,7 @@ fn semantic_findings(
                                     "semantic.record-invalid: declaration record fails the resolved data schema at {path}: {}",
                                     detail.message
                                 ),
-                                record_key_line(&record, doc_text, &path),
+                                finding_line(&ctx, &record, doc_text, &path),
                             ));
                         }
                     } else if first_other.is_none() {
@@ -493,7 +493,7 @@ fn semantic_findings(
                                 "semantic.record-invalid: declaration record fails the resolved data schema at {}: {}",
                                 detail.path, detail.message
                             ),
-                            record_key_line(&record, doc_text, &detail.path),
+                            finding_line(&ctx, &record, doc_text, &detail.path),
                         ));
                     }
                 }
@@ -511,6 +511,21 @@ fn semantic_findings(
             });
         }
     }
+}
+
+/// The line of a record finding: the authored frontmatter leaf of a
+/// frontmatter-owned key (FR-069), else [`record_key_line`].
+fn finding_line(
+    ctx: &crate::semantic::SemanticContext,
+    record: &crate::semantic::SemanticExtraction,
+    doc_text: &str,
+    path: &str,
+) -> usize {
+    let key = path.split(['.', '/', '[']).next().unwrap_or_default();
+    ctx.frontmatter_owned
+        .path_of(key)
+        .and_then(|owned| crate::extract::frontmatter_key_line(doc_text, owned))
+        .unwrap_or_else(|| record_key_line(record, doc_text, path))
 }
 
 /// Decode the object-key segments of a JSON Pointer for source localization.

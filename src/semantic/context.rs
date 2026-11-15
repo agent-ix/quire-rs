@@ -6,6 +6,7 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 
 use super::contract::SemanticModule;
+use super::frontmatter_owned::FrontmatterOwned;
 use super::model::{DeclaredSections, DeclaredTables};
 use super::record::RecordSchema;
 use super::relations::{RelationSchema, RelationVocabulary};
@@ -197,7 +198,7 @@ impl ConstructReferences {
 }
 
 /// Everything extraction needs besides the document (FR-070/FR-071 Inputs).
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct SemanticContext {
     pub module: SemanticModule,
     /// Corpus-relative path of the document; the `path` of every span.
@@ -213,6 +214,9 @@ pub struct SemanticContext {
     pub(crate) declared_tables: DeclaredTables,
     /// The object type's raw `section_body` locators.
     pub(crate) declared_sections: DeclaredSections,
+    /// The object type's `frontmatter_field` locators, which own their keys
+    /// in frontmatter (FR-069).
+    pub(crate) frontmatter_owned: FrontmatterOwned,
     /// The edge registry and object-type facts relationship rows are
     /// checked against (FR-076 Inputs); `None` when the surface supplies
     /// none, which extracts under `no-relation-vocabulary`.
@@ -241,6 +245,7 @@ impl SemanticContext {
             bundle,
             declared_tables: DeclaredTables::default(),
             declared_sections: DeclaredSections::default(),
+            frontmatter_owned: FrontmatterOwned::default(),
             relation_vocabulary: None,
             construct_references: None,
             relation_schema: None,
@@ -301,6 +306,7 @@ impl SemanticContext {
     pub fn with_body_extraction(mut self, dsl: &ExtractionDsl) -> Self {
         self.declared_tables = DeclaredTables::from_dsl(dsl);
         self.declared_sections = DeclaredSections::from_dsl(dsl);
+        self.frontmatter_owned = FrontmatterOwned::from_dsl(dsl);
         self
     }
 

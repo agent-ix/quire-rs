@@ -406,8 +406,10 @@ fn compose_frontmatter_record(
 
     let mut occurrences = declaration_occurrences(raw, ctx, extraction);
     let mut projected = BTreeMap::new();
+    let is_property = |key: &str| ctx.record_schema.as_ref().is_some_and(|s| s.has(key));
+    let mapped = ctx.frontmatter_owned.mapped_roots(is_property);
     for (key, value) in frontmatter {
-        if RESERVED_FRONTMATTER_KEYS.contains(&key.as_str()) {
+        if RESERVED_FRONTMATTER_KEYS.contains(&key.as_str()) || mapped.contains(key.as_str()) {
             continue;
         }
         let line =
@@ -418,6 +420,15 @@ fn compose_frontmatter_record(
             kind: "frontmatter",
             line,
         });
+    }
+
+    for owned in ctx.frontmatter_owned.project(raw, is_property) {
+        occurrences.push(RecordOccurrence {
+            key: owned.key.clone(),
+            kind: "frontmatter",
+            line: owned.line,
+        });
+        projected.insert(owned.key, owned.value);
     }
 
     let mut by_key: BTreeMap<String, Vec<RecordOccurrence>> = BTreeMap::new();

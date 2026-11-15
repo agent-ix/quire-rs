@@ -15,6 +15,7 @@ pub mod clauses;
 pub mod context;
 pub mod contract;
 pub mod decl;
+pub(crate) mod frontmatter_owned;
 pub mod embedded;
 pub mod model;
 pub mod properties;
