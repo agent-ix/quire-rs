@@ -255,7 +255,9 @@ fn tc_explicit_null_is_present_not_absent() {
     assert!(!result.is_valid);
     let findings = invalid(&result);
     assert!(!findings.is_empty(), "{:?}", result.errors);
-    assert!(findings.iter().all(|(line, _)| *line == Some(line_of(&text, "raw:"))));
+    assert!(findings
+        .iter()
+        .all(|(line, _)| *line == Some(line_of(&text, "raw:"))));
 
     let out = extraction(&text, &list_schema(), &[]);
     assert_eq!(out["record"], json!({"cats": null}));
@@ -275,10 +277,17 @@ fn tc_two_frontmatter_sources_of_one_key_are_a_duplicate() {
         .expect("duplicate finding");
     assert_eq!(duplicate.line, Some(line_of(&text, "cats:")));
     assert!(duplicate.message.contains("cats"), "{}", duplicate.message);
-    assert!(duplicate.message.contains("frontmatter"), "{}", duplicate.message);
+    assert!(
+        duplicate.message.contains("frontmatter"),
+        "{}",
+        duplicate.message
+    );
 
     let out = extraction(&text, &list_schema(), &[]);
-    assert!(out.get("record").is_none_or(|r| r.get("cats").is_none()), "{out}");
+    assert!(
+        out.get("record").is_none_or(|r| r.get("cats").is_none()),
+        "{out}"
+    );
 
     // The control: where the authored key is the key, one source is no duplicate.
     let same = registry_same_name();
@@ -320,11 +329,16 @@ fn reasons(out: &Value) -> Vec<(String, String)> {
 #[test]
 fn tc_section_without_a_frontmatter_value_is_an_error_and_yields_nothing() {
     let out = section_extraction("", &["record-sections"]);
-    assert_eq!(reasons(&out), [("frontmatter-owned".into(), "error".into())]);
+    assert_eq!(
+        reasons(&out),
+        [("frontmatter-owned".into(), "error".into())]
+    );
     assert!(out.get("record").is_none_or(Value::is_null), "{out}");
     assert!(out.get("recordSources").is_none_or(Value::is_null), "{out}");
     assert!(
-        out["availability"].get("recordKeys").is_none_or(|k| k.get("cats").is_none()),
+        out["availability"]
+            .get("recordKeys")
+            .is_none_or(|k| k.get("cats").is_none()),
         "{out}"
     );
 
@@ -337,11 +351,16 @@ fn tc_section_without_a_frontmatter_value_is_an_error_and_yields_nothing() {
 #[test]
 fn tc_section_and_frontmatter_value_keep_the_value_and_warn() {
     let out = section_extraction("raw: [b]\n", &["record-sections"]);
-    assert_eq!(reasons(&out), [("frontmatter-owned".into(), "warning".into())]);
+    assert_eq!(
+        reasons(&out),
+        [("frontmatter-owned".into(), "warning".into())]
+    );
     assert_eq!(out["record"], json!({"cats": ["b"]}));
     assert!(out.get("recordSources").is_none_or(Value::is_null), "{out}");
     assert!(
-        out["availability"].get("recordKeys").is_none_or(|k| k.get("cats").is_none()),
+        out["availability"]
+            .get("recordKeys")
+            .is_none_or(|k| k.get("cats").is_none()),
         "{out}"
     );
     assert!(
@@ -357,8 +376,11 @@ fn tc_section_and_frontmatter_value_keep_the_value_and_warn() {
     let result = validate(&registry, &doc("raw: [b]\n", "## cats\n\n- a\n"));
     assert!(result.is_valid, "{:?}", result.errors);
     assert!(
-        result.warnings.iter().any(|w| w.message.contains("frontmatter-owned")
-            || w.message.contains("feature-not-extractable")),
+        result
+            .warnings
+            .iter()
+            .any(|w| w.message.contains("frontmatter-owned")
+                || w.message.contains("feature-not-extractable")),
         "{:?}",
         result.warnings
     );
@@ -373,7 +395,9 @@ fn tc_frontmatter_value_without_a_section_has_no_diagnostic_or_availability() {
     assert_eq!(out["record"], json!({"cats": ["b"]}));
     assert!(out.get("recordSources").is_none_or(Value::is_null), "{out}");
     assert!(
-        out["availability"].get("recordKeys").is_none_or(|k| k.get("cats").is_none()),
+        out["availability"]
+            .get("recordKeys")
+            .is_none_or(|k| k.get("cats").is_none()),
         "{out}"
     );
 }

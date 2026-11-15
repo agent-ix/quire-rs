@@ -532,11 +532,13 @@ pub(crate) fn extract_record(raw: &str, ctx: &SemanticContext) -> Option<RecordO
                         owned.name
                     ),
                 );
-                outcome.diagnostics.push(if frontmatter_valued.contains(&owned.name) {
-                    Reader::severity(diagnostic, SemanticSeverity::Warning)
-                } else {
-                    diagnostic
-                });
+                outcome
+                    .diagnostics
+                    .push(if frontmatter_valued.contains(&owned.name) {
+                        Reader::severity(diagnostic, SemanticSeverity::Warning)
+                    } else {
+                        diagnostic
+                    });
                 continue;
             }
             let readable: Vec<&RecordProperty> = group

@@ -71,10 +71,7 @@ fn corpus() -> TempDir {
         ("CLS-002", classification("CLS-002", "lvl: lo\n")),
         ("CLS-003", classification("CLS-003", "cats: [x]\n")),
         ("CLS-004", classification("CLS-004", "cats: [c]\n")),
-        (
-            "CLS-005",
-            classification("CLS-005", "raw_tag: t\ntag: t\n"),
-        ),
+        ("CLS-005", classification("CLS-005", "raw_tag: t\ntag: t\n")),
         ("CLS-006", classification("CLS-006", "raw_tag: q\n")),
         (
             "CLS-007",
@@ -135,7 +132,10 @@ fn tc_record_is_carried_in_authored_order_and_absent_when_unstated() {
     let report = report(&corpus(), &fixture());
     let outgoing = row(section(&report, "conn-classified"), "CONN-001");
 
-    assert_eq!(linked(outgoing, "CLS-001")["record"], json!({"cats": ["a", "b"]}));
+    assert_eq!(
+        linked(outgoing, "CLS-001")["record"],
+        json!({"cats": ["a", "b"]})
+    );
     // The control: a classification stating no selected key has no `record`
     // key at all, neither `{}` nor `"cats": []`.
     let unstated = linked(outgoing, "CLS-002");
@@ -171,7 +171,10 @@ fn tc_record_is_omitted_without_schema_when_invalid_or_dangling() {
     // A dangling entry has no document and carries no record.
     let any = row(section(&report, "link-classified-any"), "LINK-001");
     // The control: the resolved entry of the same row keeps its keys.
-    assert_eq!(linked(any, "CLS-001")["record"], json!({"cats": ["a", "b"]}));
+    assert_eq!(
+        linked(any, "CLS-001")["record"],
+        json!({"cats": ["a", "b"]})
+    );
     assert_eq!(any["document"]["record"], json!({"cats": ["b"]}));
     let dangling = any["linked"]
         .as_array()
@@ -302,14 +305,20 @@ fn tc_record_keys_are_refused_at_load_unless_an_endpoint_declares_them() {
         assert!(message.contains("record_keys"), "{why}: {message}");
     }
     let message = refusal("[nope]", "Connection", "[Classification]");
-    assert!(message.contains("r1") && message.contains("nope"), "{message}");
+    assert!(
+        message.contains("r1") && message.contains("nope"),
+        "{message}"
+    );
 
     // Declared by only one endpoint archetype: accepted.
     assert_eq!(refusal("[cats]", "Connection", "[Classification]"), "");
     // `to: []` leaves `from` the only endpoint, so a key only the counterpart
     // declares is refused ...
     let message = refusal("[cats]", "Connection", "[]");
-    assert!(message.contains("r1") && message.contains("cats"), "{message}");
+    assert!(
+        message.contains("r1") && message.contains("cats"),
+        "{message}"
+    );
     // ... and the same key is accepted once `from` declares it.
     assert_eq!(refusal("[cats]", "Classification", "[]"), "");
 }

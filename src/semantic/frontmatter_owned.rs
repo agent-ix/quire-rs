@@ -39,22 +39,22 @@ pub(crate) struct Projected {
 
 impl FrontmatterOwned {
     pub(crate) fn from_dsl(dsl: &ExtractionDsl) -> Self {
-        let owned = dsl
-            .yield_pattern
-            .r#match
-            .iter()
-            .flatten()
-            .filter_map(|(key, locator)| match locator {
-                Locator::Primitive(
-                    primitive @ LocatorPrimitive::FrontmatterField { path, .. },
-                ) if !path.is_empty() => Some(Owned {
-                    key: key.clone(),
-                    path: path.clone(),
-                    locator: primitive.clone(),
-                }),
-                _ => None,
-            })
-            .collect();
+        let owned =
+            dsl.yield_pattern
+                .r#match
+                .iter()
+                .flatten()
+                .filter_map(|(key, locator)| match locator {
+                    Locator::Primitive(
+                        primitive @ LocatorPrimitive::FrontmatterField { path, .. },
+                    ) if !path.is_empty() => Some(Owned {
+                        key: key.clone(),
+                        path: path.clone(),
+                        locator: primitive.clone(),
+                    }),
+                    _ => None,
+                })
+                .collect();
         Self(owned)
     }
 
