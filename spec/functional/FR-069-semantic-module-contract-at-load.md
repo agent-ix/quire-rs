@@ -251,6 +251,33 @@ Filament extraction API:
   unsupported, then the engine SHALL refuse the snapshot with the code above
   before any node is produced.
 
+### Frontmatter-owned record keys (PLAT-1441)
+
+An archetype MAY declare, in `yield_pattern.match`, a locator keyed `K` with
+`from: frontmatter_field` and `path: [P]` ([FR-011](./FR-011-body-extraction-dsl.md))
+where `K` is a property of the resolved `data_schema`. `K` is then a
+**frontmatter-owned record key**. The engine knows no key name; the
+declaration carries it.
+
+- Before `data_schema` validation, registry-backed extraction SHALL project the
+  authored frontmatter value at `P` to the nested record key `K`, retaining its
+  JSON type and source line. A list stays a list; the locator is declared
+  without `multiple: true`, which would wrap it in a second array.
+- The authored key `P` SHALL NOT also be projected as an undeclared record
+  property, so a closed `data_schema` does not reject the mapped key as
+  undeclared.
+- If frontmatter does not carry `P`, then the record SHALL carry no `K`: the
+  engine SHALL NOT default, derive or fill it, and an optional property
+  validates as absent.
+- `data_schema` validates the projected value as any other record value: enum
+  membership, `minItems`, `uniqueItems` and type. Each failure is a
+  `semantic.record-invalid` finding that names the record property path and the
+  offending value, located at the source line of `P`. An empty list, a
+  duplicate member and a scalar where the schema requires a list are each
+  refused; none is repaired.
+- The projected value is a frontmatter source for the
+  `semantic.duplicate-record-key` rule below.
+
 ### Located record validation (PLAT-1476)
 
 > **CR-420 note (PLAT-1519 item 1):** Registry-backed semantic extraction
@@ -430,6 +457,10 @@ stricter of the two.
 | FR-069-AC-36 | An invalid frontmatter value is located at the source line of its key; a missing required property is located at the opening frontmatter line; unknown-property findings name the undeclared property and use its source line. | Test |
 | FR-069-AC-37 | An archetype without a resolved `data_schema` produces no frontmatter-projection schema findings, and the existing semantic extraction output remains valid against `semantic-v1.schema.json`. | Test |
 | FR-069-AC-38 | When semantic declaration, FR-081 section, and frontmatter sources provide the same record key, each later source occurrence emits a `semantic.duplicate-record-key` error at its source line naming the key and the earliest and later source kinds; the key is omitted from the composed record, document validation is invalid, and `data_schema` validates the remaining unambiguous values. | Test |
+| FR-069-AC-39 | An archetype whose `yield_pattern.match` declares a `frontmatter_field` locator keyed `K` over frontmatter key `P` (without `multiple`), with `K` a list property of a closed `data_schema`, and a document with `P: [a, b]`, validates and its record holds `K` as `["a","b"]` in authored order, with no `P` property in the record. | Test |
+| FR-069-AC-40 | For the AC-39 archetype, a member outside the schema enum (`P: [x]`) fails with `semantic.record-invalid` naming `K` and the value `x` at the line of `P`; `P: []` fails `minItems`; `P: [a, a]` fails `uniqueItems`; and the scalar `P: a` fails as not a list. | Test |
+| FR-069-AC-41 | For the AC-39 archetype, a document without `P` validates and its record has no `K` key: the absence is asserted, and `K` is not filled with `[]` or any default. Existing archetypes without the locator project exactly as before. | Test |
+| FR-069-AC-42 | A fixture module whose frontmatter-owned key, frontmatter key and values are unrelated to any regulated-data vocabulary passes AC-39..AC-41; the engine source names no such key. | Test |
 
 ## Dependencies
 

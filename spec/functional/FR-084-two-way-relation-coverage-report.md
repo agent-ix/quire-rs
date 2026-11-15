@@ -76,6 +76,32 @@ in `linked` with `"resolution": "dangling"`, the reference as authored, and `ver
 `not-tracked`. The same edge is also listed in `dangling`, so the reader sees that it points at
 nothing loaded. A `linked` entry for a resolved target carries `"resolution": "resolved"`.
 
+### Carried record values and the reverse view (PLAT-1441)
+
+Every document entry of the report (the obliged `document` and each resolved
+`linked` entry) carries `record`: the document's composed semantic record
+([FR-069](./FR-069-semantic-module-contract-at-load.md)), exactly as extracted,
+with the keys and JSON values the document authored. `record` is omitted when the
+document has no resolved `data_schema` or its record is empty; a key the document
+did not state is absent, never defaulted. The engine selects no key: a consumer
+reads the values it needs, such as the list a classification states under its
+frontmatter-owned record key, from `record` of the linked entry.
+
+The two directions over one verb give the connection-to-classification and the
+classification-to-connection views from two declarations, with no new
+declaration kind:
+
+- a relation `from: <connection kind>, direction: outgoing` has one row per
+  connection and, in `linked`, each classification it points at with that
+  classification's `record`;
+- a relation `from: <classification kind>, direction: incoming` over the same
+  verb has one row per classification and, in `linked`, each connection that
+  points at it, ordered by repo then id.
+
+A classification pointed at by no connection is an `uncovered` row of the second
+relation; the two views are built from the same edges, so each pairing appears
+in both. The engine holds no connection, classification or category name.
+
 ### Verification status comes from the matrix
 
 The verification status of a document is read from its `requirements[]` entry in the
@@ -120,7 +146,8 @@ value exactly as authored. The shapes of the remaining objects are:
 - **Document** (the obliged `document` and a resolved `linked` entry): `{"id", "path", "archetype",
   "repo", "verification", "criteria"}` with `repo` omitted when the member has no identity,
   `archetype` omitted when the document has no `type`, and
-  `verification` and `criteria` present for the obliged document and for every linked document alike.
+  `verification` and `criteria` present for the obliged document and for every linked document alike,
+  and `"record"` (a JSON object) present only as the section above states, after `criteria`.
   `criteria` is `{"backed": n, "unbacked": n, "not_measured": n}` and is always present, with zero
   counts and `verification` `not-tracked` for a document with no matrix entry. The obliged document
   carries them so a reverse-view row's status is visible on the row.
@@ -182,6 +209,9 @@ consumer, and the engine writes nothing back to any document.
 | FR-084-AC-17 | The engine source contains no hazard, threat, mitigation or safety-classification name ([FR-058](./FR-058-upward-trace-completeness.md)-CON-2). | Inspection |
 | FR-084-AC-18 | When no loaded module declares a `required_relations` entry, the report is produced and serializes as `{"relations": []}`. | Test |
 | FR-084-AC-19 | Supplying a number of member inputs different from the corpus's member count is an error naming both counts, and no report is produced. | Test |
+| FR-084-AC-20 | Given connection documents each pointing by one verb at classification documents, one of which states a list under a frontmatter-owned record key (list `["a","b"]`) and one of which states none, the outgoing relation's rows list each connection's classifications with `record` holding the list in authored order for the first, and no such key (not `[]`) in the `record` of the second or no `record` if it is empty. | Test |
+| FR-084-AC-21 | Over the same corpus, the incoming relation over the same verb has one row per classification whose `linked` lists its connections by repo then id; a classification no connection points at is an `uncovered` row; every connection-to-classification pairing of AC-20 appears as the converse pairing here. | Test |
+| FR-084-AC-22 | Two runs of the AC-20/AC-21 report are byte-identical, the `record` key follows `criteria` in each document entry, and the fixture uses kind, verb and key names unrelated to any regulated-data vocabulary. | Test |
 
 ## Constraints
 
