@@ -40,6 +40,13 @@ FR-122-CON-2, FR-123-CON-1). This requirement extends
 [FR-072](./FR-072-semantic-extraction-surface.md): it adds output keys beside
 the declaration arrays and does not change them.
 
+> **CR-420 note (PLAT-1519 item 1):** The prohibition on frontmatter keys below
+> applies to the `record-sections` body reader. Registry-backed object
+> extraction separately projects authored domain frontmatter into the same
+> nested `SemanticExtraction.record` object used for the body-derived fields,
+> as specified by [FR-069](./FR-069-semantic-module-contract-at-load.md).
+> Reserved `id`, `title`, `type`, and `object` metadata is not projected.
+
 ## Inputs
 
 - The document and the `SemanticContext` of
@@ -108,7 +115,9 @@ Token and key resolution:
 - If the artifact holds a second section naming the same key, then
   the engine SHALL emit `semantic.duplicate-section` at the second heading with `reason`
   `second-section`.
-- The engine SHALL NOT read a record key from frontmatter.
+- The `record-sections` body reader SHALL NOT read a record key from
+  frontmatter. The separate frontmatter projection into the nested record is
+  specified by [FR-069](./FR-069-semantic-module-contract-at-load.md).
 - The engine SHALL omit a key whose section is absent, reporting it
   `not_applicable`.
 
@@ -239,7 +248,7 @@ Model-table keys (quoin FR-123):
 | ID | Criteria | Verification |
 |----|----------|--------------|
 | FR-081-AC-1 | A lifecycle fixture whose `## Assessment` table has the header `Severity \| Likelihood \| Exposure \| Controllability \| Rationale` and one row extracts an `assessment` object with a `recordSources` entry spanning the section, and `declaration_record` validates against the fixture's synthetic record schema; an axis authored `not_assessed` is that string, an empty `Exposure` cell is absent, and a record with no `## Assessment` has no `assessment` key and `availability.recordKeys` `not_applicable`. The quoin criteria that name `spec-objects-safety` schemas (`HazardAssessment.json`, `Hazard.json`) are not run here: that module is not fetchable by the repository's fixture mechanism, and its schemas are never copied. | Test |
-| FR-081-AC-2 | A `failure_mode` `## Analysis` table extracts an `analysis` object; `## Status` holding `` `accepted` `` and a `## Provenance` table extract `status` and `provenance`, the same fixture without `## Provenance` extracts none, and a frontmatter `status: accepted` yields no `status`. | Test |
+| FR-081-AC-2 | A `failure_mode` `## Analysis` table extracts an `analysis` object; `## Status` holding `` `accepted` `` and a `## Provenance` table contribute `status` and `provenance` through the record-sections body reader, the same fixture without `## Provenance` has no body-reader contribution for `provenance`, and a frontmatter `status: accepted` has no body-reader contribution for `status` (the composed nested record may still contain its frontmatter projection as specified by FR-069). | Test |
 | FR-081-AC-3 | A `## Evidence` table `Target \| Kind` extracts `evidence` in row order with each target resolved by the FR-076 `Target` rules (the no-index advisory included); a header-only table extracts `[]` and is `available`. | Test |
 | FR-081-AC-4 | The cases `column-unknown`, `column-duplicate`, `second-row`, `no-row`, `nested-object-cell` and `cell-type` each yield `semantic.invalid-model-cell` with that `reason` at the row or header, a second `## Assessment` yields `semantic.duplicate-section` `second-section`, and each key is `unavailable` with `entry-errors: lines <lines>`, no value and no `recordSources` entry. | Test |
 | FR-081-AC-5 | A bullet list under a table-form key and a list after a valid table each yield `semantic.feature-not-extractable` with `reason` the key name; a prose-only record-key section yields the warning `semantic.record-key-no-block` and `not_applicable`. | Test |
