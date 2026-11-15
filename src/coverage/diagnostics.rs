@@ -43,6 +43,21 @@ pub(super) fn guidance_for(diagnostic: &CoverageDiagnostic) -> crate::finding::F
             locus,
             "correct the matrix reference or tag a test whose declared row references this criterion",
         ),
+        "duplicate-formalizes-claim" => FindingGuidance::remedy(
+            format!("id `{value}`"),
+            locus,
+            "name the id once per declaration; the duplicate mints no second relation",
+        ),
+        "formalizes-unbound" => FindingGuidance::remedy(
+            "a formalizes marker",
+            locus,
+            "put the marker directly above the declaration it formalizes, with only blank or `//` lines between, or remove it",
+        ),
+        "formalizes-unknown-id" => FindingGuidance::remedy(
+            format!("id `{value}`"),
+            locus,
+            "name a requirement or criterion id that exists in the loaded corpus; a renamed or retired id needs the marker updated",
+        ),
         "function-not-evidence" => FindingGuidance::remedy(
             format!("trace id `{value}`"),
             locus,

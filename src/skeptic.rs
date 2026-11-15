@@ -127,7 +127,7 @@ fn assertions_for(language: SourceLanguage) -> &'static [&'static str] {
         SourceLanguage::Python => PYTHON_ASSERTIONS,
         // A shell `entry_point` is evidence by declaration (FR-051-AC-37); the
         // suspicion scan reads no shell assertion vocabulary.
-        SourceLanguage::Shell => &[],
+        SourceLanguage::Shell | SourceLanguage::Qsl => &[],
     }
 }
 
@@ -160,9 +160,10 @@ const NO_MEASURED_GUARDS: &[&str] = &[];
 fn narrowing_guards_for(language: SourceLanguage) -> &'static [&'static str] {
     match language {
         SourceLanguage::Rust => RUST_NARROWING_GUARDS,
-        SourceLanguage::Typescript | SourceLanguage::Python | SourceLanguage::Shell => {
-            NO_MEASURED_GUARDS
-        }
+        SourceLanguage::Typescript
+        | SourceLanguage::Python
+        | SourceLanguage::Shell
+        | SourceLanguage::Qsl => NO_MEASURED_GUARDS,
     }
 }
 
@@ -242,6 +243,7 @@ fn strip_comment(line: &str, language: SourceLanguage) -> &str {
     let marker = match language {
         SourceLanguage::Rust | SourceLanguage::Typescript => "//",
         SourceLanguage::Python | SourceLanguage::Shell => "#",
+        SourceLanguage::Qsl => "//",
     };
     match line.find(marker) {
         Some(at) => &line[..at],
@@ -667,7 +669,7 @@ fn oracle_candidate_counting_scans(
             Regex::new(r"(?m)^\s*(expected|oracle)(?:\s*:[^=\n]+)?\s*=\s*(.+?)\s*$")
                 .expect("Python oracle-binding pattern compiles")
         }),
-        SourceLanguage::Shell => return None,
+        SourceLanguage::Shell | SourceLanguage::Qsl => return None,
     };
     let assertion_re = match language {
         SourceLanguage::Rust => RUST_ASSERTION.get_or_init(|| {
@@ -688,7 +690,7 @@ fn oracle_candidate_counting_scans(
             )
             .expect("Python oracle-assertion pattern compiles")
         }),
-        SourceLanguage::Shell => return None,
+        SourceLanguage::Shell | SourceLanguage::Qsl => return None,
     };
 
     // PLAT-182: scan assertions at most once per binding name (`expected` /
@@ -782,7 +784,7 @@ fn simple_name(qualified_name: &str) -> &str {
 
 fn implementation_expression(span: &str, language: SourceLanguage) -> Option<String> {
     match language {
-        SourceLanguage::Shell => None,
+        SourceLanguage::Shell | SourceLanguage::Qsl => None,
         SourceLanguage::Rust => {
             let body = span.split_once('{')?.1.rsplit_once('}')?.0.trim();
             if let Some(returned) = body.strip_prefix("return ") {
@@ -797,7 +799,7 @@ fn implementation_expression(span: &str, language: SourceLanguage) -> Option<Str
             let body = match language {
                 SourceLanguage::Python => span.split_once('\n')?.1,
                 SourceLanguage::Typescript => span.split_once('{')?.1.rsplit_once('}')?.0,
-                SourceLanguage::Rust | SourceLanguage::Shell => return None,
+                SourceLanguage::Rust | SourceLanguage::Shell | SourceLanguage::Qsl => return None,
             };
             let returns: Vec<&str> = body
                 .lines()

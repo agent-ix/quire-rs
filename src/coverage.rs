@@ -562,6 +562,9 @@ pub const COVERAGE_DIAGNOSTIC_REASONS: &[&str] = &[
     "archetype-matches-nothing",
     "catch-all-universal",
     "criterion-tagged-outside-row",
+    "duplicate-formalizes-claim",
+    "formalizes-unbound",
+    "formalizes-unknown-id",
     "function-not-evidence",
     "hollow-denominator",
     "id-column-matches-nothing",
@@ -855,6 +858,36 @@ impl CoverageReport {
     /// The report as JSON — the `quire coverage` stdout payload.
     pub fn to_json(&self) -> String {
         serde_json::to_string_pretty(self).expect("coverage report serializes")
+    }
+}
+
+/// Drop from `graph` the `formalizes` relations whose id the corpus does not
+/// resolve (FR-094-AC-5), so the relations that search and the symbol table
+/// read name only requirements that exist. [`compute`] still reports each
+/// dropped id as `formalizes-unknown-id`.
+///
+/// A registry that declares no traceability model resolves nothing, so the
+/// graph is left as bound.
+pub fn resolve_formalizes(graph: &mut SymbolGraph, spec: &Spec, registry: &Registry, root: &Path) {
+    if let Some(model) = registry.traceability() {
+        reconcile::resolve_formalizes(graph, spec, model, root, None);
+    }
+}
+
+/// [`resolve_formalizes`] for a run that reconciles retained evidence: the
+/// ids the corpus carries are the evidence inventory's, exactly as in
+/// [`compute_with_evidence`], so relations and diagnostics agree.
+pub fn resolve_formalizes_with_evidence(
+    graph: &mut SymbolGraph,
+    spec: &Spec,
+    registry: &Registry,
+    root: &Path,
+    backing: &crate::evidence::BackingInput<'_>,
+) {
+    if let Some(model) = registry.traceability() {
+        let mut evidence = crate::evidence::ReconciledEvidence::new(backing);
+        evidence.check_context(spec, model, root);
+        reconcile::resolve_formalizes(graph, spec, model, root, Some(&evidence));
     }
 }
 

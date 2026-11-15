@@ -1718,6 +1718,16 @@ fn merge_traceability(modules: &[LoadedModule]) -> crate::traceability::Traceabi
                 merged.trace_tags.implements.push(form.clone());
             }
         }
+        for form in &m.trace_tags.formalizes {
+            if !merged
+                .trace_tags
+                .formalizes
+                .iter()
+                .any(|x| x.name == form.name)
+            {
+                merged.trace_tags.formalizes.push(form.clone());
+            }
+        }
         if merged.status.is_none() {
             merged.status.clone_from(&m.status);
         }
