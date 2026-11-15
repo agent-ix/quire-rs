@@ -454,3 +454,50 @@ fn tc_regulated_categories_are_carried_without_the_level() {
     );
     assert!(linked(outgoing, "DC-002").get("record").is_none());
 }
+
+/// A kind whose relationships cannot be read withholds the typed relation keys
+/// it would have flattened into the record, such as `emits`, and only those:
+/// the same document still carries a selection of unrelated keys.
+#[test]
+fn tc_unreadable_relationships_withhold_typed_relation_keys() {
+    let core = format!(
+        "https://schemas.agent-ix.org/semantic-core/{}/SemanticId.json",
+        quire_rs::semantic::embedded::embedded_semantic_core_version()
+    );
+    let schema = json!({
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+            "cats": {"type": "array", "items": {"enum": ["a", "b"]}},
+            "emits": {"type": "array", "items": {"$ref": core}}
+        },
+        "additionalProperties": false
+    });
+    let manifest = "name: tr\nversion: 0.1.0\nedge_types:\n  emits: {description: x, category: dataflow}\n  classified-as: {description: x, category: traceability}\nartifact_types:\n- name: Connection\n- name: Svc\n  data_schema:\n    schema: schemas/Svc.json\n  allowed_links:\n    emits: [Svc]\nsemantic:\n  contract_version: 1.0.0\n  package: agent-ix/tr\n  exports: [Svc]\n  targets: [json-schema, markdown]\n  mappings: [relationships]\ntraceability:\n  required_relations:\n  - name: typed\n    from: Connection\n    edges: [classified-as]\n    to: [Svc]\n    direction: outgoing\n    check: c1\n    record_keys: [cats, emits]\n  - name: plain\n    from: Connection\n    edges: [classified-as]\n    to: [Svc]\n    direction: outgoing\n    check: c2\n    record_keys: [cats]\n";
+    let schemas = BTreeMap::from([("schemas/Svc.json".to_string(), schema.to_string())]);
+    let registry = Registry::from_inline_parts(manifest.as_bytes(), &schemas).expect("loads");
+    assert!(registry.failures().is_empty(), "{:?}", registry.failures());
+
+    let svc = |id: &str, rows: &str| {
+        format!(
+            "---\nid: {id}\ntype: Svc\ntitle: {id}\ncats: [a]\n---\n\n# {id}\n\n## Relationships\n\n| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n{rows}"
+        )
+    };
+    let dir = TempDir::new().expect("tempdir");
+    write(
+        dir.path(),
+        "spec/CONN-001.md",
+        &connection("CONN-001", &["SVC-001"]),
+    );
+    // The corpus has no bundle package, so the relationships kind cannot be read.
+    write(dir.path(), "spec/SVC-001.md", &svc("SVC-001", ""));
+
+    let report = report(&dir, &registry);
+    let carried = |name: &str| linked(row(section(&report, name), "CONN-001"), "SVC-001");
+    assert!(carried("typed").get("record").is_none(), "{report}");
+    assert_eq!(
+        carried("plain")["record"],
+        json!({"cats": ["a"]}),
+        "{report}"
+    );
+}

@@ -816,8 +816,10 @@ impl SemanticExtraction {
 
     /// The declaration-record keys supplied by a kind that could not be read
     /// (`unavailable`), excluding the `model` kind: its key is absent because it
-    /// could not be read, not because nothing was declared.
-    pub(crate) fn unavailable_record_keys(&self) -> BTreeSet<String> {
+    /// could not be read, not because nothing was declared. An unreadable
+    /// relationships kind withholds the flattened typed relation keys of `ctx`
+    /// as well as `relations`.
+    pub(crate) fn unavailable_record_keys(&self, ctx: &SemanticContext) -> BTreeSet<String> {
         let a = &self.availability;
         let unavailable = |k: &KindAvailability| k.state == AvailabilityState::Unavailable;
         let mut keys = BTreeSet::new();
@@ -830,6 +832,14 @@ impl SemanticExtraction {
             if kind.is_some_and(unavailable) {
                 keys.insert(key.to_string());
             }
+        }
+        if a.relations.as_ref().is_some_and(unavailable) {
+            let typed = ctx
+                .relation_vocabulary
+                .as_ref()
+                .zip(ctx.relation_schema.as_ref())
+                .and_then(|(vocabulary, schema)| schema.shape(vocabulary));
+            keys.extend(typed.into_iter().flat_map(|shape| shape.keys));
         }
         for (key, kind) in a.record_keys.iter().flatten() {
             if unavailable(kind) {

@@ -101,3 +101,56 @@ Changes requested (medium: FND-001, FND-002). Examined with no finding:
 Rust lane: idiomatic overall. It returns `Option`/`Result` and never panics outside tests;
 the loader collects `BTreeMap`/`BTreeSet`. `SemanticContext` losing `Eq` is a pub API change,
 which is acceptable pre-release.
+
+## New findings (disposition pass 1)
+
+Pass 1 at head `90b88da` (fix commit `90b88da` over `63152cd`).
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-005 | medium | `unavailable_record_keys` maps an unavailable `relations` kind to the single key `relations`. That kind also supplies every FR-076 typed relation key (`emits`, `persists`, ...), which the declaration record flattens to top level and which are root `data_schema` properties that `record_keys` may select. When a document's relationships cannot be read (no vocabulary, no bundle package), a selected typed relation key is not withheld, so a co-selected stated key is carried alone and the report reads as if the typed key were not declared. | src/semantic/surface.rs:824 |
+
+### FND-005 detail
+
+`typed_relations` (`src/semantic/surface.rs:93-97`) is "present when
+`availability.relations` is `available`" and is `#[serde(flatten)]` into the
+declaration record. `relations.rs:941/952` make the kind unavailable with
+`NO_VOCABULARY` or `NO_BUNDLE_PACKAGE`. `undeclared_record_key` accepts any root
+`properties` key, so a relation can declare `record_keys: [cats, emits]`. With
+the relationships kind unavailable, `DocumentRecord::select` sees `unreadable =
+{"relations"}`, does not withhold, and returns `{"cats": ...}`: the
+pre-fix `any_kind_unavailable()` guard withheld this case. If `emits` is
+optional in the schema, validation passes too. No test builds a
+`DocumentRecord` from a real extraction with an unavailable kind; the only test
+of the narrowing (`selection_ignores_an_unreadable_kind_of_unselected_keys`)
+constructs the struct by hand.
+
+Fix: when `relations` is unavailable, also mark every typed relation key the
+archetype's schema declares (the keys `relations.rs:220` reads), and add an
+integration case that drives `document_record` with an unreadable
+relationships table.
+
+Not restated here: the YAML-merge-key drop in `Owned::resolve`
+(`src/semantic/frontmatter_owned.rs:111`), recorded by the independent pass as
+SR-20261115183665 FND-003. It was re-read and is unchanged at `90b88da`.
+
+## Dispositions
+
+Pass 1, head `90b88da`. Focused evidence: `cargo test --test it --
+frontmatter_owned_keys record_carry required_relations` gave 52 passed and 0 failed. The lib
+unit test was not run. `quire validate` on this file was blocked by the permission layer. Verdict
+after this pass: changes requested (medium: FND-005).
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | `document_record` resolves the archetype by `concept_type()` alone; `tc_record_is_resolved_by_type_never_by_object` covers a `type: Connection` document naming `object: Classification`, which carries no record. |
+| FND-002 | fixed | `report_of` owns a per-report `RecordCache` (`BTreeMap<usize, Option<DocumentRecord>>`); each slot is extracted once and `select(keys)` filters per relation. The nested `parse_document` inside `FrontmatterOwned::project` remains a per-document constant, not per row. |
+| FND-003 | fixed | `DocumentRecord::select` withholds only when the `model` kind or a kind supplying a selected key is unreadable. The narrowing has its own gap, recorded as FND-005. |
+| FND-004 | rejected | Not a defect. `RecordSchema::new` (`src/semantic/record.rs:290`) and the typed-relation scan (`src/semantic/relations.rs:220`) also read only root `properties`, so a key declared solely through root `allOf`/`$ref` is never extracted; refusing it at load is consistent. The fix commit documents this on `undeclared_record_key`. |
+| FND-005 | still-open | `unavailable_record_keys` still records only `relations`; it must also withhold selected flattened typed-relation keys supplied by that semantic kind, with an integration test exercising actual extraction when relations are unavailable. |
+
+- FND-001 after_excerpt (`src/validate_document.rs`): `let arch = registry.archetype(crate::query::concept_type(&doc)?)?;`
+- FND-002 after_excerpt (`src/corpus/relation_report.rs`): `records.entry(slot).or_insert_with(|| crate::validate_document::document_record(self.registry, doc.raw(), self.corpus.bundle_package())).as_ref()?.select(keys)`
+- FND-003 after_excerpt (`src/validate_document.rs`): `if self.model_unreadable || keys.iter().any(|key| self.unreadable.contains(key)) { return None; }`
+
+Validation: `quire validate --scope . .review-scratch/plat-1441-pr690-code-review.md` exited 0 (two `semantic.unused-import` warnings).

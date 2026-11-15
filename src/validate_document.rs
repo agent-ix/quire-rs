@@ -589,7 +589,7 @@ pub(crate) fn document_record(
     };
     Some(DocumentRecord {
         values,
-        unreadable: extraction.unavailable_record_keys(),
+        unreadable: extraction.unavailable_record_keys(&ctx),
         model_unreadable: extraction.model_unavailable(),
     })
 }
@@ -2271,28 +2271,5 @@ edge_types:
         assert_eq!(record_key_line(&record, doc, "relations.0"), 17);
         assert_eq!(record_key_line(&record, doc, "clauses"), FRONTMATTER_LINE);
         assert_eq!(record_key_line(&record, doc, "<root>"), FRONTMATTER_LINE);
-    }
-
-    /// FR-084-AC-24: only a kind that could supply a selected key withholds the
-    /// selection; an unreadable section of unselected keys does not.
-    #[trace("FR-084-AC-24")]
-    #[test]
-    fn selection_ignores_an_unreadable_kind_of_unselected_keys() {
-        let record = |unreadable: &[&str], model_unreadable| DocumentRecord {
-            values: serde_json::json!({"cats": ["a"], "lvl": "hi"})
-                .as_object()
-                .cloned()
-                .unwrap_or_default(),
-            unreadable: unreadable.iter().map(|k| (*k).to_string()).collect(),
-            model_unreadable,
-        };
-        let keys = vec!["cats".to_string()];
-        let expected = serde_json::json!({"cats": ["a"]});
-        assert_eq!(
-            record(&["relations"], false).select(&keys),
-            expected.as_object().cloned()
-        );
-        assert_eq!(record(&["cats"], false).select(&keys), None);
-        assert_eq!(record(&[], true).select(&keys), None);
     }
 }

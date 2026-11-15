@@ -43,3 +43,34 @@ Changes requested (medium: FND-001). Bindings verified correct:
 
 Related, recorded under code-review SR-20261115183663 FND-001: no test exercises the
 `object:` branch of `selected_record`.
+
+## New findings (disposition pass 1)
+
+Pass 1 at head `90b88da`.
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-006 | low | The new unit test `selection_ignores_an_unreadable_kind_of_unselected_keys` is tagged FR-084-AC-24, but AC-24 names no unreadable-kind condition (only no `data_schema`, failed validation and `dangling`). The test also builds `DocumentRecord` by hand, so it never exercises `unavailable_record_keys`/`model_unavailable`, which is where code-review SR-20261115183663 FND-005 sits. | src/validate_document.rs:2280 |
+
+## Dispositions
+
+Pass 1, head `90b88da`. Focused `cargo test --test it -- frontmatter_owned_keys record_carry
+required_relations`: 52 passed, 0 failed. `quire validate` on this file was blocked by the
+permission layer. The AC-to-test map was again checked by hand from the `#[trace]` tags.
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | `tc_regulated_categories_are_carried_without_the_level`, tagged FR-084-AC-23, carries `regulatedCategories: [health]`, asserts no `level`/`restricted` anywhere in the section, and asserts DC-002 (only `level`) has no `record`. |
+| FND-002 | fixed | CLS-001 now has three connections (CONN-000, CONN-001, CONN-004) and the converse row asserts `["CONN-000", "CONN-001", "CONN-004"]`. The repo half of the order is single-repo here and rests on the `(repo, id, verb)` `LinkKey` ordering. |
+| FND-003 | fixed | `tc_record_keys_leave_trace_findings_byte_identical` compares every `validate_bundle_at` error and warning with and without `record_keys`, with CONN-009 as a firing control. |
+| FND-004 | fixed | CLS-008 states no record key; its `linked` entry and its converse obliged `document` both lack `record`. |
+| FND-005 | fixed | Needles are now `non-unique` and `is not of type`, which only the `uniqueItems` and not-a-list failures produce. |
+| FND-006 | still-open | The test remains tagged to AC-24 although that AC says nothing about unreadable kinds, and the hand-built record does not test real availability mapping. Correct the trace attribution or remove the unrelated test and add the integration coverage requested in code-review FND-005. |
+
+- FND-001 after_excerpt (`tests/it/record_carry.rs`): `assert_eq!(linked(outgoing, "DC-001")["record"], json!({"regulatedCategories": ["health"]})); assert!(!text.contains("level") && !text.contains("restricted"), "{text}"); assert!(linked(outgoing, "DC-002").get("record").is_none());`
+- FND-002 after_excerpt (`tests/it/record_carry.rs`): `assert_eq!(ids, ["CONN-000", "CONN-001", "CONN-004"]);`
+- FND-003 after_excerpt (`tests/it/record_carry.rs`): `assert!(findings.iter().any(|f| f.contains("CONN-009")), "{findings:?}"); assert_eq!(findings, trace_findings(&dir, &without));`
+- FND-004 after_excerpt (`tests/it/record_carry.rs`): `assert!(linked(empty, "CLS-008").get("record").is_none()); let converse = row(section(&report, "cls-used"), "CLS-008"); assert!(converse["document"].get("record").is_none(), "{converse}");`
+- FND-005 after_excerpt (`tests/it/frontmatter_owned_keys.rs`): `("raw: [a, a]\n", "non-unique"), ("raw: a\n", "is not of type"),`
+
+Validation: `quire validate --scope . .review-scratch/plat-1441-pr690-gap-analysis.md` exited 0 (two `semantic.unused-import` warnings).
