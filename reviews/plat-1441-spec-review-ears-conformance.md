@@ -24,3 +24,26 @@ Changes requested (medium). Restate as, for example, "When a document entry's re
 non-empty, the engine SHALL serialize it as `record` ...". Restate it after the FR-084
 selected-field redesign (base review FND-001). Also examined, with no defect found: FR-069
 bullets 1–5, the FR-081 frontmatter-owned bullets, and FR-081-AC-18.
+
+## New findings (disposition pass 1)
+
+Pass 1 re-read the new statements in FR-058 (`record_keys` load refusal), FR-069
+(frontmatter-owned record keys), FR-081 (frontmatter-owned bullets) and FR-084 (carried record
+values) at head `5731e42`.
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-002 | low | The first FR-081 both-forms statement reads "Where an artifact carries both ... and a section with that key, then the engine SHALL emit the warning". In EARS, `Where` is the optional-feature keyword and takes no `then`. The trigger is a document state, so it belongs in the `If ..., then` form that the sibling section-only bullet uses. The four "Where an artifact carries both, the engine SHALL" statements after it have the same keyword issue but no `then`. | spec/functional/FR-081-record-sections-extraction.md:123-131 |
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | The FR-084 section is now five SHALL statements: serialize the selected keys, serialize no other key, order lexicographically, omit `record` in three named cases, and no `record` on a dangling entry. Each has one response. |
+| FND-002 | still-open | New this pass; the fix round has not run yet. |
+
+- FND-001 after_excerpt (`spec/functional/FR-084-two-way-relation-coverage-report.md:92-96`): `The engine SHALL order the keys of record lexicographically by key name, regardless of the order of record_keys or of authoring.` / `The engine SHALL omit record (the key, not an empty object) when no selected key is stated, when the document's archetype has no resolved data_schema, or when record validation of the document fails (any semantic.record-invalid or semantic.duplicate-record-key error).`
+
+Pass-1 verdict: approved for this method. FND-002 is low and does not block. Also examined, with
+no defect found: the FR-058 `record_keys` refusal statement, the FR-069 projection, absence,
+null and duplicate statements, and the FR-081 section-only statement.

@@ -61,3 +61,26 @@ existing FR-084 ordering rules), and the absence of domain hardcoding in the eng
   tables were checked by hand: ids are sequential and unique for the new rows.
 - Cross-repo inputs read: spec-objects-security FR-023, manifest.yaml, DataClassification.json,
   skeleton; spec-objects-architecture FR-013; quoin PR #927 (FR-121); quire-cli PR #204 (FR-030).
+
+## New findings (disposition pass 1)
+
+Pass 1 re-read FR-058, FR-069, FR-081 and FR-084 at head `5731e42` (fix commits `221478a`,
+`5731e42`).
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-002 | medium | Fix commit `221478a` replaced the `### Authored inverse verbs` heading (CR-416) with `### Selecting record keys to carry (PLAT-1441)` instead of inserting the new section before it. The CR-416 inverse-verb rule and its three cases now sit under the PLAT-1441 heading. The CR-416 note's "the first section" no longer names a section a reader can find. Restore the heading above line 143 and drop the doubled blank line at 141-142. | spec/functional/FR-058-upward-trace-completeness.md:129-168 |
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | FR-058 adds `record_keys`, a declared allow-list on `required_relations`. It is refused at load when empty, blank, repeated, or not a property of any endpoint archetype's resolved `data_schema` (FR-058-AC-36). FR-084 serializes only the selected keys and SHALL NOT serialize any other key (AC-22). AC-23 backs spec-objects-architecture FR-013: with `record_keys: [regulatedCategories]`, the report has no `level` key at any depth. The engine names no key (FR-084-AC-29, FR-069-AC-46). |
+| FND-002 | still-open | New this pass; the fix round has not run yet. |
+
+- FND-001 after_excerpt (`spec/functional/FR-084-two-way-relation-coverage-report.md:86-89`): `The engine SHALL serialize record on the obliged document and on each resolved linked entry as a JSON object holding only the keys in record_keys that the document's composed semantic record (FR-069) states, with each value as extracted.` / `The engine SHALL NOT serialize any record key outside record_keys, whatever the record holds, and SHALL NOT default, derive or fill a selected key the document did not state.`
+
+Pass-1 verdict: changes requested, on FND-002 (medium). The original high finding is closed.
+`quire validate` was not re-run by this reviewer because the permission layer denied it. The
+lead reports that FR-058, FR-069, FR-081 and FR-084 validate at `5731e42`, with only the existing
+unused-import warning.

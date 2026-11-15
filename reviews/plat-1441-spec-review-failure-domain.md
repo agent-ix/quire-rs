@@ -50,3 +50,26 @@ as `BTreeMap` gives, or document-source order), so two implementations produce i
 Changes requested (medium). Also examined, with no defect found: the absence path (no K, no
 default), the refusal of empty, duplicate and scalar values, location at the line of `P`, and
 the reverse view's dangling/uncovered handling, which reuses existing FR-084 rules.
+
+## New findings (disposition pass 1)
+
+Pass 1 re-read FR-058, FR-069, FR-081 and FR-084 at head `5731e42`.
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-004 | low | The `record_keys` load check validates keys against "`from`, and each archetype in `to`". FR-058 defines `to: []` as "any document", so for such a relation only `from`'s schema is checked. A key that only counterpart documents declare is then refused, and FR-058 does not say whether that is intended. Also, FR-058-AC-36 refuses a `record_keys` that is "not a list", but no body statement says so. | spec/functional/FR-058-upward-trace-completeness.md:136-140 |
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | FR-069 now states the change on purpose. For K equal to P, "the projection is unchanged; only the FR-081 section rule changes". Precedence is stated: an FR-081 section under a frontmatter-owned key "is not a source for `semantic.duplicate-record-key`". AC-38 is amended with that exception, and FR-081-AC-19 asserts no duplicate-key error. The corpus measurement belongs to implementation, not to this spec. |
+| FND-002 | fixed | Each case is now a rule tied to FR-011 and FR-033: `multiple` (AC-43), `regex` and `assert` (AC-43), a multi-segment `path` (AC-42), a present `null` (AC-44), and P and K both authored, which gives `semantic.duplicate-record-key` with two frontmatter sources (AC-45). AC-43 matches FR-011-AC-15 (group 1 projection, non-match drops) and FR-011-AC-21 (`multiple` wraps every resolved value). |
+| FND-003 | fixed | FR-084 omits `record` when record validation fails (`semantic.record-invalid` or `semantic.duplicate-record-key`), and orders keys lexicographically (AC-24, AC-25). |
+| FND-004 | still-open | New this pass; the fix round has not run yet. |
+
+- FND-001 after_excerpt (`spec/functional/FR-069-semantic-module-contract-at-load.md:300-303`): `A FR-081 section under a frontmatter-owned key is not a source for semantic.duplicate-record-key. FR-081 governs it, and only when record-sections is enabled: the frontmatter value wins and the section is a frontmatter-owned diagnostic.`
+- FND-002 after_excerpt (`spec/functional/FR-069-semantic-module-contract-at-load.md:287-299`): `An explicit null at the path is present, not absent: the engine SHALL project K as null and data_schema validates it ...` / `If one document authors both the mapped key P (with P different from K) and the literal key K in frontmatter, then the engine SHALL treat them as two frontmatter sources of K and emit semantic.duplicate-record-key by the rule below; the record carries no K.`
+- FND-003 after_excerpt (`spec/functional/FR-084-two-way-relation-coverage-report.md:92-96`): `The engine SHALL order the keys of record lexicographically by key name ...` / `The engine SHALL omit record ... when record validation of the document fails (any semantic.record-invalid or semantic.duplicate-record-key error).`
+
+Pass-1 verdict: approved for this method. FND-004 is low and does not block.
