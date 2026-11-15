@@ -9,6 +9,9 @@ relationships:
   - target: "ix://agent-ix/quire-rs/spec/functional/FR-057"
     type: "requires"
     cardinality: "1:1"
+  - target: "ix://agent-ix/quire-rs/spec/functional/FR-069"
+    type: "requires"
+    cardinality: "1:1"
   - target: "ix://agent-ix/quire-rs/spec/stakeholder/StR-006"
     type: "implements"
     cardinality: "1:1"
@@ -48,6 +51,7 @@ module's declared `traceability.required_relations`, each entry naming:
 | `exclude` | Scope-relative globs exempt from this relation |
 | `where` | Optional. Narrows the obligation to `from` documents whose frontmatter `field` holds one of the declared `values` |
 | `when_any` | Optional. Narrows the obligation to `from` documents that have an edge matching at least one declared condition: `verb`, `direction`, and `other` kinds |
+| `record_keys` | Optional. A non-empty list of record key names the two-way report ([FR-084](./FR-084-two-way-relation-coverage-report.md)) carries from each document's composed record; absent means no record is carried |
 
 **Direction is why this is one declaration and not two checks.** "Every FR traces to a need" and
 "every need is implemented" are the same edge read from opposite ends, so they are one type with a
@@ -121,6 +125,24 @@ dead-vocabulary rule below is unchanged, and still tests `from` alone.
 the declaration, and the selector: the field, and the value the document holds as authored. A
 reader sees that an NFR is reported *because* it is classified `security`, rather than being
 handed a bare "has no edge" for a document that looks unrelated to the rule.
+
+### Selecting record keys to carry (PLAT-1441)
+
+`record_keys` is an allow-list of record key names. It has no effect on which documents are
+obliged or on satisfaction; it only tells the FR-084 report which keys of a document's composed
+record ([FR-069](./FR-069-semantic-module-contract-at-load.md)) to carry. The engine knows no key
+name: the manifest names each one, exactly as it names `from` and `edges`.
+
+At module load the engine SHALL refuse a relation whose `record_keys` is empty, holds a blank or
+repeated name, or names a key that is not a property of the resolved `data_schema` of any endpoint
+archetype of the relation (`from`, and each archetype in `to`). The error names the relation and the
+key. A key that only some endpoint archetypes declare is accepted: a document of another archetype
+simply states no such key.
+
+The engine SHALL refuse a `record_keys` that is not a list, naming the relation. A relation whose
+`to` is `[]` (any document) has `from` as its only endpoint archetype, so each key is checked
+against the resolved `data_schema` of `from` alone, and a key that only counterpart documents
+declare is refused.
 
 ### Authored inverse verbs
 
@@ -322,6 +344,8 @@ case that needs no help.
 | FR-058-AC-33 | Module load rejects a `when_any` that cannot be executed, naming the relation and `when_any`: not a list, empty, a condition that is not a mapping, any key other than `verb`, `direction` and `other`, a missing key, a blank `verb`, a `direction` other than `outgoing` or `incoming`, and an `other` that is empty, not a list or holds a blank entry. | Test |
 | FR-058-AC-34 | A relation without `when_any` selects exactly the documents it selected before; a relation with it reports under its own `trace:<check>` key, advisory by default, and its findings are identical across runs. | Test |
 | FR-058-AC-35 | A relation whose `when_any` names an `other` kind that no module declares and no document is reports under `trace:undeclared-relation-vocabulary`, naming the declaration and the kind. | Test |
+| FR-058-AC-36 | Module load rejects a `record_keys` that is empty, not a list, holds a blank or repeated name, or names a key that no endpoint archetype's resolved `data_schema` declares, naming the relation and the key; a key declared by only one endpoint archetype is accepted; for a relation with `to: []` only `from`'s schema is checked, so a key declared only by counterpart archetypes is refused. | Test |
+| FR-058-AC-37 | A relation with `record_keys` selects, obliges and is satisfied by exactly the documents it did without it, and its `trace:<check>` findings are identical. | Test |
 
 ## Constraints
 

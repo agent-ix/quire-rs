@@ -10,6 +10,9 @@ relationships:
   - target: "ix://agent-ix/quire-rs/spec/usecase/US-019"
     type: "implements"
     cardinality: "1:1"
+  - target: "ix://agent-ix/quire-rs/spec/functional/FR-011"
+    type: "requires"
+    cardinality: "1:1"
   - target: "ix://agent-ix/quire-rs/spec/functional/FR-072"
     type: "requires"
     cardinality: "1:1"
@@ -71,7 +74,7 @@ the declaration arrays and does not change them.
   non-blank line of the section. The record is sealed, so no span rides in it.
 - `availability.recordKeys`: per key, `{ state, reason?, lossy }`. Present
   when the artifact names the token and a section names, or fails to name, a
-  key.
+  key that is not frontmatter-owned.
 - Diagnostics in the FR-075 shape, with the codes of FR-076.
 
 `declaration_record` carries the `record` keys beside the declaration arrays,
@@ -105,7 +108,29 @@ Token and key resolution:
   (`SemanticContext::with_object_type`, the Python `objectType`) or the
   relation vocabulary's.
 - The engine SHALL treat a heading that names an owned key, or no key, as
-  prose.
+  prose, except a **frontmatter-owned** key. Only when `record-sections` is
+  enabled is a key frontmatter-owned: the object type declares a
+  `frontmatter_field` locator under that key in `yield_pattern.match`
+  ([FR-069](./FR-069-semantic-module-contract-at-load.md) "Frontmatter-owned
+  record keys"); the declaration names it, the engine holds no key name. Per
+  `agent-ix/quoin` FR-121:
+  - If a heading names a frontmatter-owned key and the frontmatter does not
+    carry the key's value, then the engine SHALL emit the error
+    `semantic.feature-not-extractable` at the heading with `reason`
+    `frontmatter-owned`, read no value from the section, and produce no
+    `record` entry, no `recordSources` entry and no `availability.recordKeys`
+    entry for the key.
+  - If a document carries a frontmatter-owned value for key `K` and has a
+    section headed `K`, then the engine SHALL emit the warning
+    `semantic.feature-not-extractable` at the heading with `reason`
+    `frontmatter-owned`. The explicit `null` of FR-069 counts as a value.
+  - If an artifact carries both, then the engine SHALL ignore the section.
+  - If an artifact carries both, then the engine SHALL keep only the
+    frontmatter value in `record`.
+  - If an artifact carries both, then the engine SHALL NOT emit
+    `semantic.duplicate-record-key` for the pair.
+  - If an artifact carries both, then the section SHALL add no `recordSources`
+    entry and no `availability.recordKeys` entry.
 - If a heading names a property whose schema shape no mapping can read (not a
   scalar, an object, an array of scalars or of objects, nor `associated_types`
   as a `TypeRef[]`, or a `$ref` that no supplied document resolves), then the
@@ -118,8 +143,10 @@ Token and key resolution:
 - The `record-sections` body reader SHALL NOT read a record key from
   frontmatter. The separate frontmatter projection into the nested record is
   specified by [FR-069](./FR-069-semantic-module-contract-at-load.md).
-- The engine SHALL omit a key whose section is absent, reporting it
-  `not_applicable`.
+- The engine SHALL omit a key that is not frontmatter-owned and whose section
+  is absent, reporting it `not_applicable`. A frontmatter-owned key with no
+  section keeps its frontmatter value in `record` and has no `recordSources`
+  entry and no `availability.recordKeys` entry.
 
 Section shape by key type:
 
@@ -166,10 +193,11 @@ Columns and cells:
 
 Availability:
 
-- If any header, row, block or section of a key carries an error, then the
-  engine SHALL report the key `unavailable` with reason
+- If any header, row, block or section of a key that is not frontmatter-owned
+  carries an error, then the engine SHALL report the key `unavailable` with reason
   `entry-errors: lines <lines>` as FR-076 formats it, with no value and no
-  `recordSources` entry. Otherwise the key is `available` and not lossy.
+  `recordSources` entry. Otherwise a key that is not
+  frontmatter-owned is `available` and not lossy.
 
 Keys with their own form (module `agent-ix/spec-objects-architecture`, quoin
 FR-122), when the record schema declares the key:
@@ -252,7 +280,7 @@ Model-table keys (quoin FR-123):
 | FR-081-AC-3 | A `## Evidence` table `Target \| Kind` extracts `evidence` in row order with each target resolved by the FR-076 `Target` rules (the no-index advisory included); a header-only table extracts `[]` and is `available`. | Test |
 | FR-081-AC-4 | The cases `column-unknown`, `column-duplicate`, `second-row`, `no-row`, `nested-object-cell` and `cell-type` each yield `semantic.invalid-model-cell` with that `reason` at the row or header, a second `## Assessment` yields `semantic.duplicate-section` `second-section`, and each key is `unavailable` with `entry-errors: lines <lines>`, no value and no `recordSources` entry. | Test |
 | FR-081-AC-5 | A bullet list under a table-form key and a list after a valid table each yield `semantic.feature-not-extractable` with `reason` the key name; a prose-only record-key section yields the warning `semantic.record-key-no-block` and `not_applicable`. | Test |
-| FR-081-AC-6 | Without the token the AC-1 fixture yields no `record`, no diagnostic and no `availability.recordKeys`; under the token a heading that names no key (`## Notes`) and one that names an owned key (a typed relation key, a key a declared table locator fills) are prose with no diagnostic. | Test |
+| FR-081-AC-6 | Without the token the AC-1 fixture yields no `record`, no diagnostic and no `availability.recordKeys`; under the token a heading that names no key (`## Notes`) and one that names an owned key (a typed relation key, a key a declared table locator fills) are prose with no diagnostic; a frontmatter-owned key is the exception under the token, AC-18, and without the token it too yields no diagnostic. | Test |
 | FR-081-AC-7 | A record with a camelCase key (`retryPolicy`) is reached by `## Retry Policy`; two properties that normalize equal yield `semantic.feature-not-extractable` `key-ambiguous`. | Test |
 | FR-081-AC-8 | `provider` and `exposes` sections each holding one inline id extract one `SemanticId`; the `delivery`, `versioning`, `registration` and `stability` one-row tables extract objects, an omitted optional cell omits its field, and a bullet-list `## Registration` is `semantic.feature-not-extractable`. | Test |
 | FR-081-AC-9 | A `## Routes` table extracts `routes`; a route naming an operation the artifact does not declare yields `route-operation-unknown`. | Test |
@@ -264,6 +292,10 @@ Model-table keys (quoin FR-123):
 | FR-081-AC-15 | An `enumeration` `## Values` table `Value \| Description` with the rows `draft \| Not yet reviewed` and `final \|` copies to `values` as two elements, the second with no `doc`, with a `recordSources` entry spanning the section and `values` `available`, and no `semantic.invalid-model-cell` `column-unknown` or second reading of the section; a header-only table copies `[]`; a bullet list is `semantic.feature-not-extractable` `values`; a repeated `Value` and an invalid `Value` are refused and the key is `unavailable` with the model's `entry-errors` reason. A `state_machine` copies `states` and `transitions` (a clause-id `Guard` as `{ language: "quire", clauseId }`, `Emits` as one `SemanticId`); a `process` copies `steps` with `consumes` and `emits` as `SemanticId[]`, and its `## States` table stays in `model` and adds no `states` key to a record whose schema declares none; `recordSources` follows the document order of the sections. | Test |
 | FR-081-AC-16 | An `aggregate_root` `## Members` with `OrderLine \| 0..*` (a `nested_entity`) and `Money \| 3..3` (a `value_object`) copies two `RelationDecl`s, `aggregates` and `contains`, both composite with the target `SemanticId`; a member no composite verb admits yields `member-verb`, an unknown name `semantic.unknown-reference`, a member of a type the construct `references.members` does not admit `semantic.reference-kind-mismatch`, and an `aggregates` row in `## Relationships` yields `semantic.duplicate-model-entry` `declared-in-members`; with no bundle index the key is `unavailable` with reason `no-bundle-index`. A `domain` `## Ubiquitous Language` table copies `vocabulary` with an empty `Description` as an absent `doc` (record validation refuses it), and reads no `ubiquitous_language`; a `nested_entity` `## Parent` and `## Owner` yield no `owner` and no diagnostic; a `repository` `persists` row extracts `persists` while `## Persists` and `## Emits` sections are prose; an `event` `## Source` inline id extracts `source`. | Test |
 | FR-081-AC-17 | A property whose schema is a `#/$defs` fragment `$ref` is read; a property whose shape no mapping reads (an array of arrays, a `TypeRef[]` other than `associated_types`) named by a heading yields `semantic.feature-not-extractable` `schema-unreadable` and the key `unavailable`; a `## Associated Types` table in a module other than the architecture module is read; a `thresholds` row with an invalid `Status` is refused once, as `cell-type`. | Test |
+| FR-081-AC-18 | Under the token, for an archetype declaring a frontmatter-owned key `K` (a `frontmatter_field` locator, FR-069), a document with a `## K` section and no frontmatter value yields the error `semantic.feature-not-extractable` with `reason` `frontmatter-owned` at the heading, document validation is invalid, and the output has no `K` in `record`, no `recordSources` entry and no `availability.recordKeys` entry for `K`. | Test |
+| FR-081-AC-19 | Under the token, a document with both the `## K` section and the frontmatter value yields `semantic.feature-not-extractable` `frontmatter-owned` as a warning, validation passes, `record` holds only the frontmatter value, there is no `recordSources` entry for `K`, no `availability.recordKeys` entry for `K`, and no `semantic.duplicate-record-key` is emitted. The controls: a document with the frontmatter value and no section yields no diagnostic (AC-20), and the same section under a key that is not frontmatter-owned is read as in AC-1. | Test |
+| FR-081-AC-20 | Under the token, for an archetype declaring a frontmatter-owned key `K`, a document with the frontmatter value and no `## K` section yields no diagnostic, `record` holds the frontmatter value for `K`, and the output has no `recordSources` entry and no `availability.recordKeys` entry for `K` (not `not_applicable`). The control: a key that is not frontmatter-owned with no section is `not_applicable`, as in AC-1. | Test |
+| FR-081-AC-21 | Without the token, an archetype declaring a frontmatter-owned key `K` and a document with a `## K` section yield no `frontmatter-owned` diagnostic and no `record`. | Test |
 
 ## Dependencies
 

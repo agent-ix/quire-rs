@@ -7,6 +7,8 @@ relationships:
     type: "extends"
   - target: "ix://agent-ix/quire-rs/spec/functional/FR-050"
     type: "requires"
+  - target: "ix://agent-ix/quire-rs/spec/functional/FR-069"
+    type: "requires"
   - target: "ix://agent-ix/quire-rs/spec/functional/FR-085"
     type: "requires"
   - target: "ix://agent-ix/quire-rs/spec/stakeholder/StR-006"
@@ -76,6 +78,44 @@ in `linked` with `"resolution": "dangling"`, the reference as authored, and `ver
 `not-tracked`. The same edge is also listed in `dangling`, so the reader sees that it points at
 nothing loaded. A `linked` entry for a resolved target carries `"resolution": "resolved"`.
 
+### Carried record values and the reverse view (PLAT-1441)
+
+A relation MAY declare `record_keys` ([FR-058](./FR-058-upward-trace-completeness.md)), an
+allow-list of record key names. For such a relation:
+
+- The engine SHALL serialize `record` on the obliged `document` and on each resolved `linked`
+  entry as a JSON object holding only the keys in `record_keys` that the document's composed
+  semantic record ([FR-069](./FR-069-semantic-module-contract-at-load.md)) states, with each
+  value as extracted.
+- The engine SHALL NOT serialize any record key outside `record_keys`, whatever the record holds,
+  and SHALL NOT default, derive or fill a selected key the document did not state.
+- The engine SHALL order the keys of `record` lexicographically by key name, regardless of the
+  order of `record_keys` or of authoring.
+- The engine SHALL omit `record` (the key, not an empty object) when no selected key is stated,
+  when the document's archetype has no resolved `data_schema`, or when record validation of the
+  document fails (any `semantic.record-invalid` or `semantic.duplicate-record-key` error).
+- A `dangling` `linked` entry has no document and carries no `record`.
+
+A relation without `record_keys` serializes no `record` at all. The engine names no key: the
+module declares each one, for example the single key of a classification that a consumer
+needs, so a consumer-facing report can exclude every other key of the same record by
+declaration.
+
+The two directions over one verb give the connection-to-classification and the
+classification-to-connection views from two declarations, with no new
+declaration kind:
+
+- a relation `from: <connection kind>, direction: outgoing` has one row per
+  connection and, in `linked`, each classification it points at with that
+  classification's selected `record`;
+- a relation `from: <classification kind>, direction: incoming` over the same
+  verb has one row per classification and, in `linked`, each connection that
+  points at it, ordered by repo then id.
+
+A classification pointed at by no connection is an `uncovered` row of the second
+relation; the two views are built from the same edges, so each pairing appears
+in both. The engine holds no connection, classification or category name.
+
 ### Verification status comes from the matrix
 
 The verification status of a document is read from its `requirements[]` entry in the
@@ -120,7 +160,8 @@ value exactly as authored. The shapes of the remaining objects are:
 - **Document** (the obliged `document` and a resolved `linked` entry): `{"id", "path", "archetype",
   "repo", "verification", "criteria"}` with `repo` omitted when the member has no identity,
   `archetype` omitted when the document has no `type`, and
-  `verification` and `criteria` present for the obliged document and for every linked document alike.
+  `verification` and `criteria` present for the obliged document and for every linked document alike,
+  and `"record"` (a JSON object of the selected keys) present only as the section above states, after `criteria`.
   `criteria` is `{"backed": n, "unbacked": n, "not_measured": n}` and is always present, with zero
   counts and `verification` `not-tracked` for a document with no matrix entry. The obliged document
   carries them so a reverse-view row's status is visible on the row.
@@ -182,6 +223,16 @@ consumer, and the engine writes nothing back to any document.
 | FR-084-AC-17 | The engine source contains no hazard, threat, mitigation or safety-classification name ([FR-058](./FR-058-upward-trace-completeness.md)-CON-2). | Inspection |
 | FR-084-AC-18 | When no loaded module declares a `required_relations` entry, the report is produced and serializes as `{"relations": []}`. | Test |
 | FR-084-AC-19 | Supplying a number of member inputs different from the corpus's member count is an error naming both counts, and no report is produced. | Test |
+| FR-084-AC-20 | Given a relation with `record_keys: [cats]` and connection documents pointing by one verb at classification documents, one of which states `cats: ["a","b"]`, the outgoing relation's `linked` entry for it carries `record` equal to `{"cats": ["a","b"]}` in authored list order. | Test |
+| FR-084-AC-21 | In the AC-20 corpus, a classification whose record states no `cats` has no `record` key in its `linked` entry (neither `{}` nor `"cats": []`), and the `record` of a classification with an empty record is likewise absent. | Test |
+| FR-084-AC-22 | In the AC-20 corpus, a classification record that states both `cats` and an unselected key `lvl` serializes `record` holding `cats` only: `lvl` appears nowhere in the report, in a `linked` entry or in the obliged `document`, as a key or in any nested value. | Test |
+| FR-084-AC-23 | Backing `agent-ix/spec-objects-architecture` FR-013: with a relation declaring `record_keys: [regulatedCategories]` over a data-classification record that states `level: restricted` and `regulatedCategories: [health]`, the report holds the `regulatedCategories` list and contains no `level` key at any depth. A second classification stating only `level` has no `record` in its entry. | Test |
+| FR-084-AC-24 | `record` is omitted for a document whose archetype has no resolved `data_schema`, for a document whose record fails validation (an enum violation, and a `semantic.duplicate-record-key`), and for a `dangling` `linked` entry, while a valid document of the same relation keeps its selected keys. | Test |
+| FR-084-AC-25 | With `record_keys: [zeta, alpha]` and a document stating `zeta` before `alpha`, `record` serializes `alpha` then `zeta`; two runs of the report are byte-identical. | Test |
+| FR-084-AC-26 | A relation without `record_keys` serializes no `record` on any entry, and its output is byte-identical to the report produced before this requirement. | Test |
+| FR-084-AC-27 | In every document entry that carries `record`, the `record` key follows `criteria`. | Test |
+| FR-084-AC-28 | Over the AC-20 corpus, the incoming relation over the same verb has one row per classification whose `linked` lists its connections by repo then id; a classification no connection points at is an `uncovered` row; every connection-to-classification pairing of the outgoing relation appears as the converse pairing here. | Test |
+| FR-084-AC-29 | The engine source names none of `regulatedCategories`, `health`, `personal` or `financial` as a key, value or special case, and AC-20..AC-22 and AC-24..AC-28 pass with a fixture using none of them. | Inspection |
 
 ## Constraints
 
