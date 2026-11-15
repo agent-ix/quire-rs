@@ -41,6 +41,18 @@ This is the constraint the whole requirement exists to preserve.
 unverified code claim coverage. **Widening `verifies` was the wrong fix, and so is a shared type with
 a discriminator** — that puts one typo between scope and evidence.
 
+### A third relation, `formalizes`
+
+[FR-094](./FR-094-formalizes-relation.md) adds `formalizes`: a QSL declaration is the formal
+statement of a requirement. It is a separate declared list (`trace_tags.formalizes`), a separate type
+and a separate symbol-record list, and it never backs a criterion.
+
+| Relation | Means | Declared in | May back an acceptance criterion |
+|---|---|---|---|
+| `verifies` | evidence | `trace_tags.markers` | yes |
+| `implements` | scope | `trace_tags.implements` | never |
+| `formalizes` | formal statement | `trace_tags.formalizes` | never |
+
 ### The separation is structural, not conventional
 
 Three independent things keep them apart, and none of them is a naming convention:
@@ -294,6 +306,7 @@ waive any normative criterion.
 | FR-062-AC-25 | A pattern matching a proper substring of a decorator or wrapper candidate yields no relation and one `partial-implements-syntax-match` warning naming the form, file, 1-based candidate line, qualified symbol and verbatim candidate, even where another candidate matches fully; a candidate the pattern does not match at all, including `@staticmethod`, `@dataclass`, `@Injectable()` and a renamed-namespace spelling (`t.implementing("X")`, `@t.implements("X")`) against a start-anchored pattern, yields neither a relation nor this finding. | Test |
 | FR-062-AC-26 | Under a module whose Python and TypeScript `implements` forms are structural only, `# Implements: FR-007-AC-2` and `// Implements: FR-007-AC-2` on a production function bind nothing, and the FR-051 advisory reports each under FR-051-AC-22 naming the text rendered from the declared structural form of that symbol's language and position that declares a `template`: `@implements("FR-007-AC-2")` for a Python function, method or class, `@implementing("FR-007-AC-2")` for a TypeScript class or method, and `implementing("FR-007-AC-2")` for a `const`-, `let`- or `var`-bound TypeScript function. A TypeScript `function` declaration, and a symbol whose language declares no structural templated form, is named by kind alone. A module that still declares a textual form for the language binds that comment as before. | Test |
 | FR-062-AC-27 | Structural forms preserve symbol identities, the existing range refusal for an argument carrying a `..` range, per-file parse-failure isolation and deterministic relation and diagnostic ordering, and move no `verifies` edge and no coverage backing count. | Test |
+| FR-062-AC-28 | A form declared under `trace_tags.formalizes` with a language other than `qsl`, and a `language: qsl` form declared under `trace_tags.markers` or `trace_tags.implements`, are each refused at module load, naming the form, with no fallback. A `formalizes` relation appears in neither `verifies` nor `implements` output and moves no number in `backed`, `totals` or `untracked_symbols`. | Test |
 
 > **CR-081 (module-declared forms survive the load — 2026-08-19):** the relation
 > was inert wherever it was actually used. `trace_tags.implements` was added to

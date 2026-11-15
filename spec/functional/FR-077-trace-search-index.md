@@ -7,6 +7,8 @@ relationships:
     type: "extends"
   - target: "ix://agent-ix/quire-rs/spec/functional/FR-062"
     type: "references"
+  - target: "ix://agent-ix/quire-rs/spec/functional/FR-094"
+    type: "references"
   - target: "ix://agent-ix/quire-rs/spec/stakeholder/StR-001"
     type: "traces_to"
 ---
@@ -86,6 +88,7 @@ a Python hit with the same evidentiary weight as a Rust one.
 | FR-077-AC-5 | `Mention` carries the `language` it was extracted from directly; `VerifiesRelation`/`ImplementsRelation` carry none, and `symbol_language()` joins one back from `extraction` by `symbol_id`. Either way, one documented function (`language_confidence`) maps `language` to a confidence label (`structural` for Rust — AST-grounded, PLAT-843 — `line_heuristic` for Python/TypeScript, pre-PLAT-851), so a caller never presents a result set as uniformly grounded across languages. | Test |
 | FR-077-AC-6 | Trace-id matching is exact after `normalized_trace_id()` normalization; the engine performs no implicit FR/AC/TC hierarchy expansion. | Test |
 | FR-077-AC-7 | A query over a graph and extraction that record an unavailable language ([FR-051](./FR-051-source-symbol-extraction.md)-AC-29) is refused with an error naming the language, not answered as unresolved: "nothing backs this id" must not be reachable when the evidence is in a language the build cannot read (CR-201, PLAT-874). | Test |
+| FR-077-AC-8 | `SearchResult` carries `formalizes: Vec<FormalizesRelation>` as its own field beside `verifies` and `implements`, in forward and inverse results. A forward query for `FR-001` over the FR-094-AC-1 fixture returns the QSL symbol under `formalizes` only, with `verifies` and `implements` empty; an inverse query on that symbol returns its ids under `formalizes` only. | Test |
 
 ## Constraints
 
