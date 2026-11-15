@@ -1507,10 +1507,26 @@ fn tc1026_the_declared_vocabulary_matches_the_engine() {
         .iter()
         .filter_map(|v| v.as_str())
         .collect();
+    // FR-094's reasons are registered by this engine ahead of the pinned corpus
+    // declaring them. They are accounted for here by name, so any other
+    // difference between the declaration and the registry still fails.
+    const FORMALIZES_REASONS: [&str; 3] = [
+        "duplicate-formalizes-claim",
+        "formalizes-unbound",
+        "formalizes-unknown-id",
+    ];
+    let registry = quire_rs::coverage::COVERAGE_DIAGNOSTIC_REASONS;
+    let declared_plus_formalizes: BTreeSet<&str> =
+        emitted.iter().copied().chain(FORMALIZES_REASONS).collect();
     assert_eq!(
-        emitted,
-        quire_rs::coverage::COVERAGE_DIAGNOSTIC_REASONS,
-        "corpus.yaml `emitted` must equal the engine registry",
+        emitted.len() + FORMALIZES_REASONS.len(),
+        declared_plus_formalizes.len(),
+        "corpus.yaml `emitted` must not already list a formalizes reason",
+    );
+    assert_eq!(
+        declared_plus_formalizes,
+        registry.iter().copied().collect::<BTreeSet<_>>(),
+        "corpus.yaml `emitted` plus the formalizes reasons must equal the engine registry",
     );
 
     // The same registry is present in an ordinary report, which makes the
@@ -1522,7 +1538,7 @@ fn tc1026_the_declared_vocabulary_matches_the_engine() {
         .iter()
         .map(String::as_str)
         .collect();
-    assert_eq!(payload_registry, emitted);
+    assert_eq!(payload_registry, registry);
 
     let mut asserted_present = BTreeSet::new();
     let mut asserted_absent = BTreeSet::new();
