@@ -1775,15 +1775,14 @@ fn merge_traceability(modules: &[LoadedModule]) -> crate::traceability::Traceabi
     merged
 }
 
-/// The first carried field two modules declare under one name with different
-/// keys (FR-090-AC-10): `(name, [(module, key), (module, key)])`.
-///
-/// Modules are scanned in load order, but the pair is reported by name so the
-/// failure does not depend on which module loaded first.
 /// The first `record_keys` entry of `relation` that no endpoint archetype
 /// (`from`, and each loaded archetype of `to`) declares as a top-level property
 /// of its resolved `data_schema`. A key only some endpoints declare is accepted;
 /// a relation with `to: []` has `from` as its only endpoint.
+///
+/// Only the root `properties` count: record extraction reads the same level
+/// (`RecordSchema::new`), so a key declared solely through a root `allOf` or
+/// `$ref` is never populated and carrying it would be vacuous.
 fn undeclared_record_key(
     relation: &crate::traceability::RequiredRelation,
     archetypes: &BTreeMap<String, Arc<CompiledArchetype>>,
@@ -1812,6 +1811,11 @@ fn undeclared_record_key(
         })
 }
 
+/// The first carried field two modules declare under one name with different
+/// keys (FR-090-AC-10): `(name, [(module, key), (module, key)])`.
+///
+/// Modules are scanned in load order, but the pair is reported by name so the
+/// failure does not depend on which module loaded first.
 fn carried_field_conflict(modules: &[LoadedModule]) -> Option<(String, Vec<(String, String)>)> {
     let mut seen: BTreeMap<&str, (&str, &str)> = BTreeMap::new();
     for module in modules {

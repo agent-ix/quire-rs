@@ -805,11 +805,38 @@ impl SemanticExtraction {
             .collect()
     }
 
-    /// Whether any declaration kind could not be read (`unavailable`). The
-    /// declaration record omits such a kind's key, which is the shape of "nothing
-    /// was declared"; a consumer must not validate that omission as a record.
-    pub fn any_kind_unavailable(&self) -> bool {
-        self.any_kind_unavailable_except(&BTreeSet::new())
+    /// Whether the FR-075 `model` kind could not be read. It can supply any
+    /// record key.
+    pub(crate) fn model_unavailable(&self) -> bool {
+        self.availability
+            .model
+            .as_ref()
+            .is_some_and(|k| k.state == AvailabilityState::Unavailable)
+    }
+
+    /// The declaration-record keys supplied by a kind that could not be read
+    /// (`unavailable`), excluding the `model` kind: its key is absent because it
+    /// could not be read, not because nothing was declared.
+    pub(crate) fn unavailable_record_keys(&self) -> BTreeSet<String> {
+        let a = &self.availability;
+        let unavailable = |k: &KindAvailability| k.state == AvailabilityState::Unavailable;
+        let mut keys = BTreeSet::new();
+        for (key, kind) in [
+            ("fields", Some(&a.fields)),
+            ("clauses", Some(&a.clauses)),
+            ("operations", Some(&a.operations)),
+            ("relations", a.relations.as_ref()),
+        ] {
+            if kind.is_some_and(unavailable) {
+                keys.insert(key.to_string());
+            }
+        }
+        for (key, kind) in a.record_keys.iter().flatten() {
+            if unavailable(kind) {
+                keys.insert(key.clone());
+            }
+        }
+        keys
     }
 
     /// Whether any declaration kind other than `omitted_record_keys` could not

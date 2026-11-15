@@ -527,47 +527,71 @@ fn semantic_context(
     (ctx, required)
 }
 
-/// The composed semantic record of `doc_text` restricted to `keys`
-/// (FR-084 "Carried record values"), in key order.
+/// The composed, validated semantic record of one document (FR-084 "Carried
+/// record values"), extracted once so every relation that selects keys from it
+/// reuses the same read.
+#[derive(Debug, Clone)]
+pub(crate) struct DocumentRecord {
+    values: serde_json::Map<String, Value>,
+    /// Declaration keys a kind that could not be read would have supplied.
+    unreadable: BTreeSet<String>,
+    /// The `model` kind could not be read; it can supply any key.
+    model_unreadable: bool,
+}
+
+impl DocumentRecord {
+    /// The record restricted to `keys`, in key order. `None` when none of
+    /// `keys` is stated, or when a kind that could have supplied a selected key
+    /// could not be read. A kind that supplies only unselected keys does not
+    /// affect the selection. A selected key is carried as extracted; none is
+    /// defaulted, derived or filled.
+    pub(crate) fn select(&self, keys: &[String]) -> Option<serde_json::Map<String, Value>> {
+        if self.model_unreadable || keys.iter().any(|key| self.unreadable.contains(key)) {
+            return None;
+        }
+        let mut selected: Vec<&String> = keys.iter().collect();
+        selected.sort();
+        let record: serde_json::Map<String, Value> = selected
+            .into_iter()
+            .filter_map(|key| Some((key.clone(), self.values.get(key)?.clone())))
+            .collect();
+        (!record.is_empty()).then_some(record)
+    }
+}
+
+/// The record of `doc_text`, resolved by its concept `type` alone (the
+/// archetype that endpoint matching, the FR-058-AC-36 load check and the
+/// FR-084 `archetype` field all name).
 ///
-/// `None` when the document's archetype (its `object`, else its `type`) has no
-/// resolved `data_schema` or semantic module, when its record fails validation
-/// (a `semantic.record-invalid` or `semantic.duplicate-record-key` error), or
-/// when it states none of `keys`. A selected key is carried as extracted; none
-/// is defaulted, derived or filled.
-pub(crate) fn selected_record(
+/// `None` when that archetype has no resolved `data_schema` or semantic
+/// module, or when the record fails validation (a `semantic.record-invalid` or
+/// `semantic.duplicate-record-key` error).
+pub(crate) fn document_record(
     registry: &crate::Registry,
     doc_text: &str,
     bundle_package: Option<&str>,
-    keys: &[String],
-) -> Option<serde_json::Map<String, Value>> {
+) -> Option<DocumentRecord> {
     let doc = crate::parse_document(doc_text);
-    let arch = ["object", "type"]
-        .into_iter()
-        .filter_map(|field| doc.frontmatter.as_ref()?.get(field)?.as_str())
-        .filter_map(|name| registry.archetype(name))
-        .find(|arch| {
-            arch.data_validator().is_some() && registry.semantic_module(&arch.module).is_some()
-        })?;
+    let arch = registry.archetype(crate::query::concept_type(&doc)?)?;
+    let validator = arch.data_validator()?;
     let module = registry.semantic_module(&arch.module)?;
     let (ctx, required) = semantic_context(registry, arch, module, bundle_package);
     let extraction = crate::semantic::extract_semantic(doc_text, &ctx, &required);
-    let omitted = extraction.duplicate_record_keys();
-    if !omitted.is_empty() || extraction.any_kind_unavailable() {
+    if !extraction.duplicate_record_keys().is_empty() {
         return None;
     }
     let declaration = extraction.declaration_record().ok()?;
-    if !arch.data_validator()?.is_valid(&declaration) {
+    if !validator.is_valid(&declaration) {
         return None;
     }
-    let object = declaration.as_object()?;
-    let mut selected: Vec<&String> = keys.iter().collect();
-    selected.sort();
-    let record: serde_json::Map<String, Value> = selected
-        .into_iter()
-        .filter_map(|key| Some((key.clone(), object.get(key)?.clone())))
-        .collect();
-    (!record.is_empty()).then_some(record)
+    let Value::Object(values) = declaration else {
+        return None;
+    };
+    Some(DocumentRecord {
+        values,
+        unreadable: extraction.unavailable_record_keys(),
+        model_unreadable: extraction.model_unavailable(),
+    })
 }
 
 /// The line of a record finding: the authored frontmatter leaf of a
@@ -2247,5 +2271,28 @@ edge_types:
         assert_eq!(record_key_line(&record, doc, "relations.0"), 17);
         assert_eq!(record_key_line(&record, doc, "clauses"), FRONTMATTER_LINE);
         assert_eq!(record_key_line(&record, doc, "<root>"), FRONTMATTER_LINE);
+    }
+
+    /// FR-084-AC-24: only a kind that could supply a selected key withholds the
+    /// selection; an unreadable section of unselected keys does not.
+    #[trace("FR-084-AC-24")]
+    #[test]
+    fn selection_ignores_an_unreadable_kind_of_unselected_keys() {
+        let record = |unreadable: &[&str], model_unreadable| DocumentRecord {
+            values: serde_json::json!({"cats": ["a"], "lvl": "hi"})
+                .as_object()
+                .cloned()
+                .unwrap_or_default(),
+            unreadable: unreadable.iter().map(|k| (*k).to_string()).collect(),
+            model_unreadable,
+        };
+        let keys = vec!["cats".to_string()];
+        let expected = serde_json::json!({"cats": ["a"]});
+        assert_eq!(
+            record(&["relations"], false).select(&keys),
+            expected.as_object().cloned()
+        );
+        assert_eq!(record(&["cats"], false).select(&keys), None);
+        assert_eq!(record(&[], true).select(&keys), None);
     }
 }

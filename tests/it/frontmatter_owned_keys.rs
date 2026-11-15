@@ -121,8 +121,8 @@ fn tc_schema_failures_name_the_key_and_sit_at_the_authored_line() {
     for (value, needle) in [
         ("raw: [x]\n", "x"),
         ("raw: []\n", "less than 1 item"),
-        ("raw: [a, a]\n", "cats"),
-        ("raw: a\n", "cats"),
+        ("raw: [a, a]\n", "non-unique"),
+        ("raw: a\n", "is not of type"),
     ] {
         let text = doc(value, "");
         let result = validate(&registry, &text);
