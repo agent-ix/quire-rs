@@ -7,6 +7,8 @@ relationships:
     type: "extends"
   - target: "ix://agent-ix/quire-rs/spec/functional/FR-062"
     type: "references"
+  - target: "ix://agent-ix/quire-rs/spec/functional/FR-094"
+    type: "references"
   - target: "ix://agent-ix/quire-rs/spec/stakeholder/StR-001"
     type: "traces_to"
 ---
