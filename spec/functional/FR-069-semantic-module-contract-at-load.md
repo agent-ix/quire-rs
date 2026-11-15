@@ -10,6 +10,9 @@ relationships:
   - target: "ix://agent-ix/quire-rs/spec/usecase/US-019"
     type: "implements"
     cardinality: "1:1"
+  - target: "ix://agent-ix/quire-rs/spec/functional/FR-011"
+    type: "requires"
+    cardinality: "1:1"
   - target: "ix://agent-ix/quire-rs/spec/functional/FR-013"
     type: "requires"
     cardinality: "1:1"
@@ -254,29 +257,50 @@ Filament extraction API:
 ### Frontmatter-owned record keys (PLAT-1441)
 
 An archetype MAY declare, in `yield_pattern.match`, a locator keyed `K` with
-`from: frontmatter_field` and `path: [P]` ([FR-011](./FR-011-body-extraction-dsl.md))
+`from: frontmatter_field` and `path: [P, ...]` ([FR-011](./FR-011-body-extraction-dsl.md))
 where `K` is a property of the resolved `data_schema`. `K` is then a
 **frontmatter-owned record key**. The engine knows no key name; the
-declaration carries it.
+declaration carries it. When `K` equals the single path segment `P` (an
+existing frontmatter field), the projection is unchanged; only the FR-081
+section rule changes.
 
 - Before `data_schema` validation, registry-backed extraction SHALL project the
-  authored frontmatter value at `P` to the nested record key `K`, retaining its
-  JSON type and source line. A list stays a list; the locator is declared
-  without `multiple: true`, which would wrap it in a second array.
+  value the locator resolves to the nested record key `K`, retaining its JSON
+  type and source line, by the locator semantics of FR-011 and no others:
+  - `multiple` defaults to `false`, so the value at the path is projected as
+    authored and a list stays a list. With `multiple: true` the projection is the
+    array of resolved values as FR-011-AC-21 defines, and `data_schema`
+    validates that array.
+  - A `regex` is applied as FR-011 "Per-locator `regex:` projection" defines: a
+    non-match drops the value and `K` is absent; `data_schema` validates the
+    projected value. An `assert` facet ([FR-033](./FR-033-locator-assert-facet.md))
+    is evaluated as FR-033 defines and does not change the projected value.
+  - A `path` of several segments resolves the nested frontmatter value; if any
+    segment is missing, `K` is absent. The source line is that of the resolved
+    leaf key.
 - The authored key `P` SHALL NOT also be projected as an undeclared record
   property, so a closed `data_schema` does not reject the mapped key as
   undeclared.
-- If frontmatter does not carry `P`, then the record SHALL carry no `K`: the
+- If frontmatter does not carry the path, then the record SHALL carry no `K`: the
   engine SHALL NOT default, derive or fill it, and an optional property
   validates as absent.
+- An explicit `null` at the path is present, not absent: the engine SHALL
+  project `K` as `null` and `data_schema` validates it, so a `null` where the
+  schema does not allow it is a `semantic.record-invalid` finding.
 - `data_schema` validates the projected value as any other record value: enum
   membership, `minItems`, `uniqueItems` and type. Each failure is a
   `semantic.record-invalid` finding that names the record property path and the
   offending value, located at the source line of `P`. An empty list, a
   duplicate member and a scalar where the schema requires a list are each
   refused; none is repaired.
-- The projected value is a frontmatter source for the
-  `semantic.duplicate-record-key` rule below.
+- If one document authors both the mapped key `P` (with `P` different from `K`)
+  and the literal key `K` in frontmatter, then the engine SHALL treat them as
+  two frontmatter sources of `K` and emit `semantic.duplicate-record-key` by the
+  rule below; the record carries no `K`.
+- A FR-081 section under a frontmatter-owned key is not a source for
+  `semantic.duplicate-record-key`. [FR-081](./FR-081-record-sections-extraction.md)
+  governs it, and only when `record-sections` is enabled: the frontmatter value
+  wins and the section is a `frontmatter-owned` diagnostic.
 
 ### Located record validation (PLAT-1476)
 
@@ -456,11 +480,15 @@ stricter of the two.
 | FR-069-AC-35 | A valid composed declaration record validates against the resolved `data_schema`; a wrong JSON type, invalid `support_status`/`severity` enum, invalid `end_of_support` format/date, or undeclared `digest` under a closed schema makes document validation invalid with a `semantic.record-invalid` diagnostic naming the failing property path, while conforming values pass. | Test |
 | FR-069-AC-36 | An invalid frontmatter value is located at the source line of its key; a missing required property is located at the opening frontmatter line; unknown-property findings name the undeclared property and use its source line. | Test |
 | FR-069-AC-37 | An archetype without a resolved `data_schema` produces no frontmatter-projection schema findings, and the existing semantic extraction output remains valid against `semantic-v1.schema.json`. | Test |
-| FR-069-AC-38 | When semantic declaration, FR-081 section, and frontmatter sources provide the same record key, each later source occurrence emits a `semantic.duplicate-record-key` error at its source line naming the key and the earliest and later source kinds; the key is omitted from the composed record, document validation is invalid, and `data_schema` validates the remaining unambiguous values. | Test |
+| FR-069-AC-38 | When semantic declaration, FR-081 section, and frontmatter sources provide the same record key (a FR-081 section under a frontmatter-owned key excepted, FR-081-AC-18), each later source occurrence emits a `semantic.duplicate-record-key` error at its source line naming the key and the earliest and later source kinds; the key is omitted from the composed record, document validation is invalid, and `data_schema` validates the remaining unambiguous values. | Test |
 | FR-069-AC-39 | An archetype whose `yield_pattern.match` declares a `frontmatter_field` locator keyed `K` over frontmatter key `P` (without `multiple`), with `K` a list property of a closed `data_schema`, and a document with `P: [a, b]`, validates and its record holds `K` as `["a","b"]` in authored order, with no `P` property in the record. | Test |
 | FR-069-AC-40 | For the AC-39 archetype, a member outside the schema enum (`P: [x]`) fails with `semantic.record-invalid` naming `K` and the value `x` at the line of `P`; `P: []` fails `minItems`; `P: [a, a]` fails `uniqueItems`; and the scalar `P: a` fails as not a list. | Test |
 | FR-069-AC-41 | For the AC-39 archetype, a document without `P` validates and its record has no `K` key: the absence is asserted, and `K` is not filled with `[]` or any default. Existing archetypes without the locator project exactly as before. | Test |
-| FR-069-AC-42 | A fixture module whose frontmatter-owned key, frontmatter key and values are unrelated to any regulated-data vocabulary passes AC-39..AC-41; the engine source names no such key. | Test |
+| FR-069-AC-42 | For the AC-39 archetype with a two-segment `path: [outer, inner]`, a document with `outer: { inner: [a] }` records `K` as `["a"]` located at the line of `inner`, and a document lacking `outer` or `inner` records no `K`. | Test |
+| FR-069-AC-43 | For the AC-39 archetype with `multiple: true`, `K` is the array of resolved values (an authored list `[a]` yields `[["a"]]`) and a schema requiring strings refuses it; with `regex: '^v-(.+)$'` over a scalar `P: v-x` the projected `K` is `x`, and a non-matching `P: y` leaves `K` absent. | Test |
+| FR-069-AC-44 | For the AC-39 archetype, `P: null` records `K` as `null` (key present) and yields `semantic.record-invalid` at the line of `P` when the schema does not allow `null`; it is not treated as absent. | Test |
+| FR-069-AC-45 | For an AC-39 archetype with `P` different from `K`, a document authoring both `P: [a]` and `K: [a]` yields `semantic.duplicate-record-key` at the later line naming `K` and the source kind `frontmatter` twice, the record has no `K`, and document validation is invalid; where `P` equals `K` one authored key yields no such finding. | Test |
+| FR-069-AC-46 | The engine source names none of `regulatedCategories`, `health`, `personal` or `financial` as a key, value or special case, and AC-39..AC-45 pass with a fixture using none of them. | Inspection |
 
 ## Dependencies
 
