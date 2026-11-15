@@ -54,3 +54,12 @@ Pass 1 re-read the AC tables of FR-058, FR-069, FR-081 and FR-084 at head `5731e
 Pass-1 verdict: approved for this method. FND-003 and FND-004 are low and do not block, but they
 are one-token fixes and should go in the same fix round as the blocking findings of the base and
 integrity reviews.
+
+## Disposition pass 2
+
+| FND | Outcome | Reason |
+| --- | --- | --- |
+| FND-003 | fixed | FR-084-AC-29 excludes AC-23, whose fixture uses `regulatedCategories` and `health`. |
+| FND-004 | fixed | FR-069-AC-38 now cites the FR-081 two-source exemption in AC-19. |
+
+Pass-2 verdict: approved; no new findings.

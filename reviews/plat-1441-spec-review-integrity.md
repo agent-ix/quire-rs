@@ -74,3 +74,19 @@ AC-13. That makes FND-003 sharper: the quoin fixtures now assert the no-entry ou
 line 144 contradicts.
 
 Pass-1 verdict: changes requested, on FND-003 and FND-004 (medium).
+
+## Disposition pass 2
+
+| FND | Outcome | Reason |
+| --- | --- | --- |
+| FND-003 | fixed | The absent-section rule and Outputs line are limited to non-frontmatter-owned keys; AC-20 covers the frontmatter-owned no-section case. |
+| FND-004 | fixed | The Availability error rule is limited to non-frontmatter-owned keys; the both-forms rule and AC-19 assert no availability entry. |
+| FND-005 | still-open | The final Availability sentence still says every key is `available` when there are no errors; this must also be limited to non-frontmatter-owned keys. |
+
+### New findings (disposition pass 2)
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-005 | low | The Availability rule's final `Otherwise` clause still reports frontmatter-owned keys `available`, contradicting the frontmatter-owned output rules. | spec/functional/FR-081-record-sections-extraction.md:196-199 |
+
+Pass-2 verdict: approved; FND-005 is low and does not block.

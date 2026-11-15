@@ -84,3 +84,11 @@ Pass-1 verdict: changes requested, on FND-002 (medium). The original high findin
 `quire validate` was not re-run by this reviewer because the permission layer denied it. The
 lead reports that FR-058, FR-069, FR-081 and FR-084 validate at `5731e42`, with only the existing
 unused-import warning.
+
+## Disposition pass 2
+
+| FND | Outcome | Reason |
+| --- | --- | --- |
+| FND-002 | fixed | `### Authored inverse verbs` is restored above the CR-416 rule; the `record_keys` load checks are under their own heading. |
+
+Pass-2 verdict: approved.

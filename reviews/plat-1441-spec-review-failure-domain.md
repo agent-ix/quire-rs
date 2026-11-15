@@ -73,3 +73,11 @@ Pass 1 re-read FR-058, FR-069, FR-081 and FR-084 at head `5731e42`.
 - FND-003 after_excerpt (`spec/functional/FR-084-two-way-relation-coverage-report.md:92-96`): `The engine SHALL order the keys of record lexicographically by key name ...` / `The engine SHALL omit record ... when record validation of the document fails (any semantic.record-invalid or semantic.duplicate-record-key error).`
 
 Pass-1 verdict: approved for this method. FND-004 is low and does not block.
+
+## Disposition pass 2
+
+| FND | Outcome | Reason |
+| --- | --- | --- |
+| FND-004 | fixed | FR-058 states the `to: []` schema rule and the non-list refusal, and AC-36 asserts both. |
+
+Pass-2 verdict: approved; no new findings.

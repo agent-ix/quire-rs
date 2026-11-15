@@ -120,7 +120,7 @@ Token and key resolution:
     `frontmatter-owned`, read no value from the section, and produce no
     `record` entry, no `recordSources` entry and no `availability.recordKeys`
     entry for the key.
-  - When a document carries a frontmatter-owned value for key `K` and has a
+  - If a document carries a frontmatter-owned value for key `K` and has a
     section headed `K`, then the engine SHALL emit the warning
     `semantic.feature-not-extractable` at the heading with `reason`
     `frontmatter-owned`. The explicit `null` of FR-069 counts as a value.
@@ -196,7 +196,8 @@ Availability:
 - If any header, row, block or section of a key that is not frontmatter-owned
   carries an error, then the engine SHALL report the key `unavailable` with reason
   `entry-errors: lines <lines>` as FR-076 formats it, with no value and no
-  `recordSources` entry. Otherwise the key is `available` and not lossy.
+  `recordSources` entry. Otherwise a key that is not
+  frontmatter-owned is `available` and not lossy.
 
 Keys with their own form (module `agent-ix/spec-objects-architecture`, quoin
 FR-122), when the record schema declares the key:

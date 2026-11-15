@@ -47,3 +47,12 @@ values) at head `5731e42`.
 Pass-1 verdict: approved for this method. FND-002 is low and does not block. Also examined, with
 no defect found: the FR-058 `record_keys` refusal statement, the FR-069 projection, absence,
 null and duplicate statements, and the FR-081 section-only statement.
+
+## Disposition pass 2
+
+| FND | Outcome | Reason |
+| --- | --- | --- |
+| FND-002 | fixed | The both-forms statements use `If ..., then` with a single response. |
+| FND-003 | fixed | The first both-forms bullet uses `If ..., then`, matching its siblings. |
+
+Pass-2 verdict: approved; no new findings.
