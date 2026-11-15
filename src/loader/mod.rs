@@ -1449,6 +1449,28 @@ pub fn flatten_into_registry(mut outcome: LoadOutcome) -> RegistryShape {
         }
         traceability = crate::traceability::TraceabilityModel::default();
     }
+    // FR-058-AC-36: a `record_keys` entry no endpoint archetype declares would
+    // select nothing in every report, so it fails at load, naming the relation.
+    for relation in &traceability.required_relations {
+        let Some(reason) = undeclared_record_key(relation, &active_archetypes) else {
+            continue;
+        };
+        for module in outcome.modules.iter().filter(|m| {
+            m.traceability
+                .required_relations
+                .iter()
+                .any(|declared| declared.name == relation.name)
+        }) {
+            outcome.failures.push(ArchetypeLoadFailure {
+                module: module.name.clone(),
+                archetype: "<manifest>".to_string(),
+                path: module.root.join("manifest.yaml"),
+                reason: format!("merged selected traceability model: {reason}"),
+            });
+        }
+        traceability = crate::traceability::TraceabilityModel::default();
+        break;
+    }
     let declaration_origins = merge_declaration_origins(&outcome.modules);
 
     // ── FR-041: derive the inverse-label → forward-verb index from the
@@ -1758,6 +1780,38 @@ fn merge_traceability(modules: &[LoadedModule]) -> crate::traceability::Traceabi
 ///
 /// Modules are scanned in load order, but the pair is reported by name so the
 /// failure does not depend on which module loaded first.
+/// The first `record_keys` entry of `relation` that no endpoint archetype
+/// (`from`, and each loaded archetype of `to`) declares as a top-level property
+/// of its resolved `data_schema`. A key only some endpoints declare is accepted;
+/// a relation with `to: []` has `from` as its only endpoint.
+fn undeclared_record_key(
+    relation: &crate::traceability::RequiredRelation,
+    archetypes: &BTreeMap<String, Arc<CompiledArchetype>>,
+) -> Option<String> {
+    let keys = relation.record_keys.as_deref()?;
+    let endpoints: Vec<&str> = std::iter::once(relation.from.as_str())
+        .chain(relation.to.iter().map(String::as_str))
+        .collect();
+    let declares = |archetype: &str, key: &str| {
+        archetypes
+            .get(archetype)
+            .and_then(|a| a.data_schema.as_deref())
+            .and_then(|schema| schema.get("properties"))
+            .and_then(serde_json::Value::as_object)
+            .is_some_and(|properties| properties.contains_key(key))
+    };
+    keys.iter()
+        .find(|key| !endpoints.iter().any(|endpoint| declares(endpoint, key)))
+        .map(|key| {
+            format!(
+                "required_relations entry '{}' selects `record_keys` entry '{key}', which no \
+                 endpoint archetype ({}) declares in its resolved data_schema",
+                relation.name,
+                endpoints.join(", ")
+            )
+        })
+}
+
 fn carried_field_conflict(modules: &[LoadedModule]) -> Option<(String, Vec<(String, String)>)> {
     let mut seen: BTreeMap<&str, (&str, &str)> = BTreeMap::new();
     for module in modules {

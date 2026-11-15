@@ -58,10 +58,6 @@ impl FrontmatterOwned {
         Self(owned)
     }
 
-    pub(crate) fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
-
     pub(crate) fn owns(&self, key: &str) -> bool {
         self.0.iter().any(|owned| owned.key == key)
     }

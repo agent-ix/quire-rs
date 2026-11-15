@@ -396,44 +396,8 @@ fn semantic_findings(
     errors: &mut Vec<ValidationError>,
     warnings: &mut Vec<ValidationWarning>,
 ) {
-    use crate::semantic::{
-        BundleIndex, ConstructReferences, RelationVocabulary, RequiredSections, SemanticContext,
-        SemanticSeverity,
-    };
-    let mut bundle = BundleIndex {
-        package: bundle_package.unwrap_or_default().to_string(),
-        ..BundleIndex::default()
-    };
-    for (_, m) in registry.semantic_modules() {
-        bundle.imports.insert(m.package.clone(), m.exports.clone());
-    }
-    // This surface has no document path: spans and refusals name `<document>`.
-    let mut ctx = SemanticContext::new(module.clone(), "<document>", bundle)
-        .with_relation_vocabulary(RelationVocabulary::from_registry(registry, arch))
-        .with_object_type(arch.name.clone());
-    if let Some(references) = arch
-        .construct()
-        .and_then(ConstructReferences::from_construct)
-    {
-        ctx = ctx.with_construct_references(references);
-    }
-    if let Some(schema) = arch.data_schema.as_deref() {
-        let no_documents = std::collections::BTreeMap::new();
-        ctx = ctx.with_data_schema(schema).with_record_schema(
-            schema,
-            arch.data_schema_documents
-                .as_deref()
-                .unwrap_or(&no_documents),
-        );
-    }
-    let ctx = match arch.body_extraction() {
-        Some(dsl) => ctx.with_body_extraction(dsl),
-        None => ctx,
-    };
-    let required = arch
-        .body_extraction()
-        .map(RequiredSections::from_extraction)
-        .unwrap_or_default();
+    use crate::semantic::SemanticSeverity;
+    let (ctx, required) = semantic_context(registry, arch, module, bundle_package);
     let record = crate::semantic::extract_semantic(doc_text, &ctx, &required);
     for d in &record.diagnostics {
         let message = format!("{}: {}", d.code, d.message);
@@ -511,6 +475,99 @@ fn semantic_findings(
             });
         }
     }
+}
+
+/// The extraction context and required sections of `arch` for the registry
+/// surface. It has no document path: spans and refusals name `<document>`.
+fn semantic_context(
+    registry: &crate::Registry,
+    arch: &CompiledArchetype,
+    module: &crate::semantic::SemanticModule,
+    bundle_package: Option<&str>,
+) -> (
+    crate::semantic::SemanticContext,
+    crate::semantic::RequiredSections,
+) {
+    use crate::semantic::{
+        BundleIndex, ConstructReferences, RelationVocabulary, RequiredSections, SemanticContext,
+    };
+    let mut bundle = BundleIndex {
+        package: bundle_package.unwrap_or_default().to_string(),
+        ..BundleIndex::default()
+    };
+    for (_, m) in registry.semantic_modules() {
+        bundle.imports.insert(m.package.clone(), m.exports.clone());
+    }
+    let mut ctx = SemanticContext::new(module.clone(), "<document>", bundle)
+        .with_relation_vocabulary(RelationVocabulary::from_registry(registry, arch))
+        .with_object_type(arch.name.clone());
+    if let Some(references) = arch
+        .construct()
+        .and_then(ConstructReferences::from_construct)
+    {
+        ctx = ctx.with_construct_references(references);
+    }
+    if let Some(schema) = arch.data_schema.as_deref() {
+        let no_documents = std::collections::BTreeMap::new();
+        ctx = ctx.with_data_schema(schema).with_record_schema(
+            schema,
+            arch.data_schema_documents
+                .as_deref()
+                .unwrap_or(&no_documents),
+        );
+    }
+    let ctx = match arch.body_extraction() {
+        Some(dsl) => ctx.with_body_extraction(dsl),
+        None => ctx,
+    };
+    let required = arch
+        .body_extraction()
+        .map(RequiredSections::from_extraction)
+        .unwrap_or_default();
+    (ctx, required)
+}
+
+/// The composed semantic record of `doc_text` restricted to `keys`
+/// (FR-084 "Carried record values"), in key order.
+///
+/// `None` when the document's archetype (its `object`, else its `type`) has no
+/// resolved `data_schema` or semantic module, when its record fails validation
+/// (a `semantic.record-invalid` or `semantic.duplicate-record-key` error), or
+/// when it states none of `keys`. A selected key is carried as extracted; none
+/// is defaulted, derived or filled.
+pub(crate) fn selected_record(
+    registry: &crate::Registry,
+    doc_text: &str,
+    bundle_package: Option<&str>,
+    keys: &[String],
+) -> Option<serde_json::Map<String, Value>> {
+    let doc = crate::parse_document(doc_text);
+    let arch = ["object", "type"]
+        .into_iter()
+        .filter_map(|field| doc.frontmatter.as_ref()?.get(field)?.as_str())
+        .filter_map(|name| registry.archetype(name))
+        .find(|arch| {
+            arch.data_validator().is_some() && registry.semantic_module(&arch.module).is_some()
+        })?;
+    let module = registry.semantic_module(&arch.module)?;
+    let (ctx, required) = semantic_context(registry, arch, module, bundle_package);
+    let extraction = crate::semantic::extract_semantic(doc_text, &ctx, &required);
+    let omitted = extraction.duplicate_record_keys();
+    if !omitted.is_empty() || extraction.any_kind_unavailable() {
+        return None;
+    }
+    let declaration = extraction.declaration_record().ok()?;
+    if !arch.data_validator()?.is_valid(&declaration) {
+        return None;
+    }
+    let object = declaration.as_object()?;
+    let mut selected: Vec<&String> = keys.iter().collect();
+    selected.sort();
+    let record: serde_json::Map<String, Value> = selected
+        .into_iter()
+        .filter_map(|key| Some((key.clone(), object.get(key)?.clone())))
+        .collect();
+    (!record.is_empty()).then_some(record)
 }
 
 /// The line of a record finding: the authored frontmatter leaf of a

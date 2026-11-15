@@ -25,6 +25,7 @@ mod determinism;
 mod edge_target_kinds;
 mod field_rules;
 mod filament_boundary_audit;
+mod frontmatter_owned_keys;
 mod filament_core_fixtures;
 mod id_column_lists;
 #[cfg(feature = "rust-symbols")]
@@ -50,6 +51,7 @@ mod plat_validation_batch;
 mod props_fr_040;
 mod props_metamorphic;
 mod quality_lints;
+mod record_carry;
 mod relation_report;
 mod release_workflow;
 mod required_relations;

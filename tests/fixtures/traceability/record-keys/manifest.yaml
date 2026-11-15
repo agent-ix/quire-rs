@@ -1,0 +1,81 @@
+# FR-084 record-carrying fixture: connection-like and classification-like kinds,
+# a verb and record keys that belong to no real chain. The engine knows none.
+name: traceability-record-keys
+version: 0.1.0
+description: Relation report fixture whose relations carry selected record keys
+artifact_types:
+- name: Connection
+  defaults:
+    id_pattern: CONN-{next:03d}
+- name: Classification
+  defaults:
+    id_pattern: CLS-{next:03d}
+  data_schema:
+    schema: schemas/Classification.json
+  body_extraction:
+    yield_pattern:
+      match:
+        tag:
+          from: frontmatter_field
+          path: [raw_tag]
+          required: false
+- name: Link
+  defaults:
+    id_pattern: LINK-{next:03d}
+  data_schema:
+    schema: schemas/Classification.json
+semantic:
+  contract_version: 1.0.0
+  package: agent-ix/record-keys
+  exports: [Classification, Link]
+  targets: [json-schema, markdown]
+traceability:
+  required_relations:
+  # Connection -> classification view, carrying `cats`.
+  - name: conn-classified
+    from: Connection
+    edges: [classified-as]
+    to: [Classification]
+    direction: outgoing
+    check: conn-unclassified
+    record_keys: [cats]
+  # Classification -> connection view over the same verb.
+  - name: cls-used
+    from: Classification
+    edges: [classified-as]
+    to: [Connection]
+    direction: incoming
+    check: cls-unused
+    record_keys: [cats]
+  # Carries two keys, named in the opposite order to their lexical one.
+  - name: conn-classified-pair
+    from: Connection
+    edges: [classified-as]
+    to: [Classification]
+    direction: outgoing
+    check: conn-unclassified-pair
+    record_keys: [zeta, alpha]
+  # Any target, so an absent one is listed as a link without a record. `from`
+  # is the only endpoint, so it is the kind that declares the key.
+  - name: link-classified-any
+    from: Link
+    edges: [classified-as]
+    to: []
+    direction: outgoing
+    check: link-unclassified-any
+    record_keys: [cats]
+  # The same verb without `record_keys`.
+  - name: conn-classified-plain
+    from: Connection
+    edges: [classified-as]
+    to: [Classification]
+    direction: outgoing
+    check: conn-unclassified-plain
+  # Carries a key a frontmatter locator fills.
+  - name: conn-classified-tag
+    from: Connection
+    edges: [classified-as]
+    to: [Classification]
+    direction: outgoing
+    check: conn-unclassified-tag
+    record_keys: [tag]
