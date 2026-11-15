@@ -9,8 +9,6 @@ relationships:
     type: "requires"
   - target: "ix://agent-ix/quire-rs/spec/functional/FR-085"
     type: "requires"
-  - target: "ix://agent-ix/quire-rs/spec/functional/FR-084"
-    type: "references"
   - target: "ix://agent-ix/quire-rs/spec/functional/FR-091"
     type: "references"
   - target: "ix://agent-ix/quire-rs/spec/stakeholder/StR-006"
@@ -76,7 +74,7 @@ traceability:
 | `subject` | yes | Non-empty list of archetypes; each document of these archetypes is evaluated |
 | `match` | yes | Non-empty list of conditions; **all** must hold |
 | `unless_any` | no | List of conditions; **any one** holding clears the denial |
-| `check` | yes | The `<check>` half of the `trace:<check>` severity key ([FR-057](./FR-057-corpus-check-severity.md)); same form as FR-058-AC-10 |
+| `check` | yes | The `<check>` half of the `trace:<check>` severity key ([FR-057](./FR-057-corpus-check-severity.md)); same form as FR-058-AC-10. Several flow rules may share one `check`, and then share one severity key; no flow rule may use a `check` that another kind of declaration or the engine already reports under `trace:` |
 | `remediations` | no | Names declared in `traceability.remediations` that a person may apply to clear the denial |
 | `rationale` | yes | One sentence naming why the rule exists; copied into every denial |
 
@@ -133,15 +131,22 @@ A denial is a finding under `trace:<check>` that names:
 1. the rule's `name`;
 2. the subject: `id` and, when its corpus member declares an identity, `repo`;
 3. the **matched facts**: the documents at the end of the paths of the `match` conditions that
-   held through `any_of` or `present`, grouped by archetype, each by id (and `repo`), each once;
-   an `absent` condition names no document;
+   held through `any_of` or `present` **and satisfy that condition's field test** (for `any_of`,
+   those whose field has a value equal to an entry; for `present`, those that have the field),
+   grouped by archetype, each by id (and `repo`), each once. A document at the end of a path that
+   fails the field test is not named, so a connection carrying two classifications of which one holds
+   the value names only that one. An `absent` condition names no document;
 4. the `remediations`, in declared order;
 5. the `rationale`.
 
-**Default severity is `error`.** A rule fires only on documents that already carry the modelled
-facts, so a repository without such a model gets no finding. A project lowers or silences one check
-with the FR-057 registry (`--severity trace:<check>=warning`); a denial reported as `warning` leaves
-`validate` exiting 0, though a `--strict` caller still exits 1 on it (see the flow report). Rules with no declaration anywhere leave output byte-identical to a build
+**Default severity is `warning` in both postures**, as [FR-057](./FR-057-corpus-check-severity.md)
+requires of a corpus check introduced after it; this requirement amends neither FR-057 nor FR-058. A
+denial is advisory until a module or a project promotes it. A module promotes a check by declaring
+`grammar_severity: {"trace:<check>": error}` in its manifest, and a project lowers, raises or silences
+one with the same registry (`--severity trace:<check>=error|warning|off`); a CLI-shaped entry wins
+over a module-declared one (FR-057-AC-5), and `off` drops the denial from `errors`, `warnings` and the
+flow report. A module whose rules guard a regulated model is expected to promote its checks this way;
+the engine promotes none. Rules with no declaration anywhere leave output byte-identical to a build
 without this requirement.
 
 **Determinism.** Denials are ordered by `check`, then subject (`repo` then `id`, with an absent
@@ -156,12 +161,18 @@ the rule (or remediation) and the offending entry. The load fails on:
 - a `subject` that is empty, or a `subject` or step `to` naming an archetype no loaded module declares;
 - an `edge` that is not a declared verb ([FR-058](./FR-058-upward-trace-completeness.md)), or a
   `direction` other than `outgoing` or `incoming`;
+- a `field` that no archetype at the end of the path declares as a property of its frontmatter schema
+  (`id` is always admitted), so a misspelt field refuses the module instead of silently disabling the
+  rule. With several end archetypes it is refused only when none of them declares it;
+- a `check` equal to a `trace:` check the engine reports itself or that another declaration of the
+  loaded modules names (FR-058-AC-10), so one severity key never governs two kinds of finding;
 - an `any_of` value outside the `enum` of that `field` in the frontmatter schema of the archetypes
   at the end of the path (the same lookup as FR-058-AC-22, taking the `enum` of the field or of its
   array items). The value is compared after trim and ASCII fold. With several end archetypes it is
   refused only when no end archetype that declares an `enum` for the field admits it; a field whose
   schema declares no `enum` leaves its values unchecked;
-- a `remediations` entry that is not declared, or that cannot clear the denial (below);
+- a `remediations` entry that is not declared, that cannot clear the denial, or whose `field` or
+  `value` its archetype's schema does not admit (below);
 - a duplicate rule name, or a duplicate remediation name;
 - an empty `match`, an empty or blank `check` or `rationale`, a `check` that cannot form a
   `trace:<check>` key, or a blank entry anywhere in a list;
@@ -190,7 +201,9 @@ remediations:
 - `adds: {edge, direction, from, field, value}`: a document of archetype `from` with `field` equal
   to `value` is linked to the subject by `edge` in `direction` (as seen from the subject).
 - `sets: {field, value}`: the subject's own frontmatter `field` is set to `value`.
-- `removes: {edge, direction}`: the subject's `edge` in `direction` is deleted.
+- `removes: {edge, direction}`: **every** edge of the verb `edge` in `direction` that the subject
+  itself holds is deleted. An edge held by a document reached by a step is not the subject's and is
+  never removed.
 
 A rule may name only a remediation whose model change would clear **that rule's** denial; naming a
 fix that cannot is refused at load. A remediation **matches** a rule when:
@@ -200,12 +213,17 @@ fix that cannot is refused at load. A remediation **matches** a rule when:
   among its `any_of` (compared after trim and ASCII fold);
 - `sets`: some `unless_any` condition has an empty `path` (or an `any_path` entry of zero steps), the
   same `field`, and `value` among its `any_of`;
-- `removes`: some `match` condition tested with `any_of` or `present` has every one of its paths
-  containing a step with that `edge` and `direction`, so removing the edge makes the condition fail.
+- `removes`: some `match` condition tested with `any_of` or `present` has **every one of its paths
+  beginning** with a first step of that `edge` and `direction`, so removing the subject's edges of that
+  verb leaves every path ending at no document and the condition fails. A path of zero steps, a path
+  beginning with another step, or an `any_path` holding any such path does not qualify, because the
+  condition would still hold through that path after the removal.
 
 A remediation entry is itself refused at load when it holds none or more than one of
-`adds`/`sets`/`removes`, names an undeclared verb or archetype, or gives a `value` outside the
-`enum` of its `field` by the lookup above.
+`adds`/`sets`/`removes`, names an undeclared verb or archetype, names a `field` that the schema of its
+archetype does not declare, or gives a `value` outside the `enum` of its `field` by the lookup above.
+The archetype is `from` for `adds`. For `sets` it is each `subject` archetype of every rule that names
+the remediation, and the entry is refused when any of them fails.
 
 The engine applies no remediation and writes nothing: a remediation is a name, a sentence and a
 stated change, for a person to carry out and for a module to offer.
@@ -218,14 +236,13 @@ renders it; the engine writes no QSL, and the lowering of the report into a solv
 `quire-spec-language`. The JSON form has the keys in this order:
 
 ```json
-{"schema": "quire.flow-report/v1", "rules": [...], "vocabularies": {...}, "facts": {...}, "denials": [...]}
+{"schema": "quire.flow-report/v1", "rules": [...], "vocabularies": {...}, "facts": {...}, "denials": [...], "remediations": [...]}
 ```
 
 - **`rules`**: the declared rules in declaration order across members, each as authored, normalised
   to the full form: `name`, `subject`, `match`, `unless_any` (always present, possibly empty),
   `check`, `remediations`, `rationale`. A condition keeps `path` or `any_path` as declared and
-  exactly its one test key. Declared remediations follow as `remediations` in a sibling array,
-  `{name, description, adds | sets | removes}`.
+  exactly its one test key.
 - **`vocabularies`**: an object keyed by archetype, then by field, holding the `enum` members (in
   schema order) of every field some condition reads at the end of a path, where the archetype's
   schema declares an `enum`. A field with no `enum` is absent. It is the closed set a consumer
@@ -244,14 +261,17 @@ renders it; the engine writes no QSL, and the lowering of the report into a solv
   `{"rule", "check", "subject", "matched", "remediations", "rationale", "severity"}`. `subject` is
   `{"id", "repo", "archetype"}`; `matched` is an object keyed by archetype, each an array of
   `{"id", "repo"}` sorted by repo then id; `severity` is the resolved FR-057 severity of the key.
+- **`remediations`**: the declared remediations, in declaration order across members, each
+  `{"name", "description", "adds" | "sets" | "removes"}` with exactly its one change key. It is the sixth
+  and last top-level key (quire-cli FR-044 renders the document key for key).
 
 No timestamp, run-specific value or path outside the corpus appears. Arrays are always present, empty
 when empty. A corpus declaring no `flow_rules` serializes the report with empty `rules`,
-`vocabularies`, `facts` and `denials`.
+`vocabularies`, `facts`, `denials` and `remediations`.
 
-Strict mode is the caller's: with `--strict` a caller exits 1 when `denials` holds any entry, of any
-severity including `warning`, and 0 only when `denials` is empty. A denial dropped by `off` is not in
-`denials`. Without `--strict` the exit follows the severity of the findings as `validate` does.
+The report lists every denial the engine produced, of any severity including `warning`; a denial dropped
+by `off` is not in `denials`. Whether a caller exits non-zero on a denial, in strict mode or not, is the
+caller's rule and belongs to `quire-cli`; this requirement defines no exit code.
 
 ### Lowering contract for the solver (informative)
 
@@ -279,23 +299,25 @@ other work. The CLI flag, its human rendering and exit codes belong to `quire-cl
 | FR-096-AC-4 | A sink whose data arrives by both the two-step path (`delivers_to` incoming, then `carries` outgoing) and its own `carries` edge is read through `any_path`: the condition holds when either path ends at a document holding the value, and the denial names the documents from both paths once each. | Test |
 | FR-096-AC-5 | A rule whose `any_of` names a value outside the `enum` of that field in the end archetype's schema (for example `medical` where the schema admits `health`, `personal`, `financial`) fails module load with an error naming the rule and the value; the same rule with an in-`enum` value loads, and a value differing from a member only by case or surrounding whitespace loads. | Test |
 | FR-096-AC-6 | Each of these fails module load naming the rule: an unknown archetype in `subject`; an unknown archetype in a step `to`; an unknown edge verb; a `remediations` entry that is not declared; a duplicate rule name; an empty `match`; a path of three steps; a condition holding both `path` and `any_path`, or neither; a condition with two of `any_of`/`absent`/`present`; a blank `check`. | Test |
-| FR-096-AC-7 | A remediation whose `adds` matches none of the rule's `unless_any` conditions (wrong `edge`, `direction`, `from`, `field` or `value`) fails load when the rule names it, naming the rule and the remediation; the same remediation unnamed by any rule loads. A `sets` that matches no zero-step condition and a `removes` whose edge is on no `match` path fail likewise. | Test |
+| FR-096-AC-7 | A remediation whose `adds` matches none of the rule's `unless_any` conditions (wrong `edge`, `direction`, `from`, `field` or `value`) fails load when the rule names it, naming the rule and the remediation; the same remediation unnamed by any rule loads. A `sets` that matches no zero-step condition fails likewise, and so does a `removes` whose edge and direction do not begin every path of one `match` condition: an edge only at a second step, or an `any_path` holding one path that does not begin with it, is refused. A `removes` whose edge and direction begin every path of an `any_of` or `present` condition (for example an `any_path` of two paths both beginning with the removed step) loads. | Test |
 | FR-096-AC-8 | A corpus with no document carrying the facts a starter-style rule reads (no connection-like document with a classification-like edge) yields no finding from any `flow_rules` declaration. | Test |
 | FR-096-AC-9 | `absent: true` holds when no document at the end of the path has the field and when the path ends at no document; `present: true` with `field: id` holds exactly when at least one edge of the step exists; `absent` and `present` are exact complements for one path and field. | Test |
 | FR-096-AC-10 | Comparison is trim plus ASCII case folding: a document stating ` Health ` matches `any_of: [health]`; a list value holding a matching member matches; a value differing by more than case and whitespace does not; a number, mapping, boolean, null or missing field never equals an entry, and none of them raises an error or warning. | Test |
-| FR-096-AC-11 | A denial names the rule, the subject id (and `repo`), the matched documents grouped by archetype, the `remediations` in declared order and the `rationale`; an `absent` condition names no document. | Test |
-| FR-096-AC-12 | The default severity of a denial is `error`: a bundle whose only fault is a denial is invalid, and with `--severity trace:<check>=warning` the same denial is reported as a warning and `validate` exits 0 without `--strict`; `off` drops exactly those denials. | Test |
+| FR-096-AC-11 | A denial names the rule, the subject id (and `repo`), the matched documents grouped by archetype, the `remediations` in declared order and the `rationale`; an `absent` condition names no document. A connection carrying two classifications of which only one holds the tested category names only that classification, in the denial and in the report's `matched`. | Test |
+| FR-096-AC-12 | With no registry entry the severity of a denial is `warning` in both postures, so a bundle whose only fault is a denial stays valid. A module declaring `grammar_severity` `trace:<check>` as `error` makes the same denial an error and the bundle invalid; `--severity trace:<check>=warning` demotes it again and wins over the module entry; `off` drops exactly the denials of that check from `errors`, `warnings` and the report. | Test |
 | FR-096-AC-13 | Denials are ordered by `check`, subject, then rule name, identical across two runs and for documents or members supplied in reverse order. | Test |
 | FR-096-AC-14 | A fixture whose archetypes, verbs, fields and values are neutral (for example `alpha`, `beta`, `links_to`, `rank_field`) and share no name with this specification yields the same denials, so the engine holds no name. | Test |
-| FR-096-AC-15 | The flow report for a corpus serializes with keys in the order `schema`, `rules`, `vocabularies`, `facts`, `denials`; `schema` equals `quire.flow-report/v1`; two runs over one corpus are byte-identical. | Test |
+| FR-096-AC-15 | The flow report for a corpus serializes with keys in the order `schema`, `rules`, `vocabularies`, `facts`, `denials`, `remediations`; `schema` equals `quire.flow-report/v1`; two runs over one corpus are byte-identical. | Test |
 | FR-096-AC-16 | `facts` is keyed by exactly the archetype names the loaded rules declare, with no fixed or domain-specific key, and holds, for each such archetype, one entry per document with only the fields a condition reads at that archetype and the edges a step follows from it; a field the document does not state is omitted, an unread field appears nowhere, and entries are ordered by repo then id. | Test |
 | FR-096-AC-17 | `vocabularies` holds the schema `enum` members, in schema order, for each archetype and field a condition reads, and omits a field whose schema declares no `enum`. | Test |
-| FR-096-AC-18 | A corpus declaring no `flow_rules` yields empty `rules`, `vocabularies`, `facts` and `denials`, and the FR-058 and FR-084 relation output over it is byte-identical to a build without this requirement. | Test |
+| FR-096-AC-18 | A corpus declaring no `flow_rules` yields empty `rules`, `vocabularies`, `facts`, `denials` and `remediations`, and the FR-058 and FR-084 relation output over it is byte-identical to a build without this requirement. | Test |
 | FR-096-AC-19 | A rule's `denials` entry equals the finding the validation path reports for the same subject: the same `check`, subject, matched documents and severity. | Test |
-| FR-096-AC-20 | A caller deriving the `--strict` exit from the report gets 1 when `denials` holds any entry, including when every denial is `warning`, and 0 only when `denials` is empty. | Test |
-| FR-096-AC-21 | Reading a rule never infers a value: with a `connection` carrying no `carries` edge the engine adds no category, and the same corpus with a field removed from a classification differs only in the conditions that read that field. | Test |
+| FR-096-AC-20 | The report's `denials` lists every denial of every severity: a denial resolved to `warning` is present with `severity` `warning`, a denial resolved to `off` is absent, and a corpus with no denial has an empty `denials`. The report is the same whatever exit code a caller derives from it. | Test |
+| FR-096-AC-21 | Reading a rule never infers a value: with a `connection` carrying no `carries` edge the engine adds no category, and the same corpus with the field a condition reads removed from the only classification holding the tested value yields no denial from that rule and no such key in the `facts` entry of that classification. | Test |
 | FR-096-AC-22 | The engine source names no archetype, verb, field or value of a data-flow, privacy or security model. | Inspection |
 | FR-096-AC-23 | `flow_rules` is the only engine kind this requirement adds; `remediations` is a vocabulary read by it, and no check, relation or report outside this FR and FR-084's flow section reads either. | Inspection |
+| FR-096-AC-24 | A condition whose `field` is declared by no end archetype's frontmatter schema (for example `regulated_categores` for `regulated_categories`) fails module load naming the rule and the field; the correct spelling loads, and `field: id` loads. A remediation whose `field` is not declared by its archetype's schema fails load likewise. | Test |
+| FR-096-AC-25 | A rule whose `check` equals a `trace:` check the engine reports (for example `dangling-trace-reference`) or one named by a `required_relations` entry fails module load naming the rule and the check; two flow rules sharing one new `check` load, and one `--severity` entry for that key governs both. | Test |
 
 ## Constraints
 
@@ -309,5 +331,6 @@ other work. The CLI flag, its human rendering and exit codes belong to `quire-cl
 
 ## Dependencies
 
-- **Upstream**: [FR-058](./FR-058-upward-trace-completeness.md) (edge resolution, `trace:<check>`, the load-time pattern), [FR-057](./FR-057-corpus-check-severity.md) (severity), [FR-085](./FR-085-cross-repository-edge-resolution.md) (edges across members), [FR-091](./FR-091-ordered-field-consistency.md) (the field-rule declaration pattern and enum lookup)
-- **Downstream**: [FR-084](./FR-084-two-way-relation-coverage-report.md) (the relation report gains the flow section); `quire-cli` FR-044 (`relations --flow`); the modules that declare sinks, controls, rules and remediations (PLAT-1535, PLAT-1537, PLAT-1540, PLAT-1479); PLAT-1541 (the solver lowering, which waits for QSL-1900, the production contract-package step of `quire-spec-language`)
+- **Upstream**: [FR-058](./FR-058-upward-trace-completeness.md) (edge resolution, `trace:<check>`, the load-time pattern and the enum lookup of FR-058-AC-22), [FR-057](./FR-057-corpus-check-severity.md) (severity), [FR-085](./FR-085-cross-repository-edge-resolution.md) (edges across members)
+- **Related**: [FR-091](./FR-091-ordered-field-consistency.md) (the field-rule declaration pattern this declaration follows; nothing is read from it)
+- **Downstream**: [FR-084](./FR-084-two-way-relation-coverage-report.md) (the relation report carries this report as its `flow` section); `quire-cli` FR-044 (`relations --flow`); the modules that declare sinks, controls, rules and remediations (PLAT-1535, PLAT-1537, PLAT-1540, PLAT-1479); PLAT-1541 (the solver lowering, which waits for QSL-1900, the production contract-package step of `quire-spec-language`)

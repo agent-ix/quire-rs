@@ -11,6 +11,8 @@ relationships:
     type: "requires"
   - target: "ix://agent-ix/quire-rs/spec/functional/FR-085"
     type: "requires"
+  - target: "ix://agent-ix/quire-rs/spec/functional/FR-096"
+    type: "requires"
   - target: "ix://agent-ix/quire-rs/spec/stakeholder/StR-006"
     type: "implements"
     cardinality: "1:1"
@@ -26,7 +28,7 @@ over the same declarations: one row per obliged document, listing what is linked
 that is verified.
 
 `quire-rs` SHALL produce this report for any loaded corpus and any set of declared relations,
-including none: a corpus whose modules declare no relation yields `{"relations": []}`. The caller supplies
+including none: a corpus whose modules declare no relation and no `flow_rules` yields `{"relations": []}`. The caller supplies
 one input (repository root and `coverage_matrix`) per corpus member; any other number is an error.
 The report is a function of the loaded corpus, the module's `traceability.required_relations`, and
 the `coverage_matrix` of [FR-050](./FR-050-declarative-coverage-computation.md). It adds no
@@ -151,7 +153,8 @@ every status is then `not-tracked` and the report is still produced.
 
 ### Serialization
 
-The report serializes as JSON with the keys in this order: `{"relations": [...]}`. Each relation is
+The report serializes as JSON with the keys in this order: `{"relations": [...]}`, followed by `"flow"`
+only when a loaded module declares `flow_rules` (see "The flow section"). Each relation is
 `{"name", "check", "direction", "summary", "rows"}`. `summary` is `{"rows": n, "state": {"uncovered": n,
 "covered": n}, "verification": {"verified": n, "partial": n, "unverified": n, "not-tracked": n}}`, every
 count present even at zero. Each row is `{"relation", "check", "direction", "document", "selector",
@@ -190,10 +193,14 @@ over one corpus ([NFR-006](../non-functional/NFR-006-determinism.md)).
 
 ### The flow section
 
-The relations report gains a **flow section**: the `quire.flow-report/v1` of
-[FR-096](./FR-096-flow-rules.md), built over the same loaded corpus and resolved edges. It is a
-separate section, not a row set: it reports `flow_rules` denials and facts, and FR-096 defines its
-shape. The `relations` array above is unchanged by it.
+When a loaded module declares `flow_rules`, the relations report gains a **flow section**: a second
+top-level key `"flow"`, placed after `"relations"`, whose value is the `quire.flow-report/v1` document of
+[FR-096](./FR-096-flow-rules.md), built over the same loaded corpus and resolved edges and serialized
+unaltered. When no module declares `flow_rules` the key is absent and the report is byte-identical to
+one produced without this section. The section is not a row set: it reports `flow_rules` denials and
+facts, and FR-096 defines its shape. The `relations` array above is unchanged by it. The section is
+the same document the `quire-cli` `--flow` mode renders alone (quire-cli FR-044), so a consumer reads
+one shape from either.
 
 ### Report, not verdict
 
@@ -230,7 +237,7 @@ consumer, and the engine writes nothing back to any document.
 | FR-084-AC-15 | A criterion with status `method-without-symbol` is excluded from the denominator and counted in `not_measured`: a document with one `tagged` and one `method-without-symbol` criterion is `verified`, a document whose only non-retired criterion is `method-without-symbol` is `not-tracked`, and a document with one `untagged` and one `method-without-symbol` criterion is `unverified`. | Test |
 | FR-084-AC-16 | For a relation with `to: []`, a document whose only accepted-verb edge targets an absent document is `covered`, lists that edge in `linked` with `resolution` `dangling` and in `dangling`, and FR-058 raises no finding for it; for a relation with a non-empty `to` the same edge leaves the row `uncovered`, in `dangling` only, and FR-058 reports the document. | Test |
 | FR-084-AC-17 | The engine source contains no hazard, threat, mitigation or safety-classification name ([FR-058](./FR-058-upward-trace-completeness.md)-CON-2). | Inspection |
-| FR-084-AC-18 | When no loaded module declares a `required_relations` entry, the report is produced and serializes as `{"relations": []}`. | Test |
+| FR-084-AC-18 | When no loaded module declares a `required_relations` entry or `flow_rules`, the report is produced and serializes as `{"relations": []}`. | Test |
 | FR-084-AC-19 | Supplying a number of member inputs different from the corpus's member count is an error naming both counts, and no report is produced. | Test |
 | FR-084-AC-20 | Given a relation with `record_keys: [cats]` and connection documents pointing by one verb at classification documents, one of which states `cats: ["a","b"]`, the outgoing relation's `linked` entry for it carries `record` equal to `{"cats": ["a","b"]}` in authored list order. | Test |
 | FR-084-AC-21 | In the AC-20 corpus, a classification whose record states no `cats` has no `record` key in its `linked` entry (neither `{}` nor `"cats": []`), and the `record` of a classification with an empty record is likewise absent. | Test |
@@ -243,7 +250,7 @@ consumer, and the engine writes nothing back to any document.
 | FR-084-AC-28 | Over the AC-20 corpus, the incoming relation over the same verb has one row per classification whose `linked` lists its connections by repo then id; a classification no connection points at is an `uncovered` row; every connection-to-classification pairing of the outgoing relation appears as the converse pairing here. | Test |
 | FR-084-AC-29 | The engine source names none of `regulatedCategories`, `health`, `personal` or `financial` as a key, value or special case, and AC-20..AC-22 and AC-24..AC-28 pass with a fixture using none of them. | Inspection |
 | FR-084-AC-30 | A document's carried `record` and `data_schema` come from the archetype named by its concept `type`, never by its `object` field: a `Classification` document stating `object: Connection` carries its selected `cats` from the `Classification` schema, while a `Connection` document (no `data_schema`) stating `object: Classification` carries no `record`. | Test |
-| FR-084-AC-31 | A corpus that also declares `flow_rules` yields a `relations` array byte-identical to the same corpus without them; the flow section is the FR-096 report and holds no `required_relations` row. | Test |
+| FR-084-AC-31 | A corpus that also declares `flow_rules` yields a `relations` array byte-identical to the same corpus without them, and a second top-level key `flow` after `relations` whose value is the FR-096 `quire.flow-report/v1` document and holds no `required_relations` row; a corpus declaring no `flow_rules` serializes with no `flow` key, byte-identical to a build without this section. | Test |
 
 ## Constraints
 
@@ -254,5 +261,5 @@ consumer, and the engine writes nothing back to any document.
 
 ## Dependencies
 
-- **Upstream**: [FR-058](./FR-058-upward-trace-completeness.md) (the declarations), [FR-050](./FR-050-declarative-coverage-computation.md) (the matrix), [FR-085](./FR-085-cross-repository-edge-resolution.md) (edge resolution across repositories)
+- **Upstream**: [FR-096](./FR-096-flow-rules.md) (the flow section it embeds), [FR-058](./FR-058-upward-trace-completeness.md) (the declarations), [FR-050](./FR-050-declarative-coverage-computation.md) (the matrix), [FR-085](./FR-085-cross-repository-edge-resolution.md) (edge resolution across repositories)
 - **Downstream**: the `quire-cli` relations subcommand (quire-cli FR-030), which renders this report and the flow section of [FR-096](./FR-096-flow-rules.md)
