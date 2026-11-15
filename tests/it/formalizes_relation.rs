@@ -123,7 +123,7 @@ fn a_marker_binds_across_blank_and_comment_lines_only() {
         ),
         (
             "other_line.native",
-            &format!("// formalizes: FR-001\nlet x = 1\n{DECL}"),
+            &format!("// formalizes: FR-001\n42 not a head\n{DECL}"),
         ),
         ("eof.native", "pre A\n// formalizes: FR-001\n"),
     ]);

@@ -123,11 +123,12 @@ fn scan_braces(
             '"' => in_string = true,
             '/' if previous_slash => return,
             '{' => open_braces.push(line),
-            '}' => {
-                if open_braces.pop().is_none() {
+            '}' => match open_braces.pop() {
+                Some(_) => {}
+                None => {
                     stray_close.get_or_insert(line);
                 }
-            }
+            },
             _ => {}
         }
         previous_slash = c == '/';
