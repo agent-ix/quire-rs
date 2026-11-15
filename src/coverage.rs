@@ -870,7 +870,24 @@ impl CoverageReport {
 /// graph is left as bound.
 pub fn resolve_formalizes(graph: &mut SymbolGraph, spec: &Spec, registry: &Registry, root: &Path) {
     if let Some(model) = registry.traceability() {
-        reconcile::resolve_formalizes(graph, spec, model, root);
+        reconcile::resolve_formalizes(graph, spec, model, root, None);
+    }
+}
+
+/// [`resolve_formalizes`] for a run that reconciles retained evidence: the
+/// ids the corpus carries are the evidence inventory's, exactly as in
+/// [`compute_with_evidence`], so relations and diagnostics agree.
+pub fn resolve_formalizes_with_evidence(
+    graph: &mut SymbolGraph,
+    spec: &Spec,
+    registry: &Registry,
+    root: &Path,
+    backing: &crate::evidence::BackingInput<'_>,
+) {
+    if let Some(model) = registry.traceability() {
+        let mut evidence = crate::evidence::ReconciledEvidence::new(backing);
+        evidence.check_context(spec, model, root);
+        reconcile::resolve_formalizes(graph, spec, model, root, Some(&evidence));
     }
 }
 

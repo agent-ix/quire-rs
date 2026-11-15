@@ -21,6 +21,7 @@
 //! every id unchanged (FR-051-AC-2). The current line is carried as a
 //! non-identity attribute, alongside the span the trace-tag binder reads.
 
+pub(crate) mod qsl;
 // Gated by `python-symbols` (on by default; off under `wasm` — see that
 // feature's own Cargo.toml comment): `quire-code-extraction` pulls in a
 // tree-sitter grammar with a C build script that cannot cross-compile for
@@ -31,7 +32,6 @@ pub mod python;
 // feature's own Cargo.toml comment): `quire-code-extraction` pulls in a
 // tree-sitter grammar with a C build script that cannot cross-compile for
 // `wasm32-unknown-unknown` here (PLAT-843).
-pub(crate) mod qsl;
 #[cfg(feature = "rust-symbols")]
 pub mod rust;
 // Gated by `shell-symbols` (on by default; off under `wasm`), the same shape as

@@ -682,3 +682,118 @@ fn two_forms_matching_one_line_read_it_once() {
     assert_eq!(graph.formalizes[0].form, "qsl-formalizes-comment");
     assert!(graph.formalizes_findings.is_empty());
 }
+
+const NFR_SPEC: &str = "---\nid: NFR-006\ntype: NFR\ntitle: Determinism\n---\n\n\
+     ## Measurement and Evaluation\n\n\
+     | Metric | Target | Threshold | Method |\n\
+     |--------|--------|-----------|--------|\n\
+     | Identical output | all equal | all equal | Proptest |\n";
+
+/// One run of the obligations-nfr module over an NFR whose measurement row is an obligation no trace target mints,
+/// with the marker naming `id`. With `retained` the run reconciles an evidence
+/// inventory that selects nothing; without it the model derives its obligations.
+fn obligation_run(id: &str, retained: bool, resolve_first: bool) -> (SymbolGraph, CoverageReport) {
+    use quire_rs::coverage::{compute_with_evidence, resolve_formalizes_with_evidence};
+    use quire_rs::evidence::BackingInput;
+    use quire_rs::obligation::inventory::{inventory, InventoryOptions};
+
+    let dir = tempfile::tempdir().expect("tempdir");
+    let scope = dir.path().join("spec");
+    write(&scope, "NFR-006-determinism.md", NFR_SPEC);
+    write(
+        &dir.path().join("src"),
+        "rules.native",
+        &format!("// formalizes: {id}\n{DECL}"),
+    );
+    let module =
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/traceability/obligations-nfr");
+    let registry = Registry::load_module(&module).expect("load module");
+    let mut model = registry.traceability().cloned().expect("model");
+    model.trace_tags.formalizes.push(formalizes_form());
+    let mut graph = bind(&extract_tree(&dir.path().join("src")), &model);
+    let spec = Spec::from_path(&scope);
+    let report = if retained {
+        let none = inventory(dir.path(), &model, &[], InventoryOptions::default());
+        let backing = BackingInput {
+            inventory: &none,
+            claims: &[],
+            results: &[],
+        };
+        if resolve_first {
+            resolve_formalizes_with_evidence(&mut graph, &spec, &registry, dir.path(), &backing);
+        }
+        compute_with_evidence(&spec, &registry, &graph, dir.path(), &backing).expect("report")
+    } else {
+        if resolve_first {
+            resolve_formalizes(&mut graph, &spec, &registry, dir.path());
+        }
+        compute(&spec, &registry, &graph, dir.path()).expect("report")
+    };
+    (graph, report)
+}
+
+#[trace("FR-094-AC-5")]
+#[test]
+fn relations_and_diagnostics_agree_with_and_without_evidence() {
+    for retained in [false, true] {
+        for id in ["NFR-006", "NFR-006-M-1", "FR-404"] {
+            let (resolved, resolved_report) = obligation_run(id, retained, true);
+            let (raw, raw_report) = obligation_run(id, retained, false);
+            let diagnosed = |r: &CoverageReport| reasons(r).len();
+            // Resolving first or not, the same ids are diagnosed.
+            assert_eq!(
+                diagnosed(&resolved_report),
+                diagnosed(&raw_report),
+                "{id} retained={retained}"
+            );
+            // And a relation survives resolution exactly when it is not diagnosed.
+            assert_eq!(
+                resolved.formalizes.len() + resolved.formalizes_unknown.len(),
+                raw.formalizes.len(),
+                "{id} retained={retained}"
+            );
+            assert_eq!(
+                resolved.formalizes.is_empty(),
+                diagnosed(&resolved_report) == 1,
+                "{id} retained={retained}: {:?}",
+                reasons(&resolved_report)
+            );
+        }
+    }
+}
+
+#[trace("FR-094-AC-6")]
+#[test]
+fn resolving_twice_changes_nothing_and_a_renumbered_id_stays_dropped() {
+    let (mut graph, _) = obligation_run("FR-404", false, true);
+    let before = (graph.formalizes.clone(), graph.formalizes_unknown.clone());
+    let again = Registry::load_module(
+        &Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/traceability/iso-obligations"),
+    )
+    .expect("module");
+    let dir = tempfile::tempdir().expect("tempdir");
+    let spec = Spec::from_path(dir.path());
+    resolve_formalizes(&mut graph, &spec, &again, dir.path());
+    assert_eq!((graph.formalizes, graph.formalizes_unknown), before);
+    assert_eq!(before.1.len(), 1);
+}
+
+#[trace("FR-094-AC-5")]
+#[test]
+fn an_obligation_only_id_is_known_only_where_the_run_carries_the_obligation() {
+    let (derived, _) = obligation_run("NFR-006-M-1", false, true);
+    let (retained, report) = obligation_run("NFR-006-M-1", true, true);
+    assert_eq!(
+        derived.formalizes.len(),
+        1,
+        "derived run knows the criterion"
+    );
+    assert!(
+        retained.formalizes.is_empty(),
+        "an empty inventory carries no obligation"
+    );
+    assert_eq!(
+        reasons(&report),
+        [("formalizes-unknown-id", "NFR-006-M-1", Some(1))]
+    );
+}

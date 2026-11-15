@@ -372,6 +372,9 @@ pub struct SymbolGraph {
     /// Relations [`Self::retain_known_formalizes`] dropped because the corpus
     /// does not resolve their id. Diagnostic input only: nothing else reads it.
     pub formalizes_unknown: Vec<FormalizesRelation>,
+    /// Whether [`Self::retain_known_formalizes`] has run, so [`Self::formalizes`]
+    /// already holds only ids the corpus resolves and nothing re-derives that.
+    pub formalizes_resolved: bool,
     /// Markers that bound nothing or named something unreadable (FR-094).
     pub formalizes_findings: Vec<FormalizesFinding>,
     /// Textual Rust `implements` uses, for the FR-050-AC-62 coverage warning.
@@ -613,6 +616,7 @@ impl SymbolGraph {
     /// diagnostic. [`crate::coverage::resolve_formalizes`] is the corpus-aware
     /// caller.
     pub fn retain_known_formalizes(&mut self, is_known: impl Fn(&str) -> bool) {
+        self.formalizes_resolved = true;
         let (known, unknown) = std::mem::take(&mut self.formalizes)
             .into_iter()
             .partition(|relation| is_known(&relation.trace_id));
