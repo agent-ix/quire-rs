@@ -36,6 +36,8 @@ pub enum SourceLanguage {
     Typescript,
     /// A `.sh` script (FR-051 shell adapter, PLAT-362).
     Shell,
+    /// A QSL `.native` source (FR-094): declaration heads read line by line.
+    Qsl,
 }
 
 impl SourceLanguage {
@@ -46,6 +48,7 @@ impl SourceLanguage {
             Self::Python => "python",
             Self::Typescript => "typescript",
             Self::Shell => "shell",
+            Self::Qsl => "qsl",
         }
     }
 }
@@ -1549,6 +1552,12 @@ pub struct TraceTagGrammar {
     /// they may attach to.
     #[serde(default)]
     pub implements: Vec<TraceMarkerForm>,
+    /// Marker forms binding a QSL declaration to the requirement it formalizes
+    /// (FR-094). A third list for the same reason `implements` is a second:
+    /// the relation means *"this declaration is the formal statement"*, which
+    /// is neither evidence nor scope, and it must never back a criterion.
+    #[serde(default)]
+    pub formalizes: Vec<TraceMarkerForm>,
 }
 
 /// One canonical marker form — a statically parseable construct attached to a
@@ -1627,7 +1636,8 @@ impl<'de> Deserialize<'de> for TraceMarkerForm {
         let syntax = match wire.syntax.as_ref() {
             None => None,
             Some(value)
-                if value.as_str() == Some("comment") && wire.language == SourceLanguage::Shell =>
+                if value.as_str() == Some("comment")
+                    && matches!(wire.language, SourceLanguage::Shell | SourceLanguage::Qsl) =>
             {
                 Some(TraceMarkerSyntax::Comment)
             }
@@ -1690,6 +1700,7 @@ impl TraceabilityModel {
             // the field was added, which is the failure TC-905 was written to
             // catch and did not, because its assertions are hand-listed too.
             && self.trace_tags.implements.is_empty()
+            && self.trace_tags.formalizes.is_empty()
             && self.vocabularies.test_type.is_empty()
             // FR-053: obligations mint records, so a model declaring only them
             // has declared something. (Unlike the model-level `exclude`, which
@@ -2213,6 +2224,7 @@ impl TraceabilityModel {
         let mut marker_names: BTreeSet<&str> = BTreeSet::new();
         for marker in &self.trace_tags.markers {
             check_named("trace_tags.markers", &marker.name)?;
+            check_not_qsl("trace_tags.markers", marker)?;
             if let Some(
                 syntax @ (TraceMarkerSyntax::RustAttribute
                 | TraceMarkerSyntax::PythonDecorator
@@ -2262,6 +2274,7 @@ impl TraceabilityModel {
         }
         for marker in &self.trace_tags.implements {
             check_named("trace_tags.implements", &marker.name)?;
+            check_not_qsl("trace_tags.implements", marker)?;
             check_capturing_pattern("trace_tags.implements", &marker.name, &marker.pattern)?;
             if marker.entry_paths.is_some() {
                 return Err(format!(
@@ -2289,8 +2302,51 @@ impl TraceabilityModel {
                 }
             }
         }
+        let mut formalizes_names: BTreeSet<&str> = BTreeSet::new();
+        for marker in &self.trace_tags.formalizes {
+            check_named("trace_tags.formalizes", &marker.name)?;
+            if marker.language != SourceLanguage::Qsl {
+                return Err(format!(
+                    "traceability: trace_tags.formalizes form '{}' must declare `language: qsl`, \
+                     not {}",
+                    marker.name,
+                    marker.language.as_str()
+                ));
+            }
+            if marker.syntax != Some(TraceMarkerSyntax::Comment) {
+                return Err(format!(
+                    "traceability: trace_tags.formalizes form '{}' must declare `syntax: comment`",
+                    marker.name
+                ));
+            }
+            if marker.entry_paths.is_some() {
+                return Err(format!(
+                    "traceability: trace_tags.formalizes form '{}' cannot declare `entry_paths`",
+                    marker.name
+                ));
+            }
+            if !formalizes_names.insert(marker.name.as_str()) {
+                return Err(format!(
+                    "traceability: duplicate trace_tags.formalizes entry '{}'",
+                    marker.name
+                ));
+            }
+            check_capturing_pattern("trace_tags.formalizes", &marker.name, &marker.pattern)?;
+        }
         Ok(())
     }
+}
+
+/// FR-062-AC-28: a QSL form belongs to `trace_tags.formalizes` alone.
+fn check_not_qsl(section: &str, marker: &TraceMarkerForm) -> Result<(), String> {
+    if marker.language == SourceLanguage::Qsl {
+        return Err(format!(
+            "traceability: {section} form '{}' declares `language: qsl`; a QSL form belongs \
+             under trace_tags.formalizes",
+            marker.name
+        ));
+    }
+    Ok(())
 }
 
 fn check_named(section: &str, name: &str) -> Result<(), String> {

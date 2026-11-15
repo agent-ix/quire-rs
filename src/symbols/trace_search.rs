@@ -24,7 +24,8 @@
 //! this module's.
 
 use super::trace::{
-    normalized_trace_id, ImplementsRelation, Mention, SymbolGraph, VerifiesRelation,
+    normalized_trace_id, FormalizesRelation, ImplementsRelation, Mention, SymbolGraph,
+    VerifiesRelation,
 };
 use super::SymbolExtraction;
 
@@ -62,6 +63,9 @@ pub struct SearchResult {
     /// evidence (CR-061) — reported here for the same reason it is reported
     /// anywhere: so a reader can see it without re-deriving it.
     pub implements: Vec<ImplementsRelation>,
+    /// QSL declarations stating the queried id(s) formally (FR-094). Its own
+    /// field, never folded into `verifies` or `implements` (FR-077-AC-8).
+    pub formalizes: Vec<FormalizesRelation>,
     /// Non-claim mentions — near-miss tags, ids a comment puts on a production symbol, and plain
     /// citations in comments/docstrings/string literals (FR-077-AC-2).
     pub citations: Vec<Mention>,
@@ -161,17 +165,20 @@ fn finish(
     query: Query,
     verifies: Vec<VerifiesRelation>,
     implements: Vec<ImplementsRelation>,
+    formalizes: Vec<FormalizesRelation>,
     citations: Vec<Mention>,
     ambiguous_matches: Vec<String>,
 ) -> SearchResult {
     let resolved = !(verifies.is_empty()
         && implements.is_empty()
+        && formalizes.is_empty()
         && citations.is_empty()
         && ambiguous_matches.is_empty());
     SearchResult {
         query,
         verifies,
         implements,
+        formalizes,
         citations,
         ambiguous_matches,
         resolved,
@@ -192,13 +199,26 @@ fn search_id(graph: &SymbolGraph, id: String) -> SearchResult {
         .filter(|i| normalized_trace_id(&i.trace_id) == target)
         .cloned()
         .collect();
+    let formalizes: Vec<FormalizesRelation> = graph
+        .formalizes
+        .iter()
+        .filter(|f| normalized_trace_id(&f.trace_id) == target)
+        .cloned()
+        .collect();
     let citations: Vec<Mention> = graph
         .mentions
         .iter()
         .filter(|m| normalized_trace_id(&m.trace_id) == target)
         .cloned()
         .collect();
-    finish(Query::Id(id), verifies, implements, citations, Vec::new())
+    finish(
+        Query::Id(id),
+        verifies,
+        implements,
+        formalizes,
+        citations,
+        Vec::new(),
+    )
 }
 
 fn search_symbol(
@@ -219,13 +239,26 @@ fn search_symbol(
         .filter(|i| i.path == path && i.symbol == qualified_name)
         .cloned()
         .collect();
+    let formalizes: Vec<FormalizesRelation> = graph
+        .formalizes
+        .iter()
+        .filter(|f| f.path == path && f.symbol == qualified_name)
+        .cloned()
+        .collect();
     let citations: Vec<Mention> = graph
         .mentions
         .iter()
         .filter(|m| m.path == path && m.symbol.as_deref() == Some(qualified_name))
         .cloned()
         .collect();
-    finish(query, verifies, implements, citations, Vec::new())
+    finish(
+        query,
+        verifies,
+        implements,
+        formalizes,
+        citations,
+        Vec::new(),
+    )
 }
 
 fn search_file(graph: &SymbolGraph, query: Query, path: &str) -> SearchResult {
@@ -241,6 +274,12 @@ fn search_file(graph: &SymbolGraph, query: Query, path: &str) -> SearchResult {
         .filter(|i| i.path == path)
         .cloned()
         .collect();
+    let formalizes: Vec<FormalizesRelation> = graph
+        .formalizes
+        .iter()
+        .filter(|f| f.path == path)
+        .cloned()
+        .collect();
     // Every mention in the file, including file-scope ones owned by no
     // symbol (`symbol: None`) — a whole-file inverse query is exactly the
     // case those exist for.
@@ -250,7 +289,14 @@ fn search_file(graph: &SymbolGraph, query: Query, path: &str) -> SearchResult {
         .filter(|m| m.path == path)
         .cloned()
         .collect();
-    finish(query, verifies, implements, citations, Vec::new())
+    finish(
+        query,
+        verifies,
+        implements,
+        formalizes,
+        citations,
+        Vec::new(),
+    )
 }
 
 fn search_symbol_name(
@@ -274,6 +320,7 @@ fn search_symbol_name(
             Vec::new(),
             Vec::new(),
             Vec::new(),
+            Vec::new(),
         ),
         [(path, qualified_name)] => {
             let (path, qualified_name) = (path.to_string(), qualified_name.to_string());
@@ -286,6 +333,7 @@ fn search_symbol_name(
                 .collect();
             finish(
                 Query::SymbolName(name),
+                Vec::new(),
                 Vec::new(),
                 Vec::new(),
                 Vec::new(),

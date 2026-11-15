@@ -26,6 +26,7 @@ mod edge_target_kinds;
 mod field_rules;
 mod filament_boundary_audit;
 mod filament_core_fixtures;
+mod formalizes_relation;
 mod frontmatter_owned_keys;
 mod id_column_lists;
 #[cfg(feature = "rust-symbols")]

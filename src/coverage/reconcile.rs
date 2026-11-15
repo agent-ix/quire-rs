@@ -10,8 +10,9 @@ use crate::symbols::trace::{IdKinds, OutsideMarkerId, SymbolGraph, VerifiesRelat
 use crate::traceability::{StatusClass, TraceTargetEvidence, TraceabilityModel};
 
 use super::binding_diagnostics::{
-    binding_diagnostics, legacy_implements_diagnostics, minted_child_diagnostics,
-    near_miss_diagnostics, outside_marker_diagnostics, shell_finding_diagnostics,
+    binding_diagnostics, formalizes_diagnostics, legacy_implements_diagnostics,
+    minted_child_diagnostics, near_miss_diagnostics, outside_marker_diagnostics,
+    shell_finding_diagnostics,
 };
 use super::{
     relative, CoverageDiagnostic, CoverageMatrixClaimReason, CoverageMatrixUnbackedClaim,
@@ -40,6 +41,83 @@ fn is_strict_exempt_status(status: &str) -> bool {
     })
 }
 
+/// Whether a `formalizes` id names something in the loaded corpus (FR-094-AC-5,
+/// AC-12): a minted id or a document id, either bare or qualified as
+/// `ix://<org>/<repo>/<id>` and resolved the way the corpus resolves it.
+fn formalizes_id_is_known(spec: &Spec, id: &str, minted: impl Fn(&str) -> bool) -> bool {
+    let known = |bare: &str| minted(bare) || spec.by_id(bare).is_some();
+    let Some(authority) = crate::corpus::resolve::ix_authority(id) else {
+        return known(id);
+    };
+    let bare = crate::corpus::resolve::extract_target_id(id);
+    spec.by_qualified_id(&authority, bare).is_some()
+        || ((0..spec.member_count()).all(|member| spec.member_identity(member).is_none())
+            && known(bare))
+}
+
+/// The obligations a run reconciles against: the evidence inventory's native
+/// entries when evidence is supplied, otherwise those the model derives. The
+/// one source for [`reconcile`] and [`resolve_formalizes`], so both agree on
+/// which ids the corpus carries.
+fn corpus_obligations(
+    spec: &Spec,
+    root: &Path,
+    model: &TraceabilityModel,
+    evidence: Option<&crate::evidence::ReconciledEvidence<'_>>,
+) -> (
+    Vec<crate::obligation::Obligation>,
+    Vec<crate::obligation::SkippedRow>,
+) {
+    // Evidence mode consumes only the native selected entries and cause report.
+    // Legacy derivation would scan unselected sources and leak their skipped rows.
+    match evidence {
+        Some(evidence) => (
+            evidence
+                .input
+                .inventory
+                .entries()
+                .map(|entry| entry.obligation().clone())
+                .collect(),
+            Vec::new(),
+        ),
+        None => crate::obligation::derive(spec, root, model),
+    }
+}
+
+/// Resolve the graph's `formalizes` relations against the corpus (FR-094-AC-5):
+/// an id that no minted target, obligation or document carries is moved to
+/// [`SymbolGraph::formalizes_unknown`].
+pub(super) fn resolve_formalizes(
+    graph: &mut SymbolGraph,
+    spec: &Spec,
+    model: &TraceabilityModel,
+    root: &Path,
+    evidence: Option<&crate::evidence::ReconciledEvidence<'_>>,
+) {
+    if graph.formalizes_resolved {
+        return;
+    }
+    if graph.formalizes.is_empty() {
+        graph.formalizes_resolved = true;
+        return;
+    }
+    let model_exclude = declared_tables::ExcludeSet::compile_validated(&model.exclude);
+    let mut minted: BTreeSet<String> = BTreeSet::new();
+    for target in &model.trace_targets {
+        let mut ctx = declared_tables::ScanContext::default();
+        minted.extend(
+            declared_tables::mint(spec, root, target, &model_exclude, &mut ctx)
+                .into_iter()
+                .map(|minted_id| minted_id.id),
+        );
+    }
+    let (obligations, _) = corpus_obligations(spec, root, model, evidence);
+    minted.extend(obligations.into_iter().map(|obligation| obligation.id));
+    graph.retain_known_formalizes(|id| {
+        formalizes_id_is_known(spec, id, |bare| minted.contains(bare))
+    });
+}
+
 pub(super) fn reconcile(
     spec: &Spec,
     model: &TraceabilityModel,
@@ -54,18 +132,7 @@ pub(super) fn reconcile(
     // that filter needs the id set before it runs.
     // Evidence mode consumes only the native selected entries and cause report.
     // Legacy derivation would scan unselected sources and leak their skipped rows.
-    let (obligations, skipped) = match evidence {
-        Some(evidence) => (
-            evidence
-                .input
-                .inventory
-                .entries()
-                .map(|entry| entry.obligation().clone())
-                .collect(),
-            Vec::new(),
-        ),
-        None => crate::obligation::derive(spec, root, model),
-    };
+    let (obligations, skipped) = corpus_obligations(spec, root, model, evidence);
     let obligation_ids: BTreeSet<&str> = obligations.iter().map(|o| o.id.as_str()).collect();
     // CR-060: compiled once for the whole reconciliation — every declaration
     // is scoped by it.
@@ -566,6 +633,17 @@ pub(super) fn reconcile(
 
     // FR-051-AC-39, AC-44: a shell marker that matched and bound nothing.
     diagnostics.extend(shell_finding_diagnostics(&graph.shell_findings));
+
+    // FR-094: a `formalizes` marker that bound nothing or names an absent id.
+    // A graph `resolve_formalizes` already ran over holds only known ids; its
+    // dropped ones are diagnosed from `formalizes_unknown`. Otherwise this
+    // run's own id sets decide, the same ones a resolve would have used.
+    diagnostics.extend(formalizes_diagnostics(graph, |id| {
+        graph.formalizes_resolved
+            || formalizes_id_is_known(spec, id, |bare| {
+                declared_ids.contains(bare) || obligation_ids.contains(bare)
+            })
+    }));
 
     // PLAT-2: a criterion tag on a test whose declared matrix row does not
     // reference that criterion is visible, but is not evidence for it.
