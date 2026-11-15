@@ -100,15 +100,24 @@ impl FrontmatterOwned {
     }
 }
 
+/// The line a value falls back to when its authored key has no locatable source
+/// line (a YAML merge key): the first line of the document, where the
+/// frontmatter opens.
+pub(crate) const FRONTMATTER_LINE: usize = 1;
+
 impl Owned {
     fn resolve(&self, raw: &str, doc: &QuireDocument) -> Option<Projected> {
         let multiple = self.locator.multiple();
         let (values, line) = if leaf_is_null(doc, &self.path) {
-            let line = crate::extract::frontmatter_key_line(raw, &self.path)?;
+            let line =
+                crate::extract::frontmatter_key_line(raw, &self.path).unwrap_or(FRONTMATTER_LINE);
             (vec![Value::Null], line)
         } else {
             let located = eval_located(doc, &self.locator);
-            let line = located.iter().find_map(|l| l.line)?;
+            let line = located
+                .iter()
+                .find_map(|l| l.line)
+                .unwrap_or(FRONTMATTER_LINE);
             let values = located
                 .into_iter()
                 .map(|l| l.value)

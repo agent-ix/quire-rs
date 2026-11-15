@@ -29,6 +29,7 @@ use crate::extract::assert_eval::{evaluate_assert, AssertReason};
 use crate::extract::dsl::ExtractionDsl;
 use crate::extract::locator::{Locator, LocatorPrimitive};
 use crate::loader::compile::CompiledArchetype;
+use crate::semantic::frontmatter_owned::FRONTMATTER_LINE;
 
 /// Why a [`ValidationError`] was raised. Mirrors the FR-032 reason
 /// vocabulary plus an `UnresolvedField` for FR-034-AC-2.
@@ -618,10 +619,6 @@ fn json_pointer_segments(pointer: &str) -> Vec<String> {
         .filter(|segment| segment.parse::<usize>().is_err())
         .collect()
 }
-
-/// The line a record finding falls back to when its key has no source block:
-/// the first line of the document, where the frontmatter opens.
-const FRONTMATTER_LINE: usize = 1;
 
 /// The 1-based document line of the source block that produced the record key
 /// a `semantic.record-invalid` finding names (FR-072 gives every diagnostic a

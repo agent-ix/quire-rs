@@ -86,7 +86,9 @@ allow-list of record key names. For such a relation:
 - The engine SHALL serialize `record` on the obliged `document` and on each resolved `linked`
   entry as a JSON object holding only the keys in `record_keys` that the document's composed
   semantic record ([FR-069](./FR-069-semantic-module-contract-at-load.md)) states, with each
-  value as extracted.
+  value as extracted. The document's archetype, and so its `data_schema` and semantic module, is
+  the one named by its concept `type` (the `archetype` field above); a differing `object` field
+  does not select another.
 - The engine SHALL NOT serialize any record key outside `record_keys`, whatever the record holds,
   and SHALL NOT default, derive or fill a selected key the document did not state.
 - The engine SHALL order the keys of `record` lexicographically by key name, regardless of the

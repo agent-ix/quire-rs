@@ -368,6 +368,30 @@ fn tc_record_is_resolved_by_type_never_by_object() {
     );
 }
 
+/// ... and the converse: a `Classification` naming another `object` still
+/// resolves its record from `Classification`, the `type`.
+#[trace("FR-084-AC-24")]
+#[test]
+fn tc_record_follows_type_when_object_differs() {
+    let dir = corpus();
+    write(
+        dir.path(),
+        "spec/CLS-009.md",
+        &classification("CLS-009", "object: Connection\ncats: [a]\n"),
+    );
+    write(
+        dir.path(),
+        "spec/CONN-010.md",
+        &connection("CONN-010", &["CLS-009"]),
+    );
+    let report = report(&dir, &fixture());
+    let outgoing = row(section(&report, "conn-classified"), "CONN-010");
+    assert_eq!(
+        linked(outgoing, "CLS-009")["record"],
+        json!({"cats": ["a"]})
+    );
+}
+
 fn refusal(record_keys: &str, from: &str, to: &str) -> String {
     inline_registry(&manifest(Some(record_keys), from, to))
         .err()
