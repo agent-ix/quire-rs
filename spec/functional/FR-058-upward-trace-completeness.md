@@ -53,6 +53,10 @@ module's declared `traceability.required_relations`, each entry naming:
 | `when_any` | Optional. Narrows the obligation to `from` documents that have an edge matching at least one declared condition: `verb`, `direction`, and `other` kinds |
 | `record_keys` | Optional. A non-empty list of record key names the two-way report ([FR-084](./FR-084-two-way-relation-coverage-report.md)) carries from each document's composed record; absent means no record is carried |
 
+A rule that must read a field at the far end of an edge, or combine several such conditions, is not
+a `required_relations` entry; it is a `flow_rules` declaration ([FR-096](./FR-096-flow-rules.md)),
+which reuses this FR's edge resolution and `trace:<check>` keys and adds no field to `required_relations`.
+
 **Direction is why this is one declaration and not two checks.** "Every FR traces to a need" and
 "every need is implemented" are the same edge read from opposite ends, so they are one type with a
 direction rather than two engine checks that can drift apart.
@@ -359,4 +363,4 @@ case that needs no help.
 ## Dependencies
 
 - **Upstream**: [FR-026](./FR-026-intra-spec-reference-resolution.md) (the edge set this reads), [FR-057](./FR-057-corpus-check-severity.md) (the severity knob it ships behind), [FR-050](./FR-050-declarative-coverage-computation.md) (the declaration model it extends); the `filament-core-data` manifest schema (FR-149) that declares `required_relations` keys, which needs the `when_any` key (PLAT-1678)
-- **Downstream**: `spec-objects-security#5` bidirectional hazard/threat coverage, which becomes declarations against this FR rather than engine code; [FR-084](./FR-084-two-way-relation-coverage-report.md) (the coverage report over these declarations); [FR-085](./FR-085-cross-repository-edge-resolution.md) (edges between repositories loaded into one corpus); [FR-086](./FR-086-design-element-join.md) (the design-element join over named relations); `spec-objects-safety` FR-302 (control completeness rules scoped by `when_any`)
+- **Downstream**: `spec-objects-security#5` bidirectional hazard/threat coverage, which becomes declarations against this FR rather than engine code; [FR-084](./FR-084-two-way-relation-coverage-report.md) (the coverage report over these declarations); [FR-085](./FR-085-cross-repository-edge-resolution.md) (edges between repositories loaded into one corpus); [FR-086](./FR-086-design-element-join.md) (the design-element join over named relations); `spec-objects-safety` FR-302 (control completeness rules scoped by `when_any`); [FR-096](./FR-096-flow-rules.md) (`flow_rules`, which reuse the edge resolution and severity keys)

@@ -188,6 +188,13 @@ exactly those, and naming a relation no module declares is an error naming it. R
 relation in declaration order, then by repo, document path and id. Output is identical across runs
 over one corpus ([NFR-006](../non-functional/NFR-006-determinism.md)).
 
+### The flow section
+
+The relations report gains a **flow section**: the `quire.flow-report/v1` of
+[FR-096](./FR-096-flow-rules.md), built over the same loaded corpus and resolved edges. It is a
+separate section, not a row set: it reports `flow_rules` denials and facts, and FR-096 defines its
+shape. The `relations` array above is unchanged by it.
+
 ### Report, not verdict
 
 The report states what is linked and verified. It carries a `summary` per relation: row count and
@@ -236,15 +243,16 @@ consumer, and the engine writes nothing back to any document.
 | FR-084-AC-28 | Over the AC-20 corpus, the incoming relation over the same verb has one row per classification whose `linked` lists its connections by repo then id; a classification no connection points at is an `uncovered` row; every connection-to-classification pairing of the outgoing relation appears as the converse pairing here. | Test |
 | FR-084-AC-29 | The engine source names none of `regulatedCategories`, `health`, `personal` or `financial` as a key, value or special case, and AC-20..AC-22 and AC-24..AC-28 pass with a fixture using none of them. | Inspection |
 | FR-084-AC-30 | A document's carried `record` and `data_schema` come from the archetype named by its concept `type`, never by its `object` field: a `Classification` document stating `object: Connection` carries its selected `cats` from the `Classification` schema, while a `Connection` document (no `data_schema`) stating `object: Classification` carries no `record`. | Test |
+| FR-084-AC-31 | A corpus that also declares `flow_rules` yields a `relations` array byte-identical to the same corpus without them; the flow section is the FR-096 report and holds no `required_relations` row. | Test |
 
 ## Constraints
 
 | ID | Constraint | Type | Validation |
 |----|-----------|------|------------|
 | FR-084-CON-1 | The report SHALL derive verification only from the `coverage_matrix`. | Design | Inspection |
-| FR-084-CON-2 | The report SHALL NOT introduce a manifest key: the relations it reports are the FR-058 declarations. | Design | Inspection |
+| FR-084-CON-2 | The `relations` section SHALL NOT introduce a manifest key: the relations it reports are the FR-058 declarations. The flow section reads the `flow_rules` of FR-096 and adds none. | Design | Inspection |
 
 ## Dependencies
 
 - **Upstream**: [FR-058](./FR-058-upward-trace-completeness.md) (the declarations), [FR-050](./FR-050-declarative-coverage-computation.md) (the matrix), [FR-085](./FR-085-cross-repository-edge-resolution.md) (edge resolution across repositories)
-- **Downstream**: the `quire-cli` relations subcommand (quire-cli FR-030), which renders this report
+- **Downstream**: the `quire-cli` relations subcommand (quire-cli FR-030), which renders this report and the flow section of [FR-096](./FR-096-flow-rules.md)
