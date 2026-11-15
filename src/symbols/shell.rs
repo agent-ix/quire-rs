@@ -61,11 +61,13 @@ pub(crate) fn parse(source: &str) -> Result<Parsed, String> {
     // where the tree carries an error over its declaration structure, and the
     // diagnostic names the line the error sits at (FR-051-AC-45).
     if let Some(diagnostic) = parsed.diagnostic() {
-        return Err(format!(
-            "line {}: unresolvable declaration structure (column {})",
-            diagnostic.line(),
-            diagnostic.column()
-        ));
+        if !is_here_string_grammar_error(source, parsed.root_node(), diagnostic) {
+            return Err(format!(
+                "line {}: unresolvable declaration structure (column {})",
+                diagnostic.line(),
+                diagnostic.column()
+            ));
+        }
     }
     let root = parsed.root_node();
     let line_starts = line_starts(source);
@@ -118,6 +120,60 @@ pub(crate) fn parse(source: &str) -> Result<Parsed, String> {
         symbols,
         comments: comments.into_iter().map(|c| c.attribute).collect(),
     })
+}
+
+/// tree-sitter-bash reports the `<<<` operator as an error node when it follows
+/// another redirect, even though it parses the here-string target as a redirect.
+fn is_here_string_grammar_error(
+    source: &str,
+    root: Node<'_>,
+    diagnostic: quire_code_extraction::Diagnostic<'_>,
+) -> bool {
+    let Some(line_index) = diagnostic
+        .line()
+        .checked_sub(1)
+        .and_then(|line| usize::try_from(line).ok())
+    else {
+        return false;
+    };
+    let Some(line) = source.lines().nth(line_index) else {
+        return false;
+    };
+    let Ok(column) = usize::try_from(diagnostic.column()) else {
+        return false;
+    };
+    if !line
+        .get(column..)
+        .is_some_and(|rest| rest.starts_with("<<<"))
+    {
+        return false;
+    }
+
+    let mut cursor = root.walk();
+    loop {
+        let node = cursor.node();
+        let start = node.start_position();
+        if node.is_error()
+            && start.row == line_index
+            && start.column == column
+            && node
+                .next_sibling()
+                .is_some_and(|sibling| sibling.kind() == "file_redirect")
+        {
+            return true;
+        }
+        if cursor.goto_first_child() {
+            continue;
+        }
+        loop {
+            if cursor.goto_next_sibling() {
+                break;
+            }
+            if !cursor.goto_parent() {
+                return false;
+            }
+        }
+    }
 }
 
 /// Byte offset of every line start.

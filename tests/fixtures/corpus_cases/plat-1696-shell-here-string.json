@@ -1,0 +1,12 @@
+{
+  "name": "shell-output-redirection-before-here-string",
+  "issue_ref": "https://linear.app/agent-ix/issue/PLAT-1696",
+  "input": {
+    "path": "scripts/prepare-review-gate-request.sh",
+    "source": "if ! jq -e . >/dev/null <<<\"$policy\"; then\n  exit 1\nfi\nfunction_after_redirect() { :; }\n"
+  },
+  "expect": {
+    "functions": ["function_after_redirect"],
+    "diagnostic_count": 0
+  }
+}
