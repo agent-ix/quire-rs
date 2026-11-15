@@ -25,7 +25,7 @@ bumps; once 1.0 ships, semver is strict.
   `SymbolGraph`, `SearchResult` and `TraceTagGrammar` gain `formalizes` fields
   (`SymbolGraph` also `formalizes_unknown`, `formalizes_resolved` and
   `formalizes_findings`), `SourceFile` gains `unbalanced_braces`, and
-  `SymbolKind` gains `Declaration`, so struct literals and exhaustive matches
+  `SymbolKind` gains `Declaration`, `SourceLanguage` gains `Qsl`, so struct literals and exhaustive matches
   of these types need the new members.
 - **Breaking, PLAT-1692 (FR-050-AC-68, #680):** `coverage_matrix` criteria carry
   `unbacked_claims`, diagnostic-only occurrences naming the criterion that do
