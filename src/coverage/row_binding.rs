@@ -132,7 +132,11 @@ impl RowBindings {
     pub(super) fn eligible_relations<'a>(
         &self,
         graph: &'a SymbolGraph,
-    ) -> (Vec<&'a VerifiesRelation>, Vec<CoverageDiagnostic>) {
+    ) -> (
+        Vec<&'a VerifiesRelation>,
+        Vec<CoverageDiagnostic>,
+        Vec<&'a VerifiesRelation>,
+    ) {
         let mut ids_by_symbol: BTreeMap<&str, BTreeSet<&str>> = BTreeMap::new();
         for relation in &graph.verifies {
             ids_by_symbol
@@ -143,6 +147,7 @@ impl RowBindings {
 
         let mut eligible = Vec::with_capacity(graph.verifies.len());
         let mut diagnostics = Vec::new();
+        let mut rejected = Vec::new();
         for relation in &graph.verifies {
             let symbol_ids = ids_by_symbol
                 .get(relation.symbol_id.as_str())
@@ -157,16 +162,18 @@ impl RowBindings {
             }
             let Some(rows) = self.rows_by_id.get(&relation.trace_id) else {
                 diagnostics.push(self.out_of_row_diagnostic(relation, &BTreeSet::new()));
+                rejected.push(relation);
                 continue;
             };
             if has_matrix_row && rows.iter().any(|row| symbol_ids.contains(row.as_str())) {
                 eligible.push(relation);
             } else {
                 diagnostics.push(self.out_of_row_diagnostic(relation, rows));
+                rejected.push(relation);
             }
         }
 
-        (eligible, diagnostics)
+        (eligible, diagnostics, rejected)
     }
 
     fn out_of_row_diagnostic(

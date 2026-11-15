@@ -728,6 +728,11 @@ pub struct CoverageMatrixCriterion {
     /// registration's qualified name is ignorant of its enclosing suite
     /// (FR-051-AC-21). Empty, never absent, for a criterion with no binder.
     pub binders: Vec<CoverageMatrixBinder>,
+    /// Diagnostic-only source claims that name this criterion but provide no
+    /// backing (FR-050-AC-68). Empty and omitted when every claim backs or no
+    /// source claim names the criterion.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub unbacked_claims: Vec<CoverageMatrixUnbackedClaim>,
     /// Separate retained record binders; present even when empty in evidence mode.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub record_binders: Option<Vec<crate::evidence::RecordBinder>>,
@@ -736,6 +741,59 @@ pub struct CoverageMatrixCriterion {
     pub identity: Option<crate::evidence::TargetLocus>,
     /// The computed static status (FR-050-AC-49).
     pub status: CoverageMatrixStatus,
+}
+
+/// Why one source occurrence naming a matrix criterion did not provide
+/// backing (FR-050-AC-68).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum CoverageMatrixClaimReason {
+    /// The test's declared matrix row does not cite the criterion.
+    TaggedWithoutCitingMatrixRow,
+    /// The id occurs in a comment or docstring outside a declared marker.
+    UnmarkedTraceId,
+}
+
+impl CoverageMatrixClaimReason {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::TaggedWithoutCitingMatrixRow => "tagged-without-citing-matrix-row",
+            Self::UnmarkedTraceId => "unmarked-trace-id",
+        }
+    }
+}
+
+/// One non-backing source claim shown beside a matrix criterion
+/// (FR-050-AC-68).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CoverageMatrixUnbackedClaim {
+    /// The reason the occurrence does not provide backing.
+    pub reason: CoverageMatrixClaimReason,
+    /// The criterion id exactly as the source occurrence states it.
+    pub id: String,
+    /// Repo-relative, `/`-separated source path.
+    pub path: String,
+    /// 1-based line of the claim.
+    pub line: usize,
+    /// Qualified source symbol, or file path for a module-header occurrence.
+    pub symbol: String,
+}
+
+impl CoverageMatrixUnbackedClaim {
+    fn sort_key(&self) -> (&str, usize, &str, &str, &str) {
+        (
+            &self.path,
+            self.line,
+            &self.symbol,
+            self.reason.as_str(),
+            &self.id,
+        )
+    }
+
+    fn sort_and_dedup(claims: &mut Vec<Self>) {
+        claims.sort_by(|left, right| left.sort_key().cmp(&right.sort_key()));
+        claims.dedup_by(|left, right| left == right);
+    }
 }
 
 /// One binding test symbol of a `coverage_matrix` criterion (CR-187,
@@ -1095,4 +1153,76 @@ fn coverage_metrics(
 /// normalization (CR-038).
 pub(crate) fn relative(root: &Path, path: &Path) -> String {
     declared_tables::relative_path(root, path)
+}
+
+#[cfg(test)]
+mod coverage_matrix_unbacked_claim_tests {
+    use ix_trace_rs::trace;
+
+    use super::{CoverageMatrixClaimReason, CoverageMatrixUnbackedClaim};
+
+    fn claim(
+        reason: CoverageMatrixClaimReason,
+        path: &str,
+        line: usize,
+        symbol: &str,
+    ) -> CoverageMatrixUnbackedClaim {
+        CoverageMatrixUnbackedClaim {
+            reason,
+            id: "FR-001-AC-2".to_string(),
+            path: path.to_string(),
+            line,
+            symbol: symbol.to_string(),
+        }
+    }
+
+    #[trace("FR-050-AC-68")]
+    #[test]
+    fn unbacked_claims_sort_and_deduplicate_exact_records() {
+        let duplicate = claim(
+            CoverageMatrixClaimReason::TaggedWithoutCitingMatrixRow,
+            "src/a.rs",
+            4,
+            "tests::alpha",
+        );
+        let later = claim(
+            CoverageMatrixClaimReason::UnmarkedTraceId,
+            "src/z.rs",
+            9,
+            "tests::omega",
+        );
+        let earlier = claim(
+            CoverageMatrixClaimReason::UnmarkedTraceId,
+            "src/a.rs",
+            2,
+            "tests::zeta",
+        );
+        let same_locus_other_reason = claim(
+            CoverageMatrixClaimReason::UnmarkedTraceId,
+            "src/a.rs",
+            4,
+            "tests::alpha",
+        );
+        let mut claims = vec![
+            later.clone(),
+            same_locus_other_reason.clone(),
+            duplicate.clone(),
+            earlier.clone(),
+            duplicate.clone(),
+        ];
+
+        CoverageMatrixUnbackedClaim::sort_and_dedup(&mut claims);
+
+        assert_eq!(
+            claims,
+            vec![earlier, duplicate, same_locus_other_reason, later],
+            "claims sort by path, line, symbol, reason, then id and exact duplicates collapse"
+        );
+        let sorted = claims.clone();
+        CoverageMatrixUnbackedClaim::sort_and_dedup(&mut claims);
+        assert_eq!(
+            claims, sorted,
+            "normalization is deterministic and idempotent"
+        );
+    }
 }

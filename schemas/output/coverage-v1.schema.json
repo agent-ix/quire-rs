@@ -1137,10 +1137,34 @@
           },
           "description": "One per distinct (path, line, column) verifies relation bound to this id. Empty, never absent, for a criterion with no binder."
         },
+        "unbacked_claims": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/CoverageMatrixUnbackedClaim"
+          },
+          "description": "FR-050-AC-68: diagnostic-only claims naming this criterion that do not provide backing. Omitted when empty."
+        },
         "status": {
           "$ref": "#/$defs/CoverageMatrixStatus"
         }
       }
+    },
+    "CoverageMatrixUnbackedClaim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reason", "id", "path", "line", "symbol"],
+      "properties": {
+        "reason": {
+          "type": "string",
+          "enum": ["tagged-without-citing-matrix-row", "unmarked-trace-id"]
+        },
+        "id": {"type": "string", "minLength": 1},
+        "path": {"type": "string", "minLength": 1},
+        "line": {"type": "integer", "minimum": 1},
+        "symbol": {"type": "string", "minLength": 1}
+      },
+      "description": "One source occurrence naming a criterion that does not provide backing (FR-050-AC-68)."
     },
     "CoverageMatrixBinder": {
       "type": "object",

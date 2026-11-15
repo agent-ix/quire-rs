@@ -127,6 +127,7 @@ fn entry(id: &str, statuses: &[CoverageMatrixStatus]) -> CoverageMatrixRequireme
                 statement: "The system shall hold.".into(),
                 method: None,
                 binders: Vec::new(),
+                unbacked_claims: Vec::new(),
                 record_binders: None,
                 identity: None,
                 status: *status,
