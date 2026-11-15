@@ -23,14 +23,14 @@ jobs:
       contents: read
     steps:
       - name: Collect all wheel matrix outputs
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        uses: actions/download-artifact@v8
         with:
           path: dist
           pattern: wheels-*
           merge-multiple: true
 
       - name: Upload release files
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@v7
         with:
           name: release-artifacts
           path: dist/*.whl
