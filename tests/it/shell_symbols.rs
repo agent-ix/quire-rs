@@ -544,6 +544,38 @@ fn tc2112_unparseable_file() {
     assert_eq!(names(&extraction.symbols, SymbolKind::Function), ["f"]);
 }
 
+#[trace("FR-051-AC-45")]
+// A grammar error on a supported redirect form does not hide later declarations.
+#[test]
+fn tc2114_redirected_here_string_preserves_symbols() {
+    let case: serde_json::Value = serde_json::from_str(include_str!(
+        "../fixtures/corpus_cases/plat-1696-shell-here-string.json"
+    ))
+    .expect("fixture JSON");
+    let input = &case["input"];
+    let path = input["path"].as_str().expect("fixture path");
+    let source = input["source"].as_str().expect("fixture source");
+    let extraction = sh(path, source);
+    let expected: Vec<&str> = case["expect"]["functions"]
+        .as_array()
+        .expect("expected functions")
+        .iter()
+        .map(|name| name.as_str().expect("function name"))
+        .collect();
+    assert_eq!(
+        names(&extraction.symbols, SymbolKind::Function),
+        expected,
+        "{:?}",
+        extraction.diagnostics
+    );
+    assert_eq!(
+        extraction.diagnostics.len(),
+        case["expect"]["diagnostic_count"]
+            .as_u64()
+            .expect("expected diagnostic count") as usize
+    );
+}
+
 #[trace("FR-051-AC-46")]
 // end to end: a tagged script under a glob backs its row; outside it, nothing.
 #[test]
