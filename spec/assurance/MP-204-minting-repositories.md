@@ -12,11 +12,11 @@ relationships: []
 
 # Minting repository census
 
-## Decision Objective
+## Decision Use
 
 Expose repositories in a corpus whose declared matrix paths can mint test rows.
 
-## Population and Scope
+## Population
 
 Include every repository walked in the named corpus entry.
 
@@ -26,7 +26,7 @@ Include every repository walked in the named corpus entry.
 summary surface, definition `coverage.minting-repos-v1`. Store matched and
 examined repository counts.
 
-## Collection and Provenance
+## Collection Procedure
 
 Retain the raw coverage envelope, configuration, and timestamp.
 
@@ -35,7 +35,7 @@ Retain the raw coverage envelope, configuration, and timestamp.
 Name the corpus and module declarations. Record inaccessible repositories
 as incomplete population rather than dropping them.
 
-## Interpretation and Limitations
+## Interpretation
 
 Minting capability says rows can enter the denominator; it does not show that
 rows are backed or tests are good.

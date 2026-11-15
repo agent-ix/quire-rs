@@ -12,11 +12,11 @@ relationships: []
 
 # Skeptic suspicion-rate language guard
 
-## Decision Objective
+## Decision Use
 
 Detect a skeptic rule that broadly misreads a language and floods the corpus.
 
-## Population and Scope
+## Population
 
 For each language and pinned corpus entry, include evidence symbols examined by
 the source walk.
@@ -26,7 +26,7 @@ the source walk.
 `skeptic.suspicion_rate` is `suspicions / candidates * 100`, definition
 `skeptic.suspicion-rate-v1`. Preserve per-language counts.
 
-## Collection and Provenance
+## Collection Procedure
 
 Retain raw suspicion records, configuration, and timestamp.
 
@@ -35,7 +35,7 @@ Retain raw suspicion records, configuration, and timestamp.
 Include healthy language controls and seeded vacuity defects. Do not pool
 languages with different syntax.
 
-## Interpretation and Limitations
+## Interpretation
 
 A high rate is a review trigger, not proof the rule is wrong; adjudicate a
 sample. A low rate does not establish recall.

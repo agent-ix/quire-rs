@@ -12,12 +12,12 @@ relationships: []
 
 # Evidence-symbol tag authoring rate
 
-## Decision Objective
+## Decision Use
 
 Distinguish tests that carry no trace tag from tests whose authored tag exists
 but the declared grammar cannot read it.
 
-## Population and Scope
+## Population
 
 For each language, include every evidence symbol counted by `binding_census`.
 Preserve language rows when interpreting a repository; a pooled total is only a
@@ -29,7 +29,7 @@ portfolio summary.
 attached annotation block carries a generic id-shaped token, or when a declared
 form bound it. The invariant is `bound <= tagged <= candidates`.
 
-## Collection and Provenance
+## Collection Procedure
 
 Collect the counts and `unmatched_example` from the raw `quire coverage --json`
 payload. Retain capabilities, command configuration, and timestamp.
@@ -39,7 +39,7 @@ payload. Retain capabilities, command configuration, and timestamp.
 Exercise a no-tag control, an unread-tag case, and a mixed population in every
 supported language. Record the corpus and module used.
 
-## Interpretation and Limitations
+## Interpretation
 
 `tagged - bound` routes work to the instrument or declaration;
 `candidates - tagged` routes work to repository authors. The generic pattern is

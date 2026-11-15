@@ -1,4 +1,18 @@
+---
+type: index
+title: Render Parity Notes
+description: Index of known render-parity limits and behavior areas.
+okf_version: "0.1"
+---
+
 # Render Parity Notes
+
+## Contents
+
+- [Known divergences](#known-divergences)
+- [Whitespace handling](#whitespace-handling)
+- [Filter behavior](#filter-behavior)
+- [Number formatting](#number-formatting)
 
 Documents any deviations between `quire-rs::render` output and the Python Jinja2 reference renderer (spec-artifacts-iso/app/process), per [StR-002-AC-2](../stakeholder/StR-002-render-parity-with-python.md).
 
