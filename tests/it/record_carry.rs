@@ -345,7 +345,7 @@ fn inline_registry(manifest: &str) -> Result<Registry, String> {
 /// The archetype is the concept `type` alone: a `Connection` (no `data_schema`)
 /// naming a schema-bearing `object` carries no record, while its `type`-keyed
 /// control does.
-#[trace("FR-084-AC-24")]
+#[trace("FR-084-AC-30")]
 #[test]
 fn tc_record_is_resolved_by_type_never_by_object() {
     let dir = corpus();
@@ -370,7 +370,7 @@ fn tc_record_is_resolved_by_type_never_by_object() {
 
 /// ... and the converse: a `Classification` naming another `object` still
 /// resolves its record from `Classification`, the `type`.
-#[trace("FR-084-AC-24")]
+#[trace("FR-084-AC-30")]
 #[test]
 fn tc_record_follows_type_when_object_differs() {
     let dir = corpus();
