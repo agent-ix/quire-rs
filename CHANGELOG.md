@@ -11,19 +11,28 @@ bumps; once 1.0 ships, semver is strict.
 
 ### Added
 
-- PLAT-1441 (FR-069, FR-081, FR-084, #690): frontmatter-owned record keys. A
-  `required_relations` entry accepts an optional `record_keys` allow-list, and
-  the FR-084 relation report carries the selected record of each document,
-  filtered to those keys. The record's archetype is selected by `type`, not
-  `object`. A document whose relationships are unreadable withholds the
-  flattened typed relation keys.
-- VER-75 (FR-094, #689): the `formalizes` relation from a requirement to a formal
-  rule, with a QSL symbol adapter. Unknown `formalizes` ids resolve out of
-  relations and report by reason.
-- PLAT-1692 (FR-050-AC-68, #680): `coverage_matrix` criteria carry
+- **Breaking, PLAT-1441 (FR-069, FR-081, FR-084, #690):** frontmatter-owned
+  record keys. A `required_relations` entry accepts an optional `record_keys`
+  allow-list, and the FR-084 relation report carries the selected record of each
+  document, filtered to those keys. The record's archetype is selected by
+  `type`, not `object`. A document whose relationships are unreadable withholds
+  the flattened typed relation keys. `RequiredRelation` gains `record_keys`,
+  `RowDocument` gains `record`, and `KeyOwner` gains a `Frontmatter` variant, so
+  struct literals and exhaustive matches of these types need the new members.
+- **Breaking, VER-75 (FR-094, #689):** the `formalizes` relation from a
+  requirement to a formal rule, with a QSL symbol adapter. Unknown `formalizes`
+  ids resolve out of relations and report by reason. `SymbolRecord`,
+  `SymbolGraph`, `SearchResult` and `TraceTagGrammar` gain `formalizes` fields
+  (`SymbolGraph` also `formalizes_unknown`, `formalizes_resolved` and
+  `formalizes_findings`), `SourceFile` gains `unbalanced_braces`, and
+  `SymbolKind` gains `Declaration`, so struct literals and exhaustive matches
+  of these types need the new members.
+- **Breaking, PLAT-1692 (FR-050-AC-68, #680):** `coverage_matrix` criteria carry
   `unbacked_claims`, diagnostic-only occurrences naming the criterion that do
   not back it (`tagged-without-citing-matrix-row`, `unmarked-trace-id`).
-  `coverage-v1.schema.json` adds `unbacked_claims` and `CoverageMatrixUnbackedClaim`.
+  `CoverageMatrixCriterion` gains `unbacked_claims`, so struct literals of it
+  need the new field. `coverage-v1.schema.json` adds `unbacked_claims` and
+  `CoverageMatrixUnbackedClaim`.
 - Composed semantic records are validated against the archetype's data schema
   (#681).
 
@@ -31,10 +40,11 @@ bumps; once 1.0 ships, semver is strict.
 
 - Bash here-string no longer raises a parse diagnostic during shell symbol
   extraction (#686).
-- Validation corpus aligned with archetypes (PLAT-1697, #685).
 
 ### Changed
 
+- PLAT-1697 (#685): spec documentation only; the validation corpus is aligned
+  with the archetypes. No validation behavior changes.
 - **Breaking, PLAT-1689:** `edges:disallowed-edge-target` checks resolved,
   frontmatter-authored relationships against the target document's registered
   archetype and, when resolvable, its `object:` type and roles. Synthesized
