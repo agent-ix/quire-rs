@@ -86,7 +86,9 @@ allow-list of record key names. For such a relation:
 - The engine SHALL serialize `record` on the obliged `document` and on each resolved `linked`
   entry as a JSON object holding only the keys in `record_keys` that the document's composed
   semantic record ([FR-069](./FR-069-semantic-module-contract-at-load.md)) states, with each
-  value as extracted.
+  value as extracted. The document's archetype, and so its `data_schema` and semantic module, is
+  the one named by its concept `type` (the `archetype` field above); a differing `object` field
+  does not select another.
 - The engine SHALL NOT serialize any record key outside `record_keys`, whatever the record holds,
   and SHALL NOT default, derive or fill a selected key the document did not state.
 - The engine SHALL order the keys of `record` lexicographically by key name, regardless of the
@@ -233,6 +235,7 @@ consumer, and the engine writes nothing back to any document.
 | FR-084-AC-27 | In every document entry that carries `record`, the `record` key follows `criteria`. | Test |
 | FR-084-AC-28 | Over the AC-20 corpus, the incoming relation over the same verb has one row per classification whose `linked` lists its connections by repo then id; a classification no connection points at is an `uncovered` row; every connection-to-classification pairing of the outgoing relation appears as the converse pairing here. | Test |
 | FR-084-AC-29 | The engine source names none of `regulatedCategories`, `health`, `personal` or `financial` as a key, value or special case, and AC-20..AC-22 and AC-24..AC-28 pass with a fixture using none of them. | Inspection |
+| FR-084-AC-30 | A document's carried `record` and `data_schema` come from the archetype named by its concept `type`, never by its `object` field: a `Classification` document stating `object: Connection` carries its selected `cats` from the `Classification` schema, while a `Connection` document (no `data_schema`) stating `object: Classification` carries no `record`. | Test |
 
 ## Constraints
 

@@ -244,7 +244,7 @@ impl RelationSchema {
     /// The typed shape rows lower into for the object type `vocabulary`
     /// describes; `None` when it has no typed relation key, so every row
     /// lowers into `relations`.
-    fn shape(&self, vocabulary: &RelationVocabulary) -> Option<TypedShape> {
+    pub(crate) fn shape(&self, vocabulary: &RelationVocabulary) -> Option<TypedShape> {
         let keys: Vec<String> = self
             .typed_keys(vocabulary.own_allowed_links()?)
             .map(str::to_string)
@@ -273,7 +273,7 @@ fn is_semantic_id_array(property: &Value) -> bool {
 /// schema also declares `relations`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct TypedShape {
-    keys: Vec<String>,
+    pub(crate) keys: Vec<String>,
     declares_relations: bool,
 }
 

@@ -551,6 +551,13 @@ pub struct RequiredRelation {
     /// deserialized.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub when_any: Vec<EdgeCondition>,
+    /// Optional allow-list of record keys the two-way report carries from each
+    /// document's composed record (FR-058-AC-36, FR-084). `None` carries no
+    /// record. The list shape is validated when the declaration is
+    /// deserialized; whether an endpoint archetype declares each key waits for
+    /// the merged registry.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub record_keys: Option<Vec<String>>,
 }
 
 /// The authored shape of a [`RequiredRelation`], before the `where` is
@@ -573,6 +580,9 @@ struct RawRequiredRelation {
     /// `when_any: null` stays `Some(Null)` so it is rejected, not read as absent.
     #[serde(default, deserialize_with = "deserialize_present")]
     when_any: Option<serde_json::Value>,
+    /// `record_keys: null` stays `Some(Null)` so it is rejected, not read as absent.
+    #[serde(default, deserialize_with = "deserialize_present")]
+    record_keys: Option<serde_json::Value>,
 }
 
 impl TryFrom<RawRequiredRelation> for RequiredRelation {
@@ -588,6 +598,11 @@ impl TryFrom<RawRequiredRelation> for RequiredRelation {
             Some(value) => EdgeCondition::parse_list(&raw.name, value)?,
             None => Vec::new(),
         };
+        let record_keys = raw
+            .record_keys
+            .as_ref()
+            .map(|value| parse_record_keys(&raw.name, value))
+            .transpose()?;
         Ok(Self {
             name: raw.name,
             from: raw.from,
@@ -598,8 +613,37 @@ impl TryFrom<RawRequiredRelation> for RequiredRelation {
             exclude: raw.exclude,
             selector,
             when_any,
+            record_keys,
         })
     }
+}
+
+/// Parse a `record_keys` allow-list: a non-empty list of distinct, non-blank
+/// strings.
+fn parse_record_keys(relation: &str, raw: &serde_json::Value) -> Result<Vec<String>, String> {
+    let bad = |why: &str| {
+        format!(
+            "traceability: required_relations entry '{relation}' has an invalid `record_keys`: {why}"
+        )
+    };
+    let serde_json::Value::Array(items) = raw else {
+        return Err(bad("it must be a list of record key names"));
+    };
+    if items.is_empty() {
+        return Err(bad("it is empty"));
+    }
+    let mut keys: Vec<String> = Vec::with_capacity(items.len());
+    for item in items {
+        let key = match item.as_str() {
+            Some(key) if !key.trim().is_empty() => key,
+            _ => return Err(bad("each entry must be a non-blank string")),
+        };
+        if keys.iter().any(|seen| seen == key) {
+            return Err(bad(&format!("'{key}' is repeated")));
+        }
+        keys.push(key.to_string());
+    }
+    Ok(keys)
 }
 
 /// The end of an edge a `from` document stands at in a `when_any` condition.

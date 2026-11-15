@@ -27,6 +27,7 @@ mod field_rules;
 mod filament_boundary_audit;
 mod filament_core_fixtures;
 mod formalizes_relation;
+mod frontmatter_owned_keys;
 mod id_column_lists;
 #[cfg(feature = "rust-symbols")]
 mod implements_relation;
@@ -51,6 +52,7 @@ mod plat_validation_batch;
 mod props_fr_040;
 mod props_metamorphic;
 mod quality_lints;
+mod record_carry;
 mod relation_report;
 mod release_workflow;
 mod required_relations;

@@ -16,6 +16,7 @@ pub mod context;
 pub mod contract;
 pub mod decl;
 pub mod embedded;
+pub(crate) mod frontmatter_owned;
 pub mod model;
 pub mod properties;
 pub mod python_entry;

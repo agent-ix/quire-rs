@@ -133,6 +133,11 @@ pub struct RowDocument {
     pub verification: Verification,
     /// The counts the verification is computed from.
     pub criteria: Criteria,
+    /// The keys the relation's `record_keys` selects from the document's
+    /// composed record, ordered by key name; absent when the relation selects
+    /// none or the document states none (FR-084).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub record: Option<serde_json::Map<String, serde_json::Value>>,
 }
 
 /// The `where` value that selected a row's document, as authored.
@@ -441,8 +446,10 @@ fn report_of(
         members.iter().map(|m| standing_of(m)).collect();
     let roots: Vec<&Path> = members.iter().map(|m| m.root).collect();
     let context = RelationContext::build(corpus, registry, &roots);
+    let mut records = RecordCache::new();
     let ctx = Context {
         corpus,
+        registry,
         context: &context,
         members,
         standing: &standing,
@@ -451,7 +458,7 @@ fn report_of(
     RelationReport {
         relations: relations
             .iter()
-            .map(|relation| ctx.section(relation, &model_exclude))
+            .map(|relation| ctx.section(relation, &model_exclude, &mut records))
             .collect(),
     }
 }
@@ -488,6 +495,7 @@ enum Linking {
 
 struct Context<'a> {
     corpus: &'a Spec,
+    registry: &'a Registry,
     context: &'a RelationContext,
     /// Whether `linked` entries carry `realized_criteria`.
     linking: Linking,
@@ -495,11 +503,21 @@ struct Context<'a> {
     standing: &'a [BTreeMap<String, Criteria>],
 }
 
+/// Each document's extracted record, read once per report and shared by every
+/// relation that selects keys from it. Owned by the report call, so no state is
+/// shared across threads.
+type RecordCache = BTreeMap<usize, Option<crate::validate_document::DocumentRecord>>;
+
 /// Sort key of a counterpart: repo (absent first), then id, then verb.
 type LinkKey = (Option<String>, String, String);
 
 impl Context<'_> {
-    fn section(&self, relation: &RequiredRelation, model_exclude: &ExcludeSet) -> RelationSection {
+    fn section(
+        &self,
+        relation: &RequiredRelation,
+        model_exclude: &ExcludeSet,
+        records: &mut RecordCache,
+    ) -> RelationSection {
         let mut rows: Vec<RelationRow> = Vec::new();
         let Some(edges) = self.context.edges_for(relation) else {
             return RelationSection {
@@ -513,7 +531,7 @@ impl Context<'_> {
         for (member, input) in self.members.iter().enumerate() {
             let view = self.corpus.member_view(member);
             for obliged in obliged(&view, relation, input.root, model_exclude) {
-                rows.push(self.row(relation, edges, obliged.slot, obliged.value));
+                rows.push(self.row(relation, edges, obliged.slot, obliged.value, records));
             }
         }
         rows.sort_by(|a, b| {
@@ -550,8 +568,26 @@ impl Context<'_> {
         }
     }
 
-    fn document(&self, slot: usize) -> RowDocument {
+    fn document(
+        &self,
+        relation: &RequiredRelation,
+        slot: usize,
+        records: &mut RecordCache,
+    ) -> RowDocument {
         let doc = self.corpus.doc(slot);
+        let record = relation.record_keys.as_deref().and_then(|keys| {
+            records
+                .entry(slot)
+                .or_insert_with(|| {
+                    crate::validate_document::document_record(
+                        self.registry,
+                        doc.raw(),
+                        self.corpus.bundle_package(),
+                    )
+                })
+                .as_ref()?
+                .select(keys)
+        });
         let member = self.corpus.member_of(slot);
         let criteria = self
             .standing
@@ -566,6 +602,7 @@ impl Context<'_> {
             repo: self.corpus.member_identity(member).map(str::to_string),
             verification: criteria.verification(),
             criteria,
+            record,
         }
     }
 
@@ -575,6 +612,7 @@ impl Context<'_> {
         edges: &RelationEdges,
         slot: usize,
         value: Option<&serde_json::Value>,
+        records: &mut RecordCache,
     ) -> RelationRow {
         let corpus = self.corpus;
         let accepted_kinds: BTreeSet<&str> = relation.to.iter().map(String::as_str).collect();
@@ -634,7 +672,7 @@ impl Context<'_> {
         let mut linked: Vec<LinkedEntry> = resolved
             .into_iter()
             .map(|((_, _, verb), (other, ids))| LinkedEntry::Resolved {
-                document: self.document(other),
+                document: self.document(relation, other, records),
                 verb,
                 realized_criteria: (self.linking == Linking::Join)
                     .then(|| ids.into_iter().collect()),
@@ -651,7 +689,7 @@ impl Context<'_> {
             );
         }
 
-        let document = self.document(slot);
+        let document = self.document(relation, slot, records);
         let mut tracked: BTreeMap<(Option<String>, String), Verification> = BTreeMap::new();
         let mut track = |doc: &RowDocument| {
             if doc.verification != Verification::NotTracked {

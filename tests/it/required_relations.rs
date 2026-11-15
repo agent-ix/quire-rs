@@ -431,6 +431,7 @@ fn tc906_an_unexecutable_relation_is_rejected_at_load() {
         exclude: vec![],
         selector: None,
         when_any: vec![],
+        record_keys: None,
     };
     let model = |r: RequiredRelation| TraceabilityModel {
         required_relations: vec![r],
@@ -493,6 +494,7 @@ fn tc907_duplicate_relation_names_are_rejected() {
         exclude: vec![],
         selector: None,
         when_any: vec![],
+        record_keys: None,
     };
     let err = TraceabilityModel {
         required_relations: vec![one.clone(), one],

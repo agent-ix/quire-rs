@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "cats": {
+      "type": "array",
+      "items": { "enum": ["a", "b", "c"] },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "lvl": { "enum": ["hi", "lo"] },
+    "zeta": { "type": "string" },
+    "alpha": { "type": "string" },
+    "tag": { "type": "string" }
+  },
+  "additionalProperties": false
+}
