@@ -201,9 +201,14 @@ remediations:
 - `adds: {edge, direction, from, field, value}`: a document of archetype `from` with `field` equal
   to `value` is linked to the subject by `edge` in `direction` (as seen from the subject).
 - `sets: {field, value}`: the subject's own frontmatter `field` is set to `value`.
-- `removes: {edge, direction}`: **every** edge of the verb `edge` in `direction` that the subject
-  itself holds is deleted. An edge held by a document reached by a step is not the subject's and is
-  never removed.
+- `removes: {edge, direction}`: **every** edge of the verb `edge` between the subject and a document
+  of the first step, in `direction` as seen from the subject, is deleted. Which document an author
+  edits depends on the direction. For `outgoing` the subject is the source, so the author edits the
+  **subject** and deletes its own `edge` entries. For `incoming` the edge is authored by the
+  first-step endpoint and points to the subject, so the author edits each **first-step document**,
+  deleting its `edge` entries that target the subject; the subject itself is not edited. The
+  remediation `description` states the edge and which document is edited. An edge starting at a
+  second step is neither the subject's nor an endpoint's edge to the subject and is never removed.
 
 A rule may name only a remediation whose model change would clear **that rule's** denial; naming a
 fix that cannot is refused at load. A remediation **matches** a rule when:
@@ -215,7 +220,7 @@ fix that cannot is refused at load. A remediation **matches** a rule when:
   same `field`, and `value` among its `any_of`;
 - `removes`: some `match` condition tested with `any_of` or `present` has **every one of its paths
   beginning** with a first step of that `edge` and `direction`, so removing the subject's edges of that
-  verb leaves every path ending at no document and the condition fails. A path of zero steps, a path
+  verb (at either endpoint, per the direction) leaves every path ending at no document and the condition fails. A path of zero steps, a path
   beginning with another step, or an `any_path` holding any such path does not qualify, because the
   condition would still hold through that path after the removal.
 
@@ -299,7 +304,7 @@ other work. The CLI flag, its human rendering and exit codes belong to `quire-cl
 | FR-096-AC-4 | A sink whose data arrives by both the two-step path (`delivers_to` incoming, then `carries` outgoing) and its own `carries` edge is read through `any_path`: the condition holds when either path ends at a document holding the value, and the denial names the documents from both paths once each. | Test |
 | FR-096-AC-5 | A rule whose `any_of` names a value outside the `enum` of that field in the end archetype's schema (for example `medical` where the schema admits `health`, `personal`, `financial`) fails module load with an error naming the rule and the value; the same rule with an in-`enum` value loads, and a value differing from a member only by case or surrounding whitespace loads. | Test |
 | FR-096-AC-6 | Each of these fails module load naming the rule: an unknown archetype in `subject`; an unknown archetype in a step `to`; an unknown edge verb; a `remediations` entry that is not declared; a duplicate rule name; an empty `match`; a path of three steps; a condition holding both `path` and `any_path`, or neither; a condition with two of `any_of`/`absent`/`present`; a blank `check`. | Test |
-| FR-096-AC-7 | A remediation whose `adds` matches none of the rule's `unless_any` conditions (wrong `edge`, `direction`, `from`, `field` or `value`) fails load when the rule names it, naming the rule and the remediation; the same remediation unnamed by any rule loads. A `sets` that matches no zero-step condition fails likewise, and so does a `removes` whose edge and direction do not begin every path of one `match` condition: an edge only at a second step, or an `any_path` holding one path that does not begin with it, is refused. A `removes` whose edge and direction begin every path of an `any_of` or `present` condition (for example an `any_path` of two paths both beginning with the removed step) loads. | Test |
+| FR-096-AC-7 | A remediation whose `adds` matches none of the rule's `unless_any` conditions (wrong `edge`, `direction`, `from`, `field` or `value`) fails load when the rule names it, naming the rule and the remediation; the same remediation unnamed by any rule loads. A `sets` that matches no zero-step condition fails likewise, and so does a `removes` whose edge and direction do not begin every path of one `match` condition: an edge only at a second step, or an `any_path` holding one path that does not begin with it, is refused. An `incoming` `removes` is valid on the same terms. A `removes` whose edge and direction begin every path of an `any_of` or `present` condition (for example an `any_path` of two paths both beginning with the removed step) loads. | Test |
 | FR-096-AC-8 | A corpus with no document carrying the facts a starter-style rule reads (no connection-like document with a classification-like edge) yields no finding from any `flow_rules` declaration. | Test |
 | FR-096-AC-9 | `absent: true` holds when no document at the end of the path has the field and when the path ends at no document; `present: true` with `field: id` holds exactly when at least one edge of the step exists; `absent` and `present` are exact complements for one path and field. | Test |
 | FR-096-AC-10 | Comparison is trim plus ASCII case folding: a document stating ` Health ` matches `any_of: [health]`; a list value holding a matching member matches; a value differing by more than case and whitespace does not; a number, mapping, boolean, null or missing field never equals an entry, and none of them raises an error or warning. | Test |
