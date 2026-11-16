@@ -7,6 +7,15 @@ bumps; once 1.0 ships, semver is strict.
 
 ## [Unreleased]
 
+## [0.62.0] — 2026-11-16
+
+### Added
+
+- **Breaking, PLAT-1479 (#694):** flow denials now expose remediation names,
+  descriptions and declared changes (`adds`, `sets` or `removes`) as structured
+  details. `FlowDenial.remediations` changes from `Vec<String>` to
+  `Vec<FlowDenialRemediation>`, and denial messages include those details.
+
 ## [0.61.0] — 2026-11-15
 
 ### Added
