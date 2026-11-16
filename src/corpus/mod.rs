@@ -16,10 +16,10 @@
 //! - `query` — whole-spec query API (FR-027; Task 031).
 
 mod body_cache;
-mod flow_rules;
 pub mod declared_tables;
 pub mod design_matrix;
 pub mod field_rules;
+mod flow_rules;
 pub mod glossary;
 pub mod query;
 mod relation_edges;
@@ -37,8 +37,8 @@ pub use design_matrix::{
     design_matrix, DesignBlock, DesignElement, DesignElementRef, DesignMatrixCriterion,
     DesignMatrixEntry,
 };
-pub use glossary::{glossary_terms, glossary_terms_from_path};
 pub use flow_rules::{FlowDenial, FlowDocumentRef, FlowFact, FlowReport, FlowRuleSummary};
+pub use glossary::{glossary_terms, glossary_terms_from_path};
 pub use relation_report::{
     design_join, relation_report, Criteria, DanglingEntry, KindMismatchEntry, LinkResolution,
     LinkedEntry, RelationReport, RelationReportError, RelationReportMember, RelationRow,
