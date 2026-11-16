@@ -9,10 +9,12 @@ use crate::error::ArchetypeLoadFailure;
 use crate::loader::compile::CompiledArchetype;
 use crate::loader::LoadedModule;
 use crate::traceability::{
-    fold_selector_value, EdgeSide, FlowCondition, FlowConditionTest, FlowRemediation, FlowRule,
-    FlowStep, TraceabilityModel,
+    fold_selector_value, FlowCondition, FlowConditionTest, FlowRemediation, FlowRule, FlowStep,
+    TraceabilityModel,
 };
 use crate::vocab::EdgeTypeDef;
+
+type ValidatedPaths<'a> = Vec<(Vec<String>, Vec<&'a FlowStep>)>;
 
 /// Add manifest failures for flow declarations that cannot resolve in the merged registry.
 pub(super) fn validate_flow_declarations(
@@ -22,7 +24,8 @@ pub(super) fn validate_flow_declarations(
     edge_types: &BTreeMap<String, EdgeTypeDef>,
     inverse_edges: &BTreeMap<String, String>,
     failures: &mut Vec<ArchetypeLoadFailure>,
-) {
+) -> bool {
+    let initial_failures = failures.len();
     report_cross_module_duplicates(modules, failures);
 
     let all_remediations: BTreeMap<&str, &FlowRemediation> = model
@@ -75,6 +78,7 @@ pub(super) fn validate_flow_declarations(
             }
         }
     }
+    failures.len() != initial_failures
 }
 
 fn report_cross_module_duplicates(
@@ -187,9 +191,7 @@ fn validate_condition(
     for (endpoints, path) in condition_paths(subjects, condition) {
         let mut current = endpoints;
         for step in path {
-            for from in &current {
-                require_edge(rule, &step.edge, edge_types, inverse_edges)?;
-            }
+            require_edge(rule, &step.edge, edge_types, inverse_edges)?;
             for target in &step.to {
                 require_archetype("step to", rule, target, archetypes)?;
             }
@@ -420,7 +422,7 @@ fn schema_walk(schema: &Value, field: &str, enum_only: bool) -> Option<Vec<Strin
 fn condition_paths<'a>(
     subjects: &[String],
     condition: &'a FlowCondition,
-) -> Vec<(Vec<String>, Vec<&'a FlowStep>)> {
+) -> ValidatedPaths<'a> {
     condition
         .paths
         .iter()

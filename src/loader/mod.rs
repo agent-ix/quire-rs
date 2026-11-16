@@ -1492,14 +1492,16 @@ pub fn flatten_into_registry(mut outcome: LoadOutcome) -> RegistryShape {
             .push(Diagnostic::DuplicateInverseEdge { name, forwards });
     }
 
-    flow_rules::validate_flow_declarations(
+    if flow_rules::validate_flow_declarations(
         &outcome.modules,
         &traceability,
         &active_archetypes,
         &edge_types,
         &inverse_edges,
         &mut outcome.failures,
-    );
+    ) {
+        traceability = crate::traceability::TraceabilityModel::default();
+    }
 
     // ── FR-040: advisory check that every verb used in an archetype's
     // allowed_links is declared in edge_types, and every role used in a

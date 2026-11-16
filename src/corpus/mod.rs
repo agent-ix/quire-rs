@@ -38,8 +38,8 @@ pub use design_matrix::{
     DesignMatrixEntry,
 };
 pub use flow_rules::{
-    FlowDenial, FlowDocumentRef, FlowFact, FlowFactEdge, FlowFactTarget, FlowReport,
-    FlowRuleSummary, FlowSubjectRef,
+    FlowDenial, FlowDocumentRef, FlowFact, FlowFactEdge, FlowReport, FlowRuleSummary,
+    FlowSubjectRef,
 };
 pub use glossary::{glossary_terms, glossary_terms_from_path};
 pub use relation_report::{

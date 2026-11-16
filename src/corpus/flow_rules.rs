@@ -40,8 +40,6 @@ pub struct FlowReport {
 pub struct FlowRuleSummary {
     /// Rule name.
     pub name: String,
-    /// Finding check token.
-    pub check: String,
     /// Subject archetypes.
     pub subject: Vec<String>,
     /// Conditions that must all hold.
@@ -49,6 +47,8 @@ pub struct FlowRuleSummary {
     pub match_conditions: Vec<FlowCondition>,
     /// Conditions that clear the denial; always present, including when empty.
     pub unless_any: Vec<FlowCondition>,
+    /// Finding check token.
+    pub check: String,
     /// Suggested remediation names.
     pub remediations: Vec<String>,
     /// Why the rule exists.
@@ -79,18 +79,8 @@ pub struct FlowFactEdge {
     /// Direction from this fact's document.
     pub direction: &'static str,
     /// Other edge endpoint.
-    pub target: FlowFactTarget,
-}
-
-/// Identity and archetype of a fact edge's target.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize)]
-pub struct FlowFactTarget {
-    /// Authored id, or stable corpus key when absent.
-    pub id: String,
-    /// Declared corpus-member identity, when present.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub repo: Option<String>,
-    /// Target archetype.
+    pub target: FlowDocumentRef,
+    /// Archetype of the target endpoint.
     pub archetype: String,
 }
 
@@ -123,8 +113,6 @@ pub struct FlowDenial {
     pub rule: String,
     /// Check token.
     pub check: String,
-    /// Applied check severity.
-    pub severity: &'static str,
     /// Subject document identity.
     pub subject: FlowSubjectRef,
     /// Authored matched facts, grouped by archetype.
@@ -133,6 +121,8 @@ pub struct FlowDenial {
     pub remediations: Vec<String>,
     /// Why the rule exists.
     pub rationale: String,
+    /// Applied check severity.
+    pub severity: &'static str,
 }
 
 /// The resolved edge index used by flow-rule paths.
@@ -166,7 +156,6 @@ impl FlowEdges {
 
             let counterpart = inverse
                 .get(&edge.edge_type)
-                .map(|forward| forward)
                 .or_else(|| {
                     inverse
                         .iter()
@@ -403,11 +392,11 @@ pub(crate) fn flow_report(
             denials.push(FlowDenial {
                 rule: rule.name.clone(),
                 check: rule.check.clone(),
-                severity: severity.as_str(),
                 subject: subject_ref(corpus, subject),
                 matched: groups,
                 remediations: rule.remediations.clone(),
                 rationale: rule.rationale.clone(),
+                severity: severity.as_str(),
             });
         }
     }
@@ -454,13 +443,13 @@ fn fact_edges_for(
             facts.insert(FlowFactEdge {
                 edge: edge.clone(),
                 direction: if incoming { "incoming" } else { "outgoing" },
-                target: FlowFactTarget {
+                target: FlowDocumentRef {
                     id: artifact_key(doc),
                     repo: corpus
                         .member_identity(corpus.member_of(*target))
                         .map(str::to_string),
-                    archetype: archetype.to_string(),
                 },
+                archetype: archetype.to_string(),
             });
         }
     }

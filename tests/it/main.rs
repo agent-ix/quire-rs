@@ -24,6 +24,7 @@ mod design_matrix;
 mod determinism;
 mod edge_target_kinds;
 mod field_rules;
+mod flow_rules;
 mod filament_boundary_audit;
 mod filament_core_fixtures;
 mod formalizes_relation;
