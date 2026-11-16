@@ -464,14 +464,11 @@ fn blank_check_and_rationale_diagnostics_name_the_rule() {
                 "Valid rationale."
             }
         );
-        let registry = registry_with(&rules, "[]", "[]");
+        let error = parse_registry_with(&rules, "[]", "[]")
+            .expect_err("blank rule fields fail module parsing");
         assert!(
-            registry.failures().iter().any(|failure| {
-                failure.reason.contains(&format!("blank-{field}"))
-                    && failure.reason.contains(&format!("`{field}`"))
-            }),
-            "expected a diagnostic naming rule and blank {field}, got {:?}",
-            registry.failures()
+            error.contains(&format!("blank-{field}")) && error.contains(&format!("`{field}`")),
+            "expected a diagnostic naming rule and blank {field}, got {error}"
         );
     }
 }
