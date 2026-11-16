@@ -14,6 +14,7 @@
 //! as fatal (`load_strict`, FR-014).
 
 pub mod compile;
+mod flow_rules;
 pub mod manifest;
 pub mod paths;
 mod record_validation;
@@ -1491,6 +1492,17 @@ pub fn flatten_into_registry(mut outcome: LoadOutcome) -> RegistryShape {
             .push(Diagnostic::DuplicateInverseEdge { name, forwards });
     }
 
+    if flow_rules::validate_flow_declarations(
+        &outcome.modules,
+        &traceability,
+        &active_archetypes,
+        &edge_types,
+        &inverse_edges,
+        &mut outcome.failures,
+    ) {
+        traceability = crate::traceability::TraceabilityModel::default();
+    }
+
     // ── FR-040: advisory check that every verb used in an archetype's
     // allowed_links is declared in edge_types, and every role used in a
     // `roles:` list or as a target token is declared in roles. Open
@@ -1714,6 +1726,22 @@ fn merge_traceability(modules: &[LoadedModule]) -> crate::traceability::Traceabi
         for rule in &m.vocabulary {
             if !merged.vocabulary.iter().any(|r| r.name == rule.name) {
                 merged.vocabulary.push(rule.clone());
+            }
+        }
+        // FR-096: flow declarations and their remediation vocabulary merge
+        // first-wins by name, like the other named traceability entries.
+        for rule in &m.flow_rules {
+            if !merged.flow_rules.iter().any(|r| r.name == rule.name) {
+                merged.flow_rules.push(rule.clone());
+            }
+        }
+        for remediation in &m.remediations {
+            if !merged
+                .remediations
+                .iter()
+                .any(|r| r.name == remediation.name)
+            {
+                merged.remediations.push(remediation.clone());
             }
         }
         for marker in &m.trace_tags.markers {

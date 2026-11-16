@@ -344,6 +344,9 @@ pub struct RelationSection {
 pub struct RelationReport {
     /// One section per reported relation, in declaration order.
     pub relations: Vec<RelationSection>,
+    /// Generic flow report, present only when a loaded module declares rules.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub flow: Option<super::FlowReport>,
 }
 
 /// Implements: FR-084
@@ -395,7 +398,10 @@ pub fn design_join(
 ) -> Result<RelationReport, RelationReportError> {
     check_members(corpus, members)?;
     let Some(model) = registry.traceability() else {
-        return Ok(RelationReport { relations: vec![] });
+        return Ok(RelationReport {
+            relations: vec![],
+            flow: None,
+        });
     };
     let relations = model
         .design_relations
@@ -460,6 +466,7 @@ fn report_of(
             .iter()
             .map(|relation| ctx.section(relation, &model_exclude, &mut records))
             .collect(),
+        flow: super::flow_rules::flow_report(corpus, registry, &context.flow_edges, &roots),
     }
 }
 

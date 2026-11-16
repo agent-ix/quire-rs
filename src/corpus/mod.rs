@@ -19,6 +19,7 @@ mod body_cache;
 pub mod declared_tables;
 pub mod design_matrix;
 pub mod field_rules;
+mod flow_rules;
 pub mod glossary;
 pub mod query;
 mod relation_edges;
@@ -35,6 +36,10 @@ pub mod walk;
 pub use design_matrix::{
     design_matrix, DesignBlock, DesignElement, DesignElementRef, DesignMatrixCriterion,
     DesignMatrixEntry,
+};
+pub use flow_rules::{
+    FlowDenial, FlowDocumentRef, FlowFact, FlowFactEdge, FlowReport, FlowRuleSummary,
+    FlowSubjectRef,
 };
 pub use glossary::{glossary_terms, glossary_terms_from_path};
 pub use relation_report::{
