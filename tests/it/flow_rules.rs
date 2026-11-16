@@ -619,16 +619,22 @@ fn remediation_must_clear_named_rule_and_model_survives_registry_merge() {
         valid_any_path_remove.failures()
     );
 
-    for paths in [
-        "[[{edge: links_to, direction: outgoing, to: [beta]}, {edge: carries, direction: outgoing, to: [gamma]}]]",
-        "[[{edge: links_to, direction: outgoing, to: [beta]}], [{edge: crosses, direction: outgoing, to: [gamma]}]]",
+    for (paths, removed_edge) in [
+        (
+            "[[{edge: links_to, direction: outgoing, to: [beta]}, {edge: carries, direction: outgoing, to: [gamma]}]]",
+            "carries",
+        ),
+        (
+            "[[{edge: links_to, direction: outgoing, to: [beta]}], [{edge: crosses, direction: outgoing, to: [gamma]}]]",
+            "links_to",
+        ),
     ] {
         let rule = format!(
             "  - name: bad-remove\n    subject: [alpha]\n    match: [{{any_path: {paths}, field: id, present: true}}]\n    check: bad-remove\n    remediations: [remove-link]\n    rationale: Every path must start with the removed edge.\n"
         );
         let rejected = registry_with(
             &rule,
-            "  - name: remove-link\n    description: Remove links_to.\n    removes: {edge: links_to, direction: outgoing}\n",
+            &format!("  - name: remove-link\n    description: Remove {removed_edge}.\n    removes: {{edge: {removed_edge}, direction: outgoing}}\n"),
             "[]",
         );
         assert!(rejected.failures().iter().any(|failure| {
