@@ -16,6 +16,11 @@ fn schema(kind: &str, fields: &str) -> String {
 }
 
 fn registry_with(rules: &str, remediations: &str, exclusions: &str) -> Registry {
+    let remediations = if remediations.trim() == "[]" {
+        "    []".to_string()
+    } else {
+        remediations.trim_end().to_string()
+    };
     let manifest = format!(
         r#"name: flow-rules-fixture
 version: 0.1.0
@@ -48,6 +53,13 @@ edge_types:
   delivers_to: {{description: sink delivers to alpha, category: traceability}}
 traceability:
   exclude: {exclusions}
+  required_relations:
+  - name: sink-delivers
+    from: sink
+    edges: [delivers_to]
+    to: [alpha]
+    direction: outgoing
+    check: relation-check
   flow_rules:
 {rules}  remediations:
 {remediations}"#
@@ -64,7 +76,7 @@ traceability:
         "schemas/beta.json".into(),
         schema(
             "beta",
-            r#", "category":{"type":"array","items":{"enum":["health","personal","financial"]}}, "single":{"enum":["x","y"]}"#,
+            r#", "category":{"type":"array"}, "single":{"enum":["x","y"]}"#,
         ),
     );
     schemas.insert(
@@ -133,7 +145,7 @@ fn generic_path_matches_authored_facts_and_reports_exact_matched_endpoints() {
     let registry = registry_with(
         "  - name: category-rule\n    subject: [alpha]\n    match:\n    - path: [{edge: links_to, direction: outgoing, to: [beta]}]\n      field: category\n      any_of: [health]\n    unless_any:\n    - path: [{edge: protects, direction: incoming, to: [control]}]\n      field: safeguards\n      any_of: [encrypt]\n    check: category-crossing\n    remediations: [encrypt]\n    rationale: Protect the declared category.\n",
         "  - name: encrypt\n    description: Add a control protecting the alpha.\n    adds: {edge: protects, direction: incoming, from: control, field: safeguards, value: encrypt}\n",
-        "[]\n",
+        "[]",
     );
     assert!(registry.failures().is_empty(), "{:?}", registry.failures());
     let (root, spec) = docs(&[
@@ -170,7 +182,7 @@ fn generic_path_matches_authored_facts_and_reports_exact_matched_endpoints() {
     assert_eq!(flow.denials[0].severity, "warning");
     assert_eq!(
         flow.facts.keys().cloned().collect::<Vec<_>>(),
-        ["alpha", "beta"]
+        ["alpha", "beta", "control"]
     );
     assert!(flow.facts["alpha"][0].fields.is_empty());
     assert_eq!(flow.facts["alpha"][0].edges.len(), 2);
@@ -203,8 +215,8 @@ fn generic_path_matches_authored_facts_and_reports_exact_matched_endpoints() {
 fn any_path_and_absent_present_cover_empty_and_multi_hop_paths() {
     let registry = registry_with(
         "  - name: any-path-rule\n    subject: [sink]\n    match:\n    - any_path:\n      - [{edge: delivers_to, direction: outgoing, to: [alpha]}, {edge: links_to, direction: outgoing, to: [beta]}]\n      - [{edge: delivers_to, direction: outgoing, to: [alpha]}, {edge: links_to, direction: outgoing, to: [beta]}]\n      field: category\n      any_of: [health]\n    check: any-path-match\n    rationale: Find a category over either path.\n  - name: absent-rule\n    subject: [alpha]\n    match:\n    - {path: [], field: approval, absent: true}\n    check: absent-approval\n    rationale: Approval is unstated.\n",
-        "[]\n",
-        "[]\n",
+        "[]",
+        "[]",
     );
     assert!(registry.failures().is_empty(), "{:?}", registry.failures());
     let (root, spec) = docs(&[
@@ -262,9 +274,13 @@ fn loader_rejects_unknown_registry_references_values_and_check_collisions() {
             "  - name: built-in-check\n    subject: [alpha]\n    match: [{path: [], field: id, present: true}]\n    check: dangling-trace-reference\n    rationale: Collision.\n",
             "dangling-trace-reference",
         ),
+        (
+            "  - name: relation-check\n    subject: [alpha]\n    match: [{path: [], field: id, present: true}]\n    check: relation-check\n    rationale: Collision.\n",
+            "relation-check",
+        ),
     ];
     for (rules, expected) in cases {
-        let registry = registry_with(rules, "[]\n", "[]\n");
+        let registry = registry_with(rules, "[]", "[]");
         assert!(
             registry
                 .failures()
@@ -276,8 +292,8 @@ fn loader_rejects_unknown_registry_references_values_and_check_collisions() {
     }
     let valid = registry_with(
         "  - name: valid-enum\n    subject: [alpha]\n    match: [{path: [], field: state, any_of: [' OPEN ']}]\n    check: valid-enum\n    rationale: Valid folded enum.\n",
-        "[]\n",
-        "[]\n",
+        "[]",
+        "[]",
     );
     assert!(valid.failures().is_empty(), "{:?}", valid.failures());
 }
@@ -289,7 +305,7 @@ fn remediation_must_clear_named_rule_and_model_survives_registry_merge() {
     let valid = registry_with(
         rules,
         "  - name: remove-link\n    description: Remove the outgoing link.\n    removes: {edge: links_to, direction: outgoing}\n",
-        "[]\n",
+        "[]",
     );
     assert!(valid.failures().is_empty(), "{:?}", valid.failures());
     let model = valid.traceability().expect("traceability");
@@ -300,7 +316,7 @@ fn remediation_must_clear_named_rule_and_model_survives_registry_merge() {
     let invalid = registry_with(
         rules,
         "  - name: remove-link\n    description: Remove another edge.\n    removes: {edge: crosses, direction: outgoing}\n",
-        "[]\n",
+        "[]",
     );
     assert!(invalid.failures().iter().any(|failure| {
         failure.reason.contains("removable") && failure.reason.contains("remove-link")
@@ -312,8 +328,8 @@ fn remediation_must_clear_named_rule_and_model_survives_registry_merge() {
 fn severity_off_exclusion_and_repeat_runs_keep_validation_and_report_aligned() {
     let registry = registry_with(
         "  - name: approval-rule\n    subject: [alpha]\n    match: [{path: [], field: approval, absent: true}]\n    check: approval-check\n    rationale: Approval is required.\n",
-        "[]\n",
-        "- spec/excluded/**\n",
+        "[]",
+        "[\"spec/excluded/**\"]",
     );
     let (root, spec) = docs(&[
         ("included.md", &document("A-1", "alpha", "", &[])),
@@ -362,7 +378,10 @@ fn severity_off_exclusion_and_repeat_runs_keep_validation_and_report_aligned() {
     "FR-096-CON-4"
 )]
 fn engine_source_remains_generic_and_does_not_apply_remediations() {
-    let source = include_str!("../../src/corpus/flow_rules.rs");
+    let source = include_str!("../../src/corpus/flow_rules.rs")
+        .split("#[cfg(test)]")
+        .next()
+        .unwrap();
     for domain_term in ["regulated_categories", "trust_level", "safeguards"] {
         assert!(!source.contains(domain_term));
     }
@@ -374,8 +393,8 @@ fn engine_source_remains_generic_and_does_not_apply_remediations() {
 fn report_keeps_rule_and_vocabulary_order_and_uses_full_rule_shape() {
     let registry = registry_with(
         "  - name: z-rule\n    subject: [alpha]\n    match: [{path: [], field: state, any_of: [open]}]\n    check: z-check\n    rationale: Z rule.\n  - name: a-rule\n    subject: [alpha]\n    match: [{path: [], field: state, any_of: [closed]}]\n    check: a-check\n    rationale: A rule.\n",
-        "[]\n",
-        "[]\n",
+        "[]",
+        "[]",
     );
     let (root, spec) = docs(&[("a.md", &document("A-1", "alpha", "state: open\n", &[]))]);
     let result = report(root.path(), &spec, &registry);
