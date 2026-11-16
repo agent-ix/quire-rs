@@ -466,7 +466,12 @@ fn report_of(
             .iter()
             .map(|relation| ctx.section(relation, &model_exclude, &mut records))
             .collect(),
-        flow: super::flow_rules::flow_report(corpus, registry, &context.flow_edges),
+        flow: super::flow_rules::flow_report(
+            corpus,
+            registry,
+            &context.flow_edges,
+            &roots,
+        ),
     }
 }
 

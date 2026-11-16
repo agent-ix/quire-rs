@@ -14,7 +14,8 @@ use super::walk::LoadedDocument;
 use crate::grammar::{GrammarSeverity, GrammarSeverityLevel};
 use crate::registry::Registry;
 use crate::traceability::{
-    fold_selector_value, FlowCondition, FlowConditionTest, FlowRemediation, FlowRule, FlowStep,
+    fold_selector_value, EdgeSide, FlowCondition, FlowConditionTest, FlowRemediation, FlowRule,
+    FlowStep,
 };
 
 /// Serialized generic flow report consumed by downstream tools (FR-096).
@@ -22,7 +23,7 @@ use crate::traceability::{
 pub struct FlowReport {
     /// Versioned report schema.
     pub schema: &'static str,
-    /// Declared rules, sorted by name.
+    /// Declared rules in declaration order.
     pub rules: Vec<FlowRuleSummary>,
     /// Enum vocabularies read from the loaded archetype schemas.
     pub vocabularies: BTreeMap<String, BTreeMap<String, Vec<String>>>,
@@ -43,6 +44,11 @@ pub struct FlowRuleSummary {
     pub check: String,
     /// Subject archetypes.
     pub subject: Vec<String>,
+    /// Conditions that must all hold.
+    #[serde(rename = "match")]
+    pub match_conditions: Vec<FlowCondition>,
+    /// Conditions that clear the denial; always present, including when empty.
+    pub unless_any: Vec<FlowCondition>,
     /// Suggested remediation names.
     pub remediations: Vec<String>,
     /// Why the rule exists.
@@ -57,9 +63,35 @@ pub struct FlowFact {
     /// Declared corpus-member identity, when present.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub repo: Option<String>,
-    /// Only the authored fields read by flow rules and edge names they follow.
-    #[serde(flatten)]
+    /// Corpus-relative source path.
+    pub path: String,
+    /// Only authored frontmatter fields read by flow rules.
     pub fields: BTreeMap<String, Value>,
+    /// Resolved edges followed from this document by flow-rule paths.
+    pub edges: Vec<FlowFactEdge>,
+}
+
+/// One resolved edge read by a flow rule.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+pub struct FlowFactEdge {
+    /// Edge verb.
+    pub edge: String,
+    /// Direction from this fact's document.
+    pub direction: &'static str,
+    /// Other edge endpoint.
+    pub target: FlowFactTarget,
+}
+
+/// Identity and archetype of a fact edge's target.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+pub struct FlowFactTarget {
+    /// Authored id, or stable corpus key when absent.
+    pub id: String,
+    /// Declared corpus-member identity, when present.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub repo: Option<String>,
+    /// Target archetype.
+    pub archetype: String,
 }
 
 /// A document identity in the matched evidence of one denial.
@@ -72,6 +104,18 @@ pub struct FlowDocumentRef {
     pub repo: Option<String>,
 }
 
+/// Subject identity in a flow denial.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct FlowSubjectRef {
+    /// Authored id, or stable corpus key when absent.
+    pub id: String,
+    /// Declared corpus-member identity, when present.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub repo: Option<String>,
+    /// Subject archetype.
+    pub archetype: String,
+}
+
 /// One flow-rule denial in a report.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct FlowDenial {
@@ -82,7 +126,7 @@ pub struct FlowDenial {
     /// Applied check severity.
     pub severity: &'static str,
     /// Subject document identity.
-    pub subject: FlowDocumentRef,
+    pub subject: FlowSubjectRef,
     /// Authored matched facts, grouped by archetype.
     pub matched: BTreeMap<String, Vec<FlowDocumentRef>>,
     /// Suggested remediation names, in declaration order.
@@ -96,6 +140,9 @@ pub struct FlowDenial {
 pub(crate) struct FlowEdges {
     neighbors: BTreeMap<(usize, String, bool), Vec<usize>>,
 }
+
+type FlowEdgeReads = BTreeMap<String, BTreeSet<(String, String, Vec<String>)>>;
+type ConditionPathReads<'a> = Vec<(Vec<String>, Vec<(Vec<String>, &'a FlowStep)>)>;
 
 impl FlowEdges {
     pub(crate) fn build(spec: &Spec, registry: &Registry) -> Self {
@@ -208,27 +255,29 @@ pub(crate) fn flow_report(
     corpus: &Spec,
     registry: &Registry,
     edges: &FlowEdges,
+    roots: &[&Path],
 ) -> Option<FlowReport> {
     let model = registry.traceability()?;
     if model.flow_rules.is_empty() {
         return None;
     }
 
-    let mut rules: Vec<&FlowRule> = model.flow_rules.iter().collect();
-    rules.sort_by(|left, right| left.name.cmp(&right.name));
+    let rules: Vec<&FlowRule> = model.flow_rules.iter().collect();
     let rule_summaries = rules
         .iter()
         .map(|rule| FlowRuleSummary {
             name: rule.name.clone(),
             check: rule.check.clone(),
             subject: rule.subject.clone(),
+            match_conditions: rule.match_conditions.clone(),
+            unless_any: rule.unless_any.clone(),
             remediations: rule.remediations.clone(),
             rationale: rule.rationale.clone(),
         })
         .collect();
 
     let mut field_reads: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
-    let mut edge_reads: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
+    let mut edge_reads: FlowEdgeReads = BTreeMap::new();
     for rule in &rules {
         for condition in rule.match_conditions.iter().chain(&rule.unless_any) {
             for (archetypes, steps) in condition_paths(rule, condition) {
@@ -243,7 +292,14 @@ pub(crate) fn flow_report(
                         edge_reads
                             .entry(archetype.clone())
                             .or_default()
-                            .insert(step.1.edge.clone());
+                            .insert((
+                                step.1.edge.clone(),
+                                match step.1.direction {
+                                    EdgeSide::Outgoing => "outgoing".to_string(),
+                                    EdgeSide::Incoming => "incoming".to_string(),
+                                },
+                                step.1.to.clone(),
+                            ));
                     }
                 }
             }
@@ -287,25 +343,10 @@ pub(crate) fn flow_report(
                         }
                     }
                 }
-                if let Some(reads) = edge_reads.get(&archetype) {
-                    for edge in reads {
-                        let ids: BTreeSet<String> = [false, true]
-                            .into_iter()
-                            .flat_map(|incoming| {
-                                edges
-                                    .neighbors
-                                    .get(&(slot, edge.clone(), incoming))
-                                    .into_iter()
-                                    .flatten()
-                            })
-                            .map(|target| artifact_key(corpus.doc(*target)))
-                            .collect();
-                        fields.insert(
-                            edge.clone(),
-                            Value::Array(ids.into_iter().map(Value::String).collect()),
-                        );
-                    }
-                }
+                let fact_edges = edge_reads
+                    .get(&archetype)
+                    .map(|reads| fact_edges_for(corpus, edges, slot, reads))
+                    .unwrap_or_default();
                 let repo = corpus
                     .member_identity(corpus.member_of(slot))
                     .map(str::to_string);
@@ -313,7 +354,13 @@ pub(crate) fn flow_report(
                 (
                     repo.clone().unwrap_or_default(),
                     Some(id.clone()),
-                    FlowFact { id, repo, fields },
+                    FlowFact {
+                        id,
+                        repo,
+                        path: doc.path.to_string_lossy().into_owned(),
+                        fields,
+                        edges: fact_edges,
+                    },
                 )
             })
             .collect();
@@ -325,6 +372,7 @@ pub(crate) fn flow_report(
     }
 
     let mut denials = Vec::new();
+    let excluded = ExcludeSet::compile_validated(&model.exclude);
     for rule in &rules {
         let level = registry
             .grammar_severity()
@@ -341,6 +389,13 @@ pub(crate) fn flow_report(
             .iter()
             .flat_map(|archetype| corpus.by_type_slots(archetype))
         {
+            let subject_doc = corpus.doc(subject);
+            let Some(root) = roots.get(corpus.member_of(subject)) else {
+                continue;
+            };
+            if excluded.excludes(root, &subject_doc.path) {
+                continue;
+            }
             let Some(matched) = evaluate_rule(corpus, edges, rule, subject) else {
                 continue;
             };
@@ -349,7 +404,7 @@ pub(crate) fn flow_report(
                 rule: rule.name.clone(),
                 check: rule.check.clone(),
                 severity: severity.as_str(),
-                subject: document_ref(corpus, subject),
+                subject: subject_ref(corpus, subject),
                 matched: groups,
                 remediations: rule.remediations.clone(),
                 rationale: rule.rationale.clone(),
@@ -372,6 +427,44 @@ pub(crate) fn flow_report(
         denials,
         remediations: model.remediations.clone(),
     })
+}
+
+fn fact_edges_for(
+    corpus: &Spec,
+    edges: &FlowEdges,
+    slot: usize,
+    reads: &BTreeSet<(String, String, Vec<String>)>,
+) -> Vec<FlowFactEdge> {
+    let mut facts = BTreeSet::new();
+    for (edge, direction, to) in reads {
+        let incoming = direction == "incoming";
+        for target in edges
+            .neighbors
+            .get(&(slot, edge.clone(), incoming))
+            .into_iter()
+            .flatten()
+        {
+            let doc = corpus.doc(*target);
+            let Some(archetype) = doc.concept_type() else {
+                continue;
+            };
+            if !to.iter().any(|name| name == archetype) {
+                continue;
+            }
+            facts.insert(FlowFactEdge {
+                edge: edge.clone(),
+                direction: if incoming { "incoming" } else { "outgoing" },
+                target: FlowFactTarget {
+                    id: artifact_key(doc),
+                    repo: corpus
+                        .member_identity(corpus.member_of(*target))
+                        .map(str::to_string),
+                    archetype: archetype.to_string(),
+                },
+            });
+        }
+    }
+    facts.into_iter().collect()
 }
 
 fn evaluate_rule(
@@ -500,6 +593,18 @@ fn document_ref(spec: &Spec, slot: usize) -> FlowDocumentRef {
     }
 }
 
+fn subject_ref(spec: &Spec, slot: usize) -> FlowSubjectRef {
+    FlowSubjectRef {
+        id: artifact_key(spec.doc(slot)),
+        repo: spec.member_identity(spec.member_of(slot)).map(str::to_string),
+        archetype: spec
+            .doc(slot)
+            .concept_type()
+            .unwrap_or_default()
+            .to_string(),
+    }
+}
+
 fn denial_message(
     spec: &Spec,
     rule: &FlowRule,
@@ -545,7 +650,7 @@ fn denial_message(
 fn condition_paths<'a>(
     rule: &'a FlowRule,
     condition: &'a FlowCondition,
-) -> Vec<(Vec<String>, Vec<(Vec<String>, &'a FlowStep)>)> {
+) -> ConditionPathReads<'a> {
     condition
         .paths
         .iter()

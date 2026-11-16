@@ -16,6 +16,7 @@
 pub mod compile;
 pub mod manifest;
 pub mod paths;
+mod flow_rules;
 mod record_validation;
 pub(crate) mod vocabulary_refs;
 
@@ -1490,6 +1491,15 @@ pub fn flatten_into_registry(mut outcome: LoadOutcome) -> RegistryShape {
             .diagnostics
             .push(Diagnostic::DuplicateInverseEdge { name, forwards });
     }
+
+    flow_rules::validate_flow_declarations(
+        &outcome.modules,
+        &traceability,
+        &active_archetypes,
+        &edge_types,
+        &inverse_edges,
+        &mut outcome.failures,
+    );
 
     // ── FR-040: advisory check that every verb used in an archetype's
     // allowed_links is declared in edge_types, and every role used in a
