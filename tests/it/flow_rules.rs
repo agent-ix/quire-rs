@@ -571,14 +571,22 @@ fn remediation_must_clear_named_rule_and_model_survives_registry_merge() {
         "  - name: unused-fix\n    description: Add a control that no rule offers.\n    adds: {edge: protects, direction: incoming, from: control, field: safeguards, value: encrypt}\n",
         "[]",
     );
-    assert!(unreferenced.failures().is_empty(), "{:?}", unreferenced.failures());
+    assert!(
+        unreferenced.failures().is_empty(),
+        "{:?}",
+        unreferenced.failures()
+    );
 
     let valid_set = registry_with(
         "  - name: set-rule\n    subject: [alpha]\n    match: [{path: [], field: state, any_of: [open]}]\n    unless_any: [{path: [], field: approval, any_of: [covered]}]\n    check: set-rule\n    remediations: [set-fix]\n    rationale: Set approval.\n",
         "  - name: set-fix\n    description: Set approval to covered.\n    sets: {field: approval, value: covered}\n",
         "[]",
     );
-    assert!(valid_set.failures().is_empty(), "{:?}", valid_set.failures());
+    assert!(
+        valid_set.failures().is_empty(),
+        "{:?}",
+        valid_set.failures()
+    );
 
     let invalid_set = registry_with(
         "  - name: set-rule\n    subject: [alpha]\n    match: [{path: [], field: state, any_of: [open]}]\n    unless_any: [{path: [], field: approval, any_of: [covered]}]\n    check: set-rule\n    remediations: [set-fix]\n    rationale: Set approval.\n",
@@ -594,14 +602,22 @@ fn remediation_must_clear_named_rule_and_model_survives_registry_merge() {
         "  - name: remove-incoming\n    description: Edit each sink and delete its outgoing delivers_to edge to the alpha.\n    removes: {edge: delivers_to, direction: incoming}\n",
         "[]",
     );
-    assert!(incoming_remove.failures().is_empty(), "{:?}", incoming_remove.failures());
+    assert!(
+        incoming_remove.failures().is_empty(),
+        "{:?}",
+        incoming_remove.failures()
+    );
 
     let valid_any_path_remove = registry_with(
         "  - name: all-paths-remove\n    subject: [alpha]\n    match: [{any_path: [[{edge: links_to, direction: outgoing, to: [beta]}], [{edge: links_to, direction: outgoing, to: [beta]}, {edge: carries, direction: outgoing, to: [gamma]}]], field: id, present: true}]\n    check: all-paths-remove\n    remediations: [remove-all-links]\n    rationale: Remove all linked paths.\n",
         "  - name: remove-all-links\n    description: Remove the links_to edges.\n    removes: {edge: links_to, direction: outgoing}\n",
         "[]",
     );
-    assert!(valid_any_path_remove.failures().is_empty(), "{:?}", valid_any_path_remove.failures());
+    assert!(
+        valid_any_path_remove.failures().is_empty(),
+        "{:?}",
+        valid_any_path_remove.failures()
+    );
 
     for paths in [
         "[[{edge: links_to, direction: outgoing, to: [beta]}, {edge: carries, direction: outgoing, to: [gamma]}]]",
@@ -740,12 +756,8 @@ fn report_keeps_rule_and_vocabulary_order_and_uses_full_rule_shape() {
     let json = serde_json::to_string(&flow).unwrap();
     assert!(json.contains("\"unless_any\":[]"));
     assert!(json.starts_with("{\"schema\":\"quire.flow-report/v1\",\"rules\":"));
-    let ordered = [
-        ",\"vocabularies\":",
-        ",\"facts\":",
-        ",\"denials\":",
-    ]
-    .map(|marker| json.find(marker).unwrap());
+    let ordered = [",\"vocabularies\":", ",\"facts\":", ",\"denials\":"]
+        .map(|marker| json.find(marker).unwrap());
     let remediations = json.rfind(",\"remediations\":").unwrap();
     assert!(ordered.last().unwrap() < &remediations);
     assert!(ordered.windows(2).all(|pair| pair[0] < pair[1]));
