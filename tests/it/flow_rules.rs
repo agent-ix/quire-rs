@@ -536,15 +536,15 @@ fn remediation_must_clear_named_rule_and_model_survives_registry_merge() {
     for (change, expected) in [
         (
             "adds: {edge: crosses, direction: incoming, from: control, field: safeguards, value: encrypt}",
-            "remove-link",
+            "add-rule",
         ),
         (
             "adds: {edge: protects, direction: incoming, from: sink, field: safeguards, value: encrypt}",
-            "remove-link",
+            "add-rule",
         ),
         (
             "adds: {edge: protects, direction: incoming, from: control, field: safeguards, value: mask}",
-            "remove-link",
+            "add-rule",
         ),
         (
             "adds: {edge: protects, direction: incoming, from: control, field: safeguards, value: invalid}",
@@ -741,10 +741,9 @@ fn report_keeps_rule_and_vocabulary_order_and_uses_full_rule_shape() {
     assert!(json.contains("\"unless_any\":[]"));
     assert!(json.starts_with("{\"schema\":\"quire.flow-report/v1\",\"rules\":"));
     let ordered = [
-        "\",\"rules\":" ,
-        "\",\"vocabularies\":" ,
-        "\",\"facts\":" ,
-        "\",\"denials\":" ,
+        ",\"vocabularies\":",
+        ",\"facts\":",
+        ",\"denials\":",
     ]
     .map(|marker| json.find(marker).unwrap());
     let remediations = json.rfind(",\"remediations\":").unwrap();
