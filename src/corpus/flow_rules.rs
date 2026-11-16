@@ -117,12 +117,37 @@ pub struct FlowDenial {
     pub subject: FlowSubjectRef,
     /// Authored matched facts, grouped by archetype.
     pub matched: BTreeMap<String, Vec<FlowDocumentRef>>,
-    /// Suggested remediation names, in declaration order.
-    pub remediations: Vec<String>,
+    /// Suggested remediation details, in rule declaration order.
+    pub remediations: Vec<FlowDenialRemediation>,
     /// Why the rule exists.
     pub rationale: String,
     /// Applied check severity.
     pub severity: &'static str,
+}
+
+/// One remediation applicable to a specific denial.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct FlowDenialRemediation {
+    /// Remediation name.
+    pub name: String,
+    /// Human-readable change description.
+    pub description: String,
+    /// Authored change this remediation describes.
+    pub change: FlowRemediationChange,
+}
+
+/// The single model change described by a remediation.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct FlowRemediationChange {
+    /// Edge addition when declared by the remediation.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub adds: Option<crate::traceability::FlowAddRemediation>,
+    /// Field update when declared by the remediation.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sets: Option<crate::traceability::FlowSetRemediation>,
+    /// Edge removal when declared by the remediation.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub removes: Option<crate::traceability::FlowRemoveRemediation>,
 }
 
 /// The resolved edge index used by flow-rule paths.
@@ -220,7 +245,7 @@ pub(crate) fn validate_flow_rules(
                 continue;
             }
             if let Some(matched) = evaluate_rule(spec, edges, rule, subject) {
-                let message = denial_message(spec, rule, subject, matched);
+                let message = denial_message(spec, model, rule, subject, matched);
                 report.route(
                     severity,
                     GrammarSeverity::Warning,
@@ -395,7 +420,7 @@ pub(crate) fn flow_report(
                 check: rule.check.clone(),
                 subject: subject_ref(corpus, subject),
                 matched: groups,
-                remediations: rule.remediations.clone(),
+                remediations: denial_remediations(model, rule),
                 rationale: rule.rationale.clone(),
                 severity: severity.as_str(),
             });
@@ -599,6 +624,7 @@ fn subject_ref(spec: &Spec, slot: usize) -> FlowSubjectRef {
 
 fn denial_message(
     spec: &Spec,
+    model: &crate::traceability::TraceabilityModel,
     rule: &FlowRule,
     subject: usize,
     matched: BTreeSet<usize>,
@@ -633,9 +659,35 @@ fn denial_message(
             "flow rule '{}' denied '{id}': {} [matched: {matched}] [remediations: {}]",
             rule.name,
             rule.rationale,
-            rule.remediations.join(", ")
+            serde_json::to_string(&denial_remediations(model, rule))
+                .expect("flow remediation report types serialize")
         )
     }
+}
+
+fn denial_remediations(
+    model: &crate::traceability::TraceabilityModel,
+    rule: &FlowRule,
+) -> Vec<FlowDenialRemediation> {
+    rule.remediations
+        .iter()
+        .map(|name| {
+            let remediation = model
+                .remediations
+                .iter()
+                .find(|remediation| remediation.name == *name)
+                .expect("validated flow rule remediation names resolve in the registry");
+            FlowDenialRemediation {
+                name: remediation.name.clone(),
+                description: remediation.description.clone(),
+                change: FlowRemediationChange {
+                    adds: remediation.adds.clone(),
+                    sets: remediation.sets.clone(),
+                    removes: remediation.removes.clone(),
+                },
+            }
+        })
+        .collect()
 }
 
 /// Yield endpoint archetypes and the archetype at each step's source.

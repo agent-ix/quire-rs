@@ -136,7 +136,8 @@ A denial is a finding under `trace:<check>` that names:
    grouped by archetype, each by id (and `repo`), each once. A document at the end of a path that
    fails the field test is not named, so a connection carrying two classifications of which one holds
    the value names only that one. An `absent` condition names no document;
-4. the `remediations`, in declared order;
+4. the `remediations`, in declared order, each with its declared `name`, `description`, and one
+   `change` object containing exactly one of `adds`, `sets` or `removes`;
 5. the `rationale`.
 
 **Default severity is `warning` in both postures**, as [FR-057](./FR-057-corpus-check-severity.md)
@@ -150,8 +151,9 @@ the engine promotes none. Rules with no declaration anywhere leave output byte-i
 without this requirement.
 
 **Determinism.** Denials are ordered by `check`, then subject (`repo` then `id`, with an absent
-`repo` first), then rule `name` ([NFR-006](../non-functional/NFR-006-determinism.md)). The order of
-matched documents, remediations and members does not depend on authoring order or directory walk.
+`repo` first), then rule `name` ([NFR-006](../non-functional/NFR-006-determinism.md)). Matched
+documents and members do not depend on authoring order or directory walk. Remediations retain the
+rule's declared order so a caller can present the module's recommendations in their intended order.
 
 ### Load-time validation
 
@@ -265,7 +267,10 @@ renders it; the engine writes no QSL, and the lowering of the report into a solv
 - **`denials`**: one object per denial in the order above:
   `{"rule", "check", "subject", "matched", "remediations", "rationale", "severity"}`. `subject` is
   `{"id", "repo", "archetype"}`; `matched` is an object keyed by archetype, each an array of
-  `{"id", "repo"}` sorted by repo then id; `severity` is the resolved FR-057 severity of the key.
+  `{"id", "repo"}` sorted by repo then id; `remediations` is an array in the rule's declared order,
+  each `{"name", "description", "change"}` where `change` contains exactly one of `adds`, `sets` or
+  `removes` using the declared remediation action shape; `severity` is the resolved FR-057 severity
+  of the key. The validation finding includes the same detailed remediation objects.
 - **`remediations`**: the declared remediations, in declaration order across members, each
   `{"name", "description", "adds" | "sets" | "removes"}` with exactly its one change key. It is the sixth
   and last top-level key (quire-cli FR-044 renders the document key for key).
@@ -308,7 +313,7 @@ other work. The CLI flag, its human rendering and exit codes belong to `quire-cl
 | FR-096-AC-8 | A corpus with no document carrying the facts a starter-style rule reads (no connection-like document with a classification-like edge) yields no finding from any `flow_rules` declaration. | Test |
 | FR-096-AC-9 | `absent: true` holds when no document at the end of the path has the field and when the path ends at no document; `present: true` with `field: id` holds exactly when at least one edge of the step exists; `absent` and `present` are exact complements for one path and field. | Test |
 | FR-096-AC-10 | Comparison is trim plus ASCII case folding: a document stating ` Health ` matches `any_of: [health]`; a list value holding a matching member matches; a value differing by more than case and whitespace does not; a number, mapping, boolean, null or missing field never equals an entry, and none of them raises an error or warning. | Test |
-| FR-096-AC-11 | A denial names the rule, the subject id (and `repo`), the matched documents grouped by archetype, the `remediations` in declared order and the `rationale`; an `absent` condition names no document. A connection carrying two classifications of which only one holds the tested category names only that classification, in the denial and in the report's `matched`. | Test |
+| FR-096-AC-11 | A denial names the rule, the subject id (and `repo`), the matched documents grouped by archetype, the `remediations` in declared order with each remediation's name, description and exact declared change under `change`, and the `rationale`; the validation finding includes those same details. An `absent` condition names no document. A connection carrying two classifications of which only one holds the tested category names only that classification, in the denial and in the report's `matched`. | Test |
 | FR-096-AC-12 | With no registry entry the severity of a denial is `warning` in both postures, so a bundle whose only fault is a denial stays valid. A module declaring `grammar_severity` `trace:<check>` as `error` makes the same denial an error and the bundle invalid; `--severity trace:<check>=warning` demotes it again and wins over the module entry; `off` drops exactly the denials of that check from `errors`, `warnings` and the report. | Test |
 | FR-096-AC-13 | Denials are ordered by `check`, subject, then rule name, identical across two runs and for documents or members supplied in reverse order. | Test |
 | FR-096-AC-14 | A fixture whose archetypes, verbs, fields and values are neutral (for example `alpha`, `beta`, `links_to`, `rank_field`) and share no name with this specification yields the same denials, so the engine holds no name. | Test |
@@ -333,6 +338,8 @@ other work. The CLI flag, its human rendering and exit codes belong to `quire-cl
 | FR-096-CON-3 | A rule SHALL read only authored frontmatter values and resolved edges. No code path derives a category, trust level, agreement state, safeguard or remediation adequacy. | Design | Inspection |
 | FR-096-CON-4 | The engine SHALL NOT apply a remediation, write a document, or compile QSL. | Design | Inspection |
 | FR-096-CON-5 | Evaluation SHALL be a pure function of the loaded corpus and its modules, with no shared mutable state ([NFR-006](../non-functional/NFR-006-determinism.md)). | Design | Inspection |
+
+> **CR-001 note (2026-11-16):** PLAT-1479 extends denial remediation output to include the declared description and exact change object, both in the flow report and the validation finding. The report's top-level remediation vocabulary remains unchanged; a denial includes only the remediation names declared by its rule and preserves that rule's order.
 
 ## Dependencies
 

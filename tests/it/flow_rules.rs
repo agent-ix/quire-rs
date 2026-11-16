@@ -94,7 +94,10 @@ traceability:
     );
     schemas.insert(
         "schemas/control.json".into(),
-        schema("control", r#", "safeguards":{"enum":["encrypt","mask"]}"#),
+        schema(
+            "control",
+            r#", "safeguards":{"enum":["encrypt","encrypt-alt","mask"]}"#,
+        ),
     );
     schemas.insert(
         "schemas/sink.json".into(),
@@ -151,8 +154,8 @@ fn report(root: &Path, spec: &Spec, registry: &Registry) -> quire_rs::corpus::Re
 )]
 fn generic_path_matches_authored_facts_and_reports_exact_matched_endpoints() {
     let registry = registry_with(
-        "  - name: category-rule\n    subject: [alpha]\n    match:\n    - path: [{edge: links_to, direction: outgoing, to: [beta]}]\n      field: category\n      any_of: [health]\n    unless_any:\n    - path: [{edge: protects, direction: incoming, to: [control]}]\n      field: safeguards\n      any_of: [encrypt]\n    check: category-crossing\n    remediations: [encrypt]\n    rationale: Protect the declared category.\n",
-        "  - name: encrypt\n    description: Add a control protecting the alpha.\n    adds: {edge: protects, direction: incoming, from: control, field: safeguards, value: encrypt}\n",
+        "  - name: category-rule\n    subject: [alpha]\n    match:\n    - path: [{edge: links_to, direction: outgoing, to: [beta]}]\n      field: category\n      any_of: [health]\n    unless_any:\n    - path: [{edge: protects, direction: incoming, to: [control]}]\n      field: safeguards\n      any_of: [encrypt, encrypt-alt]\n    check: category-crossing\n    remediations: [encrypt, encrypt-alt]\n    rationale: Protect the declared category.\n",
+        "  - name: encrypt\n    description: Add a control protecting the alpha.\n    adds: {edge: protects, direction: incoming, from: control, field: safeguards, value: encrypt}\n  - name: encrypt-alt\n    description: Add an alternate control protecting the alpha.\n    adds: {edge: protects, direction: incoming, from: control, field: safeguards, value: encrypt-alt}\n",
         "[]",
     );
     assert!(registry.failures().is_empty(), "{:?}", registry.failures());
@@ -196,7 +199,30 @@ fn generic_path_matches_authored_facts_and_reports_exact_matched_endpoints() {
     assert_eq!(flow.denials[0].matched["beta"].len(), 1);
     assert_eq!(flow.denials[0].matched["beta"][0].id, "B-1");
     assert_eq!(flow.denials[0].severity, "warning");
-    assert_eq!(flow.denials[0].remediations, ["encrypt"]);
+    assert_eq!(flow.denials[0].remediations.len(), 2);
+    let remediation = &flow.denials[0].remediations[0];
+    assert_eq!(remediation.name, "encrypt");
+    assert_eq!(
+        remediation.description,
+        "Add a control protecting the alpha."
+    );
+    assert_eq!(flow.denials[0].remediations[1].name, "encrypt-alt");
+    assert_eq!(
+        remediation.change.adds.as_ref().map(|change| (
+            change.edge.as_str(),
+            change.direction,
+            change.from.as_str(),
+            change.field.as_str(),
+            change.value.as_str(),
+        )),
+        Some((
+            "protects",
+            quire_rs::traceability::EdgeSide::Incoming,
+            "control",
+            "safeguards",
+            "encrypt"
+        ))
+    );
     assert!(flow.facts["alpha"][0].path.starts_with("spec/"));
     assert_eq!(
         flow.facts.keys().cloned().collect::<Vec<_>>(),
@@ -214,6 +240,10 @@ fn generic_path_matches_authored_facts_and_reports_exact_matched_endpoints() {
     );
     let serialized = serde_json::to_string(&flow).expect("json");
     assert!(serialized.find("\"path\"").unwrap() < serialized.find("\"fields\"").unwrap());
+    assert!(serialized.contains(
+        "\"remediations\":[{\"name\":\"encrypt\",\"description\":\"Add a control protecting the alpha.\",\"change\":{"
+    ));
+    assert!(serialized.contains("\"name\":\"encrypt-alt\""));
     assert!(serialized.contains("\"edges\":[{\"edge\":\"links_to\",\"direction\":\"outgoing\",\"target\":{\"id\":\"B-1\"},\"archetype\":\"beta\"}"));
 
     let validation = validate_bundle(
@@ -227,6 +257,22 @@ fn generic_path_matches_authored_facts_and_reports_exact_matched_endpoints() {
     assert!(validation.warnings[0].message.contains("B-1"));
     assert!(!validation.warnings[0].message.contains("B-2"));
     assert!(validation.warnings[0].message.contains("encrypt"));
+    assert!(validation.warnings[0]
+        .message
+        .contains("\"description\":\"Add a control protecting the alpha.\""));
+    assert!(validation.warnings[0]
+        .message
+        .contains("\"change\":{\"adds\":"));
+    assert!(
+        validation.warnings[0]
+            .message
+            .find("\"name\":\"encrypt\"")
+            .unwrap()
+            < validation.warnings[0]
+                .message
+                .find("\"name\":\"encrypt-alt\"")
+                .unwrap()
+    );
     assert!(validation.warnings[0]
         .message
         .contains("Protect the declared category"));
