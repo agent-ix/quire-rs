@@ -1,6 +1,6 @@
 //! Load-time resolution of generic flow declarations against the merged registry (FR-096).
 
-use std::collections::{BTreeMap, BTreeSet, VecDeque};
+use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
 use serde_json::Value;
@@ -396,37 +396,24 @@ fn schema_enum(schema: &Value, field: &str) -> Option<Vec<String>> {
 }
 
 fn schema_walk(schema: &Value, field: &str, enum_only: bool) -> Option<Vec<String>> {
-    let mut queue = VecDeque::from([schema]);
-    while let Some(node) = queue.pop_front() {
-        if let Some(property) = node
-            .get("properties")
-            .and_then(Value::as_object)
-            .and_then(|properties| properties.get(field))
-        {
-            if !enum_only {
-                return Some(Vec::new());
-            }
-            let values = property
-                .get("enum")
-                .or_else(|| property.get("items").and_then(|items| items.get("enum")))
-                .and_then(Value::as_array);
-            if let Some(values) = values {
-                return Some(
-                    values
-                        .iter()
-                        .filter_map(Value::as_str)
-                        .map(str::to_string)
-                        .collect(),
-                );
-            }
-        }
-        match node {
-            Value::Object(map) => queue.extend(map.values()),
-            Value::Array(items) => queue.extend(items.iter()),
-            _ => {}
-        }
+    let property = schema
+        .get("properties")
+        .and_then(Value::as_object)
+        .and_then(|properties| properties.get(field))?;
+    if !enum_only {
+        return Some(Vec::new());
     }
-    None
+    property
+        .get("enum")
+        .or_else(|| property.get("items").and_then(|items| items.get("enum")))
+        .and_then(Value::as_array)
+        .map(|values| {
+            values
+                .iter()
+                .filter_map(Value::as_str)
+                .map(str::to_string)
+                .collect()
+        })
 }
 
 fn condition_paths<'a>(subjects: &[String], condition: &'a FlowCondition) -> ValidatedPaths<'a> {

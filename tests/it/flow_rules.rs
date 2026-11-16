@@ -78,7 +78,7 @@ traceability:
         "schemas/alpha.json".into(),
         schema(
             "alpha",
-            r#", "state":{"enum":["open","closed"]}, "approval":{"enum":["covered","missing"]}"#,
+            r#", "state":{"enum":["open","closed"]}, "approval":{"enum":["covered","missing"]}, "nested":{"type":"object","properties":{"nested_only":{"type":"string"}}}"#,
         ),
     );
     schemas.insert(
@@ -403,6 +403,10 @@ fn loader_rejects_unknown_registry_references_values_and_check_collisions() {
         (
             "  - name: bad-field\n    subject: [alpha]\n    match: [{path: [], field: typo, present: true}]\n    check: bad-field\n    rationale: Bad field.\n",
             "typo",
+        ),
+        (
+            "  - name: nested-field\n    subject: [alpha]\n    match: [{path: [], field: nested_only, present: true}]\n    check: nested-field\n    rationale: Nested properties are not top-level frontmatter fields.\n",
+            "nested_only",
         ),
         (
             "  - name: bad-enum\n    subject: [alpha]\n    match: [{path: [], field: state, any_of: [medical]}]\n    check: bad-enum\n    rationale: Bad enum.\n",
