@@ -16,6 +16,14 @@ fn schema(kind: &str, fields: &str) -> String {
 }
 
 fn registry_with(rules: &str, remediations: &str, exclusions: &str) -> Registry {
+    parse_registry_with(rules, remediations, exclusions).expect("module parses")
+}
+
+fn parse_registry_with(
+    rules: &str,
+    remediations: &str,
+    exclusions: &str,
+) -> Result<Registry, String> {
     let remediations = if remediations.trim() == "[]" {
         "    []".to_string()
     } else {
@@ -92,7 +100,7 @@ traceability:
         "schemas/sink.json".into(),
         schema("sink", r#", "kind":{"enum":["prompt","storage"]}, "agreement":{"enum":["covered","missing","unknown"]}"#),
     );
-    Registry::from_inline_parts(manifest.as_bytes(), &schemas).expect("module parses")
+    Registry::from_inline_parts(manifest.as_bytes(), &schemas).map_err(|error| error.to_string())
 }
 
 fn docs(files: &[(&str, &str)]) -> (TempDir, Spec) {
@@ -409,10 +417,6 @@ fn loader_rejects_unknown_registry_references_values_and_check_collisions() {
             "relation-check",
         ),
         (
-            "  - name: duplicate-rule\n    subject: [alpha]\n    match: [{path: [], field: id, present: true}]\n    check: first-check\n    rationale: First.\n  - name: duplicate-rule\n    subject: [alpha]\n    match: [{path: [], field: id, present: true}]\n    check: second-check\n    rationale: Second.\n",
-            "duplicate-rule",
-        ),
-        (
             "  - name: missing-remediation\n    subject: [alpha]\n    match: [{path: [], field: id, present: true}]\n    check: missing-remediation\n    remediations: [not-declared]\n    rationale: Missing remediation.\n",
             "not-declared",
         ),
@@ -428,6 +432,13 @@ fn loader_rejects_unknown_registry_references_values_and_check_collisions() {
             registry.failures()
         );
     }
+    let duplicate = parse_registry_with(
+        "  - name: duplicate-rule\n    subject: [alpha]\n    match: [{path: [], field: id, present: true}]\n    check: first-check\n    rationale: First.\n  - name: duplicate-rule\n    subject: [alpha]\n    match: [{path: [], field: id, present: true}]\n    check: second-check\n    rationale: Second.\n",
+        "[]",
+        "[]",
+    )
+    .expect_err("duplicate local rule names fail manifest parsing");
+    assert!(duplicate.contains("duplicate-rule"), "{duplicate}");
     let valid = registry_with(
         "  - name: valid-enum\n    subject: [alpha]\n    match: [{path: [], field: state, any_of: [' OPEN ']}]\n    check: valid-enum\n    rationale: Valid folded enum.\n",
         "[]",
@@ -468,7 +479,7 @@ fn duplicate_rule_names_across_modules_fail_with_both_module_names() {
             && failure.reason.contains("flow-module-one")
             && failure.reason.contains("flow-module-two")
     }));
-    assert!(registry.traceability().unwrap().flow_rules.is_empty());
+    assert!(registry.traceability().is_none());
 }
 
 #[test]
@@ -499,7 +510,7 @@ fn flow_rules_can_share_a_new_severity_check() {
 }
 
 #[test]
-#[trace("FR-096-AC-7", "FR-096-CON-1")]
+#[trace("FR-096-AC-7", "FR-096-AC-24", "FR-096-CON-1")]
 fn remediation_must_clear_named_rule_and_model_survives_registry_merge() {
     let rules = "  - name: removable\n    subject: [alpha]\n    match: [{path: [{edge: links_to, direction: outgoing, to: [beta]}], field: single, any_of: [x]}]\n    check: removable\n    remediations: [remove-link]\n    rationale: A link sustains this denial.\n";
     let valid = registry_with(
@@ -520,6 +531,102 @@ fn remediation_must_clear_named_rule_and_model_survives_registry_merge() {
     );
     assert!(invalid.failures().iter().any(|failure| {
         failure.reason.contains("removable") && failure.reason.contains("remove-link")
+    }));
+
+    for (change, expected) in [
+        (
+            "adds: {edge: crosses, direction: incoming, from: control, field: safeguards, value: encrypt}",
+            "remove-link",
+        ),
+        (
+            "adds: {edge: protects, direction: incoming, from: sink, field: safeguards, value: encrypt}",
+            "remove-link",
+        ),
+        (
+            "adds: {edge: protects, direction: incoming, from: control, field: safeguards, value: mask}",
+            "remove-link",
+        ),
+        (
+            "adds: {edge: protects, direction: incoming, from: control, field: safeguards, value: invalid}",
+            "invalid",
+        ),
+    ] {
+        let rejected = registry_with(
+            "  - name: add-rule\n    subject: [alpha]\n    unless_any: [{path: [{edge: protects, direction: incoming, to: [control]}], field: safeguards, any_of: [encrypt]}]\n    match: [{path: [], field: state, any_of: [open]}]\n    check: add-rule\n    remediations: [add-fix]\n    rationale: Add a matching control.\n",
+            &format!("  - name: add-fix\n    description: Add control.\n    {change}\n"),
+            "[]",
+        );
+        assert!(
+            rejected
+                .failures()
+                .iter()
+                .any(|failure| failure.reason.contains(expected)),
+            "expected rejection for {change:?}, got {:?}",
+            rejected.failures()
+        );
+    }
+
+    let unreferenced = registry_with(
+        "  - name: no-remediation-rule\n    subject: [alpha]\n    match: [{path: [], field: state, any_of: [open]}]\n    check: no-remediation\n    rationale: Remediation is optional.\n",
+        "  - name: unused-fix\n    description: Add a control that no rule offers.\n    adds: {edge: protects, direction: incoming, from: control, field: safeguards, value: encrypt}\n",
+        "[]",
+    );
+    assert!(unreferenced.failures().is_empty(), "{:?}", unreferenced.failures());
+
+    let valid_set = registry_with(
+        "  - name: set-rule\n    subject: [alpha]\n    match: [{path: [], field: state, any_of: [open]}]\n    unless_any: [{path: [], field: approval, any_of: [covered]}]\n    check: set-rule\n    remediations: [set-fix]\n    rationale: Set approval.\n",
+        "  - name: set-fix\n    description: Set approval to covered.\n    sets: {field: approval, value: covered}\n",
+        "[]",
+    );
+    assert!(valid_set.failures().is_empty(), "{:?}", valid_set.failures());
+
+    let invalid_set = registry_with(
+        "  - name: set-rule\n    subject: [alpha]\n    match: [{path: [], field: state, any_of: [open]}]\n    unless_any: [{path: [], field: approval, any_of: [covered]}]\n    check: set-rule\n    remediations: [set-fix]\n    rationale: Set approval.\n",
+        "  - name: set-fix\n    description: Set state to closed.\n    sets: {field: state, value: closed}\n",
+        "[]",
+    );
+    assert!(invalid_set.failures().iter().any(|failure| {
+        failure.reason.contains("set-rule") && failure.reason.contains("set-fix")
+    }));
+
+    let incoming_remove = registry_with(
+        "  - name: incoming-remove\n    subject: [alpha]\n    match: [{path: [{edge: delivers_to, direction: incoming, to: [sink]}], field: id, present: true}]\n    check: incoming-remove\n    remediations: [remove-incoming]\n    rationale: Remove every incoming sink edge.\n",
+        "  - name: remove-incoming\n    description: Edit each sink and delete its outgoing delivers_to edge to the alpha.\n    removes: {edge: delivers_to, direction: incoming}\n",
+        "[]",
+    );
+    assert!(incoming_remove.failures().is_empty(), "{:?}", incoming_remove.failures());
+
+    let valid_any_path_remove = registry_with(
+        "  - name: all-paths-remove\n    subject: [alpha]\n    match: [{any_path: [[{edge: links_to, direction: outgoing, to: [beta]}], [{edge: links_to, direction: outgoing, to: [beta]}, {edge: carries, direction: outgoing, to: [gamma]}]], field: id, present: true}]\n    check: all-paths-remove\n    remediations: [remove-all-links]\n    rationale: Remove all linked paths.\n",
+        "  - name: remove-all-links\n    description: Remove the links_to edges.\n    removes: {edge: links_to, direction: outgoing}\n",
+        "[]",
+    );
+    assert!(valid_any_path_remove.failures().is_empty(), "{:?}", valid_any_path_remove.failures());
+
+    for paths in [
+        "[[{edge: links_to, direction: outgoing, to: [beta]}, {edge: carries, direction: outgoing, to: [gamma]}]]",
+        "[[{edge: links_to, direction: outgoing, to: [beta]}], [{edge: crosses, direction: outgoing, to: [gamma]}]]",
+    ] {
+        let rule = format!(
+            "  - name: bad-remove\n    subject: [alpha]\n    match: [{{any_path: {paths}, field: id, present: true}}]\n    check: bad-remove\n    remediations: [remove-link]\n    rationale: Every path must start with the removed edge.\n"
+        );
+        let rejected = registry_with(
+            &rule,
+            "  - name: remove-link\n    description: Remove links_to.\n    removes: {edge: links_to, direction: outgoing}\n",
+            "[]",
+        );
+        assert!(rejected.failures().iter().any(|failure| {
+            failure.reason.contains("bad-remove") && failure.reason.contains("remove-link")
+        }));
+    }
+
+    let invalid_remediation_field = registry_with(
+        "  - name: field-rule\n    subject: [alpha]\n    match: [{path: [], field: state, any_of: [open]}]\n    check: field-rule\n    remediations: [field-fix]\n    rationale: Remediation fields are schema checked.\n",
+        "  - name: field-fix\n    description: Set a misspelled field.\n    sets: {field: typo, value: x}\n",
+        "[]",
+    );
+    assert!(invalid_remediation_field.failures().iter().any(|failure| {
+        failure.reason.contains("field-fix") && failure.reason.contains("typo")
     }));
 }
 
@@ -632,15 +739,16 @@ fn report_keeps_rule_and_vocabulary_order_and_uses_full_rule_shape() {
     assert_eq!(flow.denials[2].check, "z-check");
     let json = serde_json::to_string(&flow).unwrap();
     assert!(json.contains("\"unless_any\":[]"));
+    assert!(json.starts_with("{\"schema\":\"quire.flow-report/v1\",\"rules\":"));
     let ordered = [
-        "schema",
-        "rules",
-        "vocabularies",
-        "facts",
-        "denials",
-        "remediations",
+        "\",\"rules\":" ,
+        "\",\"vocabularies\":" ,
+        "\",\"facts\":" ,
+        "\",\"denials\":" ,
     ]
-    .map(|key| json.find(&format!("\"{key}\"")).unwrap());
+    .map(|marker| json.find(marker).unwrap());
+    let remediations = json.rfind(",\"remediations\":").unwrap();
+    assert!(ordered.last().unwrap() < &remediations);
     assert!(ordered.windows(2).all(|pair| pair[0] < pair[1]));
     assert_eq!(flow.vocabularies["alpha"]["state"], ["open", "closed"]);
     assert_eq!(
