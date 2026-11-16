@@ -493,6 +493,17 @@ fn validate_view_findings(
         &mut report,
     );
 
+    // FR-096: evaluate generic flow declarations over authored frontmatter
+    // and resolved edges. The graph is shared across member views so paths can
+    // follow cross-member relations without duplicating their index.
+    crate::corpus::flow_rules::validate_flow_rules(
+        spec,
+        registry,
+        reference_root,
+        &criteria.flow_edges,
+        &mut report,
+    );
+
     check_index_completeness(spec, posture, severity, document_root, &mut report);
 
     report

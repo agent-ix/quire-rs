@@ -20,10 +20,15 @@ use std::collections::{BTreeMap, BTreeSet};
 use serde::{Deserialize, Serialize};
 
 mod field_rules;
+mod flow_rules;
 
 pub use field_rules::{
     CarriedField, ConsistencyRule, FieldConsistency, HopDirection, OrderFrom, RequiredField,
     ViaHop, VocabularyRule,
+};
+pub use flow_rules::{
+    FlowAddRemediation, FlowCondition, FlowConditionTest, FlowRemoveRemediation, FlowRemediation,
+    FlowRule, FlowSetRemediation, FlowStep,
 };
 
 /// A source language an adapter and a trace-marker form can bind to (FR-051).
@@ -457,6 +462,12 @@ pub struct TraceabilityModel {
     /// Stated values that must be in a carried field's vocabulary (FR-091).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub vocabulary: Vec<VocabularyRule>,
+    /// Generic rules evaluated over authored fields and resolved relations (FR-096).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub flow_rules: Vec<FlowRule>,
+    /// Remediation vocabulary referenced by flow rules (FR-096).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub remediations: Vec<FlowRemediation>,
 }
 
 /// One vocabulary whose values documents are expected to claim (FR-059).
@@ -648,7 +659,7 @@ fn parse_record_keys(relation: &str, raw: &serde_json::Value) -> Result<Vec<Stri
 
 /// The end of an edge a `from` document stands at in a `when_any` condition.
 /// Two values only: a condition cannot be built with `Either`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum EdgeSide {
     /// The `from` document is the edge's source.
@@ -1721,6 +1732,8 @@ impl TraceabilityModel {
             && self.field_consistency.is_empty()
             && self.required_fields.is_empty()
             && self.vocabulary.is_empty()
+            && self.flow_rules.is_empty()
+            && self.remediations.is_empty()
         // CR-085: `source_exclude` is deliberately **absent** from this list,
         // mirroring the model-level `exclude` two fields above it. Both state
         // what is *not* traceable data; neither reconciles anything, so a module
@@ -2171,6 +2184,7 @@ impl TraceabilityModel {
         }
 
         self.validate_field_rules()?;
+        self.validate_flow_rules()?;
 
         if let Some(status) = &self.status {
             check_field("status", &status.column, "column", &status.column)?;

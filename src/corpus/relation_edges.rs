@@ -371,6 +371,8 @@ impl RelationEdges {
 pub(crate) struct RelationContext {
     criteria: CriterionIndex,
     edges: BTreeMap<String, RelationEdges>,
+    /// Resolved edge graph read by generic flow-rule paths (FR-096).
+    pub(crate) flow_edges: super::flow_rules::FlowEdges,
     /// The hops of each `field_consistency` entry (FR-091), by entry name.
     hops: BTreeMap<String, FieldHops>,
 }
@@ -423,6 +425,7 @@ impl RelationContext {
         Self {
             criteria,
             edges,
+            flow_edges: super::flow_rules::FlowEdges::build(spec, registry),
             hops,
         }
     }
