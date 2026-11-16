@@ -148,7 +148,12 @@ fn generic_path_matches_authored_facts_and_reports_exact_matched_endpoints() {
         ),
         (
             "b1.md",
-            &document("B-1", "beta", "category: [ ' Health ', 7 ]\nunread: secret\n", &[]),
+            &document(
+                "B-1",
+                "beta",
+                "category: [ ' Health ', 7 ]\nunread: secret\n",
+                &[],
+            ),
         ),
         (
             "b2.md",
@@ -163,18 +168,31 @@ fn generic_path_matches_authored_facts_and_reports_exact_matched_endpoints() {
     assert_eq!(flow.denials[0].matched["beta"].len(), 1);
     assert_eq!(flow.denials[0].matched["beta"][0].id, "B-1");
     assert_eq!(flow.denials[0].severity, "warning");
-    assert_eq!(flow.facts.keys().cloned().collect::<Vec<_>>(), ["alpha", "beta"]);
+    assert_eq!(
+        flow.facts.keys().cloned().collect::<Vec<_>>(),
+        ["alpha", "beta"]
+    );
     assert!(flow.facts["alpha"][0].fields.is_empty());
     assert_eq!(flow.facts["alpha"][0].edges.len(), 2);
     assert_eq!(
-        flow.facts["beta"][0].fields.keys().cloned().collect::<Vec<_>>(),
+        flow.facts["beta"][0]
+            .fields
+            .keys()
+            .cloned()
+            .collect::<Vec<_>>(),
         ["category"]
     );
     let serialized = serde_json::to_string(&flow).expect("json");
     assert!(serialized.find("\"path\"").unwrap() < serialized.find("\"fields\"").unwrap());
     assert!(serialized.contains("\"edges\":[{\"edge\":\"links_to\",\"direction\":\"outgoing\",\"target\":{\"id\":\"B-1\"},\"archetype\":\"beta\"}"));
 
-    let validation = validate_bundle(&spec, &registry, BundlePosture::Okf, root.path(), root.path());
+    let validation = validate_bundle(
+        &spec,
+        &registry,
+        BundlePosture::Okf,
+        root.path(),
+        root.path(),
+    );
     assert_eq!(validation.warnings.len(), 1);
     assert!(validation.warnings[0].message.contains("B-1"));
     assert!(!validation.warnings[0].message.contains("B-2"));
@@ -198,13 +216,22 @@ fn any_path_and_absent_present_cover_empty_and_multi_hop_paths() {
             "alpha.md",
             &document("A-1", "alpha", "", &[("links_to", "B-1")]),
         ),
-        ("beta.md", &document("B-1", "beta", "category: [health]\n", &[])),
+        (
+            "beta.md",
+            &document("B-1", "beta", "category: [health]\n", &[]),
+        ),
     ]);
     let result = report(root.path(), &spec, &registry);
     let flow = result.flow.unwrap();
     assert_eq!(flow.denials.len(), 2);
-    assert!(flow.denials.iter().any(|denial| denial.rule == "any-path-rule"));
-    assert!(flow.denials.iter().any(|denial| denial.rule == "absent-rule"));
+    assert!(flow
+        .denials
+        .iter()
+        .any(|denial| denial.rule == "any-path-rule"));
+    assert!(flow
+        .denials
+        .iter()
+        .any(|denial| denial.rule == "absent-rule"));
 }
 
 #[test]
@@ -239,7 +266,10 @@ fn loader_rejects_unknown_registry_references_values_and_check_collisions() {
     for (rules, expected) in cases {
         let registry = registry_with(rules, "[]\n", "[]\n");
         assert!(
-            registry.failures().iter().any(|failure| failure.reason.contains(expected)),
+            registry
+                .failures()
+                .iter()
+                .any(|failure| failure.reason.contains(expected)),
             "expected {expected:?}, got {:?}",
             registry.failures()
         );
@@ -292,24 +322,45 @@ fn severity_off_exclusion_and_repeat_runs_keep_validation_and_report_aligned() {
     let first = report(root.path(), &spec, &registry);
     let second = report(root.path(), &spec, &registry);
     let flow = first.flow.as_ref().unwrap();
-    assert_eq!(serde_json::to_vec(&first).unwrap(), serde_json::to_vec(&second).unwrap());
+    assert_eq!(
+        serde_json::to_vec(&first).unwrap(),
+        serde_json::to_vec(&second).unwrap()
+    );
     assert_eq!(flow.denials.len(), 1);
     assert_eq!(flow.denials[0].subject.id, "A-1");
-    let validation = validate_bundle(&spec, &registry, BundlePosture::Strict, root.path(), root.path());
+    let validation = validate_bundle(
+        &spec,
+        &registry,
+        BundlePosture::Strict,
+        root.path(),
+        root.path(),
+    );
     assert_eq!(validation.warnings.len(), 1);
 
     let off = registry.with_grammar_severity(BTreeMap::from([(
         "trace:approval-check".into(),
         quire_rs::grammar::GrammarSeverityLevel::Off,
     )]));
-    assert!(report(root.path(), &spec, &off).flow.unwrap().denials.is_empty());
-    assert!(validate_bundle(&spec, &off, BundlePosture::Strict, root.path(), root.path())
-        .warnings
+    assert!(report(root.path(), &spec, &off)
+        .flow
+        .unwrap()
+        .denials
         .is_empty());
+    assert!(
+        validate_bundle(&spec, &off, BundlePosture::Strict, root.path(), root.path())
+            .warnings
+            .is_empty()
+    );
 }
 
 #[test]
-#[trace("FR-096-AC-22", "FR-096-AC-23", "FR-096-CON-2", "FR-096-CON-3", "FR-096-CON-4")]
+#[trace(
+    "FR-096-AC-22",
+    "FR-096-AC-23",
+    "FR-096-CON-2",
+    "FR-096-CON-3",
+    "FR-096-CON-4"
+)]
 fn engine_source_remains_generic_and_does_not_apply_remediations() {
     let source = include_str!("../../src/corpus/flow_rules.rs");
     for domain_term in ["regulated_categories", "trust_level", "safeguards"] {

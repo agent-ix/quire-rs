@@ -14,9 +14,9 @@
 //! as fatal (`load_strict`, FR-014).
 
 pub mod compile;
+mod flow_rules;
 pub mod manifest;
 pub mod paths;
-mod flow_rules;
 mod record_validation;
 pub(crate) mod vocabulary_refs;
 

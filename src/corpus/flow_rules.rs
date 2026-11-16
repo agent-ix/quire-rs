@@ -154,14 +154,12 @@ impl FlowEdges {
                 .or_default()
                 .insert(edge.source_slot);
 
-            let counterpart = inverse
-                .get(&edge.edge_type)
-                .or_else(|| {
-                    inverse
-                        .iter()
-                        .find(|(_, forward)| forward.as_str() == edge.edge_type)
-                        .map(|(inverse_label, _)| inverse_label)
-                });
+            let counterpart = inverse.get(&edge.edge_type).or_else(|| {
+                inverse
+                    .iter()
+                    .find(|(_, forward)| forward.as_str() == edge.edge_type)
+                    .map(|(inverse_label, _)| inverse_label)
+            });
             if let Some(counterpart) = counterpart {
                 neighbors
                     .entry((target, counterpart.clone(), false))
@@ -278,17 +276,14 @@ pub(crate) fn flow_report(
                 }
                 for step in steps {
                     for archetype in &step.0 {
-                        edge_reads
-                            .entry(archetype.clone())
-                            .or_default()
-                            .insert((
-                                step.1.edge.clone(),
-                                match step.1.direction {
-                                    EdgeSide::Outgoing => "outgoing".to_string(),
-                                    EdgeSide::Incoming => "incoming".to_string(),
-                                },
-                                step.1.to.clone(),
-                            ));
+                        edge_reads.entry(archetype.clone()).or_default().insert((
+                            step.1.edge.clone(),
+                            match step.1.direction {
+                                EdgeSide::Outgoing => "outgoing".to_string(),
+                                EdgeSide::Incoming => "incoming".to_string(),
+                            },
+                            step.1.to.clone(),
+                        ));
                     }
                 }
             }
@@ -585,7 +580,9 @@ fn document_ref(spec: &Spec, slot: usize) -> FlowDocumentRef {
 fn subject_ref(spec: &Spec, slot: usize) -> FlowSubjectRef {
     FlowSubjectRef {
         id: artifact_key(spec.doc(slot)),
-        repo: spec.member_identity(spec.member_of(slot)).map(str::to_string),
+        repo: spec
+            .member_identity(spec.member_of(slot))
+            .map(str::to_string),
         archetype: spec
             .doc(slot)
             .concept_type()
@@ -636,10 +633,7 @@ fn denial_message(
 }
 
 /// Yield endpoint archetypes and the archetype at each step's source.
-fn condition_paths<'a>(
-    rule: &'a FlowRule,
-    condition: &'a FlowCondition,
-) -> ConditionPathReads<'a> {
+fn condition_paths<'a>(rule: &'a FlowRule, condition: &'a FlowCondition) -> ConditionPathReads<'a> {
     condition
         .paths
         .iter()

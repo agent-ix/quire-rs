@@ -49,12 +49,9 @@ pub(super) fn validate_flow_declarations(
             }
         }
         for remediation in &module.traceability.remediations {
-            if let Err(reason) = validate_remediation_declaration(
-                remediation,
-                archetypes,
-                edge_types,
-                inverse_edges,
-            ) {
+            if let Err(reason) =
+                validate_remediation_declaration(remediation, archetypes, edge_types, inverse_edges)
+            {
                 fail(module, failures, reason);
             }
             if let Some(sets) = &remediation.sets {
@@ -116,7 +113,10 @@ fn report_cross_module_duplicates(
         let mut by_name: BTreeMap<&str, Vec<&LoadedModule>> = BTreeMap::new();
         for (name, module) in names {
             let modules_for_name = by_name.entry(name).or_default();
-            if !modules_for_name.iter().any(|existing| existing.name == module.name) {
+            if !modules_for_name
+                .iter()
+                .any(|existing| existing.name == module.name)
+            {
                 modules_for_name.push(module);
             }
         }
@@ -154,7 +154,14 @@ fn validate_rule(
         require_archetype("subject", &rule.name, subject, archetypes)?;
     }
     for condition in rule.match_conditions.iter().chain(&rule.unless_any) {
-        validate_condition(&rule.name, condition, &rule.subject, archetypes, edge_types, inverse_edges)?;
+        validate_condition(
+            &rule.name,
+            condition,
+            &rule.subject,
+            archetypes,
+            edge_types,
+            inverse_edges,
+        )?;
     }
     if reserved_checks.contains(&rule.check) {
         return Err(format!(
@@ -228,9 +235,9 @@ fn validate_condition(
         if !declared_enums.is_empty() {
             for value in values {
                 let accepted = declared_enums.iter().any(|(_, enum_values)| {
-                    enum_values
-                        .iter()
-                        .any(|candidate| fold_selector_value(candidate) == fold_selector_value(value))
+                    enum_values.iter().any(|candidate| {
+                        fold_selector_value(candidate) == fold_selector_value(value)
+                    })
                 });
                 if !accepted {
                     return Err(format!(
@@ -340,10 +347,7 @@ fn remediation_matches(rule: &FlowRule, remediation: &FlowRemediation) -> bool {
     false
 }
 
-fn step_matches_add(
-    step: &FlowStep,
-    adds: &crate::traceability::FlowAddRemediation,
-) -> bool {
+fn step_matches_add(step: &FlowStep, adds: &crate::traceability::FlowAddRemediation) -> bool {
     step.edge == adds.edge
         && step.direction == adds.direction
         && step.to.iter().any(|to| to == &adds.from)
@@ -407,7 +411,13 @@ fn schema_walk(schema: &Value, field: &str, enum_only: bool) -> Option<Vec<Strin
                 .or_else(|| property.get("items").and_then(|items| items.get("enum")))
                 .and_then(Value::as_array);
             if let Some(values) = values {
-                return Some(values.iter().filter_map(Value::as_str).map(str::to_string).collect());
+                return Some(
+                    values
+                        .iter()
+                        .filter_map(Value::as_str)
+                        .map(str::to_string)
+                        .collect(),
+                );
             }
         }
         match node {
@@ -419,10 +429,7 @@ fn schema_walk(schema: &Value, field: &str, enum_only: bool) -> Option<Vec<Strin
     None
 }
 
-fn condition_paths<'a>(
-    subjects: &[String],
-    condition: &'a FlowCondition,
-) -> ValidatedPaths<'a> {
+fn condition_paths<'a>(subjects: &[String], condition: &'a FlowCondition) -> ValidatedPaths<'a> {
     condition
         .paths
         .iter()
