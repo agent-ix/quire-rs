@@ -341,7 +341,13 @@ pub(crate) fn flow_report(
                     FlowFact {
                         id,
                         repo,
-                        path: doc.path.to_string_lossy().into_owned(),
+                        path: super::declared_tables::relative_path(
+                            roots
+                                .get(corpus.member_of(slot))
+                                .copied()
+                                .unwrap_or(Path::new("")),
+                            &doc.path,
+                        ),
                         fields,
                         edges: fact_edges,
                     },

@@ -106,11 +106,12 @@ pub(super) fn enum_at(schema: &Value, field: &str) -> Option<Vec<String>> {
     queue.push_back(schema);
     while let Some(node) = queue.pop_front() {
         if let Some(properties) = node.get("properties").and_then(Value::as_object) {
-            if let Some(values) = properties
-                .get(field)
-                .and_then(|f| f.get("enum"))
-                .and_then(Value::as_array)
-            {
+            if let Some(values) = properties.get(field).and_then(|property| {
+                property
+                    .get("enum")
+                    .or_else(|| property.get("items").and_then(|items| items.get("enum")))
+                    .and_then(Value::as_array)
+            }) {
                 return Some(
                     values
                         .iter()

@@ -31,6 +31,7 @@ archetypes:
   allowed_links:
     links_to: [beta]
     crosses: [gamma]
+    delivers_to: [sink]
 - name: beta
   frontmatter_schema_ref: schemas/beta.json
   allowed_links:
@@ -44,7 +45,7 @@ archetypes:
 - name: sink
   frontmatter_schema_ref: schemas/sink.json
   allowed_links:
-    delivers_to: [alpha]
+    carries: [gamma]
 edge_types:
   links_to: {{description: links alpha to beta, category: traceability, inverse: linked_from}}
   crosses: {{description: alpha crosses gamma, category: traceability}}
@@ -58,7 +59,7 @@ traceability:
     from: sink
     edges: [delivers_to]
     to: [alpha]
-    direction: outgoing
+    direction: incoming
     check: relation-check
   flow_rules:
 {rules}  remediations:
@@ -76,12 +77,12 @@ traceability:
         "schemas/beta.json".into(),
         schema(
             "beta",
-            r#", "category":{"type":"array"}, "single":{"enum":["x","y"]}"#,
+            r#", "category":{}, "classification":{"type":"array","items":{"enum":["health","personal","financial"]}}, "single":{"enum":["x","y"]}"#,
         ),
     );
     schemas.insert(
         "schemas/gamma.json".into(),
-        schema("gamma", r#", "trust":{"enum":["trusted","untrusted"]}"#),
+        schema("gamma", r#", "trust":{"enum":["trusted","untrusted"]}, "category":{"enum":["health","personal","financial"]}"#),
     );
     schemas.insert(
         "schemas/control.json".into(),
@@ -131,7 +132,6 @@ fn report(root: &Path, spec: &Spec, registry: &Registry) -> quire_rs::corpus::Re
 #[trace(
     "FR-096-AC-1",
     "FR-096-AC-3",
-    "FR-096-AC-8",
     "FR-096-AC-10",
     "FR-096-AC-11",
     "FR-096-AC-14",
@@ -171,6 +171,14 @@ fn generic_path_matches_authored_facts_and_reports_exact_matched_endpoints() {
             "b2.md",
             &document("B-2", "beta", "category: [personal]\n", &[]),
         ),
+        ("b3.md", &document("B-3", "beta", "category: 7\n", &[])),
+        (
+            "b4.md",
+            &document("B-4", "beta", "category: {nested: health}\n", &[]),
+        ),
+        ("b5.md", &document("B-5", "beta", "category: true\n", &[])),
+        ("b6.md", &document("B-6", "beta", "category: null\n", &[])),
+        ("b7.md", &document("B-7", "beta", "", &[])),
     ]);
     let result = report(root.path(), &spec, &registry);
     let flow = result.flow.expect("declared report");
@@ -180,6 +188,8 @@ fn generic_path_matches_authored_facts_and_reports_exact_matched_endpoints() {
     assert_eq!(flow.denials[0].matched["beta"].len(), 1);
     assert_eq!(flow.denials[0].matched["beta"][0].id, "B-1");
     assert_eq!(flow.denials[0].severity, "warning");
+    assert_eq!(flow.denials[0].remediations, ["encrypt"]);
+    assert!(flow.facts["alpha"][0].path.starts_with("spec/"));
     assert_eq!(
         flow.facts.keys().cloned().collect::<Vec<_>>(),
         ["alpha", "beta", "control"]
@@ -208,13 +218,17 @@ fn generic_path_matches_authored_facts_and_reports_exact_matched_endpoints() {
     assert_eq!(validation.warnings.len(), 1);
     assert!(validation.warnings[0].message.contains("B-1"));
     assert!(!validation.warnings[0].message.contains("B-2"));
+    assert!(validation.warnings[0].message.contains("encrypt"));
+    assert!(validation.warnings[0]
+        .message
+        .contains("Protect the declared category"));
 }
 
 #[test]
-#[trace("FR-096-AC-2", "FR-096-AC-4", "FR-096-AC-9")]
+#[trace("FR-096-AC-4", "FR-096-AC-9")]
 fn any_path_and_absent_present_cover_empty_and_multi_hop_paths() {
     let registry = registry_with(
-        "  - name: any-path-rule\n    subject: [sink]\n    match:\n    - any_path:\n      - [{edge: delivers_to, direction: outgoing, to: [alpha]}, {edge: links_to, direction: outgoing, to: [beta]}]\n      - [{edge: delivers_to, direction: outgoing, to: [alpha]}, {edge: links_to, direction: outgoing, to: [beta]}]\n      field: category\n      any_of: [health]\n    check: any-path-match\n    rationale: Find a category over either path.\n  - name: absent-rule\n    subject: [alpha]\n    match:\n    - {path: [], field: approval, absent: true}\n    check: absent-approval\n    rationale: Approval is unstated.\n",
+        "  - name: any-path-rule\n    subject: [sink]\n    match:\n    - any_path:\n      - [{edge: delivers_to, direction: incoming, to: [alpha]}, {edge: links_to, direction: outgoing, to: [beta]}]\n      - [{edge: carries, direction: outgoing, to: [gamma]}]\n      field: category\n      any_of: [health]\n    check: any-path-match\n    rationale: Find a category over either path.\n  - name: absent-rule\n    subject: [alpha]\n    match:\n    - {path: [], field: approval, absent: true}\n    check: absent-approval\n    rationale: Approval is unstated.\n  - name: absent-endpoint\n    subject: [alpha]\n    match: [{path: [{edge: links_to, direction: outgoing, to: [beta]}], field: id, absent: true}]\n    check: no-link\n    rationale: No linked beta exists.\n  - name: present-endpoint\n    subject: [alpha]\n    match: [{path: [{edge: links_to, direction: outgoing, to: [beta]}], field: id, present: true}]\n    check: has-link\n    rationale: A linked beta exists.\n",
         "[]",
         "[]",
     );
@@ -222,20 +236,35 @@ fn any_path_and_absent_present_cover_empty_and_multi_hop_paths() {
     let (root, spec) = docs(&[
         (
             "sink.md",
-            &document("S-1", "sink", "kind: prompt\n", &[("delivers_to", "A-1")]),
+            &document(
+                "S-1",
+                "sink",
+                "kind: prompt\nagreement: missing\n",
+                &[("carries", "G-1")],
+            ),
         ),
         (
             "alpha.md",
-            &document("A-1", "alpha", "", &[("links_to", "B-1")]),
+            &document(
+                "A-1",
+                "alpha",
+                "",
+                &[("delivers_to", "S-1"), ("links_to", "B-1")],
+            ),
         ),
         (
             "beta.md",
             &document("B-1", "beta", "category: [health]\n", &[]),
         ),
+        (
+            "gamma.md",
+            &document("G-1", "gamma", "category: health\n", &[]),
+        ),
+        ("alpha2.md", &document("A-2", "alpha", "", &[])),
     ]);
     let result = report(root.path(), &spec, &registry);
     let flow = result.flow.unwrap();
-    assert_eq!(flow.denials.len(), 2);
+    assert_eq!(flow.denials.len(), 5);
     assert!(flow
         .denials
         .iter()
@@ -244,6 +273,107 @@ fn any_path_and_absent_present_cover_empty_and_multi_hop_paths() {
         .denials
         .iter()
         .any(|denial| denial.rule == "absent-rule"));
+    assert!(flow
+        .denials
+        .iter()
+        .any(|denial| denial.rule == "absent-endpoint" && denial.subject.id == "A-2"));
+    assert!(flow
+        .denials
+        .iter()
+        .any(|denial| denial.rule == "present-endpoint" && denial.subject.id == "A-1"));
+    let multi = flow
+        .denials
+        .iter()
+        .find(|denial| denial.rule == "any-path-rule")
+        .unwrap();
+    assert_eq!(multi.matched["beta"].len(), 1);
+    assert_eq!(multi.matched["gamma"].len(), 1);
+}
+
+#[test]
+#[trace("FR-096-AC-2")]
+fn a_matching_control_clears_the_denial() {
+    let registry = registry_with(
+        "  - name: category-rule\n    subject: [alpha]\n    match: [{path: [{edge: links_to, direction: outgoing, to: [beta]}], field: category, any_of: [health]}]\n    unless_any: [{path: [{edge: protects, direction: incoming, to: [control]}], field: safeguards, any_of: [encrypt]}]\n    check: category-crossing\n    rationale: Protect the declared category.\n",
+        "[]",
+        "[]",
+    );
+    let (root, spec) = docs(&[
+        (
+            "alpha.md",
+            &document("A-1", "alpha", "", &[("links_to", "B-1")]),
+        ),
+        (
+            "beta.md",
+            &document("B-1", "beta", "category: [health]\n", &[]),
+        ),
+        (
+            "control.md",
+            &document(
+                "C-1",
+                "control",
+                "safeguards: [encrypt]\n",
+                &[("protects", "A-1")],
+            ),
+        ),
+    ]);
+    assert!(report(root.path(), &spec, &registry)
+        .flow
+        .unwrap()
+        .denials
+        .is_empty());
+}
+
+#[test]
+#[trace("FR-096-AC-3")]
+fn sink_conditions_use_authored_kind_and_agreement_values() {
+    let registry = registry_with(
+        "  - name: sink-rule\n    subject: [sink]\n    match: [{path: [], field: kind, any_of: [prompt]}, {path: [], field: agreement, any_of: [missing, unknown]}]\n    check: agreement-missing\n    rationale: Agreement is not covered.\n",
+        "[]",
+        "[]",
+    );
+    let (root, spec) = docs(&[
+        (
+            "a.md",
+            &document("S-1", "sink", "kind: prompt\nagreement: missing\n", &[]),
+        ),
+        (
+            "b.md",
+            &document("S-2", "sink", "kind: prompt\nagreement: covered\n", &[]),
+        ),
+        (
+            "c.md",
+            &document("S-3", "sink", "kind: prompt\nagreement: unknown\n", &[]),
+        ),
+    ]);
+    let flow = report(root.path(), &spec, &registry).flow.unwrap();
+    assert_eq!(flow.denials.len(), 2);
+    assert_eq!(flow.denials[0].subject.id, "S-1");
+    assert_eq!(flow.denials[1].subject.id, "S-3");
+}
+
+#[test]
+#[trace("FR-096-AC-8", "FR-096-AC-21")]
+fn missing_edge_or_authored_endpoint_value_produces_no_denial_or_inferred_fact() {
+    let registry = registry_with(
+        "  - name: edge-rule\n    subject: [alpha]\n    match: [{path: [{edge: links_to, direction: outgoing, to: [beta]}], field: category, any_of: [health]}]\n    check: no-edge\n    rationale: A category is required.\n",
+        "[]",
+        "[]",
+    );
+    let (root, spec) = docs(&[("a.md", &document("A-1", "alpha", "state: open\n", &[]))]);
+    let flow = report(root.path(), &spec, &registry).flow.unwrap();
+    assert!(flow.denials.is_empty());
+    assert_eq!(flow.facts["alpha"][0].fields, BTreeMap::new());
+}
+
+#[test]
+#[trace("FR-096-AC-18")]
+fn a_corpus_without_flow_rules_keeps_the_relation_report_shape_unchanged() {
+    let registry = registry_with("    []\n", "[]", "[]");
+    let (root, spec) = docs(&[]);
+    let result = report(root.path(), &spec, &registry);
+    assert!(result.flow.is_none());
+    assert!(!serde_json::to_string(&result).unwrap().contains("\"flow\""));
 }
 
 #[test]
@@ -278,6 +408,14 @@ fn loader_rejects_unknown_registry_references_values_and_check_collisions() {
             "  - name: relation-check\n    subject: [alpha]\n    match: [{path: [], field: id, present: true}]\n    check: relation-check\n    rationale: Collision.\n",
             "relation-check",
         ),
+        (
+            "  - name: duplicate-rule\n    subject: [alpha]\n    match: [{path: [], field: id, present: true}]\n    check: first-check\n    rationale: First.\n  - name: duplicate-rule\n    subject: [alpha]\n    match: [{path: [], field: id, present: true}]\n    check: second-check\n    rationale: Second.\n",
+            "duplicate-rule",
+        ),
+        (
+            "  - name: missing-remediation\n    subject: [alpha]\n    match: [{path: [], field: id, present: true}]\n    check: missing-remediation\n    remediations: [not-declared]\n    rationale: Missing remediation.\n",
+            "not-declared",
+        ),
     ];
     for (rules, expected) in cases {
         let registry = registry_with(rules, "[]", "[]");
@@ -296,6 +434,68 @@ fn loader_rejects_unknown_registry_references_values_and_check_collisions() {
         "[]",
     );
     assert!(valid.failures().is_empty(), "{:?}", valid.failures());
+}
+
+#[test]
+#[trace("FR-096-AC-6", "FR-096-CON-1")]
+fn duplicate_rule_names_across_modules_fail_with_both_module_names() {
+    let parent = tempfile::tempdir().expect("modules");
+    let mut module_roots = Vec::new();
+    for name in ["flow-module-one", "flow-module-two"] {
+        let root = parent.path().join(name);
+        fs::create_dir_all(&root).expect("module dir");
+        fs::write(
+            root.join("manifest.yaml"),
+            format!(
+                "name: {name}\nversion: 0.1.0\ndescription: Duplicate flow rule\narchetypes:\n- name: alpha\ntraceability:\n  flow_rules:\n  - name: duplicate-rule\n    subject: [alpha]\n    match: [{{path: [], field: id, present: true}}]\n    check: duplicate-check\n    rationale: Duplicate declaration.\n"
+            ),
+        )
+        .expect("manifest");
+        module_roots.push(root);
+    }
+    let roots = module_roots
+        .iter()
+        .map(|root| root.as_path())
+        .collect::<Vec<_>>();
+    let registry = Registry::load_module_set(&roots).expect("modules load for diagnostics");
+    assert!(registry.failures().iter().any(|failure| {
+        failure.module == "flow-module-one"
+            && failure.reason.contains("flow-module-one")
+            && failure.reason.contains("flow-module-two")
+    }));
+    assert!(registry.failures().iter().any(|failure| {
+        failure.module == "flow-module-two"
+            && failure.reason.contains("flow-module-one")
+            && failure.reason.contains("flow-module-two")
+    }));
+    assert!(registry.traceability().unwrap().flow_rules.is_empty());
+}
+
+#[test]
+#[trace("FR-096-AC-25")]
+fn flow_rules_can_share_a_new_severity_check() {
+    let registry = registry_with(
+        "  - name: first\n    subject: [alpha]\n    match: [{path: [], field: state, any_of: [open]}]\n    check: shared-check\n    rationale: First rule.\n  - name: second\n    subject: [alpha]\n    match: [{path: [], field: approval, absent: true}]\n    check: shared-check\n    rationale: Second rule.\n",
+        "[]",
+        "[]",
+    );
+    assert!(registry.failures().is_empty(), "{:?}", registry.failures());
+    let (root, spec) = docs(&[("a.md", &document("A-1", "alpha", "state: open\n", &[]))]);
+    let error = registry.with_grammar_severity(BTreeMap::from([(
+        "trace:shared-check".into(),
+        quire_rs::grammar::GrammarSeverityLevel::Error,
+    )]));
+    let flow = report(root.path(), &spec, &error).flow.unwrap();
+    assert_eq!(flow.denials.len(), 2);
+    assert!(flow.denials.iter().all(|denial| denial.severity == "error"));
+    let validation = validate_bundle(
+        &spec,
+        &error,
+        BundlePosture::Strict,
+        root.path(),
+        root.path(),
+    );
+    assert_eq!(validation.errors.len(), 2);
 }
 
 #[test]
@@ -344,6 +544,7 @@ fn severity_off_exclusion_and_repeat_runs_keep_validation_and_report_aligned() {
     );
     assert_eq!(flow.denials.len(), 1);
     assert_eq!(flow.denials[0].subject.id, "A-1");
+    assert_eq!(flow.denials[0].severity, "warning");
     let validation = validate_bundle(
         &spec,
         &registry,
@@ -352,6 +553,24 @@ fn severity_off_exclusion_and_repeat_runs_keep_validation_and_report_aligned() {
         root.path(),
     );
     assert_eq!(validation.warnings.len(), 1);
+    assert!(validation.is_valid());
+
+    let error = registry.with_grammar_severity(BTreeMap::from([(
+        "trace:approval-check".into(),
+        quire_rs::grammar::GrammarSeverityLevel::Error,
+    )]));
+    assert_eq!(
+        report(root.path(), &spec, &error).flow.unwrap().denials[0].severity,
+        "error"
+    );
+    assert!(!validate_bundle(
+        &spec,
+        &error,
+        BundlePosture::Strict,
+        root.path(),
+        root.path()
+    )
+    .is_valid());
 
     let off = registry.with_grammar_severity(BTreeMap::from([(
         "trace:approval-check".into(),
@@ -392,17 +611,40 @@ fn engine_source_remains_generic_and_does_not_apply_remediations() {
 #[trace("FR-096-AC-13", "FR-096-AC-15", "FR-096-AC-17")]
 fn report_keeps_rule_and_vocabulary_order_and_uses_full_rule_shape() {
     let registry = registry_with(
-        "  - name: z-rule\n    subject: [alpha]\n    match: [{path: [], field: state, any_of: [open]}]\n    check: z-check\n    rationale: Z rule.\n  - name: a-rule\n    subject: [alpha]\n    match: [{path: [], field: state, any_of: [closed]}]\n    check: a-check\n    rationale: A rule.\n",
+        "  - name: z-rule\n    subject: [alpha]\n    match: [{path: [], field: state, any_of: [open]}]\n    check: z-check\n    rationale: Z rule.\n  - name: a-rule\n    subject: [alpha]\n    match: [{path: [], field: state, any_of: [closed]}]\n    check: a-check\n    rationale: A rule.\n  - name: beta-vocabulary\n    subject: [beta]\n    match: [{path: [], field: classification, any_of: [health]}]\n    check: beta-check\n    rationale: Read the beta vocabulary.\n",
         "[]",
         "[]",
     );
-    let (root, spec) = docs(&[("a.md", &document("A-1", "alpha", "state: open\n", &[]))]);
+    let (root, spec) = docs(&[
+        ("a.md", &document("A-1", "alpha", "state: closed\n", &[])),
+        ("b.md", &document("A-2", "alpha", "state: open\n", &[])),
+        (
+            "c.md",
+            &document("B-1", "beta", "classification: [health]\n", &[]),
+        ),
+    ]);
     let result = report(root.path(), &spec, &registry);
     let flow = result.flow.unwrap();
     assert_eq!(flow.rules[0].name, "z-rule");
     assert_eq!(flow.rules[1].name, "a-rule");
+    assert_eq!(flow.denials[0].check, "a-check");
+    assert_eq!(flow.denials[1].check, "beta-check");
+    assert_eq!(flow.denials[2].check, "z-check");
     let json = serde_json::to_string(&flow).unwrap();
     assert!(json.contains("\"unless_any\":[]"));
-    assert!(json.find("\"schema\"").unwrap() < json.find("\"rules\"").unwrap());
+    let ordered = [
+        "schema",
+        "rules",
+        "vocabularies",
+        "facts",
+        "denials",
+        "remediations",
+    ]
+    .map(|key| json.find(&format!("\"{key}\"")).unwrap());
+    assert!(ordered.windows(2).all(|pair| pair[0] < pair[1]));
     assert_eq!(flow.vocabularies["alpha"]["state"], ["open", "closed"]);
+    assert_eq!(
+        flow.vocabularies["beta"]["classification"],
+        ["health", "personal", "financial"]
+    );
 }
