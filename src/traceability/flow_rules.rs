@@ -33,6 +33,8 @@ pub struct FlowRule {
 pub struct FlowCondition {
     /// Exactly one of `path` and `any_path` is present.
     pub paths: Vec<Vec<FlowStep>>,
+    /// Whether the declaration used `any_path`, including when it has one path.
+    any_path: bool,
     /// Frontmatter key read on path endpoints.
     pub field: String,
     /// Values accepted by this predicate.
@@ -47,10 +49,10 @@ impl Serialize for FlowCondition {
         use serde::ser::SerializeMap;
 
         let mut map = serializer.serialize_map(Some(3))?;
-        if self.paths.len() == 1 {
-            map.serialize_entry("path", &self.paths[0])?;
-        } else {
+        if self.any_path {
             map.serialize_entry("any_path", &self.paths)?;
+        } else {
+            map.serialize_entry("path", &self.paths[0])?;
         }
         map.serialize_entry("field", &self.field)?;
         match &self.test {
@@ -82,9 +84,9 @@ impl TryFrom<RawFlowCondition> for FlowCondition {
     type Error = String;
 
     fn try_from(raw: RawFlowCondition) -> Result<Self, Self::Error> {
-        let paths = match (raw.path, raw.any_path) {
-            (Some(path), None) => vec![path],
-            (None, Some(paths)) if !paths.is_empty() => paths,
+        let (paths, any_path) = match (raw.path, raw.any_path) {
+            (Some(path), None) => (vec![path], false),
+            (None, Some(paths)) if !paths.is_empty() => (paths, true),
             (None, Some(_)) => return Err("`any_path` is empty".into()),
             (Some(_), Some(_)) => return Err("both `path` and `any_path` are present".into()),
             (None, None) => return Err("neither `path` nor `any_path` is present".into()),
@@ -100,6 +102,7 @@ impl TryFrom<RawFlowCondition> for FlowCondition {
         };
         Ok(Self {
             paths,
+            any_path,
             field: raw.field,
             test,
         })
@@ -209,10 +212,8 @@ impl super::TraceabilityModel {
                 ));
             }
             check_nonblank("flow_rules", &rule.name, "check", &rule.check)?;
-            if !crate::grammar::is_severity_key(&crate::grammar::severity_key(
-                "trace",
-                &rule.check,
-            )) {
+            if !crate::grammar::is_severity_key(&crate::grammar::severity_key("trace", &rule.check))
+            {
                 return Err(format!(
                     "traceability: flow_rules entry '{}' has a `check` token '{}' that cannot \
                      form a `trace:<check>` severity key",
@@ -275,7 +276,12 @@ impl super::TraceabilityModel {
                 check_nonblank("remediations", &remediation.name, "sets.value", &sets.value)?;
             }
             if let Some(removes) = &remediation.removes {
-                check_nonblank("remediations", &remediation.name, "removes.edge", &removes.edge)?;
+                check_nonblank(
+                    "remediations",
+                    &remediation.name,
+                    "removes.edge",
+                    &removes.edge,
+                )?;
                 let _ = removes.direction;
             }
         }
@@ -293,7 +299,9 @@ fn check_nonblank(section: &str, _entry: &str, field: &str, value: &str) -> Resu
 }
 
 fn check_condition(rule: &str, condition: &FlowCondition) -> Result<(), String> {
-    let bad = |why: &str| format!("traceability: flow_rules entry '{rule}' has an invalid condition: {why}");
+    let bad = |why: &str| {
+        format!("traceability: flow_rules entry '{rule}' has an invalid condition: {why}")
+    };
     if condition.field.trim().is_empty() {
         return Err(bad("`field` is blank"));
     }
@@ -318,3 +326,30 @@ fn check_condition(rule: &str, condition: &FlowCondition) -> Result<(), String> 
     Ok(())
 }
 
+#[cfg(test)]
+mod tests {
+    use super::FlowCondition;
+
+    #[test]
+    fn condition_round_trip_preserves_single_any_path() {
+        let yaml = "any_path:\n  - []\nfield: id\npresent: true\n";
+        let condition: FlowCondition = serde_yaml::from_str(yaml).expect("condition parses");
+        let encoded = serde_yaml::to_string(&condition).expect("condition serializes");
+
+        assert!(encoded.contains("any_path:"));
+        assert!(!encoded.lines().any(|line| line.starts_with("path:")));
+        assert_eq!(
+            serde_yaml::from_str::<FlowCondition>(&encoded).unwrap(),
+            condition
+        );
+    }
+
+    #[test]
+    fn condition_rejects_multiple_tests_and_paths() {
+        let yaml = "path: []\nany_path: [[]]\nfield: id\npresent: true\n";
+        assert!(serde_yaml::from_str::<FlowCondition>(yaml).is_err());
+
+        let yaml = "path: []\nfield: id\nabsent: true\npresent: true\n";
+        assert!(serde_yaml::from_str::<FlowCondition>(yaml).is_err());
+    }
+}

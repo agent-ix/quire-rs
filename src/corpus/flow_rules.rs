@@ -117,16 +117,22 @@ impl FlowEdges {
                 .or_default()
                 .insert(edge.source_slot);
 
-            if let Some((inverse_label, _)) = inverse
-                .iter()
-                .find(|(_, forward)| forward.as_str() == edge.edge_type)
-            {
+            let counterpart = inverse
+                .get(&edge.edge_type)
+                .map(|forward| forward)
+                .or_else(|| {
+                    inverse
+                        .iter()
+                        .find(|(_, forward)| forward.as_str() == edge.edge_type)
+                        .map(|(inverse_label, _)| inverse_label)
+                });
+            if let Some(counterpart) = counterpart {
                 neighbors
-                    .entry((target, inverse_label.clone(), false))
+                    .entry((target, counterpart.clone(), false))
                     .or_default()
                     .insert(edge.source_slot);
                 neighbors
-                    .entry((edge.source_slot, inverse_label.clone(), true))
+                    .entry((edge.source_slot, counterpart.clone(), true))
                     .or_default()
                     .insert(target);
             }
@@ -179,12 +185,17 @@ pub(crate) fn validate_flow_rules(
             if excluded.excludes(root, &doc.path) {
                 continue;
             }
-            if evaluate_rule(spec, edges, rule, subject).is_some() {
-                let message = denial_message(spec, rule, subject);
+            if let Some(matched) = evaluate_rule(spec, edges, rule, subject) {
+                let message = denial_message(spec, rule, subject, matched);
                 report.route(
                     severity,
                     GrammarSeverity::Warning,
-                    BundleFinding::in_pack(pack::TRACE, rule.check.clone(), doc.path.clone(), message),
+                    BundleFinding::in_pack(
+                        pack::TRACE,
+                        rule.check.clone(),
+                        doc.path.clone(),
+                        message,
+                    ),
                 );
             }
         }
@@ -219,11 +230,7 @@ pub(crate) fn flow_report(
     let mut field_reads: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
     let mut edge_reads: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
     for rule in &rules {
-        for condition in rule
-            .match_conditions
-            .iter()
-            .chain(&rule.unless_any)
-        {
+        for condition in rule.match_conditions.iter().chain(&rule.unless_any) {
             for (archetypes, steps) in condition_paths(rule, condition) {
                 for archetype in &archetypes {
                     field_reads
@@ -282,11 +289,15 @@ pub(crate) fn flow_report(
                 }
                 if let Some(reads) = edge_reads.get(&archetype) {
                     for edge in reads {
-                        let ids: BTreeSet<String> = edges
-                            .neighbors
-                            .get(&(slot, edge.clone(), false))
+                        let ids: BTreeSet<String> = [false, true]
                             .into_iter()
-                            .flatten()
+                            .flat_map(|incoming| {
+                                edges
+                                    .neighbors
+                                    .get(&(slot, edge.clone(), incoming))
+                                    .into_iter()
+                                    .flatten()
+                            })
                             .map(|target| artifact_key(corpus.doc(*target)))
                             .collect();
                         fields.insert(
@@ -295,7 +306,9 @@ pub(crate) fn flow_report(
                         );
                     }
                 }
-                let repo = corpus.member_identity(corpus.member_of(slot)).map(str::to_string);
+                let repo = corpus
+                    .member_identity(corpus.member_of(slot))
+                    .map(str::to_string);
                 let id = artifact_key(doc);
                 (
                     repo.clone().unwrap_or_default(),
@@ -331,7 +344,6 @@ pub(crate) fn flow_report(
             let Some(matched) = evaluate_rule(corpus, edges, rule, subject) else {
                 continue;
             };
-            let doc = corpus.doc(subject);
             let groups = group_matched(corpus, matched);
             denials.push(FlowDenial {
                 rule: rule.name.clone(),
@@ -342,7 +354,6 @@ pub(crate) fn flow_report(
                 remediations: rule.remediations.clone(),
                 rationale: rule.rationale.clone(),
             });
-            let _ = doc;
         }
     }
     denials.sort_by(|left, right| {
@@ -419,7 +430,8 @@ fn evaluate_condition(
 
     match &condition.test {
         FlowConditionTest::AnyOf(values) => {
-            let accepted: BTreeSet<String> = values.iter().map(|v| fold_selector_value(v)).collect();
+            let accepted: BTreeSet<String> =
+                values.iter().map(|v| fold_selector_value(v)).collect();
             let matched: BTreeSet<usize> = endpoints
                 .into_iter()
                 .filter(|slot| field_matches(spec.doc(*slot), &condition.field, &accepted))
@@ -482,17 +494,46 @@ fn group_matched(spec: &Spec, matched: BTreeSet<usize>) -> BTreeMap<String, Vec<
 fn document_ref(spec: &Spec, slot: usize) -> FlowDocumentRef {
     FlowDocumentRef {
         id: artifact_key(spec.doc(slot)),
-        repo: spec.member_identity(spec.member_of(slot)).map(str::to_string),
+        repo: spec
+            .member_identity(spec.member_of(slot))
+            .map(str::to_string),
     }
 }
 
-fn denial_message(spec: &Spec, rule: &FlowRule, subject: usize) -> String {
-    let id = artifact_key(spec.doc(subject));
+fn denial_message(
+    spec: &Spec,
+    rule: &FlowRule,
+    subject: usize,
+    matched: BTreeSet<usize>,
+) -> String {
+    let subject = document_ref(spec, subject);
+    let id = match subject.repo {
+        Some(repo) => format!("{repo}::{}", subject.id),
+        None => subject.id,
+    };
+    let matched = group_matched(spec, matched)
+        .into_iter()
+        .map(|(archetype, documents)| {
+            let ids = documents
+                .into_iter()
+                .map(|document| match document.repo {
+                    Some(repo) => format!("{repo}::{}", document.id),
+                    None => document.id,
+                })
+                .collect::<Vec<_>>()
+                .join(", ");
+            format!("{archetype}: [{ids}]")
+        })
+        .collect::<Vec<_>>()
+        .join("; ");
     if rule.remediations.is_empty() {
-        format!("flow rule '{}' denied '{id}': {}", rule.name, rule.rationale)
+        format!(
+            "flow rule '{}' denied '{id}': {} [matched: {matched}]",
+            rule.name, rule.rationale,
+        )
     } else {
         format!(
-            "flow rule '{}' denied '{id}': {} [remediations: {}]",
+            "flow rule '{}' denied '{id}': {} [matched: {matched}] [remediations: {}]",
             rule.name,
             rule.rationale,
             rule.remediations.join(", ")
@@ -520,3 +561,65 @@ fn condition_paths<'a>(
         .collect()
 }
 
+#[cfg(test)]
+mod tests {
+    use std::fs;
+
+    use crate::traceability::{FlowCondition, FlowRule};
+
+    use super::{evaluate_rule, FlowEdges};
+
+    #[test]
+    #[ix_trace_rs::trace("FR-096-AC-11", "FR-096-AC-21")]
+    fn any_of_denial_names_only_endpoint_documents_that_match_authored_values() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let docs = root.path().join("spec");
+        fs::create_dir_all(&docs).expect("spec dir");
+        fs::write(
+            docs.join("subject.md"),
+            "---\nid: A-1\ntype: alpha\n---\n# Subject\n",
+        )
+        .expect("subject");
+        fs::write(
+            docs.join("matching.md"),
+            "---\nid: B-1\ntype: beta\ncategory: ' Health '\n---\n# Matching\n",
+        )
+        .expect("matching endpoint");
+        fs::write(
+            docs.join("other.md"),
+            "---\nid: B-2\ntype: beta\ncategory: personal\n---\n# Other\n",
+        )
+        .expect("other endpoint");
+
+        let spec = crate::corpus::Spec::from_path(&docs);
+        let subject = spec.by_type_slots("alpha")[0];
+        let endpoints = spec.by_type_slots("beta");
+        let rule = FlowRule {
+            name: "check-category".into(),
+            subject: vec!["alpha".into()],
+            match_conditions: vec![
+                serde_yaml::from_str::<FlowCondition>(
+                    "path:\n  - edge: links\n    direction: outgoing\n    to: [beta]\nfield: category\nany_of: [health]\n",
+                )
+                .expect("condition"),
+            ],
+            unless_any: Vec::new(),
+            check: "category-crossing".into(),
+            remediations: Vec::new(),
+            rationale: "The category needs a control.".into(),
+        };
+        let mut edges = FlowEdges::default();
+        edges
+            .neighbors
+            .insert((subject, "links".into(), false), endpoints);
+
+        let matched = evaluate_rule(&spec, &edges, &rule, subject).expect("denial");
+        assert_eq!(matched.len(), 1);
+        assert_eq!(
+            spec.doc(*matched.iter().next().unwrap())
+                .frontmatter()
+                .unwrap()["id"],
+            "B-1"
+        );
+    }
+}

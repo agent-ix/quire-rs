@@ -1716,6 +1716,22 @@ fn merge_traceability(modules: &[LoadedModule]) -> crate::traceability::Traceabi
                 merged.vocabulary.push(rule.clone());
             }
         }
+        // FR-096: flow declarations and their remediation vocabulary merge
+        // first-wins by name, like the other named traceability entries.
+        for rule in &m.flow_rules {
+            if !merged.flow_rules.iter().any(|r| r.name == rule.name) {
+                merged.flow_rules.push(rule.clone());
+            }
+        }
+        for remediation in &m.remediations {
+            if !merged
+                .remediations
+                .iter()
+                .any(|r| r.name == remediation.name)
+            {
+                merged.remediations.push(remediation.clone());
+            }
+        }
         for marker in &m.trace_tags.markers {
             if !merged
                 .trace_tags

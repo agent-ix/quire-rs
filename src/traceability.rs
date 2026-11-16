@@ -27,7 +27,7 @@ pub use field_rules::{
     ViaHop, VocabularyRule,
 };
 pub use flow_rules::{
-    FlowAddRemediation, FlowCondition, FlowConditionTest, FlowRemoveRemediation, FlowRemediation,
+    FlowAddRemediation, FlowCondition, FlowConditionTest, FlowRemediation, FlowRemoveRemediation,
     FlowRule, FlowSetRemediation, FlowStep,
 };
 
