@@ -289,10 +289,10 @@ impl super::TraceabilityModel {
     }
 }
 
-fn check_nonblank(section: &str, _entry: &str, field: &str, value: &str) -> Result<(), String> {
+fn check_nonblank(section: &str, entry: &str, field: &str, value: &str) -> Result<(), String> {
     if value.trim().is_empty() {
         return Err(format!(
-            "traceability: {section} entry has an empty `{field}`"
+            "traceability: {section} entry '{entry}' has an empty `{field}`"
         ));
     }
     Ok(())

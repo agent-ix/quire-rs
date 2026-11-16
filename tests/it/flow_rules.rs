@@ -448,6 +448,31 @@ fn loader_rejects_unknown_registry_references_values_and_check_collisions() {
 }
 
 #[test]
+#[trace("FR-096-AC-6")]
+fn blank_check_and_rationale_diagnostics_name_the_rule() {
+    for (field, value) in [("check", "''"), ("rationale", "''")] {
+        let rules = format!(
+            "  - name: blank-{field}\n    subject: [alpha]\n    match: [{{path: [], field: id, present: true}}]\n    check: {}\n    rationale: {}\n",
+            if field == "check" { value } else { "valid-check" },
+            if field == "rationale" {
+                value
+            } else {
+                "Valid rationale."
+            }
+        );
+        let registry = registry_with(&rules, "[]", "[]");
+        assert!(
+            registry.failures().iter().any(|failure| {
+                failure.reason.contains(&format!("blank-{field}"))
+                    && failure.reason.contains(&format!("`{field}`"))
+            }),
+            "expected a diagnostic naming rule and blank {field}, got {:?}",
+            registry.failures()
+        );
+    }
+}
+
+#[test]
 #[trace("FR-096-AC-6", "FR-096-CON-1")]
 fn duplicate_rule_names_across_modules_fail_with_both_module_names() {
     let parent = tempfile::tempdir().expect("modules");
