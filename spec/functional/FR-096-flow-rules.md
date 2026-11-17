@@ -16,7 +16,7 @@ relationships:
 ---
 # FR-096: Flow rules and remediations, declared as module data
 
-Tracked by Linear PLAT-1533.
+Tracked by Linear PLAT-1533; amended for PLAT-1769.
 
 ## Description
 
@@ -170,9 +170,12 @@ the rule (or remediation) and the offending entry. The load fails on:
   loaded modules names (FR-058-AC-10), so one severity key never governs two kinds of finding;
 - an `any_of` value outside the `enum` of that `field` in the frontmatter schema of the archetypes
   at the end of the path (the same lookup as FR-058-AC-22, taking the `enum` of the field or of its
-  array items). The value is compared after trim and ASCII fold. With several end archetypes it is
-  refused only when no end archetype that declares an `enum` for the field admits it; a field whose
-  schema declares no `enum` leaves its values unchecked;
+  array items). Enum lookup follows local JSON Schema `$ref` values from the field property or its
+  array items through schemas in the loaded module; remote references are not fetched. A missing,
+  cyclic, or otherwise unresolved reference fails closed with a diagnostic located at the schema
+  reference and naming the flow rule and field. The value is compared after trim and ASCII fold.
+  With several end archetypes it is refused only when no end archetype that declares an `enum` for
+  the field admits it; a field whose schema declares no `enum` leaves its values unchecked;
 - a `remediations` entry that is not declared, that cannot clear the denial, or whose `field` or
   `value` its archetype's schema does not admit (below);
 - a duplicate rule name, or a duplicate remediation name;
@@ -319,7 +322,7 @@ other work. The CLI flag, its human rendering and exit codes belong to `quire-cl
 | FR-096-AC-14 | A fixture whose archetypes, verbs, fields and values are neutral (for example `alpha`, `beta`, `links_to`, `rank_field`) and share no name with this specification yields the same denials, so the engine holds no name. | Test |
 | FR-096-AC-15 | The flow report for a corpus serializes with keys in the order `schema`, `rules`, `vocabularies`, `facts`, `denials`, `remediations`; `schema` equals `quire.flow-report/v1`; two runs over one corpus are byte-identical. | Test |
 | FR-096-AC-16 | `facts` is keyed by exactly the archetype names the loaded rules declare, with no fixed or domain-specific key, and holds, for each such archetype, one entry per document with only the fields a condition reads at that archetype and the edges a step follows from it; a field the document does not state is omitted, an unread field appears nowhere, and entries are ordered by repo then id. | Test |
-| FR-096-AC-17 | `vocabularies` holds the schema `enum` members, in schema order, for each archetype and field a condition reads, and omits a field whose schema declares no `enum`. | Test |
+| FR-096-AC-17 | `vocabularies` holds the schema `enum` members, in schema order, for each archetype and field a condition reads, including enums reached through local `$ref` values on the field property or its array items; it omits a field whose schema declares no `enum`, and does not fetch remote references. | Test |
 | FR-096-AC-18 | A corpus declaring no `flow_rules` yields empty `rules`, `vocabularies`, `facts`, `denials` and `remediations`, and the FR-058 and FR-084 relation output over it is byte-identical to a build without this requirement. | Test |
 | FR-096-AC-19 | A rule's `denials` entry equals the finding the validation path reports for the same subject: the same `check`, subject, matched documents and severity. | Test |
 | FR-096-AC-20 | The report's `denials` lists every denial of every severity: a denial resolved to `warning` is present with `severity` `warning`, a denial resolved to `off` is absent, and a corpus with no denial has an empty `denials`. The report is the same whatever exit code a caller derives from it. | Test |
@@ -328,6 +331,9 @@ other work. The CLI flag, its human rendering and exit codes belong to `quire-cl
 | FR-096-AC-23 | `flow_rules` is the only engine kind this requirement adds; `remediations` is a vocabulary read by it, and no check, relation or report outside this FR and FR-084's flow section reads either. | Inspection |
 | FR-096-AC-24 | A condition whose `field` is declared by no end archetype's frontmatter schema (for example `regulated_categores` for `regulated_categories`) fails module load naming the rule and the field; the correct spelling loads, and `field: id` loads. A remediation whose `field` is not declared by its archetype's schema fails load likewise. | Test |
 | FR-096-AC-25 | A rule whose `check` equals a `trace:` check the engine reports (for example `dangling-trace-reference`) or one named by a `required_relations` entry fails module load naming the rule and the check; two flow rules sharing one new `check` load, and one `--severity` entry for that key governs both. | Test |
+| FR-096-AC-26 | For a condition field whose schema property refers locally to a schema with an `enum`, every declared enum value is accepted in `any_of` and an out-of-enum value is refused at module load naming the rule, field, and value; the same behavior holds when the local `$ref` is on the field's array `items`. | Test |
+| FR-096-AC-27 | A missing, cyclic, or remote `$ref` encountered while resolving a flow-rule enum is not fetched or treated as an unconstrained field: module load fails closed with a diagnostic identifying the schema reference location and the flow rule and field. | Test |
+| FR-096-AC-28 | A field with an inline enum, including an inline array-item enum, continues to accept every declared `any_of` value and reject an out-of-enum value at module load; its `vocabularies` members and order remain unchanged. | Test |
 
 ## Constraints
 
@@ -340,6 +346,8 @@ other work. The CLI flag, its human rendering and exit codes belong to `quire-cl
 | FR-096-CON-5 | Evaluation SHALL be a pure function of the loaded corpus and its modules, with no shared mutable state ([NFR-006](../non-functional/NFR-006-determinism.md)). | Design | Inspection |
 
 > **CR-001 note (2026-11-16):** PLAT-1479 extends denial remediation output to include the declared description and exact change object, both in the flow report and the validation finding. The report's top-level remediation vocabulary remains unchanged; a denial includes only the remediation names declared by its rule and preserves that rule's order.
+
+> **CR-421 note (2026-11-17, PLAT-1769):** Flow-rule enum lookup follows local JSON Schema references from a field property or its array items so that referenced closed vocabularies constrain `any_of` values and populate the flow report. Missing, cyclic, and remote references fail closed with a located diagnostic; enum lookup does not fetch remote schemas. Inline enum behavior is unchanged.
 
 ## Dependencies
 
