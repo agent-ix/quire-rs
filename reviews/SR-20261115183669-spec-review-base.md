@@ -1,22 +1,28 @@
-<!-- reviewer repo=agent-ix/quire-rs visibility=public quoin=0.35.0 module=spec-artifacts-process@v0.31.0 id=SR-20261115183669 method=spec-review/base lang=spec pr=quire-rs#696 model=gpt-6.1-sol run=6fbd820d-45ca-4b40-b171-6533040e6134 -->
+---
+id: SR-20261115183669
+title: "Base specification review — PLAT-1767"
+type: SpecReview
+analysis: base
+scope: "agent-ix/quire-rs; spec/functional/FR-050-declarative-coverage-computation.md#FR-050-AC-67/68 and CR-PLAT-1767 note; FR-051-source-symbol-extraction.md#FR-051-AC-49; tests/it/coverage_rollup.rs:305; tests/fixtures/corpus_cases/row-aware-trace-binding.json"
+review_set: subset
+---
 
-| FND | Severity | Check | Summary |
-| --- | --- | --- | --- |
+## Summary
 
-+++ [reviewer data]
+The amended criteria are observable and bounded, and `quire matrix --scope .` reports FR-050-AC-67 and FR-050-AC-68 as tagged to `tests/it/coverage_rollup.rs:305`. The repo-wide strict matrix reports 240 untagged criteria; the changed criteria are not among them. Existing test intent diverges from the new rule and is recorded in the companion code-review artifact.
 
-```yaml
-clean: true
-scope:
-  - {id: FR-050-AC-67, path: "spec/functional/FR-050-declarative-coverage-computation.md", role: examined, excerpt: "A non-ignored test source symbol carrying a direct trace marker for a live criterion binds to that criterion, whether or not a declared test-matrix row cites it; matrix rows do not gate criterion-level backing."}
-  - {id: FR-050-AC-68, path: "spec/functional/FR-050-declarative-coverage-computation.md", role: examined, excerpt: "A direct criterion marker is not an unbacked claim merely because no declared matrix row cites it."}
-  - {id: FR-050-AC-49, path: "spec/functional/FR-050-declarative-coverage-computation.md", role: context_only, excerpt: "one or more binders where at least one is not ignored is `tagged`."}
-  - {id: FR-051-AC-49, path: "spec/functional/FR-051-source-symbol-extraction.md", role: context_only, excerpt: "An id-shaped token found by the advisory in a Rust, Python or TypeScript comment or docstring attached to a declaration yields one finding in `CoverageReport.diagnostics` under reason `trace-id-outside-marker`"}
-  - {id: CR-PLAT-1767, path: "spec/functional/FR-050-declarative-coverage-computation.md", role: examined, excerpt: "Matrix-row absence is not an unbacked source claim: `tagged-without-citing-matrix-row` is removed from `unbacked_claims` and cannot cause `criterion-tagged-outside-row`; the independent `trace-id-outside-marker` claim remains diagnostic."}
-findings: []
-bindings:
-  - {test_id: a_criterion_tag_only_backs_its_own_matrix_row, ac_id: FR-050-AC-67, trace: correct}
-  - {test_id: a_criterion_tag_only_backs_its_own_matrix_row, ac_id: FR-050-AC-68, trace: correct}
-```
+## Verdict
 
-+++
+**PASS** — the scoped base checklist found no requirement-shape or trace-tag gap in the amended criteria.
+
+## Findings
+
+| ID      | Severity | Summary                 | Refs |
+| ------- | -------- | ----------------------- | ---- |
+| FND-001 | low      | No findings (placeholder) | -    |
+
+## Review Notes
+
+The acceptance behavior is testable: a non-ignored test with a direct trace marker can be exercised with and without a citing matrix row, and the binder/status and diagnostic outputs are observable. Existing trace tags cover both amended ACs, so no new trace tag is needed. The target test and fixtures must be updated to stop asserting the former row gate; see `SR-20261115183668`.
+
+Criterion-strength analysis is in scope for judging whether the amended ACs can fail, and the installed schema contains its analysis value. It was not run because the installed skill prohibits running without the Jev client; no Jev tool/client is available in this session. Manual falsifier scrutiny is not a substitute for that lens. EARS conformance was not run because only acceptance-criterion rows and a change-history note changed; the EARS lens covers FR/NFR/StR requirement statements.
