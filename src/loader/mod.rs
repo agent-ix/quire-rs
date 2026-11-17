@@ -14,7 +14,7 @@
 //! as fatal (`load_strict`, FR-014).
 
 pub mod compile;
-mod flow_rules;
+pub(crate) mod flow_rules;
 pub mod manifest;
 pub mod paths;
 mod record_validation;
@@ -490,14 +490,8 @@ pub fn load_inline_module(manifest_yaml: &[u8], schemas: &BTreeMap<String, Strin
         }
 
         // Frontmatter schema (optional, supplied via `schemas`).
-        let (
-            frontmatter_schema,
-            frontmatter_validator,
-            frontmatter_schema_documents,
-            frontmatter_schema_path,
-            frontmatter_schema_ref_error,
-        ) = match &a.frontmatter_schema_ref {
-            None => (None, None, None, None, None),
+        let frontmatter = match &a.frontmatter_schema_ref {
+            None => CompiledFrontmatterSchema::default(),
             Some(rel) => {
                 let schema_ref_str = rel.to_string_lossy().to_string();
                 let schema_text = match schemas.get(&schema_ref_str) {
@@ -553,13 +547,13 @@ pub fn load_inline_module(manifest_yaml: &[u8], schemas: &BTreeMap<String, Strin
                     }
                     None => None,
                 };
-                (
-                    Some(Arc::new(raw_schema)),
+                CompiledFrontmatterSchema {
+                    schema: Some(Arc::new(raw_schema)),
                     validator,
                     documents,
-                    Some(schema_ref_str),
+                    path: Some(schema_ref_str),
                     ref_error,
-                )
+                }
             }
         };
 
@@ -613,11 +607,7 @@ pub fn load_inline_module(manifest_yaml: &[u8], schemas: &BTreeMap<String, Strin
         archetypes.push(Arc::new(finish_compiled(
             &module_name,
             a,
-            frontmatter_schema,
-            frontmatter_validator,
-            frontmatter_schema_documents,
-            frontmatter_schema_path,
-            frontmatter_schema_ref_error,
+            frontmatter,
             data_schema,
             data_validator,
             data_schema_documents,
@@ -959,13 +949,7 @@ fn compile_archetype(
     }
 
     // Frontmatter schema (optional).
-    let (
-        frontmatter_schema,
-        frontmatter_validator,
-        frontmatter_schema_documents,
-        frontmatter_schema_path,
-        frontmatter_schema_ref_error,
-    ) = match &a.frontmatter_schema_ref {
+    let frontmatter = match &a.frontmatter_schema_ref {
         Some(rel) => {
             let schema_path = module_root.join(rel);
             let raw = read_schema(&schema_path)
@@ -989,15 +973,15 @@ fn compile_archetype(
                 )),
                 None => None,
             };
-            (
-                Some(Arc::new(raw)),
+            CompiledFrontmatterSchema {
+                schema: Some(Arc::new(raw)),
                 validator,
                 documents,
-                Some(relative_path),
+                path: Some(relative_path),
                 ref_error,
-            )
+            }
         }
-        None => (None, None, None, None, None),
+        None => CompiledFrontmatterSchema::default(),
     };
 
     // Data schema (optional): inline JSON Schema, or the FR-069 reference form.
@@ -1037,11 +1021,7 @@ fn compile_archetype(
     Ok(finish_compiled(
         module,
         a,
-        frontmatter_schema,
-        frontmatter_validator,
-        frontmatter_schema_documents,
-        frontmatter_schema_path,
-        frontmatter_schema_ref_error,
+        frontmatter,
         data_schema,
         data_validator,
         data_schema_documents,
@@ -1225,20 +1205,25 @@ fn resolve_data_schema(
 /// primary `raw_schema`/`validator` (frontmatter when present, else
 /// data, else an empty permissive object) for the FR-003 `schema_for`
 /// surface and the `validate()` path.
+#[derive(Default)]
+struct CompiledFrontmatterSchema {
+    schema: Option<Arc<Value>>,
+    validator: Option<Arc<jsonschema::Validator>>,
+    documents: Option<Arc<BTreeMap<String, Value>>>,
+    path: Option<String>,
+    ref_error: Option<String>,
+}
+
 fn finish_compiled(
     module: &str,
     a: &Archetype,
-    frontmatter_schema: Option<Arc<Value>>,
-    frontmatter_validator: Option<Arc<jsonschema::Validator>>,
-    frontmatter_schema_documents: Option<Arc<BTreeMap<String, Value>>>,
-    frontmatter_schema_path: Option<String>,
-    frontmatter_schema_ref_error: Option<String>,
+    frontmatter: CompiledFrontmatterSchema,
     data_schema: Option<Arc<Value>>,
     data_validator: Option<Arc<jsonschema::Validator>>,
     data_schema_documents: Option<Arc<BTreeMap<String, Value>>>,
     record_validation: Option<crate::loader::compile::CompiledRecordValidation>,
 ) -> CompiledArchetype {
-    let (raw_schema, validator) = match (&frontmatter_schema, &frontmatter_validator) {
+    let (raw_schema, validator) = match (&frontmatter.schema, &frontmatter.validator) {
         (Some(s), Some(v)) => (Arc::clone(s), Arc::clone(v)),
         _ => match (&data_schema, &data_validator) {
             (Some(s), Some(v)) => (Arc::clone(s), Arc::clone(v)),
@@ -1250,11 +1235,11 @@ fn finish_compiled(
         module: module.to_string(),
         raw_schema,
         validator,
-        frontmatter_schema,
-        frontmatter_validator,
-        frontmatter_schema_documents,
-        frontmatter_schema_path,
-        frontmatter_schema_ref_error,
+        frontmatter_schema: frontmatter.schema,
+        frontmatter_validator: frontmatter.validator,
+        frontmatter_schema_documents: frontmatter.documents,
+        frontmatter_schema_path: frontmatter.path,
+        frontmatter_schema_ref_error: frontmatter.ref_error,
         data_schema,
         data_validator,
         data_schema_documents,

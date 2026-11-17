@@ -325,11 +325,13 @@ pub(crate) fn flow_report(
     for archetype in archetypes {
         if let Some(fields) = field_reads.get(&archetype) {
             if let Some(compiled) = registry.archetype(&archetype) {
-                if let Some(schema) = compiled.frontmatter_schema.as_deref() {
+                if compiled.frontmatter_schema.is_some() {
                     let enums: BTreeMap<String, Vec<String>> = fields
                         .iter()
                         .filter_map(|field| {
-                            super::vocabulary_coverage::enum_at(schema, field)
+                            crate::loader::flow_rules::flow_schema_enum(compiled, field)
+                                .ok()
+                                .flatten()
                                 .map(|values| (field.clone(), values))
                         })
                         .collect();

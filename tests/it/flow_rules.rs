@@ -2,6 +2,7 @@
 
 use std::collections::BTreeMap;
 use std::fs;
+use std::net::TcpListener;
 use std::path::Path;
 
 use ix_trace_rs::trace;
@@ -163,6 +164,15 @@ fn flow_rule_any_of_resolves_a_local_schema_enum() {
         .as_ref()
         .expect("resolved documents");
     assert!(documents.contains_key(&format!("{base}/ProcessorAgreement.json")));
+    let (root, spec) = docs(&[(
+        "sink.md",
+        &document("S-1", "sink", "agreement: covered\n", &[]),
+    )]);
+    let flow = report(root.path(), &spec, &registry).flow.unwrap();
+    assert_eq!(
+        flow.vocabularies["sink"]["agreement"],
+        ["covered", "not_covered", "unknown"]
+    );
 
     let invalid_rules = "  - name: agreement-rule\n    subject: [sink]\n    match: [{path: [], field: agreement, any_of: [medical]}]\n    check: agreement-check\n    rationale: Restrict agreement values.\n";
     let invalid = parse_local_ref_registry(
@@ -200,6 +210,23 @@ fn flow_rule_any_of_resolves_a_local_array_item_enum() {
     )
     .expect("module parses");
     assert!(registry.failures().is_empty(), "{:?}", registry.failures());
+
+    let invalid_rules = "  - name: agreement-rule\n    subject: [sink]\n    match: [{path: [], field: agreements, any_of: [medical]}]\n    check: agreement-check\n    rationale: Restrict agreement values.\n";
+    let invalid = parse_local_ref_registry(
+        invalid_rules,
+        &root_schema,
+        &[("schemas/ProcessorAgreement.json", &agreement_schema)],
+    )
+    .expect("module parses");
+    assert!(
+        invalid.failures().iter().any(|failure| {
+            failure.reason.contains("agreement-rule")
+                && failure.reason.contains("agreements")
+                && failure.reason.contains("medical")
+        }),
+        "{:?}",
+        invalid.failures()
+    );
 }
 
 #[test]
@@ -213,8 +240,9 @@ fn flow_rule_enum_refs_fail_closed_when_missing_or_cyclic() {
     let missing = parse_local_ref_registry(rules, &missing_root, &[]).expect("module parses");
     assert!(
         missing.failures().iter().any(|failure| {
-            failure.reason.contains("schemas/sink.json")
-                && failure.reason.contains("unresolved local reference")
+            failure.reason.contains("agreement-rule")
+                && failure.reason.contains("agreement")
+                && failure.reason.contains("schemas/sink.json")
                 && failure.reason.contains("Missing.json")
         }),
         "{:?}",
@@ -236,10 +264,40 @@ fn flow_rule_enum_refs_fail_closed_when_missing_or_cyclic() {
         cyclic.failures().iter().any(|failure| {
             failure.reason.contains("agreement-rule")
                 && failure.reason.contains("agreement")
+                && failure.reason.contains("schemas/sink.json")
                 && failure.reason.contains("$ref cycle")
         }),
         "{:?}",
         cyclic.failures()
+    );
+
+    let listener = TcpListener::bind(("127.0.0.1", 0)).expect("bind local no-fetch probe");
+    listener
+        .set_nonblocking(true)
+        .expect("nonblocking no-fetch probe");
+    let address = listener.local_addr().expect("probe address");
+    let remote_base = format!("http://{address}/schemas");
+    let remote_root = format!(
+        r#"{{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"{remote_base}/sink.json","type":"object","properties":{{"agreement":{{"$ref":"{remote_base}/Remote.json"}}}}}}"#
+    );
+    let remote = parse_local_ref_registry(rules, &remote_root, &[]).expect("module parses");
+    assert!(
+        remote.failures().iter().any(|failure| {
+            failure.reason.contains("agreement-rule")
+                && failure.reason.contains("agreement")
+                && failure.reason.contains("schemas/sink.json")
+                && failure.reason.contains("Remote.json")
+                && failure.reason.contains("no shipped file")
+        }),
+        "{:?}",
+        remote.failures()
+    );
+    assert!(
+        matches!(
+            listener.accept(),
+            Err(error) if error.kind() == std::io::ErrorKind::WouldBlock
+        ),
+        "remote schema references must not issue an HTTP request"
     );
 }
 

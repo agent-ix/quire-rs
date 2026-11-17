@@ -418,7 +418,7 @@ fn schema_enum(schema: &Value, field: &str) -> Option<Vec<String>> {
     schema_walk(schema, field, true)
 }
 
-fn flow_schema_enum(
+pub(crate) fn flow_schema_enum(
     archetype: &CompiledArchetype,
     field: &str,
 ) -> Result<Option<Vec<String>>, String> {
