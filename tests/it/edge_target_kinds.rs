@@ -224,6 +224,70 @@ fn dangling_target_fails_strict() {
     assert!(r.errors.iter().any(|f| f.reason == "dangling-reference"));
 }
 
+/// An inverse edge still obeys the authored source's declared target kinds
+/// when the normalized verb has no allow-list on the forward source.
+#[trace("FR-040-AC-9")]
+#[test]
+fn authored_inverse_edge_checks_the_authored_source_target_list() {
+    let root =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/corpus_cases/plat-1774");
+    let registry = Registry::load_module(&root.join("module")).expect("load fixture module");
+
+    let failure_root = tmpdir("authored-inverse-wrong-kind");
+    write(
+        &failure_root,
+        "SIT-002.md",
+        include_str!("../fixtures/corpus_cases/plat-1774/failure/SIT-002.md"),
+    );
+    write(
+        &failure_root,
+        "HARM-001.md",
+        include_str!("../fixtures/corpus_cases/plat-1774/failure/HARM-001.md"),
+    );
+    let failure = validate_bundle_at(&failure_root, &registry, BundlePosture::Strict);
+    fs::remove_dir_all(&failure_root).expect("remove wrong-kind fixture bundle");
+    let findings: Vec<_> = failure
+        .errors
+        .iter()
+        .filter(|finding| finding.reason == "disallowed-edge-target")
+        .collect();
+    assert_eq!(findings.len(), 1, "{failure:?}");
+    assert!(findings[0].path.ends_with("SIT-002.md"), "{findings:?}");
+    assert!(findings[0].message.contains("HARM-001.md"), "{findings:?}");
+
+    let control_root = tmpdir("authored-inverse-right-kind");
+    write(
+        &control_root,
+        "SIT-002.md",
+        include_str!("../fixtures/corpus_cases/plat-1774/control/SIT-002.md"),
+    );
+    write(
+        &control_root,
+        "HAZ-001.md",
+        include_str!("../fixtures/corpus_cases/plat-1774/control/HAZ-001.md"),
+    );
+    let control = validate_bundle_at(&control_root, &registry, BundlePosture::Strict);
+    fs::remove_dir_all(&control_root).expect("remove right-kind fixture bundle");
+    assert_eq!(target_findings(&control), 0, "{control:?}");
+    assert!(control.is_valid(), "{:?}", control.errors);
+
+    let inverse_root = tmpdir("authored-inverse-right-kind");
+    write(
+        &inverse_root,
+        "HAZ-001.md",
+        include_str!("../fixtures/corpus_cases/plat-1774/control-inverse/HAZ-001.md"),
+    );
+    write(
+        &inverse_root,
+        "SIT-001.md",
+        include_str!("../fixtures/corpus_cases/plat-1774/control-inverse/SIT-001.md"),
+    );
+    let inverse = validate_bundle_at(&inverse_root, &registry, BundlePosture::Strict);
+    fs::remove_dir_all(&inverse_root).expect("remove valid inverse fixture bundle");
+    assert_eq!(target_findings(&inverse), 0, "{inverse:?}");
+    assert!(inverse.is_valid(), "{:?}", inverse.errors);
+}
+
 /// Only declared `relationships` entries receive Tier-2 target-kind checks;
 /// frontmatter URIs, body URIs and relative navigation links stay references.
 #[trace("FR-040-AC-9", "FR-040-AC-12")]

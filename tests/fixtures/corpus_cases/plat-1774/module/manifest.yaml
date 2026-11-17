@@ -1,0 +1,16 @@
+name: authored-inverse-target
+version: 0.1.0
+description: Authored inverse edge target validation fixture
+artifact_types:
+- name: hazard
+  frontmatter_schema_ref: schemas/document.json
+- name: hazardous_situation
+  frontmatter_schema_ref: schemas/document.json
+  allowed_links:
+    arises_from: [hazard]
+- name: harm
+  frontmatter_schema_ref: schemas/document.json
+  allowed_links:
+    arises_from: [hazardous_situation]
+edge_types:
+  arises_from: { description: arises from, category: structural, inverse: gives_rise_to }
