@@ -127,6 +127,7 @@
       "unbacked_rows": [
         "FR-001-AC-1",
         "TC-001",
+        "TC-002",
         "TC-003"
       ],
       "unbacked_claims": {}
@@ -162,6 +163,7 @@
       "unbacked_rows": [
         "FR-001-AC-1",
         "TC-001",
+        "TC-002",
         "TC-003"
       ],
       "unbacked_claims": {}
@@ -228,6 +230,42 @@
       ],
       "backed": 2,
       "total": 3
+    }
+  },
+  {
+    "name": "inspection-evidence-does-not-back-test-case-row",
+    "issue_ref": "PLAT-1767",
+    "tags": [
+      "PLAT-1767",
+      "binding",
+      "coverage"
+    ],
+    "comment": "An inspection row can mention a criterion but cannot provide evidence for an aggregate test-case row.",
+    "input": {
+      "module": "name: row-aware-binding\nversion: 0.1.0\nartifact_types:\n- name: FR\n- name: TestMatrix\n- name: Inspections\ntraceability:\n  trace_targets:\n  - name: acceptance-criterion\n    archetype: FR\n    section: Acceptance Criteria\n    id_column: ID\n  - name: test-case\n    archetype: TestMatrix\n    section: Test Cases\n    id_column: ID\n  - name: inspection\n    archetype: Inspections\n    section: Inspections\n    id_column: ID\n    required: false\n  document_references:\n  - name: inspection-obligation\n    archetype: Inspections\n    section: Inspections\n    row_id_column: ID\n    column: Obligation\n    pattern: '\\\\b(FR-\\\\d+-AC-\\\\d+)\\\\b'\n    targets: [acceptance-criterion]\n  - name: verification\n    archetype: FR\n    section: Acceptance Criteria\n    row_id_column: ID\n    column: Verification\n    pattern: '\\b(TC-\\d+)\\b'\n    targets: [test-case]\n  - name: traces-to\n    archetype: TestMatrix\n    section: Test Cases\n    row_id_column: ID\n    column: Traces To\n    pattern: '\\b((?:FR|TC)-\\d+(?:-AC-\\d+)?)\\b'\n    targets: [acceptance-criterion, test-case]\n  status:\n    column: Status\n    complete: [\"✅\"]\n    pending: [\"🚧\"]\n  obligations:\n  - name: acceptance-criteria\n    target: acceptance-criterion\n    statement_column: Criteria\n    method_column: Verification\n  trace_tags:\n    markers:\n    - name: rust-trace-attribute\n      language: rust\n      pattern: '#\\[trace\\(([^)]*)\\)\\]'\n      template: '#[trace({ids})]'\n",
+      "documents": {
+        "FR-001.md": "---\nid: FR-001\ntype: FR\n---\n\n## Acceptance Criteria\n\n| ID | Criteria | Verification |\n|---|---|---|\n| FR-001-AC-1 | The first behavior shall work. | Test (TC-001) |\n| FR-001-AC-2 | The second behavior shall work. | Test (TC-002) |\n",
+        "inspections.md": "---\nid: INS-DOC\ntype: Inspections\n---\n\n## Inspections\n\n| ID | Obligation |\n|---|---|\n| INS-001 | FR-001-AC-1 |\n",
+        "tests.md": "---\nid: TM-001\ntype: TestMatrix\n---\n\n## Test Cases\n\n| ID | Traces To | Status |\n|---|---|---|\n| TC-001 | FR-001-AC-1 | ✅ |\n"
+      },
+      "sources": {
+        "lib.rs": "#[cfg(test)]\nmod tests {\n    #[trace(\"INS-001\", \"FR-001-AC-1\")]\n    #[test]\n    fn inspection_is_not_test_case_evidence() {}\n}\n"
+      }
+    },
+    "expect": {
+      "criterion_backed": {
+        "FR-001-AC-1": true
+      },
+      "diagnostic_reasons": [],
+      "absent_diagnostic_reasons": [
+        "criterion-tagged-outside-row"
+      ],
+      "backed": 2,
+      "total": 4,
+      "unbacked_rows": [
+        "FR-001-AC-2",
+        "TC-001"
+      ]
     }
   },
   {

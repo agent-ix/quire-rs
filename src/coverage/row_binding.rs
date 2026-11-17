@@ -65,8 +65,6 @@ impl RowBindings {
             if target_names.is_empty() {
                 continue;
             }
-            declared.push((declaration, row_id_column, rows));
-
             // Only test-matrix rows constrain: a row id that another declaration
             // cites (an FR's Verification cell naming a test case) is an id a
             // test tags. Rows nothing cites, such as inspections, only widen.
@@ -78,6 +76,7 @@ impl RowBindings {
             if !is_test_matrix {
                 continue;
             }
+            declared.push((declaration, row_id_column, rows));
             for target_name in target_names {
                 if let Some(ids) = minted_by_target.get(target_name) {
                     bindings.constrained_ids.extend(ids.iter().cloned());
