@@ -127,7 +127,6 @@
       "unbacked_rows": [
         "FR-001-AC-1",
         "TC-001",
-        "TC-002",
         "TC-003"
       ],
       "unbacked_claims": {}
@@ -163,7 +162,6 @@
       "unbacked_rows": [
         "FR-001-AC-1",
         "TC-001",
-        "TC-002",
         "TC-003"
       ],
       "unbacked_claims": {}
