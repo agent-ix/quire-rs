@@ -302,7 +302,7 @@ fn tc734_unbacked_rows() {
 /// Provenance: PLAT-2.
 #[trace("FR-050-AC-3", "FR-050-AC-67", "FR-050-AC-68")]
 #[test]
-fn a_criterion_tag_only_backs_its_own_matrix_row() {
+fn a_direct_criterion_tag_backs_it_independently_of_its_matrix_row() {
     let cases: serde_json::Value = serde_json::from_str(include_str!(
         "../fixtures/corpus_cases/row-aware-trace-binding.json"
     ))
@@ -515,17 +515,6 @@ fn a_criterion_tag_only_backs_its_own_matrix_row() {
             .iter()
             .filter(|diagnostic| diagnostic.reason == "criterion-tagged-outside-row")
             .collect();
-        if matches!(
-            name,
-            "criterion-tagged-outside-matrix-row"
-                | "criterion-tag-without-matrix-row"
-                | "criterion-tag-with-unrecognized-matrix-row"
-        ) {
-            assert_eq!(diagnostics.len(), 1, "{name}: {report:?}");
-            assert_eq!(diagnostics[0].value.as_deref(), Some("FR-001-AC-2"));
-            assert!(diagnostics[0].message.contains("TC-002"));
-            assert!(diagnostics[0].guidance.is_some());
-        }
         let mut expected_reasons: Vec<_> = case["expect"]["diagnostic_reasons"]
             .as_array()
             .expect("expected diagnostic reasons")

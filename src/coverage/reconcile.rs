@@ -141,7 +141,6 @@ pub(super) fn reconcile(
     // ── Minted targets, grouped by their minting document ──
     let mut ctx = declared_tables::ScanContext::default();
     let mut minted: Vec<MintedTargetRecord> = Vec::new();
-    let mut minted_by_target: BTreeMap<&str, BTreeSet<String>> = BTreeMap::new();
     // Reference integrity and source-evidence coverage deliberately have
     // different populations. Every declared target id resolves references,
     // while only source targets enter the coverage denominator (#363).
@@ -155,10 +154,6 @@ pub(super) fn reconcile(
         };
         for minted_id in declared_tables::mint(spec, root, target, &model_exclude, target_ctx) {
             declared_ids.insert(minted_id.id.clone());
-            minted_by_target
-                .entry(target.name.as_str())
-                .or_default()
-                .insert(minted_id.id.clone());
             if target.evidence == TraceTargetEvidence::ReferenceOnly {
                 continue;
             }
@@ -172,26 +167,10 @@ pub(super) fn reconcile(
             });
         }
     }
-    // Cache reference rows once so row-aware backing and the ordinary
-    // reconciliation below use the same parsed rows.
+    // Cache reference rows once so every reconciliation path uses the same parsed rows.
     let reference_rows = scan_reference_rows(spec, root, model, &model_exclude, &mut ctx);
-    let row_bindings = super::row_binding::RowBindings::from_scanned_rows(
-        model,
-        &reference_rows,
-        &minted_by_target,
-    );
-    let (verifies, mut row_diagnostics, rejected_relations) =
-        row_bindings.eligible_relations(graph);
-    let mut unbacked_claims: Vec<CoverageMatrixUnbackedClaim> = rejected_relations
-        .iter()
-        .map(|relation| CoverageMatrixUnbackedClaim {
-            reason: CoverageMatrixClaimReason::TaggedWithoutCitingMatrixRow,
-            id: relation.trace_id.clone(),
-            path: relation.path.clone(),
-            line: relation.line,
-            symbol: relation.symbol.clone(),
-        })
-        .collect();
+    let verifies: Vec<_> = graph.verifies.iter().collect();
+    let mut unbacked_claims: Vec<CoverageMatrixUnbackedClaim> = Vec::new();
     let backed: BTreeSet<&str> = verifies
         .iter()
         .map(|relation| relation.trace_id.as_str())
@@ -644,10 +623,6 @@ pub(super) fn reconcile(
                 declared_ids.contains(bare) || obligation_ids.contains(bare)
             })
     }));
-
-    // PLAT-2: a criterion tag on a test whose declared matrix row does not
-    // reference that criterion is visible, but is not evidence for it.
-    diagnostics.append(&mut row_diagnostics);
 
     // #307: the two halves of one mistake, already in the payload, joined at
     // last. Ordered after the census diagnostics for the same reason as #312 —

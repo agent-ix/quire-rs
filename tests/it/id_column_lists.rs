@@ -264,9 +264,9 @@ fn a_list_or_wildcard_target_bound_by_an_obligations_source_fails_load() {
     }
 }
 
-#[trace("FR-050-AC-63")]
+#[trace("FR-050-AC-67")]
 #[test]
-fn row_binding_never_joins_a_list_target_while_a_single_name_target_joins() {
+fn direct_criterion_backing_does_not_depend_on_matrix_target_column_shape() {
     let cases: Value = serde_json::from_str(include_str!(
         "../fixtures/corpus_cases/row-aware-trace-binding.json"
     ))
@@ -292,7 +292,10 @@ fn row_binding_never_joins_a_list_target_while_a_single_name_target_joins() {
             .iter()
             .any(|d| d.reason == "criterion-tagged-outside-row")
     };
-    assert!(has_row_diagnostic(module), "single-name target joins");
+    assert!(
+        !has_row_diagnostic(module),
+        "the directly marked criterion binds without row gating"
+    );
 
     // `test-case` is bound by no `obligations:` source, so it may widen.
     assert!(module.contains(anchor));
@@ -304,7 +307,7 @@ fn row_binding_never_joins_a_list_target_while_a_single_name_target_joins() {
         );
         assert!(
             !has_row_diagnostic(&widened),
-            "{declared}: loads but is never the row-binding join partner"
+            "{declared}: the directly marked criterion binds without row gating"
         );
     }
 }

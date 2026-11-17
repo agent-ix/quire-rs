@@ -1,13 +1,13 @@
 [
   {
-    "name": "criterion-tagged-outside-matrix-row",
+    "name": "direct-criterion-marker-backs-despite-different-row",
     "issue_ref": "agent-ix/quire-rs#467",
     "tags": [
       "PLAT-2",
       "binding",
       "coverage"
     ],
-    "comment": "A tag on another test case must not back an acceptance criterion; the correctly paired test remains a control.",
+    "comment": "A direct criterion marker backs the criterion even when its test-case marker names a different row.",
     "input": {
       "module": "name: row-aware-binding\nversion: 0.1.0\nartifact_types:\n- name: FR\n- name: TestMatrix\ntraceability:\n  trace_targets:\n  - name: acceptance-criterion\n    archetype: FR\n    section: Acceptance Criteria\n    id_column: ID\n  - name: test-case\n    archetype: TestMatrix\n    section: Test Cases\n    id_column: ID\n  document_references:\n  - name: verification\n    archetype: FR\n    section: Acceptance Criteria\n    row_id_column: ID\n    column: Verification\n    pattern: '\\b(TC-\\d+)\\b'\n    targets: [test-case]\n  - name: traces-to\n    archetype: TestMatrix\n    section: Test Cases\n    row_id_column: ID\n    column: Traces To\n    pattern: '\\b((?:FR|TC)-\\d+(?:-AC-\\d+)?)\\b'\n    targets: [acceptance-criterion, test-case]\n  status:\n    column: Status\n    complete: [\"✅\"]\n    pending: [\"🚧\"]\n  obligations:\n  - name: acceptance-criteria\n    target: acceptance-criterion\n    statement_column: Criteria\n    method_column: Verification\n  trace_tags:\n    markers:\n    - name: rust-trace-attribute\n      language: rust\n      pattern: '#\\[trace\\(([^)]*)\\)\\]'\n      template: '#[trace({ids})]'\n",
       "documents": {
@@ -19,25 +19,12 @@
       }
     },
     "expect": {
-      "backed": 3,
+      "backed": 4,
       "total": 5,
-      "diagnostic_reasons": [
-        "criterion-tagged-outside-row"
-      ],
+      "diagnostic_reasons": [],
       "criterion_backed": {
         "FR-001-AC-1": true,
-        "FR-001-AC-2": false
-      },
-      "unbacked_claims": {
-        "FR-001-AC-2": [
-          {
-            "reason": "tagged-without-citing-matrix-row",
-            "id": "FR-001-AC-2",
-            "path": "src/lib.rs",
-            "line": 9,
-            "symbol": "tests::tc002_wrong_row_for_second_behavior"
-          }
-        ]
+        "FR-001-AC-2": true
       }
     }
   },
@@ -108,9 +95,9 @@
   },
   {
     "name": "criterion-tag-without-matrix-row",
-    "issue_ref": "agent-ix/quire-rs#467",
+    "issue_ref": "PLAT-1767",
     "tags": [
-      "PLAT-2",
+      "PLAT-1767",
       "binding",
       "coverage"
     ],
@@ -154,7 +141,7 @@
       "binding",
       "coverage"
     ],
-    "comment": "A criterion tag paired only with an undeclared test-matrix row must be diagnostic and cannot back the criterion.",
+    "comment": "An unrecognized test-case marker does not prevent a direct criterion marker from backing it.",
     "input": {
       "module": "name: row-aware-binding\nversion: 0.1.0\nartifact_types:\n- name: FR\n- name: TestMatrix\ntraceability:\n  trace_targets:\n  - name: acceptance-criterion\n    archetype: FR\n    section: Acceptance Criteria\n    id_column: ID\n  - name: test-case\n    archetype: TestMatrix\n    section: Test Cases\n    id_column: ID\n  document_references:\n  - name: verification\n    archetype: FR\n    section: Acceptance Criteria\n    row_id_column: ID\n    column: Verification\n    pattern: '\\b(TC-\\d+)\\b'\n    targets: [test-case]\n  - name: traces-to\n    archetype: TestMatrix\n    section: Test Cases\n    row_id_column: ID\n    column: Traces To\n    pattern: '\\b((?:FR|TC)-\\d+(?:-AC-\\d+)?)\\b'\n    targets: [acceptance-criterion, test-case]\n  status:\n    column: Status\n    complete: [\"✅\"]\n    pending: [\"🚧\"]\n  obligations:\n  - name: acceptance-criteria\n    target: acceptance-criterion\n    statement_column: Criteria\n    method_column: Verification\n  trace_tags:\n    markers:\n    - name: rust-trace-attribute\n      language: rust\n      pattern: '#\\[trace\\(([^)]*)\\)\\]'\n      template: '#[trace({ids})]'\n",
       "documents": {
@@ -166,33 +153,20 @@
       }
     },
     "expect": {
-      "backed": 0,
+      "backed": 1,
       "total": 5,
-      "diagnostic_reasons": [
-        "criterion-tagged-outside-row"
-      ],
+      "diagnostic_reasons": [],
       "criterion_backed": {
         "FR-001-AC-1": false,
-        "FR-001-AC-2": false
+        "FR-001-AC-2": true
       },
       "unbacked_rows": [
         "FR-001-AC-1",
-        "FR-001-AC-2",
         "TC-001",
         "TC-002",
         "TC-003"
       ],
-      "unbacked_claims": {
-        "FR-001-AC-2": [
-          {
-            "reason": "tagged-without-citing-matrix-row",
-            "id": "FR-001-AC-2",
-            "path": "src/lib.rs",
-            "line": 3,
-            "symbol": "unknown_row_for_second_behavior"
-          }
-        ]
-      }
+      "unbacked_claims": {}
     }
   },
   {
@@ -259,14 +233,14 @@
     }
   },
   {
-    "name": "python-criterion-tagged-outside-matrix-row",
+    "name": "python-direct-criterion-marker-backs-despite-different-row",
     "issue_ref": "https://linear.app/agent-ix/issue/PLAT-1692",
     "tags": [
       "PLAT-2",
       "binding",
       "coverage"
     ],
-    "comment": "A pytest trace marker that cites a different matrix row leaves the criterion unbacked and names the claim.",
+    "comment": "A direct pytest criterion marker backs the criterion even when its test-case marker names a different row.",
     "input": {
       "module": "name: row-aware-binding\nversion: 0.1.0\nartifact_types:\n- name: FR\n- name: TestMatrix\ntraceability:\n  trace_targets:\n  - name: acceptance-criterion\n    archetype: FR\n    section: Acceptance Criteria\n    id_column: ID\n  - name: test-case\n    archetype: TestMatrix\n    section: Test Cases\n    id_column: ID\n  document_references:\n  - name: verification\n    archetype: FR\n    section: Acceptance Criteria\n    row_id_column: ID\n    column: Verification\n    pattern: '\\b(TC-\\d+)\\b'\n    targets: [test-case]\n  - name: traces-to\n    archetype: TestMatrix\n    section: Test Cases\n    row_id_column: ID\n    column: Traces To\n    pattern: '\\b((?:FR|TC)-\\d+(?:-AC-\\d+)?)\\b'\n    targets: [acceptance-criterion, test-case]\n  status:\n    column: Status\n    complete: [\"✅\"]\n    pending: [\"🚧\"]\n  obligations:\n  - name: acceptance-criteria\n    target: acceptance-criterion\n    statement_column: Criteria\n    method_column: Verification\n  trace_tags:\n    markers:\n    - name: rust-trace-attribute\n      language: rust\n      pattern: '#\\[trace\\(([^)]*)\\)\\]'\n      template: '#[trace({ids})]'\n    - name: pytest-trace-decorator\n      language: python\n      pattern: '@pytest\\.mark\\.trace\\(([^)]*)\\)'\n      template: '@pytest.mark.trace({ids})'\n",
       "documents": {
@@ -278,24 +252,11 @@
       }
     },
     "expect": {
-      "backed": 1,
+      "backed": 2,
       "total": 5,
-      "diagnostic_reasons": [
-        "criterion-tagged-outside-row"
-      ],
+      "diagnostic_reasons": [],
       "criterion_backed": {
-        "FR-001-AC-2": false
-      },
-      "unbacked_claims": {
-        "FR-001-AC-2": [
-          {
-            "reason": "tagged-without-citing-matrix-row",
-            "id": "FR-001-AC-2",
-            "path": "src/test_security.py",
-            "line": 4,
-            "symbol": "test_security_criterion_row_mismatch"
-          }
-        ]
+        "FR-001-AC-2": true
       }
     }
   },

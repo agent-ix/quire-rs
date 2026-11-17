@@ -38,11 +38,6 @@ pub(super) fn guidance_for(diagnostic: &CoverageDiagnostic) -> crate::finding::F
             locus,
             "review whether the criterion is intentionally universal; otherwise name a concrete supported property shape",
         ),
-        "criterion-tagged-outside-row" => FindingGuidance::remedy(
-            format!("criterion `{value}`"),
-            locus,
-            "correct the matrix reference or tag a test whose declared row references this criterion",
-        ),
         "duplicate-formalizes-claim" => FindingGuidance::remedy(
             format!("id `{value}`"),
             locus,
