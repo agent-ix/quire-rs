@@ -1024,8 +1024,8 @@ dependencies = [
 
 [[package]]
 name = "quire-code-parse"
-version = "0.2.2"
-source = "git+https://github.com/agent-ix/quire-code-rs?rev=108ddda6bdeab1dd97e5c638d41b6df8167b1fa1#108ddda6bdeab1dd97e5c638d41b6df8167b1fa1"
+version = "0.2.3"
+source = "git+https://github.com/agent-ix/quire-code-rs?tag=v0.2.3#d3bd07dde49e02d13262c523c2f8c506dbbb6dac"
 dependencies = [
  "thiserror",
  "tree-sitter",
