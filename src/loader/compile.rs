@@ -99,6 +99,14 @@ pub struct CompiledArchetype {
     /// archetype declares no `frontmatter_schema_ref`.
     pub frontmatter_schema: Option<Arc<Value>>,
     pub frontmatter_validator: Option<Arc<Validator>>,
+    /// Module-local documents reached by the frontmatter schema's `$ref`s.
+    /// Flow-rule enum validation reads these without resolving remote schemas.
+    pub frontmatter_schema_documents: Option<Arc<std::collections::BTreeMap<String, Value>>>,
+    /// Manifest-relative frontmatter schema path, used to locate enum-reference diagnostics.
+    pub frontmatter_schema_path: Option<String>,
+    /// Refusal from walking frontmatter `$ref`s, deferred until a flow rule
+    /// actually uses the affected schema vocabulary.
+    pub frontmatter_schema_ref_error: Option<String>,
     /// Compiled `data_schema` validator over the *extracted record*
     /// (FR-031-AC-4) — distinct from the frontmatter validator.
     pub data_schema: Option<Arc<Value>>,

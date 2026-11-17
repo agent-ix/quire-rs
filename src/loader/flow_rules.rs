@@ -27,6 +27,23 @@ pub(super) fn validate_flow_declarations(
 ) -> bool {
     let initial_failures = failures.len();
     report_cross_module_duplicates(modules, failures);
+    for module in modules {
+        for archetype in &module.archetypes {
+            if let Some(error) = &archetype.frontmatter_schema_ref_error {
+                fail(
+                    module,
+                    failures,
+                    format!(
+                        "frontmatter schema '{}' has an unresolved local reference: {error}",
+                        archetype
+                            .frontmatter_schema_path
+                            .as_deref()
+                            .unwrap_or("<unknown>")
+                    ),
+                );
+            }
+        }
+    }
 
     let all_remediations: BTreeMap<&str, &FlowRemediation> = model
         .remediations
@@ -210,15 +227,21 @@ fn validate_condition(
                 field_declared = true;
                 continue;
             }
-            let Some(schema) = archetypes
-                .get(endpoint)
-                .and_then(|archetype| archetype.frontmatter_schema.as_deref())
-            else {
+            let Some(archetype) = archetypes.get(endpoint) else {
+                continue;
+            };
+            let Some(schema) = archetype.frontmatter_schema.as_deref() else {
                 continue;
             };
             if schema_declares(schema, &condition.field) {
                 field_declared = true;
-                if let Some(values) = schema_enum(schema, &condition.field) {
+                let values = flow_schema_enum(archetype, &condition.field).map_err(|error| {
+                    format!(
+                        "traceability: flow_rules entry '{rule}' condition field '{}' {error}",
+                        condition.field
+                    )
+                })?;
+                if let Some(values) = values {
                     declared_enums.push((endpoint.clone(), values));
                 }
             }
@@ -393,6 +416,157 @@ fn schema_declares(schema: &Value, field: &str) -> bool {
 
 fn schema_enum(schema: &Value, field: &str) -> Option<Vec<String>> {
     schema_walk(schema, field, true)
+}
+
+fn flow_schema_enum(
+    archetype: &CompiledArchetype,
+    field: &str,
+) -> Result<Option<Vec<String>>, String> {
+    let Some(schema) = archetype.frontmatter_schema.as_deref() else {
+        return Ok(None);
+    };
+    let Some(property) = schema
+        .get("properties")
+        .and_then(Value::as_object)
+        .and_then(|properties| properties.get(field))
+    else {
+        return Ok(None);
+    };
+    let has_ref = property.get("$ref").is_some()
+        || property
+            .get("items")
+            .and_then(|items| items.get("$ref"))
+            .is_some();
+    if !has_ref {
+        return schema_enum(schema, field).map_or(Ok(None), |values| Ok(Some(values)));
+    }
+    if let Some(error) = &archetype.frontmatter_schema_ref_error {
+        return Err(format!(
+            "schema reference in '{}' is unresolved: {error}",
+            archetype
+                .frontmatter_schema_path
+                .as_deref()
+                .unwrap_or("frontmatter schema")
+        ));
+    }
+
+    let mut documents = archetype
+        .frontmatter_schema_documents
+        .as_deref()
+        .cloned()
+        .unwrap_or_default();
+    let root_id = schema
+        .get("$id")
+        .and_then(Value::as_str)
+        .unwrap_or("<root>")
+        .to_string();
+    documents
+        .entry(root_id.clone())
+        .or_insert_with(|| schema.clone());
+    let location = format!(
+        "{}#/properties/{field}",
+        archetype
+            .frontmatter_schema_path
+            .as_deref()
+            .unwrap_or("frontmatter schema")
+    );
+    let mut references = BTreeSet::new();
+    match enum_at_node(
+        property,
+        schema,
+        &root_id,
+        &documents,
+        &location,
+        &mut references,
+    ) {
+        Ok(values) => Ok(values),
+        Err(error) => {
+            let detail = archetype
+                .frontmatter_schema_ref_error
+                .as_deref()
+                .map(|stored| format!("; module reference scan: {stored}"))
+                .unwrap_or_default();
+            Err(format!("schema reference {error}{detail}"))
+        }
+    }
+}
+
+fn enum_at_node(
+    node: &Value,
+    current_document: &Value,
+    current_id: &str,
+    documents: &BTreeMap<String, Value>,
+    location: &str,
+    references: &mut BTreeSet<String>,
+) -> Result<Option<Vec<String>>, String> {
+    if let Some(values) = node
+        .get("enum")
+        .and_then(Value::as_array)
+        .map(|values| enum_strings(values))
+    {
+        return Ok(Some(values));
+    }
+    if let Some(items) = node.get("items") {
+        let item_location = format!("{location}/items");
+        if let Some(values) = enum_at_node(
+            items,
+            current_document,
+            current_id,
+            documents,
+            &item_location,
+            references,
+        )? {
+            return Ok(Some(values));
+        }
+    }
+    let Some(reference) = node.get("$ref").and_then(Value::as_str) else {
+        return Ok(None);
+    };
+    if !references.insert(reference.to_string()) {
+        return Err(format!(
+            "at {location}/$ref '{reference}' forms a reference cycle"
+        ));
+    }
+    let (document_id, fragment) = match reference.split_once('#') {
+        Some((id, fragment)) => (if id.is_empty() { current_id } else { id }, fragment),
+        None => (reference, ""),
+    };
+    let target_document = if document_id == current_id {
+        current_document
+    } else {
+        documents.get(document_id).ok_or_else(|| {
+            format!("at {location}/$ref '{reference}' names no local schema document")
+        })?
+    };
+    let target = if fragment.is_empty() {
+        target_document
+    } else {
+        target_document
+            .pointer(fragment)
+            .ok_or_else(|| format!("at {location}/$ref '{reference}' has no target"))?
+    };
+    let target_id = target_document
+        .get("$id")
+        .and_then(Value::as_str)
+        .unwrap_or(document_id);
+    let result = enum_at_node(
+        target,
+        target_document,
+        target_id,
+        documents,
+        &format!("{location}/$ref[{reference}]"),
+        references,
+    );
+    references.remove(reference);
+    result
+}
+
+fn enum_strings(values: &[Value]) -> Vec<String> {
+    values
+        .iter()
+        .filter_map(Value::as_str)
+        .map(str::to_string)
+        .collect()
 }
 
 fn schema_walk(schema: &Value, field: &str, enum_only: bool) -> Option<Vec<String>> {

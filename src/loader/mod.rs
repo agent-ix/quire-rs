@@ -378,7 +378,7 @@ pub fn load_module_set(module_roots: &[&Path]) -> LoadOutcome {
 /// sentinel `"<inline>"` and emits a `ManifestMissingName` diagnostic
 /// (mirroring FR-014-AC-7's path-derived behavior).
 pub fn load_inline_module(manifest_yaml: &[u8], schemas: &BTreeMap<String, String>) -> LoadOutcome {
-    use crate::loader::compile::{compile_schema, failure, CompiledArchetype};
+    use crate::loader::compile::{failure, CompiledArchetype};
     use crate::loader::manifest::{parse_manifest, ManifestOrigins};
 
     let mut modules: Vec<LoadedModule> = Vec::new();
@@ -490,8 +490,14 @@ pub fn load_inline_module(manifest_yaml: &[u8], schemas: &BTreeMap<String, Strin
         }
 
         // Frontmatter schema (optional, supplied via `schemas`).
-        let (frontmatter_schema, frontmatter_validator) = match &a.frontmatter_schema_ref {
-            None => (None, None),
+        let (
+            frontmatter_schema,
+            frontmatter_validator,
+            frontmatter_schema_documents,
+            frontmatter_schema_path,
+            frontmatter_schema_ref_error,
+        ) = match &a.frontmatter_schema_ref {
+            None => (None, None, None, None, None),
             Some(rel) => {
                 let schema_ref_str = rel.to_string_lossy().to_string();
                 let schema_text = match schemas.get(&schema_ref_str) {
@@ -518,19 +524,42 @@ pub fn load_inline_module(manifest_yaml: &[u8], schemas: &BTreeMap<String, Strin
                         continue;
                     }
                 };
-                let validator = match compile_schema(&raw_schema) {
-                    Ok(v) => v,
-                    Err(r) => {
-                        failures.push(failure(
-                            &module_name,
-                            &a.name,
-                            PathBuf::from(&schema_ref_str),
-                            r,
-                        ));
-                        continue;
+                let (documents, ref_error) =
+                    match crate::semantic::resolver::frontmatter_schema_documents(
+                        &inline_source,
+                        &schema_ref_str,
+                        &raw_schema,
+                    ) {
+                        Ok(documents) => (Some(Arc::new(documents)), None),
+                        Err(error) => (None, Some(format!("{}: {}", error.path, error.message))),
+                    };
+                let validator = match &documents {
+                    Some(documents) => {
+                        match crate::semantic::resolver::compile_frontmatter_documents(
+                            &raw_schema,
+                            documents,
+                        ) {
+                            Ok(validator) => Some(Arc::new(validator)),
+                            Err(error) => {
+                                failures.push(failure(
+                                    &module_name,
+                                    &a.name,
+                                    PathBuf::from(&schema_ref_str),
+                                    error.message,
+                                ));
+                                continue;
+                            }
+                        }
                     }
+                    None => None,
                 };
-                (Some(Arc::new(raw_schema)), Some(Arc::new(validator)))
+                (
+                    Some(Arc::new(raw_schema)),
+                    validator,
+                    documents,
+                    Some(schema_ref_str),
+                    ref_error,
+                )
             }
         };
 
@@ -586,6 +615,9 @@ pub fn load_inline_module(manifest_yaml: &[u8], schemas: &BTreeMap<String, Strin
             a,
             frontmatter_schema,
             frontmatter_validator,
+            frontmatter_schema_documents,
+            frontmatter_schema_path,
+            frontmatter_schema_ref_error,
             data_schema,
             data_validator,
             data_schema_documents,
@@ -927,16 +959,45 @@ fn compile_archetype(
     }
 
     // Frontmatter schema (optional).
-    let (frontmatter_schema, frontmatter_validator) = match &a.frontmatter_schema_ref {
+    let (
+        frontmatter_schema,
+        frontmatter_validator,
+        frontmatter_schema_documents,
+        frontmatter_schema_path,
+        frontmatter_schema_ref_error,
+    ) = match &a.frontmatter_schema_ref {
         Some(rel) => {
             let schema_path = module_root.join(rel);
             let raw = read_schema(&schema_path)
                 .map_err(|r| failure(module, &a.name, schema_path.clone(), r))?;
-            let validator = compile_schema(&raw)
-                .map_err(|r| failure(module, &a.name, schema_path.clone(), r))?;
-            (Some(Arc::new(raw)), Some(Arc::new(validator)))
+            let relative_path = rel.to_string_lossy().to_string();
+            let (documents, ref_error) =
+                match crate::semantic::resolver::frontmatter_schema_documents(
+                    source,
+                    &relative_path,
+                    &raw,
+                ) {
+                    Ok(documents) => (Some(Arc::new(documents)), None),
+                    Err(error) => (None, Some(format!("{}: {}", error.path, error.message))),
+                };
+            let validator = match &documents {
+                Some(documents) => Some(Arc::new(
+                    crate::semantic::resolver::compile_frontmatter_documents(&raw, documents)
+                        .map_err(|error| {
+                            failure(module, &a.name, schema_path.clone(), error.message)
+                        })?,
+                )),
+                None => None,
+            };
+            (
+                Some(Arc::new(raw)),
+                validator,
+                documents,
+                Some(relative_path),
+                ref_error,
+            )
         }
-        None => (None, None),
+        None => (None, None, None, None, None),
     };
 
     // Data schema (optional): inline JSON Schema, or the FR-069 reference form.
@@ -978,6 +1039,9 @@ fn compile_archetype(
         a,
         frontmatter_schema,
         frontmatter_validator,
+        frontmatter_schema_documents,
+        frontmatter_schema_path,
+        frontmatter_schema_ref_error,
         data_schema,
         data_validator,
         data_schema_documents,
@@ -1166,6 +1230,9 @@ fn finish_compiled(
     a: &Archetype,
     frontmatter_schema: Option<Arc<Value>>,
     frontmatter_validator: Option<Arc<jsonschema::Validator>>,
+    frontmatter_schema_documents: Option<Arc<BTreeMap<String, Value>>>,
+    frontmatter_schema_path: Option<String>,
+    frontmatter_schema_ref_error: Option<String>,
     data_schema: Option<Arc<Value>>,
     data_validator: Option<Arc<jsonschema::Validator>>,
     data_schema_documents: Option<Arc<BTreeMap<String, Value>>>,
@@ -1185,6 +1252,9 @@ fn finish_compiled(
         validator,
         frontmatter_schema,
         frontmatter_validator,
+        frontmatter_schema_documents,
+        frontmatter_schema_path,
+        frontmatter_schema_ref_error,
         data_schema,
         data_validator,
         data_schema_documents,
