@@ -217,9 +217,8 @@ fn tc824_the_baseline_corpus_still_exercises_the_surface() {
     );
 
     // CR-187, FR-050-AC-20: computed coverage statuses over `spec/FR-003.md`.
-    // Its direct criterion tags have no corresponding TC rows, so both remain
-    // untagged under row-aware binding; other tests cover tagged statuses with
-    // explicitly paired rows.
+    // Its direct criterion tags have no corresponding TC rows, so criterion
+    // status comes from the markers themselves.
     use quire_rs::coverage::CoverageMatrixStatus;
     let status = |id: &str| {
         report
@@ -230,9 +229,12 @@ fn tc824_the_baseline_corpus_still_exercises_the_surface() {
             .unwrap_or_else(|| panic!("no coverage_matrix criterion {id}"))
             .status
     };
-    assert_eq!(status("FR-003-AC-1"), CoverageMatrixStatus::Untagged);
+    assert_eq!(status("FR-003-AC-1"), CoverageMatrixStatus::Tagged);
     assert_eq!(status("FR-003-AC-2"), CoverageMatrixStatus::Untagged);
-    assert_eq!(status("FR-003-AC-3"), CoverageMatrixStatus::Untagged);
+    assert_eq!(
+        status("FR-003-AC-3"),
+        CoverageMatrixStatus::TaggedByIgnoredTest
+    );
     assert_eq!(
         status("FR-003-AC-4"),
         CoverageMatrixStatus::MethodWithoutSymbol
