@@ -5,7 +5,7 @@ version = 4
 [[package]]
 name = "agent-ix-semantic-schema"
 version = "0.3.0"
-source = "git+https://github.com/agent-ix/filament-core-data?branch=main#ce72bc519945ca4676f1b8f1e19f44f44303513d"
+source = "git+https://github.com/agent-ix/filament-core-data?tag=semantic-schema-v0.6.0#327a49ca9d7ab2c12269a8db65b75f1331e165bd"
 
 [[package]]
 name = "ahash"
@@ -546,8 +546,8 @@ checksum = "8f42a60cbdf9a97f5d2305f08a87dc4e09308d1276d28c869c684d7777685682"
 
 [[package]]
 name = "ix-trace-rs"
-version = "0.1.0"
-source = "git+https://github.com/agent-ix/ix-trace-rs?rev=2ce4ebf47f726b9d76388220545cd0abda8a5cfb#2ce4ebf47f726b9d76388220545cd0abda8a5cfb"
+version = "0.1.2"
+source = "git+https://github.com/agent-ix/ix-trace-rs?tag=v0.1.2#e29cc07f70394ff018884d12406c1e150bded5f4"
 
 [[package]]
 name = "js-sys"
@@ -1044,7 +1044,7 @@ dependencies = [
 
 [[package]]
 name = "quire-rs"
-version = "0.62.2"
+version = "0.62.3"
 dependencies = [
  "agent-ix-semantic-schema",
  "criterion",

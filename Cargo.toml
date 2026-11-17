@@ -26,7 +26,7 @@ undocumented_unsafe_blocks = "deny"
 [package]
 name = "quire-rs"
 publish = false
-version = "0.62.2"
+version = "0.62.3"
 edition = "2021"
 rust-version = "1.98.1"
 description = "High-performance Rust templating + parsing engine for the Filament/Quire ecosystem."
@@ -112,7 +112,7 @@ quire-code-extraction = { path = "crates/quire-code-extraction", optional = true
 # see src/semantic/embedded.rs for why this replaced a build.rs npm fetch.
 # filament-core-data is public, so this needs no registry auth, no npm, no
 # node, anywhere in this crate's build.
-agent-ix-semantic-schema = { git = "https://github.com/agent-ix/filament-core-data", branch = "main" }
+agent-ix-semantic-schema = { git = "https://github.com/agent-ix/filament-core-data", tag = "semantic-schema-v0.6.0" }
 
 [dev-dependencies]
 # The authoritative QA corpus runner, pinned by the existing corpus submodule.
@@ -120,9 +120,9 @@ qa-corpus = { path = "corpus" }
 # The canonical Rust trace marker (FR-051). Zero runtime dependencies and a
 # pass-through expansion, so it adds one crate to the dev graph and nothing
 # to a consumer's: dev-dependencies are not transitive. Pinned to an exact
-# rev (the commit v0.1.1 names; one cargo source), which satisfies NFR-009-AC-3
+# (v0.1.2; one cargo source), which satisfies NFR-009-AC-3
 # more strictly than a caret range.
-ix-trace-rs = { git = "https://github.com/agent-ix/ix-trace-rs", rev = "2ce4ebf47f726b9d76388220545cd0abda8a5cfb" }
+ix-trace-rs = { git = "https://github.com/agent-ix/ix-trace-rs", tag = "v0.1.2" }
 # The Markdown -> semantic-core mapping fixture set quire-rs's own semantic
 # tests exercise (PLAT-901). A workspace path dependency here; quoin (its
 # other consumer, step 2 of PLAT-901) resolves the same crate as a git
