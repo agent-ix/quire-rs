@@ -1273,14 +1273,11 @@ that failed to mint cannot erase its own gap from the population.
 > widen without constraining. A repository that does declare a matrix keeps
 > PLAT-2's rule unchanged.
 
-> **CR-PLAT-1767 note (2026-11-16):** AC-67 and AC-68 are amended — a direct
-> marker on a non-ignored test binds its live criterion even when no declared
-> Test Matrix row cites that criterion. AC-67 previously allowed direct binding
-> only when the repository declared no test-matrix rows, leaving a missing row
-> able to reject an otherwise direct criterion marker. Matrix-row absence is not
-> an unbacked source claim: `tagged-without-citing-matrix-row` is removed from
-> `unbacked_claims` and cannot cause `criterion-tagged-outside-row`; the
-> independent `trace-id-outside-marker` claim remains diagnostic.
+> **CR-PLAT-1767 note (2026-11-16):** PLAT-1767 arose from a reported mismatch
+> between the row-aware behavior introduced by CR-411 and the `spec-matrix`
+> workflow after repositories began relying on trace markers without
+> hand-maintained Test Matrix rows. The report prompted a review of the
+> criterion-backing contract.
 
 > **CR-210 note (2026-11-08, PLAT-313):** AC-63 is new — one column name reached one column. `agent-ix/quire-rs#318`.
 >
