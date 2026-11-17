@@ -34,6 +34,7 @@ mod binding_diagnostics;
 mod declarations;
 mod diagnostics;
 mod reconcile;
+mod row_binding;
 
 use declarations::criteria_counts;
 use diagnostics::{catch_all_documents, hollow_denominators};

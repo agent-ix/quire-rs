@@ -6,7 +6,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use ix_trace_rs::trace;
-use quire_rs::coverage::{compute, CoverageError, CoverageReport};
+use quire_rs::coverage::{compute, CoverageError, CoverageMatrixStatus, CoverageReport};
 use quire_rs::metric::{Measurement, Metric};
 use quire_rs::symbols::trace::BindingCensus;
 use quire_rs::symbols::{extract_tree, trace};
@@ -161,6 +161,27 @@ fn obligation_reference_rows_require_their_own_evidence() {
             .collect();
         expected.sort_unstable();
         assert_eq!(actual, expected, "{name}: sibling criteria cannot borrow TC-025 backing; aggregate TC row retains referenced evidence");
+        if name == "shared-tc-partial-owner-rust-aggregate-reference-only" {
+            let criterion = report
+                .coverage_matrix
+                .iter()
+                .flat_map(|requirement| &requirement.criteria)
+                .find(|criterion| criterion.id == "FR-008-AC-7")
+                .expect("FR-008-AC-7 is in the coverage matrix");
+            assert_eq!(
+                criterion.status,
+                CoverageMatrixStatus::Tagged,
+                "a direct marker tags FR-008-AC-7 without a matrix-row match"
+            );
+            assert!(
+                actual.contains(&"TC-025"),
+                "the aggregate TC-025 row stays unbacked while sibling criteria are untagged: {actual:?}"
+            );
+            assert!(
+                !actual.contains(&"FR-008-AC-7"),
+                "the direct marker removes only its own criterion row from the unbacked set: {actual:?}"
+            );
+        }
         assert!(
             report.status_lies.is_empty(),
             "{name}: pending is not complete"

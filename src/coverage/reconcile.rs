@@ -141,6 +141,7 @@ pub(super) fn reconcile(
     // ── Minted targets, grouped by their minting document ──
     let mut ctx = declared_tables::ScanContext::default();
     let mut minted: Vec<MintedTargetRecord> = Vec::new();
+    let mut minted_by_target: BTreeMap<&str, BTreeSet<String>> = BTreeMap::new();
     // Reference integrity and source-evidence coverage deliberately have
     // different populations. Every declared target id resolves references,
     // while only source targets enter the coverage denominator (#363).
@@ -154,6 +155,10 @@ pub(super) fn reconcile(
         };
         for minted_id in declared_tables::mint(spec, root, target, &model_exclude, target_ctx) {
             declared_ids.insert(minted_id.id.clone());
+            minted_by_target
+                .entry(target.name.as_str())
+                .or_default()
+                .insert(minted_id.id.clone());
             if target.evidence == TraceTargetEvidence::ReferenceOnly {
                 continue;
             }
@@ -167,11 +172,22 @@ pub(super) fn reconcile(
             });
         }
     }
-    // Cache reference rows once so every reconciliation path uses the same parsed rows.
+    // Cache reference rows once so criterion backing and row evidence share
+    // the same parsed declarations without sharing their evidence rules.
     let reference_rows = scan_reference_rows(spec, root, model, &model_exclude, &mut ctx);
     let verifies: Vec<_> = graph.verifies.iter().collect();
+    let row_bindings = super::row_binding::RowBindings::from_scanned_rows(
+        model,
+        &reference_rows,
+        &minted_by_target,
+    );
+    let row_verifies = row_bindings.row_evidence_relations(graph);
     let mut unbacked_claims: Vec<CoverageMatrixUnbackedClaim> = Vec::new();
     let backed: BTreeSet<&str> = verifies
+        .iter()
+        .map(|relation| relation.trace_id.as_str())
+        .collect();
+    let row_backed: BTreeSet<&str> = row_verifies
         .iter()
         .map(|relation| relation.trace_id.as_str())
         .collect();
@@ -259,8 +275,8 @@ pub(super) fn reconcile(
                 Some(id) if obligation_ids.contains(id) => backed.contains(id),
                 _ if !obligation_references.is_empty() => obligation_references
                     .iter()
-                    .all(|id| backed.contains(id.as_str())),
-                _ => answerable.iter().any(|id| backed.contains(id.as_str())),
+                    .all(|id| row_backed.contains(id.as_str())),
+                _ => answerable.iter().any(|id| row_backed.contains(id.as_str())),
             };
             let is_backed = source_backed
                 || evidence.is_some_and(|evidence| {
@@ -720,7 +736,7 @@ pub(super) fn reconcile(
     // same symbol binding one id through two declared forms (or a duplicated
     // in-symbol id, FR-051's dedup) is one binder, not a shared id.
     let mut binders: BTreeMap<&str, BTreeSet<(&str, &str)>> = BTreeMap::new();
-    for relation in &verifies {
+    for relation in &row_verifies {
         if !status_row_ids.contains(&relation.trace_id) {
             continue;
         }
