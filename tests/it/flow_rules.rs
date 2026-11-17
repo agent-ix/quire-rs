@@ -2,6 +2,7 @@
 
 use std::collections::BTreeMap;
 use std::fs;
+use std::net::TcpListener;
 use std::path::Path;
 
 use ix_trace_rs::trace;
@@ -23,6 +24,45 @@ fn parse_registry_with(
     rules: &str,
     remediations: &str,
     exclusions: &str,
+) -> Result<Registry, String> {
+    let mut schemas = BTreeMap::new();
+    schemas.insert(
+        "schemas/alpha.json".into(),
+        schema(
+            "alpha",
+            r#", "state":{"enum":["open","closed"]}, "approval":{"enum":["covered","missing"]}, "nested":{"type":"object","properties":{"nested_only":{"type":"string"}}}"#,
+        ),
+    );
+    schemas.insert(
+        "schemas/beta.json".into(),
+        schema(
+            "beta",
+            r#", "category":{}, "classification":{"type":"array","items":{"enum":["health","personal","financial"]}}, "single":{"enum":["x","y"]}"#,
+        ),
+    );
+    schemas.insert(
+        "schemas/gamma.json".into(),
+        schema("gamma", r#", "trust":{"enum":["trusted","untrusted"]}, "category":{"enum":["health","personal","financial"]}"#),
+    );
+    schemas.insert(
+        "schemas/control.json".into(),
+        schema(
+            "control",
+            r#", "safeguards":{"enum":["encrypt","encrypt-alt","mask"]}"#,
+        ),
+    );
+    schemas.insert(
+        "schemas/sink.json".into(),
+        schema("sink", r#", "kind":{"enum":["prompt","storage"]}, "agreement":{"enum":["covered","missing","unknown"]}"#),
+    );
+    parse_registry_with_schemas(rules, remediations, exclusions, schemas)
+}
+
+fn parse_registry_with_schemas(
+    rules: &str,
+    remediations: &str,
+    exclusions: &str,
+    schemas: BTreeMap<String, String>,
 ) -> Result<Registry, String> {
     let remediations = if remediations.trim() == "[]" {
         "    []".to_string()
@@ -73,37 +113,192 @@ traceability:
 {rules}  remediations:
 {remediations}"#
     );
-    let mut schemas = BTreeMap::new();
-    schemas.insert(
-        "schemas/alpha.json".into(),
-        schema(
-            "alpha",
-            r#", "state":{"enum":["open","closed"]}, "approval":{"enum":["covered","missing"]}, "nested":{"type":"object","properties":{"nested_only":{"type":"string"}}}"#,
-        ),
-    );
-    schemas.insert(
-        "schemas/beta.json".into(),
-        schema(
-            "beta",
-            r#", "category":{}, "classification":{"type":"array","items":{"enum":["health","personal","financial"]}}, "single":{"enum":["x","y"]}"#,
-        ),
-    );
-    schemas.insert(
-        "schemas/gamma.json".into(),
-        schema("gamma", r#", "trust":{"enum":["trusted","untrusted"]}, "category":{"enum":["health","personal","financial"]}"#),
-    );
-    schemas.insert(
-        "schemas/control.json".into(),
-        schema(
-            "control",
-            r#", "safeguards":{"enum":["encrypt","encrypt-alt","mask"]}"#,
-        ),
-    );
-    schemas.insert(
-        "schemas/sink.json".into(),
-        schema("sink", r#", "kind":{"enum":["prompt","storage"]}, "agreement":{"enum":["covered","missing","unknown"]}"#),
-    );
     Registry::from_inline_parts(manifest.as_bytes(), &schemas).map_err(|error| error.to_string())
+}
+
+fn parse_local_ref_registry(
+    rules: &str,
+    sink_schema: &str,
+    referenced_schemas: &[(&str, &str)],
+) -> Result<Registry, String> {
+    let manifest = format!(
+        r#"name: local-ref-fixture
+version: 0.1.0
+description: Local schema reference fixture
+archetypes:
+- name: sink
+  frontmatter_schema_ref: schemas/sink.json
+traceability:
+  flow_rules:
+{rules}  remediations: []
+"#
+    );
+    let mut schemas = BTreeMap::from([("schemas/sink.json".to_string(), sink_schema.to_string())]);
+    for (path, content) in referenced_schemas {
+        schemas.insert((*path).to_string(), (*content).to_string());
+    }
+    Registry::from_inline_parts(manifest.as_bytes(), &schemas).map_err(|error| error.to_string())
+}
+
+#[test]
+#[trace("FR-096-AC-17", "FR-096-AC-26")]
+fn flow_rule_any_of_resolves_a_local_schema_enum() {
+    let base = "https://schemas.agent-ix.org/flow-rules-fixture/0.1.0/schemas";
+    let root_schema = format!(
+        r#"{{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"{base}/sink.json","type":"object","properties":{{"agreement":{{"$ref":"{base}/ProcessorAgreement.json"}}}}}}"#
+    );
+    let agreement_schema = format!(
+        r#"{{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"{base}/ProcessorAgreement.json","enum":["covered","not_covered","unknown"]}}"#
+    );
+    let rules = "  - name: agreement-rule\n    subject: [sink]\n    match: [{path: [], field: agreement, any_of: [covered, not_covered, unknown]}]\n    check: agreement-check\n    rationale: Restrict agreement values.\n";
+    let registry = parse_local_ref_registry(
+        rules,
+        &root_schema,
+        &[("schemas/ProcessorAgreement.json", &agreement_schema)],
+    )
+    .expect("module parses");
+    assert!(registry.failures().is_empty(), "{:?}", registry.failures());
+    let sink = registry.archetype("sink").expect("sink archetype");
+    let documents = sink
+        .frontmatter_schema_documents
+        .as_ref()
+        .expect("resolved documents");
+    assert!(documents.contains_key(&format!("{base}/ProcessorAgreement.json")));
+    let (root, spec) = docs(&[(
+        "sink.md",
+        &document("S-1", "sink", "agreement: covered\n", &[]),
+    )]);
+    let flow = report(root.path(), &spec, &registry).flow.unwrap();
+    assert_eq!(
+        flow.vocabularies["sink"]["agreement"],
+        ["covered", "not_covered", "unknown"]
+    );
+
+    let invalid_rules = "  - name: agreement-rule\n    subject: [sink]\n    match: [{path: [], field: agreement, any_of: [medical]}]\n    check: agreement-check\n    rationale: Restrict agreement values.\n";
+    let invalid = parse_local_ref_registry(
+        invalid_rules,
+        &root_schema,
+        &[("schemas/ProcessorAgreement.json", &agreement_schema)],
+    )
+    .expect("module loads so flow validation reports the invalid value");
+    assert!(
+        invalid.failures().iter().any(|failure| {
+            failure.reason.contains("agreement-rule")
+                && failure.reason.contains("agreement")
+                && failure.reason.contains("medical")
+        }),
+        "{:?}",
+        invalid.failures()
+    );
+}
+
+#[test]
+#[trace("FR-096-AC-26")]
+fn flow_rule_any_of_resolves_a_local_array_item_enum() {
+    let base = "https://schemas.agent-ix.org/flow-rules-fixture/0.1.0/schemas";
+    let root_schema = format!(
+        r#"{{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"{base}/sink.json","type":"object","properties":{{"agreements":{{"type":"array","items":{{"$ref":"{base}/ProcessorAgreement.json"}}}}}}}}"#
+    );
+    let agreement_schema = format!(
+        r#"{{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"{base}/ProcessorAgreement.json","enum":["covered","not_covered","unknown"]}}"#
+    );
+    let rules = "  - name: agreement-rule\n    subject: [sink]\n    match: [{path: [], field: agreements, any_of: [covered]}]\n    check: agreement-check\n    rationale: Restrict agreement values.\n";
+    let registry = parse_local_ref_registry(
+        rules,
+        &root_schema,
+        &[("schemas/ProcessorAgreement.json", &agreement_schema)],
+    )
+    .expect("module parses");
+    assert!(registry.failures().is_empty(), "{:?}", registry.failures());
+
+    let invalid_rules = "  - name: agreement-rule\n    subject: [sink]\n    match: [{path: [], field: agreements, any_of: [medical]}]\n    check: agreement-check\n    rationale: Restrict agreement values.\n";
+    let invalid = parse_local_ref_registry(
+        invalid_rules,
+        &root_schema,
+        &[("schemas/ProcessorAgreement.json", &agreement_schema)],
+    )
+    .expect("module parses");
+    assert!(
+        invalid.failures().iter().any(|failure| {
+            failure.reason.contains("agreement-rule")
+                && failure.reason.contains("agreements")
+                && failure.reason.contains("medical")
+        }),
+        "{:?}",
+        invalid.failures()
+    );
+}
+
+#[test]
+#[trace("FR-096-AC-27")]
+fn flow_rule_enum_refs_fail_closed_when_missing_or_cyclic() {
+    let base = "https://schemas.agent-ix.org/flow-rules-fixture/0.1.0/schemas";
+    let rules = "  - name: agreement-rule\n    subject: [sink]\n    match: [{path: [], field: agreement, any_of: [covered]}]\n    check: agreement-check\n    rationale: Restrict agreement values.\n";
+    let missing_root = format!(
+        r#"{{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"{base}/sink.json","type":"object","properties":{{"agreement":{{"$ref":"{base}/Missing.json"}}}}}}"#
+    );
+    let missing = parse_local_ref_registry(rules, &missing_root, &[]).expect("module parses");
+    assert!(
+        missing.failures().iter().any(|failure| {
+            failure.reason.contains("agreement-rule")
+                && failure.reason.contains("agreement")
+                && failure.reason.contains("schemas/sink.json")
+                && failure.reason.contains("Missing.json")
+        }),
+        "{:?}",
+        missing.failures()
+    );
+
+    let cycle_root = format!(
+        r#"{{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"{base}/sink.json","type":"object","properties":{{"agreement":{{"$ref":"{base}/A.json"}}}}}}"#
+    );
+    let a_schema = format!(r#"{{"$id":"{base}/A.json","$ref":"{base}/B.json"}}"#);
+    let b_schema = format!(r#"{{"$id":"{base}/B.json","$ref":"{base}/A.json"}}"#);
+    let cyclic = parse_local_ref_registry(
+        rules,
+        &cycle_root,
+        &[("schemas/A.json", &a_schema), ("schemas/B.json", &b_schema)],
+    )
+    .expect("module parses");
+    assert!(
+        cyclic.failures().iter().any(|failure| {
+            failure.reason.contains("agreement-rule")
+                && failure.reason.contains("agreement")
+                && failure.reason.contains("schemas/sink.json")
+                && failure.reason.contains("$ref cycle")
+        }),
+        "{:?}",
+        cyclic.failures()
+    );
+
+    let listener = TcpListener::bind(("127.0.0.1", 0)).expect("bind local no-fetch probe");
+    listener
+        .set_nonblocking(true)
+        .expect("nonblocking no-fetch probe");
+    let address = listener.local_addr().expect("probe address");
+    let remote_base = format!("http://{address}/schemas");
+    let remote_root = format!(
+        r#"{{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"{remote_base}/sink.json","type":"object","properties":{{"agreement":{{"$ref":"{remote_base}/Remote.json"}}}}}}"#
+    );
+    let remote = parse_local_ref_registry(rules, &remote_root, &[]).expect("module parses");
+    assert!(
+        remote.failures().iter().any(|failure| {
+            failure.reason.contains("agreement-rule")
+                && failure.reason.contains("agreement")
+                && failure.reason.contains("schemas/sink.json")
+                && failure.reason.contains("Remote.json")
+                && failure.reason.contains("no shipped file")
+        }),
+        "{:?}",
+        remote.failures()
+    );
+    assert!(
+        matches!(
+            listener.accept(),
+            Err(error) if error.kind() == std::io::ErrorKind::WouldBlock
+        ),
+        "remote schema references must not issue an HTTP request"
+    );
 }
 
 fn docs(files: &[(&str, &str)]) -> (TempDir, Spec) {
@@ -431,7 +626,13 @@ fn a_corpus_without_flow_rules_keeps_the_relation_report_shape_unchanged() {
 }
 
 #[test]
-#[trace("FR-096-AC-5", "FR-096-AC-6", "FR-096-AC-24", "FR-096-AC-25")]
+#[trace(
+    "FR-096-AC-5",
+    "FR-096-AC-6",
+    "FR-096-AC-24",
+    "FR-096-AC-25",
+    "FR-096-AC-28"
+)]
 fn loader_rejects_unknown_registry_references_values_and_check_collisions() {
     let cases = [
         (

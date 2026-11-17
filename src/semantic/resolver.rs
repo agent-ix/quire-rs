@@ -300,6 +300,34 @@ pub fn module_schema_documents(
     walk_documents(schema, siblings, module_base, &[]).map(|(documents, _)| documents)
 }
 
+/// Resolve the offline `$ref` documents reachable from a frontmatter schema.
+/// The schema file's parent is the base for sibling files, and references
+/// outside the module bundle are refused without consulting a network resolver.
+pub(crate) fn frontmatter_schema_documents(
+    source: &SchemaSource<'_>,
+    schema_path: &str,
+    schema: &Value,
+) -> Result<BTreeMap<String, Value>, SemanticFailure> {
+    let module_base = schema
+        .get("$id")
+        .and_then(Value::as_str)
+        .and_then(|id| id.rfind('/').map(|i| id[..=i].to_string()))
+        .unwrap_or_default();
+    let dir = Path::new(schema_path)
+        .parent()
+        .map(Path::to_path_buf)
+        .unwrap_or_default();
+    let siblings = |name: &str| -> Option<Result<Value, String>> {
+        let sibling = dir.join(name).to_string_lossy().to_string();
+        match read_module_file(source, &sibling) {
+            Ok(Some(bytes)) => Some(serde_json::from_slice(&bytes).map_err(|e| e.to_string())),
+            Ok(None) => None,
+            Err(error) => Some(Err(error)),
+        }
+    };
+    module_schema_documents(schema, &siblings, &module_base)
+}
+
 /// [`module_schema_documents`] that also admits `$ref`s under the schema
 /// base of a package in `imports`, returning them without following them.
 fn walk_documents(
@@ -357,12 +385,30 @@ pub fn compile_documents(
     compile_with_imports(schema, documents, &[])
 }
 
+/// Compile a frontmatter schema with its module-local references while
+/// preserving the frontmatter compiler's existing format-validation policy.
+pub(crate) fn compile_frontmatter_documents(
+    schema: &Value,
+    documents: &BTreeMap<String, Value>,
+) -> Result<Validator, SemanticFailure> {
+    compile_with_settings(schema, documents, &[], false)
+}
+
 /// [`compile_documents`] where a `$ref` under the schema base of a package in
 /// `imports` accepts any value.
 fn compile_with_imports(
     schema: &Value,
     documents: &BTreeMap<String, Value>,
     imports: &[String],
+) -> Result<Validator, SemanticFailure> {
+    compile_with_settings(schema, documents, imports, true)
+}
+
+fn compile_with_settings(
+    schema: &Value,
+    documents: &BTreeMap<String, Value>,
+    imports: &[String],
+    validate_formats: bool,
 ) -> Result<Validator, SemanticFailure> {
     let strip = |v: &Value| {
         if imports.is_empty() {
@@ -393,11 +439,15 @@ fn compile_with_imports(
         registry = registry.add(id, resource).map_err(|e| not_schema(&e))?;
     }
     let registry = registry.prepare().map_err(|e| not_schema(&e))?;
-    schema_options(schema)
-        .should_validate_formats(true)
-        .with_registry(&registry)
-        .build(schema)
-        .map_err(|e| not_schema(&e))
+    let options = schema_options(schema).with_registry(&registry);
+    if validate_formats {
+        options
+            .should_validate_formats(true)
+            .build(schema)
+            .map_err(|e| not_schema(&e))
+    } else {
+        options.build(schema).map_err(|e| not_schema(&e))
+    }
 }
 
 /// What `walk` needs besides the document it is on.
