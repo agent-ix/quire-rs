@@ -114,7 +114,7 @@
       "binding",
       "coverage"
     ],
-    "comment": "A criterion tag without any recognized test-matrix row must be diagnostic and cannot back the criterion.",
+    "comment": "A direct criterion marker backs the criterion even when no declared test-matrix row cites it.",
     "input": {
       "module": "name: row-aware-binding\nversion: 0.1.0\nartifact_types:\n- name: FR\n- name: TestMatrix\ntraceability:\n  trace_targets:\n  - name: acceptance-criterion\n    archetype: FR\n    section: Acceptance Criteria\n    id_column: ID\n  - name: test-case\n    archetype: TestMatrix\n    section: Test Cases\n    id_column: ID\n  document_references:\n  - name: verification\n    archetype: FR\n    section: Acceptance Criteria\n    row_id_column: ID\n    column: Verification\n    pattern: '\\b(TC-\\d+)\\b'\n    targets: [test-case]\n  - name: traces-to\n    archetype: TestMatrix\n    section: Test Cases\n    row_id_column: ID\n    column: Traces To\n    pattern: '\\b((?:FR|TC)-\\d+(?:-AC-\\d+)?)\\b'\n    targets: [acceptance-criterion, test-case]\n  status:\n    column: Status\n    complete: [\"✅\"]\n    pending: [\"🚧\"]\n  obligations:\n  - name: acceptance-criteria\n    target: acceptance-criterion\n    statement_column: Criteria\n    method_column: Verification\n  trace_tags:\n    markers:\n    - name: rust-trace-attribute\n      language: rust\n      pattern: '#\\[trace\\(([^)]*)\\)\\]'\n      template: '#[trace({ids})]'\n",
       "documents": {
@@ -126,33 +126,24 @@
       }
     },
     "expect": {
-      "backed": 0,
+      "backed": 1,
       "total": 5,
-      "diagnostic_reasons": [
-        "criterion-tagged-outside-row"
+      "diagnostic_reasons": [],
+      "absent_diagnostic_reasons": [
+        "criterion-tagged-outside-row",
+        "tagged-without-citing-matrix-row"
       ],
       "criterion_backed": {
         "FR-001-AC-1": false,
-        "FR-001-AC-2": false
+        "FR-001-AC-2": true
       },
       "unbacked_rows": [
         "FR-001-AC-1",
-        "FR-001-AC-2",
         "TC-001",
         "TC-002",
         "TC-003"
       ],
-      "unbacked_claims": {
-        "FR-001-AC-2": [
-          {
-            "reason": "tagged-without-citing-matrix-row",
-            "id": "FR-001-AC-2",
-            "path": "src/lib.rs",
-            "line": 3,
-            "symbol": "missing_row_for_second_behavior"
-          }
-        ]
-      }
+      "unbacked_claims": {}
     }
   },
   {
