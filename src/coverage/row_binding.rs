@@ -1,4 +1,4 @@
-//! Restrict criterion backing to the source rows declared by a matrix.
+//! Select trace relations that provide evidence for declared matrix rows.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -6,13 +6,10 @@ use crate::corpus::declared_tables::ScannedRow;
 use crate::symbols::trace::{SymbolGraph, VerifiesRelation};
 use crate::traceability::{DocumentReference, TraceabilityModel};
 
-use super::CoverageDiagnostic;
-
 #[derive(Debug, Default)]
 pub(super) struct RowBindings {
     constrained_ids: BTreeSet<String>,
     rows_by_id: BTreeMap<String, BTreeSet<String>>,
-    declaration_by_id: BTreeMap<String, String>,
     matrix_row_ids: BTreeSet<String>,
 }
 
@@ -68,8 +65,6 @@ impl RowBindings {
             if target_names.is_empty() {
                 continue;
             }
-            declared.push((declaration, row_id_column, rows));
-
             // Only test-matrix rows constrain: a row id that another declaration
             // cites (an FR's Verification cell naming a test case) is an id a
             // test tags. Rows nothing cites, such as inspections, only widen.
@@ -81,15 +76,10 @@ impl RowBindings {
             if !is_test_matrix {
                 continue;
             }
+            declared.push((declaration, row_id_column, rows));
             for target_name in target_names {
                 if let Some(ids) = minted_by_target.get(target_name) {
                     bindings.constrained_ids.extend(ids.iter().cloned());
-                    for id in ids {
-                        bindings
-                            .declaration_by_id
-                            .entry(id.clone())
-                            .or_insert_with(|| declaration.name.clone());
-                    }
                 }
             }
         }
@@ -129,14 +119,10 @@ impl RowBindings {
         bindings
     }
 
-    pub(super) fn eligible_relations<'a>(
+    pub(super) fn row_evidence_relations<'a>(
         &self,
         graph: &'a SymbolGraph,
-    ) -> (
-        Vec<&'a VerifiesRelation>,
-        Vec<CoverageDiagnostic>,
-        Vec<&'a VerifiesRelation>,
-    ) {
+    ) -> Vec<&'a VerifiesRelation> {
         let mut ids_by_symbol: BTreeMap<&str, BTreeSet<&str>> = BTreeMap::new();
         for relation in &graph.verifies {
             ids_by_symbol
@@ -146,8 +132,6 @@ impl RowBindings {
         }
 
         let mut eligible = Vec::with_capacity(graph.verifies.len());
-        let mut diagnostics = Vec::new();
-        let mut rejected = Vec::new();
         for relation in &graph.verifies {
             let symbol_ids = ids_by_symbol
                 .get(relation.symbol_id.as_str())
@@ -161,56 +145,13 @@ impl RowBindings {
                 continue;
             }
             let Some(rows) = self.rows_by_id.get(&relation.trace_id) else {
-                diagnostics.push(self.out_of_row_diagnostic(relation, &BTreeSet::new()));
-                rejected.push(relation);
                 continue;
             };
             if has_matrix_row && rows.iter().any(|row| symbol_ids.contains(row.as_str())) {
                 eligible.push(relation);
-            } else {
-                diagnostics.push(self.out_of_row_diagnostic(relation, rows));
-                rejected.push(relation);
             }
         }
 
-        (eligible, diagnostics, rejected)
-    }
-
-    fn out_of_row_diagnostic(
-        &self,
-        relation: &VerifiesRelation,
-        rows: &BTreeSet<String>,
-    ) -> CoverageDiagnostic {
-        let expected_rows = if rows.is_empty() {
-            "no declared matrix row".to_string()
-        } else {
-            rows.iter()
-                .map(|row| format!("`{row}`"))
-                .collect::<Vec<_>>()
-                .join(", ")
-        };
-        let locus = format!("{}:{}", relation.path, relation.line);
-        CoverageDiagnostic {
-            declaration: self
-                .declaration_by_id
-                .get(&relation.trace_id)
-                .cloned()
-                .unwrap_or_else(|| "traceability.document_references".to_string()),
-            reason: "criterion-tagged-outside-row".to_string(),
-            message: format!(
-                "criterion `{}` is tagged on `{}` at {} but no matrix row cited by that test \
-                 references it; expected a same-test tag for one of {expected_rows}. This tag \
-                 does not provide backing",
-                relation.trace_id, relation.symbol, locus
-            ),
-            path: Some(relation.path.clone()),
-            line: Some(relation.line),
-            value: Some(relation.trace_id.clone()),
-            guidance: Some(crate::finding::FindingGuidance::remedy(
-                format!("criterion `{}`", relation.trace_id),
-                locus,
-                "correct the matrix reference or tag a test whose declared row references this criterion",
-            )),
-        }
+        eligible
     }
 }

@@ -561,7 +561,6 @@ pub struct CoverageDiagnostic {
 pub const COVERAGE_DIAGNOSTIC_REASONS: &[&str] = &[
     "archetype-matches-nothing",
     "catch-all-universal",
-    "criterion-tagged-outside-row",
     "duplicate-formalizes-claim",
     "formalizes-unbound",
     "formalizes-unknown-id",
@@ -751,8 +750,6 @@ pub struct CoverageMatrixCriterion {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum CoverageMatrixClaimReason {
-    /// The test's declared matrix row does not cite the criterion.
-    TaggedWithoutCitingMatrixRow,
     /// The id occurs in a comment or docstring outside a declared marker.
     UnmarkedTraceId,
 }
@@ -760,7 +757,6 @@ pub enum CoverageMatrixClaimReason {
 impl CoverageMatrixClaimReason {
     fn as_str(self) -> &'static str {
         match self {
-            Self::TaggedWithoutCitingMatrixRow => "tagged-without-citing-matrix-row",
             Self::UnmarkedTraceId => "unmarked-trace-id",
         }
     }
@@ -1213,7 +1209,7 @@ mod coverage_matrix_unbacked_claim_tests {
     #[test]
     fn unbacked_claims_sort_and_deduplicate_exact_records() {
         let duplicate = claim(
-            CoverageMatrixClaimReason::TaggedWithoutCitingMatrixRow,
+            CoverageMatrixClaimReason::UnmarkedTraceId,
             "src/a.rs",
             4,
             "tests::alpha",
@@ -1230,15 +1226,15 @@ mod coverage_matrix_unbacked_claim_tests {
             2,
             "tests::zeta",
         );
-        let same_locus_other_reason = claim(
+        let same_line_later_symbol = claim(
             CoverageMatrixClaimReason::UnmarkedTraceId,
             "src/a.rs",
             4,
-            "tests::alpha",
+            "tests::omega",
         );
         let mut claims = vec![
             later.clone(),
-            same_locus_other_reason.clone(),
+            same_line_later_symbol.clone(),
             duplicate.clone(),
             earlier.clone(),
             duplicate.clone(),
@@ -1248,7 +1244,7 @@ mod coverage_matrix_unbacked_claim_tests {
 
         assert_eq!(
             claims,
-            vec![earlier, duplicate, same_locus_other_reason, later],
+            vec![earlier, duplicate, same_line_later_symbol, later],
             "claims sort by path, line, symbol, reason, then id and exact duplicates collapse"
         );
         let sorted = claims.clone();

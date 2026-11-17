@@ -6,7 +6,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use ix_trace_rs::trace;
-use quire_rs::coverage::{compute, CoverageError, CoverageReport};
+use quire_rs::coverage::{compute, CoverageError, CoverageMatrixStatus, CoverageReport};
 use quire_rs::metric::{Measurement, Metric};
 use quire_rs::symbols::trace::BindingCensus;
 use quire_rs::symbols::{extract_tree, trace};
@@ -161,6 +161,27 @@ fn obligation_reference_rows_require_their_own_evidence() {
             .collect();
         expected.sort_unstable();
         assert_eq!(actual, expected, "{name}: sibling criteria cannot borrow TC-025 backing; aggregate TC row retains referenced evidence");
+        if name == "shared-tc-partial-owner-rust-aggregate-reference-only" {
+            let criterion = report
+                .coverage_matrix
+                .iter()
+                .flat_map(|requirement| &requirement.criteria)
+                .find(|criterion| criterion.id == "FR-008-AC-7")
+                .expect("FR-008-AC-7 is in the coverage matrix");
+            assert_eq!(
+                criterion.status,
+                CoverageMatrixStatus::Tagged,
+                "a direct marker tags FR-008-AC-7 without a matrix-row match"
+            );
+            assert!(
+                actual.contains(&"TC-025"),
+                "the aggregate TC-025 row stays unbacked while sibling criteria are untagged: {actual:?}"
+            );
+            assert!(
+                !actual.contains(&"FR-008-AC-7"),
+                "the direct marker removes only its own criterion row from the unbacked set: {actual:?}"
+            );
+        }
         assert!(
             report.status_lies.is_empty(),
             "{name}: pending is not complete"
@@ -302,7 +323,7 @@ fn tc734_unbacked_rows() {
 /// Provenance: PLAT-2.
 #[trace("FR-050-AC-3", "FR-050-AC-67", "FR-050-AC-68")]
 #[test]
-fn a_criterion_tag_only_backs_its_own_matrix_row() {
+fn a_direct_criterion_tag_backs_it_independently_of_its_matrix_row() {
     let cases: serde_json::Value = serde_json::from_str(include_str!(
         "../fixtures/corpus_cases/row-aware-trace-binding.json"
     ))
@@ -515,17 +536,6 @@ fn a_criterion_tag_only_backs_its_own_matrix_row() {
             .iter()
             .filter(|diagnostic| diagnostic.reason == "criterion-tagged-outside-row")
             .collect();
-        if matches!(
-            name,
-            "criterion-tagged-outside-matrix-row"
-                | "criterion-tag-without-matrix-row"
-                | "criterion-tag-with-unrecognized-matrix-row"
-        ) {
-            assert_eq!(diagnostics.len(), 1, "{name}: {report:?}");
-            assert_eq!(diagnostics[0].value.as_deref(), Some("FR-001-AC-2"));
-            assert!(diagnostics[0].message.contains("TC-002"));
-            assert!(diagnostics[0].guidance.is_some());
-        }
         let mut expected_reasons: Vec<_> = case["expect"]["diagnostic_reasons"]
             .as_array()
             .expect("expected diagnostic reasons")

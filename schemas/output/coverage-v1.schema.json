@@ -1157,7 +1157,7 @@
       "properties": {
         "reason": {
           "type": "string",
-          "enum": ["tagged-without-citing-matrix-row", "unmarked-trace-id"]
+          "enum": ["unmarked-trace-id"]
         },
         "id": {"type": "string", "minLength": 1},
         "path": {"type": "string", "minLength": 1},

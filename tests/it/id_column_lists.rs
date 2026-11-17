@@ -5,7 +5,7 @@ use std::fs;
 use std::path::Path;
 
 use ix_trace_rs::trace;
-use quire_rs::coverage::{compute, CoverageReport};
+use quire_rs::coverage::{compute, CoverageMatrixStatus, CoverageReport};
 use quire_rs::symbols::{extract_tree, trace};
 use quire_rs::{Registry, Spec};
 use serde_json::Value;
@@ -264,9 +264,9 @@ fn a_list_or_wildcard_target_bound_by_an_obligations_source_fails_load() {
     }
 }
 
-#[trace("FR-050-AC-63")]
+#[trace("FR-050-AC-67")]
 #[test]
-fn row_binding_never_joins_a_list_target_while_a_single_name_target_joins() {
+fn direct_criterion_backing_does_not_depend_on_matrix_target_column_shape() {
     let cases: Value = serde_json::from_str(include_str!(
         "../fixtures/corpus_cases/row-aware-trace-binding.json"
     ))
@@ -286,26 +286,45 @@ fn row_binding_never_joins_a_list_target_while_a_single_name_target_joins() {
         .iter()
         .map(|(p, b)| (p.as_str(), b.as_str().expect("text")))
         .collect();
-    let has_row_diagnostic = |module: &str| {
-        run(module, &documents, &sources)
-            .diagnostics
+    let assert_tagged = |module: &str, target_column: &str| {
+        let report = run(module, &documents, &sources);
+        let criterion = report
+            .coverage_matrix
             .iter()
-            .any(|d| d.reason == "criterion-tagged-outside-row")
+            .flat_map(|requirement| &requirement.criteria)
+            .find(|criterion| criterion.id == "FR-001-AC-2")
+            .unwrap_or_else(|| panic!("{target_column}: missing FR-001-AC-2"));
+        assert_eq!(
+            criterion.status,
+            CoverageMatrixStatus::Tagged,
+            "{target_column}: direct marker status"
+        );
+        assert!(
+            criterion.binders.iter().any(|binder| {
+                binder.qualified_name == "tests::tc002_wrong_row_for_second_behavior"
+            }),
+            "{target_column}: direct marker binder: {:?}",
+            criterion.binders
+        );
+        assert!(
+            report
+                .diagnostics
+                .iter()
+                .all(|diagnostic| diagnostic.reason != "criterion-tagged-outside-row"),
+            "{target_column}: a direct criterion marker is not row-gated"
+        );
     };
-    assert!(has_row_diagnostic(module), "single-name target joins");
+    assert!(module.contains(anchor));
+    assert_tagged(module, "ID");
 
     // `test-case` is bound by no `obligations:` source, so it may widen.
-    assert!(module.contains(anchor));
-    for declared in ["[ID, Other]", "'I*'"] {
+    for (declared, column) in [("[ID, Other]", "sequence"), ("'I*'", "wildcard")] {
         let widened = module.replacen(
             anchor,
             &format!("    section: Test Cases\n    id_column: {declared}\n"),
             1,
         );
-        assert!(
-            !has_row_diagnostic(&widened),
-            "{declared}: loads but is never the row-binding join partner"
-        );
+        assert_tagged(&widened, column);
     }
 }
 

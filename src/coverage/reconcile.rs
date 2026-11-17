@@ -172,27 +172,22 @@ pub(super) fn reconcile(
             });
         }
     }
-    // Cache reference rows once so row-aware backing and the ordinary
-    // reconciliation below use the same parsed rows.
+    // Cache reference rows once so criterion backing and row evidence share
+    // the same parsed declarations without sharing their evidence rules.
     let reference_rows = scan_reference_rows(spec, root, model, &model_exclude, &mut ctx);
+    let verifies: Vec<_> = graph.verifies.iter().collect();
     let row_bindings = super::row_binding::RowBindings::from_scanned_rows(
         model,
         &reference_rows,
         &minted_by_target,
     );
-    let (verifies, mut row_diagnostics, rejected_relations) =
-        row_bindings.eligible_relations(graph);
-    let mut unbacked_claims: Vec<CoverageMatrixUnbackedClaim> = rejected_relations
-        .iter()
-        .map(|relation| CoverageMatrixUnbackedClaim {
-            reason: CoverageMatrixClaimReason::TaggedWithoutCitingMatrixRow,
-            id: relation.trace_id.clone(),
-            path: relation.path.clone(),
-            line: relation.line,
-            symbol: relation.symbol.clone(),
-        })
-        .collect();
+    let row_verifies = row_bindings.row_evidence_relations(graph);
+    let mut unbacked_claims: Vec<CoverageMatrixUnbackedClaim> = Vec::new();
     let backed: BTreeSet<&str> = verifies
+        .iter()
+        .map(|relation| relation.trace_id.as_str())
+        .collect();
+    let row_backed: BTreeSet<&str> = row_verifies
         .iter()
         .map(|relation| relation.trace_id.as_str())
         .collect();
@@ -280,8 +275,8 @@ pub(super) fn reconcile(
                 Some(id) if obligation_ids.contains(id) => backed.contains(id),
                 _ if !obligation_references.is_empty() => obligation_references
                     .iter()
-                    .all(|id| backed.contains(id.as_str())),
-                _ => answerable.iter().any(|id| backed.contains(id.as_str())),
+                    .all(|id| row_backed.contains(id.as_str())),
+                _ => answerable.iter().any(|id| row_backed.contains(id.as_str())),
             };
             let is_backed = source_backed
                 || evidence.is_some_and(|evidence| {
@@ -645,10 +640,6 @@ pub(super) fn reconcile(
             })
     }));
 
-    // PLAT-2: a criterion tag on a test whose declared matrix row does not
-    // reference that criterion is visible, but is not evidence for it.
-    diagnostics.append(&mut row_diagnostics);
-
     // #307: the two halves of one mistake, already in the payload, joined at
     // last. Ordered after the census diagnostics for the same reason as #312 —
     // this is the case they cannot see, because from their vantage point the
@@ -745,7 +736,7 @@ pub(super) fn reconcile(
     // same symbol binding one id through two declared forms (or a duplicated
     // in-symbol id, FR-051's dedup) is one binder, not a shared id.
     let mut binders: BTreeMap<&str, BTreeSet<(&str, &str)>> = BTreeMap::new();
-    for relation in &verifies {
+    for relation in &row_verifies {
         if !status_row_ids.contains(&relation.trace_id) {
             continue;
         }

@@ -139,10 +139,8 @@ fn tc824_the_baseline_corpus_still_exercises_the_surface() {
     // requires this baseline to carry one, over `covers_range`'s authored
     // range tag — a fixture choice, not a model defect.
     //
-    // The two `criterion-tagged-outside-row` findings are expected too. FR-003
-    // in this synthetic corpus declares `Test` without a TC reference, and no
-    // test-matrix row cites FR-003-AC-1 or FR-003-AC-3. Keep the criterion tags
-    // to exercise their unbacked statuses, and check these exact findings below.
+    // Direct criterion markers back their live criteria without a matrix-row
+    // join, so no row-gating finding belongs in this baseline.
     assert!(
         report
             .diagnostics
@@ -152,21 +150,12 @@ fn tc824_the_baseline_corpus_still_exercises_the_surface() {
          FR-050-AC-20): {:?}",
         report.diagnostics
     );
-    let outside_row_diagnostics: Vec<_> = report
-        .diagnostics
-        .iter()
-        .filter(|d| d.reason == "criterion-tagged-outside-row")
-        .collect();
-    assert_eq!(outside_row_diagnostics.len(), 2);
-    let mut outside_row_criteria: Vec<_> = outside_row_diagnostics
-        .iter()
-        .filter_map(|d| d.value.as_deref())
-        .collect();
-    outside_row_criteria.sort_unstable();
-    assert_eq!(
-        outside_row_criteria,
-        ["FR-003-AC-1", "FR-003-AC-3"],
-        "only the two deliberately row-unqualified baseline test symbols may be diagnosed"
+    assert!(
+        report
+            .diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.reason != "criterion-tagged-outside-row"),
+        "direct criterion markers are not row-gated"
     );
     let model_health: Vec<_> = report
         .diagnostics
@@ -174,7 +163,6 @@ fn tc824_the_baseline_corpus_still_exercises_the_surface() {
         .filter(|d| {
             d.reason != "catch-all-universal"
                 && d.reason != "range-in-trace-tag"
-                && d.reason != "criterion-tagged-outside-row"
                 && d.reason != "trace-id-outside-marker"
         })
         .collect();
@@ -229,9 +217,8 @@ fn tc824_the_baseline_corpus_still_exercises_the_surface() {
     );
 
     // CR-187, FR-050-AC-20: computed coverage statuses over `spec/FR-003.md`.
-    // Its direct criterion tags have no corresponding TC rows, so both remain
-    // untagged under row-aware binding; other tests cover tagged statuses with
-    // explicitly paired rows.
+    // Its direct criterion tags have no corresponding TC rows, so criterion
+    // status comes from the markers themselves.
     use quire_rs::coverage::CoverageMatrixStatus;
     let status = |id: &str| {
         report
@@ -242,9 +229,12 @@ fn tc824_the_baseline_corpus_still_exercises_the_surface() {
             .unwrap_or_else(|| panic!("no coverage_matrix criterion {id}"))
             .status
     };
-    assert_eq!(status("FR-003-AC-1"), CoverageMatrixStatus::Untagged);
+    assert_eq!(status("FR-003-AC-1"), CoverageMatrixStatus::Tagged);
     assert_eq!(status("FR-003-AC-2"), CoverageMatrixStatus::Untagged);
-    assert_eq!(status("FR-003-AC-3"), CoverageMatrixStatus::Untagged);
+    assert_eq!(
+        status("FR-003-AC-3"),
+        CoverageMatrixStatus::TaggedByIgnoredTest
+    );
     assert_eq!(
         status("FR-003-AC-4"),
         CoverageMatrixStatus::MethodWithoutSymbol
