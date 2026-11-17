@@ -547,17 +547,41 @@ fn validate_edge_targets(
                     Some(forward) => (edge_target, forward.as_str(), edge.source_slot),
                     None => (edge.source_slot, edge.edge_type.as_str(), edge_target),
                 };
-            // Resolve the forward source's vocabulary for the forward verb.
-            let source_doc = spec.doc(fwd_source);
-            let Some(source_type) = source_doc.concept_type() else {
-                continue;
-            };
-            let Some(source_arch) = registry.archetype(source_type) else {
-                continue;
-            };
-            let source_obj_arch = document_object(source_doc).and_then(|o| registry.archetype(o));
-            let resolved = registry.resolve_allowed_links(source_arch, source_obj_arch);
-            let Some(targets) = resolved.get(fwd_verb) else {
+            // Prefer the authored source's vocabulary when it declares this
+            // verb. An inverse declaration can make the normalized verb
+            // unknown at the forward source, but that must not bypass the
+            // authored source's own target constraint.
+            let authored_source = spec.doc(edge.source_slot);
+            let authored_targets = authored_source
+                .concept_type()
+                .and_then(|name| registry.archetype(name))
+                .map(|arch| {
+                    let object_arch =
+                        document_object(authored_source).and_then(|name| registry.archetype(name));
+                    registry.resolve_allowed_links(arch, object_arch)
+                });
+            let authored_target_list = authored_targets
+                .as_ref()
+                .and_then(|allowed| allowed.get(&edge.edge_type));
+
+            let normalized_source = spec.doc(fwd_source);
+            let normalized_targets = normalized_source
+                .concept_type()
+                .and_then(|name| registry.archetype(name))
+                .map(|arch| {
+                    let object_arch = document_object(normalized_source)
+                        .and_then(|name| registry.archetype(name));
+                    registry.resolve_allowed_links(arch, object_arch)
+                });
+            let normalized_target_list = normalized_targets
+                .as_ref()
+                .and_then(|allowed| allowed.get(fwd_verb));
+
+            let (target_slot, targets) = if let Some(targets) = authored_target_list {
+                (edge_target, targets)
+            } else if let Some(targets) = normalized_target_list {
+                (fwd_target, targets)
+            } else {
                 // Verb not in the resolved vocabulary — that is Tier-1's
                 // concern (DisallowedEdgeType), not a target violation.
                 continue;
@@ -569,7 +593,7 @@ fn validate_edge_targets(
             // The target's kind: its own archetype name (`type:`), plus —
             // when it declares `object:` — that object type and its roles.
             // Both come from the manifest; nothing is named here.
-            let target_doc = spec.doc(fwd_target);
+            let target_doc = spec.doc(target_slot);
             let Some(target_type) = target_doc.concept_type() else {
                 continue; // no `type:` — nothing to constrain
             };
@@ -584,15 +608,10 @@ fn validate_edge_targets(
                 // Report with the edge as authored (inverse source/target/
                 // verb), per FR-041-AC-4, at the authored source's file path.
                 // Posture-routed (FR-040-AC-13).
-                let authored_source = spec.doc(edge.source_slot);
                 let authored_target = spec.doc(edge_target);
-                let normalized_source = spec.doc(fwd_source);
-                let normalized_target = spec.doc(fwd_target);
-                let normalized_target_type = normalized_target.concept_type().unwrap_or("unknown");
-                let normalized_target_obj = document_object(normalized_target);
-                let normalized_target_kind = match normalized_target_obj {
-                    Some(o) => format!("type '{normalized_target_type}', object '{o}'"),
-                    None => format!("type '{normalized_target_type}'"),
+                let target_kind = match target_obj {
+                    Some(object) => format!("type '{target_type}', object '{object}'"),
+                    None => format!("type '{target_type}'"),
                 };
                 report.route(
                     severity,
@@ -602,18 +621,13 @@ fn validate_edge_targets(
                         "disallowed-edge-target",
                         authored_source.path.clone(),
                         format!(
-                            "authored edge '{}' from '{}' ({}) targets '{}' ({}); normalized forward edge '{}' from '{}' ({}) to '{}' ({}), whose target {} does not satisfy the forward target list {:?}",
+                            "authored edge '{}' from '{}' ({}) targets '{}' ({}); target {} does not satisfy allowed target list {:?}",
                             edge.edge_type,
                             edge.source,
                             authored_source.path.display(),
                             edge.target,
                             authored_target.path.display(),
-                            fwd_verb,
-                            spec.doc(fwd_source).id,
-                            normalized_source.path.display(),
-                            spec.doc(fwd_target).id,
-                            normalized_target.path.display(),
-                            normalized_target_kind,
+                            target_kind,
                             targets
                         ),
                     ),
