@@ -7,6 +7,14 @@ bumps; once 1.0 ships, semver is strict.
 
 ## [Unreleased]
 
+### Added
+
+- QSL-2517 (NFR-140): `traceability.trace_id_qualifiers` declares tag prefixes (`FSpec-` for
+  `agent-ix/filament-specification`). A `verifies` tag written with a declared prefix or as
+  `ix://<org>/<repo>/<id>` binds the criterion of that corpus member only; an unresolvable tag
+  binds nothing and is reported as `unresolved-qualified-trace-id` (repository outside the corpus,
+  or id the member does not mint).
+
 ## [0.62.0] — 2026-11-16
 
 ### Added

@@ -1730,6 +1730,16 @@ fn merge_traceability(modules: &[LoadedModule]) -> crate::traceability::Traceabi
                 merged.acyclic_edges.push(verb.clone());
             }
         }
+        // NFR-140: first-wins by prefix, like every other named entry.
+        for qualifier in &m.trace_id_qualifiers {
+            if !merged
+                .trace_id_qualifiers
+                .iter()
+                .any(|q| q.prefix == qualifier.prefix)
+            {
+                merged.trace_id_qualifiers.push(qualifier.clone());
+            }
+        }
         // FR-086: the design relations merge in module order without duplicates.
         for name in &m.design_relations {
             if !merged.design_relations.contains(name) {

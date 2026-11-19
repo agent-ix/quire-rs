@@ -1510,10 +1510,12 @@ fn tc1026_the_declared_vocabulary_matches_the_engine() {
     // FR-094's reasons are registered by this engine ahead of the pinned corpus
     // declaring them. They are accounted for here by name, so any other
     // difference between the declaration and the registry still fails.
-    const FORMALIZES_REASONS: [&str; 3] = [
+    const FORMALIZES_REASONS: [&str; 4] = [
         "duplicate-formalizes-claim",
         "formalizes-unbound",
         "formalizes-unknown-id",
+        // NFR-140, registered ahead of the pinned corpus likewise.
+        "unresolved-qualified-trace-id",
     ];
     let registry = quire_rs::coverage::COVERAGE_DIAGNOSTIC_REASONS;
     let declared_plus_formalizes: BTreeSet<&str> =

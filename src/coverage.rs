@@ -33,6 +33,7 @@ use crate::traceability::TraceabilityModel;
 mod binding_diagnostics;
 mod declarations;
 mod diagnostics;
+mod qualified;
 mod reconcile;
 mod row_binding;
 
@@ -578,6 +579,7 @@ pub const COVERAGE_DIAGNOSTIC_REASONS: &[&str] = &[
     "partial-implements-attribute-match",
     "partial-implements-syntax-match",
     "range-in-trace-tag",
+    "unresolved-qualified-trace-id",
     "section-holds-no-table",
     "section-matches-nothing",
     "status-column-matches-nothing",
