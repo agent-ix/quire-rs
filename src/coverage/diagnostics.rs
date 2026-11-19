@@ -122,7 +122,7 @@ pub(super) fn guidance_for(diagnostic: &CoverageDiagnostic) -> crate::finding::F
             locus,
             "add the repository to the corpus, correct the id to one that repository mints, or declare the prefix in `trace_id_qualifiers`",
         ),
-        "section-holds-no-table" =>FindingGuidance::remedy(
+        "section-holds-no-table" => FindingGuidance::remedy(
             declaration,
             locus,
             "add the expected table under the matched section or correct the declaration's section selector",

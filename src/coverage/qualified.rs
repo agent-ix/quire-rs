@@ -109,7 +109,6 @@ impl<'g> Qualification<'g> {
             } else if known
                 .get(&folded)
                 .is_some_and(|ids| ids.contains(id.as_str()))
-                || spec.by_qualified_id(&repository, &id).is_some()
             {
                 None
             } else {

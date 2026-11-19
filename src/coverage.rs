@@ -579,7 +579,6 @@ pub const COVERAGE_DIAGNOSTIC_REASONS: &[&str] = &[
     "partial-implements-attribute-match",
     "partial-implements-syntax-match",
     "range-in-trace-tag",
-    "unresolved-qualified-trace-id",
     "section-holds-no-table",
     "section-matches-nothing",
     "status-column-matches-nothing",
@@ -588,6 +587,7 @@ pub const COVERAGE_DIAGNOSTIC_REASONS: &[&str] = &[
     "untracked-id-has-minted-children",
     "uncatalogued-verification-method",
     "undeclared-coverage-vocabulary",
+    "unresolved-qualified-trace-id",
 ];
 
 /// How one declared vocabulary value stands in the bundle (FR-059-AC-9,

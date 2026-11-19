@@ -441,7 +441,6 @@
     "partial-implements-attribute-match",
     "partial-implements-syntax-match",
     "range-in-trace-tag",
-    "unresolved-qualified-trace-id",
     "section-holds-no-table",
     "section-matches-nothing",
     "status-column-matches-nothing",
@@ -449,7 +448,8 @@
     "untracked-id-near-miss",
     "untracked-id-has-minted-children",
     "uncatalogued-verification-method",
-    "undeclared-coverage-vocabulary"
+    "undeclared-coverage-vocabulary",
+    "unresolved-qualified-trace-id"
   ],
   "obligations": [
     {

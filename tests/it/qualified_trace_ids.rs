@@ -1,4 +1,4 @@
-//! NFR-140 — qualified trace ids in `verifies` markers bind the artifact of
+//! NFR-140 â qualified trace ids in `verifies` markers bind the artifact of
 //! the corpus member they name, never the same bare id of another member.
 //! The acceptance criteria live in `agent-ix/filament-spec-language`; the
 //! tests are traced to them by id.
@@ -42,7 +42,34 @@ fn requirement(criteria: &[&str]) -> String {
 /// Two repositories holding the same bare id `FR-001-AC-1`; FSL tests tag it
 /// in the forms under test. `fspec` also mints `FR-001-AC-3`, FSL does not.
 fn world() -> TempDir {
+    world_with(
+        &[
+            ("short_form", "FSpec-FR-001-AC-1"),
+            (
+                "long_form",
+                "ix://agent-ix/filament-specification/FR-001-AC-2",
+            ),
+            ("unminted", "FSpec-FR-001-AC-99"),
+            ("short_form_as_ignored", "FSpec-FR-001-AC-3"),
+        ],
+        false,
+    )
+}
+
+/// `world` with chosen FSL `(test name, tag)` pairs (a name ending `ignored` is
+/// `#[ignore]`d) and, optionally, a filament-specification test matrix whose row
+/// `TC-001` traces to both of its criteria.
+fn world_with(tests: &[(&str, &str)], matrix: bool) -> TempDir {
     let root = TempDir::new().expect("tempdir");
+    if matrix {
+        write(
+            root.path(),
+            "fspec/spec/tests.md",
+            "---\nid: TM-001\ntype: TestMatrix\ntitle: Matrix\n---\n\n## Test Cases\n\n\
+             | ID | Traces To | Status |\n|----|-----------|--------|\n\
+             | TC-001 | FR-001-AC-1, FR-001-AC-2 | 🚧 |\n",
+        );
+    }
     write(
         root.path(),
         "fsl/spec/FR-001.md",
@@ -53,17 +80,8 @@ fn world() -> TempDir {
         "fspec/spec/FR-001.md",
         &requirement(&["FR-001-AC-1", "FR-001-AC-2", "FR-001-AC-3"]),
     );
-    let tests = [
-        ("short_form", "FSpec-FR-001-AC-1"),
-        (
-            "long_form",
-            "ix://agent-ix/filament-specification/FR-001-AC-2",
-        ),
-        ("unminted", "FSpec-FR-001-AC-99"),
-        ("short_form_as_ignored", "FSpec-FR-001-AC-3"),
-    ];
     let mut src = String::from("//! fixture\n\n#[cfg(test)]\nmod tests {\n");
-    for (name, tag) in tests {
+    for &(name, tag) in tests {
         let ignore = if name.ends_with("ignored") {
             "    #[ignore]\n"
         } else {
@@ -216,10 +234,11 @@ fn an_unminted_qualified_id_is_reported_as_unknown_in_the_member() {
 }
 
 #[trace("NFR-140-AC-3")]
-// without the declared qualifier no FSpec- tag binds any row, bare ids
-// included; the tag is an untracked id.
+// the declaration is what makes `FSpec-` a qualifier. Without it the engine cannot
+// know the prefix, so the tag is an ordinary unqualified symbol: it binds no row,
+// bare ids included, and is reported in `untracked_symbols` (not as unresolved).
 #[test]
-fn without_the_declaration_an_fspec_tag_binds_nothing() {
+fn without_the_declaration_an_fspec_tag_is_an_ordinary_untracked_symbol() {
     let root = world();
     let report = both(root.path(), "iso-obligations");
     assert!(binders(&report, "fspec", "FR-001-AC-1").is_empty());
@@ -261,4 +280,93 @@ fn a_malformed_qualifier_declaration_is_refused_at_load() {
         ..TraceabilityModel::default()
     };
     assert!(overlapping.validate().is_err());
+}
+
+#[trace("NFR-140-AC-2")]
+// a qualified tag naming a whole document binds nothing a matrix reads, so it is
+// reported as unresolved, as the bare tag is reported untracked.
+#[test]
+fn a_qualified_document_id_is_reported_not_silently_accepted() {
+    let root = world_with(&[("doc_level", "FSpec-FR-001")], false);
+    let report = both(root.path(), "iso-obligations-qualified");
+    let found = unresolved(&report);
+    assert_eq!(found.len(), 1, "{found:?}");
+    assert_eq!(found[0].0, "FSpec-FR-001");
+    // the bare control: the same id written bare is untracked
+    let bare = world_with(&[("doc_level", "FR-001")], false);
+    let bare_report = both(bare.path(), "iso-obligations-qualified");
+    assert!(bare_report
+        .untracked_symbols
+        .iter()
+        .any(|s| s.trace_id == "FR-001"));
+}
+
+fn unbacked_matrix_row(report: &CoverageReport) -> bool {
+    report
+        .unbacked_rows
+        .iter()
+        .any(|r| r.document.starts_with("fspec") && r.row_id.as_deref() == Some("TC-001"))
+}
+
+#[trace("NFR-140-AC-1")]
+// a qualified tag backs a reference row by the bare rule: every criterion the
+// row traces to must be backed, not any one of them.
+#[test]
+fn a_qualified_tag_backs_a_reference_row_only_when_every_criterion_is_backed() {
+    let partial = world_with(&[("only_ac1", "FSpec-FR-001-AC-1")], true);
+    let report = both(partial.path(), "iso-obligations-qualified");
+    assert!(
+        unbacked_matrix_row(&report),
+        "one of two criteria must leave the row unbacked: {:?}",
+        report.unbacked_rows
+    );
+
+    let full = world_with(
+        &[("ac1", "FSpec-FR-001-AC-1"), ("ac2", "FSpec-FR-001-AC-2")],
+        true,
+    );
+    let report = both(full.path(), "iso-obligations-qualified");
+    assert!(!unbacked_matrix_row(&report), "{:?}", report.unbacked_rows);
+}
+
+#[trace("NFR-140-AC-1")]
+// a qualified tag backs the minted target of the member it names, not FSL's.
+#[test]
+fn a_qualified_tag_backs_the_minted_target_of_its_own_member() {
+    let root = world();
+    let report = both(root.path(), "iso-obligations-qualified");
+    let backed = |document: &str, id: &str| {
+        report
+            .minted_targets
+            .iter()
+            .find(|m| m.document.starts_with(document) && m.id == id)
+            .map(|m| m.backed)
+    };
+    assert_eq!(backed("fspec", "FR-001-AC-1"), Some(true));
+    assert_eq!(backed("fsl", "FR-001-AC-1"), Some(false));
+    assert_eq!(backed("fsl", "FR-001-AC-2"), Some(false));
+}
+
+#[trace("NFR-140-AC-2")]
+// over FSL alone the only report about a qualified tag is the unresolved one.
+#[test]
+fn over_fsl_alone_only_the_unresolved_diagnostic_names_the_tag() {
+    let root = world();
+    let report = report(
+        root.path(),
+        "iso-obligations-qualified",
+        vec![member(root.path(), "fsl", FSL)],
+    );
+    let others: Vec<_> = report
+        .diagnostics
+        .iter()
+        .filter(|d| d.reason != "unresolved-qualified-trace-id")
+        .filter(|d| {
+            d.value
+                .as_deref()
+                .is_some_and(|v| v.contains("FSpec-") || v.contains("ix://"))
+                || d.message.contains("FSpec-")
+        })
+        .collect();
+    assert!(others.is_empty(), "{others:?}");
 }

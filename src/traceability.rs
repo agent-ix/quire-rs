@@ -1801,7 +1801,7 @@ impl TraceabilityModel {
 
     /// NFR-140: each qualifier names a non-blank prefix and an `<org>/<repo>`
     /// identity, and no prefix is declared twice or contains another.
-    fn check_trace_id_qualifiers(&self) -> Result<(), String> {
+    pub(crate) fn check_trace_id_qualifiers(&self) -> Result<(), String> {
         for (index, qualifier) in self.trace_id_qualifiers.iter().enumerate() {
             let prefix = &qualifier.prefix;
             if prefix.trim().is_empty() || prefix.chars().any(char::is_whitespace) {

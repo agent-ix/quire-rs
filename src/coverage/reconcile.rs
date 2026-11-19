@@ -277,26 +277,25 @@ pub(super) fn reconcile(
                 .iter()
                 .filter(|id| obligation_ids.contains(id.as_str()))
                 .collect();
+            // NFR-140: a qualified tag backs through the same rule as a bare one,
+            // so the qualified form is never weaker than the bare form.
+            let document = relative(root, &row.path);
+            let qualified = |id: &str| !qualification.binders(&document, id).is_empty();
             let source_backed = match row_id.as_deref() {
-                Some(id) if obligation_ids.contains(id) => backed.contains(id),
+                Some(id) if obligation_ids.contains(id) => backed.contains(id) || qualified(id),
                 _ if !obligation_references.is_empty() => obligation_references
                     .iter()
-                    .all(|id| row_backed.contains(id.as_str())),
-                _ => answerable.iter().any(|id| row_backed.contains(id.as_str())),
+                    .all(|id| row_backed.contains(id.as_str()) || qualified(id)),
+                _ => answerable
+                    .iter()
+                    .any(|id| row_backed.contains(id.as_str()) || qualified(id)),
             };
-            let qualified_backed = answerable.iter().any(|id| {
-                !qualification
-                    .binders(&relative(root, &row.path), id)
-                    .is_empty()
-            });
             let is_backed = source_backed
-                || qualified_backed
                 || evidence.is_some_and(|evidence| {
                     row_id.as_deref().is_some_and(|id| {
                         evidence.backs_row(&relative(root, &row.path), id, row.line)
                     })
                 });
-            let document = relative(root, &row.path);
 
             // CR-083: an undeclared status is classified **above** the backed
             // early-continue, and that placement is the whole point. Vocabulary
