@@ -418,6 +418,14 @@ pub struct TraceabilityModel {
     /// How source symbols carry trace ids (FR-051).
     #[serde(default)]
     pub trace_tags: TraceTagGrammar,
+    /// Prefixes that qualify a trace id with the repository whose artifact it
+    /// names (NFR-140): `FSpec-` declared for `agent-ix/filament-specification`
+    /// makes `FSpec-FR-1-AC-2` the qualified id
+    /// `ix://agent-ix/filament-specification/FR-1-AC-2`. The engine reads the
+    /// prefix and the repository from this declaration and knows no repository
+    /// name of its own.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub trace_id_qualifiers: Vec<TraceIdQualifier>,
     /// Column vocabularies the module's matrix contract and this rollup must
     /// agree on (CR-015). Declaring them here makes the model the single
     /// source: a contract and its coverage computation cannot drift.
@@ -468,6 +476,18 @@ pub struct TraceabilityModel {
     /// Remediation vocabulary referenced by flow rules (FR-096).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub remediations: Vec<FlowRemediation>,
+}
+
+/// One declared trace-id qualifier (NFR-140): a prefix a source tag may write
+/// in place of the full `ix://<org>/<repo>/` qualification.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct TraceIdQualifier {
+    /// The prefix as written in a tag, for example `FSpec-`.
+    pub prefix: String,
+    /// The `<org>/<repo>` identity the prefix stands for, as a corpus member
+    /// declares it.
+    pub repository: String,
 }
 
 /// One vocabulary whose values documents are expected to claim (FR-059).
@@ -1712,6 +1732,7 @@ impl TraceabilityModel {
             // catch and did not, because its assertions are hand-listed too.
             && self.trace_tags.implements.is_empty()
             && self.trace_tags.formalizes.is_empty()
+            && self.trace_id_qualifiers.is_empty()
             && self.vocabularies.test_type.is_empty()
             // FR-053: obligations mint records, so a model declaring only them
             // has declared something. (Unlike the model-level `exclude`, which
@@ -1778,12 +1799,52 @@ impl TraceabilityModel {
         Ok(())
     }
 
+    /// NFR-140: each qualifier names a non-blank prefix and an `<org>/<repo>`
+    /// identity, and no prefix is declared twice or contains another.
+    pub(crate) fn check_trace_id_qualifiers(&self) -> Result<(), String> {
+        for (index, qualifier) in self.trace_id_qualifiers.iter().enumerate() {
+            let prefix = &qualifier.prefix;
+            if prefix.trim().is_empty() || prefix.chars().any(char::is_whitespace) {
+                return Err(format!(
+                    "traceability: trace_id_qualifiers entry {index} declares a blank prefix \
+                     or one containing whitespace"
+                ));
+            }
+            let segments: Vec<&str> = qualifier.repository.split('/').collect();
+            if segments.len() != 2 || segments.iter().any(|s| s.trim().is_empty()) {
+                return Err(format!(
+                    "traceability: trace_id_qualifiers entry '{prefix}' names repository \
+                     '{}', which is not `<org>/<repo>`",
+                    qualifier.repository
+                ));
+            }
+            for other in &self.trace_id_qualifiers[..index] {
+                if other.prefix == *prefix {
+                    return Err(format!(
+                        "traceability: trace_id_qualifiers declares prefix '{prefix}' twice"
+                    ));
+                }
+                if other.prefix.starts_with(prefix.as_str())
+                    || prefix.starts_with(other.prefix.as_str())
+                {
+                    return Err(format!(
+                        "traceability: trace_id_qualifiers prefixes '{}' and '{prefix}' \
+                         overlap, so a tag could name either repository",
+                        other.prefix
+                    ));
+                }
+            }
+        }
+        Ok(())
+    }
+
     /// Shape-validate the declaration. Returns a caller-facing reason on the
     /// first problem, which the manifest loader turns into a module-load
     /// failure (FR-050-AC-2).
     pub fn validate(&self) -> Result<(), String> {
         check_excludes("model-level", "exclude", &self.exclude)?;
         check_excludes("model-level", "source_exclude", &self.source_exclude)?;
+        self.check_trace_id_qualifiers()?;
 
         let mut target_names: BTreeSet<&str> = BTreeSet::new();
         for target in &self.trace_targets {

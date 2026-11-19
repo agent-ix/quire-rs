@@ -1435,6 +1435,21 @@ pub fn flatten_into_registry(mut outcome: LoadOutcome) -> RegistryShape {
         // must never expose a contradictory coverage model for computation.
         traceability = crate::traceability::TraceabilityModel::default();
     }
+    // NFR-140: prefix uniqueness and non-overlap hold across modules, not only
+    // inside one.
+    if let Err(reason) = traceability.check_trace_id_qualifiers() {
+        for module in &outcome.modules {
+            if !module.traceability.trace_id_qualifiers.is_empty() {
+                outcome.failures.push(ArchetypeLoadFailure {
+                    module: module.name.clone(),
+                    archetype: "<manifest>".to_string(),
+                    path: module.root.join("manifest.yaml"),
+                    reason: format!("merged selected traceability model: {reason}"),
+                });
+            }
+        }
+        traceability = crate::traceability::TraceabilityModel::default();
+    }
     // Targets merge first-wins by name, so an `obligations:` source one module
     // validated against its own target can end up bound to another module's
     // target that reads a list, `*`, or no table column (AC-63, CR-203).
@@ -1728,6 +1743,14 @@ fn merge_traceability(modules: &[LoadedModule]) -> crate::traceability::Traceabi
         for verb in &m.acyclic_edges {
             if !merged.acyclic_edges.contains(verb) {
                 merged.acyclic_edges.push(verb.clone());
+            }
+        }
+        // NFR-140: an identical declaration is deduplicated; a prefix declared for
+        // another repository, or one overlapping another prefix, is kept so the
+        // merged check below refuses it rather than dropping it silently.
+        for qualifier in &m.trace_id_qualifiers {
+            if !merged.trace_id_qualifiers.contains(qualifier) {
+                merged.trace_id_qualifiers.push(qualifier.clone());
             }
         }
         // FR-086: the design relations merge in module order without duplicates.
@@ -2557,6 +2580,46 @@ mod tests {
             merged.trace_targets.len(),
             3,
             "and the named entries merge as before"
+        );
+    }
+
+    #[trace("NFR-140-AC-3")]
+    // trace_id_qualifiers merge across modules: an identical declaration is
+    // deduplicated, while the same prefix for another repository, or two
+    // overlapping prefixes, are refused rather than resolved by load order.
+    #[test]
+    fn trace_id_qualifiers_are_checked_across_merged_modules() {
+        let merged_failures = |label: &str, a: (&str, &str), b: (&str, &str)| {
+            let parent = tmpdir(label);
+            for (name, (prefix, repository)) in [("mod-a", a), ("mod-b", b)] {
+                let root = parent.join(name);
+                fs::create_dir_all(&root).unwrap();
+                fs::write(
+                    root.join("manifest.yaml"),
+                    format!(
+                        "name: {name}\nartifact_types:\n- name: foo\n\
+                         traceability:\n  trace_id_qualifiers:\n  - prefix: '{prefix}'\n    \
+                         repository: {repository}\n  trace_targets:\n\
+                         \x20 - name: t-{name}\n    archetype: foo\n    section: S\n    id_column: ID\n"
+                    ),
+                )
+                .unwrap();
+            }
+            flatten_into_registry(load_modules(&[&parent])).failures
+        };
+        let same = merged_failures("q-same", ("F-", "o/a"), ("F-", "o/a"));
+        assert!(same.is_empty(), "{same:?}");
+        let conflict = merged_failures("q-conflict", ("F-", "o/a"), ("F-", "o/b"));
+        assert!(
+            conflict
+                .iter()
+                .any(|f| f.reason.contains("declares prefix 'F-' twice")),
+            "{conflict:?}"
+        );
+        let overlap = merged_failures("q-overlap", ("F-", "o/a"), ("F-X-", "o/b"));
+        assert!(
+            overlap.iter().any(|f| f.reason.contains("overlap")),
+            "{overlap:?}"
         );
     }
 

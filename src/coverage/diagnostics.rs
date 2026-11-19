@@ -117,6 +117,11 @@ pub(super) fn guidance_for(diagnostic: &CoverageDiagnostic) -> crate::finding::F
             locus,
             "write one trace tag naming each id in the range explicitly; a range never binds, including its own endpoints",
         ),
+        "unresolved-qualified-trace-id" => FindingGuidance::remedy(
+            format!("trace id `{value}`"),
+            locus,
+            "add the repository to the corpus, correct the id to one that repository mints, or declare the prefix in `trace_id_qualifiers`",
+        ),
         "section-holds-no-table" => FindingGuidance::remedy(
             declaration,
             locus,

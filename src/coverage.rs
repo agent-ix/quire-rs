@@ -33,6 +33,7 @@ use crate::traceability::TraceabilityModel;
 mod binding_diagnostics;
 mod declarations;
 mod diagnostics;
+mod qualified;
 mod reconcile;
 mod row_binding;
 
@@ -586,6 +587,7 @@ pub const COVERAGE_DIAGNOSTIC_REASONS: &[&str] = &[
     "untracked-id-has-minted-children",
     "uncatalogued-verification-method",
     "undeclared-coverage-vocabulary",
+    "unresolved-qualified-trace-id",
 ];
 
 /// How one declared vocabulary value stands in the bundle (FR-059-AC-9,

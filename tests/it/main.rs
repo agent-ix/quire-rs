@@ -52,6 +52,7 @@ mod plain_language;
 mod plat_validation_batch;
 mod props_fr_040;
 mod props_metamorphic;
+mod qualified_trace_ids;
 mod quality_lints;
 mod record_carry;
 mod relation_report;

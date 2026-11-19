@@ -191,8 +191,14 @@ pub(super) fn reconcile(
         .iter()
         .map(|relation| relation.trace_id.as_str())
         .collect();
+    // NFR-140: qualified tags resolve against the member they name.
+    let qualification =
+        super::qualified::Qualification::build(spec, model, graph, root, &obligations, &minted);
     for record in &mut minted {
         record.backed = backed.contains(record.id.as_str())
+            || !qualification
+                .binders(&record.document, &record.id)
+                .is_empty()
             || evidence.is_some_and(|evidence| {
                 evidence.backs_minted(&record.document, &record.id, record.line, &record.target)
             });
@@ -271,12 +277,18 @@ pub(super) fn reconcile(
                 .iter()
                 .filter(|id| obligation_ids.contains(id.as_str()))
                 .collect();
+            // NFR-140: a qualified tag backs through the same rule as a bare one,
+            // so the qualified form is never weaker than the bare form.
+            let document = relative(root, &row.path);
+            let qualified = |id: &str| !qualification.binders(&document, id).is_empty();
             let source_backed = match row_id.as_deref() {
-                Some(id) if obligation_ids.contains(id) => backed.contains(id),
+                Some(id) if obligation_ids.contains(id) => backed.contains(id) || qualified(id),
                 _ if !obligation_references.is_empty() => obligation_references
                     .iter()
-                    .all(|id| row_backed.contains(id.as_str())),
-                _ => answerable.iter().any(|id| row_backed.contains(id.as_str())),
+                    .all(|id| row_backed.contains(id.as_str()) || qualified(id)),
+                _ => answerable
+                    .iter()
+                    .any(|id| row_backed.contains(id.as_str()) || qualified(id)),
             };
             let is_backed = source_backed
                 || evidence.is_some_and(|evidence| {
@@ -284,7 +296,6 @@ pub(super) fn reconcile(
                         evidence.backs_row(&relative(root, &row.path), id, row.line)
                     })
                 });
-            let document = relative(root, &row.path);
 
             // CR-083: an undeclared status is classified **above** the backed
             // early-continue, and that placement is the whole point. Vocabulary
@@ -427,7 +438,8 @@ pub(super) fn reconcile(
         .verifies
         .iter()
         .filter(|relation| {
-            !declared_ids.contains(&relation.trace_id)
+            !qualification.is_qualified(&relation.trace_id)
+                && !declared_ids.contains(&relation.trace_id)
                 && !referenced_ids.contains(&relation.trace_id)
                 && !row_ids.contains(&relation.trace_id)
                 // CR-187 R2: an obligation's own id — including one minted
@@ -592,6 +604,7 @@ pub(super) fn reconcile(
     // makes every unbacked row in it unreadable, not just the rows one
     // declaration selects.
     diagnostics.extend(binding_diagnostics(&graph.binding_census));
+    diagnostics.extend(qualification.diagnostics());
 
     // CR-215: an id written in a comment or docstring, which never binds.
     // Ordered immediately after the census diagnostics: they read a
@@ -773,6 +786,7 @@ pub(super) fn reconcile(
         model,
         &retired_obligations,
         evidence,
+        &qualification,
     );
     diagnostics.extend(super::diagnostics::uncatalogued_methods(
         &obligations,
@@ -907,6 +921,7 @@ fn scan_reference_rows(
 /// itself (FR-050-AC-47): `test-case`, `suite` and `inspection` targets never
 /// become a criterion, only a module's declared `obligations:` sources decide
 /// what counts.
+#[allow(clippy::too_many_arguments)] // one derived input per matrix source; a bundle would only rename them
 fn coverage_matrix(
     spec: &Spec,
     root: &Path,
@@ -916,6 +931,7 @@ fn coverage_matrix(
     model: &TraceabilityModel,
     retired: &[bool],
     evidence: Option<&crate::evidence::ReconciledEvidence<'_>>,
+    qualification: &super::qualified::Qualification<'_>,
 ) -> Vec<super::CoverageMatrixRequirement> {
     use super::{
         CoverageMatrixBinder, CoverageMatrixCriterion, CoverageMatrixRequirement,
@@ -970,10 +986,23 @@ fn coverage_matrix(
                 .map(|entry| evidence.binders(entry.identity().into()))
                 .unwrap_or_default()
         });
-        let mut binders: Vec<CoverageMatrixBinder> = binders_by_id
+        let mut by_site: BTreeMap<(&str, usize, usize), CoverageMatrixBinder> = binders_by_id
             .get(obligation.id.as_str())
-            .map(|m| m.values().cloned().collect())
+            .cloned()
             .unwrap_or_default();
+        for relation in qualification.binders(&obligation.document, &obligation.id) {
+            by_site
+                .entry((relation.path.as_str(), relation.line, relation.column))
+                .or_insert_with(|| CoverageMatrixBinder {
+                    path: relation.path.clone(),
+                    line: relation.line,
+                    column: relation.column,
+                    qualified_name: relation.symbol.clone(),
+                    kind: relation.kind.as_str().to_string(),
+                    ignored: relation.ignored,
+                });
+        }
+        let mut binders: Vec<CoverageMatrixBinder> = by_site.into_values().collect();
         binders.sort_by(|a, b| {
             (&a.path, a.line, a.column, &a.qualified_name, &a.kind).cmp(&(
                 &b.path,

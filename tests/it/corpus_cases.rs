@@ -1515,18 +1515,24 @@ fn tc1026_the_declared_vocabulary_matches_the_engine() {
         "formalizes-unbound",
         "formalizes-unknown-id",
     ];
+    // NFR-140 (QSL-2517): registered by this engine ahead of the pinned corpus.
+    const QUALIFIED_TRACE_REASONS: [&str; 1] = ["unresolved-qualified-trace-id"];
     let registry = quire_rs::coverage::COVERAGE_DIAGNOSTIC_REASONS;
-    let declared_plus_formalizes: BTreeSet<&str> =
-        emitted.iter().copied().chain(FORMALIZES_REASONS).collect();
+    let declared_plus_formalizes: BTreeSet<&str> = emitted
+        .iter()
+        .copied()
+        .chain(FORMALIZES_REASONS)
+        .chain(QUALIFIED_TRACE_REASONS)
+        .collect();
     assert_eq!(
-        emitted.len() + FORMALIZES_REASONS.len(),
+        emitted.len() + FORMALIZES_REASONS.len() + QUALIFIED_TRACE_REASONS.len(),
         declared_plus_formalizes.len(),
-        "corpus.yaml `emitted` must not already list a formalizes reason",
+        "corpus.yaml `emitted` must not already list an engine-ahead reason",
     );
     assert_eq!(
         declared_plus_formalizes,
         registry.iter().copied().collect::<BTreeSet<_>>(),
-        "corpus.yaml `emitted` plus the formalizes reasons must equal the engine registry",
+        "corpus.yaml `emitted` plus the engine-ahead reasons must equal the engine registry",
     );
 
     // The same registry is present in an ordinary report, which makes the

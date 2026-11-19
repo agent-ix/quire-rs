@@ -448,7 +448,8 @@
     "untracked-id-near-miss",
     "untracked-id-has-minted-children",
     "uncatalogued-verification-method",
-    "undeclared-coverage-vocabulary"
+    "undeclared-coverage-vocabulary",
+    "unresolved-qualified-trace-id"
   ],
   "obligations": [
     {
