@@ -456,7 +456,7 @@ fn obligations_preserve_every_field_across_rendered_and_configured_identities() 
             target_ids: vec!["TC-1901".to_string()],
             locator: AssuranceLocator {
                 path: "FR-001.md".to_string(),
-                line: 10,
+                line: 11,
             },
         },
         AssuranceObligation {
@@ -470,7 +470,7 @@ fn obligations_preserve_every_field_across_rendered_and_configured_identities() 
             target_ids: vec!["TC-1902".to_string()],
             locator: AssuranceLocator {
                 path: "FR-001.md".to_string(),
-                line: 10,
+                line: 11,
             },
         },
         AssuranceObligation {
@@ -484,7 +484,7 @@ fn obligations_preserve_every_field_across_rendered_and_configured_identities() 
             target_ids: vec!["TC-1903".to_string()],
             locator: AssuranceLocator {
                 path: "FR-002.md".to_string(),
-                line: 10,
+                line: 11,
             },
         },
         AssuranceObligation {
