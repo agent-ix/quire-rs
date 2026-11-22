@@ -7,8 +7,8 @@ use std::path::Path;
 use ix_trace_rs::trace;
 use jsonschema::{Draft, Validator};
 use quire_rs::assurance::{
-    AssuranceFreshness, AssuranceModulePremise, AssuranceRelation, AssuranceResolution,
-    RelationAvailability, ASSURANCE_V1_SCHEMA,
+    AssuranceFreshness, AssuranceLocator, AssuranceModulePremise, AssuranceObligation,
+    AssuranceRelation, AssuranceResolution, RelationAvailability, ASSURANCE_V1_SCHEMA,
 };
 use quire_rs::corpus::walk::load_repo;
 use quire_rs::diagnostic::Diagnostic;
@@ -165,6 +165,81 @@ fn schema() -> Validator {
 
 fn golden() -> Value {
     serde_json::from_str(include_str!("../fixtures/assurance/v1.json")).expect("golden JSON")
+}
+
+fn obligation_export(reverse_creation_order: bool, unrelated_body: &str) -> AssuranceExport {
+    let manifest = br#"
+name: obligation-export-fixture
+version: 1.0.0
+artifact_types:
+- name: FR
+- name: NFR
+- name: StR
+traceability:
+  trace_targets:
+  - name: acceptance-criterion
+    archetype: FR
+    section: Acceptance Criteria
+    id_column: ID
+  obligations:
+  - name: acceptance-criterion
+    target: acceptance-criterion
+    statement_column: Criteria
+    method_column: Verification
+    parameters:
+      threshold: Threshold
+    criticality_column: Priority
+    criticality_field: criticality
+  - name: nfr-metric
+    archetype: NFR
+    section: Measurement and Evaluation
+    id_format: "{document}-M-{row}"
+    statement_column: Metric
+    method_column: Method
+    parameters:
+      target: Target
+      threshold: Threshold
+"#;
+    let registry = Registry::from_inline_parts(manifest, &BTreeMap::new()).expect("registry");
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let root = tmp.path();
+    let documents = [
+        (
+            "spec/FR-001.md",
+            "---\nid: FR-001\ntype: FR\ncriticality: elevated\n---\n\n## Acceptance Criteria\n\n| ID | Criteria | Verification | Threshold | Priority |\n|---|---|---|---|---|\n| FR-001-AC-1 | Repeat this exact acceptance statement. | Test (TC-1901) | 5 ms | high |\n| FR-001-AC-2 | Repeat this exact acceptance statement. | Analysis (TC-1902) | 10 ms |  |\n",
+        ),
+        (
+            "spec/FR-002.md",
+            "---\nid: FR-002\ntype: FR\ncriticality: severe\n---\n\n## Acceptance Criteria\n\n| ID | Criteria | Verification | Threshold | Priority |\n|---|---|---|---|---|\n| FR-002-AC-1 | Repeat this exact acceptance statement. | Demonstration (TC-1903) | 1 s |  |\n",
+        ),
+        (
+            "spec/NFR-003.md",
+            "---\nid: NFR-003\ntype: NFR\n---\n\n## Measurement and Evaluation\n\n| Metric | Method | Target | Threshold |\n|---|---|---|---|\n| Maximum export delay | Analysis | under 5 ms | 5 ms |\n| Maximum retained bytes | Test | under 1 KiB | 1 KiB |\n",
+        ),
+        (
+            "spec/FR-099.md",
+            unrelated_body,
+        ),
+    ];
+    if reverse_creation_order {
+        for (path, contents) in documents.iter().rev() {
+            write(root, path, contents);
+        }
+    } else {
+        for (path, contents) in documents {
+            write(root, path, contents);
+        }
+    }
+    let spec = Spec::from_repo(load_repo(&root.join("spec")));
+    let symbols = extract_tree(root);
+    build_assurance_export(AssuranceInput {
+        spec: &spec,
+        registry: &registry,
+        corpus_root: root.join("spec").as_path(),
+        symbols: &symbols,
+        symbol_graph: &SymbolGraph::default(),
+    })
+    .expect("assurance export")
 }
 
 #[trace("FR-067-AC-1")]
@@ -359,6 +434,115 @@ fn tc1091_tc1093_records_preserve_authoritative_identifiers_and_locators() {
         assert_eq!(projected.qualified_name, source.qualified_name);
         assert_eq!(projected.locator.line, source.line);
     }
+}
+
+#[trace("FR-068-AC-2")]
+#[trace("FR-068-AC-8")]
+#[test]
+fn obligations_preserve_every_field_across_rendered_and_configured_identities() {
+    let unrelated = |body: &str| {
+        format!("---\nid: FR-099\ntype: FR\ntitle: Unrelated\n---\n\n## Description\n\n{body}\n")
+    };
+    let export = obligation_export(false, &unrelated("Initial unrelated text."));
+    let expected = vec![
+        AssuranceObligation {
+            source: "acceptance-criterion".to_string(),
+            id: "FR-001-AC-1".to_string(),
+            document: "FR-001.md".to_string(),
+            statement: "Repeat this exact acceptance statement.".to_string(),
+            method: Some("Test".to_string()),
+            parameters: BTreeMap::from([("threshold".to_string(), "5 ms".to_string())]),
+            criticality: Some("high".to_string()),
+            target_ids: vec!["TC-1901".to_string()],
+            locator: AssuranceLocator {
+                path: "FR-001.md".to_string(),
+                line: 11,
+            },
+        },
+        AssuranceObligation {
+            source: "acceptance-criterion".to_string(),
+            id: "FR-001-AC-2".to_string(),
+            document: "FR-001.md".to_string(),
+            statement: "Repeat this exact acceptance statement.".to_string(),
+            method: Some("Analysis".to_string()),
+            parameters: BTreeMap::from([("threshold".to_string(), "10 ms".to_string())]),
+            criticality: Some("elevated".to_string()),
+            target_ids: vec!["TC-1902".to_string()],
+            locator: AssuranceLocator {
+                path: "FR-001.md".to_string(),
+                line: 11,
+            },
+        },
+        AssuranceObligation {
+            source: "acceptance-criterion".to_string(),
+            id: "FR-002-AC-1".to_string(),
+            document: "FR-002.md".to_string(),
+            statement: "Repeat this exact acceptance statement.".to_string(),
+            method: Some("Demonstration".to_string()),
+            parameters: BTreeMap::from([("threshold".to_string(), "1 s".to_string())]),
+            criticality: Some("severe".to_string()),
+            target_ids: vec!["TC-1903".to_string()],
+            locator: AssuranceLocator {
+                path: "FR-002.md".to_string(),
+                line: 11,
+            },
+        },
+        AssuranceObligation {
+            source: "nfr-metric".to_string(),
+            id: "NFR-003-M-1".to_string(),
+            document: "NFR-003.md".to_string(),
+            statement: "Maximum export delay".to_string(),
+            method: Some("Analysis".to_string()),
+            parameters: BTreeMap::from([
+                ("target".to_string(), "under 5 ms".to_string()),
+                ("threshold".to_string(), "5 ms".to_string()),
+            ]),
+            criticality: None,
+            target_ids: Vec::new(),
+            locator: AssuranceLocator {
+                path: "NFR-003.md".to_string(),
+                line: 10,
+            },
+        },
+        AssuranceObligation {
+            source: "nfr-metric".to_string(),
+            id: "NFR-003-M-2".to_string(),
+            document: "NFR-003.md".to_string(),
+            statement: "Maximum retained bytes".to_string(),
+            method: Some("Test".to_string()),
+            parameters: BTreeMap::from([
+                ("target".to_string(), "under 1 KiB".to_string()),
+                ("threshold".to_string(), "1 KiB".to_string()),
+            ]),
+            criticality: None,
+            target_ids: Vec::new(),
+            locator: AssuranceLocator {
+                path: "NFR-003.md".to_string(),
+                line: 11,
+            },
+        },
+    ];
+    assert_eq!(export.obligations, expected);
+
+    let bytes = export.to_json_bytes().expect("serialize export");
+    let accepted = AcceptedAssurancePremises::from_export(&export);
+    assert_eq!(
+        read_assurance_export(&bytes, &accepted).expect("read export"),
+        export,
+        "FR-068-AC-8: reading preserves the complete projected record set"
+    );
+    assert_eq!(
+        bytes,
+        obligation_export(true, &unrelated("Initial unrelated text."))
+            .to_json_bytes()
+            .expect("serialize reversed input order"),
+        "identical inputs serialize independently of document creation order"
+    );
+    assert_eq!(
+        export,
+        obligation_export(false, &unrelated("Edited unrelated prose.")),
+        "editing an unrelated document leaves every exported record unchanged"
+    );
 }
 
 #[trace("FR-068-AC-4")]
