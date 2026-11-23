@@ -11,7 +11,10 @@ FUZZ_TARGETS := \
 	fuzz_apply_patch \
 	fuzz_extract_dsl \
 	fuzz_load_manifest \
-	fuzz_load_schema
+	fuzz_load_schema \
+	fuzz_assurance_export \
+	fuzz_evidence_record \
+	fuzz_trace_trailers
 
 .PHONY: help
 help:
@@ -221,6 +224,10 @@ mutants:
 # symbol graph alone.
 #
 # Usage: make mutants-fr FR=FR-026
+# Narrow the test run with MUTANTS_ARGS, e.g. the PLAT-1799 focused oracle:
+#   make mutants-fr FR=FR-078 MUTANTS_ARGS='-- --lib --test it tc1799'
+# `--lib` is required: the helper unit tests live in src/evidence.rs and `--test it`
+# alone never runs them against a mutant.
 .PHONY: mutants-fr
 mutants-fr:
 	@test -n "$(FR)" || { echo "usage: make mutants-fr FR=FR-026" >&2; exit 2; }
@@ -232,7 +239,7 @@ mutants-fr:
 	fi; \
 	echo "$(FR) mutation scope:"; echo "$$files" | sed 's/^/  /'; \
 	args=""; for f in $$files; do args="$$args --file $$f"; done; \
-	$(CARGO) mutants -p quire-rs $$args
+	$(CARGO) mutants -p quire-rs $$args $(MUTANTS_ARGS)
 
 .PHONY: mutants-scope
 mutants-scope:

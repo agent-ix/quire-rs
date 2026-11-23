@@ -29,6 +29,7 @@ mod filament_core_fixtures;
 mod flow_rules;
 mod formalizes_relation;
 mod frontmatter_owned_keys;
+mod hardening_properties;
 mod id_column_lists;
 #[cfg(feature = "rust-symbols")]
 mod implements_relation;
