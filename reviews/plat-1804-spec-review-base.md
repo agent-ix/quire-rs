@@ -84,3 +84,10 @@ Round 2, at head d818f6c7 (fix commit checked against round-1 head 18d020c7).
 | --- | --- | --- |
 | FND-002 | fixed | after: drop list adds "one `field_rules` entry; one `trace_tags` entry; one `vocabularies` entry; one `vocabulary_coverage` entry; one `design_relations` entry; the model-level `exclude` list and the model-level `source_exclude` list, each as one declaration ...; the `status` vocabulary, as one declaration"; cascades add the `status_column` and `design_relations` cases; and "Any other kind. A declaration kind `TraceabilityModel::validate` rejects that this list does not name is dropped as one entry of that kind, or as the whole declaration when the kind is a single value or list; it never fails the module or empties the merged model." AC-39 and AC-46 are extended. |
 | FND-006 | fixed | after: "the same holds for a relation's own `exclude`, whose bad glob drops the relation that carries it"; AC-10 "an uncompilable `exclude` glob, which drops the whole relation carrying it". |
+
+Round 3, at head 33e6e012 (fix commit checked against round-2 head d818f6c7).
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-007 | fixed | after: drop list "two entries with one `name` in one module or across modules and different bodies drop both ... while identical entries merge to one, first-wins"; FR-058-AC-10 "two relations of one name in one module with different bodies, which drops both and records one failure naming the module (identical entries merge to one with no failure)". |
+| FND-008 | fixed | after: drop list "one `field_consistency` entry; one `required_fields` entry; one `vocabulary` entry"; FR-058-AC-39 lists `field_consistency`, `required_fields`, `vocabulary`. |
