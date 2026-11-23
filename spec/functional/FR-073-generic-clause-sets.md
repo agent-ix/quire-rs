@@ -40,8 +40,7 @@ official links while omitting clause text.
 
 Each `outputCatalog` entry (`ExpectedOutput`) carries `kind` and `description`
 and may carry `producers`, the machine-checked binding of the output to what
-produces it. `producers` is a list of retained record kind strings; a record
-whose kind is in the list satisfies the output. Rules:
+produces it. `producers` is a list of retained record kind strings. Rules:
 
 - Quire SHALL accept a catalog entry with no `producers` member. An absent
   member means the output is not machine-produced (for example a
@@ -61,7 +60,8 @@ whose kind is in the list satisfies the output. Rules:
   JSON and YAML forms.
 - Quire SHALL NOT serialize an absent `producers` member as an empty list.
 - Informative: quoin FR-211 reads `producers` to decide which retained record
-  kinds satisfy an expected output. Its kinds include `run`, `scan`,
+  kinds satisfy an expected output; a record whose kind is in the list
+  satisfies it. Its kinds include `run`, `scan`,
   `mock-inspection`, `analysis-report` and `scenario`, plus the `subject.kind`
   of experiment and operational records.
 

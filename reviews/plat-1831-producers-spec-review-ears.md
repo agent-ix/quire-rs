@@ -22,3 +22,10 @@ Ticket: PLAT-1831. Checked the new `producers` paragraph and rules (lines 41-62)
 ## Verdict
 
 Wording only; no behaviour changes. AC-7..AC-10 are atomic enough: AC-9 lists three rejection inputs of one load-time check, and AC-7 covers one round-trip property in two encodings.
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | Round 1 (head 1a308bb9): the rules now read "Quire SHALL accept a catalog entry with no `producers` member", "Quire SHALL accept `producers` only as a non-empty list ...", "Quire SHALL NOT check kinds against a vocabulary", "Quire SHALL round-trip `producers` ...". |
+| FND-002 | still-open | Round 1 moved the kind list into an "Informative: quoin FR-211 reads `producers` ..." bullet, but line 43-44 still says normatively "a record whose kind is in the list satisfies the output", which quire never evaluates. Fix: drop that clause or move it into the informative bullet. |

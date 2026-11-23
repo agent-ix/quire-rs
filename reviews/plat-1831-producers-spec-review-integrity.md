@@ -23,3 +23,11 @@ Ticket: PLAT-1831. Checked the new `producers` rules and FR-073-AC-7..AC-10 for 
 ## Verdict
 
 Request changes for FND-001. The `producers` shape rules themselves are complete and consistent with FR-073's domain-neutral stance and with quoin FR-211; AC-7, AC-8 and AC-10 are consistent and implementable as written.
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | Round 1 (head 1a308bb9): FR-073 adds "Clause diff covers the output catalog as well as clauses ... a top-level `outputCatalog` member with `added`, `removed` and `changed` arrays, and its schema SHALL declare that member", with FR-073-AC-11 (added/removed/changed, empty arrays when identical) and FR-073-AC-12 (schema requires the member). Making the member required is right: the diff always emits it, and an optional member would only serve as a compatibility layer for older prerelease documents. |
+| FND-002 | fixed | Round 1: AC-9 now reads "`ClauseSet::validate`, and therefore loading, rejects ... and the error names the `outputCatalog` key." |
+| FND-003 | fixed | Round 1: the rules and AC-9 now reject "an empty, whitespace-only, or leading/trailing-whitespace kind". |
