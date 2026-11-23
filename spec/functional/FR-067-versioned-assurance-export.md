@@ -68,12 +68,14 @@ second active premise. Export construction SHALL fail when the tolerant loader
 recorded a missing module name, a missing module version, or an archetype load
 failure, because any of those conditions makes the version premise incomplete.
 
-The v1 reader selects the checked-in v1 schema from `format` and
-`format_version`, validates the complete JSON value before deserialization,
-then compares every exported module/version tuple with the
-caller's accepted set. It SHALL reject an unknown module as well as a known
-module with an unaccepted version. The reader SHALL return no typed
-records until both stages succeed.
+The v1 reader parses the complete JSON document while rejecting duplicate
+object member names, selects the checked-in v1 schema from `format` and
+`format_version`, validates the complete JSON value, then compares every
+exported module/version tuple with the caller's accepted set. It SHALL reject
+an unknown module as well as a known module with an unaccepted version. The
+reader SHALL return no typed records until all stages succeed. JSON input
+exceeding 128 nested arrays or objects SHALL return
+`AssuranceError::InvalidJson` without panicking.
 
 > **CR-157** (`agent-ix/quire-rs#386`, 2026-08-31) closes the full-review
 > boundary findings before implementation: it defines active-archetype
@@ -102,7 +104,13 @@ records until both stages succeed.
 | FR-067-AC-6 | Withdrawn. | — |
 | FR-067-AC-7 | Coverage-v1 and properties-v1 output remain byte-identical to their pre-export baselines and contain no assurance `format` or `format_version` key. | Test |
 | FR-067-AC-8 | Export construction refuses, naming the language, when the supplied extraction records an unavailable language ([FR-051](./FR-051-source-symbol-extraction.md)-AC-29); no payload is returned, since a schema-valid export that omits that evidence would read as a complete one (CR-201, PLAT-874). | Test |
-| FR-067-AC-9 | `read_assurance_export` refuses a JSON document with duplicate object member names at any nesting depth. A document that exceeds the JSON parser's supported nesting depth returns `AssuranceError::InvalidJson` without panicking. | Test |
+| FR-067-AC-9 | `read_assurance_export` returns `AssuranceError::InvalidJson` for duplicate JSON object member names at any nesting depth, including names in nested objects, and returns no typed record. | Test |
+| FR-067-AC-10 | JSON input with more than 128 nested arrays or objects returns `AssuranceError::InvalidJson` without panicking. | Test |
+
+> **CR-422 note (PLAT-1795):** `serde_json::Value` keeps the last occurrence
+> of a duplicate object member, so schema validation after conversion cannot
+> detect duplicate input names. The reader now refuses duplicates at every
+> depth and excessive nesting with `AssuranceError::InvalidJson`.
 
 ## Dependencies
 
