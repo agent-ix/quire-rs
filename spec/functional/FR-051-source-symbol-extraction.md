@@ -33,6 +33,35 @@ identity unchanged; the current line number SHALL be carried as a non-identity
 attribute. Record ids SHALL be the identity itself, per the
 [FR-045](./FR-045-filament-core-extraction-engine.md) record-id convention.
 
+## Source walk
+
+Which files the extractor reads SHALL NOT depend on the machine it runs on. The walk under
+a code root SHALL apply exactly these rules, in this order; a path removed by an earlier rule
+is never judged by a later one:
+
+1. **Non-configurable prunes.** The document root (a symlinked document root such as
+   `spec -> real_spec` included, as it resolves) and a cookiecutter template tree
+   (`{{...}}`, whose placeholder ids must never bind) are not walked. Source files under a
+   template tree remain counted in `excluded_source_files`
+   ([FR-050](./FR-050-declarative-coverage-computation.md)-AC-24).
+2. **Hidden entries** (a name starting with `.`), directories and files alike, are not source.
+3. **Repository ignore exclusions.** Entries matched by a `.gitignore` or `.ignore` file at
+   or under the code root are not source, with or without a `.git` directory. An ignore file
+   above the code root, a user-global ignore file and `.git/info/exclude` are never
+   consulted, so where a tree sits on disk, including beneath an unrelated repository, never
+   changes the result. The boundary is exactly the existing code root; the extraction takes
+   no further input. Removed files are counted in `ignored_source_files` (FR-050-AC-69).
+4. **Declared `source_exclude`** (FR-050-AC-22) removes matching files, symlinks included.
+5. **Symlink reporting.** A path that survives rules 1-4 and is a symlink, recognised from
+   its own link metadata alone and never from its target, is never followed or read and is
+   reported (AC-54). A dangling link, a link to a file and a link to a directory are one
+   case. A path removed by an earlier rule is not also reported as a symlink.
+
+Only languages the extractor supports (Rust, Python, TypeScript, shell, QSL) are in scope:
+an unsupported extension is not reported file by file, and a supported language the build
+cannot read is recorded as unavailable (AC-29). What rule 3 removes is made visible in
+aggregate (AC-55); what rule 4 removes is reported per path.
+
 ## Language adapters
 
 > **CR note (agent-ix/quire-rs#407, 2026-09-06):** Python `test_` methods
@@ -259,6 +288,10 @@ byte-identical JSON ordering and stable record ids.
 | FR-051-AC-51 | A TypeScript `const`, `let` or `var` declarator, `export`ed or not and alone or inside a multi-declarator statement, whose initializer is a **wrapper chain** — a curried call `callee(...)(argument)` whose single argument is an arrow function, a function expression, or another wrapper chain — mints a Function symbol named by the declarator, with the identity and position of the arrow-valued declarator it parallels. An arrow-valued declarator keeps its own rule, a function-expression-valued declarator that is not wrapped still mints nothing, and a call that is not a curried call with one such argument (`memoize(fn)`, `callee(...)(memoize(fn))`) mints nothing. The rule reads only the shape of the call and names no function, so the engine carries no wrapper name; the module's `typescript_wrapper` form (FR-062) decides which chains bind a scope id. The symbol is a production Function, so the census `candidates` denominator is unchanged (PLAT-866). | Test |
 | FR-051-AC-52 | The extractor reads a file whose extension is `.native` through the QSL adapter and reports it as language `qsl`, and `SourceLanguage::Qsl` serializes as `qsl`. Every symbol it mints has kind `declaration` and id `qsl:<repo-relative path>::<label>`; a declaration head is a column-0 line at brace depth 0 matching `^([a-z][a-z0-9_]*)\s+([A-Za-z_][A-Za-z0-9_]*)` whose keyword is not `language`, `profile` or `model` (FR-094). A repository with no `.native` file reports no `qsl` language, and a `.native` file under a model declaring no `formalizes` form mints symbols that carry no relation. | Test |
 | FR-051-AC-53 | The QSL adapter is line-level and needs no Cargo feature: a `.native` file whose braces do not balance yields a per-file diagnostic naming the file and the line, and the rest of the tree extracts normally (CON-2). | Test |
+| FR-051-AC-54 | A symlink that survives rules 1-4 of the Source walk yields no symbol and one per-file diagnostic, reason `symlink-not-followed`, at severity `warning` (as AC-28 does), naming its repo-relative path, whatever its name and whether its target is a file, a directory, absent or outside the root. Exactly five precedence outcomes hold: a symlink inside a gitignored directory is removed by rule 3, counted in `ignored_source_files` exactly under the AC-55 predicate (a non-hidden entry whose name carries a supported source extension; any other symlink is uncounted), and not reported; a hidden-named symlink is removed by rule 2 and neither counted nor reported; a symlink matching a `source_exclude` glob is removed by rule 4, counted in `excluded_source_files` when its name carries a supported source extension, and not reported; a symlink inside a template tree is pruned by rule 1, counted in `excluded_source_files` when its name carries a supported source extension, and not reported; a symlinked document root (`spec -> real_spec`) is pruned by rule 1 and neither walked nor reported. A symlink itself contributes no symbols and no diagnostic about its target content; an in-root target that is itself a source entry surviving rules 1-4 is read independently through its own path and mints one set of symbols, so deleting that target removes its symbols and nothing else changes. A tree with no surviving symlink yields no such diagnostic, and the extraction, apart from the link's own diagnostic, is identical whether an absent or out-of-root target exists or not (CR-423, PLAT-1793). | Test |
+| FR-051-AC-55 | A source file removed by rule 3 yields no symbols and no trace bindings, identically with and without a `.git` directory; un-ignoring the file yields its symbols. The extraction counts the supported-extension, non-hidden entries removed by rule 3 (those under an ignored directory included) and FR-050-AC-69 states how the report carries that count; a `.gitignore` line that removes a test directory is therefore visible in the report. A file matched only by a user-global ignore file, by `.git/info/exclude` or by an ignore file above the code root is extracted. With code root `packages/x`, a repo-root `.gitignore` entry `packages/x/node_modules/` does not apply, so those files are extracted: a committed ignore file above a deliberately scoped subdirectory is not consulted. A tree unpacked beneath an unrelated directory that is itself a git repository whose `.gitignore` is `*` (a home-directory dotfiles repository) extracts byte-identically to the same tree elsewhere. Hidden controls: a hidden-named directory holding a `.rs` file and a hidden-named source file (`.gen.rs`) each yield no symbols, and their non-hidden twins yield theirs. Extraction of one fixture tree is byte-identical under any `HOME` and `XDG_CONFIG_HOME` (CR-423, PLAT-1793). | Test |
+| FR-051-AC-56 | When AC-31 reports colliding symbol ids, the symbol-table report (AC-23) attributes each declaration's own ids: a symbol record's `trace_ids` and `implements` hold exactly the relations bound on that declaration, so a second `#[cfg]` variant carrying a marker lists its ids on its own record rather than an empty list and the first variant never lists both. The set of relations in the graph is identical under any order the colliding declarations are discovered in; a coverage criterion backed only by the second variant is backed; and an inverse query by the shared `path#qualified_name` ref (FR-077-AC-4) returns the claims of all colliding declarations. A control file with no collision attributes exactly as before (CR-423, PLAT-1793). | Test |
+| FR-051-AC-57 | Symbol **identity** (id, kind, qualified name, language, path), the relations and mentions each symbol carries and the counts are unchanged by an edit that touches no part of that symbol, and by presenting the same tree in a different file-discovery order: for every file not edited the extraction is byte-identical, and in the edited file every symbol the edit does not touch keeps its identity and relations. Position attributes (`line`, `end_line`, leading line, `column`) are non-identity (Symbols section) and are asserted separately: they are unchanged in files not edited and for symbols above an edit, and a symbol below an insertion in the same file keeps its identity while its lines shift by the inserted line count. A marker naming an id that no declared target mints still binds its `verifies` relation, because the id is matched exactly with no hierarchy expansion (FR-077-AC-6) and is returned by a forward query (FR-077-AC-1); it is reported in `untracked_symbols` (FR-050-AC-5). FR-050-AC-39 does not apply to it: that record is for generic id-shaped tokens no declared form bound. Correcting or removing the stale marker changes only that symbol's relations and its `untracked_symbols` entry (CR-423, PLAT-1793). | Test |
 
 > **CR-215 note (2026-11-08, PLAT-847, PLAT-912):** only marker forms bind.
 > The ruling is to take one advisory pattern rather than quarantine the
@@ -1089,6 +1122,47 @@ report it as language `qsl`. It mints one `declaration` symbol per declaration h
 [FR-094](./FR-094-formalizes-relation.md) defines, and nothing else: no function, container or
 entry point. A declaration symbol binds no `verifies` and no `implements`; the only relation it
 carries is `formalizes`. The adapter uses no syntax-tree library and adds no dependency.
+
+> **CR-423 note (2026-11-22, PLAT-1793):** Spec-only; no code or corpus changed here. The
+> extractor's walk (`src/symbols/mod.rs`, `extract_tree_scoped`) uses the `ignore` crate with
+> its defaults, so behaviour depended on the machine: `.gitignore` is honoured only inside a
+> git work tree (`require_git` is on), the user's global git ignore file is read, and a
+> symlinked directory is silently not entered. A symlinked file is read today
+> (`Path::is_file` follows it), so AC-54 *changes* that case. None of this was reported, so
+> extraction could differ per machine with no diagnostic. The corpus walk
+> (`src/corpus/walk.rs`) does **not** match the new rules: it sets `require_git(false)` and
+> `follow_links(false)` (FR-024-AC-5) but also enables `git_exclude` and `parents` and leaves
+> the global ignore file at its default, so it consults `.git/info/exclude`, ancestor files at
+> any depth and the user-global file. Aligning the corpus walk is not decided here.
+>
+> **Rule 3 changes repository behaviour.** The code walk reads ancestor ignore files today
+> without bound. Two earlier drafts bounded them at the nearest `.git` ancestor and then at a
+> caller-given boundary; review showed the first lets an unrelated enclosing repository (a
+> home dotfiles repo ignoring `*`) change a tree's result, and that no consumer (quire-cli,
+> quoin-quire) passes anything but `scope` or resolves a repository root, so the second
+> parameter had no consumer. The boundary is therefore exactly the existing code root and the
+> interface is unchanged. **Consequence:** a committed ignore file above a deliberately
+> scoped subdirectory no longer applies: scoped to `packages/x`, a repo-root
+> `.gitignore` entry `packages/x/node_modules/` stops removing those files, which are now
+> extracted. A repository wanting that exclusion states it in an ignore file at or under the
+> scope, or in a declared `source_exclude`.
+> The non-configurable template-tree prune (rule 1) already exists and is preserved, not
+> added. Silent loss to an ignore file is closed by the `ignored_source_files` count, on the
+> existing `quire coverage` report; no new consumer or API is introduced. Symlinks are
+> diagnosed last, from link metadata alone, because classifying by target would make the
+> diagnostic depend on whether the target exists; documented scope exclusions win over the
+> symlink warning (lead ruling on SR-319 FND-002). The report member is owned by FR-050-AC-69.
+>
+> AC-31 already reports colliding ids, including Rust `#[cfg]` variants, and is sufficient for
+> reporting. The unstated part was attribution: the symbol table hands every id of a
+> collision to the first record (`symbol_table.rs`, `verifies.remove(symbol.id)`) and an empty
+> list to the later ones; AC-56 states the per-declaration outcome that fails it. AC-57 keeps
+> identity and position separate (the Symbols section makes line a non-identity attribute) and
+> states what a stale marker actually does. Exact versus parent ids (FR-077-AC-6), mention
+> versus claim (FR-077-AC-1/2, AC-49/50), ignored tests (AC-27) and duplicate status ids
+> (FR-050-AC-23) are already covered and not repeated. Per project rule, each of AC-54..57
+> lands with a declarative corpus case, `issue_ref` `PLAT-1793`, a healthy control and absence
+> assertions; that is implementation work.
 
 ## Dependencies
 
