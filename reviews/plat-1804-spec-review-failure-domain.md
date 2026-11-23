@@ -37,3 +37,13 @@ obligations-source drop for an unreadable bound target, which matches
 
 Not mergeable on this lens until FND-001 and FND-002 are resolved: each leaves a
 silent or two-readings outcome on a real path. FND-003 is a determinism detail.
+
+## Dispositions
+
+Round 1, at head 18d020c7 (fix commit checked against review head 50c28286).
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | after: "`quire coverage` and every other consumer that computes over the merged model SHALL NOT compute silently over a model with dropped declarations: when any declaration was dropped, `quire coverage` exits with the distinct non-zero exit of FR-050 and names each dropped declaration on stderr, and no report is written." New FR-058-AC-47 tests it. |
+| FND-002 | fixed | after: "Cascades. A declaration that depends on a dropped one is itself unexecutable and is dropped, each with its own failure naming the declaration it depended on", with the remediation, carried-field, trace-target and `sets` cases listed; FR-058-AC-46 tests three of the four. The two cascades still missing (status vocabulary, design_relations) are tracked in base FND-002. |
+| FND-003 | fixed | after: "The path is the module's `manifest.yaml`. Findings are ordered by module load order, then kind, then item. In `validate_corpus` the findings are raised once for the corpus, not once per member." FR-058-AC-41 tests the path and the single raise. |

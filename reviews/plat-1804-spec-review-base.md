@@ -52,3 +52,21 @@ Not mergeable. FND-001 contradicts the lead's ruling: as written, the finding
 can be tuned off, which brings back the silent result. FND-002 and FND-003
 leave the drop unit and the finding's trigger open to two readings.
 FND-004 and FND-005 are small wording fixes.
+
+## New findings (disposition pass 1)
+
+| ID | Severity | Summary | Refs | Escape Cause |
+| --- | --- | --- | --- | --- |
+| FND-006 | low | [soundness] The new drop unit "one `exclude` glob of a relation (the relation loads without that glob)" makes the relation filter partly. Documents the author meant to exclude become obliged and report `trace:<check>` findings. FR-050-AC-25 sets the opposite rule for `source_exclude`: a pattern that does not compile "never partially filters". This is not silent, because the drop finding fails validation, but it adds false findings and breaks the "never partially filters" rule. Fix: make the relation the drop unit for an uncompilable `exclude` glob, and say so in AC-10 and AC-39. | spec/functional/FR-058-upward-trace-completeness.md:296; spec/functional/FR-050-declarative-coverage-computation.md:427 | wrong-requirement |
+
+## Dispositions
+
+Round 1, at head 18d020c7 (fix commit checked against review head 50c28286).
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | after: "The finding is a non-registrable bridged result in the sense of FR-057-CON-1: it is emitted without a pack, so no severity entry applies; it is an error under both `Okf` and `Strict`; and a manifest or CLI severity entry naming it is refused." New FR-058-AC-43 tests the refusal under both postures. |
+| FND-002 | still-open | Narrowed, not closed. The list now covers acyclic_edges, exclude globs, trace_targets, document_references, obligations, archetype schema refs and an undeserializable section (AC-45). `TraceabilityModel::validate` also rejects five more kinds with no stated drop unit: model-level `exclude` and `source_exclude`, the `status` vocabulary, `design_relations` entries and `vocabulary_coverage` entries. Two cascades are also unstated: a `document_references` entry whose `status_column` depends on the `status` vocabulary, and a `design_relations` entry naming a dropped relation. Add these to the drop list and AC-39, or add a catch-all line with its drop unit. |
+| FND-003 | fixed | after: "The load failure is structured: besides the module, path and reason it carries the declaration kind (for example `flow_rule`, `required_relation`, `carried_field`, `traceability_section`) and the item name. The engine tells a declaration drop from any other load failure by that kind, never by reading the reason text." New FR-058-AC-44 tests it. |
+| FND-004 | fixed | after: FR-058-AC-38 "the other declares two `flow_rules` entries, `ok` (valid) and `bad` ...; `R`, the carried field and rule `ok` are present in the merged model." FR-096-AC-29 is amended the same way. |
+| FND-005 | fixed | after: FR-058-AC-10 "A declaration that cannot be executed fails at module load naming the offending entry, and the entry is dropped alone (FR-058-AC-38) for each of: ..." `quire validate` now reports no warning on the file. |
