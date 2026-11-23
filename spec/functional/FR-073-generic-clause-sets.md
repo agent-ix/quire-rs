@@ -43,23 +43,35 @@ and may carry `producers`, the machine-checked binding of the output to what
 produces it. `producers` is a list of retained record kind strings; a record
 whose kind is in the list satisfies the output. Rules:
 
-- `producers` is optional. An absent member means the output is not
-  machine-produced (for example a customer-supplied record or a procedure);
-  there is no default list and no other field stands in for it.
-- When present, `producers` is a non-empty list of distinct, non-empty kind
-  strings. Loading and `validate` reject an empty list, a duplicate kind, and a
-  kind that is empty or whitespace-only, each naming the catalog entry.
-- The set of kinds is open. Kinds such as `run`, `scan`, `mock-inspection`,
-  `analysis-report`, and `scenario`, and the `subject.kind` values of
-  experiment and operational records, are defined by the consumer's retained
-  records, not by the engine. Quire validates the shape of `producers` only and
-  never enumerates or checks the kinds against a vocabulary.
-- `producers` is the only producer binding the catalog carries: it names record
-  kinds, not commands or tools.
-- `producers` serializes as the camelCase member `producers` on the catalog
-  entry and round-trips unchanged, in order, through the `ExpectedOutput`
-  struct and the clause-set JSON and YAML forms; an absent member is not
-  serialized as an empty list.
+- Quire SHALL accept a catalog entry with no `producers` member. An absent
+  member means the output is not machine-produced (for example a
+  customer-supplied record or a procedure); Quire SHALL NOT supply a default
+  list.
+- Quire SHALL accept `producers` only as a non-empty list of distinct kind
+  strings, none empty and none with leading or trailing whitespace.
+  `ClauseSet::validate`, and therefore loading, SHALL reject an empty list, a
+  duplicate kind, and an empty, whitespace-only or whitespace-padded kind, and
+  the error SHALL name the `outputCatalog` key.
+- Quire SHALL NOT check kinds against a vocabulary and SHALL NOT enumerate
+  them; the set of kinds is open and Quire validates the shape of `producers`
+  only.
+- `producers` names record kinds, not commands or tools; the catalog carries no
+  other producer binding.
+- Quire SHALL serialize `producers` as the camelCase member `producers` and
+  SHALL round-trip it unchanged, in order, through the `ExpectedOutput` struct
+  and the clause-set JSON and YAML forms. Quire SHALL NOT serialize an absent
+  member as an empty list.
+- Informative: quoin FR-211 reads `producers` to decide which retained record
+  kinds satisfy an expected output. Its kinds include `run`, `scan`,
+  `mock-inspection`, `analysis-report` and `scenario`, plus the `subject.kind`
+  of experiment and operational records.
+
+Clause diff covers the output catalog as well as clauses. The diff reports
+catalog entries added, removed, and changed between the two versions, keyed by
+catalog name; a changed entry reports its before and after `kind`,
+`description` and `producers`. The `clause-diff-v1` document carries this in a
+top-level `outputCatalog` member with `added`, `removed` and `changed` arrays,
+and its schema SHALL declare that member.
 
 ## Acceptance Criteria
 
@@ -73,8 +85,10 @@ whose kind is in the list satisfies the output. Rules:
 | FR-073-AC-6 | Clause text is rejected unless declared original, explicitly cleared or licensed, and explicit clearance requires a review reference; the engine and fixtures contain no external publication text. | Test |
 | FR-073-AC-7 | A catalog entry with `producers: ["run", "scan"]` loads, and serializing the clause set and loading it again yields the same entry with the same list in the same order, in both JSON and YAML. | Test |
 | FR-073-AC-8 | A catalog entry without `producers` loads with no producers and serializes without a `producers` member; it is not treated as an empty list. | Test |
-| FR-073-AC-9 | Loading rejects a catalog entry whose `producers` is an empty list, contains the same kind twice, or contains an empty or whitespace-only kind, and the error names the entry. | Test |
+| FR-073-AC-9 | `ClauseSet::validate`, and therefore loading, rejects a catalog entry whose `producers` is an empty list, contains the same kind twice, or contains an empty, whitespace-only, or leading/trailing-whitespace kind, and the error names the `outputCatalog` key. | Test |
 | FR-073-AC-10 | A catalog entry whose `producers` contains a kind that no fixture or engine list defines (for example `vendor-experiment`) loads without error. | Test |
+| FR-073-AC-11 | Diff of two versions that differ in `outputCatalog` reports an entry present only in the later version under `outputCatalog.added`, one present only in the earlier under `outputCatalog.removed`, and an entry whose `kind`, `description` or `producers` differs under `outputCatalog.changed` with its name and before/after values; identical catalogs yield three empty arrays. | Test |
+| FR-073-AC-12 | A diff document that carries `outputCatalog` conforms to `clause-diff-v1`, and a document without the member does not. | Test |
 
 ## Dependencies
 
