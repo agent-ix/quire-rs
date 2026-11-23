@@ -64,6 +64,11 @@ pub struct ImplementsRelation {
     pub path: String,
     /// The requirement id this code implements.
     pub trace_id: String,
+    /// 1-based declaration line and column of the implementing symbol, so one
+    /// of several declarations sharing an id owns its own relations
+    /// (FR-051-AC-56).
+    pub line: usize,
+    pub column: usize,
     /// Name of the declared form that bound it.
     pub form: String,
 }
@@ -428,6 +433,9 @@ pub struct SymbolGraph {
     /// rollup — which sees only this graph — can report it (FR-050-AC-24,
     /// #215).
     pub excluded_source_files: usize,
+    /// Source files a repository ignore file removed from the walk, copied from
+    /// [`SymbolExtraction::ignored_source_files`] (FR-050-AC-69).
+    pub ignored_source_files: usize,
     /// Languages the walk found source for but this build cannot extract,
     /// copied from [`SymbolExtraction::unavailable_languages`] so the coverage
     /// rollup — which sees only this graph — can refuse (FR-051-AC-29).
@@ -695,6 +703,7 @@ pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolG
     let patterns = CompiledTracePatterns::new(model);
     let mut graph = SymbolGraph {
         excluded_source_files: extraction.excluded_source_files,
+        ignored_source_files: extraction.ignored_source_files,
         unavailable_languages: extraction.unavailable_languages.clone(),
         ..SymbolGraph::default()
     };
@@ -1530,6 +1539,8 @@ fn bind_implements(
                         path: symbol.path.clone(),
                         trace_id,
                         form: marker.name.clone(),
+                        line: symbol.line,
+                        column: symbol.column,
                     });
                 }
                 if marker.syntax.is_none()

@@ -172,19 +172,23 @@ pub fn build(extraction: &SymbolExtraction, graph: Option<&SymbolGraph>) -> Symb
     // Keyed on the symbol's identity rather than its name: two symbols
     // can share a qualified name across files, and a name-keyed join would
     // silently merge their tags.
-    let mut verifies: BTreeMap<&str, Vec<String>> = BTreeMap::new();
-    let mut implements: BTreeMap<&str, Vec<String>> = BTreeMap::new();
+    //
+    // Colliding declarations (FR-051-AC-31) share an id, so the declaration's
+    // own position completes the key: each record lists exactly the relations
+    // bound on it (FR-051-AC-56), whatever order discovery met them in.
+    let mut verifies: BTreeMap<(&str, usize, usize), Vec<String>> = BTreeMap::new();
+    let mut implements: BTreeMap<(&str, usize, usize), Vec<String>> = BTreeMap::new();
     let mut formalizes: BTreeMap<&str, Vec<String>> = BTreeMap::new();
     if let Some(graph) = graph {
         for relation in &graph.verifies {
             verifies
-                .entry(relation.symbol_id.as_str())
+                .entry((relation.symbol_id.as_str(), relation.line, relation.column))
                 .or_default()
                 .push(relation.trace_id.clone());
         }
         for relation in &graph.implements {
             implements
-                .entry(relation.symbol_id.as_str())
+                .entry((relation.symbol_id.as_str(), relation.line, relation.column))
                 .or_default()
                 .push(relation.trace_id.clone());
         }
@@ -217,8 +221,16 @@ pub fn build(extraction: &SymbolExtraction, graph: Option<&SymbolGraph>) -> Symb
             id: symbol.id.clone(),
             binds_trace_ids: symbol.kind.binds_trace_ids(),
             carries_implements: symbol.kind.carries_implements(),
-            trace_ids: tidy(verifies.remove(symbol.id.as_str()).unwrap_or_default()),
-            implements: tidy(implements.remove(symbol.id.as_str()).unwrap_or_default()),
+            trace_ids: tidy(
+                verifies
+                    .remove(&(symbol.id.as_str(), symbol.line, symbol.column))
+                    .unwrap_or_default(),
+            ),
+            implements: tidy(
+                implements
+                    .remove(&(symbol.id.as_str(), symbol.line, symbol.column))
+                    .unwrap_or_default(),
+            ),
             formalizes: tidy(formalizes.remove(symbol.id.as_str()).unwrap_or_default()),
             ignored: symbol.ignored,
         })

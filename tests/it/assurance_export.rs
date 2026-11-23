@@ -133,6 +133,8 @@ impl Fixture {
                 path: production.path.clone(),
                 trace_id: "FR-001".to_string(),
                 form: "rust-implements".to_string(),
+                line: production.line,
+                column: production.column,
             }],
             ..SymbolGraph::default()
         };
