@@ -60,3 +60,13 @@ which needs the quire-cli bump.
 | FND-003 | low | FR-058-AC-40 "with three declaring modules, two names" is tested for `required_relations` only. Qualifier, flow-rule, remediation and retirement conflicts have two-module tests that check kind and item but not that each failure names the other module. The retirement defect in the code-review SR (duplicate failures) would have been caught by a three-module case | tests/it/declaration_drop.rs:345-395 |
 | FND-004 | low | Weak oracles. FR-058-AC-43: the manifest half asserts only `load_module(..).is_err()`, without the reason or a control manifest that loads with another key. FR-058-AC-46: `reasons("gone").contains("gone")` finds the required-relation failure first and is true whatever the design-relation failure says, so "naming the declaration depended on" is unasserted for design relations | tests/it/declaration_drop.rs:480-500 |
 | FND-005 | low | FR-058-AC-47 is about `quire coverage`: distinct exit, stderr naming each drop, no report. Only the library `CoverageError::DeclarationsDropped` is tested. In quire-cli `compute_report` maps any `CoverageError` through `invalid_error!` (the same exit as ModelUndeclared), so a dependency bump gives the exit, but `require_traceability_model` runs first and, when every declaration is dropped (AC-45), prints "no module in scope declares a traceability model" instead of naming the drop | src/coverage.rs:943-956 |
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | The AC-44 test's kind-less failure now has a reason containing "merged selected traceability model: flow_rules entry 'bad' dropped" (through the schema path) and asserts the imitation is present and raises no finding |
+| FND-002 | fixed | New test drops an archetype with an unresolvable `$ref` next to a valid one (valid loads, broken absent, one `archetype` failure naming Missing.json); `one_drop` now also loads each AC-39 case as a module and asserts it loads with the drop on record |
+| FND-003 | fixed | `three_way` covers carried fields, flow rules, remediations, qualifiers and retirement with three modules, one failure per declaration naming the two others |
+| FND-004 | fixed | AC-43 asserts the refusal reason and adds a control key that loads; AC-46 asserts the design-relation failure says it depends on dropped required_relations entry 'gone' |
+| FND-005 | deferred | The CLI half of AC-47 lives in quire-cli: the CHANGELOG upgrade notes say `require_traceability_model` must check `registry.dropped_declarations()` first (coverage and trace), and follow-up ticket PLAT-1854 owns it with the quoin `coverage_error` arm |

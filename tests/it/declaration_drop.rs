@@ -945,3 +945,42 @@ fn a_model_holding_a_retired_value_that_mints_no_source_symbol_reports_both() {
     assert_eq!(contradicting.vocabularies.retired, ["Withdrawn"]);
     assert!(contradicting.vocabularies.no_source_symbol.is_empty());
 }
+
+#[test]
+#[trace("FR-058-AC-45", "FR-058-AC-39")]
+fn an_unknown_key_fails_the_load_even_after_a_shape_error_in_the_section() {
+    let manifest = "name: skew\nversion: 4.5.6\ndescription: x\ntraceability:\n  \
+                    required_relations: 5\n  a_future_key: 1\n";
+    let (_dir, root) = write_one("skew", manifest);
+    let error = Registry::load_module(&root)
+        .err()
+        .expect("an unknown key is a manifest from a newer engine")
+        .to_string();
+    for named in ["a_future_key", "skew", "4.5.6"] {
+        assert!(error.contains(named), "{error}");
+    }
+}
+
+#[test]
+#[trace("FR-058-AC-39")]
+fn every_spelling_of_a_contradicting_retired_value_drops_and_is_reported() {
+    let mut contradicting = model(
+        "vocabularies:\n  test_type_column: T\n  test_type: [Inspection]\n  \
+         no_source_symbol: [Inspection]\n  retired: [inspection, Inspection, Withdrawn]\n",
+    );
+    let failures = contradicting.prune();
+    let items: Vec<(&str, &str)> = failures
+        .iter()
+        .map(|f| (f.kind.as_str(), f.item.as_str()))
+        .collect();
+    assert_eq!(
+        items,
+        [
+            ("retirement_vocabulary", "inspection"),
+            ("retirement_vocabulary", "Inspection"),
+            ("no_source_symbol", "Inspection"),
+        ]
+    );
+    assert_eq!(contradicting.vocabularies.retired, ["Withdrawn"]);
+    assert!(contradicting.vocabularies.no_source_symbol.is_empty());
+}

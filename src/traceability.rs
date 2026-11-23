@@ -486,6 +486,30 @@ pub struct TraceabilityModel {
     pub dropped: Vec<DroppedDeclarationRef>,
 }
 
+/// The keys a `traceability:` section may hold. A key outside this set is a
+/// manifest written for a newer engine.
+pub(crate) const SECTION_KEYS: [&str; 19] = [
+    "exclude",
+    "source_exclude",
+    "trace_targets",
+    "document_references",
+    "status",
+    "trace_tags",
+    "trace_id_qualifiers",
+    "vocabularies",
+    "obligations",
+    "required_relations",
+    "acyclic_edges",
+    "design_relations",
+    "vocabulary_coverage",
+    "carried_fields",
+    "field_consistency",
+    "required_fields",
+    "vocabulary",
+    "flow_rules",
+    "remediations",
+];
+
 /// One declared trace-id qualifier (NFR-140): a prefix a source tag may write
 /// in place of the full `ix://<org>/<repo>/` qualification.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -2011,6 +2035,24 @@ mod cr118_props {
 mod tests {
     use super::*;
     use ix_trace_rs::trace;
+
+    /// `SECTION_KEYS` is the set of keys the model deserializes: each is
+    /// accepted by the model, and a key outside the set is not.
+    #[test]
+    fn section_keys_are_the_models_keys() {
+        for key in SECTION_KEYS {
+            let section: serde_yaml::Value =
+                serde_yaml::from_str(&format!("{key}: ~")).expect("yaml");
+            let error = serde_yaml::from_value::<TraceabilityModel>(section)
+                .err()
+                .map(|e| e.to_string())
+                .unwrap_or_default();
+            assert!(!error.contains("unknown field"), "{key}: {error}");
+        }
+        let section: serde_yaml::Value = serde_yaml::from_str("not_a_key: ~").expect("yaml");
+        let error = serde_yaml::from_value::<TraceabilityModel>(section).expect_err("unknown");
+        assert!(error.to_string().contains("unknown field"));
+    }
 
     fn model(yaml: &str) -> TraceabilityModel {
         serde_yaml::from_str(yaml).expect("parse")

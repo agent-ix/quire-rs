@@ -586,35 +586,40 @@ impl TraceabilityModel {
     /// A retired value that is also declared as minting no source symbol
     /// contradicts it; both declarations drop.
     fn drop_contradicting_retirements(&mut self, out: &mut Pruned) {
+        let symbols = std::mem::take(&mut self.vocabularies.no_source_symbol);
         let retired = std::mem::take(&mut self.vocabularies.retired);
-        let mut kept = Vec::new();
+        let contradicts =
+            |retired: &str, symbol: &str| symbol.trim().eq_ignore_ascii_case(retired.trim());
+        let message = |value: &str| {
+            format!(
+                "traceability: vocabularies.retired value '{value}' is also declared in \
+                 no_source_symbol"
+            )
+        };
         for value in retired {
-            if !self.vocabularies.mints_no_symbol(&value) {
-                kept.push(value);
-                continue;
-            }
-            let what = format!(
-                "vocabularies.retired value '{value}' is also declared in no_source_symbol"
-            );
-            out.drop(
-                DeclarationKind::RetirementVocabulary,
-                value.clone(),
-                format!("traceability: {what}"),
-            );
-            let symbols = std::mem::take(&mut self.vocabularies.no_source_symbol);
-            for symbol in symbols {
-                if symbol.trim().eq_ignore_ascii_case(value.trim()) {
-                    out.drop(
-                        DeclarationKind::NoSourceSymbol,
-                        symbol,
-                        format!("traceability: {what}"),
-                    );
-                } else {
-                    self.vocabularies.no_source_symbol.push(symbol);
-                }
+            if symbols.iter().any(|symbol| contradicts(&value, symbol)) {
+                out.drop(
+                    DeclarationKind::RetirementVocabulary,
+                    value.clone(),
+                    message(&value),
+                );
+            } else {
+                self.vocabularies.retired.push(value);
             }
         }
-        self.vocabularies.retired = kept;
+        for symbol in symbols {
+            let contradicted = out
+                .failures
+                .iter()
+                .find(|f| {
+                    f.kind == DeclarationKind::RetirementVocabulary && contradicts(&f.item, &symbol)
+                })
+                .map(|f| f.item.clone());
+            match contradicted {
+                Some(value) => out.drop(DeclarationKind::NoSourceSymbol, symbol, message(&value)),
+                None => self.vocabularies.no_source_symbol.push(symbol),
+            }
+        }
     }
 
     /// Remove the declaration of `kind` named `item`. A kind this does not

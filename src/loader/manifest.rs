@@ -659,12 +659,17 @@ fn deserialize_manifest(
     else {
         return Err(first);
     };
+    // A key the engine does not know is named whatever shape errors precede it.
+    if let Some(key) = unknown_section_key(&section) {
+        return Err(format!(
+            "unknown field `{key}` in the `traceability:` section"
+        ));
+    }
     let Some(mut dropped) = drop_unreadable_entries(&mut section) else {
         return Err(first);
     };
     let model = match serde_yaml::from_value::<TraceabilityModel>(section) {
         Ok(model) => model,
-        Err(section_error) if is_unknown_key(&section_error.to_string()) => return Err(first),
         Err(section_error) => {
             dropped = vec![DeclarationFailure {
                 kind: DeclarationKind::TraceabilitySection,
@@ -680,6 +685,18 @@ fn deserialize_manifest(
     let mut manifest = serde_yaml::from_value::<Manifest>(raw).map_err(|_| first)?;
     manifest.traceability = model;
     Ok((manifest, dropped))
+}
+
+/// The first key of a raw `traceability:` section the engine does not know.
+fn unknown_section_key(section: &serde_yaml::Value) -> Option<String> {
+    section
+        .as_mapping()?
+        .keys()
+        .map(|key| {
+            key.as_str()
+                .map_or_else(|| format!("{key:?}"), str::to_string)
+        })
+        .find(|key| !crate::traceability::SECTION_KEYS.contains(&key.as_str()))
 }
 
 /// Whether a deserialization error names a key the engine does not know.

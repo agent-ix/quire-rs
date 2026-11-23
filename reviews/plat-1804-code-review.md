@@ -86,3 +86,24 @@ in the FR-058 statement. The rest are low.
 | FND-005 | medium | Retirement conflicts are built per retiring module. With two modules retiring `x` and one declaring `x` in `no_source_symbol`, the declaring module gets two failures for one declaration (two `declared-model-dropped` findings), each naming only one retiring module, against "one failure per declaration ... names every other declaring module". Within one module the failure reads "declared by modules " with an empty list. No three-module test for retirement, qualifiers, flow rules or remediations | src/loader/declarations.rs:282-335 |
 | FND-006 | low | Public `TraceabilityModel::validate()` no longer reports a model whose retired values are also in `no_source_symbol`, nor overlapping qualifier prefixes inside one model; both checks moved to the loader's cross-module pass. The in-model overlap assertion in `qualified_trace_ids.rs` was deleted, so within-module overlap is now untested | src/traceability/prune.rs:445-460 |
 | FND-007 | low | `CoverageError::DeclarationsDropped(Vec<String>)` carries pre-formatted strings, so quoin must re-parse to map module, kind and item; a `Vec<(module, DeclarationKind, item)>` is the typed form. `order_declaration_failures` swaps in dummy failures with `mem::replace` and clones item strings per comparison; extracting the kinded failures and a stable `sort_by_key` is simpler | src/coverage.rs:61 |
+
+## New findings (disposition pass 1)
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-008 | low | An unknown key is detected only when it is the first error serde meets. `deserialize_manifest` returns the whole-manifest error only when `is_unknown_key` matches the section's first error; when a shape error comes earlier in the section (for example `required_relations: 5` written before `a_future_key: 1`), that error does not match, the section is dropped as `traceability_section`, and the unknown key is never named, against FR-013-AC-19. The check also reads serde's message text ("unknown field") rather than a typed error | src/loader/manifest.rs:662-689 |
+| FND-009 | low | `drop_contradicting_retirements` drains `no_source_symbol` on the first contradicting retired value, so a second spelling of the same retired value (`retired: [inspection, Inspection]`) no longer contradicts anything and is kept, while the failure says retired 'inspection' was dropped. `retired` allows duplicates, so this is reachable; the model keeps a value the failure reports as dropped | src/traceability/prune.rs:588-618 |
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | An unknown key at any depth of `traceability:` fails the load again (`is_unknown_key` in `deserialize_manifest` and `retain_readable`); the FR-013-AC-19 test checks the nested key under every constructor again, strict included |
+| FND-002 | fixed | `screen` takes a `Duplicates` policy: `Reject` for design_relations, field_consistency, required_fields, vocabulary, flow_rules, remediations and the named lists; `MergeIdentical` for required_relations only. The FR-086-AC-10 and FR-091-AC-10 tests assert identical repeats fail again |
+| FND-003 | fixed | `dropped_archetype_use` drops a rule reading a dropped archetype with a failure naming the rule, the fields it reads and the archetype's own failure (schema location); the FR-096-AC-27 test asserts rule, field and schema path in one failure again |
+| FND-004 | fixed | `Registry::require_complete_model` / `TraceabilityModel::require_complete` guard coverage, relation_report, design_join, design_matrix (through design_join), obligation inventory (InvalidModel cause) and trace_search (`SearchError::DeclarationsDropped`, from `SymbolGraph::dropped_declarations`); one test asserts every consumer refuses and a clean registry does not |
+| FND-005 | fixed | Retirement conflicts are grouped per folded value across modules: one failure per declaration, each naming every other involved module; a three-module test (two retiring, one minting) asserts three failures each naming the two others |
+| FND-006 | fixed | `prune` now drops overlapping qualifier prefixes and retired values that mint no source symbol inside one model; `qualified_trace_ids` and a new AC-39 test assert `validate()` reports both |
+| FND-007 | fixed | `DeclarationsDropped` carries typed `DroppedDeclarations(Vec<DroppedDeclarationRef>)`; `order_declaration_failures` partitions and uses `sort_by_cached_key` |
+| FND-008 | still-open | New this round: a shape error ahead of an unknown key in `traceability:` drops the section instead of failing loud naming the key; detect unknown keys independently of serde's first error (or of its message text) |
+| FND-009 | still-open | New this round: a second spelling of a contradicting retired value survives `drop_contradicting_retirements`; match every retired value against the original `no_source_symbol` list before draining it |
