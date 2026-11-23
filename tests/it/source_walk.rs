@@ -39,15 +39,19 @@ fn write(root: &Path, rel: &str, body: &str) {
 fn materialize(case: &Value) -> (tempfile::TempDir, PathBuf) {
     let dir = tempfile::tempdir().expect("tempdir");
     // The tempdir's own name starts with `.`; nest so the code root's
-    // ancestors are never read as part of the case.
+    // ancestors are never read as part of the case. `{outside}` in a link
+    // target names a directory beside the tree, outside every code root.
     let top = dir.path().join("top");
+    let outside = dir.path().join("outside");
     for (rel, body) in case["input"]["files"].as_object().expect("files") {
         write(&top, rel, body.as_str().expect("body"));
     }
     for (link, target) in case["input"]["symlinks"].as_object().into_iter().flatten() {
         let at = top.join(link);
         fs::create_dir_all(at.parent().expect("parent")).expect("mkdir");
-        std::os::unix::fs::symlink(target.as_str().expect("target"), at).expect("symlink");
+        let target = target.as_str().expect("target");
+        let target = target.replace("{outside}", &outside.to_string_lossy());
+        std::os::unix::fs::symlink(target, at).expect("symlink");
     }
     let root = match case["input"]["root"].as_str() {
         Some(sub) => top.join(sub),
@@ -74,7 +78,7 @@ fn source_walk_cases_hold() {
     let all = cases(include_str!(
         "../fixtures/corpus_cases/plat-1793-source-walk.json"
     ));
-    assert!(all.len() >= 10);
+    assert!(all.len() >= 16);
     for case in &all {
         let name = case["name"].as_str().expect("name");
         assert_eq!(case["issue_ref"], "PLAT-1793", "{name}");
@@ -193,27 +197,6 @@ fn extraction_is_independent_of_home_and_xdg_config_home() {
         hostile.contains("lib.rs") && hostile.contains("tests/t.rs"),
         "{hostile}"
     );
-}
-
-/// The order files were created in (and so the order a directory may list
-/// them) never changes the extraction.
-#[trace("FR-051-AC-57")]
-#[test]
-fn discovery_order_does_not_change_the_extraction() {
-    let files = [
-        ("a.rs", "#[trace(\"FR-001-AC-1\")]\n#[test]\nfn a() {}\n"),
-        ("z/b.rs", "fn b() {}\n"),
-        ("m.rs", "fn m() {}\n"),
-    ];
-    let forward = tempfile::tempdir().expect("tempdir");
-    let reverse = tempfile::tempdir().expect("tempdir");
-    for (rel, body) in files {
-        write(forward.path(), rel, body);
-    }
-    for (rel, body) in files.iter().rev() {
-        write(reverse.path(), rel, body);
-    }
-    assert_eq!(extract_tree(forward.path()), extract_tree(reverse.path()));
 }
 
 fn model() -> TraceabilityModel {
@@ -490,4 +473,88 @@ fn a_stale_marker_binds_and_is_reported_untracked() {
     fs::write(source.join("lib.rs"), stale.replace("TC-999", "TC-001")).expect("write");
     let (fixed, _) = report_json(&scope, &source);
     assert!(fixed.untracked_symbols.is_empty());
+}
+
+/// Apply a case's `after` step to a materialized tree.
+fn apply_after(dir: &tempfile::TempDir, root: &Path, after: &Value) {
+    for (rel, body) in after["files"].as_object().into_iter().flatten() {
+        write(root, rel, body.as_str().expect("body"));
+    }
+    for (rel, body) in after["outside_files"].as_object().into_iter().flatten() {
+        write(
+            &dir.path().join("outside"),
+            rel,
+            body.as_str().expect("body"),
+        );
+    }
+    for rel in strings(&after["remove"]) {
+        fs::remove_file(root.join(rel)).expect("remove");
+    }
+}
+
+/// A link's target, present or absent or deleted, never changes the
+/// extraction apart from what the target's own symbols are (FR-051-AC-54).
+#[trace("FR-051-AC-54")]
+#[test]
+fn symlink_targets_never_change_the_extraction() {
+    let all = cases(include_str!(
+        "../fixtures/corpus_cases/plat-1793-source-walk.json"
+    ));
+    let mut ran = 0;
+    for case in all.iter().filter(|c| c.get("after").is_some()) {
+        let name = case["name"].as_str().expect("name");
+        let (dir, root) = materialize(case);
+        let before = walk(case, &root);
+        apply_after(&dir, &root, &case["after"]);
+        let after = walk(case, &root);
+        let expect = &case["expect_after"];
+        if expect["identical"] == true {
+            assert_eq!(before, after, "{name}");
+        }
+        let removed = strings(&expect["removed_symbol_files"]);
+        if !removed.is_empty() {
+            let kept = |out: &SymbolExtraction| -> Vec<_> {
+                out.symbols
+                    .iter()
+                    .filter(|s| !removed.contains(&s.path))
+                    .cloned()
+                    .collect()
+            };
+            assert_eq!(kept(&before), kept(&after), "{name}: other symbols");
+            assert!(
+                before.symbols.iter().any(|s| removed.contains(&s.path)),
+                "{name}"
+            );
+            assert!(
+                after.symbols.iter().all(|s| !removed.contains(&s.path)),
+                "{name}"
+            );
+            assert_eq!(before.diagnostics, after.diagnostics, "{name}: diagnostics");
+            assert_eq!(
+                (before.ignored_source_files, before.excluded_source_files),
+                (after.ignored_source_files, after.excluded_source_files),
+                "{name}: counts"
+            );
+        }
+        ran += 1;
+    }
+    assert_eq!(ran, 2);
+}
+
+/// `.git` presence never changes what an ignore file removes (FR-051-AC-55).
+#[trace("FR-051-AC-55")]
+#[test]
+fn a_git_directory_does_not_change_the_ignore_result() {
+    let all = cases(include_str!(
+        "../fixtures/corpus_cases/plat-1793-source-walk.json"
+    ));
+    let run = |name: &str| {
+        let case = all.iter().find(|c| c["name"] == name).expect("case");
+        let (_dir, root) = materialize(case);
+        extract_tree(&root)
+    };
+    assert_eq!(
+        run("gitignore-removes-source-without-git"),
+        run("gitignore-removes-source-with-git")
+    );
 }

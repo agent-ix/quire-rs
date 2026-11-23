@@ -391,6 +391,17 @@ fn count_source_entries(dir: &Path) -> usize {
         .count()
 }
 
+/// The document roots rule 1 prunes, in both forms the walk can meet them: the
+/// path as stated (a symlink standing at the document root is the root as it
+/// resolves) and its canonical target (the real directory, wherever a case
+/// -insensitive or symlinked spelling reaches it). A symlink under any other
+/// name that merely points at the root is not the root and is judged by the
+/// symlink rule.
+struct DocumentRoots {
+    stated: Vec<std::path::PathBuf>,
+    canonical: Vec<std::path::PathBuf>,
+}
+
 /// One non-directory entry the source walk met.
 struct WalkedEntry {
     path: std::path::PathBuf,
@@ -407,7 +418,7 @@ struct WalkedEntry {
 /// `template_files` when it is given.
 fn walk_entries(
     root: &Path,
-    excluded_dirs: std::sync::Arc<Vec<std::path::PathBuf>>,
+    document_roots: std::sync::Arc<DocumentRoots>,
     honour_ignores: bool,
     template_files: Option<std::sync::Arc<std::sync::atomic::AtomicUsize>>,
 ) -> Vec<WalkedEntry> {
@@ -439,11 +450,15 @@ fn walk_entries(
             }
             return false;
         }
-        // Canonicalized so an exclusion stated as a path holds on a
+        // A symlink is the document root only where the root is stated; a
+        // directory is compared by canonical path so the exclusion holds on a
         // case-insensitive filesystem and for a symlinked `spec/` (CR-056).
+        if !is_dir {
+            return !document_roots.stated.iter().any(|ex| ex == path);
+        }
         let canonical = std::fs::canonicalize(path);
         let candidate: &Path = canonical.as_deref().unwrap_or(path);
-        !excluded_dirs.iter().any(|ex| ex == candidate)
+        !document_roots.canonical.iter().any(|ex| ex == candidate)
     });
     walk.build()
         .flatten()
@@ -464,8 +479,9 @@ fn walk_entries(
         .collect()
 }
 
-/// Extract every symbol under `root`, walking gitignore-aware like the corpus
-/// loader. `root` is the identity base: emitted paths are relative to it.
+/// Extract every symbol under `root`, applying the FR-051 Source walk rules:
+/// only ignore files at or under `root` apply, and symlinks are reported, not
+/// followed. `root` is the identity base: emitted paths are relative to it.
 pub fn extract_tree(root: &Path) -> SymbolExtraction {
     extract_tree_excluding(root, &[])
 }
@@ -526,13 +542,14 @@ pub fn extract_tree_scoped(
     // the caller's `is_dir()` check held (CR-056): on a case-insensitive
     // filesystem an exact path `==` never matches `Spec`, and a symlinked
     // `spec/` resolves to its target on one side only.
-    let excluded: std::sync::Arc<Vec<std::path::PathBuf>> = std::sync::Arc::new(
-        exclude
+    let stated: Vec<std::path::PathBuf> = exclude.iter().map(|e| root.join(e)).collect();
+    let excluded = std::sync::Arc::new(DocumentRoots {
+        canonical: stated
             .iter()
-            .map(|e| root.join(e))
-            .map(|p| std::fs::canonicalize(&p).unwrap_or(p))
+            .map(|p| std::fs::canonicalize(p).unwrap_or_else(|_| p.clone()))
             .collect(),
-    );
+        stated,
+    });
     // Two walks under the same rules 1-2: one without repository ignore files
     // sees what rule 3 removes, so the removal is counted rather than silent
     // (FR-051-AC-55). Template-tree files are tallied once, on that walk.
@@ -551,8 +568,7 @@ pub fn extract_tree_scoped(
         .filter(|e| !kept.contains(e.relative.as_str()) && language_of(&e.path).is_some())
         .count();
 
-    let mut files: Vec<(String, SourceLanguage, std::path::PathBuf)> = Vec::new();
-    let mut symlink_diagnostics: Vec<SymbolDiagnostic> = Vec::new();
+    let mut pending: Vec<(String, Pending)> = Vec::new();
     for entry in surviving {
         let language = language_of(&entry.path);
         if !globs.is_empty() && globs.matches(&entry.relative) {
@@ -562,27 +578,13 @@ pub fn extract_tree_scoped(
             continue;
         }
         if entry.symlink {
-            symlink_diagnostics.push(SymbolDiagnostic {
-                reason: format!(
-                    "symlink-not-followed: {} is a symbolic link; it is not followed and yields \
-                     no symbols",
-                    entry.relative
-                ),
-                path: entry.relative,
-                severity: DiagnosticSeverity::Warning,
-            });
-            continue;
-        }
-        if let (Some(language), true) = (language, entry.regular_file) {
-            files.push((entry.relative, language, entry.path));
+            pending.push((entry.relative, Pending::Symlink));
+        } else if let (Some(language), true) = (language, entry.regular_file) {
+            pending.push((entry.relative, Pending::Source(language, entry.path)));
         }
     }
     excluded_source_files += pruned_template_files.load(std::sync::atomic::Ordering::Relaxed);
-    // Sort before reading so the output order never depends on walk order.
-    files.sort();
-
-    let glob_diagnostic_count = glob_diagnostics.len();
-    let mut out = SymbolExtraction {
+    let out = SymbolExtraction {
         excluded_source_files,
         ignored_source_files,
         // A refused glob list is reported ahead of any per-file diagnostic:
@@ -590,21 +592,46 @@ pub fn extract_tree_scoped(
         diagnostics: glob_diagnostics,
         ..SymbolExtraction::default()
     };
-    for (rel, language, abs) in files {
-        match std::fs::read_to_string(&abs) {
-            Ok(source) => out.extend_with_file(&rel, language, source),
-            Err(e) => out.diagnostics.push(SymbolDiagnostic {
+    read_pending(pending, out)
+}
+
+/// What the walk decided about one surviving path.
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+enum Pending {
+    /// A regular source file to read.
+    Source(SourceLanguage, std::path::PathBuf),
+    /// A symlink: reported, never followed or read (FR-051-AC-54).
+    Symlink,
+}
+
+/// Read the surviving paths into `out` in path order, so the symbols,
+/// files and per-file diagnostics never depend on the order the walk, or the
+/// filesystem, listed them in (FR-051-AC-57).
+fn read_pending(
+    mut pending: Vec<(String, Pending)>,
+    mut out: SymbolExtraction,
+) -> SymbolExtraction {
+    pending.sort();
+    for (rel, entry) in pending {
+        match entry {
+            Pending::Symlink => out.diagnostics.push(SymbolDiagnostic {
+                reason: format!(
+                    "symlink-not-followed: {rel} is a symbolic link; it is not followed and \
+                     yields no symbols"
+                ),
                 path: rel,
-                reason: format!("unreadable: {e}"),
-                severity: DiagnosticSeverity::Error,
+                severity: DiagnosticSeverity::Warning,
             }),
+            Pending::Source(language, abs) => match std::fs::read_to_string(&abs) {
+                Ok(source) => out.extend_with_file(&rel, language, source),
+                Err(e) => out.diagnostics.push(SymbolDiagnostic {
+                    path: rel,
+                    reason: format!("unreadable: {e}"),
+                    severity: DiagnosticSeverity::Error,
+                }),
+            },
         }
     }
-    out.diagnostics.extend(symlink_diagnostics);
-    // Per-file diagnostics are ordered by path; the sort is stable so one
-    // file's own diagnostics keep their order, and the declaration-level glob
-    // refusal stays ahead of them.
-    out.diagnostics[glob_diagnostic_count..].sort_by(|a, b| a.path.cmp(&b.path));
     out
 }
 
@@ -972,6 +999,47 @@ mod tests {
     // check-no-adapters` runs the `tc206` tests with every adapter off, which
     // is the only configuration where the first arm executes.
     #[trace("FR-051-AC-29")]
+    /// FR-051-AC-57: the read stage orders its input itself. Every permutation
+    /// of one listing yields the same extraction, diagnostics included.
+    #[trace("FR-051-AC-57")]
+    #[test]
+    fn read_order_never_depends_on_listing_order() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let colliding = "#[cfg(unix)]\nfn go() {}\n#[cfg(not(unix))]\nfn go() {}\n";
+        for name in ["a.rs", "b.rs", "c.rs"] {
+            std::fs::write(dir.path().join(name), colliding).expect("write");
+        }
+        let listing = |order: &[usize]| -> Vec<(String, Pending)> {
+            let entries = ["c.rs", "a.rs", "b.rs", "b_link", "a_link"];
+            order
+                .iter()
+                .map(|&i| {
+                    let name = entries[i];
+                    let pending = if name.ends_with("_link") {
+                        Pending::Symlink
+                    } else {
+                        Pending::Source(SourceLanguage::Rust, dir.path().join(name))
+                    };
+                    (name.to_string(), pending)
+                })
+                .collect()
+        };
+        let reference = read_pending(listing(&[0, 1, 2, 3, 4]), SymbolExtraction::default());
+        let paths: Vec<&str> = reference
+            .diagnostics
+            .iter()
+            .map(|d| d.path.as_str())
+            .collect();
+        assert_eq!(paths, ["a.rs", "a_link", "b.rs", "b_link", "c.rs"]);
+        for order in [[4, 3, 2, 1, 0], [2, 4, 0, 3, 1], [1, 0, 3, 2, 4]] {
+            assert_eq!(
+                read_pending(listing(&order), SymbolExtraction::default()),
+                reference,
+                "{order:?}"
+            );
+        }
+    }
+
     #[test]
     fn tc2060_missing_adapter_is_unavailable_not_a_diagnostic() {
         let out = extract_file("src/lib.rs", SourceLanguage::Rust, "fn a() {}\n");

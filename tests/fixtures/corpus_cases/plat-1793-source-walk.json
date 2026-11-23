@@ -270,6 +270,190 @@
         "ignored_source_files": 2,
         "excluded_source_files": 2
       }
+    },
+    {
+      "name": "gitignore-removes-source-with-git",
+      "issue_ref": "PLAT-1793",
+      "tags": [
+        "PLAT-1793",
+        "FR-051-AC-55"
+      ],
+      "comment": "Twin of the no-.git case: the same tree with a .git directory yields the identical result.",
+      "input": {
+        "files": {
+          ".gitignore": "ignored_tests/\n",
+          "lib.rs": "fn a() {}\n",
+          "ignored_tests/a.rs": "fn a() {}\n",
+          "ignored_tests/b.py": "def f():\n    pass\n",
+          "ignored_tests/notes.txt": "x\n",
+          ".git/HEAD": "ref: refs/heads/main\n"
+        }
+      },
+      "expect": {
+        "symbol_files": [
+          "lib.rs"
+        ],
+        "ignored_source_files": 2,
+        "excluded_source_files": 0
+      }
+    },
+    {
+      "name": "symlink-to-the-document-root-under-another-name",
+      "issue_ref": "PLAT-1793",
+      "tags": [
+        "PLAT-1793",
+        "FR-051-AC-54"
+      ],
+      "comment": "`docs -> spec` is a symlink, not the document root: it is reported from link metadata, as is a link into the root, and neither is followed. The real root stays pruned.",
+      "input": {
+        "document_root": "spec",
+        "files": {
+          "lib.rs": "fn a() {}\n",
+          "spec/doc.rs": "fn a() {}\n"
+        },
+        "symlinks": {
+          "docs": "spec",
+          "doc_alias.rs": "spec/doc.rs"
+        }
+      },
+      "expect": {
+        "symbol_files": [
+          "lib.rs"
+        ],
+        "symlink_diagnostics": [
+          "doc_alias.rs",
+          "docs"
+        ]
+      }
+    },
+    {
+      "name": "gitignored-and-source-excluded-counts-once",
+      "issue_ref": "PLAT-1793",
+      "tags": [
+        "PLAT-1793",
+        "FR-050-AC-69"
+      ],
+      "comment": "One file both gitignored and glob-excluded is removed by rule 3 first: counted ignored, not excluded.",
+      "input": {
+        "source_exclude": [
+          "ign/**"
+        ],
+        "files": {
+          ".gitignore": "ign/\n",
+          "lib.rs": "fn a() {}\n",
+          "ign/x.rs": "fn a() {}\n"
+        }
+      },
+      "expect": {
+        "symbol_files": [
+          "lib.rs"
+        ],
+        "ignored_source_files": 1,
+        "excluded_source_files": 0
+      }
+    },
+    {
+      "name": "source-excluded-only-control",
+      "issue_ref": "PLAT-1793",
+      "tags": [
+        "PLAT-1793",
+        "FR-050-AC-69"
+      ],
+      "comment": "Control: the same glob without the ignore file counts the file as excluded and not ignored.",
+      "input": {
+        "source_exclude": [
+          "ign/**"
+        ],
+        "files": {
+          "lib.rs": "fn a() {}\n",
+          "ign/x.rs": "fn a() {}\n"
+        }
+      },
+      "expect": {
+        "symbol_files": [
+          "lib.rs"
+        ],
+        "ignored_source_files": 0,
+        "excluded_source_files": 1
+      }
+    },
+    {
+      "name": "symlink-target-present-or-absent",
+      "issue_ref": "PLAT-1793",
+      "tags": [
+        "PLAT-1793",
+        "FR-051-AC-54"
+      ],
+      "comment": "The same tree before and after an out-of-root file, an out-of-root directory and a hidden in-root file appear at the link targets: the extraction is identical, diagnostics included.",
+      "input": {
+        "files": {
+          "lib.rs": "fn a() {}\n"
+        },
+        "symlinks": {
+          "out.rs": "{outside}/elsewhere.rs",
+          "outdir": "{outside}/dir",
+          "ghost.rs": ".stash/target.rs"
+        }
+      },
+      "expect": {
+        "symbol_files": [
+          "lib.rs"
+        ],
+        "symlink_diagnostics": [
+          "ghost.rs",
+          "out.rs",
+          "outdir"
+        ]
+      },
+      "after": {
+        "files": {
+          ".stash/target.rs": "fn a() {}\n"
+        },
+        "outside_files": {
+          "elsewhere.rs": "fn a() {}\n",
+          "dir/x.rs": "fn a() {}\n"
+        }
+      },
+      "expect_after": {
+        "identical": true
+      }
+    },
+    {
+      "name": "deleting-an-in-tree-target-removes-only-its-symbols",
+      "issue_ref": "PLAT-1793",
+      "tags": [
+        "PLAT-1793",
+        "FR-051-AC-54"
+      ],
+      "comment": "A link to an in-root source file adds no symbols of its own; deleting the target removes the target's symbols and changes nothing else.",
+      "input": {
+        "files": {
+          "lib.rs": "fn a() {}\n",
+          "other.rs": "fn b() {}\n"
+        },
+        "symlinks": {
+          "alias.rs": "lib.rs"
+        }
+      },
+      "expect": {
+        "symbol_files": [
+          "lib.rs",
+          "other.rs"
+        ],
+        "symlink_diagnostics": [
+          "alias.rs"
+        ]
+      },
+      "after": {
+        "remove": [
+          "lib.rs"
+        ]
+      },
+      "expect_after": {
+        "removed_symbol_files": [
+          "lib.rs"
+        ]
+      }
     }
   ]
 }
