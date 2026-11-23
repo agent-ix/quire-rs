@@ -21,6 +21,7 @@ mod coverage_rollup;
 mod cross_repo;
 mod design_join;
 mod design_matrix;
+mod declaration_drop;
 mod determinism;
 mod edge_target_kinds;
 mod field_rules;
