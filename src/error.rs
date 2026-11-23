@@ -131,6 +131,16 @@ pub struct ArchetypeLoadFailure {
     pub archetype: String,
     pub path: PathBuf,
     pub reason: String,
+    /// The traceability declaration this failure dropped, when it is a
+    /// declaration drop rather than any other load failure.
+    pub declaration: Option<DroppedDeclaration>,
+}
+
+/// The traceability declaration a load failure dropped.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DroppedDeclaration {
+    pub kind: crate::traceability::DeclarationKind,
+    pub item: String,
 }
 
 /// Render a [`QuireError::SchemaViolation`] into the canonical
@@ -267,12 +277,14 @@ mod tests {
                 module: "iso".into(),
                 archetype: "fr".into(),
                 path: PathBuf::from("/x/y.json"),
+                declaration: None,
                 reason: "missing".into(),
             },
             ArchetypeLoadFailure {
                 module: "iso".into(),
                 archetype: "nfr".into(),
                 path: PathBuf::from("/x/z.json"),
+                declaration: None,
                 reason: "malformed".into(),
             },
         ];

@@ -268,14 +268,43 @@ pub fn validate_bundle(
     reference_root: &Path,
 ) -> BundleReport {
     let criteria = RelationContext::build(spec, registry, &[reference_root]);
-    validate_view(
+    let mut report = dropped_declaration_report(registry);
+    let part = validate_view(
         spec,
         registry,
         posture,
         document_root,
         reference_root,
         &criteria,
-    )
+    );
+    report.errors.extend(part.errors);
+    report.warnings.extend(part.warnings);
+    report
+}
+
+/// One `declared-model-dropped` error for each traceability declaration the
+/// registry dropped at load. A bridged result like the schema findings: it
+/// carries no pack, so no severity entry applies, and it is an error under both
+/// postures.
+fn dropped_declaration_report(registry: &Registry) -> BundleReport {
+    let mut report = BundleReport::default();
+    for (failure, declaration) in registry.dropped_declarations() {
+        report.bridged(
+            GrammarSeverity::Error,
+            BundleFinding::bridged(
+                "declared-model-dropped",
+                failure.path.clone(),
+                format!(
+                    "module '{}' dropped {} '{}': {}",
+                    failure.module,
+                    declaration.kind.as_str(),
+                    declaration.item,
+                    failure.reason
+                ),
+            ),
+        );
+    }
+    report
 }
 
 /// Implements: FR-085
@@ -299,7 +328,7 @@ pub fn validate_corpus(
             roots: roots.len(),
         });
     }
-    let mut report = BundleReport::default();
+    let mut report = dropped_declaration_report(registry);
     let reference_roots: Vec<&Path> = roots.iter().map(|(_, reference)| *reference).collect();
     let criteria = RelationContext::build(corpus, registry, &reference_roots);
     for (member, (document_root, reference_root)) in roots.iter().enumerate() {

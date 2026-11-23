@@ -182,7 +182,7 @@ fn tc931_a_declared_space_mints_one_obligation() {
         }],
         ..TraceabilityModel::default()
     };
-    model.validate().expect("a well-formed source loads");
+    assert_eq!(model.validate(), vec![], "a well-formed source loads");
 
     let text = "---\nid: FR-001\ntype: FR\ntitle: A requirement\n---\n\n\
         ## Configuration Dimensions\n\n\
@@ -285,7 +285,12 @@ fn tc933_strength_zero_is_rejected() {
         }],
         ..TraceabilityModel::default()
     };
-    let err = model.validate().expect_err("strength 0 is rejected");
+    let err = model
+        .validate()
+        .into_iter()
+        .next()
+        .map(|failure| failure.reason)
+        .expect("strength 0 is rejected");
     assert!(err.contains("strength 0"), "{err}");
 }
 
@@ -332,7 +337,7 @@ fn tc934_the_corpus_path_mints_the_same_one_obligation() {
         }],
         ..TraceabilityModel::default()
     };
-    model.validate().expect("a well-formed source loads");
+    assert_eq!(model.validate(), vec![], "a well-formed source loads");
 
     let text = "---\nid: FR-001\ntype: FR\ntitle: A requirement\n---\n\n\
         ## Configuration Dimensions\n\n\

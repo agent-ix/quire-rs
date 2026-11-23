@@ -496,6 +496,18 @@ impl Registry {
         &self.inner.failures
     }
 
+    /// The traceability declarations dropped at load, in module load order,
+    /// then kind, then item. A model with any of these must not be computed
+    /// over silently.
+    pub fn dropped_declarations(
+        &self,
+    ) -> impl Iterator<Item = (&ArchetypeLoadFailure, &crate::error::DroppedDeclaration)> {
+        self.inner
+            .failures
+            .iter()
+            .filter_map(|failure| failure.declaration.as_ref().map(|d| (failure, d)))
+    }
+
     /// Advisory lint rules declared by the loaded modules, in load
     /// order (FR-036). Evaluate via [`crate::lint::lint_document`].
     pub fn lint_rules(&self) -> &[crate::lint::LintRule] {

@@ -339,15 +339,6 @@ fn is_carried_name(name: &str) -> bool {
         && chars.all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
 }
 
-/// The label of an entry in a failure: its name, or its position when blank.
-fn label(name: &str, index: usize) -> String {
-    if name.trim().is_empty() {
-        format!("#{}", index + 1)
-    } else {
-        name.to_string()
-    }
-}
-
 fn check_names(section: &str, entry: &str, key: &str, names: &[String]) -> Result<(), String> {
     if names.is_empty() {
         return Err(format!(
@@ -370,92 +361,75 @@ fn check_token(section: &str, entry: &str, check: &str) -> Result<(), String> {
     Ok(())
 }
 
-/// A blank name, or one already seen in the same section.
-fn check_entry_name<'a>(
-    section: &str,
-    name: &'a str,
-    index: usize,
-    seen: &mut std::collections::BTreeSet<&'a str>,
-) -> Result<(), String> {
+fn check_entry_name(section: &str, name: &str) -> Result<(), String> {
     if name.trim().is_empty() {
-        return Err(format!(
-            "traceability: {section} entry {} has an empty name",
-            label(name, index)
-        ));
-    }
-    if !seen.insert(name) {
-        return Err(format!("traceability: duplicate {section} entry '{name}'"));
+        return Err(format!("traceability: {section} entry has an empty name"));
     }
     Ok(())
 }
 
-impl super::TraceabilityModel {
-    /// Shape-validate the four FR-090/FR-091 declarations (AC-7, AC-10).
-    ///
-    /// Whether an archetype, field or carried name exists waits for the merged
-    /// registry: the declaring module may name another module's archetype.
-    pub(super) fn validate_field_rules(&self) -> Result<(), String> {
-        for (index, carried) in self.carried_fields.iter().enumerate() {
-            let entry = label(&carried.name, index);
-            if !is_carried_name(&carried.name) {
-                return Err(format!(
-                    "traceability: carried_fields entry '{entry}' has a name that does not match \
-                     `^[a-z][a-z0-9_]*$`"
-                ));
-            }
-            check_names("carried_fields", &entry, "from", &carried.from)?;
-            check_field("carried_fields", &entry, "key", &carried.key)?;
-        }
-
-        let mut names = std::collections::BTreeSet::new();
-        for (index, rule) in self.field_consistency.iter().enumerate() {
-            check_entry_name("field_consistency", &rule.name, index, &mut names)?;
-            let entry = rule.name.as_str();
-            let section = "field_consistency";
-            check_names(section, entry, "from", &rule.from)?;
-            check_field(section, entry, "field", &rule.field)?;
-            if let Some(via) = &rule.via {
-                check_field(section, entry, "via` `archetype", &via.archetype)?;
-                check_names(section, entry, "via` `edges", &via.edges)?;
-            }
-            check_names(section, entry, "edges", &rule.edges)?;
-            check_names(section, entry, "to", &rule.to)?;
-            check_field(section, entry, "to_field", &rule.to_field)?;
-            check_field(
-                section,
-                entry,
-                "order_from` `archetype",
-                &rule.order_from.archetype,
-            )?;
-            check_field(section, entry, "order_from` `field", &rule.order_from.field)?;
-            check_token(section, entry, &rule.check)?;
-        }
-
-        let mut names = std::collections::BTreeSet::new();
-        for (index, rule) in self.required_fields.iter().enumerate() {
-            check_entry_name("required_fields", &rule.name, index, &mut names)?;
-            let (section, entry) = ("required_fields", rule.name.as_str());
-            check_names(section, entry, "from", &rule.from)?;
-            check_field(section, entry, "field", &rule.field)?;
-            check_token(section, entry, &rule.check)?;
-            check_excludes(
-                &format!("required_fields entry '{entry}'"),
-                "exclude",
-                &rule.exclude,
-            )?;
-        }
-
-        let mut names = std::collections::BTreeSet::new();
-        for (index, rule) in self.vocabulary.iter().enumerate() {
-            check_entry_name("vocabulary", &rule.name, index, &mut names)?;
-            let (section, entry) = ("vocabulary", rule.name.as_str());
-            check_names(section, entry, "from", &rule.from)?;
-            check_field(section, entry, "field", &rule.field)?;
-            check_field(section, entry, "carried", &rule.carried)?;
-            check_token(section, entry, &rule.check)?;
-        }
-        Ok(())
+/// Shape-validate one `carried_fields` entry (FR-090-AC-7).
+///
+/// Whether an archetype, field or carried name exists waits for the merged
+/// registry: the declaring module may name another module's archetype.
+pub(super) fn check_carried_field(carried: &CarriedField) -> Result<(), String> {
+    let entry = carried.name.as_str();
+    if !is_carried_name(entry) {
+        return Err(format!(
+            "traceability: carried_fields entry '{entry}' has a name that does not match \
+             `^[a-z][a-z0-9_]*$`"
+        ));
     }
+    check_names("carried_fields", entry, "from", &carried.from)?;
+    check_field("carried_fields", entry, "key", &carried.key)
+}
+
+/// Shape-validate one `field_consistency` entry (FR-091).
+pub(super) fn check_field_consistency(rule: &FieldConsistency) -> Result<(), String> {
+    let section = "field_consistency";
+    check_entry_name(section, &rule.name)?;
+    let entry = rule.name.as_str();
+    check_names(section, entry, "from", &rule.from)?;
+    check_field(section, entry, "field", &rule.field)?;
+    if let Some(via) = &rule.via {
+        check_field(section, entry, "via` `archetype", &via.archetype)?;
+        check_names(section, entry, "via` `edges", &via.edges)?;
+    }
+    check_names(section, entry, "edges", &rule.edges)?;
+    check_names(section, entry, "to", &rule.to)?;
+    check_field(section, entry, "to_field", &rule.to_field)?;
+    check_field(
+        section,
+        entry,
+        "order_from` `archetype",
+        &rule.order_from.archetype,
+    )?;
+    check_field(section, entry, "order_from` `field", &rule.order_from.field)?;
+    check_token(section, entry, &rule.check)
+}
+
+/// Shape-validate one `required_fields` entry (FR-091).
+pub(super) fn check_required_field(rule: &RequiredField) -> Result<(), String> {
+    let (section, entry) = ("required_fields", rule.name.as_str());
+    check_entry_name(section, entry)?;
+    check_names(section, entry, "from", &rule.from)?;
+    check_field(section, entry, "field", &rule.field)?;
+    check_token(section, entry, &rule.check)?;
+    check_excludes(
+        &format!("required_fields entry '{entry}'"),
+        "exclude",
+        &rule.exclude,
+    )
+}
+
+/// Shape-validate one `vocabulary` entry (FR-091).
+pub(super) fn check_vocabulary_rule(rule: &VocabularyRule) -> Result<(), String> {
+    let (section, entry) = ("vocabulary", rule.name.as_str());
+    check_entry_name(section, entry)?;
+    check_names(section, entry, "from", &rule.from)?;
+    check_field(section, entry, "field", &rule.field)?;
+    check_field(section, entry, "carried", &rule.carried)?;
+    check_token(section, entry, &rule.check)
 }
 
 #[cfg(test)]

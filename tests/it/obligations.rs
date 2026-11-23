@@ -676,7 +676,7 @@ fn selected_inventory_validates_the_real_request() {
     assert!(result.selection().is_none());
     assert_eq!(result.causes()[0].code(), InventoryCauseCode::InvalidModel);
     assert!(
-        matches!(result.causes()[0].detail(), InventoryCauseDetail::Model(reason) if reason == &invalid.validate().unwrap_err())
+        matches!(result.causes()[0].detail(), InventoryCauseDetail::Model(reason) if reason == &invalid.validate().remove(0).reason)
     );
     let valid = selected_at(root.path());
     assert_eq!(valid.terminal(), InventoryTerminal::Complete);

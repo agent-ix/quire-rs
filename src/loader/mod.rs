@@ -14,6 +14,7 @@
 //! as fatal (`load_strict`, FR-014).
 
 pub mod compile;
+mod declarations;
 pub(crate) mod flow_rules;
 pub mod manifest;
 pub mod paths;
@@ -248,6 +249,7 @@ pub fn load_single_module(module_root: &Path) -> LoadOutcome {
         Ok(p) => p,
         Err(e) => {
             failures.push(ArchetypeLoadFailure {
+                declaration: None,
                 module: module_root
                     .file_name()
                     .and_then(|n| n.to_str())
@@ -269,6 +271,7 @@ pub fn load_single_module(module_root: &Path) -> LoadOutcome {
 
     if !canonical_has_manifest(&canonical) {
         failures.push(ArchetypeLoadFailure {
+            declaration: None,
             module: canonical
                 .file_name()
                 .and_then(|n| n.to_str())
@@ -392,6 +395,7 @@ pub fn load_inline_module(manifest_yaml: &[u8], schemas: &BTreeMap<String, Strin
         Err(reason) => {
             let (failure, error) = ManifestLoadFailure {
                 failure: ArchetypeLoadFailure {
+                    declaration: None,
                     module: "<inline>".to_string(),
                     archetype: "<manifest>".to_string(),
                     path: inline_root.clone(),
@@ -420,6 +424,15 @@ pub fn load_inline_module(manifest_yaml: &[u8], schemas: &BTreeMap<String, Strin
         });
         "<inline>".to_string()
     });
+    failures.extend(manifest.dropped_declarations.iter().map(|dropped| {
+        declarations::declaration_failure(
+            &module_name,
+            inline_root.join("manifest.yaml"),
+            dropped.kind,
+            &dropped.item,
+            dropped.reason.clone(),
+        )
+    }));
 
     let mut archetypes: Vec<Arc<CompiledArchetype>> = Vec::new();
     let mut import_refs: Vec<ModuleImportRef> = Vec::new();
@@ -776,6 +789,7 @@ fn load_one_module(
     let (manifest, origins): (Manifest, ManifestOrigins) = load_manifest_with_origins(module_root)
         .map_err(|e| ManifestLoadFailure {
             failure: ArchetypeLoadFailure {
+                declaration: None,
                 module: module_root
                     .file_name()
                     .and_then(|n| n.to_str())
@@ -803,7 +817,19 @@ fn load_one_module(
 
     let mut archetypes: Vec<Arc<CompiledArchetype>> = Vec::new();
     let mut import_refs: Vec<ModuleImportRef> = Vec::new();
-    let mut failures: Vec<ArchetypeLoadFailure> = Vec::new();
+    let mut failures: Vec<ArchetypeLoadFailure> = manifest
+        .dropped_declarations
+        .iter()
+        .map(|dropped| {
+            declarations::declaration_failure(
+                &module_name,
+                module_root.join("manifest.yaml"),
+                dropped.kind,
+                &dropped.item,
+                dropped.reason.clone(),
+            )
+        })
+        .collect();
 
     let source = crate::semantic::SchemaSource::Filesystem { module_root };
     let semantic = match read_module_semantic(&manifest) {
@@ -1262,6 +1288,7 @@ fn empty_schema_and_validator() -> (Arc<Value>, Arc<jsonschema::Validator>) {
 /// surfacing collisions as a fatal `ArchetypeCollision` error
 /// (FR-014).
 pub fn flatten_into_registry(mut outcome: LoadOutcome) -> RegistryShape {
+    declarations::drop_unresolvable_archetypes(&mut outcome);
     semantic_cross_module_checks(&mut outcome);
     let semantic_modules: BTreeMap<String, crate::semantic::SemanticModule> = outcome
         .modules
@@ -1417,133 +1444,6 @@ pub fn flatten_into_registry(mut outcome: LoadOutcome) -> RegistryShape {
     // `status` vocabulary is taken from the first module that declares one.
     // A module that declares nothing contributes nothing, so the merged model
     // stays undeclared until some module declares one.
-    let mut traceability = merge_traceability(&outcome.modules);
-    if let Err(reason) = traceability.vocabularies.validate_retirement() {
-        for module in &outcome.modules {
-            if !module.traceability.vocabularies.retired.is_empty()
-                || !module.traceability.vocabularies.no_source_symbol.is_empty()
-            {
-                outcome.failures.push(ArchetypeLoadFailure {
-                    module: module.name.clone(),
-                    archetype: "<manifest>".to_string(),
-                    path: module.root.join("manifest.yaml"),
-                    reason: format!("merged selected traceability model: {reason}"),
-                });
-            }
-        }
-        // Tolerant registry loading retains other valid capabilities, but
-        // must never expose a contradictory coverage model for computation.
-        traceability = crate::traceability::TraceabilityModel::default();
-    }
-    // NFR-140: prefix uniqueness and non-overlap hold across modules, not only
-    // inside one.
-    if let Err(reason) = traceability.check_trace_id_qualifiers() {
-        for module in &outcome.modules {
-            if !module.traceability.trace_id_qualifiers.is_empty() {
-                outcome.failures.push(ArchetypeLoadFailure {
-                    module: module.name.clone(),
-                    archetype: "<manifest>".to_string(),
-                    path: module.root.join("manifest.yaml"),
-                    reason: format!("merged selected traceability model: {reason}"),
-                });
-            }
-        }
-        traceability = crate::traceability::TraceabilityModel::default();
-    }
-    // Targets merge first-wins by name, so an `obligations:` source one module
-    // validated against its own target can end up bound to another module's
-    // target that reads a list, `*`, or no table column (AC-63, CR-203).
-    for source in &traceability.obligations.clone() {
-        let Some(target) = &source.target else {
-            continue;
-        };
-        if let Err(reason) = traceability.check_bound_target(&source.name, target) {
-            // First-wins: the earliest module declaring the target is the one
-            // whose declaration the other modules' sources were bound to.
-            let winner = outcome
-                .modules
-                .iter()
-                .find(|m| {
-                    m.traceability
-                        .trace_targets
-                        .iter()
-                        .any(|t| &t.name == target)
-                })
-                .map_or("?", |m| m.name.as_str());
-            for module in &outcome.modules {
-                if module
-                    .traceability
-                    .obligations
-                    .iter()
-                    .any(|o| o.name == source.name)
-                {
-                    outcome.failures.push(ArchetypeLoadFailure {
-                        module: module.name.clone(),
-                        archetype: "<manifest>".to_string(),
-                        path: module.root.join("manifest.yaml"),
-                        reason: format!(
-                            "merged selected traceability model: {reason} (target \
-                             '{target}' was declared first by module '{winner}')"
-                        ),
-                    });
-                }
-            }
-            traceability = crate::traceability::TraceabilityModel::default();
-            break;
-        }
-    }
-    // FR-090-AC-10: one name, two keys, is not one carried field. Both
-    // declaring modules fail, naming each other, and no model is exposed.
-    if let Some((name, declared)) = carried_field_conflict(&outcome.modules) {
-        let named = declared
-            .iter()
-            .map(|(module, key)| format!("module '{module}' (key '{key}')"))
-            .collect::<Vec<_>>()
-            .join(" and ");
-        for module in &outcome.modules {
-            if module
-                .traceability
-                .carried_fields
-                .iter()
-                .any(|c| c.name == name)
-            {
-                outcome.failures.push(ArchetypeLoadFailure {
-                    module: module.name.clone(),
-                    archetype: "<manifest>".to_string(),
-                    path: module.root.join("manifest.yaml"),
-                    reason: format!(
-                        "merged selected traceability model: carried_fields entry '{name}' is \
-                         declared with different keys by {named}"
-                    ),
-                });
-            }
-        }
-        traceability = crate::traceability::TraceabilityModel::default();
-    }
-    // FR-058-AC-36: a `record_keys` entry no endpoint archetype declares would
-    // select nothing in every report, so it fails at load, naming the relation.
-    for relation in &traceability.required_relations {
-        let Some(reason) = undeclared_record_key(relation, &active_archetypes) else {
-            continue;
-        };
-        for module in outcome.modules.iter().filter(|m| {
-            m.traceability
-                .required_relations
-                .iter()
-                .any(|declared| declared.name == relation.name)
-        }) {
-            outcome.failures.push(ArchetypeLoadFailure {
-                module: module.name.clone(),
-                archetype: "<manifest>".to_string(),
-                path: module.root.join("manifest.yaml"),
-                reason: format!("merged selected traceability model: {reason}"),
-            });
-        }
-        traceability = crate::traceability::TraceabilityModel::default();
-        break;
-    }
-    let declaration_origins = merge_declaration_origins(&outcome.modules);
-
     // ── FR-041: derive the inverse-label → forward-verb index from the
     // merged edge_types. A declared `inverse:` label becomes an authorable
     // verb (a derived view of its forward edge). Precedence: a label that
@@ -1562,16 +1462,20 @@ pub fn flatten_into_registry(mut outcome: LoadOutcome) -> RegistryShape {
             .push(Diagnostic::DuplicateInverseEdge { name, forwards });
     }
 
-    if flow_rules::validate_flow_declarations(
-        &outcome.modules,
-        &traceability,
+    // FR-050: merge the declarative traceability model across modules. Targets,
+    // references, and tag forms accumulate first-wins by name; the singular
+    // `status` vocabulary is taken from the first module that declares one.
+    // A module that declares nothing contributes nothing, so the merged model
+    // stays undeclared until some module declares one. A declaration that
+    // cannot load is dropped alone first; nothing resets the merged model.
+    declarations::resolve(
+        &mut outcome,
         &active_archetypes,
         &edge_types,
         &inverse_edges,
-        &mut outcome.failures,
-    ) {
-        traceability = crate::traceability::TraceabilityModel::default();
-    }
+    );
+    let traceability = merge_traceability(&outcome.modules);
+    let declaration_origins = merge_declaration_origins(&outcome.modules);
 
     // ── FR-040: advisory check that every verb used in an archetype's
     // allowed_links is declared in edge_types, and every role used in a
@@ -1925,31 +1829,6 @@ fn undeclared_record_key(
                 endpoints.join(", ")
             )
         })
-}
-
-/// The first carried field two modules declare under one name with different
-/// keys (FR-090-AC-10): `(name, [(module, key), (module, key)])`.
-///
-/// Modules are scanned in load order, but the pair is reported by name so the
-/// failure does not depend on which module loaded first.
-fn carried_field_conflict(modules: &[LoadedModule]) -> Option<(String, Vec<(String, String)>)> {
-    let mut seen: BTreeMap<&str, (&str, &str)> = BTreeMap::new();
-    for module in modules {
-        for carried in &module.traceability.carried_fields {
-            let (first_module, first_key) = *seen
-                .entry(carried.name.as_str())
-                .or_insert((module.name.as_str(), carried.key.as_str()));
-            if first_key != carried.key {
-                let mut pair = vec![
-                    (first_module.to_string(), first_key.to_string()),
-                    (module.name.clone(), carried.key.clone()),
-                ];
-                pair.sort();
-                return Some((carried.name.clone(), pair));
-            }
-        }
-    }
-    None
 }
 
 /// Merge source origins with the same first-wins rules as the declarations
@@ -2389,6 +2268,7 @@ fn semantic_cross_module_checks(outcome: &mut LoadOutcome) {
         for arch in module.archetypes.drain(..) {
             for f in &fails {
                 outcome.failures.push(ArchetypeLoadFailure {
+                    declaration: None,
                     module: module.name.clone(),
                     archetype: arch.name.clone(),
                     path: module.root.join("manifest.yaml"),

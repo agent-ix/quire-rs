@@ -763,13 +763,21 @@ fn a_bad_design_relation_entry_fails_load_or_reports_and_fails_the_join() {
     };
     assert!(blank
         .validate()
-        .expect_err("blank")
+        .into_iter()
+        .next()
+        .map(|failure| failure.reason)
+        .expect("blank")
         .contains("design_relations"));
     let repeated = TraceabilityModel {
         design_relations: vec!["same".into(), "same".into()],
         ..TraceabilityModel::default()
     };
-    let err = repeated.validate().expect_err("repeated");
+    let err = repeated
+        .validate()
+        .into_iter()
+        .next()
+        .map(|failure| failure.reason)
+        .expect("repeated");
     assert!(
         err.contains("design_relations") && err.contains("'same'"),
         "{err}"

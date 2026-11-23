@@ -45,7 +45,7 @@ fn model(entry_paths: Option<Vec<&str>>) -> TraceabilityModel {
     }
     let model: TraceabilityModel =
         serde_json::from_value(json!({ "trace_tags": { "markers": [form] } })).expect("model");
-    model.validate().expect("valid model");
+    assert_eq!(model.validate(), vec![], "valid model");
     model
 }
 
@@ -278,7 +278,7 @@ fn tc2106_entry_paths_globs() {
           "pattern": r"#\s*check:\s*(.+)$", "entry_paths": ["b/**"] },
     ]}}))
     .expect("model");
-    two.validate().expect("valid");
+    assert_eq!(two.validate(), vec![], "valid");
     for path in ["a/x.sh", "b/x.sh"] {
         let graph = bind(&sh(path, tagged), &two);
         assert_eq!(graph.verifies.len(), 1, "{path}");
@@ -297,7 +297,12 @@ fn tc2106_entry_paths_globs() {
           "pattern": r"#\s*trace:\s*(.+)$", "entry_paths": ["a/[**"] },
     ]}}))
     .expect("shape");
-    let err = bad.validate().expect_err("uncompilable");
+    let err = bad
+        .validate()
+        .into_iter()
+        .next()
+        .map(|failure| failure.reason)
+        .expect("uncompilable");
     assert!(err.contains("entry_paths"), "{err}");
 
     // An extraction handed the uncompiled glob applies none and says so.
@@ -394,7 +399,12 @@ fn tc2109_no_declared_form_mints_nothing() {
           "entry_paths": ["scripts/**"] },
     ]}});
     let model: TraceabilityModel = serde_json::from_value(no_syntax).expect("shape");
-    let err = model.validate().expect_err("shell form without syntax");
+    let err = model
+        .validate()
+        .into_iter()
+        .next()
+        .map(|failure| failure.reason)
+        .expect("shell form without syntax");
     assert!(
         err.contains("plain") && err.contains("syntax: comment"),
         "{err}"
@@ -409,7 +419,10 @@ fn tc2109_no_declared_form_mints_nothing() {
 fn tc2110_load_refusals() {
     let load = |value: serde_json::Value| -> Result<(), String> {
         let model: TraceabilityModel = serde_json::from_value(value).map_err(|e| e.to_string())?;
-        model.validate()
+        match model.validate().into_iter().next() {
+            Some(failure) => Err(failure.reason),
+            None => Ok(()),
+        }
     };
     let pattern = r"#\s*trace:\s*(.+)$";
 

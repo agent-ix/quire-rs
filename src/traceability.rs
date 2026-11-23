@@ -21,6 +21,7 @@ use serde::{Deserialize, Serialize};
 
 mod field_rules;
 mod flow_rules;
+mod prune;
 
 pub use field_rules::{
     CarriedField, ConsistencyRule, FieldConsistency, HopDirection, OrderFrom, RequiredField,
@@ -30,6 +31,7 @@ pub use flow_rules::{
     FlowAddRemediation, FlowCondition, FlowConditionTest, FlowRemediation, FlowRemoveRemediation,
     FlowRule, FlowSetRemediation, FlowStep,
 };
+pub use prune::{DeclarationFailure, DeclarationKind};
 
 /// A source language an adapter and a trace-marker form can bind to (FR-051).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
@@ -1043,23 +1045,6 @@ pub struct ColumnVocabularies {
 }
 
 impl ColumnVocabularies {
-    /// Validate retirement independently so selected modules can be checked again after merging.
-    pub(crate) fn validate_retirement(&self) -> Result<(), String> {
-        for value in &self.retired {
-            if value.trim().is_empty() {
-                return Err(
-                    "traceability: vocabularies.retired values must be nonblank".to_string()
-                );
-            }
-            if self.mints_no_symbol(value) {
-                return Err(format!(
-                    "traceability: vocabularies.retired value '{value}' is also declared in no_source_symbol"
-                ));
-            }
-        }
-        Ok(())
-    }
-
     /// Whether a whole normalized verification-cell value declares retirement.
     pub fn is_retired(&self, value: &str) -> bool {
         self.retired
@@ -1776,640 +1761,32 @@ impl TraceabilityModel {
     /// Also run on the merged model at load, because modules merge targets
     /// first-wins by name and the binding can end up on another module's target.
     pub fn check_bound_target(&self, source: &str, target: &str) -> Result<(), String> {
-        let Some(declared) = self.trace_targets.iter().find(|t| t.name == target) else {
-            return Err(format!(
-                "traceability: obligations entry '{source}' references undeclared target \
+        bound_target_error(&self.trace_targets, source, target)
+    }
+}
+
+fn bound_target_error(targets: &[TraceTarget], source: &str, target: &str) -> Result<(), String> {
+    let Some(declared) = targets.iter().find(|t| t.name == target) else {
+        return Err(format!(
+            "traceability: obligations entry '{source}' references undeclared target \
                  '{target}'"
-            ));
-        };
-        let Some(columns) = declared.id_columns() else {
-            return Err(format!(
-                "traceability: obligations entry '{source}' references target '{target}', \
+        ));
+    };
+    let Some(columns) = declared.id_columns() else {
+        return Err(format!(
+            "traceability: obligations entry '{source}' references target '{target}', \
                  which does not mint from table rows; a target-bound obligation reads its \
                  statement column from the minting row"
-            ));
-        };
-        if columns.single_name().is_none() {
-            return Err(format!(
-                "traceability: obligations entry '{source}' references target '{target}', \
+        ));
+    };
+    if columns.single_name().is_none() {
+        return Err(format!(
+            "traceability: obligations entry '{source}' references target '{target}', \
                  whose `id_column` is a list or contains `*`; a target-bound obligation \
                  reads one named id column"
-            ));
-        }
-        Ok(())
+        ));
     }
-
-    /// NFR-140: each qualifier names a non-blank prefix and an `<org>/<repo>`
-    /// identity, and no prefix is declared twice or contains another.
-    pub(crate) fn check_trace_id_qualifiers(&self) -> Result<(), String> {
-        for (index, qualifier) in self.trace_id_qualifiers.iter().enumerate() {
-            let prefix = &qualifier.prefix;
-            if prefix.trim().is_empty() || prefix.chars().any(char::is_whitespace) {
-                return Err(format!(
-                    "traceability: trace_id_qualifiers entry {index} declares a blank prefix \
-                     or one containing whitespace"
-                ));
-            }
-            let segments: Vec<&str> = qualifier.repository.split('/').collect();
-            if segments.len() != 2 || segments.iter().any(|s| s.trim().is_empty()) {
-                return Err(format!(
-                    "traceability: trace_id_qualifiers entry '{prefix}' names repository \
-                     '{}', which is not `<org>/<repo>`",
-                    qualifier.repository
-                ));
-            }
-            for other in &self.trace_id_qualifiers[..index] {
-                if other.prefix == *prefix {
-                    return Err(format!(
-                        "traceability: trace_id_qualifiers declares prefix '{prefix}' twice"
-                    ));
-                }
-                if other.prefix.starts_with(prefix.as_str())
-                    || prefix.starts_with(other.prefix.as_str())
-                {
-                    return Err(format!(
-                        "traceability: trace_id_qualifiers prefixes '{}' and '{prefix}' \
-                         overlap, so a tag could name either repository",
-                        other.prefix
-                    ));
-                }
-            }
-        }
-        Ok(())
-    }
-
-    /// Shape-validate the declaration. Returns a caller-facing reason on the
-    /// first problem, which the manifest loader turns into a module-load
-    /// failure (FR-050-AC-2).
-    pub fn validate(&self) -> Result<(), String> {
-        check_excludes("model-level", "exclude", &self.exclude)?;
-        check_excludes("model-level", "source_exclude", &self.source_exclude)?;
-        self.check_trace_id_qualifiers()?;
-
-        let mut target_names: BTreeSet<&str> = BTreeSet::new();
-        for target in &self.trace_targets {
-            check_named("trace_targets", &target.name)?;
-            if !target_names.insert(target.name.as_str()) {
-                return Err(format!(
-                    "traceability: duplicate trace_targets entry '{}'",
-                    target.name
-                ));
-            }
-            check_field(
-                "trace_targets",
-                &target.name,
-                "archetype",
-                &target.archetype,
-            )?;
-            check_excludes(
-                &format!("trace_targets entry '{}'", target.name),
-                "exclude",
-                &target.exclude,
-            )?;
-            check_sections("trace_targets", &target.name, &target.section)?;
-            match &target.source {
-                TraceTargetSource::TableRow { id_column } => {
-                    if id_column.is_empty() {
-                        return Err(format!(
-                            "traceability: trace_targets entry '{}' declares an empty \
-                             `id_column` list, so it reads no column",
-                            target.name
-                        ));
-                    }
-                    for value in id_column.names() {
-                        check_field("trace_targets", &target.name, "id_column", value)?;
-                    }
-                }
-                TraceTargetSource::ListItem { pattern }
-                | TraceTargetSource::Heading { pattern } => {
-                    check_capturing_pattern("trace_targets", &target.name, pattern)?;
-                }
-            }
-        }
-
-        let mut reference_names: BTreeSet<&str> = BTreeSet::new();
-        for reference in &self.document_references {
-            check_named("document_references", &reference.name)?;
-            if !reference_names.insert(reference.name.as_str()) {
-                return Err(format!(
-                    "traceability: duplicate document_references entry '{}'",
-                    reference.name
-                ));
-            }
-            check_field(
-                "document_references",
-                &reference.name,
-                "archetype",
-                &reference.archetype,
-            )?;
-            check_excludes(
-                &format!("document_references entry '{}'", reference.name),
-                "exclude",
-                &reference.exclude,
-            )?;
-            check_sections("document_references", &reference.name, &reference.section)?;
-            check_field(
-                "document_references",
-                &reference.name,
-                "column",
-                &reference.column,
-            )?;
-            check_capturing_pattern("document_references", &reference.name, &reference.pattern)?;
-            if let Some(column) = &reference.status_column {
-                check_field(
-                    "document_references",
-                    &reference.name,
-                    "status_column",
-                    column,
-                )?;
-                if self.status.is_none() {
-                    return Err(format!(
-                        "traceability: document_references entry '{}' declares status_column \
-                         without a traceability.status vocabulary",
-                        reference.name
-                    ));
-                }
-            }
-            if reference.targets.is_empty() {
-                return Err(format!(
-                    "traceability: document_references entry '{}' declares no targets",
-                    reference.name
-                ));
-            }
-            for target in &reference.targets {
-                if !target_names.contains(target.as_str()) {
-                    return Err(format!(
-                        "traceability: document_references entry '{}' references undeclared \
-                         target '{target}'",
-                        reference.name
-                    ));
-                }
-            }
-            check_kind_declaration(reference)?;
-        }
-
-        // FR-053: an obligation source resolves its minting documents exactly
-        // one way. Both or neither is a declaration that cannot be executed,
-        // and failing at load is the only place it can be reported against the
-        // declaration rather than against a mysteriously empty report.
-        let mut obligation_names: BTreeSet<&str> = BTreeSet::new();
-        for source in &self.obligations {
-            check_named("obligations", &source.name)?;
-            if !obligation_names.insert(source.name.as_str()) {
-                return Err(format!(
-                    "traceability: duplicate obligations entry '{}'",
-                    source.name
-                ));
-            }
-            match (&source.target, &source.archetype) {
-                (Some(_), Some(_)) => {
-                    return Err(format!(
-                        "traceability: obligations entry '{}' declares both 'target' and \
-                         'archetype'; a source inherits from a trace target or names its own \
-                         archetype, never both",
-                        source.name
-                    ))
-                }
-                (None, None) => {
-                    return Err(format!(
-                        "traceability: obligations entry '{}' declares neither 'target' nor \
-                         'archetype', so nothing says which documents state it",
-                        source.name
-                    ))
-                }
-                (Some(target), None) => {
-                    if !target_names.contains(target.as_str()) {
-                        return Err(format!(
-                            "traceability: obligations entry '{}' references undeclared target \
-                             '{target}'",
-                            source.name
-                        ));
-                    }
-                    self.check_bound_target(&source.name, target)?;
-                }
-                (None, Some(archetype)) => {
-                    check_field("obligations", &source.name, "archetype", archetype)?;
-                    let Some(section) = &source.section else {
-                        return Err(format!(
-                            "traceability: obligations entry '{}' declares 'archetype' without \
-                             'section'",
-                            source.name
-                        ));
-                    };
-                    check_sections("obligations", &source.name, section)?;
-                    let Some(id_format) = &source.id_format else {
-                        return Err(format!(
-                            "traceability: obligations entry '{}' declares 'archetype' without \
-                             'id_format'; rows under an archetype-bound section mint no id of \
-                             their own",
-                            source.name
-                        ));
-                    };
-                    // A template naming neither placeholder renders one id for
-                    // every row, so every obligation after the first would
-                    // silently overwrite the one before.
-                    if !id_format.contains("{document}") && !id_format.contains("{row}") {
-                        return Err(format!(
-                            "traceability: obligations entry '{}' has an id_format naming \
-                             neither {{document}} nor {{row}}, so every row would render the \
-                             same id",
-                            source.name
-                        ));
-                    }
-                }
-            }
-            check_excludes(
-                &format!("obligations entry '{}'", source.name),
-                "exclude",
-                &source.exclude,
-            )?;
-            check_field(
-                "obligations",
-                &source.name,
-                "statement_column",
-                &source.statement_column,
-            )?;
-            if let Some(field) = &source.criticality_field {
-                check_field("obligations", &source.name, "criticality_field", field)?;
-            }
-            if let Some(combinatorial) = &source.combinatorial {
-                check_field(
-                    "obligations",
-                    &source.name,
-                    "combinatorial.dimension_column",
-                    &combinatorial.dimension_column,
-                )?;
-                check_field(
-                    "obligations",
-                    &source.name,
-                    "combinatorial.values_column",
-                    &combinatorial.values_column,
-                )?;
-                if let Some(column) = &combinatorial.excludes_column {
-                    check_field(
-                        "obligations",
-                        &source.name,
-                        "combinatorial.excludes_column",
-                        column,
-                    )?;
-                }
-                // Strength 0 mints an obligation over nothing, which reads as a
-                // declared configuration space that demands no coverage at all
-                // — worse than absent, because it looks answered.
-                if combinatorial.strength == 0 {
-                    return Err(format!(
-                        "traceability: obligations entry '{}' declares combinatorial strength 0, \
-                         which demands coverage of nothing while reading as declared",
-                        source.name
-                    ));
-                }
-            }
-            for (key, column) in &source.parameters {
-                if key.trim().is_empty() {
-                    return Err(format!(
-                        "traceability: obligations entry '{}' declares a parameter with an \
-                         empty key",
-                        source.name
-                    ));
-                }
-                check_field(
-                    "obligations",
-                    &source.name,
-                    &format!("parameters.{key}"),
-                    column,
-                )?;
-            }
-        }
-
-        // FR-058: a required relation that cannot be executed must fail at
-        // load. Every rule below rejects a declaration whose *runtime* effect
-        // is silent and wrong rather than absent — the failure mode this whole
-        // model is built to avoid, since a check reporting nothing and a check
-        // reporting everything both look like "no bug here" from the outside.
-        let mut relation_names: BTreeSet<&str> = BTreeSet::new();
-        for relation in &self.required_relations {
-            check_named("required_relations", &relation.name)?;
-            if !relation_names.insert(relation.name.as_str()) {
-                return Err(format!(
-                    "traceability: duplicate required_relations entry '{}'",
-                    relation.name
-                ));
-            }
-            check_field("required_relations", &relation.name, "from", &relation.from)?;
-            for condition in &relation.when_any {
-                let others: Vec<&str> = condition.other().iter().map(String::as_str).collect();
-                EdgeCondition::new(condition.verb(), condition.direction(), &others).map_err(
-                    |why| {
-                        format!(
-                            "traceability: required_relations entry '{}' has an invalid \
-                             `when_any`: {why}",
-                            relation.name
-                        )
-                    },
-                )?;
-            }
-            // No accepted verb means no edge can satisfy the relation, so
-            // EVERY `from` document is reported. That reads as a corpus-wide
-            // defect rather than as the empty declaration it is.
-            if relation.edges.is_empty() {
-                return Err(format!(
-                    "traceability: required_relations entry '{}' declares no edges, so no link \
-                     could ever satisfy it and every '{}' document would be reported",
-                    relation.name, relation.from
-                ));
-            }
-            for edge in &relation.edges {
-                check_field("required_relations", &relation.name, "edges", edge)?;
-            }
-            // An empty entry here is the mirror image: `to` is meaningful when
-            // absent (any document satisfies), so a blank string is a typo that
-            // would narrow the accepted set to a target nothing can match.
-            for target in &relation.to {
-                check_field("required_relations", &relation.name, "to", target)?;
-            }
-            check_field(
-                "required_relations",
-                &relation.name,
-                "check",
-                &relation.check,
-            )?;
-            // The token is the `<check>` half of a `trace:<check>` severity key
-            // (FR-057). One that cannot round-trip through the registry is a
-            // relation whose severity can never be tuned or switched off —
-            // `is_severity_key` is the same predicate the `--severity` CLI
-            // parser uses, so both surfaces accept exactly one vocabulary.
-            if !crate::grammar::is_severity_key(&crate::grammar::severity_key(
-                "trace",
-                &relation.check,
-            )) {
-                return Err(format!(
-                    "traceability: required_relations entry '{}' has a `check` token '{}' that \
-                     cannot form a `trace:<check>` severity key, so its severity could never be \
-                     configured",
-                    relation.name, relation.check
-                ));
-            }
-            check_excludes(
-                &format!("required_relations entry '{}'", relation.name),
-                "exclude",
-                &relation.exclude,
-            )?;
-        }
-
-        // FR-086-AC-10: a blank or repeated entry cannot name a relation, so it
-        // fails at load against the declaration. Whether a non-blank entry names
-        // a declared relation waits for the merged model, because the relation
-        // may come from another module.
-        let mut design_names: BTreeSet<&str> = BTreeSet::new();
-        for entry in &self.design_relations {
-            if entry.trim().is_empty() {
-                return Err(
-                    "traceability: design_relations contains a blank entry, which names no \
-                     required relation"
-                        .to_string(),
-                );
-            }
-            if !design_names.insert(entry.as_str()) {
-                return Err(format!(
-                    "traceability: design_relations lists '{entry}' twice"
-                ));
-            }
-        }
-
-        // An empty verb here would make `check_acyclic` walk a graph keyed on
-        // the empty string — no edge matches, so the cycle check silently
-        // covers nothing while the declaration says it does.
-        for edge in &self.acyclic_edges {
-            if edge.trim().is_empty() {
-                return Err(
-                    "traceability: acyclic_edges contains an empty verb, which would check \
-                     nothing while appearing to be declared"
-                        .to_string(),
-                );
-            }
-        }
-
-        // FR-059: same discipline as required relations — a declaration whose
-        // runtime effect is silent and wrong fails at load.
-        let mut coverage_names: BTreeSet<&str> = BTreeSet::new();
-        for coverage in &self.vocabulary_coverage {
-            check_named("vocabulary_coverage", &coverage.name)?;
-            if !coverage_names.insert(coverage.name.as_str()) {
-                return Err(format!(
-                    "traceability: duplicate vocabulary_coverage entry '{}'",
-                    coverage.name
-                ));
-            }
-            check_field(
-                "vocabulary_coverage",
-                &coverage.name,
-                "from",
-                &coverage.from,
-            )?;
-            check_field(
-                "vocabulary_coverage",
-                &coverage.name,
-                "field",
-                &coverage.field,
-            )?;
-            check_field(
-                "vocabulary_coverage",
-                &coverage.name,
-                "check",
-                &coverage.check,
-            )?;
-            if !crate::grammar::is_severity_key(&crate::grammar::severity_key(
-                "trace",
-                &coverage.check,
-            )) {
-                return Err(format!(
-                    "traceability: vocabulary_coverage entry '{}' has a `check` token '{}' that \
-                     cannot form a `trace:<check>` severity key, so its severity could never be \
-                     configured",
-                    coverage.name, coverage.check
-                ));
-            }
-            if let Some(field) = &coverage.justified_absence_field {
-                check_field(
-                    "vocabulary_coverage",
-                    &coverage.name,
-                    "justified_absence_field",
-                    field,
-                )?;
-            }
-            check_excludes(
-                &format!("vocabulary_coverage entry '{}'", coverage.name),
-                "exclude",
-                &coverage.exclude,
-            )?;
-        }
-
-        self.validate_field_rules()?;
-        self.validate_flow_rules()?;
-
-        if let Some(status) = &self.status {
-            check_field("status", &status.column, "column", &status.column)?;
-            let mut seen: BTreeSet<&str> = BTreeSet::new();
-            for value in status
-                .complete
-                .iter()
-                .chain(&status.pending)
-                .chain(&status.failed)
-            {
-                if !seen.insert(value.as_str()) {
-                    return Err(format!(
-                        "traceability: status value '{value}' is declared in more than one class"
-                    ));
-                }
-            }
-        }
-
-        // CR-041: the exemption reads a column, so the column must be named,
-        // and a value outside the declared vocabulary is a typo that would
-        // silently exempt nothing.
-        //
-        // #259: the exemption now ALSO reads each reference declaration's own
-        // column, because that column is the method on an FR criteria table.
-        // `test_type_column` stays required anyway — it is the matrix column
-        // and the one `test_type` validates — so this check is unchanged; only
-        // its reach grew.
-        if !self.vocabularies.no_source_symbol.is_empty() {
-            if self.vocabularies.test_type_column.is_none() {
-                return Err("traceability: vocabularies.no_source_symbol needs \
-                            vocabularies.test_type_column to say which column carries the value"
-                    .to_string());
-            }
-            for value in &self.vocabularies.no_source_symbol {
-                if !self
-                    .vocabularies
-                    .test_type
-                    .iter()
-                    .any(|t| t.trim().eq_ignore_ascii_case(value.trim()))
-                {
-                    return Err(format!(
-                        "traceability: vocabularies.no_source_symbol value '{value}' is not in \
-                         the declared test_type vocabulary"
-                    ));
-                }
-            }
-        }
-
-        self.vocabularies.validate_retirement()?;
-
-        let mut marker_names: BTreeSet<&str> = BTreeSet::new();
-        for marker in &self.trace_tags.markers {
-            check_named("trace_tags.markers", &marker.name)?;
-            check_not_qsl("trace_tags.markers", marker)?;
-            if let Some(
-                syntax @ (TraceMarkerSyntax::RustAttribute
-                | TraceMarkerSyntax::PythonDecorator
-                | TraceMarkerSyntax::TypescriptDecorator
-                | TraceMarkerSyntax::TypescriptWrapper),
-            ) = marker.syntax
-            {
-                return Err(format!(
-                    "trace_tags.markers form '{}' cannot declare syntax {}; only trace_tags.implements supports it",
-                    marker.name,
-                    syntax.as_str()
-                ));
-            }
-            if !marker_names.insert(marker.name.as_str()) {
-                return Err(format!(
-                    "traceability: duplicate trace_tags.markers entry '{}'",
-                    marker.name
-                ));
-            }
-            check_capturing_pattern("trace_tags.markers", &marker.name, &marker.pattern)?;
-            // FR-051-AC-42: shell tags are read only through a `syntax: comment`
-            // form, so a shell form without it would bind nothing; refuse it
-            // at load rather than let it fail silently.
-            if marker.language == SourceLanguage::Shell
-                && marker.syntax != Some(TraceMarkerSyntax::Comment)
-            {
-                return Err(format!(
-                    "traceability: trace_tags.markers form '{}' is a shell form and must \
-                     declare `syntax: comment`",
-                    marker.name
-                ));
-            }
-            if let Some(entry_paths) = &marker.entry_paths {
-                if marker.language != SourceLanguage::Shell {
-                    return Err(format!(
-                        "traceability: trace_tags.markers form '{}' cannot declare `entry_paths`; \
-                         only a `language: shell` form has an entry point",
-                        marker.name
-                    ));
-                }
-                check_excludes(
-                    &format!("trace_tags.markers form '{}'", marker.name),
-                    "entry_paths",
-                    entry_paths,
-                )?;
-            }
-        }
-        for marker in &self.trace_tags.implements {
-            check_named("trace_tags.implements", &marker.name)?;
-            check_not_qsl("trace_tags.implements", marker)?;
-            check_capturing_pattern("trace_tags.implements", &marker.name, &marker.pattern)?;
-            if marker.entry_paths.is_some() {
-                return Err(format!(
-                    "traceability: trace_tags.implements form '{}' cannot declare `entry_paths`; \
-                     an `implements` form binds no `entry_point`",
-                    marker.name
-                ));
-            }
-            let required = match marker.syntax {
-                Some(TraceMarkerSyntax::RustAttribute) => Some(SourceLanguage::Rust),
-                Some(TraceMarkerSyntax::PythonDecorator) => Some(SourceLanguage::Python),
-                Some(
-                    TraceMarkerSyntax::TypescriptDecorator | TraceMarkerSyntax::TypescriptWrapper,
-                ) => Some(SourceLanguage::Typescript),
-                _ => None,
-            };
-            if let (Some(required), Some(syntax)) = (required, marker.syntax) {
-                if marker.language != required {
-                    return Err(format!(
-                        "trace_tags.implements form '{}' requires {} for {}",
-                        marker.name,
-                        required.as_str(),
-                        syntax.as_str()
-                    ));
-                }
-            }
-        }
-        let mut formalizes_names: BTreeSet<&str> = BTreeSet::new();
-        for marker in &self.trace_tags.formalizes {
-            check_named("trace_tags.formalizes", &marker.name)?;
-            if marker.language != SourceLanguage::Qsl {
-                return Err(format!(
-                    "traceability: trace_tags.formalizes form '{}' must declare `language: qsl`, \
-                     not {}",
-                    marker.name,
-                    marker.language.as_str()
-                ));
-            }
-            if marker.syntax != Some(TraceMarkerSyntax::Comment) {
-                return Err(format!(
-                    "traceability: trace_tags.formalizes form '{}' must declare `syntax: comment`",
-                    marker.name
-                ));
-            }
-            if marker.entry_paths.is_some() {
-                return Err(format!(
-                    "traceability: trace_tags.formalizes form '{}' cannot declare `entry_paths`",
-                    marker.name
-                ));
-            }
-            if !formalizes_names.insert(marker.name.as_str()) {
-                return Err(format!(
-                    "traceability: duplicate trace_tags.formalizes entry '{}'",
-                    marker.name
-                ));
-            }
-            check_capturing_pattern("trace_tags.formalizes", &marker.name, &marker.pattern)?;
-        }
-        Ok(())
-    }
+    Ok(())
 }
 
 /// FR-062-AC-28: a QSL form belongs to `trace_tags.formalizes` alone.
@@ -2641,13 +2018,18 @@ mod tests {
     fn tc945_source_exclude_is_validated_and_declares_nothing() {
         model("source_exclude: ['tests/fixtures/**']")
             .validate()
+            .is_empty()
+            .then_some(())
             .expect("a well-formed glob list is valid");
 
         // A pattern that does not compile is rejected at load, where it names
         // the module, rather than silently matching nothing forever.
         let err = model("source_exclude: ['tests/fixtures/[**']")
             .validate()
-            .expect_err("an invalid glob must be rejected");
+            .into_iter()
+            .next()
+            .map(|failure| failure.reason)
+            .expect("an invalid glob must be rejected");
         // The **noun**, not merely the location prefix (#215): until then the
         // message read "invalid `exclude` pattern" for a `source_exclude`
         // list, and a bare `contains("source_exclude")` was satisfied by the
@@ -2659,7 +2041,10 @@ mod tests {
 
         let err = model("source_exclude: ['  ']")
             .validate()
-            .expect_err("an empty pattern must be rejected");
+            .into_iter()
+            .next()
+            .map(|failure| failure.reason)
+            .expect("an empty pattern must be rejected");
         assert!(err.contains("empty `source_exclude` pattern"), "{err}");
 
         // Declaring only what is *not* source reconciles nothing, so the model
@@ -2705,7 +2090,7 @@ trace_tags:
     fn full_model_parses_and_validates() {
         let m = model(FULL);
         assert!(!m.is_empty());
-        m.validate().expect("valid");
+        assert_eq!(m.validate(), vec![], "valid");
         assert_eq!(m.trace_targets.len(), 2);
         assert_eq!(m.target("test-case").unwrap().archetype, "TestMatrix");
         assert_eq!(m.document_references[0].targets, vec!["test-case"]);
@@ -2757,7 +2142,7 @@ trace_tags:
         assert_eq!(selected.column(), "Status");
         assert_eq!(selected.configuration_path(), "traceability.status.column");
         m.document_references[0].status_column = Some("Coverage Status".into());
-        m.validate().expect("explicit selector");
+        assert_eq!(m.validate(), vec![], "explicit selector");
         let selected = m.document_references[0]
             .selected_status_column(m.status.as_ref())
             .unwrap();
@@ -2773,7 +2158,12 @@ trace_tags:
         );
         for invalid in ["", "   ", "\t\n"] {
             m.document_references[0].status_column = Some(invalid.into());
-            let error = m.validate().expect_err("blank selector");
+            let error = m
+                .validate()
+                .into_iter()
+                .next()
+                .map(|failure| failure.reason)
+                .expect("blank selector");
             assert!(
                 error.contains("verification") && error.contains("status_column"),
                 "{error}"
@@ -2781,7 +2171,12 @@ trace_tags:
         }
         m.document_references[0].status_column = Some("Coverage Status".into());
         m.status = None;
-        let error = m.validate().expect_err("override needs vocabulary");
+        let error = m
+            .validate()
+            .into_iter()
+            .next()
+            .map(|failure| failure.reason)
+            .expect("override needs vocabulary");
         assert!(
             error.contains("verification") && error.contains("traceability.status"),
             "{error}"
@@ -2867,7 +2262,12 @@ document_references:
             ),
         ];
         for (yaml, expected) in cases {
-            let err = model(yaml).validate().expect_err(yaml);
+            let err = model(yaml)
+                .validate()
+                .into_iter()
+                .next()
+                .map(|failure| failure.reason)
+                .expect(yaml);
             assert!(err.contains(expected), "{err} != {expected}");
         }
     }
@@ -2883,7 +2283,7 @@ document_references:
             "trace_targets:\n- name: test-case\n  archetype: TestMatrix\n\
              \n  exclude: ['tests/fixtures/**']\n  section: Test Case Summary\n  id_column: Test ID\n",
         );
-        m.validate().expect("archetype alone is a valid origin");
+        assert_eq!(m.validate(), vec![], "archetype alone is a valid origin");
         let target = m.target("test-case").expect("declared");
         assert_eq!(target.archetype, "TestMatrix");
         assert_eq!(target.exclude, vec!["tests/fixtures/**".to_string()]);
@@ -2899,7 +2299,12 @@ document_references:
 
         let empty = "trace_targets:\n- name: test-case\n  archetype: ''\n\
                      \n  section: Test Case Summary\n  id_column: Test ID\n";
-        let error = model(empty).validate().expect_err("empty archetype");
+        let error = model(empty)
+            .validate()
+            .into_iter()
+            .next()
+            .map(|failure| failure.reason)
+            .expect("empty archetype");
         assert!(error.contains("archetype"), "{error}");
 
         // A target with no origin at all was a `validate()` error while
@@ -2935,7 +2340,7 @@ document_references:
         let m = model("exclude: ['spec/fixtures/**']\n");
         assert_eq!(m.exclude, vec!["spec/fixtures/**".to_string()]);
         assert!(m.is_empty());
-        m.validate().expect("valid");
+        assert_eq!(m.validate(), vec![], "valid");
 
         // unset, it serializes exactly as before the field.
         let yaml = serde_yaml::to_string(&model(FULL)).expect("serialize");
@@ -2949,7 +2354,12 @@ document_references:
     #[test]
     fn model_level_exclude_patterns_must_compile() {
         let bad = model("exclude: ['[bad']\n");
-        let err = bad.validate().expect_err("must not validate");
+        let err = bad
+            .validate()
+            .into_iter()
+            .next()
+            .map(|failure| failure.reason)
+            .expect("must not validate");
         assert!(err.contains("invalid `exclude` pattern"), "{err}");
         assert!(
             err.contains("model-level"),
@@ -2957,7 +2367,12 @@ document_references:
         );
 
         let empty = model("exclude: ['  ']\n");
-        let err = empty.validate().expect_err("must not validate");
+        let err = empty
+            .validate()
+            .into_iter()
+            .next()
+            .map(|failure| failure.reason)
+            .expect("must not validate");
         assert!(err.contains("empty `exclude` pattern"), "{err}");
     }
 
@@ -3069,7 +2484,7 @@ document_references:
             "trace_targets:\n- name: t\n  archetype: TestMatrix\n  \
              section: Test Case Summary\n  id_column: Test ID\n",
         );
-        scalar.validate().expect("the single-string form is valid");
+        assert_eq!(scalar.validate(), vec![], "the single-string form is valid");
         let section = &scalar.trace_targets[0].section;
         assert_eq!(section.names(), ["Test Case Summary"]);
 
@@ -3083,7 +2498,7 @@ document_references:
             "trace_targets:\n- name: t\n  archetype: TestMatrix\n  \
              section: ['Test Case Summary', 'Integration Test Matrix']\n  id_column: Test ID\n",
         );
-        sequence.validate().expect("the sequence form is valid");
+        assert_eq!(sequence.validate(), vec![], "the sequence form is valid");
         let section = &sequence.trace_targets[0].section;
         assert_eq!(
             section.names(),
@@ -3102,7 +2517,10 @@ document_references:
              id_column: Test ID\n",
         )
         .validate()
-        .expect_err("an empty list must be rejected");
+        .into_iter()
+        .next()
+        .map(|failure| failure.reason)
+        .expect("an empty list must be rejected");
         assert!(err.contains("empty `section` list"), "{err}");
 
         let err = model(
@@ -3110,7 +2528,10 @@ document_references:
              section: ['Test Case Summary', '  ']\n  id_column: Test ID\n",
         )
         .validate()
-        .expect_err("a blank entry must be rejected");
+        .into_iter()
+        .next()
+        .map(|failure| failure.reason)
+        .expect("a blank entry must be rejected");
         assert!(err.contains("empty `section`"), "{err}");
     }
 

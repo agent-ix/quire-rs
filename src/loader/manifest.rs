@@ -395,6 +395,10 @@ pub struct Manifest {
     /// load fails like any other manifest shape error.
     #[serde(default)]
     pub traceability: crate::traceability::TraceabilityModel,
+    /// The traceability declarations dropped while parsing, filled by
+    /// [`parse_manifest`].
+    #[serde(skip)]
+    pub dropped_declarations: Vec<crate::traceability::DeclarationFailure>,
     /// Mergeable ambiguity lexicon (FR-056): term → {definition, optional
     /// category}. Merged first-wins and layered **over** the engine's built-in
     /// ambiguity terms, so a module extends the lexicon rather than replacing
@@ -608,11 +612,14 @@ impl Archetype {
 /// Returns the typed [`Manifest`] or a `String` error message suitable
 /// for wrapping in `QuireError::ManifestError`.
 pub fn parse_manifest(bytes: &[u8]) -> Result<Manifest, String> {
-    let mut manifest = serde_yaml::from_slice::<Manifest>(bytes).map_err(|e| e.to_string())?;
+    let (mut manifest, section_error) = deserialize_manifest(bytes)?;
     note_explicit_nulls(bytes, &mut manifest)?;
     check_grammar_severity_keys(&manifest)?;
-    // FR-050-AC-2: an incoherent `traceability:` declaration is a shape error.
-    manifest.traceability.validate()?;
+    // FR-050-AC-2: a declaration that cannot be executed is dropped alone.
+    manifest.dropped_declarations = section_error.into_iter().collect();
+    manifest
+        .dropped_declarations
+        .extend(manifest.traceability.prune());
     // FR-054-AC-5: a catalog entry that cannot say what it is advises nothing,
     // and would otherwise sit in the merged registry looking like data.
     for (id, method) in &manifest.verification_catalog {
@@ -626,6 +633,41 @@ pub fn parse_manifest(bytes: &[u8]) -> Result<Manifest, String> {
         profile.validate(id)?;
     }
     Ok(manifest)
+}
+
+/// Deserialize the manifest. A `traceability:` section that cannot be
+/// deserialized is one dropped declaration: the module loads with an empty
+/// model and the failure names the deserialization error.
+fn deserialize_manifest(
+    bytes: &[u8],
+) -> Result<(Manifest, Option<crate::traceability::DeclarationFailure>), String> {
+    let first = match serde_yaml::from_slice::<Manifest>(bytes) {
+        Ok(manifest) => return Ok((manifest, None)),
+        Err(error) => error.to_string(),
+    };
+    let Ok(mut raw) = serde_yaml::from_slice::<serde_yaml::Value>(bytes) else {
+        return Err(first);
+    };
+    let Some(section) = raw
+        .as_mapping_mut()
+        .and_then(|mapping| mapping.remove("traceability"))
+    else {
+        return Err(first);
+    };
+    let Err(section_error) =
+        serde_yaml::from_value::<crate::traceability::TraceabilityModel>(section)
+    else {
+        return Err(first);
+    };
+    let manifest = serde_yaml::from_value::<Manifest>(raw).map_err(|_| first)?;
+    Ok((
+        manifest,
+        Some(crate::traceability::DeclarationFailure {
+            kind: crate::traceability::DeclarationKind::TraceabilitySection,
+            item: "traceability".to_string(),
+            reason: format!("traceability: the section cannot be read: {section_error}"),
+        }),
+    ))
 }
 
 /// serde folds an authored `key: null` into "absent" for every optional
@@ -687,6 +729,11 @@ where
 /// `<grammar>:<check>` — two non-empty, whitespace-free halves.
 fn check_grammar_severity_keys(manifest: &Manifest) -> Result<(), String> {
     for key in manifest.grammar_severity.keys() {
+        if crate::grammar::is_non_registrable_key(key) {
+            return Err(format!(
+                "grammar_severity key '{key}' is refused: that result is never configurable"
+            ));
+        }
         if !crate::grammar::is_severity_key(key) {
             return Err(format!(
                 "grammar_severity key '{key}' is malformed: expected '<grammar>:<check>'"

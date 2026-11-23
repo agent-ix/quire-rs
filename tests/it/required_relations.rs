@@ -441,11 +441,16 @@ fn tc906_an_unexecutable_relation_is_rejected_at_load() {
     // Baseline: the same declaration, well-formed, loads.
     model(relation(vec!["satisfies"], "orphan-fr"))
         .validate()
+        .is_empty()
+        .then_some(())
         .expect("a well-formed relation loads");
 
     let err = model(relation(vec![], "orphan-fr"))
         .validate()
-        .expect_err("no accepted verb means nothing could ever satisfy it");
+        .into_iter()
+        .next()
+        .map(|failure| failure.reason)
+        .expect("no accepted verb means nothing could ever satisfy it");
     assert!(
         err.contains("declares no edges") && err.contains("every 'FR' document would be reported"),
         "the error names the consequence, not just the empty field: {err}"
@@ -456,7 +461,10 @@ fn tc906_an_unexecutable_relation_is_rejected_at_load() {
     for bad in ["orphan:fr", "orphan fr", ""] {
         let err = model(relation(vec!["satisfies"], bad))
             .validate()
-            .expect_err("a check token that cannot form a severity key is rejected");
+            .into_iter()
+            .next()
+            .map(|failure| failure.reason)
+            .expect("a check token that cannot form a severity key is rejected");
         assert!(
             err.contains("required_relations"),
             "the error names the declaration for token {bad:?}: {err}"
@@ -470,7 +478,10 @@ fn tc906_an_unexecutable_relation_is_rejected_at_load() {
         ..TraceabilityModel::default()
     }
     .validate()
-    .expect_err("an empty acyclic verb checks nothing");
+    .into_iter()
+    .next()
+    .map(|failure| failure.reason)
+    .expect("an empty acyclic verb checks nothing");
     assert!(err.contains("acyclic_edges"), "{err}");
 }
 
@@ -501,7 +512,10 @@ fn tc907_duplicate_relation_names_are_rejected() {
         ..TraceabilityModel::default()
     }
     .validate()
-    .expect_err("duplicate names are rejected");
+    .into_iter()
+    .next()
+    .map(|failure| failure.reason)
+    .expect("duplicate names are rejected");
     assert!(
         err.contains("duplicate required_relations entry 'upward'"),
         "{err}"
