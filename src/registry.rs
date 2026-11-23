@@ -508,6 +508,13 @@ impl Registry {
             .filter_map(|failure| failure.declaration.as_deref().map(|d| (failure, d)))
     }
 
+    /// `Ok` when no traceability declaration was dropped at load. Every
+    /// consumer that computes over the merged model calls this first: a model
+    /// the modules did not declare must not yield a complete-looking answer.
+    pub fn require_complete_model(&self) -> Result<(), crate::traceability::DroppedDeclarations> {
+        self.inner.traceability.require_complete()
+    }
+
     /// Advisory lint rules declared by the loaded modules, in load
     /// order (FR-036). Evaluate via [`crate::lint::lint_document`].
     pub fn lint_rules(&self) -> &[crate::lint::LintRule] {
@@ -1722,13 +1729,7 @@ roles:
             assert!(msg.contains(key), "{msg}");
             assert!(msg.contains(version), "{msg}");
         };
-        // A key the traceability section does not know drops the section, never
-        // the module, and the dropped declaration is on record.
-        let skewed = Registry::load_module(&nested).expect("the module loads");
-        assert!(skewed
-            .failures()
-            .iter()
-            .any(|f| f.declaration.is_some() && f.reason.contains("a_future_key")));
+        check(Registry::load_module(&nested), "a_future_key", "9.9.9");
         check(
             Registry::load_module_strict(&top),
             "a_top_future_key",
@@ -1739,14 +1740,22 @@ roles:
             "a_top_future_key",
             "8.8.8",
         );
+        check(
+            Registry::load_module_set_strict(&[&nested]),
+            "a_future_key",
+            "9.9.9",
+        );
         // A search root holding one skewed module among good ones.
         check(Registry::load_from(&[&p]), "a_top_future_key", "8.8.8");
-        check(Registry::load_strict(&[&p]), "a_top_future_key", "8.8.8");
+        check(Registry::load_strict(&[&p]), "a_future_key", "9.9.9");
         // Every failure in a set is reported, not only the first.
         let both = Registry::load_module_set(&[&nested, &top])
-            .expect_err("the skewed module fails")
+            .expect_err("both fail")
             .to_string();
-        assert!(both.contains("a_top_future_key"), "{both}");
+        assert!(
+            both.contains("a_future_key") && both.contains("a_top_future_key"),
+            "{both}"
+        );
         // Inline modules go through the same check.
         let inline =
             Registry::from_inline_parts(b"name: i\nversion: 7.7.7\nzzz: 1\n", &Default::default());
@@ -1803,11 +1812,8 @@ roles:
             "traceability:\n  trace_targets:\n  - name: t\n    archetype: FR\n    section: S\n    \
              id_column: ID\n    typo: x\n",
         );
-        let loaded = Registry::load_from(&[&typo]).expect("the module loads");
-        assert!(loaded
-            .failures()
-            .iter()
-            .any(|f| f.reason.contains("typo") && f.declaration.is_some()));
+        let err3 = Registry::load_from(&[&typo]).expect_err("module must not load");
+        assert!(err3.to_string().contains("typo"));
     }
 
     #[trace("FR-044-AC-3")]

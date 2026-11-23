@@ -248,11 +248,21 @@ fn flow_rule_enum_refs_fail_closed_when_missing_or_cyclic() {
     let missing = parse_local_ref_registry(rules, &missing_root, &[]).expect("module parses");
     assert!(
         missing.failures().iter().any(|failure| {
-            archetype_drop(failure, "sink")
+            failure.reason.contains("agreement-rule")
+                && failure.reason.contains("agreement")
                 && failure.reason.contains("schemas/sink.json")
                 && failure.reason.contains("Missing.json")
         }),
         "{:?}",
+        missing.failures()
+    );
+
+    assert!(
+        missing
+            .failures()
+            .iter()
+            .any(|failure| archetype_drop(failure, "sink")),
+        "the archetype itself is dropped and named: {:?}",
         missing.failures()
     );
 
@@ -269,7 +279,8 @@ fn flow_rule_enum_refs_fail_closed_when_missing_or_cyclic() {
     .expect("module parses");
     assert!(
         cyclic.failures().iter().any(|failure| {
-            archetype_drop(failure, "sink")
+            failure.reason.contains("agreement-rule")
+                && failure.reason.contains("agreement")
                 && failure.reason.contains("schemas/sink.json")
                 && failure.reason.contains("$ref cycle")
         }),
@@ -289,7 +300,8 @@ fn flow_rule_enum_refs_fail_closed_when_missing_or_cyclic() {
     let remote = parse_local_ref_registry(rules, &remote_root, &[]).expect("module parses");
     assert!(
         remote.failures().iter().any(|failure| {
-            archetype_drop(failure, "sink")
+            failure.reason.contains("agreement-rule")
+                && failure.reason.contains("agreement")
                 && failure.reason.contains("schemas/sink.json")
                 && failure.reason.contains("Remote.json")
                 && failure.reason.contains("no shipped file")

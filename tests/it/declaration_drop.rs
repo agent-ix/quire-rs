@@ -130,6 +130,19 @@ fn one_drop(yaml: &str, kind: &str, item: &str) -> TraceabilityModel {
         (kind, item),
         "{yaml}"
     );
+    // The same declarations in a module: it loads, and the drop is on record.
+    let indented: String = yaml.lines().map(|line| format!("  {line}\n")).collect();
+    let manifest = format!("name: unit\nversion: 0.1.0\ndescription: x\ntraceability:\n{indented}");
+    let (_dir, root) = write_one("unit", &manifest);
+    let registry = Registry::load_module(&root)
+        .unwrap_or_else(|e| panic!("{yaml}: a bad declaration never fails the module: {e}"));
+    assert!(
+        registry
+            .dropped_declarations()
+            .any(|(_, d)| (d.kind.as_str(), d.item.as_str()) == (kind, item)),
+        "{yaml}: {:?}",
+        registry.failures()
+    );
     model
 }
 
@@ -342,49 +355,128 @@ fn conflicting_modules_all_drop_each_naming_every_other_and_identical_ones_merge
     assert_eq!(model.carried_fields.len(), 1);
 }
 
-#[test]
-#[trace("FR-058-AC-40")]
-fn conflicting_qualifiers_remediations_and_retirement_values_drop_every_declaration() {
-    let a = "name: q-a\nversion: 0.1.0\ndescription: x\ntraceability:\n  \
-             trace_id_qualifiers:\n  - {prefix: 'F-', repository: o/a}\n  \
-             - {prefix: 'ok-', repository: o/ok}\n  vocabularies:\n    test_type_column: T\n    \
-             test_type: [Inspection]\n    no_source_symbol: [Inspection]\n  \
-             remediations:\n  - {name: fix, description: d, removes: {edge: e, direction: outgoing}}\n";
-    let b = "name: q-b\nversion: 0.1.0\ndescription: x\ntraceability:\n  \
-             trace_id_qualifiers:\n  - {prefix: 'F-X-', repository: o/b}\n  \
-             - {prefix: 'ok-', repository: o/ok}\n  vocabularies:\n    retired: [inspection]\n  \
-             remediations:\n  - {name: fix, description: d, removes: {edge: e, direction: outgoing}}\n";
-    let (_dir, registry) = load(&[("q-a", a), ("q-b", b)]);
-    let dropped: Vec<(String, &str, String)> = registry
-        .failures()
+/// Three modules, each declaring `entry` (a traceability line); the failures of
+/// `(kind, item)` are one per declaration, each naming the two other modules.
+fn three_way(entries: [&str; 3], kind: &str, items: [&str; 3]) {
+    let manifests: Vec<(String, String)> = ["m-a", "m-b", "m-c"]
         .iter()
-        .filter_map(|f| {
-            f.declaration
-                .as_ref()
-                .map(|d| (f.module.clone(), d.kind.as_str(), d.item.clone()))
+        .zip(entries)
+        .map(|(name, entry)| {
+            (
+                (*name).to_string(),
+                format!("name: {name}\nversion: 0.1.0\ndescription: x\ntraceability:\n{entry}"),
+            )
         })
         .collect();
-    for expected in [
-        ("q-a", "trace_id_qualifier", "F-"),
-        ("q-b", "trace_id_qualifier", "F-X-"),
-        ("q-a", "remediation", "fix"),
-        ("q-b", "remediation", "fix"),
-        ("q-a", "no_source_symbol", "Inspection"),
-        ("q-b", "retirement_vocabulary", "inspection"),
-    ] {
-        assert!(
-            dropped
-                .iter()
-                .any(|d| (d.0.as_str(), d.1, d.2.as_str()) == expected),
-            "{expected:?} in {dropped:?}"
+    let borrowed: Vec<(&str, &str)> = manifests
+        .iter()
+        .map(|(n, m)| (n.as_str(), m.as_str()))
+        .collect();
+    let (_dir, registry) = load(&borrowed);
+    for ((module, item), name) in ["m-a", "m-b", "m-c"].iter().zip(items).zip(0..) {
+        let found: Vec<_> = registry
+            .failures()
+            .iter()
+            .filter(|f| {
+                f.module == *module
+                    && f.declaration
+                        .as_ref()
+                        .is_some_and(|d| d.kind.as_str() == kind && d.item == item)
+            })
+            .collect();
+        assert_eq!(
+            found.len(),
+            1,
+            "{kind} {item} in {module} ({name}): {:?}",
+            registry.failures()
         );
+        for other in ["m-a", "m-b", "m-c"].iter().filter(|o| *o != module) {
+            assert!(found[0].reason.contains(other), "{}", found[0].reason);
+        }
     }
-    // The identical qualifier merges and loads.
-    let model = registry
-        .traceability()
-        .expect("the rest of the model loads");
-    assert_eq!(model.trace_id_qualifiers.len(), 1);
-    assert_eq!(model.trace_id_qualifiers[0].prefix, "ok-");
+}
+
+#[test]
+#[trace("FR-058-AC-40")]
+fn three_declaring_modules_drop_every_conflicting_declaration_naming_the_others() {
+    three_way(
+        [
+            "  carried_fields:\n  - {name: x, from: [A], key: k1}\n",
+            "  carried_fields:\n  - {name: x, from: [A], key: k2}\n",
+            "  carried_fields:\n  - {name: x, from: [A], key: k3}\n",
+        ],
+        "carried_field",
+        ["x", "x", "x"],
+    );
+    let rule = |subject: &str| {
+        format!(
+            "  flow_rules:\n  - {{name: dup, subject: [{subject}], match: [{{path: [], field: id, \
+             present: true}}], check: c-{subject}, rationale: r}}\n"
+        )
+    };
+    three_way(
+        [&rule("a"), &rule("b"), &rule("c")],
+        "flow_rule",
+        ["dup"; 3],
+    );
+    let remediation = |edge: &str| {
+        format!(
+            "  remediations:\n  - {{name: dup, description: d, removes: {{edge: {edge}, \
+             direction: outgoing}}}}\n"
+        )
+    };
+    three_way(
+        [&remediation("a"), &remediation("b"), &remediation("c")],
+        "remediation",
+        ["dup"; 3],
+    );
+    // Each prefix overlaps both of the others; each of the three names the other two.
+    let qualifier = |prefix: &str, repo: &str| {
+        format!("  trace_id_qualifiers:\n  - {{prefix: '{prefix}', repository: {repo}}}\n")
+    };
+    three_way(
+        [
+            &qualifier("F-", "o/a"),
+            &qualifier("F-X-", "o/b"),
+            &qualifier("F-X-Y-", "o/c"),
+        ],
+        "trace_id_qualifier",
+        ["F-", "F-X-", "F-X-Y-"],
+    );
+    // Two modules retire `x` and one declares it as minting no source symbol:
+    // one failure per declaration, each naming both other modules.
+    let retiring = "  vocabularies:\n    retired: [x]\n";
+    let minting =
+        "  vocabularies:\n    test_type_column: T\n    test_type: [X]\n    no_source_symbol: [X]\n";
+    let manifests = [("m-a", retiring), ("m-b", retiring), ("m-c", minting)].map(|(name, body)| {
+        (
+            name,
+            format!("name: {name}\nversion: 0.1.0\ndescription: x\ntraceability:\n{body}"),
+        )
+    });
+    let borrowed: Vec<(&str, &str)> = manifests.iter().map(|(n, m)| (*n, m.as_str())).collect();
+    let (_dir, registry) = load(&borrowed);
+    let failures = registry.failures();
+    assert_eq!(failures.len(), 3, "{failures:?}");
+    for (module, kind, item) in [
+        ("m-a", "retirement_vocabulary", "x"),
+        ("m-b", "retirement_vocabulary", "x"),
+        ("m-c", "no_source_symbol", "X"),
+    ] {
+        let found: Vec<_> = failures
+            .iter()
+            .filter(|f| {
+                f.module == module
+                    && f.declaration
+                        .as_ref()
+                        .is_some_and(|d| d.kind.as_str() == kind && d.item == item)
+            })
+            .collect();
+        assert_eq!(found.len(), 1, "{module}: {failures:?}");
+        for other in ["m-a", "m-b", "m-c"].iter().filter(|o| **o != module) {
+            assert!(found[0].reason.contains(other), "{}", found[0].reason);
+        }
+    }
 }
 
 fn document(id: &str, kind: &str) -> String {
@@ -490,8 +582,21 @@ fn no_severity_entry_can_name_the_dropped_declaration_finding() {
              trace:declared-model-dropped: {level}\n"
         );
         let (_dir, root) = write_one("sev", &manifest);
-        assert!(Registry::load_module(&root).is_err(), "{level}");
+        let refused = Registry::load_module(&root)
+            .err()
+            .unwrap_or_else(|| panic!("{level} must be refused"))
+            .to_string();
+        assert!(
+            refused.contains("trace:declared-model-dropped")
+                && refused.contains("never configurable"),
+            "{level}: {refused}"
+        );
     }
+    // Control: any other key in the same position loads.
+    let control = "name: sev\nversion: 0.1.0\ndescription: x\ngrammar_severity:\n  \
+                   trace:r-check: off\n";
+    let (_dir, root) = write_one("sev", control);
+    Registry::load_module(&root).expect("another key is accepted");
 
     // Any other entry leaves the finding an error.
     let (_dir, registry) = load(&[("decl-one", FIRST), ("decl-two", SECOND)]);
@@ -520,16 +625,30 @@ fn no_severity_entry_can_name_the_dropped_declaration_finding() {
 #[test]
 #[trace("FR-058-AC-44")]
 fn a_load_failure_is_told_from_a_drop_by_its_kind_not_its_reason_text() {
-    // A schema that is not JSON fails its archetype, with a reason that says
-    // nothing a drop would; the failure carries no declaration kind.
-    let manifest = "name: plain\nversion: 0.1.0\ndescription: x\narchetypes:\n\
-                    - name: alpha\n  frontmatter_schema_ref: schemas/alpha.json\n";
-    let (dir, root) = write_one("plain", manifest);
+    // An archetype whose schema fails to load produces a failure that carries no
+    // declaration kind, and whose reason (it names the schema path) reads exactly
+    // like a declaration drop. It must raise no finding.
+    let imitation = "merged selected traceability model: flow_rules entry 'bad' dropped";
+    let manifest = format!(
+        "name: plain\nversion: 0.1.0\ndescription: x\narchetypes:\n\
+         - name: alpha\n  frontmatter_schema_ref: \"schemas/{imitation}.json\"\n"
+    );
+    let (dir, root) = write_one("plain", &manifest);
     fs::create_dir_all(root.join("schemas")).expect("schemas");
-    fs::write(root.join("schemas/alpha.json"), "not json").expect("schema");
+    fs::write(root.join(format!("schemas/{imitation}.json")), "not json").expect("schema");
     let registry = Registry::load_module(&root).expect("loads tolerantly");
-    assert!(!registry.failures().is_empty());
-    assert!(registry.failures().iter().all(|f| f.declaration.is_none()));
+    let failures = registry.failures();
+    assert!(!failures.is_empty());
+    assert!(
+        failures.iter().all(|f| f.declaration.is_none()),
+        "{failures:?}"
+    );
+    assert!(
+        failures
+            .iter()
+            .any(|f| f.reason.contains("merged selected traceability model")),
+        "the reason must imitate a drop: {failures:?}"
+    );
     let repo = repo_with_alpha();
     let spec = Spec::from_path(&repo.path().join("spec"));
     let report = validate_bundle(
@@ -544,11 +663,6 @@ fn a_load_failure_is_told_from_a_drop_by_its_kind_not_its_reason_text() {
 
     // A failure carrying a kind raises one whatever its reason says.
     let (_dir, registry) = load(&[("decl-one", FIRST), ("decl-two", SECOND)]);
-    let kinded = registry
-        .failures()
-        .iter()
-        .filter(|f| f.declaration.is_some())
-        .count();
     let report = validate_bundle(
         &spec,
         &registry,
@@ -556,7 +670,7 @@ fn a_load_failure_is_told_from_a_drop_by_its_kind_not_its_reason_text() {
         &repo.path().join("spec"),
         repo.path(),
     );
-    assert_eq!(dropped_findings(&report).len(), kinded);
+    assert_eq!(dropped_findings(&report).len(), 1);
 }
 
 #[test]
@@ -564,14 +678,14 @@ fn a_load_failure_is_told_from_a_drop_by_its_kind_not_its_reason_text() {
 fn an_unreadable_traceability_section_drops_only_the_section() {
     let manifest = "name: broken\nversion: 0.1.0\ndescription: x\narchetypes:\n\
                     - name: alpha\n  frontmatter_schema_ref: schemas/alpha.json\n\
-                    traceability:\n  not_a_key: 1\n";
+                    traceability:\n  required_relations: 5\n";
     let (_dir, registry) = load(&[("broken", manifest)]);
     let (kind, item, reason) = sole_drop(&registry);
     assert_eq!(
         (kind, item.as_str()),
         ("traceability_section", "traceability")
     );
-    assert!(reason.contains("not_a_key"), "{reason}");
+    assert!(reason.contains("expected a sequence"), "{reason}");
     assert!(registry.traceability().is_none());
     assert!(registry.archetype("alpha").is_some(), "the archetype loads");
     let repo = repo_with_alpha();
@@ -635,7 +749,22 @@ fn a_declaration_depending_on_a_dropped_one_drops_with_a_failure_naming_it() {
             .clone()
     };
     assert!(reasons("rule").contains("remediations entry 'fix'"));
-    assert!(reasons("gone").contains("gone"));
+    let design = registry
+        .failures()
+        .iter()
+        .find(|f| {
+            f.declaration
+                .as_ref()
+                .is_some_and(|d| d.kind.as_str() == "design_relation" && d.item == "gone")
+        })
+        .expect("the design relation drops");
+    assert!(
+        design
+            .reason
+            .contains("depends on dropped required_relations entry 'gone'"),
+        "{}",
+        design.reason
+    );
     let dropped: Vec<&str> = registry
         .failures()
         .iter()
@@ -697,28 +826,122 @@ fn a_remediation_the_subject_schema_refuses_drops_the_rule_and_stays_for_the_oth
 
 #[test]
 #[trace("FR-058-AC-47")]
-fn coverage_refuses_a_model_with_dropped_declarations_and_names_each() {
+fn every_consumer_of_the_model_refuses_when_declarations_were_dropped() {
+    use quire_rs::corpus::{design_join, design_matrix, relation_report, RelationReportError};
+    use quire_rs::obligation::inventory::{inventory, InventoryOptions, InventoryTerminal};
+    use quire_rs::symbols::trace_search::{search, Query, SearchError};
+    use quire_rs::traceability::{DeclarationKind, DroppedDeclarationRef, DroppedDeclarations};
+
     let (_dir, registry) = load(&[("decl-one", FIRST), ("decl-two", SECOND)]);
+    let expected = DroppedDeclarations(vec![DroppedDeclarationRef {
+        module: "decl-two".into(),
+        kind: DeclarationKind::FlowRule,
+        item: "bad".into(),
+    }]);
+    assert_eq!(registry.require_complete_model(), Err(expected.clone()));
+    let text = expected.to_string();
+    for named in ["decl-two", "flow_rule", "bad"] {
+        assert!(text.contains(named), "{text}");
+    }
+
     let scope = tempfile::tempdir().expect("scope");
     let source = scope.path().join("src");
     fs::create_dir_all(&source).expect("src");
     fs::create_dir_all(scope.path().join("spec")).expect("spec");
+    let spec = Spec::from_path(&scope.path().join("spec"));
     let model = registry.traceability().expect("model");
-    let graph = trace::bind(&extract_tree(&source), model);
-    let error = compute(
-        &Spec::from_path(&scope.path().join("spec")),
-        &registry,
-        &graph,
-        scope.path(),
+    let extraction = extract_tree(&source);
+    let graph = trace::bind(&extraction, model);
+
+    // coverage
+    assert_eq!(
+        compute(&spec, &registry, &graph, scope.path()).expect_err("no report"),
+        CoverageError::DeclarationsDropped(expected.clone())
+    );
+    // relation report, design join and design matrix
+    let members = [quire_rs::corpus::RelationReportMember {
+        root: scope.path(),
+        matrix: &[],
+    }];
+    assert_eq!(
+        relation_report(&spec, &registry, &members, &[]).expect_err("no report"),
+        RelationReportError::DeclarationsDropped(expected.clone())
+    );
+    assert_eq!(
+        design_join(&spec, &registry, &members).expect_err("no report"),
+        RelationReportError::DeclarationsDropped(expected.clone())
+    );
+    assert_eq!(
+        design_matrix(&spec, &registry, &members).expect_err("no matrix"),
+        RelationReportError::DeclarationsDropped(expected.clone())
+    );
+    // trace search
+    assert_eq!(
+        search(&graph, &extraction, &Query::Id("FR-1".into())).expect_err("no result"),
+        SearchError::DeclarationsDropped(expected.clone())
+    );
+    // obligation inventory
+    let inventoried = inventory(scope.path(), model, &[], InventoryOptions::default());
+    assert_eq!(inventoried.terminal(), InventoryTerminal::Incomplete);
+    assert!(inventoried.causes().iter().any(|cause| {
+        matches!(
+            cause.detail(),
+            quire_rs::obligation::inventory::InventoryCauseDetail::Model(reason) if reason == &text
+        )
+    }));
+
+    // A registry with nothing dropped is not refused.
+    let (_clean, registry) = load(&[("decl-one", FIRST)]);
+    assert_eq!(registry.require_complete_model(), Ok(()));
+    let model = registry.traceability().expect("model");
+    let graph = trace::bind(&extraction, model);
+    assert!(compute(&spec, &registry, &graph, scope.path()).is_ok());
+}
+
+#[test]
+#[trace("FR-058-AC-39")]
+fn an_archetype_with_an_unresolvable_schema_reference_drops_next_to_a_valid_one() {
+    let base = "https://schemas.agent-ix.org/arch-drop/0.1.0/schemas";
+    let manifest = "name: arch-drop\nversion: 0.1.0\ndescription: x\narchetypes:\n\
+        - name: good\n  frontmatter_schema_ref: schemas/good.json\n\
+        - name: broken\n  frontmatter_schema_ref: schemas/broken.json\n";
+    let (_dir, root) = write_one("arch-drop", manifest);
+    fs::create_dir_all(root.join("schemas")).expect("schemas");
+    fs::write(
+        root.join("schemas/good.json"),
+        r#"{"type":"object","properties":{"id":{"type":"string"}}}"#,
     )
-    .expect_err("no report over a model with dropped declarations");
-    match error {
-        CoverageError::DeclarationsDropped(names) => {
-            assert_eq!(names.len(), 1, "{names:?}");
-            for named in ["decl-two", "flow_rule", "bad"] {
-                assert!(names[0].contains(named), "{}", names[0]);
-            }
-        }
-        other => panic!("{other:?}"),
-    }
+    .expect("schema");
+    fs::write(
+        root.join("schemas/broken.json"),
+        format!(
+            r#"{{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"{base}/broken.json","type":"object","properties":{{"x":{{"$ref":"{base}/Missing.json"}}}}}}"#
+        ),
+    )
+    .expect("schema");
+    let registry = Registry::load_module(&root).expect("the module loads");
+    let (kind, item, reason) = sole_drop(&registry);
+    assert_eq!((kind, item.as_str()), ("archetype", "broken"));
+    assert!(reason.contains("Missing.json"), "{reason}");
+    assert!(registry.archetype("good").is_some());
+    assert!(registry.archetype("broken").is_none());
+}
+
+#[test]
+#[trace("FR-058-AC-39")]
+fn a_model_holding_a_retired_value_that_mints_no_source_symbol_reports_both() {
+    let mut contradicting = model(
+        "vocabularies:\n  test_type_column: T\n  test_type: [Inspection]\n  \
+         no_source_symbol: [Inspection]\n  retired: [inspection, Withdrawn]\n",
+    );
+    let failures = contradicting.validate();
+    let kinds: Vec<&str> = failures.iter().map(|f| f.kind.as_str()).collect();
+    assert_eq!(
+        kinds,
+        ["retirement_vocabulary", "no_source_symbol"],
+        "{failures:?}"
+    );
+    contradicting.prune();
+    assert_eq!(contradicting.vocabularies.retired, ["Withdrawn"]);
+    assert!(contradicting.vocabularies.no_source_symbol.is_empty());
 }

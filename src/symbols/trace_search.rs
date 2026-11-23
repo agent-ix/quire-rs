@@ -135,6 +135,18 @@ pub fn symbol_language<'a>(extraction: &'a SymbolExtraction, symbol_id: &str) ->
         .map(|s| s.language.as_str())
 }
 
+/// Why a search produced no result.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+pub enum SearchError {
+    /// The build could not read a language in the tree.
+    #[error(transparent)]
+    ExtractionUnavailable(#[from] super::ExtractionUnavailable),
+    /// The graph was bound against a model with dropped declarations, so
+    /// "nothing backs this id" could mean "the declaration was dropped".
+    #[error(transparent)]
+    DeclarationsDropped(#[from] crate::traceability::DroppedDeclarations),
+}
+
 /// Answer `query` against `graph`/`extraction`.
 ///
 /// `extraction` is needed only for [`Query::SymbolName`]'s ambiguity check —
@@ -148,8 +160,13 @@ pub fn search(
     graph: &SymbolGraph,
     extraction: &SymbolExtraction,
     query: &Query,
-) -> Result<SearchResult, super::ExtractionUnavailable> {
+) -> Result<SearchResult, SearchError> {
     extraction.require_available()?;
+    if !graph.dropped_declarations.is_empty() {
+        return Err(
+            crate::traceability::DroppedDeclarations(graph.dropped_declarations.clone()).into(),
+        );
+    }
     Ok(match query {
         Query::Id(id) => search_id(graph, id.clone()),
         Query::Symbol {

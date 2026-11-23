@@ -11,7 +11,7 @@ use std::sync::Arc;
 use crate::error::{ArchetypeLoadFailure, DroppedDeclaration};
 use crate::loader::compile::CompiledArchetype;
 use crate::loader::{flow_rules, merge_traceability, LoadOutcome, LoadedModule};
-use crate::traceability::DeclarationKind;
+use crate::traceability::{DeclarationKind, DroppedDeclarationRef};
 use crate::vocab::EdgeTypeDef;
 
 /// One declaration to drop from one module.
@@ -127,17 +127,19 @@ fn others(modules: &[LoadedModule], declaring: &BTreeSet<usize>, except: usize) 
         .join(", ")
 }
 
-/// Drop each declaration of a conflict from every module declaring it.
+/// Drop each declaration of a conflict from every module declaring it, each
+/// failure naming every other module `involved` in the conflict.
 fn conflict(
     modules: &[LoadedModule],
     drops: &mut Vec<Drop>,
     kind: DeclarationKind,
     item: &str,
     declaring: &BTreeSet<usize>,
+    involved: &BTreeSet<usize>,
     what: &str,
 ) {
     for index in declaring {
-        let other = others(modules, declaring, *index);
+        let other = others(modules, involved, *index);
         let reason = if other.is_empty() {
             format!("merged selected traceability model: {what}")
         } else {
@@ -194,6 +196,7 @@ fn cross_module_conflicts(modules: &[LoadedModule]) -> Vec<Drop> {
                 DeclarationKind::RequiredRelation,
                 name,
                 &declaring,
+                &declaring,
                 &format!("required_relations entry '{name}' is declared with different bodies"),
             );
         }
@@ -206,6 +209,7 @@ fn cross_module_conflicts(modules: &[LoadedModule]) -> Vec<Drop> {
                 &mut drops,
                 DeclarationKind::CarriedField,
                 name,
+                &declaring,
                 &declaring,
                 &format!("carried_fields entry '{name}' is declared with different keys"),
             );
@@ -222,6 +226,7 @@ fn cross_module_conflicts(modules: &[LoadedModule]) -> Vec<Drop> {
                     &mut drops,
                     kind,
                     name,
+                    &declaring,
                     &declaring,
                     &format!("duplicate {label} entry '{name}'"),
                 );
@@ -247,28 +252,31 @@ fn qualifier_conflicts(modules: &[LoadedModule], drops: &mut Vec<Drop>) {
         }
     }
     let entries: Vec<(&(&str, &str), &BTreeSet<usize>)> = declared.iter().collect();
-    let mut conflicting: BTreeMap<&str, BTreeSet<usize>> = BTreeMap::new();
+    // Per prefix: the modules declaring it, and every module in a conflict with it.
+    let mut conflicting: BTreeMap<&str, (BTreeSet<usize>, BTreeSet<usize>)> = BTreeMap::new();
     for (position, ((prefix, _), declaring)) in entries.iter().enumerate() {
         for ((other, _), other_declaring) in &entries[position + 1..] {
-            if prefix.starts_with(other) || other.starts_with(prefix) {
-                conflicting
-                    .entry(prefix)
-                    .or_default()
-                    .extend(declaring.iter().copied());
-                conflicting
-                    .entry(other)
-                    .or_default()
-                    .extend(other_declaring.iter().copied());
+            if !(prefix.starts_with(other) || other.starts_with(prefix)) {
+                continue;
+            }
+            for (name, mine, theirs) in [
+                (*prefix, declaring, other_declaring),
+                (*other, other_declaring, declaring),
+            ] {
+                let entry = conflicting.entry(name).or_default();
+                entry.0.extend(mine.iter().copied());
+                entry.1.extend(mine.iter().chain(theirs.iter()).copied());
             }
         }
     }
-    for (prefix, declaring) in conflicting {
+    for (prefix, (declaring, involved)) in conflicting {
         conflict(
             modules,
             drops,
             DeclarationKind::TraceIdQualifier,
             prefix,
             &declaring,
+            &involved,
             &format!(
                 "trace_id_qualifiers prefix '{prefix}' is not unique or overlaps another prefix, \
                  so a tag could name either repository"
@@ -277,51 +285,49 @@ fn qualifier_conflicts(modules: &[LoadedModule], drops: &mut Vec<Drop>) {
     }
 }
 
-/// A retired value another vocabulary declares as minting no source symbol
-/// contradicts it; both declarations are dropped.
+/// A retired value another module declares as minting no source symbol
+/// contradicts it. Every such declaration drops once, naming every other module
+/// in the conflict. A contradiction inside one module dropped at its own load.
 fn retirement_conflicts(modules: &[LoadedModule], drops: &mut Vec<Drop>) {
+    let fold = |value: &str| value.trim().to_ascii_lowercase();
+    let mut retiring: BTreeMap<String, BTreeMap<usize, &str>> = BTreeMap::new();
+    let mut minting: BTreeMap<String, BTreeMap<usize, &str>> = BTreeMap::new();
     for (index, module) in modules.iter().enumerate() {
-        for value in &module.traceability.vocabularies.retired {
-            let minting: BTreeSet<usize> = modules
-                .iter()
-                .enumerate()
-                .filter(|(_, other)| other.traceability.vocabularies.mints_no_symbol(value))
-                .map(|(other, _)| other)
-                .collect();
-            if minting.is_empty() {
-                continue;
-            }
-            let mut declaring = minting.clone();
-            declaring.insert(index);
-            let what = format!(
-                "vocabularies.retired value '{value}' is also declared in no_source_symbol"
-            );
-            drops.push(Drop::new(
-                index,
-                DeclarationKind::RetirementVocabulary,
-                value,
-                format!(
-                    "merged selected traceability model: {what}; declared by modules {}",
-                    others(modules, &minting, index)
-                ),
-            ));
-            for other in minting {
-                let symbol = modules[other]
-                    .traceability
-                    .vocabularies
-                    .no_source_symbol
-                    .iter()
-                    .find(|declared| declared.trim().eq_ignore_ascii_case(value.trim()))
-                    .map_or(value.as_str(), String::as_str);
-                drops.push(Drop::new(
-                    other,
-                    DeclarationKind::NoSourceSymbol,
-                    symbol,
+        let vocabularies = &module.traceability.vocabularies;
+        for value in &vocabularies.retired {
+            retiring
+                .entry(fold(value))
+                .or_default()
+                .insert(index, value);
+        }
+        for value in &vocabularies.no_source_symbol {
+            minting.entry(fold(value)).or_default().insert(index, value);
+        }
+    }
+    for (value, retired_by) in &retiring {
+        let Some(minted_by) = minting.get(value) else {
+            continue;
+        };
+        let involved: BTreeSet<usize> =
+            retired_by.keys().chain(minted_by.keys()).copied().collect();
+        let raw = retired_by.values().next().copied().unwrap_or(value);
+        let what =
+            format!("vocabularies.retired value '{raw}' is also declared in no_source_symbol");
+        for (kind, declared) in [
+            (DeclarationKind::RetirementVocabulary, retired_by),
+            (DeclarationKind::NoSourceSymbol, minted_by),
+        ] {
+            for (index, item) in declared {
+                let other = others(modules, &involved, *index);
+                let reason = if other.is_empty() {
+                    format!("merged selected traceability model: {what}")
+                } else {
                     format!(
-                        "merged selected traceability model: {what}; retired by module '{}'",
-                        module.name
-                    ),
-                ));
+                        "merged selected traceability model: {what}; also declared by modules \
+                         {other}"
+                    )
+                };
+                drops.push(Drop::new(*index, kind, item, reason));
             }
         }
     }
@@ -405,6 +411,15 @@ pub(super) fn resolve(
     }
 
     let dropped_remediations = dropped_names(&outcome.failures, DeclarationKind::Remediation);
+    let dropped_archetypes: BTreeMap<String, String> = outcome
+        .failures
+        .iter()
+        .filter_map(|failure| {
+            let declaration = failure.declaration.as_deref()?;
+            (declaration.kind == DeclarationKind::Archetype)
+                .then(|| (declaration.item.clone(), failure.reason.clone()))
+        })
+        .collect();
     drops.extend(flow_rules::validate_flow_declarations(
         &outcome.modules,
         &merged,
@@ -412,52 +427,49 @@ pub(super) fn resolve(
         edge_types,
         inverse_edges,
         &dropped_remediations,
+        &dropped_archetypes,
     ));
     apply(outcome, drops);
     drop_dependents(outcome);
     order_declaration_failures(outcome);
 }
 
-/// Put the declaration failures in module load order, then kind, then item,
-/// leaving every other failure where it is.
+/// Put the declaration failures in module load order, then kind, then item.
+/// Every other failure keeps its place ahead of them.
 fn order_declaration_failures(outcome: &mut LoadOutcome) {
-    let module_position = |name: &str| outcome.modules.iter().position(|m| m.name == name);
-    let slots: Vec<usize> = outcome
-        .failures
-        .iter()
-        .enumerate()
-        .filter(|(_, failure)| failure.declaration.is_some())
-        .map(|(slot, _)| slot)
-        .collect();
-    let mut ordered: Vec<ArchetypeLoadFailure> = slots
-        .iter()
-        .map(|slot| {
-            std::mem::replace(
-                &mut outcome.failures[*slot],
-                declaration_failure(
-                    "",
-                    Default::default(),
-                    DeclarationKind::Exclude,
-                    "",
-                    String::new(),
-                ),
-            )
-        })
-        .collect();
-    ordered.sort_by(|a, b| {
-        let key = |f: &ArchetypeLoadFailure| {
-            let declaration = f.declaration.as_ref();
-            (
-                module_position(&f.module),
-                declaration.map(|d| d.kind.as_str()),
-                declaration.map(|d| d.item.clone()),
-            )
-        };
-        key(a).cmp(&key(b))
+    let (mut declared, others): (Vec<_>, Vec<_>) = std::mem::take(&mut outcome.failures)
+        .into_iter()
+        .partition(|failure| failure.declaration.is_some());
+    declared.sort_by_cached_key(|failure| {
+        let declaration = failure.declaration.as_deref();
+        (
+            outcome
+                .modules
+                .iter()
+                .position(|m| m.name == failure.module),
+            declaration.map(|d| d.kind.as_str()),
+            declaration.map(|d| d.item.clone()),
+        )
     });
-    for (slot, failure) in slots.into_iter().zip(ordered) {
-        outcome.failures[slot] = failure;
-    }
+    outcome.failures = others;
+    outcome.failures.extend(declared);
+}
+
+/// The dropped declarations recorded in `failures`, located by module.
+pub(super) fn dropped_refs(failures: &[ArchetypeLoadFailure]) -> Vec<DroppedDeclarationRef> {
+    failures
+        .iter()
+        .filter_map(|failure| {
+            failure
+                .declaration
+                .as_deref()
+                .map(|d| DroppedDeclarationRef {
+                    module: failure.module.clone(),
+                    kind: d.kind,
+                    item: d.item.clone(),
+                })
+        })
+        .collect()
 }
 
 /// Drop each declaration naming a relation or carried field that was dropped,

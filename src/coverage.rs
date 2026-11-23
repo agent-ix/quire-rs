@@ -57,8 +57,8 @@ pub enum CoverageError {
     /// merged model is not the one the modules declared. Computing over it
     /// would read as a complete answer; the run names each dropped
     /// declaration instead and produces no report.
-    #[error("{} traceability declaration(s) were dropped at load: {}", .0.len(), .0.join("; "))]
-    DeclarationsDropped(Vec<String>),
+    #[error(transparent)]
+    DeclarationsDropped(#[from] crate::traceability::DroppedDeclarations),
     /// The tree holds source in a language this build has no symbol adapter
     /// for (FR-050-AC-59). Every count would omit those files and read as
     /// "unbacked", so the run refuses rather than report them.
@@ -940,20 +940,7 @@ fn compute_inner(
         }
         .into());
     }
-    let dropped: Vec<String> = registry
-        .dropped_declarations()
-        .map(|(failure, declaration)| {
-            format!(
-                "module '{}' {} '{}'",
-                failure.module,
-                declaration.kind.as_str(),
-                declaration.item
-            )
-        })
-        .collect();
-    if !dropped.is_empty() {
-        return Err(CoverageError::DeclarationsDropped(dropped));
-    }
+    registry.require_complete_model()?;
     let model = registry
         .traceability()
         .ok_or(CoverageError::ModelUndeclared)?;

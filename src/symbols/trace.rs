@@ -440,6 +440,10 @@ pub struct SymbolGraph {
     /// copied from [`SymbolExtraction::unavailable_languages`] so the coverage
     /// rollup — which sees only this graph — can refuse (FR-051-AC-29).
     pub unavailable_languages: Vec<crate::traceability::SourceLanguage>,
+    /// Declarations of the model this graph was bound against that were dropped
+    /// at load, copied from [`TraceabilityModel::dropped`] so a consumer that
+    /// sees only this graph can refuse.
+    pub dropped_declarations: Vec<crate::traceability::DroppedDeclarationRef>,
     /// Ids written in a comment or docstring attached to a declaration, which
     /// never binds (CR-215, FR-051-AC-49): the one advisory over non-marker
     /// trace text. Diagnostic input only — it binds nothing and moves no total.
@@ -705,6 +709,7 @@ pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolG
         excluded_source_files: extraction.excluded_source_files,
         ignored_source_files: extraction.ignored_source_files,
         unavailable_languages: extraction.unavailable_languages.clone(),
+        dropped_declarations: model.dropped.clone(),
         ..SymbolGraph::default()
     };
     // FR-051-AC-19: what was looked at, per language, and what bound. Keyed by

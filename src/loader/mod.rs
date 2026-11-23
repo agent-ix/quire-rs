@@ -1474,7 +1474,8 @@ pub fn flatten_into_registry(mut outcome: LoadOutcome) -> RegistryShape {
         &edge_types,
         &inverse_edges,
     );
-    let traceability = merge_traceability(&outcome.modules);
+    let mut traceability = merge_traceability(&outcome.modules);
+    traceability.dropped = declarations::dropped_refs(&outcome.failures);
     let declaration_origins = merge_declaration_origins(&outcome.modules);
 
     // ── FR-040: advisory check that every verb used in an archetype's

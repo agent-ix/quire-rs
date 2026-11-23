@@ -31,7 +31,7 @@ pub use flow_rules::{
     FlowAddRemediation, FlowCondition, FlowConditionTest, FlowRemediation, FlowRemoveRemediation,
     FlowRule, FlowSetRemediation, FlowStep,
 };
-pub use prune::{DeclarationFailure, DeclarationKind};
+pub use prune::{DeclarationFailure, DeclarationKind, DroppedDeclarationRef, DroppedDeclarations};
 
 /// A source language an adapter and a trace-marker form can bind to (FR-051).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
@@ -478,6 +478,12 @@ pub struct TraceabilityModel {
     /// Remediation vocabulary referenced by flow rules (FR-096).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub remediations: Vec<FlowRemediation>,
+    /// Declarations the selected modules declared that were dropped at load.
+    /// Set on the merged model only; never read from or written to a manifest.
+    /// A consumer computing over this model checks
+    /// [`require_complete`](Self::require_complete) first.
+    #[serde(skip)]
+    pub dropped: Vec<DroppedDeclarationRef>,
 }
 
 /// One declared trace-id qualifier (NFR-140): a prefix a source tag may write
@@ -2253,7 +2259,7 @@ document_references:
             // duplicate target names
             (
                 "trace_targets:\n- name: t\n  archetype: FR\n  section: S\n  id_column: ID\n- name: t\n  archetype: NFR\n  section: S\n  id_column: ID\n",
-                "trace_targets entry 't' is declared more than once",
+                "duplicate trace_targets",
             ),
             // a status value in two classes
             (

@@ -140,6 +140,59 @@ pub struct DeclarationFailure {
     pub reason: String,
 }
 
+/// A declaration dropped at load, located by module.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DroppedDeclarationRef {
+    /// The module that declared it.
+    pub module: String,
+    /// What kind of declaration it was.
+    pub kind: DeclarationKind,
+    /// The declaration's name, value or position.
+    pub item: String,
+}
+
+/// The declarations dropped at load. A consumer that computes over the merged
+/// model refuses with this rather than compute silently over a model the
+/// modules did not declare.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DroppedDeclarations(pub Vec<DroppedDeclarationRef>);
+
+impl std::fmt::Display for DroppedDeclarations {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{} traceability declaration(s) were dropped at load: ",
+            self.0.len()
+        )?;
+        for (index, dropped) in self.0.iter().enumerate() {
+            if index > 0 {
+                f.write_str("; ")?;
+            }
+            write!(
+                f,
+                "module '{}' {} '{}'",
+                dropped.module,
+                dropped.kind.as_str(),
+                dropped.item
+            )?;
+        }
+        Ok(())
+    }
+}
+
+impl std::error::Error for DroppedDeclarations {}
+
+impl TraceabilityModel {
+    /// `Ok` when no declaration of the selected modules was dropped.
+    pub fn require_complete(&self) -> Result<(), DroppedDeclarations> {
+        if self.dropped.is_empty() {
+            Ok(())
+        } else {
+            Err(DroppedDeclarations(self.dropped.clone()))
+        }
+    }
+}
+
 /// Failures collected while pruning, and which declarations they dropped.
 #[derive(Default)]
 struct Pruned {
@@ -170,13 +223,25 @@ fn item_label(name: &str, index: usize) -> String {
     }
 }
 
-/// Keep the entries of `list` that execute. With `unique`, an entry whose name
-/// another entry shares no longer identifies one declaration: identical entries
-/// merge to the first, differing ones are all dropped with one failure.
+/// What a repeated name means in one list.
+#[derive(Clone, Copy)]
+enum Duplicates {
+    /// Repeats are legitimate.
+    Allow,
+    /// Identical repeats merge to the first; differing ones are all dropped
+    /// with one failure.
+    MergeIdentical,
+    /// A repeat is a failure at that declaration: every entry of the name is
+    /// dropped with one failure.
+    Reject,
+}
+
+/// Keep the entries of `list` that execute, applying `duplicates` to a name
+/// more than one entry carries.
 fn screen<T: Clone + PartialEq>(
     kind: DeclarationKind,
     list: Vec<T>,
-    unique: bool,
+    duplicates: Duplicates,
     name: impl Fn(&T) -> &str,
     mut check: impl FnMut(&T) -> Result<(), String>,
     out: &mut Pruned,
@@ -185,19 +250,20 @@ fn screen<T: Clone + PartialEq>(
     let mut handled: BTreeSet<String> = BTreeSet::new();
     for (index, entry) in list.iter().enumerate() {
         let label = name(entry);
-        if unique && !label.trim().is_empty() {
+        if !matches!(duplicates, Duplicates::Allow) && !label.trim().is_empty() {
             let twins: Vec<&T> = list.iter().filter(|other| name(other) == label).collect();
             if twins.len() > 1 {
                 if !handled.insert(label.to_string()) {
                     continue;
                 }
-                if twins.iter().any(|twin| *twin != entry) {
+                let differs = twins.iter().any(|twin| *twin != entry);
+                if differs || matches!(duplicates, Duplicates::Reject) {
                     out.drop(
                         kind,
                         label.to_string(),
                         format!(
-                            "traceability: {} entry '{label}' is declared more than once with \
-                             different bodies, so the name no longer identifies one declaration",
+                            "traceability: duplicate {} entry '{label}', so the name no longer \
+                             identifies one declaration",
                             kind.section()
                         ),
                     );
@@ -255,7 +321,7 @@ impl TraceabilityModel {
         self.trace_id_qualifiers = screen(
             DeclarationKind::TraceIdQualifier,
             std::mem::take(&mut self.trace_id_qualifiers),
-            true,
+            Duplicates::Reject,
             |q| q.prefix.as_str(),
             check_qualifier,
             &mut out,
@@ -264,7 +330,7 @@ impl TraceabilityModel {
         self.trace_targets = screen(
             DeclarationKind::TraceTarget,
             std::mem::take(&mut self.trace_targets),
-            true,
+            Duplicates::Reject,
             |t| t.name.as_str(),
             check_trace_target,
             &mut out,
@@ -280,7 +346,7 @@ impl TraceabilityModel {
         self.document_references = screen(
             DeclarationKind::DocumentReference,
             std::mem::take(&mut self.document_references),
-            true,
+            Duplicates::Reject,
             |r| r.name.as_str(),
             |reference| {
                 check_document_reference(
@@ -298,7 +364,7 @@ impl TraceabilityModel {
         self.obligations = screen(
             DeclarationKind::Obligation,
             std::mem::take(&mut self.obligations),
-            true,
+            Duplicates::Reject,
             |o| o.name.as_str(),
             |source| check_obligation(source, &targets, &target_names, &dropped_targets),
             &mut out,
@@ -307,7 +373,7 @@ impl TraceabilityModel {
         self.required_relations = screen(
             DeclarationKind::RequiredRelation,
             std::mem::take(&mut self.required_relations),
-            true,
+            Duplicates::MergeIdentical,
             |r| r.name.as_str(),
             check_required_relation,
             &mut out,
@@ -318,7 +384,7 @@ impl TraceabilityModel {
         self.design_relations = screen(
             DeclarationKind::DesignRelation,
             std::mem::take(&mut self.design_relations),
-            true,
+            Duplicates::Reject,
             String::as_str,
             |entry| {
                 if entry.trim().is_empty() {
@@ -339,7 +405,7 @@ impl TraceabilityModel {
         self.acyclic_edges = screen(
             DeclarationKind::AcyclicEdge,
             std::mem::take(&mut self.acyclic_edges),
-            true,
+            Duplicates::Allow,
             String::as_str,
             |edge| {
                 if edge.trim().is_empty() {
@@ -358,7 +424,7 @@ impl TraceabilityModel {
         self.vocabulary_coverage = screen(
             DeclarationKind::VocabularyCoverage,
             std::mem::take(&mut self.vocabulary_coverage),
-            true,
+            Duplicates::Reject,
             |c| c.name.as_str(),
             check_vocabulary_coverage,
             &mut out,
@@ -367,7 +433,7 @@ impl TraceabilityModel {
         self.carried_fields = screen(
             DeclarationKind::CarriedField,
             std::mem::take(&mut self.carried_fields),
-            false,
+            Duplicates::Allow,
             |c| c.name.as_str(),
             check_carried_field,
             &mut out,
@@ -375,7 +441,7 @@ impl TraceabilityModel {
         self.field_consistency = screen(
             DeclarationKind::FieldConsistency,
             std::mem::take(&mut self.field_consistency),
-            true,
+            Duplicates::Reject,
             |r| r.name.as_str(),
             check_field_consistency,
             &mut out,
@@ -383,7 +449,7 @@ impl TraceabilityModel {
         self.required_fields = screen(
             DeclarationKind::RequiredField,
             std::mem::take(&mut self.required_fields),
-            true,
+            Duplicates::Reject,
             |r| r.name.as_str(),
             check_required_field,
             &mut out,
@@ -391,7 +457,7 @@ impl TraceabilityModel {
         self.vocabulary = screen(
             DeclarationKind::Vocabulary,
             std::mem::take(&mut self.vocabulary),
-            true,
+            Duplicates::Reject,
             |r| r.name.as_str(),
             check_vocabulary_rule,
             &mut out,
@@ -399,7 +465,7 @@ impl TraceabilityModel {
         self.flow_rules = screen(
             DeclarationKind::FlowRule,
             std::mem::take(&mut self.flow_rules),
-            true,
+            Duplicates::Reject,
             |r| r.name.as_str(),
             check_flow_rule,
             &mut out,
@@ -407,7 +473,7 @@ impl TraceabilityModel {
         self.remediations = screen(
             DeclarationKind::Remediation,
             std::mem::take(&mut self.remediations),
-            true,
+            Duplicates::Reject,
             |r| r.name.as_str(),
             check_remediation,
             &mut out,
@@ -420,7 +486,7 @@ impl TraceabilityModel {
         self.vocabularies.no_source_symbol = screen(
             DeclarationKind::NoSourceSymbol,
             std::mem::take(&mut self.vocabularies.no_source_symbol),
-            false,
+            Duplicates::Allow,
             String::as_str,
             |value| {
                 if !column {
@@ -446,7 +512,7 @@ impl TraceabilityModel {
         self.vocabularies.retired = screen(
             DeclarationKind::RetirementVocabulary,
             std::mem::take(&mut self.vocabularies.retired),
-            false,
+            Duplicates::Allow,
             String::as_str,
             |value| {
                 if value.trim().is_empty() {
@@ -458,11 +524,14 @@ impl TraceabilityModel {
             &mut out,
         );
 
+        self.drop_overlapping_qualifiers(&mut out);
+        self.drop_contradicting_retirements(&mut out);
+
         let TraceabilityModel { trace_tags, .. } = self;
         trace_tags.markers = screen(
             DeclarationKind::TraceTag,
             std::mem::take(&mut trace_tags.markers),
-            true,
+            Duplicates::Reject,
             |m| m.name.as_str(),
             check_marker,
             &mut out,
@@ -470,7 +539,7 @@ impl TraceabilityModel {
         trace_tags.implements = screen(
             DeclarationKind::TraceTag,
             std::mem::take(&mut trace_tags.implements),
-            false,
+            Duplicates::Allow,
             |m| m.name.as_str(),
             check_implements,
             &mut out,
@@ -478,12 +547,74 @@ impl TraceabilityModel {
         trace_tags.formalizes = screen(
             DeclarationKind::TraceTag,
             std::mem::take(&mut trace_tags.formalizes),
-            true,
+            Duplicates::Reject,
             |m| m.name.as_str(),
             check_formalizes,
             &mut out,
         );
         out.failures
+    }
+
+    /// NFR-140: no prefix contains another, or a tag could name either
+    /// repository. Every prefix that overlaps another drops.
+    fn drop_overlapping_qualifiers(&mut self, out: &mut Pruned) {
+        let prefixes: Vec<String> = self
+            .trace_id_qualifiers
+            .iter()
+            .map(|q| q.prefix.clone())
+            .collect();
+        for prefix in &prefixes {
+            let other = prefixes.iter().find(|other| {
+                *other != prefix && (prefix.starts_with(*other) || other.starts_with(prefix))
+            });
+            if let Some(other) = other {
+                out.drop(
+                    DeclarationKind::TraceIdQualifier,
+                    prefix.clone(),
+                    format!(
+                        "traceability: trace_id_qualifiers prefixes '{other}' and '{prefix}' \
+                         overlap, so a tag could name either repository"
+                    ),
+                );
+            }
+        }
+        let dropped = out.dropped_names(DeclarationKind::TraceIdQualifier);
+        self.trace_id_qualifiers
+            .retain(|q| !dropped.contains(&q.prefix));
+    }
+
+    /// A retired value that is also declared as minting no source symbol
+    /// contradicts it; both declarations drop.
+    fn drop_contradicting_retirements(&mut self, out: &mut Pruned) {
+        let retired = std::mem::take(&mut self.vocabularies.retired);
+        let mut kept = Vec::new();
+        for value in retired {
+            if !self.vocabularies.mints_no_symbol(&value) {
+                kept.push(value);
+                continue;
+            }
+            let what = format!(
+                "vocabularies.retired value '{value}' is also declared in no_source_symbol"
+            );
+            out.drop(
+                DeclarationKind::RetirementVocabulary,
+                value.clone(),
+                format!("traceability: {what}"),
+            );
+            let symbols = std::mem::take(&mut self.vocabularies.no_source_symbol);
+            for symbol in symbols {
+                if symbol.trim().eq_ignore_ascii_case(value.trim()) {
+                    out.drop(
+                        DeclarationKind::NoSourceSymbol,
+                        symbol,
+                        format!("traceability: {what}"),
+                    );
+                } else {
+                    self.vocabularies.no_source_symbol.push(symbol);
+                }
+            }
+        }
+        self.vocabularies.retired = kept;
     }
 
     /// Remove the declaration of `kind` named `item`. A kind this does not

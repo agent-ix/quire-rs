@@ -13,8 +13,16 @@ bumps; once 1.0 ships, semver is strict.
   of failing its module or emptying the merged model. `TraceabilityModel::validate` returns the
   failing declarations (`Vec<DeclarationFailure>`) and `prune` removes them; `ArchetypeLoadFailure`
   gains `declaration` (kind and item). `validate_bundle` and `validate_corpus` report each drop as
-  the non-registrable `trace:declared-model-dropped` error, and `coverage::compute` returns
-  `CoverageError::DeclarationsDropped` naming each one.
+  the non-registrable `trace:declared-model-dropped` error. A key the engine does not know under
+  `traceability:` still fails the load loud.
+  `Registry::require_complete_model` is the one guard: `coverage::compute`,
+  `corpus::{relation_report, design_join, design_matrix}`, `obligation::inventory` and
+  `symbols::trace_search::search` refuse with `DroppedDeclarations` (typed module, kind, item)
+  rather than compute over a model with dropped declarations. `search` now returns `SearchError`.
+  Upgrade notes for consumers: quire-cli's `require_traceability_model` runs before `compute`
+  and must check `registry.dropped_declarations()` first, also in `trace`, so every drop is
+  named and gets the distinct FR-050 exit; quoin's `coverage_error` match over `CoverageError`
+  is exhaustive and needs a `DeclarationsDropped` arm on the bump.
 
 ### Added
 

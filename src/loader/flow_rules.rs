@@ -26,6 +26,7 @@ pub(super) fn validate_flow_declarations(
     edge_types: &BTreeMap<String, EdgeTypeDef>,
     inverse_edges: &BTreeMap<String, String>,
     dropped_remediations: &BTreeSet<String>,
+    dropped_archetypes: &BTreeMap<String, String>,
 ) -> Vec<Drop> {
     let mut drops = Vec::new();
     let all_remediations: BTreeMap<&str, &FlowRemediation> = model
@@ -110,13 +111,14 @@ pub(super) fn validate_flow_declarations(
                 .remediations
                 .iter()
                 .find(|name| dropped_remediations.contains(*name));
-            let verdict = match dependency {
-                Some(name) => Err(format!(
+            let verdict = match (dependency, dropped_archetype_use(rule, dropped_archetypes)) {
+                (_, Some(reason)) => Err(reason),
+                (Some(name), None) => Err(format!(
                     "traceability: flow_rules entry '{}' depends on dropped remediations entry \
                      '{name}'",
                     rule.name
                 )),
-                None => validate_rule(
+                (None, None) => validate_rule(
                     rule,
                     &all_remediations,
                     archetypes,
@@ -138,6 +140,30 @@ pub(super) fn validate_flow_declarations(
     }
 
     drops
+}
+
+/// A rule reading an archetype that was dropped depends on a dropped
+/// declaration: the failure names that archetype, why it dropped, and the
+/// fields the rule reads.
+fn dropped_archetype_use(rule: &FlowRule, dropped: &BTreeMap<String, String>) -> Option<String> {
+    let conditions = || rule.match_conditions.iter().chain(&rule.unless_any);
+    let named = rule.subject.iter().chain(
+        conditions()
+            .flat_map(|condition| condition.paths.iter().flatten())
+            .flat_map(|step| step.to.iter()),
+    );
+    let archetype = named.into_iter().find(|name| dropped.contains_key(*name))?;
+    let fields: BTreeSet<&str> = conditions().map(|c| c.field.as_str()).collect();
+    Some(format!(
+        "traceability: flow_rules entry '{}' depends on dropped archetype '{archetype}' (field {}): {}",
+        rule.name,
+        fields
+            .iter()
+            .map(|field| format!("'{field}'"))
+            .collect::<Vec<_>>()
+            .join(", "),
+        dropped[archetype]
+    ))
 }
 
 fn validate_rule(

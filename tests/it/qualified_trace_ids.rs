@@ -266,6 +266,20 @@ fn a_malformed_qualifier_declaration_is_refused_at_load() {
     assert!(!model("FSpec-", "filament-specification")
         .validate()
         .is_empty());
+    let overlapping = TraceabilityModel {
+        trace_id_qualifiers: vec![
+            TraceIdQualifier {
+                prefix: "F-".into(),
+                repository: "o/a".into(),
+            },
+            TraceIdQualifier {
+                prefix: "F-X-".into(),
+                repository: "o/b".into(),
+            },
+        ],
+        ..TraceabilityModel::default()
+    };
+    assert_eq!(overlapping.validate().len(), 2);
 }
 
 #[trace("NFR-140-AC-2")]

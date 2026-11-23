@@ -768,13 +768,20 @@ fn a_bad_design_relation_entry_drops_or_reports_and_fails_the_join() {
         .map(|failure| failure.reason)
         .expect("blank")
         .contains("design_relations"));
-    // A repeated entry names one relation, so it merges to one.
-    let mut repeated = TraceabilityModel {
+    let repeated = TraceabilityModel {
         design_relations: vec!["same".into(), "same".into()],
         ..TraceabilityModel::default()
     };
-    assert_eq!(repeated.prune(), vec![]);
-    assert_eq!(repeated.design_relations, ["same"]);
+    let err = repeated
+        .validate()
+        .into_iter()
+        .next()
+        .map(|failure| failure.reason)
+        .expect("repeated");
+    assert!(
+        err.contains("design_relations") && err.contains("'same'"),
+        "{err}"
+    );
 
     // An entry naming no declared relation reports and fails the join.
     let (_module_dir, registry) = temp_module(&manifest("  design_relations: [ghost]\n", false));

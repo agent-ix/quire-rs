@@ -793,6 +793,16 @@ pub fn inventory(
         advisories: Vec::new(),
         terminal: InventoryTerminal::Incomplete,
     };
+    if let Err(dropped) = model.require_complete() {
+        result.cause(
+            InventoryCauseCode::InvalidModel,
+            None,
+            None,
+            None,
+            None,
+            InventoryCauseDetail::Model(dropped.to_string()),
+        );
+    }
     if let Some(reason) = model
         .validate()
         .into_iter()

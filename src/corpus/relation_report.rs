@@ -55,6 +55,10 @@ pub enum RelationReportError {
         /// The entry as declared.
         name: String,
     },
+    /// Declarations of the selected modules were dropped at load, so the report
+    /// would be computed over a model they did not declare.
+    #[error(transparent)]
+    DeclarationsDropped(#[from] crate::traceability::DroppedDeclarations),
     /// One [`RelationReportMember`] is supplied per corpus member.
     #[error("corpus has {members} member(s) but {supplied} member input(s) were supplied")]
     MemberCount {
@@ -362,6 +366,7 @@ pub fn relation_report(
     names: &[String],
 ) -> Result<RelationReport, RelationReportError> {
     check_members(corpus, members)?;
+    registry.require_complete_model()?;
     let model = registry.traceability();
     let declared = model.map_or(&[][..], |m| m.required_relations.as_slice());
     if let Some(name) = names
@@ -397,6 +402,7 @@ pub fn design_join(
     members: &[RelationReportMember<'_>],
 ) -> Result<RelationReport, RelationReportError> {
     check_members(corpus, members)?;
+    registry.require_complete_model()?;
     let Some(model) = registry.traceability() else {
         return Ok(RelationReport {
             relations: vec![],

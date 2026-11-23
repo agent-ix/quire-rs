@@ -636,9 +636,11 @@ pub fn parse_manifest(bytes: &[u8]) -> Result<Manifest, String> {
 }
 
 /// Deserialize the manifest. A traceability entry that cannot be deserialized
-/// is one dropped declaration, and a `traceability:` section that cannot be
-/// deserialized at all is one dropped declaration: the module loads with an
-/// empty model and the failure names the deserialization error.
+/// is one dropped declaration, and a `traceability:` section whose shape cannot
+/// be deserialized is one dropped declaration: the module loads with an empty
+/// model and the failure names the deserialization error. A key the engine does
+/// not know, at any depth of the section, is a manifest from a newer engine and
+/// fails the load loud, naming the key (FR-013-AC-19).
 fn deserialize_manifest(
     bytes: &[u8],
 ) -> Result<(Manifest, Vec<crate::traceability::DeclarationFailure>), String> {
@@ -657,9 +659,12 @@ fn deserialize_manifest(
     else {
         return Err(first);
     };
-    let mut dropped = drop_unreadable_entries(&mut section);
+    let Some(mut dropped) = drop_unreadable_entries(&mut section) else {
+        return Err(first);
+    };
     let model = match serde_yaml::from_value::<TraceabilityModel>(section) {
         Ok(model) => model,
+        Err(section_error) if is_unknown_key(&section_error.to_string()) => return Err(first),
         Err(section_error) => {
             dropped = vec![DeclarationFailure {
                 kind: DeclarationKind::TraceabilitySection,
@@ -677,11 +682,17 @@ fn deserialize_manifest(
     Ok((manifest, dropped))
 }
 
+/// Whether a deserialization error names a key the engine does not know.
+fn is_unknown_key(error: &str) -> bool {
+    error.contains("unknown field")
+}
+
 /// Remove the list entries of a raw `traceability:` section that cannot be
-/// deserialized, reporting each by name.
+/// deserialized, reporting each by name. `None` when an entry holds a key the
+/// engine does not know.
 fn drop_unreadable_entries(
     section: &mut serde_yaml::Value,
-) -> Vec<crate::traceability::DeclarationFailure> {
+) -> Option<Vec<crate::traceability::DeclarationFailure>> {
     use crate::traceability as t;
     use serde_yaml::Value;
 
@@ -767,11 +778,11 @@ fn drop_unreadable_entries(
     ];
     let mut dropped = Vec::new();
     let Some(mapping) = section.as_mapping_mut() else {
-        return dropped;
+        return Some(dropped);
     };
     for (key, kind, name_key, read) in lists {
         if let Some(Value::Sequence(entries)) = mapping.get_mut(key) {
-            retain_readable(entries, key, kind, name_key, read, &mut dropped);
+            retain_readable(entries, key, kind, name_key, read, &mut dropped)?;
         }
     }
     if let Some(Value::Mapping(tags)) = mapping.get_mut("trace_tags") {
@@ -779,11 +790,11 @@ fn drop_unreadable_entries(
             if let Some(Value::Sequence(entries)) = tags.get_mut(key) {
                 let read = readable::<t::TraceMarkerForm>;
                 let kind = t::DeclarationKind::TraceTag;
-                retain_readable(entries, key, kind, "name", read, &mut dropped);
+                retain_readable(entries, key, kind, "name", read, &mut dropped)?;
             }
         }
     }
-    dropped
+    Some(dropped)
 }
 
 /// Keep the entries `read` accepts; report each other by its `name_key`.
@@ -794,11 +805,12 @@ fn retain_readable(
     name_key: &str,
     read: fn(&serde_yaml::Value) -> Result<(), String>,
     dropped: &mut Vec<crate::traceability::DeclarationFailure>,
-) {
+) -> Option<()> {
     let mut kept = Vec::new();
     for (index, entry) in std::mem::take(entries).into_iter().enumerate() {
         match read(&entry) {
             Ok(()) => kept.push(entry),
+            Err(reason) if is_unknown_key(&reason) => return None,
             Err(reason) => dropped.push(crate::traceability::DeclarationFailure {
                 kind,
                 item: entry
@@ -811,6 +823,7 @@ fn retain_readable(
         }
     }
     *entries = kept;
+    Some(())
 }
 
 /// serde folds an authored `key: null` into "absent" for every optional

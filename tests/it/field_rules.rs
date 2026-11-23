@@ -1098,25 +1098,20 @@ fn a_structurally_bad_declaration_drops_itself_naming_the_entry() {
     let (kind, item, _) =
         crate::declaration_drop::sole_drop(&load(&rules_module("field_consistency", &blank)));
     assert_eq!((kind, item.as_str()), ("field_consistency", "#1"));
-    // Two entries of one name with different bodies no longer identify one
-    // declaration, so both are dropped; identical entries merge.
+    // A repeated name is a failure at that declaration, identical bodies or
+    // not: both entries drop, with one failure naming it.
     let different = GOOD_CONSISTENCY.replacen("check: below", "check: other", 1);
-    let conflicting = load(&rules_module(
-        "field_consistency",
-        &format!("{GOOD_CONSISTENCY}{different}"),
-    ));
-    let (_, item, reason) = crate::declaration_drop::sole_drop(&conflicting);
-    assert_eq!(item, "entry");
-    assert!(reason.contains("'entry'"), "{reason}");
-    let identical = load(&rules_module(
-        "field_consistency",
-        &format!("{GOOD_CONSISTENCY}{GOOD_CONSISTENCY}"),
-    ));
-    assert!(
-        identical.failures().is_empty(),
-        "{:?}",
-        identical.failures()
-    );
+    for duplicate in [
+        format!("{GOOD_CONSISTENCY}{different}"),
+        format!("{GOOD_CONSISTENCY}{GOOD_CONSISTENCY}"),
+    ] {
+        let (kind, item, reason) = crate::declaration_drop::sole_drop(&load(&rules_module(
+            "field_consistency",
+            &duplicate,
+        )));
+        assert_eq!((kind, item.as_str()), ("field_consistency", "entry"));
+        assert!(reason.contains("'entry'"), "{reason}");
+    }
 
     let required = "  - name: needs\n    from: [alpha]\n    field: f\n    check: unset\n";
     assert!(load(&rules_module("required_fields", required))
@@ -1125,10 +1120,7 @@ fn a_structurally_bad_declaration_drops_itself_naming_the_entry() {
     for bad in [
         required.replace("from: [alpha]", "from: []"),
         required.replace("check: unset", "check: ''"),
-        format!(
-            "{required}{}",
-            required.replace("check: unset", "check: other")
-        ),
+        format!("{required}{required}"),
     ] {
         let (kind, _, reason) =
             crate::declaration_drop::sole_drop(&load(&rules_module("required_fields", &bad)));
