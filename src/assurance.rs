@@ -8,7 +8,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Component, Path, PathBuf};
 
 use jsonschema::Draft;
-use serde::{Deserialize, Serialize};
+use serde::de::{self, MapAccess, SeqAccess, Visitor};
+use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
 
 use crate::corpus::declared_tables::ExcludeSet;
@@ -317,10 +318,11 @@ pub fn read_assurance_export(
     bytes: &[u8],
     accepted: &AcceptedAssurancePremises,
 ) -> Result<AssuranceExport, AssuranceError> {
-    let value: Value =
-        serde_json::from_slice(bytes).map_err(|error| AssuranceError::InvalidJson {
+    let value: Value = serde_json::from_slice::<UniqueJsonValue>(bytes)
+        .map_err(|error| AssuranceError::InvalidJson {
             reason: error.to_string(),
-        })?;
+        })?
+        .0;
     let format = value
         .get("format")
         .and_then(Value::as_str)
@@ -344,6 +346,103 @@ pub fn read_assurance_export(
         })?;
     validate_accepted_premises(&export, accepted)?;
     Ok(export)
+}
+
+struct UniqueJsonValue(Value);
+
+impl<'de> Deserialize<'de> for UniqueJsonValue {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        deserializer
+            .deserialize_any(UniqueJsonValueVisitor)
+            .map(Self)
+    }
+}
+
+struct UniqueJsonValueVisitor;
+
+impl<'de> Visitor<'de> for UniqueJsonValueVisitor {
+    type Value = Value;
+
+    fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("a JSON value with unique object keys")
+    }
+
+    fn visit_bool<E>(self, value: bool) -> Result<Self::Value, E> {
+        Ok(Value::Bool(value))
+    }
+
+    fn visit_i64<E>(self, value: i64) -> Result<Self::Value, E> {
+        Ok(Value::Number(value.into()))
+    }
+
+    fn visit_i128<E>(self, value: i128) -> Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
+        serde_json::Number::deserialize(de::value::I128Deserializer::new(value)).map(Value::Number)
+    }
+
+    fn visit_u64<E>(self, value: u64) -> Result<Self::Value, E> {
+        Ok(Value::Number(value.into()))
+    }
+
+    fn visit_u128<E>(self, value: u128) -> Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
+        serde_json::Number::deserialize(de::value::U128Deserializer::new(value)).map(Value::Number)
+    }
+
+    fn visit_f64<E>(self, value: f64) -> Result<Self::Value, E> {
+        Ok(serde_json::Number::from_f64(value).map_or(Value::Null, Value::Number))
+    }
+
+    fn visit_str<E>(self, value: &str) -> Result<Self::Value, E> {
+        Ok(Value::String(value.to_string()))
+    }
+
+    fn visit_string<E>(self, value: String) -> Result<Self::Value, E> {
+        Ok(Value::String(value))
+    }
+
+    fn visit_none<E>(self) -> Result<Self::Value, E> {
+        Ok(Value::Null)
+    }
+
+    fn visit_unit<E>(self) -> Result<Self::Value, E> {
+        Ok(Value::Null)
+    }
+
+    fn visit_seq<A>(self, mut sequence: A) -> Result<Self::Value, A::Error>
+    where
+        A: SeqAccess<'de>,
+    {
+        let mut values = Vec::new();
+        while let Some(UniqueJsonValue(value)) = sequence.next_element()? {
+            values.push(value);
+        }
+        Ok(Value::Array(values))
+    }
+
+    fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
+    where
+        A: MapAccess<'de>,
+    {
+        let mut values = serde_json::Map::new();
+        while let Some(key) = map.next_key::<String>()? {
+            if values.contains_key(&key) {
+                return Err(de::Error::custom(format!(
+                    "duplicate JSON object key {key:?}"
+                )));
+            }
+            let UniqueJsonValue(value) = map.next_value()?;
+            values.insert(key, value);
+        }
+        Ok(Value::Object(values))
+    }
 }
 
 fn validate_registry(registry: &Registry) -> Result<(), AssuranceError> {

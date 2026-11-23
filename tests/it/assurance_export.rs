@@ -2,6 +2,7 @@
 
 use std::collections::BTreeMap;
 use std::fs;
+use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::path::Path;
 
 use ix_trace_rs::trace;
@@ -407,6 +408,95 @@ fn tc1087_reader_rejects_unsupported_premises_before_returning_records() {
         read_assurance_export(&serde_json::to_vec(&duplicate_schemas).unwrap(), &accepted),
         Err(AssuranceError::DuplicateSchemaPremise { .. })
     ));
+}
+
+#[trace("FR-067-AC-9")]
+#[test]
+fn tc2248_assurance_reader_refuses_duplicate_json_object_keys() {
+    let export: AssuranceExport =
+        serde_json::from_slice(include_bytes!("../fixtures/assurance/v1.json"))
+            .expect("typed golden export");
+    let accepted = AcceptedAssurancePremises::from_export(&export);
+    let golden = include_bytes!("../fixtures/assurance/v1.json");
+    let mut duplicate = br#"{"format":"incorrect", "#.to_vec();
+    duplicate.extend_from_slice(&golden[1..]);
+
+    let error = read_assurance_export(&duplicate, &accepted)
+        .expect_err("duplicate object keys must be refused");
+    assert!(
+        matches!(
+            error,
+            AssuranceError::InvalidJson { ref reason }
+                if reason.contains("duplicate JSON object key \"format\"")
+        ),
+        "unexpected duplicate-key refusal: {error}"
+    );
+
+    let object_end = golden
+        .iter()
+        .rposition(|byte| *byte == b'}')
+        .expect("golden object terminator");
+    let mut nested_duplicate = golden[..object_end].to_vec();
+    nested_duplicate.extend_from_slice(br#","unknown_nested":{"member":1,"member":2}}"#);
+
+    let error = read_assurance_export(&nested_duplicate, &accepted)
+        .expect_err("duplicate keys in nested objects must be refused");
+    assert!(
+        matches!(
+            error,
+            AssuranceError::InvalidJson { ref reason }
+                if reason.contains("duplicate JSON object key \"member\"")
+        ),
+        "unexpected nested duplicate-key refusal: {error}"
+    );
+
+    let mut array_nested_duplicate = golden[..object_end].to_vec();
+    array_nested_duplicate.extend_from_slice(br#","unknown_array":[{"member":1,"member":2}]}"#);
+
+    let error = read_assurance_export(&array_nested_duplicate, &accepted)
+        .expect_err("duplicate keys in objects inside arrays must be refused");
+    assert!(
+        matches!(
+            error,
+            AssuranceError::InvalidJson { ref reason }
+                if reason.contains("duplicate JSON object key \"member\"")
+        ),
+        "unexpected duplicate-key refusal in array: {error}"
+    );
+}
+
+#[trace("FR-067-AC-10")]
+#[test]
+fn tc2249_assurance_reader_returns_error_for_deep_nesting_without_panicking() {
+    let export: AssuranceExport =
+        serde_json::from_slice(include_bytes!("../fixtures/assurance/v1.json"))
+            .expect("typed golden export");
+    let accepted = AcceptedAssurancePremises::from_export(&export);
+    let golden = include_bytes!("../fixtures/assurance/v1.json");
+    let object_end = golden
+        .iter()
+        .rposition(|byte| *byte == b'}')
+        .expect("golden object terminator");
+    let mut deeply_nested = golden[..object_end].to_vec();
+    deeply_nested.extend_from_slice(b",\"unknown_nested\":");
+    let depth = 127;
+    deeply_nested.extend(std::iter::repeat(b'[').take(depth));
+    deeply_nested.push(b'0');
+    deeply_nested.extend(std::iter::repeat(b']').take(depth));
+    deeply_nested.push(b'}');
+
+    let result = catch_unwind(AssertUnwindSafe(|| {
+        read_assurance_export(&deeply_nested, &accepted)
+    }))
+    .expect("deep nesting must return an error instead of panicking");
+    assert!(
+        matches!(
+            result,
+            Err(AssuranceError::InvalidJson { ref reason })
+                if reason.contains("recursion limit exceeded")
+        ),
+        "deep nesting must report the JSON recursion limit, got {result:?}"
+    );
 }
 
 #[trace("FR-068-AC-1", "StR-007-VC-1")]
