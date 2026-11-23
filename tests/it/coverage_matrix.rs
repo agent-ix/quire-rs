@@ -18,9 +18,13 @@ fn fixture_module(name: &str) -> PathBuf {
 }
 
 fn tmpdir(suffix: &str) -> PathBuf {
+    // A per-call counter keeps two runs of one body (a test and the PLAT-1799
+    // mutation oracle that re-invokes it) off the same directory.
+    static NEXT: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+    let n = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     let mut p = std::env::temp_dir();
     p.push(format!(
-        "quire-rs-coverage-matrix-{}-{suffix}",
+        "quire-rs-coverage-matrix-{}-{n}-{suffix}",
         std::process::id()
     ));
     let _ = fs::remove_dir_all(&p);
@@ -1795,13 +1799,8 @@ fn retained_native_origins_preserve_unmapped_rows_and_refuse_rendered_reordering
 
 /// Named mutation oracle: run the existing focused refusal controls together
 /// so `make mutants-fr` does not need the full workspace test population.
-#[trace(
-    "FR-078-AC-6",
-    "FR-078-AC-9",
-    "FR-078-AC-10",
-    "FR-078-AC-15",
-    "FR-078-AC-16"
-)]
+/// Run with `MUTANTS_ARGS='-- --lib --test it tc1799'` so the `src/evidence.rs`
+/// unit tests run too. Untraced on purpose: it is a selector, not evidence.
 #[test]
 fn tc1799_mutation_sensitive_retained_evidence_refusals() {
     retained_backing_components_reconcile_named_source_free_boundaries();

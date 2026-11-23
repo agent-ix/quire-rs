@@ -872,6 +872,14 @@ mod tests {
             line,
             "test-case"
         ));
+        assert!(!criterion_claim_matches_minted(
+            &inventory,
+            &identity,
+            "spec/FR-001.md",
+            "FR-001-AC-2",
+            line,
+            "acceptance-criterion"
+        ));
     }
 
     #[trace("FR-078-AC-9")]
