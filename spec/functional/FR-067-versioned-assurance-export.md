@@ -102,6 +102,7 @@ records until both stages succeed.
 | FR-067-AC-6 | Withdrawn. | — |
 | FR-067-AC-7 | Coverage-v1 and properties-v1 output remain byte-identical to their pre-export baselines and contain no assurance `format` or `format_version` key. | Test |
 | FR-067-AC-8 | Export construction refuses, naming the language, when the supplied extraction records an unavailable language ([FR-051](./FR-051-source-symbol-extraction.md)-AC-29); no payload is returned, since a schema-valid export that omits that evidence would read as a complete one (CR-201, PLAT-874). | Test |
+| FR-067-AC-9 | `read_assurance_export` refuses a JSON document with duplicate object member names at any nesting depth. A document that exceeds the JSON parser's supported nesting depth returns `AssuranceError::InvalidJson` without panicking. | Test |
 
 ## Dependencies
 
