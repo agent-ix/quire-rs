@@ -82,9 +82,7 @@ pub struct ClassificationDimension {
 pub struct ExpectedOutput {
     pub kind: String,
     pub description: String,
-    /// Open-vocabulary kinds of the producers that emit this output. Absent
-    /// means the output is not machine-produced (the entry is a retained
-    /// record kind), which is distinct from an empty list.
+    /// Retained record kinds that satisfy this output (open vocabulary). Absent means the output is not machine-produced, which is distinct from an empty list.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub producers: Option<Vec<String>>,
 }

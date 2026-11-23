@@ -23,3 +23,11 @@ Ticket: PLAT-1831. Code review with the Rust lane (rust-review, rust-style) of t
 ## Verdict
 
 Approve after the low fixes; nothing blocks merge. Behaviour matches FR-073: `validate_producers` enforces non-empty, distinct, non-empty, non-padded kinds with an error naming `outputCatalog` and the entry key; no vocabulary check; `Option` plus `skip_serializing_if` keeps absent distinct from empty; `diff_output_catalogs` keys on catalog name and compares whole entries. No compatibility layer, no ceremony, no ticket citations in code comments. Downstream: quire-cli `src/commands/clauses.rs` only reads `ClauseSetDiff` fields and serializes it, so it compiles and its JSON diff gains `outputCatalog`, which its `assert_conforms(..., "clause-diff-v1.schema.json")` test will accept against the new schema; quoin only passes `ClauseSetDiff` through and constructs no `ExpectedOutput`. The `hardening_properties.rs` change is a rustfmt import reorder.
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | still-open | Round 1 (head 2fdddf29): the comment now says absent means not machine-produced, but still calls the entries "kinds of the producers that emit this output", and the new parenthetical "(the entry is a retained record kind)" attaches to the absent case, where there is no entry. Fix: "Retained record kinds that satisfy this output (open vocabulary). Absent means the output is not machine-produced, which is distinct from an empty list." |
+| FND-002 | fixed | Round 1: `$defs.producers.items` gains `"pattern": "^\\S(?:[\\s\\S]*\\S)?$"`; `diff_schema_rejects_padded_producer_kinds` checks `" run"`, `"run "`, `"  "`, `"run\n"` and passes. Without the pattern the schema accepts `" run"`, `"run "` and `"  "` (checked by evaluating the schema with the pattern removed), so the test fails on the old schema. |
+| FND-003 | fixed | Round 1: CHANGELOG `[Unreleased]` gains "**Breaking, PLAT-1831:** `ExpectedOutput` gains an optional `producers` list (validated at load: non-empty, unique, trimmed kinds), and `ClauseSetDiff` gains an `output_catalog` member (`OutputCatalogDiff`) that `clause-diff-v1` now requires as `outputCatalog`." |

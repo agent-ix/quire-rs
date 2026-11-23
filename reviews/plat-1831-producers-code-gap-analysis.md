@@ -32,3 +32,10 @@ CONDITIONAL. All criteria are tagged and the tests for AC-7, AC-8, AC-10, AC-11 
 - Mutation evidence: AC-12 schema `required` mutation fails the test.
 - Semantic review: skipped (not requested).
 - Plan completion: not assessed
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | Round 1 (head 2fdddf29): the AC-9 test adds `assert!(error.contains("\"test-result\""), "{producers:?}: {error}");` for every rejected case. |
+| FND-002 | fixed | Round 1: `diff_schema_requires_output_catalog` validates diffs base→with, base→empty, empty→base, empty→with, with→empty and with→without, which covers added and removed entries with and without `producers` and a changed entry whose `producers` goes from `["run"]` to absent. |
