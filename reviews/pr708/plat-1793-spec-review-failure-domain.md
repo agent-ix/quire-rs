@@ -63,3 +63,20 @@ Round 1, verified against PR #708 head 3afa2b8b1ba5a8a34b94296ccefbf20d9604c2e5.
 | FND-006 | medium | AC-54 ends "one tree extracts identically with its link targets present or deleted", but it also covers an in-tree target ("a symlinked file and its in-tree target mint one set"). Failure: `a.rs -> b.rs` with `b.rs` in the tree. Deleting `b.rs` removes b's symbols, so the extraction cannot be identical. Restrict the clause to targets that the walk does not otherwise reach (absent, or outside the root). | spec/functional/FR-051-source-symbol-extraction.md AC-54 |
 | FND-007 | medium | Rule 3 bounds ancestor ignore files at the "nearest ancestor holding a `.git` entry". That makes a tree with no `.git` of its own depend on where it is placed. Failure: an extracted tarball or CI artefact under a home directory that is a dotfiles git repo, whose `.gitignore` is `*`, is wholly ignored. Placed elsewhere, the same tree extracts normally. This contradicts the Source walk SHALL (no machine dependence) and AC-55's "identically with and without a `.git` directory". | spec/functional/FR-051-source-symbol-extraction.md Source walk rule 3; AC-55 |
 | FND-008 | low | AC-54 says a symlink inside a gitignored directory "is counted by rule 3" without qualification. AC-55 and FR-050-AC-69 count only supported-extension, non-hidden entries. Failure: an extension-less `vendor` symlink inside an ignored `build/` is counted under AC-54 but not under AC-69. | spec/functional/FR-051-source-symbol-extraction.md AC-54; spec/functional/FR-050-declarative-coverage-computation.md AC-69 |
+
+## Dispositions (round 2)
+
+Round 2, verified against PR #708 head 7028b978739e1396f721ffc2cd133b1105dbe670 (rebased on origin/main 2d0836a; diff additive only).
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-006 | fixed | AC-54 now says an in-root target is read through its own path, so deleting it removes only its symbols. The identity clause is limited to absent or out-of-root targets. |
+| FND-007 | fixed | Rule 3 uses an ignore boundary given to the extraction, which defaults to the code root and is never discovered upward. AC-55 asserts the dotfiles-repo control as byte-identical. |
+| FND-008 | fixed | AC-54 counts a symlink in a gitignored directory "exactly under the AC-55 predicate", so any other symlink is uncounted. This is consistent with FR-050-AC-69. |
+
+## New findings (disposition pass 2)
+
+| ID      | Severity | Summary | Refs |
+| ------- | -------- | ------- | ---- |
+| FND-009 | medium | Rule 3 and the CR-423 note say a caller scoping to a subdirectory "gives that repository's root as the boundary" and that this is "the calling CLI's existing knowledge". No consumer has it. quire-cli (src/commands/coverage.rs:299, symbols.rs:103, assurance.rs:126 at origin/main 61ccfc6) and quoin-quire (coverage.rs:97/160, assurance.rs:63 at 458f13b1) pass only `scope`, and none resolves a repository root. The boundary parameter therefore has no consumer, and the AC-55 "boundary given" case is reachable only from tests. Either drop the parameter (boundary = code root, keeping the already-stated subdirectory consequence) or own the consumer change with a tracked quire-cli/quoin ticket. Also unstated: what happens when the boundary is not an ancestor of the code root. | spec/functional/FR-051-source-symbol-extraction.md Source walk rule 3; CR-423 note |
+| FND-010 | low | AC-55 still says a file matched "by an ignore file above the repository root is extracted". Rule 3 no longer defines a repository root, only the ignore boundary. The term should read "above the ignore boundary". | spec/functional/FR-051-source-symbol-extraction.md AC-55 |
