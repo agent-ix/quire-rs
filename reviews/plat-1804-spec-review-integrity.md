@@ -48,6 +48,7 @@ cross-reference.
 | --- | --- | --- | --- | --- |
 | FND-003 | medium | [soundness] The new cross-module conflict "a `required_relations` name declared by more than one module" drops every declaration of that name. That contradicts the merge rule in force: `merge_traceability` merges relations "first-wins by name ... like every other named entry" (`src/loader/mod.rs:1730-1742`), and FR-050 states named entries merge first-wins. It also differs from `carried_fields`, where an identical name and key merge (FR-090-AC-10). Scenario: a base module and an extension module both declare relation `ac-has-test` with identical bodies. Today this loads, and the first wins. Under this text both are dropped, the relation's checks vanish, and every repo selecting both modules fails validation. Fix: make it a conflict only when the declarations differ, with identical ones merging to one, as FR-090 does; or state on purpose that relation names are module-unique and drop the first-wins rule from FR-050 and the code comment. | spec/functional/FR-058-upward-trace-completeness.md:318-323; src/loader/mod.rs:1730-1742; spec/functional/FR-050-declarative-coverage-computation.md:1018-1020 | wrong-requirement |
 
+
 ## Dispositions
 
 Round 1, at head 18d020c7 (fix commit checked against review head 50c28286).
@@ -56,3 +57,9 @@ Round 1, at head 18d020c7 (fix commit checked against review head 50c28286).
 | --- | --- | --- |
 | FND-001 | fixed | after: "The conflicts are: a `carried_fields` name declared with different keys; `trace_id_qualifiers` prefixes that are not unique or overlap; a `flow_rules` or `remediations` name declared by more than one module; a `required_relations` name declared by more than one module; a retirement-vocabulary value that contradicts another module's vocabulary." The text now names "every other declaring module", and FR-058-AC-40 covers three modules. (The required_relations conflict raises the new FND-003.) |
 | FND-002 | fixed | after: FR-090-AC-10 "the same `name` with different `key` drops both entries, each failure naming every other declaring module, and every other declaration loads (FR-058-AC-40)." |
+
+Round 2, at head d818f6c7 (fix commit checked against round-1 head 18d020c7).
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-003 | fixed | after: "a `required_relations` name declared by more than one module with different bodies (identical declarations merge to one, first-wins, as `carried_fields` do)"; FR-058-AC-40 "Two modules declaring a required relation with one name and an identical body merge to one relation and record no failure." |

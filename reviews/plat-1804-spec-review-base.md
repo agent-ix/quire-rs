@@ -59,6 +59,13 @@ FND-004 and FND-005 are small wording fixes.
 | --- | --- | --- | --- | --- |
 | FND-006 | low | [soundness] The new drop unit "one `exclude` glob of a relation (the relation loads without that glob)" makes the relation filter partly. Documents the author meant to exclude become obliged and report `trace:<check>` findings. FR-050-AC-25 sets the opposite rule for `source_exclude`: a pattern that does not compile "never partially filters". This is not silent, because the drop finding fails validation, but it adds false findings and breaks the "never partially filters" rule. Fix: make the relation the drop unit for an uncompilable `exclude` glob, and say so in AC-10 and AC-39. | spec/functional/FR-058-upward-trace-completeness.md:296; spec/functional/FR-050-declarative-coverage-computation.md:427 | wrong-requirement |
 
+## New findings (disposition pass 2)
+
+| ID | Severity | Summary | Refs | Escape Cause |
+| --- | --- | --- | --- | --- |
+| FND-007 | low | [ambiguous] For a duplicate relation name inside one module, the drop list and AC-10 now disagree. The drop list says "two entries with one `name` and different bodies drop both ... while identical entries merge to one, first-wins", with no cross-module qualifier, so it applies within a module too. AC-10 still says "a duplicate relation name" fails at module load and "the entry is dropped alone". Scenario: one module declares relation `R` twice with identical bodies. By the drop list, `R` merges with no failure and no drop finding. By AC-10, a failure is recorded and `R` is dropped. Fix: say AC-10's duplicate case is two different bodies (both dropped), or limit the identical-merge clause to declarations in different modules. | spec/functional/FR-058-upward-trace-completeness.md:294-295; spec/functional/FR-058-upward-trace-completeness.md:396 | wrong-requirement |
+| FND-008 | low | [ambiguous] The drop list and AC-39 name a `field_rules` entry, but `field_rules` is not a manifest key. It is the Rust module (`src/traceability/field_rules.rs`, `validate_field_rules`) behind the keys `field_consistency`, `required_fields` and `vocabulary`. A test author for AC-39 has to guess which keys are meant. The "Any other kind" catch-all keeps the behaviour defined, so this is wording only. Fix: name the three manifest keys. | spec/functional/FR-058-upward-trace-completeness.md:296; spec/functional/FR-058-upward-trace-completeness.md:426; src/traceability.rs:443-455 | wrong-requirement |
+
 ## Dispositions
 
 Round 1, at head 18d020c7 (fix commit checked against review head 50c28286).
@@ -70,3 +77,10 @@ Round 1, at head 18d020c7 (fix commit checked against review head 50c28286).
 | FND-003 | fixed | after: "The load failure is structured: besides the module, path and reason it carries the declaration kind (for example `flow_rule`, `required_relation`, `carried_field`, `traceability_section`) and the item name. The engine tells a declaration drop from any other load failure by that kind, never by reading the reason text." New FR-058-AC-44 tests it. |
 | FND-004 | fixed | after: FR-058-AC-38 "the other declares two `flow_rules` entries, `ok` (valid) and `bad` ...; `R`, the carried field and rule `ok` are present in the merged model." FR-096-AC-29 is amended the same way. |
 | FND-005 | fixed | after: FR-058-AC-10 "A declaration that cannot be executed fails at module load naming the offending entry, and the entry is dropped alone (FR-058-AC-38) for each of: ..." `quire validate` now reports no warning on the file. |
+
+Round 2, at head d818f6c7 (fix commit checked against round-1 head 18d020c7).
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-002 | fixed | after: drop list adds "one `field_rules` entry; one `trace_tags` entry; one `vocabularies` entry; one `vocabulary_coverage` entry; one `design_relations` entry; the model-level `exclude` list and the model-level `source_exclude` list, each as one declaration ...; the `status` vocabulary, as one declaration"; cascades add the `status_column` and `design_relations` cases; and "Any other kind. A declaration kind `TraceabilityModel::validate` rejects that this list does not name is dropped as one entry of that kind, or as the whole declaration when the kind is a single value or list; it never fails the module or empties the merged model." AC-39 and AC-46 are extended. |
+| FND-006 | fixed | after: "the same holds for a relation's own `exclude`, whose bad glob drops the relation that carries it"; AC-10 "an uncompilable `exclude` glob, which drops the whole relation carrying it". |
