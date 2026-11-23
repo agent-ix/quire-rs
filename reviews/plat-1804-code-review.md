@@ -101,6 +101,12 @@ in the FR-058 statement. The rest are low.
 | FND-010 | medium | Regression from the round-2 fix. The `is_unknown_key` guard on the section's deserialization error was removed, and `unknown_section_key` checks only the top-level keys of `traceability:`. An unknown key inside a nested mapping (`vocabularies:`, `status:`, `trace_tags:`) now drops the whole section as `traceability_section` instead of failing loud. Reproduced: `vocabularies: {a_future_key: 1}` and `trace_tags: {a_future_list: []}` both load, each with one section drop. Round 1 failed both loud, and FR-013-AC-19 requires a nested unknown key to fail every constructor naming module, version and key | src/loader/manifest.rs:662-700 |
 | FND-011 | low | The FND-008 ordering gap remains inside one list entry. `retain_readable` recognises an unknown key only when serde reports it first, so an entry with a shape error ahead of a typo is dropped as that entry and the unknown key is never named. Reproduced: a `trace_targets` entry `{name: t, archetype: A, section: S, id_column: 5, typo: x}` loads with one `trace_target` drop citing only the integer `5`. Recognising the unknown key by serde's message text is not itself a spec defect, since serde's `unknown_field` wording is fixed. The gap is that FR-013-AC-19 asks for the key to be named | src/loader/manifest.rs:819-840 |
 
+## New findings (disposition pass 3)
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-012 | low | Trace tags. `an_unknown_key_in_a_nested_mapping_fails_the_load_naming_it` is tagged FR-058-AC-45, and `an_unknown_key_fails_the_load_even_after_a_shape_error_in_the_section` (round 2) is tagged FR-058-AC-45 and FR-058-AC-39. Both assert that an unknown key fails the load naming key, module and version, which is FR-013-AC-19; AC-45 says the opposite case drops the section. The matrix credits AC-45 with tests of FR-013-AC-19 | tests/it/declaration_drop.rs:950-1007 |
+
 ## Dispositions
 
 | FND | outcome | reason |
@@ -118,3 +124,6 @@ in the FR-058 statement. The rest are low.
 | FND-009 | fixed | `drop_contradicting_retirements` matches every retired value against the original `no_source_symbol` list before draining it; `retired: [inspection, Inspection, Withdrawn]` drops both spellings and the symbol, and keeps `Withdrawn` (new test) |
 | FND-010 | still-open | New this round: restore a loud failure for an unknown key in a nested mapping, either by keeping the `is_unknown_key` guard on the section error or by checking the keys of `vocabularies`, `status` and `trace_tags` the way `SECTION_KEYS` does, and add a test |
 | FND-011 | still-open | New this round: either name the unknown key in an entry that also has a shape error (a typed per-entry key check), or record accepted-no-change with a reason; it is an edge of an edge and is still reported as a dropped declaration |
+| FND-010 | fixed | The `is_unknown_key` guard is back on the section's deserialization error, returning the error with "in the `traceability:` section"; the new test loads `vocabularies: {a_future_key: 1}`, `trace_tags: {a_future_list: []}` and `status: {column: S, a_future_class: [x]}` and asserts each fails naming key, module and version |
+| FND-011 | accepted-no-change | Lead decision: a typed per-entry check would need per-entry known-field lists, and the dropped entry is already surfaced as a non-registrable `declared-model-dropped` error, so only the key's name is lost in an entry that also has an earlier shape error |
+| FND-012 | still-open | New this round: retag both tests to FR-013-AC-19 (the AC they prove); a one-line change each that can ride in the trailing commit that adds this SR file |

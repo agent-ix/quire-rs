@@ -947,7 +947,7 @@ fn a_model_holding_a_retired_value_that_mints_no_source_symbol_reports_both() {
 }
 
 #[test]
-#[trace("FR-058-AC-45", "FR-058-AC-39")]
+#[trace("FR-013-AC-19")]
 fn an_unknown_key_fails_the_load_even_after_a_shape_error_in_the_section() {
     let manifest = "name: skew\nversion: 4.5.6\ndescription: x\ntraceability:\n  \
                     required_relations: 5\n  a_future_key: 1\n";
@@ -986,7 +986,7 @@ fn every_spelling_of_a_contradicting_retired_value_drops_and_is_reported() {
 }
 
 #[test]
-#[trace("FR-058-AC-45")]
+#[trace("FR-013-AC-19")]
 fn an_unknown_key_in_a_nested_mapping_fails_the_load_naming_it() {
     for (nested, key) in [
         ("vocabularies: {a_future_key: 1}", "a_future_key"),
