@@ -157,8 +157,12 @@ rule's declared order so a caller can present the module's recommendations in th
 
 ### Load-time validation
 
-A module whose `flow_rules` or `remediations` cannot be evaluated does not load, and the error names
-the rule (or remediation) and the offending entry. The load fails on:
+A `flow_rules` or `remediations` entry that cannot be evaluated does not load, and the load failure
+names the rule (or remediation) and the offending entry. Only that entry is dropped: every other rule
+and remediation, every `required_relations` entry and every other declaration of the module and of
+the other selected modules loads ([FR-058](./FR-058-upward-trace-completeness.md), "A declaration that
+cannot load drops itself"), and validation reports `trace:declared-model-dropped` for it. The load
+fails on:
 
 - a `subject` that is empty, or a `subject` or step `to` naming an archetype no loaded module declares;
 - an `edge` that is not a declared verb ([FR-058](./FR-058-upward-trace-completeness.md)), or a
@@ -334,6 +338,7 @@ other work. The CLI flag, its human rendering and exit codes belong to `quire-cl
 | FR-096-AC-26 | For a condition field whose schema property refers locally to a schema with an `enum`, every declared enum value is accepted in `any_of` and an out-of-enum value is refused at module load naming the rule, field, and value; the same behavior holds when the local `$ref` is on the field's array `items`. | Test |
 | FR-096-AC-27 | A missing, cyclic, or remote `$ref` encountered while resolving a flow-rule enum is not fetched or treated as an unconstrained field: module load fails closed with a diagnostic identifying the schema reference location and the flow rule and field. | Test |
 | FR-096-AC-28 | A field with an inline enum, including an inline array-item enum, continues to accept every declared `any_of` value and reject an out-of-enum value at module load; its `vocabularies` members and order remain unchanged. | Test |
+| FR-096-AC-29 | A module with an unexecutable flow rule `bad` (a `subject` naming an undeclared archetype) and a valid rule `ok`, selected beside a module declaring `required_relations`, loads the relations and `ok`, records one failure naming `bad`, and evaluates `ok`; `validate_bundle` reports `trace:declared-model-dropped` naming the rule (FR-058-AC-38, FR-058-AC-41). | Test |
 
 ## Constraints
 
