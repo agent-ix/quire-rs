@@ -984,3 +984,24 @@ fn every_spelling_of_a_contradicting_retired_value_drops_and_is_reported() {
     assert_eq!(contradicting.vocabularies.retired, ["Withdrawn"]);
     assert!(contradicting.vocabularies.no_source_symbol.is_empty());
 }
+
+#[test]
+#[trace("FR-058-AC-45")]
+fn an_unknown_key_in_a_nested_mapping_fails_the_load_naming_it() {
+    for (nested, key) in [
+        ("vocabularies: {a_future_key: 1}", "a_future_key"),
+        ("trace_tags: {a_future_list: []}", "a_future_list"),
+        ("status: {column: S, a_future_class: [x]}", "a_future_class"),
+    ] {
+        let manifest =
+            format!("name: skew\nversion: 4.5.6\ndescription: x\ntraceability:\n  {nested}\n");
+        let (_dir, root) = write_one("skew", &manifest);
+        let error = Registry::load_module(&root)
+            .err()
+            .unwrap_or_else(|| panic!("{nested} must fail the load"))
+            .to_string();
+        for named in [key, "skew", "4.5.6"] {
+            assert!(error.contains(named), "{nested}: {error}");
+        }
+    }
+}

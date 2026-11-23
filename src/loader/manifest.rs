@@ -670,6 +670,11 @@ fn deserialize_manifest(
     };
     let model = match serde_yaml::from_value::<TraceabilityModel>(section) {
         Ok(model) => model,
+        // A key the engine does not know in a nested mapping is a manifest from
+        // a newer engine too.
+        Err(section_error) if is_unknown_key(&section_error.to_string()) => {
+            return Err(format!("{section_error} in the `traceability:` section"))
+        }
         Err(section_error) => {
             dropped = vec![DeclarationFailure {
                 kind: DeclarationKind::TraceabilitySection,
