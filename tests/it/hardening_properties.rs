@@ -2,10 +2,10 @@
 
 use ix_trace_rs::trace;
 use proptest::prelude::*;
+use quire_rs::evidence::{CauseCode, EvidenceResult, RecordBinder, RetainedLocator, TargetLocus};
 use quire_rs::symbols::extract_file;
 use quire_rs::symbols::trace::{bind, trace_id_segments};
 use quire_rs::traceability::{SourceLanguage, TraceMarkerForm, TraceabilityModel};
-use quire_rs::evidence::{CauseCode, EvidenceResult, RecordBinder, RetainedLocator, TargetLocus};
 
 fn cause_code() -> impl Strategy<Value = CauseCode> {
     (0usize..CauseCode::all().len()).prop_map(|index| CauseCode::all()[index])

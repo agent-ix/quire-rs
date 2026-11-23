@@ -9,6 +9,10 @@ bumps; once 1.0 ships, semver is strict.
 
 ### Added
 
+- **Breaking, PLAT-1831:** `ExpectedOutput` gains an optional `producers` list (validated at load:
+  non-empty, unique, trimmed kinds), and `ClauseSetDiff` gains an `output_catalog` member
+  (`OutputCatalogDiff`) that `clause-diff-v1` now requires as `outputCatalog`.
+
 - QSL-2517 (NFR-140): `traceability.trace_id_qualifiers` declares tag prefixes (`FSpec-` for
   `agent-ix/filament-specification`). A `verifies` tag written with a declared prefix or as
   `ix://<org>/<repo>/<id>` binds the criterion of that corpus member only; an unresolvable tag
