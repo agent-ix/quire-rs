@@ -52,15 +52,14 @@ whose kind is in the list satisfies the output. Rules:
   `ClauseSet::validate`, and therefore loading, SHALL reject an empty list, a
   duplicate kind, and an empty, whitespace-only or whitespace-padded kind, and
   the error SHALL name the `outputCatalog` key.
-- Quire SHALL NOT check kinds against a vocabulary and SHALL NOT enumerate
-  them; the set of kinds is open and Quire validates the shape of `producers`
-  only.
+- Quire SHALL NOT check kinds against a vocabulary. The set of kinds is open
+  and Quire validates the shape of `producers` only.
 - `producers` names record kinds, not commands or tools; the catalog carries no
   other producer binding.
-- Quire SHALL serialize `producers` as the camelCase member `producers` and
-  SHALL round-trip it unchanged, in order, through the `ExpectedOutput` struct
-  and the clause-set JSON and YAML forms. Quire SHALL NOT serialize an absent
-  member as an empty list.
+- Quire SHALL round-trip `producers`, as the camelCase member `producers`,
+  unchanged and in order through the `ExpectedOutput` struct and the clause-set
+  JSON and YAML forms.
+- Quire SHALL NOT serialize an absent `producers` member as an empty list.
 - Informative: quoin FR-211 reads `producers` to decide which retained record
   kinds satisfy an expected output. Its kinds include `run`, `scan`,
   `mock-inspection`, `analysis-report` and `scenario`, plus the `subject.kind`
