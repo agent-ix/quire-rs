@@ -43,3 +43,23 @@ FAIL. FND-001 must be resolved (decide reporting from the link entry alone, e.g.
 symlink not pruned by an earlier rule) before AC-54 is implementable; FND-002 needs a
 stated rule order; FND-003/FND-004 need either an explicit decision in the CR note or a
 reported count.
+
+## Dispositions
+
+Round 1, verified against PR #708 head 3afa2b8b1ba5a8a34b94296ccefbf20d9604c2e5.
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | Rule 5 and AC-54 recognise a symlink from its own link metadata only; a dangling link, a file link and a directory link are one case. |
+| FND-002 | fixed | Rules are ordered (a path removed earlier is never judged later) and AC-54 states five precedence outcomes: gitignored, hidden, `source_exclude`, template tree, symlinked document root. |
+| FND-003 | fixed | AC-55 counts rule-3 removals, and FR-050-AC-69 adds the `ignored_source_files` report member (omitted when 0, distinct from `excluded_source_files`). |
+| FND-004 | fixed | Rule 3 reads ancestor ignore files up to the nearest `.git` ancestor; AC-55 asserts that a repo-root `packages/x/node_modules/` entry still applies to code root `packages/x`. The CR note records the behaviour change. |
+| FND-005 | fixed | AC-55 adds hidden controls: a hidden directory holding `.rs` and a hidden `.gen.rs` file, each with a non-hidden twin. |
+
+## New findings (disposition pass 1)
+
+| ID      | Severity | Summary | Refs |
+| ------- | -------- | ------- | ---- |
+| FND-006 | medium | AC-54 ends "one tree extracts identically with its link targets present or deleted", but it also covers an in-tree target ("a symlinked file and its in-tree target mint one set"). Failure: `a.rs -> b.rs` with `b.rs` in the tree. Deleting `b.rs` removes b's symbols, so the extraction cannot be identical. Restrict the clause to targets that the walk does not otherwise reach (absent, or outside the root). | spec/functional/FR-051-source-symbol-extraction.md AC-54 |
+| FND-007 | medium | Rule 3 bounds ancestor ignore files at the "nearest ancestor holding a `.git` entry". That makes a tree with no `.git` of its own depend on where it is placed. Failure: an extracted tarball or CI artefact under a home directory that is a dotfiles git repo, whose `.gitignore` is `*`, is wholly ignored. Placed elsewhere, the same tree extracts normally. This contradicts the Source walk SHALL (no machine dependence) and AC-55's "identically with and without a `.git` directory". | spec/functional/FR-051-source-symbol-extraction.md Source walk rule 3; AC-55 |
+| FND-008 | low | AC-54 says a symlink inside a gitignored directory "is counted by rule 3" without qualification. AC-55 and FR-050-AC-69 count only supported-extension, non-hidden entries. Failure: an extension-less `vendor` symlink inside an ignored `build/` is counted under AC-54 but not under AC-69. | spec/functional/FR-051-source-symbol-extraction.md AC-54; spec/functional/FR-050-declarative-coverage-computation.md AC-69 |

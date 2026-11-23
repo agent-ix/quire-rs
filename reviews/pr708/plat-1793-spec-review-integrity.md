@@ -44,3 +44,15 @@ not altered by the diff (examined, clean).
 FAIL. FND-001 and FND-002 must be fixed before AC-57 is implementable; FND-003 must
 retarget AC-56 at the symbol-table attribution (per-declaration `trace_ids`) so it can
 fail today.
+
+## Dispositions
+
+Round 1, verified against PR #708 head 3afa2b8b1ba5a8a34b94296ccefbf20d9604c2e5 (diff vs origin/main is additive only: FR-051 +68/-0, FR-050 +7/-0).
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | AC-57 now says the unminted marker still binds `verifies`, is returned by FR-077-AC-1, is reported in `untracked_symbols` (FR-050-AC-5), and that FR-050-AC-39 does not apply; matches reconcile.rs:436-456. |
+| FND-002 | fixed | AC-57 separates identity from position: positions are unchanged in unedited files and above an edit, and shift by the inserted count below one. |
+| FND-003 | fixed | AC-56 now asserts per-declaration `trace_ids`/`implements` on the AC-23 record; it fails today at symbol_table.rs:220-221 (`verifies.remove(symbol.id)`). |
+| FND-004 | fixed | Source walk rule 1 lists the document-root and cookiecutter template prunes, and the rules are ordered. |
+| FND-005 | fixed | The CR-423 note now states the corpus walk enables `git_exclude` and `parents` and leaves the global file on (walk.rs:307-315), and that alignment is not decided. |
