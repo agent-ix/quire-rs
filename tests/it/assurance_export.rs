@@ -482,9 +482,9 @@ fn tc2249_assurance_reader_returns_error_for_deep_nesting_without_panicking() {
     let mut deeply_nested = golden[..object_end].to_vec();
     deeply_nested.extend_from_slice(b",\"unknown_nested\":");
     let depth = 127;
-    deeply_nested.extend(std::iter::repeat(b'[').take(depth));
+    deeply_nested.extend(std::iter::repeat_n(b'[', depth));
     deeply_nested.push(b'0');
-    deeply_nested.extend(std::iter::repeat(b']').take(depth));
+    deeply_nested.extend(std::iter::repeat_n(b']', depth));
     deeply_nested.push(b'}');
 
     let result = catch_unwind(AssertUnwindSafe(|| {

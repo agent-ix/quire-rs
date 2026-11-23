@@ -83,7 +83,8 @@ pub struct ExpectedOutput {
     pub kind: String,
     pub description: String,
     /// Open-vocabulary kinds of the producers that emit this output. Absent
-    /// means unspecified, which is distinct from an empty list.
+    /// means the output is not machine-produced (the entry is a retained
+    /// record kind), which is distinct from an empty list.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub producers: Option<Vec<String>>,
 }
@@ -1070,6 +1071,7 @@ mod tests {
                 .unwrap_err()
                 .to_string();
             assert!(error.contains("outputCatalog"), "{producers:?}: {error}");
+            assert!(error.contains("\"test-result\""), "{producers:?}: {error}");
         }
     }
 
@@ -1120,12 +1122,53 @@ mod tests {
             .with_draft(jsonschema::Draft::Draft202012)
             .build(&schema)
             .unwrap();
-        let mut changed_after = with_producers(Some(vec!["run"]));
-        changed_after.version = "2.0.0".into();
-        let diff = diff_clause_sets(&set("1.0.0"), &changed_after).unwrap();
-        let mut document = serde_json::to_value(diff).unwrap();
-        assert!(validator.validate(&document).is_ok());
+        let validate = |before: &ClauseSet, after: &ClauseSet| {
+            let document = serde_json::to_value(diff_clause_sets(before, after).unwrap()).unwrap();
+            validator.validate(&document).is_ok()
+        };
+        let mut with = with_producers(Some(vec!["run"]));
+        with.version = "2.0.0".into();
+        let mut without = set("2.0.0");
+        without
+            .output_catalog
+            .get_mut("test-result")
+            .unwrap()
+            .producers = None;
+        let mut empty = set("2.0.0");
+        empty.output_catalog.clear();
+        let base = set("1.0.0");
+        assert!(validate(&base, &with));
+        assert!(validate(&base, &empty));
+        assert!(validate(&empty, &base));
+        assert!(validate(&empty, &with));
+        assert!(validate(&with, &empty));
+        assert!(validate(&with, &without));
+
+        let mut document = serde_json::to_value(diff_clause_sets(&base, &with).unwrap()).unwrap();
         document.as_object_mut().unwrap().remove("outputCatalog");
         assert!(validator.validate(&document).is_err());
+    }
+
+    #[test]
+    #[trace("FR-073-AC-12")]
+    fn diff_schema_rejects_padded_producer_kinds() {
+        let schema: Value =
+            serde_json::from_str(include_str!("../schemas/output/clause-diff-v1.schema.json"))
+                .unwrap();
+        let validator = jsonschema::options()
+            .with_draft(jsonschema::Draft::Draft202012)
+            .build(&schema)
+            .unwrap();
+        let mut with = with_producers(Some(vec!["run"]));
+        with.version = "2.0.0".into();
+        let mut document =
+            serde_json::to_value(diff_clause_sets(&set("1.0.0"), &with).unwrap()).unwrap();
+        assert!(validator.validate(&document).is_ok());
+        for kind in [" run", "run ", "  ", "run\n"] {
+            document["outputCatalog"]["added"] = serde_json::json!([{
+                "name": "x", "kind": "record", "description": "d", "producers": [kind]
+            }]);
+            assert!(validator.validate(&document).is_err(), "{kind:?}");
+        }
     }
 }
