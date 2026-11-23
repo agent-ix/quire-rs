@@ -73,8 +73,8 @@ object member names, selects the checked-in v1 schema from `format` and
 `format_version`, validates the complete JSON value, then compares every
 exported module/version tuple with the caller's accepted set. It SHALL reject
 an unknown module as well as a known module with an unaccepted version. The
-reader SHALL return no typed records until all stages succeed. JSON input
-exceeding 128 nested arrays or objects SHALL return
+reader SHALL return no typed records until all stages succeed. JSON input with
+128 or more nested arrays or objects SHALL return
 `AssuranceError::InvalidJson` without panicking.
 
 > **CR-157** (`agent-ix/quire-rs#386`, 2026-08-31) closes the full-review
@@ -105,12 +105,16 @@ exceeding 128 nested arrays or objects SHALL return
 | FR-067-AC-7 | Coverage-v1 and properties-v1 output remain byte-identical to their pre-export baselines and contain no assurance `format` or `format_version` key. | Test |
 | FR-067-AC-8 | Export construction refuses, naming the language, when the supplied extraction records an unavailable language ([FR-051](./FR-051-source-symbol-extraction.md)-AC-29); no payload is returned, since a schema-valid export that omits that evidence would read as a complete one (CR-201, PLAT-874). | Test |
 | FR-067-AC-9 | `read_assurance_export` returns `AssuranceError::InvalidJson` for duplicate JSON object member names at any nesting depth, including names in nested objects, and returns no typed record. | Test |
-| FR-067-AC-10 | JSON input with more than 128 nested arrays or objects returns `AssuranceError::InvalidJson` without panicking. | Test |
+| FR-067-AC-10 | JSON input with 128 or more nested arrays or objects returns `AssuranceError::InvalidJson` without panicking. | Test |
 
 > **CR-422 note (PLAT-1795):** `serde_json::Value` keeps the last occurrence
 > of a duplicate object member, so schema validation after conversion cannot
 > detect duplicate input names. The reader now refuses duplicates at every
 > depth and excessive nesting with `AssuranceError::InvalidJson`.
+
+> **CR-423 note (PLAT-1795):** serde_json's recursion limit rejects the
+> 128th nested array or object, so AC-10 sets the contract at 128 or more
+> nested containers.
 
 ## Dependencies
 
