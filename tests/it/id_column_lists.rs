@@ -39,9 +39,14 @@ fn run(module: &str, documents: &[(&str, &str)], sources: &[(&str, &str)]) -> Co
 fn load_error(module: &str) -> String {
     let root = tempfile::tempdir().expect("module");
     write(root.path(), "manifest.yaml", module);
-    Registry::load_module(root.path())
-        .expect_err("the module fails to load")
-        .to_string()
+    let registry =
+        Registry::load_module(root.path()).expect("a bad declaration never fails the module");
+    registry
+        .failures()
+        .iter()
+        .map(|failure| failure.reason.as_str())
+        .collect::<Vec<_>>()
+        .join("; ")
 }
 
 fn manifest(id_column: &str) -> String {
@@ -201,7 +206,7 @@ fn id_column_matches_nothing_fires_only_when_no_entry_matches_and_names_every_en
 
 #[trace("FR-050-AC-63")]
 #[test]
-fn an_empty_list_or_blank_entry_fails_load_naming_the_declaration() {
+fn an_empty_list_or_blank_entry_drops_the_declaration_naming_it() {
     for id_column in ["[]", "[ID, '']", "'  '"] {
         let error = load_error(&manifest(id_column));
         assert!(error.contains("test-case"), "{id_column}: {error}");
@@ -246,7 +251,7 @@ fn row_binding_module() -> String {
 
 #[trace("FR-050-AC-63")]
 #[test]
-fn a_list_or_wildcard_target_bound_by_an_obligations_source_fails_load() {
+fn a_list_or_wildcard_target_bound_by_an_obligations_source_drops_the_source() {
     let module = row_binding_module();
     let anchor = "    section: Acceptance Criteria\n    id_column: ID\n";
     assert!(module.contains(anchor));

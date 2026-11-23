@@ -243,6 +243,7 @@ pub fn failure(
     reason: String,
 ) -> ArchetypeLoadFailure {
     ArchetypeLoadFailure {
+        declaration: None,
         module: module.to_string(),
         archetype: archetype.to_string(),
         path,

@@ -271,7 +271,7 @@ fn bad_module(entry: &str) -> TempDir {
 
 #[trace("FR-090-AC-7")]
 #[test]
-fn a_structurally_bad_carried_field_fails_the_declaring_module_naming_it() {
+fn a_structurally_bad_carried_field_drops_itself_naming_it() {
     for (entry, named) in [
         ("  - name: Tier\n    from: [Glyph]\n    key: tier\n", "Tier"),
         (
@@ -282,11 +282,14 @@ fn a_structurally_bad_carried_field_fails_the_declaring_module_naming_it() {
         ("  - name: tier\n    from: []\n    key: tier\n", "tier"),
     ] {
         let dir = bad_module(entry);
-        let err = Registry::load_module_strict(dir.path())
-            .err()
-            .unwrap_or_else(|| panic!("{entry} must fail module load"));
-        assert!(err.to_string().contains(named), "{entry}: {err}");
-        assert!(err.to_string().contains("carried_fields"), "{entry}: {err}");
+        let registry = Registry::load_module_strict(dir.path())
+            .unwrap_or_else(|e| panic!("{entry} must drop itself, not the module: {e}"));
+        let (kind, item, reason) = crate::declaration_drop::sole_drop(&registry);
+        assert_eq!((kind, item.as_str()), ("carried_field", named), "{entry}");
+        assert!(reason.contains("carried_fields"), "{entry}: {reason}");
+        assert!(registry
+            .traceability()
+            .is_none_or(|m| m.carried_fields.is_empty()));
     }
 }
 
@@ -387,7 +390,7 @@ fn two_enums_that_differ_are_reported_and_yield_no_vocabulary() {
 
 #[trace("FR-090-AC-10")]
 #[test]
-fn same_name_and_key_merge_to_a_union_and_a_different_key_fails_the_merge() {
+fn same_name_and_key_merge_to_a_union_and_a_different_key_drops_both() {
     for order in [["glyph", "prism"], ["prism", "glyph"]] {
         let registry = modules(&order);
         let model = registry.traceability().expect("declared");
@@ -397,19 +400,27 @@ fn same_name_and_key_merge_to_a_union_and_a_different_key_fails_the_merge() {
         assert_eq!(from, ["Glyph", "Prism"], "{order:?}");
     }
 
-    // Both declaring modules fail, each naming the other, and the contradictory
-    // model is not exposed.
+    // Both declarations of the contradicting entry drop, each naming the other
+    // module; every other declaration of both modules loads.
     let registry =
         Registry::load_module_set(&[fixture("glyph").as_path(), fixture("rival").as_path()])
             .expect("loads tolerantly");
-    assert!(registry.traceability().is_none(), "no contradictory model");
+    let model = registry
+        .traceability()
+        .expect("the rest of the model loads");
+    assert!(model.carried_fields.iter().all(|c| c.name != "tier"));
     let failures = registry.failures();
     assert_eq!(failures.len(), 2, "{failures:?}");
     for module in ["field-rules-glyph", "field-rules-rival"] {
         assert!(failures.iter().any(|f| f.module == module), "{module}");
     }
     for failure in failures {
-        for named in ["tier", "field-rules-glyph", "field-rules-rival", "level"] {
+        let other = if failure.module == "field-rules-glyph" {
+            "field-rules-rival"
+        } else {
+            "field-rules-glyph"
+        };
+        for named in ["tier", other] {
             assert!(
                 failure.reason.contains(named),
                 "{named}: {}",
@@ -1044,10 +1055,12 @@ const GOOD_CONSISTENCY: &str = "  - name: entry\n    from: [alpha]\n    field: f
 
 #[trace("FR-091-AC-10")]
 #[test]
-fn a_structurally_bad_declaration_fails_the_declaring_module_naming_the_entry() {
-    let load = |dir: &TempDir| Registry::load_module_strict(dir.path()).map(|_| ());
+fn a_structurally_bad_declaration_drops_itself_naming_the_entry() {
+    let load = |dir: &TempDir| {
+        Registry::load_module_strict(dir.path()).expect("a bad entry never fails the module")
+    };
     let ok = rules_module("field_consistency", GOOD_CONSISTENCY);
-    load(&ok).expect("the baseline loads");
+    assert!(load(&ok).failures().is_empty(), "the baseline loads");
 
     for (from, to) in [
         ("from: [alpha]", "from: []"),
@@ -1071,39 +1084,64 @@ fn a_structurally_bad_declaration_fails_the_declaring_module_naming_the_entry() 
         ),
     ] {
         let entry = GOOD_CONSISTENCY.replacen(from, to, 1);
-        let err = load(&rules_module("field_consistency", &entry))
-            .err()
-            .unwrap_or_else(|| panic!("{to} must fail module load"));
-        assert!(err.to_string().contains("'entry'"), "{to}: {err}");
+        let (kind, item, reason) =
+            crate::declaration_drop::sole_drop(&load(&rules_module("field_consistency", &entry)));
+        assert_eq!(
+            (kind, item.as_str()),
+            ("field_consistency", "entry"),
+            "{to}"
+        );
+        assert!(reason.contains("'entry'"), "{to}: {reason}");
     }
 
     let blank = GOOD_CONSISTENCY.replacen("name: entry", "name: ''", 1);
-    assert!(load(&rules_module("field_consistency", &blank)).is_err());
-    let duplicate = format!("{GOOD_CONSISTENCY}{GOOD_CONSISTENCY}");
-    let err = load(&rules_module("field_consistency", &duplicate)).expect_err("duplicate");
-    assert!(err.to_string().contains("'entry'"), "{err}");
+    let (kind, item, _) =
+        crate::declaration_drop::sole_drop(&load(&rules_module("field_consistency", &blank)));
+    assert_eq!((kind, item.as_str()), ("field_consistency", "#1"));
+    // A repeated name is a failure at that declaration, identical bodies or
+    // not: both entries drop, with one failure naming it.
+    let different = GOOD_CONSISTENCY.replacen("check: below", "check: other", 1);
+    for duplicate in [
+        format!("{GOOD_CONSISTENCY}{different}"),
+        format!("{GOOD_CONSISTENCY}{GOOD_CONSISTENCY}"),
+    ] {
+        let (kind, item, reason) = crate::declaration_drop::sole_drop(&load(&rules_module(
+            "field_consistency",
+            &duplicate,
+        )));
+        assert_eq!((kind, item.as_str()), ("field_consistency", "entry"));
+        assert!(reason.contains("'entry'"), "{reason}");
+    }
 
     let required = "  - name: needs\n    from: [alpha]\n    field: f\n    check: unset\n";
-    load(&rules_module("required_fields", required)).expect("required baseline");
+    assert!(load(&rules_module("required_fields", required))
+        .failures()
+        .is_empty());
     for bad in [
         required.replace("from: [alpha]", "from: []"),
         required.replace("check: unset", "check: ''"),
         format!("{required}{required}"),
     ] {
-        let err = load(&rules_module("required_fields", &bad)).expect_err("bad required");
-        assert!(err.to_string().contains("required_fields"), "{err}");
+        let (kind, _, reason) =
+            crate::declaration_drop::sole_drop(&load(&rules_module("required_fields", &bad)));
+        assert_eq!(kind, "required_field");
+        assert!(reason.contains("required_fields"), "{reason}");
     }
 
     let vocabulary = "  - name: held\n    from: [alpha]\n    field: f\n    carried: c\n    \
                       check: outside\n";
-    load(&rules_module("vocabulary", vocabulary)).expect("vocabulary baseline");
+    assert!(load(&rules_module("vocabulary", vocabulary))
+        .failures()
+        .is_empty());
     for bad in [
         vocabulary.replace("carried: c\n", "carried: ''\n"),
         vocabulary.replace("    carried: c\n", ""),
         vocabulary.replace("field: f", "field: ''"),
     ] {
-        let err = load(&rules_module("vocabulary", &bad)).expect_err("bad vocabulary");
-        assert!(err.to_string().contains("'held'"), "{err}");
+        let (kind, item, reason) =
+            crate::declaration_drop::sole_drop(&load(&rules_module("vocabulary", &bad)));
+        assert_eq!((kind, item.as_str()), ("vocabulary", "held"));
+        assert!(reason.contains("'held'"), "{reason}");
     }
 }
 

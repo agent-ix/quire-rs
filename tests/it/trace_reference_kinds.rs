@@ -195,7 +195,7 @@ fn manifest_with(kind_lines: &str) -> String {
 
 #[trace("FR-049-AC-15")]
 #[test]
-fn tc2244_malformed_kind_declarations_fail_module_load() {
+fn tc2244_malformed_kind_declarations_are_dropped() {
     let cases: &[(&str, &str)] = &[
         ("    kind_column: Class\n", "without `kind_targets`"),
         ("    kind_targets:\n      north: [lefty]\n", "without `kind_column`"),
@@ -232,9 +232,14 @@ fn tc2244_malformed_kind_declarations_fail_module_load() {
     for (lines, expected) in cases {
         let root = tmpdir("2244");
         write(&root, "manifest.yaml", &manifest_with(lines));
-        let error = Registry::load_module(&root)
-            .expect_err(expected)
-            .to_string();
+        let registry =
+            Registry::load_module(&root).expect("a bad declaration never fails the module");
+        let error = registry
+            .failures()
+            .iter()
+            .map(|failure| failure.reason.as_str())
+            .collect::<Vec<_>>()
+            .join("; ");
         assert!(error.contains(expected), "{expected}: {error}");
         assert!(error.contains("'links'"), "names the declaration: {error}");
         fs::remove_dir_all(&root).ok();

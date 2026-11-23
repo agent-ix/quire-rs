@@ -395,6 +395,10 @@ pub struct Manifest {
     /// load fails like any other manifest shape error.
     #[serde(default)]
     pub traceability: crate::traceability::TraceabilityModel,
+    /// The traceability declarations dropped while parsing, filled by
+    /// [`parse_manifest`].
+    #[serde(skip)]
+    pub dropped_declarations: Vec<crate::traceability::DeclarationFailure>,
     /// Mergeable ambiguity lexicon (FR-056): term → {definition, optional
     /// category}. Merged first-wins and layered **over** the engine's built-in
     /// ambiguity terms, so a module extends the lexicon rather than replacing
@@ -608,11 +612,14 @@ impl Archetype {
 /// Returns the typed [`Manifest`] or a `String` error message suitable
 /// for wrapping in `QuireError::ManifestError`.
 pub fn parse_manifest(bytes: &[u8]) -> Result<Manifest, String> {
-    let mut manifest = serde_yaml::from_slice::<Manifest>(bytes).map_err(|e| e.to_string())?;
+    let (mut manifest, section_errors) = deserialize_manifest(bytes)?;
     note_explicit_nulls(bytes, &mut manifest)?;
     check_grammar_severity_keys(&manifest)?;
-    // FR-050-AC-2: an incoherent `traceability:` declaration is a shape error.
-    manifest.traceability.validate()?;
+    // FR-050-AC-2: a declaration that cannot be executed is dropped alone.
+    manifest.dropped_declarations = section_errors;
+    manifest
+        .dropped_declarations
+        .extend(manifest.traceability.prune());
     // FR-054-AC-5: a catalog entry that cannot say what it is advises nothing,
     // and would otherwise sit in the merged registry looking like data.
     for (id, method) in &manifest.verification_catalog {
@@ -626,6 +633,219 @@ pub fn parse_manifest(bytes: &[u8]) -> Result<Manifest, String> {
         profile.validate(id)?;
     }
     Ok(manifest)
+}
+
+/// Deserialize the manifest. A traceability entry that cannot be deserialized
+/// is one dropped declaration, and a `traceability:` section whose shape cannot
+/// be deserialized is one dropped declaration: the module loads with an empty
+/// model and the failure names the deserialization error. A key the engine does
+/// not know, at any depth of the section, is a manifest from a newer engine and
+/// fails the load loud, naming the key (FR-013-AC-19).
+fn deserialize_manifest(
+    bytes: &[u8],
+) -> Result<(Manifest, Vec<crate::traceability::DeclarationFailure>), String> {
+    use crate::traceability::{DeclarationFailure, DeclarationKind, TraceabilityModel};
+
+    let first = match serde_yaml::from_slice::<Manifest>(bytes) {
+        Ok(manifest) => return Ok((manifest, Vec::new())),
+        Err(error) => error.to_string(),
+    };
+    let Ok(mut raw) = serde_yaml::from_slice::<serde_yaml::Value>(bytes) else {
+        return Err(first);
+    };
+    let Some(mut section) = raw
+        .as_mapping_mut()
+        .and_then(|mapping| mapping.remove("traceability"))
+    else {
+        return Err(first);
+    };
+    // A key the engine does not know is named whatever shape errors precede it.
+    if let Some(key) = unknown_section_key(&section) {
+        return Err(format!(
+            "unknown field `{key}` in the `traceability:` section"
+        ));
+    }
+    let Some(mut dropped) = drop_unreadable_entries(&mut section) else {
+        return Err(first);
+    };
+    let model = match serde_yaml::from_value::<TraceabilityModel>(section) {
+        Ok(model) => model,
+        // A key the engine does not know in a nested mapping is a manifest from
+        // a newer engine too.
+        Err(section_error) if is_unknown_key(&section_error.to_string()) => {
+            return Err(format!("{section_error} in the `traceability:` section"))
+        }
+        Err(section_error) => {
+            dropped = vec![DeclarationFailure {
+                kind: DeclarationKind::TraceabilitySection,
+                item: "traceability".to_string(),
+                reason: format!("traceability: the section cannot be read: {section_error}"),
+            }];
+            TraceabilityModel::default()
+        }
+    };
+    if dropped.is_empty() {
+        return Err(first);
+    }
+    let mut manifest = serde_yaml::from_value::<Manifest>(raw).map_err(|_| first)?;
+    manifest.traceability = model;
+    Ok((manifest, dropped))
+}
+
+/// The first key of a raw `traceability:` section the engine does not know.
+fn unknown_section_key(section: &serde_yaml::Value) -> Option<String> {
+    section
+        .as_mapping()?
+        .keys()
+        .map(|key| {
+            key.as_str()
+                .map_or_else(|| format!("{key:?}"), str::to_string)
+        })
+        .find(|key| !crate::traceability::SECTION_KEYS.contains(&key.as_str()))
+}
+
+/// Whether a deserialization error names a key the engine does not know.
+fn is_unknown_key(error: &str) -> bool {
+    error.contains("unknown field")
+}
+
+/// Remove the list entries of a raw `traceability:` section that cannot be
+/// deserialized, reporting each by name. `None` when an entry holds a key the
+/// engine does not know.
+fn drop_unreadable_entries(
+    section: &mut serde_yaml::Value,
+) -> Option<Vec<crate::traceability::DeclarationFailure>> {
+    use crate::traceability as t;
+    use serde_yaml::Value;
+
+    fn readable<T: serde::de::DeserializeOwned>(entry: &Value) -> Result<(), String> {
+        serde_yaml::from_value::<T>(entry.clone())
+            .map(|_| ())
+            .map_err(|error| error.to_string())
+    }
+    type Reader = fn(&Value) -> Result<(), String>;
+    let lists: [(&str, t::DeclarationKind, &str, Reader); 12] = [
+        (
+            "trace_targets",
+            t::DeclarationKind::TraceTarget,
+            "name",
+            readable::<t::TraceTarget>,
+        ),
+        (
+            "document_references",
+            t::DeclarationKind::DocumentReference,
+            "name",
+            readable::<t::DocumentReference>,
+        ),
+        (
+            "obligations",
+            t::DeclarationKind::Obligation,
+            "name",
+            readable::<t::ObligationSource>,
+        ),
+        (
+            "required_relations",
+            t::DeclarationKind::RequiredRelation,
+            "name",
+            readable::<t::RequiredRelation>,
+        ),
+        (
+            "vocabulary_coverage",
+            t::DeclarationKind::VocabularyCoverage,
+            "name",
+            readable::<t::VocabularyCoverage>,
+        ),
+        (
+            "carried_fields",
+            t::DeclarationKind::CarriedField,
+            "name",
+            readable::<t::CarriedField>,
+        ),
+        (
+            "field_consistency",
+            t::DeclarationKind::FieldConsistency,
+            "name",
+            readable::<t::FieldConsistency>,
+        ),
+        (
+            "required_fields",
+            t::DeclarationKind::RequiredField,
+            "name",
+            readable::<t::RequiredField>,
+        ),
+        (
+            "vocabulary",
+            t::DeclarationKind::Vocabulary,
+            "name",
+            readable::<t::VocabularyRule>,
+        ),
+        (
+            "flow_rules",
+            t::DeclarationKind::FlowRule,
+            "name",
+            readable::<t::FlowRule>,
+        ),
+        (
+            "remediations",
+            t::DeclarationKind::Remediation,
+            "name",
+            readable::<t::FlowRemediation>,
+        ),
+        (
+            "trace_id_qualifiers",
+            t::DeclarationKind::TraceIdQualifier,
+            "prefix",
+            readable::<t::TraceIdQualifier>,
+        ),
+    ];
+    let mut dropped = Vec::new();
+    let Some(mapping) = section.as_mapping_mut() else {
+        return Some(dropped);
+    };
+    for (key, kind, name_key, read) in lists {
+        if let Some(Value::Sequence(entries)) = mapping.get_mut(key) {
+            retain_readable(entries, key, kind, name_key, read, &mut dropped)?;
+        }
+    }
+    if let Some(Value::Mapping(tags)) = mapping.get_mut("trace_tags") {
+        for key in ["markers", "implements", "formalizes"] {
+            if let Some(Value::Sequence(entries)) = tags.get_mut(key) {
+                let read = readable::<t::TraceMarkerForm>;
+                let kind = t::DeclarationKind::TraceTag;
+                retain_readable(entries, key, kind, "name", read, &mut dropped)?;
+            }
+        }
+    }
+    Some(dropped)
+}
+
+/// Keep the entries `read` accepts; report each other by its `name_key`.
+fn retain_readable(
+    entries: &mut Vec<serde_yaml::Value>,
+    key: &str,
+    kind: crate::traceability::DeclarationKind,
+    name_key: &str,
+    read: fn(&serde_yaml::Value) -> Result<(), String>,
+    dropped: &mut Vec<crate::traceability::DeclarationFailure>,
+) -> Option<()> {
+    let mut kept = Vec::new();
+    for (index, entry) in std::mem::take(entries).into_iter().enumerate() {
+        match read(&entry) {
+            Ok(()) => kept.push(entry),
+            Err(reason) if is_unknown_key(&reason) => return None,
+            Err(reason) => dropped.push(crate::traceability::DeclarationFailure {
+                kind,
+                item: entry
+                    .get(name_key)
+                    .and_then(serde_yaml::Value::as_str)
+                    .filter(|name| !name.trim().is_empty())
+                    .map_or_else(|| format!("#{}", index + 1), str::to_string),
+                reason: format!("traceability: {key} entry cannot be read: {reason}"),
+            }),
+        }
+    }
+    *entries = kept;
+    Some(())
 }
 
 /// serde folds an authored `key: null` into "absent" for every optional
@@ -687,6 +907,11 @@ where
 /// `<grammar>:<check>` — two non-empty, whitespace-free halves.
 fn check_grammar_severity_keys(manifest: &Manifest) -> Result<(), String> {
     for key in manifest.grammar_severity.keys() {
+        if crate::grammar::is_non_registrable_key(key) {
+            return Err(format!(
+                "grammar_severity key '{key}' is refused: that result is never configurable"
+            ));
+        }
         if !crate::grammar::is_severity_key(key) {
             return Err(format!(
                 "grammar_severity key '{key}' is malformed: expected '<grammar>:<check>'"

@@ -3561,8 +3561,13 @@ fn retired_declarations_keep_live_gaps_and_historical_identity() {
         );
         let loaded = Registry::load_module(&module);
         if let Some(error) = case["expect"]["module_error"].as_str() {
-            let rejected = loaded.expect_err("invalid module must fail the load");
-            assert!(rejected.to_string().contains(error), "{name}: {rejected}");
+            let registry = loaded.expect("an invalid declaration never fails the module");
+            assert!(
+                registry.failures().iter().any(|f| f.reason.contains(error)),
+                "{name}: {:?}",
+                registry.failures()
+            );
+            assert!(registry.dropped_declarations().count() > 0, "{name}");
             continue;
         }
         let registry = loaded.unwrap_or_else(|error| panic!("{name}: {error}"));
@@ -3760,9 +3765,13 @@ fn retirement_vocabularies_are_validated_after_module_selection() {
         ] {
             let registry = Registry::load_module_set(&modules).unwrap();
             if case["conflict"].as_bool().unwrap() {
+                let model = registry
+                    .traceability()
+                    .expect("the rest of the model loads");
                 assert!(
-                    registry.traceability().is_none(),
-                    "{name}: contradictory model exposed"
+                    model.vocabularies.retired.is_empty()
+                        && model.vocabularies.no_source_symbol.is_empty(),
+                    "{name}: contradictory vocabulary exposed"
                 );
                 assert!(registry.failures().iter().any(|failure| failure.reason.contains("vocabularies.retired value 'Inspection' is also declared in no_source_symbol")), "{name}: {:?}", registry.failures());
                 assert!(
@@ -3773,9 +3782,9 @@ fn retirement_vocabularies_are_validated_after_module_selection() {
                             &quire_rs::symbols::trace::SymbolGraph::default(),
                             root.path()
                         ),
-                        Err(CoverageError::ModelUndeclared)
+                        Err(CoverageError::DeclarationsDropped(_))
                     ),
-                    "{name}: invalid model produced a report"
+                    "{name}: a model with dropped declarations produced a report"
                 );
             } else {
                 assert!(

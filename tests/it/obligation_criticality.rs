@@ -301,7 +301,7 @@ fn combinatorial_model() -> TraceabilityModel {
         }],
         ..TraceabilityModel::default()
     };
-    model.validate().expect("a well-formed source loads");
+    assert_eq!(model.validate(), vec![], "a well-formed source loads");
     model
 }
 
@@ -369,13 +369,18 @@ fn tc_blank_criticality_field_fails_module_load() {
     for blank in ["", "   "] {
         let mut model = rated_model();
         model.obligations[0].criticality_field = Some(blank.to_string());
-        let err = model.validate().expect_err("a blank field is a load error");
+        let err = model
+            .validate()
+            .into_iter()
+            .next()
+            .map(|failure| failure.reason)
+            .expect("a blank field is a load error");
         assert!(
             err.contains("acceptance-criterion") && err.contains("criticality_field"),
             "{err}"
         );
     }
-    rated_model().validate().expect("a named field loads");
+    assert_eq!(rated_model().validate(), vec![], "a named field loads");
 }
 
 #[trace("FR-053-AC-31")]

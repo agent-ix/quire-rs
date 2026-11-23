@@ -755,35 +755,33 @@ artifact_types:
 
 #[trace("FR-086-AC-10")]
 #[test]
-fn a_bad_design_relation_entry_fails_load_or_reports_and_fails_the_join() {
-    // Blank and repeated entries fail the module load, naming the entry.
+fn a_bad_design_relation_entry_drops_or_reports_and_fails_the_join() {
+    // A blank entry is dropped alone, naming the entry.
     let blank = TraceabilityModel {
         design_relations: vec!["  ".into()],
         ..TraceabilityModel::default()
     };
     assert!(blank
         .validate()
-        .expect_err("blank")
+        .into_iter()
+        .next()
+        .map(|failure| failure.reason)
+        .expect("blank")
         .contains("design_relations"));
     let repeated = TraceabilityModel {
         design_relations: vec!["same".into(), "same".into()],
         ..TraceabilityModel::default()
     };
-    let err = repeated.validate().expect_err("repeated");
+    let err = repeated
+        .validate()
+        .into_iter()
+        .next()
+        .map(|failure| failure.reason)
+        .expect("repeated");
     assert!(
         err.contains("design_relations") && err.contains("'same'"),
         "{err}"
     );
-    let dir = TempDir::new().expect("tempdir");
-    write(
-        dir.path(),
-        "manifest.yaml",
-        &manifest(
-            "  design_relations: [glyph-has-lantern, glyph-has-lantern]\n",
-            false,
-        ),
-    );
-    assert!(Registry::load_module_strict(dir.path()).is_err());
 
     // An entry naming no declared relation reports and fails the join.
     let (_module_dir, registry) = temp_module(&manifest("  design_relations: [ghost]\n", false));

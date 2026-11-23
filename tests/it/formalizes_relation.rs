@@ -327,12 +327,17 @@ fn an_id_in_a_plain_comment_is_a_mention_and_qsl_is_line_heuristic() {
 #[trace("FR-062-AC-28")]
 #[test]
 fn a_qsl_form_is_refused_outside_formalizes_and_a_foreign_form_inside_it() {
-    assert_eq!(model().validate(), Ok(()));
+    assert_eq!(model().validate(), vec![]);
 
     let mut wrong_language = model();
     wrong_language.trace_tags.formalizes[0].language = SourceLanguage::Rust;
     wrong_language.trace_tags.formalizes[0].syntax = None;
-    let message = wrong_language.validate().expect_err("rust formalizes form");
+    let message = wrong_language
+        .validate()
+        .into_iter()
+        .next()
+        .map(|failure| failure.reason)
+        .expect("rust formalizes form");
     assert!(message.contains("qsl-formalizes-comment"), "{message}");
 
     for section in ["markers", "implements"] {
@@ -344,7 +349,10 @@ fn a_qsl_form_is_refused_outside_formalizes_and_a_foreign_form_inside_it() {
         }
         let message = misplaced
             .validate()
-            .expect_err("qsl form outside formalizes");
+            .into_iter()
+            .next()
+            .map(|failure| failure.reason)
+            .expect("qsl form outside formalizes");
         assert!(message.contains("qsl-formalizes-comment"), "{message}");
     }
 }

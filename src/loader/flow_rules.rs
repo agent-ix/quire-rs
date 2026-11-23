@@ -5,46 +5,30 @@ use std::sync::Arc;
 
 use serde_json::Value;
 
-use crate::error::ArchetypeLoadFailure;
 use crate::loader::compile::CompiledArchetype;
+use crate::loader::declarations::Drop;
 use crate::loader::LoadedModule;
 use crate::traceability::{
-    fold_selector_value, FlowCondition, FlowConditionTest, FlowRemediation, FlowRule, FlowStep,
-    TraceabilityModel,
+    fold_selector_value, DeclarationKind, FlowCondition, FlowConditionTest, FlowRemediation,
+    FlowRule, FlowStep, TraceabilityModel,
 };
 use crate::vocab::EdgeTypeDef;
 
 type ValidatedPaths<'a> = Vec<(Vec<String>, Vec<&'a FlowStep>)>;
 
-/// Add manifest failures for flow declarations that cannot resolve in the merged registry.
+/// The flow declarations that cannot resolve in the merged registry, each
+/// dropped alone. `dropped_remediations` holds the remediations already dropped
+/// for another reason; a rule naming one depends on a dropped declaration.
 pub(super) fn validate_flow_declarations(
     modules: &[LoadedModule],
     model: &TraceabilityModel,
     archetypes: &BTreeMap<String, Arc<CompiledArchetype>>,
     edge_types: &BTreeMap<String, EdgeTypeDef>,
     inverse_edges: &BTreeMap<String, String>,
-    failures: &mut Vec<ArchetypeLoadFailure>,
-) -> bool {
-    let initial_failures = failures.len();
-    report_cross_module_duplicates(modules, failures);
-    for module in modules {
-        for archetype in &module.archetypes {
-            if let Some(error) = &archetype.frontmatter_schema_ref_error {
-                fail(
-                    module,
-                    failures,
-                    format!(
-                        "frontmatter schema '{}' has an unresolved local reference: {error}",
-                        archetype
-                            .frontmatter_schema_path
-                            .as_deref()
-                            .unwrap_or("<unknown>")
-                    ),
-                );
-            }
-        }
-    }
-
+    dropped_remediations: &BTreeSet<String>,
+    dropped_archetypes: &BTreeMap<String, String>,
+) -> Vec<Drop> {
+    let mut drops = Vec::new();
     let all_remediations: BTreeMap<&str, &FlowRemediation> = model
         .remediations
         .iter()
@@ -52,111 +36,134 @@ pub(super) fn validate_flow_declarations(
         .collect();
     let reserved_checks = reserved_trace_checks(model);
 
-    for module in modules {
-        for rule in &module.traceability.flow_rules {
-            if let Err(reason) = validate_rule(
-                rule,
-                &all_remediations,
-                archetypes,
-                edge_types,
-                inverse_edges,
-                &reserved_checks,
-            ) {
-                fail(module, failures, reason);
-            }
-        }
+    let mut dropped_remediations = dropped_remediations.clone();
+    for (index, module) in modules.iter().enumerate() {
         for remediation in &module.traceability.remediations {
             if let Err(reason) =
                 validate_remediation_declaration(remediation, archetypes, edge_types, inverse_edges)
             {
-                fail(module, failures, reason);
+                dropped_remediations.insert(remediation.name.clone());
+                drops.push(Drop::new(
+                    index,
+                    DeclarationKind::Remediation,
+                    &remediation.name,
+                    reason,
+                ));
             }
-            if let Some(sets) = &remediation.sets {
-                for rule in modules
+        }
+    }
+
+    let mut dropped_rules: BTreeSet<(usize, String)> = BTreeSet::new();
+    // A `sets` value the schema of a rule's subject does not admit drops the
+    // rule that names the remediation; the remediation stays for the rules it
+    // fits.
+    for module in modules {
+        for remediation in &module.traceability.remediations {
+            let Some(sets) = &remediation.sets else {
+                continue;
+            };
+            if dropped_remediations.contains(&remediation.name) {
+                continue;
+            }
+            for (index, declaring) in modules.iter().enumerate() {
+                for rule in declaring
+                    .traceability
+                    .flow_rules
                     .iter()
-                    .flat_map(|declaring| declaring.traceability.flow_rules.iter())
                     .filter(|rule| rule.remediations.contains(&remediation.name))
                 {
-                    for subject in &rule.subject {
-                        if let Err(reason) = validate_field_value(
+                    if dropped_rules.contains(&(index, rule.name.clone())) {
+                        continue;
+                    }
+                    let refused = rule.subject.iter().find_map(|subject| {
+                        validate_field_value(
                             &remediation.name,
                             subject,
                             &sets.field,
                             &sets.value,
                             archetypes,
-                        ) {
-                            fail(module, failures, reason);
-                        }
+                        )
+                        .err()
+                    });
+                    if let Some(reason) = refused {
+                        dropped_rules.insert((index, rule.name.clone()));
+                        drops.push(Drop::new(
+                            index,
+                            DeclarationKind::FlowRule,
+                            &rule.name,
+                            format!(
+                                "traceability: flow_rules entry '{}' depends on remediation \
+                                 '{}': {reason}",
+                                rule.name, remediation.name
+                            ),
+                        ));
                     }
                 }
             }
         }
     }
-    failures.len() != initial_failures
-}
-
-fn report_cross_module_duplicates(
-    modules: &[LoadedModule],
-    failures: &mut Vec<ArchetypeLoadFailure>,
-) {
-    for (section, names) in [
-        (
-            "flow_rules",
-            modules
-                .iter()
-                .flat_map(|module| {
-                    module
-                        .traceability
-                        .flow_rules
-                        .iter()
-                        .map(move |rule| (rule.name.as_str(), module))
-                })
-                .collect::<Vec<_>>(),
-        ),
-        (
-            "remediations",
-            modules
-                .iter()
-                .flat_map(|module| {
-                    module
-                        .traceability
-                        .remediations
-                        .iter()
-                        .map(move |remediation| (remediation.name.as_str(), module))
-                })
-                .collect::<Vec<_>>(),
-        ),
-    ] {
-        let mut by_name: BTreeMap<&str, Vec<&LoadedModule>> = BTreeMap::new();
-        for (name, module) in names {
-            let modules_for_name = by_name.entry(name).or_default();
-            if !modules_for_name
-                .iter()
-                .any(|existing| existing.name == module.name)
-            {
-                modules_for_name.push(module);
-            }
-        }
-        for (name, declarations) in by_name {
-            if declarations.len() < 2 {
+    for (index, module) in modules.iter().enumerate() {
+        for rule in &module.traceability.flow_rules {
+            if dropped_rules.contains(&(index, rule.name.clone())) {
                 continue;
             }
-            let declared_by = declarations
+            let dependency = rule
+                .remediations
                 .iter()
-                .map(|module| module.name.as_str())
-                .collect::<Vec<_>>()
-                .join("', '");
-            for module in declarations {
-                fail(
-                    module,
-                    failures,
-                    format!(
-                        "merged selected traceability model: duplicate {section} entry '{name}' is declared by modules '{declared_by}'"
-                    ),
-                );
+                .find(|name| dropped_remediations.contains(*name));
+            let verdict = match (dependency, dropped_archetype_use(rule, dropped_archetypes)) {
+                (_, Some(reason)) => Err(reason),
+                (Some(name), None) => Err(format!(
+                    "traceability: flow_rules entry '{}' depends on dropped remediations entry \
+                     '{name}'",
+                    rule.name
+                )),
+                (None, None) => validate_rule(
+                    rule,
+                    &all_remediations,
+                    archetypes,
+                    edge_types,
+                    inverse_edges,
+                    &reserved_checks,
+                ),
+            };
+            if let Err(reason) = verdict {
+                dropped_rules.insert((index, rule.name.clone()));
+                drops.push(Drop::new(
+                    index,
+                    DeclarationKind::FlowRule,
+                    &rule.name,
+                    reason,
+                ));
             }
         }
     }
+
+    drops
+}
+
+/// A rule reading an archetype that was dropped depends on a dropped
+/// declaration: the failure names that archetype, why it dropped, and the
+/// fields the rule reads.
+fn dropped_archetype_use(rule: &FlowRule, dropped: &BTreeMap<String, String>) -> Option<String> {
+    let conditions = || rule.match_conditions.iter().chain(&rule.unless_any);
+    let named = rule.subject.iter().chain(
+        conditions()
+            .flat_map(|condition| condition.paths.iter().flatten())
+            .flat_map(|step| step.to.iter()),
+    );
+    let archetype = named.into_iter().find(|name| dropped.contains_key(*name))?;
+    let fields: BTreeSet<&str> = conditions().map(|c| c.field.as_str()).collect();
+    Some(format!(
+        "traceability: flow_rules entry '{}' depends on dropped archetype '{archetype}' (field {}): {}",
+        rule.name,
+        fields
+            .iter()
+            .map(|field| format!("'{field}'"))
+            .collect::<Vec<_>>()
+            .join(", "),
+        dropped[archetype]
+    ))
 }
 
 fn validate_rule(
@@ -627,13 +634,4 @@ fn reserved_trace_checks(model: &TraceabilityModel) -> BTreeSet<String> {
         checks.insert(check.clone());
     }
     checks
-}
-
-fn fail(module: &LoadedModule, failures: &mut Vec<ArchetypeLoadFailure>, reason: String) {
-    failures.push(ArchetypeLoadFailure {
-        module: module.name.clone(),
-        archetype: "<manifest>".to_string(),
-        path: module.root.join("manifest.yaml"),
-        reason,
-    });
 }

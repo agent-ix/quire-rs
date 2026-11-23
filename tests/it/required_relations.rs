@@ -441,11 +441,16 @@ fn tc906_an_unexecutable_relation_is_rejected_at_load() {
     // Baseline: the same declaration, well-formed, loads.
     model(relation(vec!["satisfies"], "orphan-fr"))
         .validate()
+        .is_empty()
+        .then_some(())
         .expect("a well-formed relation loads");
 
     let err = model(relation(vec![], "orphan-fr"))
         .validate()
-        .expect_err("no accepted verb means nothing could ever satisfy it");
+        .into_iter()
+        .next()
+        .map(|failure| failure.reason)
+        .expect("no accepted verb means nothing could ever satisfy it");
     assert!(
         err.contains("declares no edges") && err.contains("every 'FR' document would be reported"),
         "the error names the consequence, not just the empty field: {err}"
@@ -456,7 +461,10 @@ fn tc906_an_unexecutable_relation_is_rejected_at_load() {
     for bad in ["orphan:fr", "orphan fr", ""] {
         let err = model(relation(vec!["satisfies"], bad))
             .validate()
-            .expect_err("a check token that cannot form a severity key is rejected");
+            .into_iter()
+            .next()
+            .map(|failure| failure.reason)
+            .expect("a check token that cannot form a severity key is rejected");
         assert!(
             err.contains("required_relations"),
             "the error names the declaration for token {bad:?}: {err}"
@@ -470,7 +478,10 @@ fn tc906_an_unexecutable_relation_is_rejected_at_load() {
         ..TraceabilityModel::default()
     }
     .validate()
-    .expect_err("an empty acyclic verb checks nothing");
+    .into_iter()
+    .next()
+    .map(|failure| failure.reason)
+    .expect("an empty acyclic verb checks nothing");
     assert!(err.contains("acyclic_edges"), "{err}");
 }
 
@@ -481,7 +492,7 @@ fn tc906_an_unexecutable_relation_is_rejected_at_load() {
 // against the manifest. Two entries sharing one name make a report that cannot
 // be traced back to the declaration that produced it.
 #[test]
-fn tc907_duplicate_relation_names_are_rejected() {
+fn tc907_duplicate_relation_names_with_different_bodies_are_dropped() {
     use quire_rs::traceability::{RelationDirection, RequiredRelation, TraceabilityModel};
 
     let one = RequiredRelation {
@@ -496,16 +507,29 @@ fn tc907_duplicate_relation_names_are_rejected() {
         when_any: vec![],
         record_keys: None,
     };
-    let err = TraceabilityModel {
-        required_relations: vec![one.clone(), one],
+    // Identical entries merge to one, with no failure.
+    let mut merged = TraceabilityModel {
+        required_relations: vec![one.clone(), one.clone()],
         ..TraceabilityModel::default()
-    }
-    .validate()
-    .expect_err("duplicate names are rejected");
-    assert!(
-        err.contains("duplicate required_relations entry 'upward'"),
-        "{err}"
-    );
+    };
+    assert_eq!(merged.prune(), vec![]);
+    assert_eq!(merged.required_relations.len(), 1);
+
+    // The name no longer identifies one relation when the bodies differ: both
+    // are dropped, with one failure naming the entry.
+    let other = RequiredRelation {
+        check: "other-check".to_string(),
+        ..one.clone()
+    };
+    let mut conflicting = TraceabilityModel {
+        required_relations: vec![one, other],
+        ..TraceabilityModel::default()
+    };
+    let failures = conflicting.prune();
+    assert_eq!(failures.len(), 1, "{failures:?}");
+    assert_eq!(failures[0].kind.as_str(), "required_relation");
+    assert_eq!(failures[0].item, "upward");
+    assert!(conflicting.required_relations.is_empty());
 }
 
 #[trace("FR-058-AC-11")]

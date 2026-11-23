@@ -19,6 +19,7 @@ mod coverage_baseline;
 mod coverage_matrix;
 mod coverage_rollup;
 mod cross_repo;
+mod declaration_drop;
 mod design_join;
 mod design_matrix;
 mod determinism;

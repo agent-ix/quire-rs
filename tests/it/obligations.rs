@@ -126,14 +126,13 @@ fn tc832_archetype_bound_source_renders_ids() {
 // a source declaring both origins, or neither, fails
 // module load with a diagnostic naming it.
 #[test]
-fn tc833_ambiguous_or_originless_source_fails_load() {
+fn tc833_ambiguous_or_originless_source_is_dropped() {
     for (module, source, expected) in [
         ("obligations-both", "ambiguous", "declares both"),
         ("obligations-neither", "originless", "declares neither"),
     ] {
-        // The manifest is rejected at parse, so the module contributes nothing
-        // and the failure names the offending source rather than leaving an
-        // unexecutable declaration to yield an inexplicably empty report.
+        // The source is dropped alone and the failure names it, so an
+        // unexecutable declaration never yields an inexplicably empty report.
         let outcome = quire_rs::loader::load_single_module(&fixture_module(module));
         let reasons: Vec<&str> = outcome.failures.iter().map(|f| f.reason.as_str()).collect();
         assert!(
@@ -143,14 +142,22 @@ fn tc833_ambiguous_or_originless_source_fails_load() {
             "module {module} loaded without naming source '{source}': {reasons:#?}",
         );
         assert!(
-            outcome.modules.is_empty(),
-            "module {module} contributed archetypes despite an invalid obligation source",
+            outcome
+                .failures
+                .iter()
+                .any(|f| f
+                    .declaration
+                    .as_ref()
+                    .is_some_and(|d| d.kind.as_str() == "obligation" && d.item == source)),
+            "{:?}",
+            outcome.failures
         );
 
         // And nothing downstream sees the bad source.
-        let error = Registry::load_module(&fixture_module(module))
-            .expect_err("a bad obligation source fails the load");
-        assert!(error.to_string().contains(source), "{error}");
+        let registry = Registry::load_module(&fixture_module(module)).expect("the module loads");
+        assert!(registry
+            .traceability()
+            .is_none_or(|model| model.obligations.iter().all(|o| o.name != source)));
     }
 }
 
@@ -676,7 +683,7 @@ fn selected_inventory_validates_the_real_request() {
     assert!(result.selection().is_none());
     assert_eq!(result.causes()[0].code(), InventoryCauseCode::InvalidModel);
     assert!(
-        matches!(result.causes()[0].detail(), InventoryCauseDetail::Model(reason) if reason == &invalid.validate().unwrap_err())
+        matches!(result.causes()[0].detail(), InventoryCauseDetail::Model(reason) if reason == &invalid.validate().remove(0).reason)
     );
     let valid = selected_at(root.path());
     assert_eq!(valid.terminal(), InventoryTerminal::Complete);

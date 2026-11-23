@@ -805,7 +805,7 @@ fn an_in_memory_model_cannot_keep_a_wrong_language_structural_form() {
             template: None,
             entry_paths: None,
         });
-        let error = model.validate().unwrap_err();
+        let error = model.validate().remove(0).reason;
         assert!(error.contains("wrong-language"), "{error}");
     }
 }

@@ -1141,7 +1141,14 @@ mod tests {
         let extraction = unavailable_rust();
         let graph = crate::symbols::trace::bind(&extraction, &Default::default());
         let err = search(&graph, &extraction, &Query::Id("FR-1".to_string())).unwrap_err();
-        assert_eq!(err.languages, vec![SourceLanguage::Rust]);
+        assert_eq!(
+            err,
+            crate::symbols::trace_search::SearchError::ExtractionUnavailable(
+                ExtractionUnavailable {
+                    languages: vec![SourceLanguage::Rust]
+                }
+            )
+        );
         assert!(err.to_string().contains("rust"));
         let capable = SymbolExtraction::default();
         let graph = crate::symbols::trace::bind(&capable, &Default::default());

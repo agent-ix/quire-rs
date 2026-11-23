@@ -496,6 +496,25 @@ impl Registry {
         &self.inner.failures
     }
 
+    /// The traceability declarations dropped at load, in module load order,
+    /// then kind, then item. A model with any of these must not be computed
+    /// over silently.
+    pub fn dropped_declarations(
+        &self,
+    ) -> impl Iterator<Item = (&ArchetypeLoadFailure, &crate::error::DroppedDeclaration)> {
+        self.inner
+            .failures
+            .iter()
+            .filter_map(|failure| failure.declaration.as_deref().map(|d| (failure, d)))
+    }
+
+    /// `Ok` when no traceability declaration was dropped at load. Every
+    /// consumer that computes over the merged model calls this first: a model
+    /// the modules did not declare must not yield a complete-looking answer.
+    pub fn require_complete_model(&self) -> Result<(), crate::traceability::DroppedDeclarations> {
+        self.inner.traceability.require_complete()
+    }
+
     /// Advisory lint rules declared by the loaded modules, in load
     /// order (FR-036). Evaluate via [`crate::lint::lint_document`].
     pub fn lint_rules(&self) -> &[crate::lint::LintRule] {
@@ -1763,7 +1782,7 @@ roles:
     // load like any other manifest shape error; an absent section loads and
     // marks the model undeclared.
     #[test]
-    fn tc733_malformed_model_fails_load_absent_is_undeclared() {
+    fn tc733_malformed_model_drops_declarations_absent_is_undeclared() {
         // Absent section → loads, model undeclared.
         let p = tmpdir("trace-733-absent");
         write_vocab_module(&p.join("m"), "m", "artifact_types: []\n");
@@ -1779,8 +1798,11 @@ roles:
             "traceability:\n  document_references:\n  - name: r\n    archetype: FR\n    \
              section: S\n    column: C\n    pattern: '(TC-\\d+)'\n    targets: [nope]\n",
         );
-        let err2 = Registry::load_from(&[&bad]).expect_err("module must not load");
-        assert!(err2.to_string().contains("undeclared target"));
+        let loaded = Registry::load_from(&[&bad]).expect("the module loads");
+        assert!(loaded
+            .failures()
+            .iter()
+            .any(|f| f.reason.contains("undeclared target")));
 
         // Malformed: an unknown field inside the section.
         let typo = tmpdir("trace-733-typo");

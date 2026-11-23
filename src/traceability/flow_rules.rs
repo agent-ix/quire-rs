@@ -187,106 +187,87 @@ pub struct FlowRemoveRemediation {
     pub direction: EdgeSide,
 }
 
-impl super::TraceabilityModel {
-    /// Validate the flow declaration's local shape (FR-096-AC-6, AC-7).
-    pub(super) fn validate_flow_rules(&self) -> Result<(), String> {
-        let mut names = std::collections::BTreeSet::new();
-        for rule in &self.flow_rules {
-            check_nonblank("flow_rules", &rule.name, "name", &rule.name)?;
-            if !names.insert(rule.name.as_str()) {
-                return Err(format!(
-                    "traceability: duplicate flow_rules entry '{}'",
-                    rule.name
-                ));
-            }
-            if rule.subject.is_empty() || rule.subject.iter().any(|name| name.trim().is_empty()) {
-                return Err(format!(
-                    "traceability: flow_rules entry '{}' has an empty `subject`",
-                    rule.name
-                ));
-            }
-            if rule.match_conditions.is_empty() {
-                return Err(format!(
-                    "traceability: flow_rules entry '{}' has an empty `match`",
-                    rule.name
-                ));
-            }
-            check_nonblank("flow_rules", &rule.name, "check", &rule.check)?;
-            if !crate::grammar::is_severity_key(&crate::grammar::severity_key("trace", &rule.check))
-            {
-                return Err(format!(
-                    "traceability: flow_rules entry '{}' has a `check` token '{}' that cannot \
-                     form a `trace:<check>` severity key",
-                    rule.name, rule.check
-                ));
-            }
-            check_nonblank("flow_rules", &rule.name, "rationale", &rule.rationale)?;
-            for remediation in &rule.remediations {
-                if remediation.trim().is_empty() {
-                    return Err(format!(
-                        "traceability: flow_rules entry '{}' has a blank remediation name",
-                        rule.name
-                    ));
-                }
-            }
-            for condition in rule.match_conditions.iter().chain(&rule.unless_any) {
-                check_condition(&rule.name, condition)?;
-            }
-        }
-
-        let mut remediation_names = std::collections::BTreeSet::new();
-        for remediation in &self.remediations {
-            check_nonblank("remediations", &remediation.name, "name", &remediation.name)?;
-            if !remediation_names.insert(remediation.name.as_str()) {
-                return Err(format!(
-                    "traceability: duplicate remediations entry '{}'",
-                    remediation.name
-                ));
-            }
-            check_nonblank(
-                "remediations",
-                &remediation.name,
-                "description",
-                &remediation.description,
-            )?;
-            let changes = [
-                remediation.adds.is_some(),
-                remediation.sets.is_some(),
-                remediation.removes.is_some(),
-            ]
-            .into_iter()
-            .filter(|present| *present)
-            .count();
-            if changes != 1 {
-                return Err(format!(
-                    "traceability: remediations entry '{}' must declare exactly one of `adds`, \
-                     `sets` and `removes`",
-                    remediation.name
-                ));
-            }
-            if let Some(adds) = &remediation.adds {
-                check_nonblank("remediations", &remediation.name, "adds.edge", &adds.edge)?;
-                check_nonblank("remediations", &remediation.name, "adds.from", &adds.from)?;
-                check_nonblank("remediations", &remediation.name, "adds.field", &adds.field)?;
-                check_nonblank("remediations", &remediation.name, "adds.value", &adds.value)?;
-                let _ = adds.direction;
-            }
-            if let Some(sets) = &remediation.sets {
-                check_nonblank("remediations", &remediation.name, "sets.field", &sets.field)?;
-                check_nonblank("remediations", &remediation.name, "sets.value", &sets.value)?;
-            }
-            if let Some(removes) = &remediation.removes {
-                check_nonblank(
-                    "remediations",
-                    &remediation.name,
-                    "removes.edge",
-                    &removes.edge,
-                )?;
-                let _ = removes.direction;
-            }
-        }
-        Ok(())
+/// Validate one flow rule's local shape (FR-096-AC-6, AC-7).
+pub(super) fn check_flow_rule(rule: &FlowRule) -> Result<(), String> {
+    check_nonblank("flow_rules", &rule.name, "name", &rule.name)?;
+    if rule.subject.is_empty() || rule.subject.iter().any(|name| name.trim().is_empty()) {
+        return Err(format!(
+            "traceability: flow_rules entry '{}' has an empty `subject`",
+            rule.name
+        ));
     }
+    if rule.match_conditions.is_empty() {
+        return Err(format!(
+            "traceability: flow_rules entry '{}' has an empty `match`",
+            rule.name
+        ));
+    }
+    check_nonblank("flow_rules", &rule.name, "check", &rule.check)?;
+    if !crate::grammar::is_severity_key(&crate::grammar::severity_key("trace", &rule.check)) {
+        return Err(format!(
+            "traceability: flow_rules entry '{}' has a `check` token '{}' that cannot \
+             form a `trace:<check>` severity key",
+            rule.name, rule.check
+        ));
+    }
+    check_nonblank("flow_rules", &rule.name, "rationale", &rule.rationale)?;
+    for remediation in &rule.remediations {
+        if remediation.trim().is_empty() {
+            return Err(format!(
+                "traceability: flow_rules entry '{}' has a blank remediation name",
+                rule.name
+            ));
+        }
+    }
+    for condition in rule.match_conditions.iter().chain(&rule.unless_any) {
+        check_condition(&rule.name, condition)?;
+    }
+    Ok(())
+}
+
+/// Validate one remediation's local shape (FR-096-AC-7).
+pub(super) fn check_remediation(remediation: &FlowRemediation) -> Result<(), String> {
+    check_nonblank("remediations", &remediation.name, "name", &remediation.name)?;
+    check_nonblank(
+        "remediations",
+        &remediation.name,
+        "description",
+        &remediation.description,
+    )?;
+    let changes = [
+        remediation.adds.is_some(),
+        remediation.sets.is_some(),
+        remediation.removes.is_some(),
+    ]
+    .into_iter()
+    .filter(|present| *present)
+    .count();
+    if changes != 1 {
+        return Err(format!(
+            "traceability: remediations entry '{}' must declare exactly one of `adds`, \
+             `sets` and `removes`",
+            remediation.name
+        ));
+    }
+    if let Some(adds) = &remediation.adds {
+        check_nonblank("remediations", &remediation.name, "adds.edge", &adds.edge)?;
+        check_nonblank("remediations", &remediation.name, "adds.from", &adds.from)?;
+        check_nonblank("remediations", &remediation.name, "adds.field", &adds.field)?;
+        check_nonblank("remediations", &remediation.name, "adds.value", &adds.value)?;
+    }
+    if let Some(sets) = &remediation.sets {
+        check_nonblank("remediations", &remediation.name, "sets.field", &sets.field)?;
+        check_nonblank("remediations", &remediation.name, "sets.value", &sets.value)?;
+    }
+    if let Some(removes) = &remediation.removes {
+        check_nonblank(
+            "remediations",
+            &remediation.name,
+            "removes.edge",
+            &removes.edge,
+        )?;
+    }
+    Ok(())
 }
 
 fn check_nonblank(section: &str, entry: &str, field: &str, value: &str) -> Result<(), String> {

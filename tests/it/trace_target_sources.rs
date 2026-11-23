@@ -145,7 +145,7 @@ fn omitted_from_is_table_row_and_reports_identically() {
 
 #[trace("FR-050-AC-60")]
 #[test]
-fn malformed_non_table_sources_fail_module_load() {
+fn malformed_non_table_sources_are_dropped() {
     let broken: Vec<Value> = cases()
         .into_iter()
         .filter(|case| case["expect"]["module_error"].is_string())
@@ -159,9 +159,14 @@ fn malformed_non_table_sources_fail_module_load() {
             "manifest.yaml",
             case["input"]["module"].as_str().expect("module"),
         );
-        let error = Registry::load_module(root.path())
-            .expect_err("a malformed trace target fails the load")
-            .to_string();
+        let registry = Registry::load_module(root.path())
+            .expect("a malformed trace target drops itself, never the module");
+        let error = registry
+            .failures()
+            .iter()
+            .map(|failure| failure.reason.as_str())
+            .collect::<Vec<_>>()
+            .join("; ");
         let expected = case["expect"]["module_error"].as_str().expect("error");
         assert!(error.contains(expected), "{name}: {error}");
     }

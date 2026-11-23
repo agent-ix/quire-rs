@@ -520,6 +520,8 @@ pub fn severity_level(
 pub enum SeverityOverrideError {
     #[error("--severity entry '{entry}' is malformed: expected '<grammar>:<check>=<level>'")]
     MalformedEntry { entry: String },
+    #[error("--severity entry '{entry}' is refused: that result is never configurable")]
+    NonRegistrable { entry: String },
     #[error(
         "--severity entry '{entry}' has an unknown level '{level}': expected off|warning|error"
     )]
@@ -555,6 +557,11 @@ fn parse_severity_entry(
     if !is_severity_key(key) {
         return Err(malformed());
     }
+    if is_non_registrable_key(key) {
+        return Err(SeverityOverrideError::NonRegistrable {
+            entry: entry.to_string(),
+        });
+    }
     let level = match level {
         "off" => GrammarSeverityLevel::Off,
         "warning" => GrammarSeverityLevel::Warning,
@@ -567,6 +574,15 @@ fn parse_severity_entry(
         }
     };
     Ok((key.to_string(), level))
+}
+
+/// The severity key of the bridged finding that reports a dropped traceability
+/// declaration. It carries no pack, so no severity entry may name it.
+pub const DECLARED_MODEL_DROPPED_KEY: &str = "trace:declared-model-dropped";
+
+/// True when `key` names a result no severity entry may configure.
+pub fn is_non_registrable_key(key: &str) -> bool {
+    key == DECLARED_MODEL_DROPPED_KEY
 }
 
 /// True when `key` is a well-formed `<grammar>:<check>` registry key: exactly
