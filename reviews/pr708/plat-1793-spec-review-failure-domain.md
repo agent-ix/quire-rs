@@ -80,3 +80,12 @@ Round 2, verified against PR #708 head 7028b978739e1396f721ffc2cd133b1105dbe670 
 | ------- | -------- | ------- | ---- |
 | FND-009 | medium | Rule 3 and the CR-423 note say a caller scoping to a subdirectory "gives that repository's root as the boundary" and that this is "the calling CLI's existing knowledge". No consumer has it. quire-cli (src/commands/coverage.rs:299, symbols.rs:103, assurance.rs:126 at origin/main 61ccfc6) and quoin-quire (coverage.rs:97/160, assurance.rs:63 at 458f13b1) pass only `scope`, and none resolves a repository root. The boundary parameter therefore has no consumer, and the AC-55 "boundary given" case is reachable only from tests. Either drop the parameter (boundary = code root, keeping the already-stated subdirectory consequence) or own the consumer change with a tracked quire-cli/quoin ticket. Also unstated: what happens when the boundary is not an ancestor of the code root. | spec/functional/FR-051-source-symbol-extraction.md Source walk rule 3; CR-423 note |
 | FND-010 | low | AC-55 still says a file matched "by an ignore file above the repository root is extracted". Rule 3 no longer defines a repository root, only the ignore boundary. The term should read "above the ignore boundary". | spec/functional/FR-051-source-symbol-extraction.md AC-55 |
+
+## Dispositions (round 3)
+
+Round 3, verified against PR #708 head 442118e467962698f06e09e66cc10d01174ce50f (rebased on origin/main 2d0836a; diff additive only). No new findings this round.
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-009 | fixed | Rule 3 now reads ignore files only at or under the code root, and the CR-423 note says the interface is unchanged. That matches quire-cli (coverage.rs:299, symbols.rs:103, assurance.rs:126) and quoin-quire (coverage.rs:97/160, assurance.rs:63), which pass only `scope`. The subdirectory consequence is stated, with `source_exclude` or an in-scope ignore file as the remedy. |
+| FND-010 | fixed | AC-55 says "above the code root". The new text no longer uses the terms "repository root" or "ignore boundary". |
