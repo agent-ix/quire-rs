@@ -451,8 +451,7 @@ fn tc2248_assurance_reader_refuses_duplicate_json_object_keys() {
     );
 
     let mut array_nested_duplicate = golden[..object_end].to_vec();
-    array_nested_duplicate
-        .extend_from_slice(br#","unknown_array":[{"member":1,"member":2}]}"#);
+    array_nested_duplicate.extend_from_slice(br#","unknown_array":[{"member":1,"member":2}]}"#);
 
     let error = read_assurance_export(&array_nested_duplicate, &accepted)
         .expect_err("duplicate keys in objects inside arrays must be refused");
