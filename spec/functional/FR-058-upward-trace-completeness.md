@@ -285,25 +285,62 @@ drifting into two.
 ### A declaration that cannot load drops itself, never the model
 
 A declaration that cannot be executed is **dropped**; every other declaration of the selected
-modules, and every other module, loads. The unit of a drop is one declaration:
+modules, and every other module, loads. Loading a module never fails as a whole because one of its
+traceability declarations is bad: `TraceabilityModel::validate` reports the offending declaration and
+the loader drops it, and the module's archetypes, edge types and other declarations stay loaded.
 
-- one `required_relations`, `flow_rules` or `remediations` entry (a rule naming a dropped remediation
-  is itself unexecutable and is dropped, naming the remediation);
-- one retirement-vocabulary entry, one `trace_id_qualifiers` entry, one `obligations` source whose
-  bound target cannot be read, one `carried_fields` entry.
+**The drop unit** is one declaration:
 
-Where a conflict between modules leaves no way to choose a declaration (the same `carried_fields`
-name declared with different keys, qualifier prefixes that overlap), each conflicting declaration is
-dropped and each failure names the other declaring module. Nothing else the module declares is
-affected, and no failure empties the merged `TraceabilityModel`.
+- one `required_relations` entry; of two entries with one `name` both are dropped, as the name no
+  longer identifies one relation;
+- one `acyclic_edges` entry; one `exclude` glob of a relation (the relation loads without that glob);
+- one `flow_rules` or `remediations` entry;
+- one retirement-vocabulary entry, one `trace_id_qualifiers` entry, one `trace_targets` entry, one
+  `document_references` entry, one `carried_fields` entry;
+- one `obligations` source;
+- one archetype whose `frontmatter_schema_ref` cannot be resolved (its failure already names it; the
+  other archetypes of the module load).
 
-Each drop records one load failure naming the module, the declaration kind, the dropped item and the
-reason. So that the drop cannot pass as a clean run, bundle validation (`validate_bundle` and the
-view validation built on it) SHALL report one error finding, `trace:declared-model-dropped`, for each
-load failure that dropped a declaration, naming the module and the dropped item. It is an error by
-default and is tunable like any other `trace:<check>` key ([FR-057](./FR-057-corpus-check-severity.md)).
-The finding is raised by the engine from the registry's recorded failures, so every caller that
-validates a bundle exits non-zero without reading the registry itself.
+When the `traceability:` section of a manifest cannot be deserialized at all, the whole section is the
+one declaration: it is dropped with one failure naming the module and the deserialization error, the
+module contributes an empty model, and the module's archetypes and other sections load.
+
+**Cascades.** A declaration that depends on a dropped one is itself unexecutable and is dropped,
+each with its own failure naming the declaration it depended on:
+
+- a flow rule naming a dropped remediation, or a relation or rule whose check depends on a dropped
+  carried field;
+- an `obligations` source whose `target` names a dropped `trace_targets` entry;
+- a remediation `sets` whose value the schema of another rule's subject does not admit drops that
+  remediation for that rule only: the rule naming it is dropped and the remediation stays for the
+  rules it fits.
+
+**Cross-module conflicts.** Where modules conflict and no declaration can be chosen, every
+conflicting declaration is dropped and each failure names every other declaring module, in module
+load order. The conflicts are: a `carried_fields` name declared with different keys; `trace_id_qualifiers`
+prefixes that are not unique or overlap; a `flow_rules` or `remediations` name declared by more than
+one module; a `required_relations` name declared by more than one module; a retirement-vocabulary
+value that contradicts another module's vocabulary. All other declarations of those modules load.
+
+**The load failure** is structured: besides the module, path and reason it carries the declaration
+kind (for example `flow_rule`, `required_relation`, `carried_field`, `traceability_section`) and the
+item name. The engine tells a declaration drop from any other load failure by that kind, never by
+reading the reason text.
+
+**The finding.** Bundle validation (`validate_bundle`, the view validation built on it and
+`validate_corpus`) SHALL report one `trace:declared-model-dropped` error finding for each load
+failure that carries a declaration kind, naming the module, the kind and the item. The path is the
+module's `manifest.yaml`. Findings are ordered by module load order, then kind, then item. In
+`validate_corpus` the findings are raised once for the corpus, not once per member. The finding is a
+non-registrable bridged result in the sense of FR-057-CON-1: it is emitted without a pack, so no
+severity entry applies; it is an error under both `Okf` and `Strict`; and a manifest or CLI severity
+entry naming it is refused. The engine raises it from the registry's recorded failures, so every
+caller that validates a bundle exits non-zero without reading the registry itself.
+
+**Consumers of the model.** `quire coverage` and every other consumer that computes over the merged
+model SHALL NOT compute silently over a model with dropped declarations: when any declaration was
+dropped, `quire coverage` exits with the distinct non-zero exit of FR-050 and names each dropped
+declaration on stderr, and no report is written.
 
 ### A declaration that names a kind nothing has
 
@@ -344,8 +381,8 @@ case that needs no help.
 | FR-058-AC-7 | Findings are advisory by default: a bundle whose only faults are upward-trace findings stays valid under both postures unless a module says otherwise. | Test |
 | FR-058-AC-8 | A module declaring neither `required_relations` nor `acyclic_edges` produces byte-identical output to one that never heard of this FR. | Test |
 | FR-058-AC-9 | Findings are ordered by document then id, and identical across runs over one bundle ([NFR-006](../non-functional/NFR-006-determinism.md)). | Test |
-| FR-058-AC-10 | A declaration that cannot be executed SHALL fail at module load, naming the offending entry, and is dropped alone (FR-058-AC-38): no accepted `edges`, an empty `from`/`check`/`edges`/`to` entry, a duplicate relation name, a `check` token that cannot form a `trace:<check>` severity key, an uncompilable `exclude` glob, or a blank verb in `acyclic_edges`. | Test |
-| FR-058-AC-11 | A relation naming a document kind that no loaded module declares **and** no document in the bundle is SHALL report itself under `trace:undeclared-relation-vocabulary`, naming the kind and the declaration. Verbs are deliberately **not** checked this way — an absent `edge_types` entry is legal (FR-041-AC-2) and a misspelt verb already fails loudly. | Test |
+| FR-058-AC-10 | A declaration that cannot be executed fails at module load naming the offending entry, and the entry is dropped alone (FR-058-AC-38) for each of: no accepted `edges`; an empty `from`, `check`, `edges` or `to` entry; a duplicate relation name; a `check` token that cannot form a `trace:<check>` severity key; an uncompilable `exclude` glob; a blank verb in `acyclic_edges`. | Test |
+| FR-058-AC-11 | A relation naming a document kind that no loaded module declares **and** no document in the bundle is reports itself under `trace:undeclared-relation-vocabulary`, naming the kind and the declaration. Verbs are deliberately **not** checked this way — an absent `edge_types` entry is legal (FR-041-AC-2) and a misspelt verb already fails loudly. | Test |
 | FR-058-AC-12 | A relation with `where: {field: F, values: [V1, V2]}` reports a `from` document whose frontmatter `F` is `V1` or `V2` and which has no accepted edge; it does not report a selected document that has the edge, and it does not report a `from` document whose `F` is a string outside `values`, with or without the edge. | Test |
 | FR-058-AC-13 | A `from` document whose field `F` is absent, null, empty, a number, a list or a mapping is not selected and yields no finding, and the run neither errors nor warns about it. | Test |
 | FR-058-AC-14 | The field value matches after trimming whitespace and ASCII case folding, so ` Security ` selects against `values: [security]`; `values` entries match the same way, and a value that differs by more than case and surrounding whitespace is not selected. | Test |
@@ -373,11 +410,16 @@ case that needs no help.
 | FR-058-AC-35 | A relation whose `when_any` names an `other` kind that no module declares and no document is reports under `trace:undeclared-relation-vocabulary`, naming the declaration and the kind. | Test |
 | FR-058-AC-36 | Module load rejects a `record_keys` that is empty, not a list, holds a blank or repeated name, or names a key that no endpoint archetype's resolved `data_schema` declares, naming the relation and the key; a key declared by only one endpoint archetype is accepted; for a relation with `to: []` only `from`'s schema is checked, so a key declared only by counterpart archetypes is refused. | Test |
 | FR-058-AC-37 | A relation with `record_keys` selects, obliges and is satisfied by exactly the documents it did without it, and its `trace:<check>` findings are identical. | Test |
-| FR-058-AC-38 | Two modules are selected: one declares `required_relations` entry `R` and a valid `carried_fields` entry; the other declares a `flow_rules` entry whose `subject` names an archetype no selected module declares. Loading yields exactly one load failure, naming the second module and that rule; `R` and the carried field are present in the merged model; the other module's remaining rules load. | Test |
-| FR-058-AC-39 | For each declaration kind of the drop list (a required relation, a flow rule, a remediation, a retirement-vocabulary entry, a `trace_id_qualifiers` entry, an `obligations` source with an unreadable bound target, a `carried_fields` entry), one unexecutable declaration alongside a valid declaration of the same kind loads the valid one, drops the unexecutable one, and records one failure naming it. | Test |
-| FR-058-AC-40 | Two `carried_fields` declarations of one name with different keys, in different modules, are both dropped, each failure names the other module, and every other declaration of both modules loads. | Test |
-| FR-058-AC-41 | On the AC-38 selection, `validate_bundle` reports one error finding `trace:declared-model-dropped` naming the second module and the dropped rule, the relation `R` still reports its own findings, and the validation result is non-zero. A selection with no dropped declaration yields no such finding. | Test |
-| FR-058-AC-42 | Mutation: with the drop confined to the offending declaration removed (the merged model reset on a load failure), the AC-38 scenario fails, because `R` is absent from the merged model. | Test |
+| FR-058-AC-38 | Two modules are selected: one declares `required_relations` entry `R` and a valid `carried_fields` entry; the other declares two `flow_rules` entries, `ok` (valid) and `bad` (a `subject` naming an archetype no selected module declares). Loading yields exactly one load failure, naming the second module and rule `bad`; `R`, the carried field and rule `ok` are present in the merged model. | Test |
+| FR-058-AC-39 | For each drop unit listed above (`required_relations`, `acyclic_edges`, `exclude` glob, `flow_rules`, `remediations`, retirement vocabulary, `trace_id_qualifiers`, `trace_targets`, `document_references`, `carried_fields`, `obligations`, an archetype with an unresolvable `frontmatter_schema_ref`), one unexecutable declaration next to a valid one of the same kind loads the valid one, drops the bad one and records one failure naming it; no module fails to load. | Test |
+| FR-058-AC-40 | For each cross-module conflict (carried-field keys, qualifier prefixes, flow-rule or remediation names, required-relation names, retirement-vocabulary contradiction), every conflicting declaration is dropped, each failure names every other declaring module (with three declaring modules, two names), and the other declarations of those modules load. FR-090-AC-10 is one instance. | Test |
+| FR-058-AC-41 | On the AC-38 selection, `validate_bundle` reports exactly one `trace:declared-model-dropped` finding, naming the second module, kind `flow_rule` and item `bad`, with path the module's `manifest.yaml`, in error severity under both `Okf` and `Strict`; relation `R` still reports its own findings; `is_valid()` is false. A selection with no dropped declaration yields no such finding. `validate_corpus` over two members selecting those modules raises it once. | Test |
+| FR-058-AC-42 | Mutation: with the drop confined to the offending declaration replaced by a reset of the merged model on a load failure, the AC-38 scenario fails, because `R` is absent from the merged model. | Test |
+| FR-058-AC-43 | A registry or CLI severity entry mapping `trace:declared-model-dropped` to `off`, `warning` or `error` is refused, and the finding stays an error under both `Okf` and `Strict` for any other entry. | Test |
+| FR-058-AC-44 | A load failure is told from a declaration drop by its declaration kind and item fields: a failure whose `reason` text matches a drop but carries no kind raises no finding, and one carrying a kind raises one whatever its `reason`. | Test |
+| FR-058-AC-45 | A `traceability:` section that cannot be deserialized drops only that section with one failure naming the module; the module's archetypes load, its model is empty, and the finding is raised. | Test |
+| FR-058-AC-46 | A flow rule naming a dropped remediation, an `obligations` source naming a dropped `trace_targets` entry, and a rule whose remediation `sets` value its subject's schema does not admit are each dropped with a failure naming the declaration depended on; the remediation stays for the rules it fits. | Test |
+| FR-058-AC-47 | `quire coverage` over a selection with a dropped declaration exits with the distinct non-zero exit of FR-050, names each dropped declaration on stderr and writes no report. | Test |
 
 ## Constraints
 
