@@ -115,7 +115,7 @@ pub struct ManifestFailure {
 /// A manifest that could not be loaded: the per-module failure record plus
 /// the `version` read from the same bytes, so the error can name it.
 pub(crate) struct ManifestLoadFailure {
-    failure: ArchetypeLoadFailure,
+    failure: Box<ArchetypeLoadFailure>,
     version: Option<String>,
 }
 
@@ -129,7 +129,7 @@ impl ManifestLoadFailure {
                 self.failure.module, self.failure.reason
             ),
         };
-        (self.failure, error)
+        (*self.failure, error)
     }
 }
 
@@ -394,13 +394,13 @@ pub fn load_inline_module(manifest_yaml: &[u8], schemas: &BTreeMap<String, Strin
         Ok(m) => m,
         Err(reason) => {
             let (failure, error) = ManifestLoadFailure {
-                failure: ArchetypeLoadFailure {
+                failure: Box::new(ArchetypeLoadFailure {
                     declaration: None,
                     module: "<inline>".to_string(),
                     archetype: "<manifest>".to_string(),
                     path: inline_root.clone(),
                     reason,
-                },
+                }),
                 version: crate::loader::manifest::declared_version(manifest_yaml),
             }
             .into_error();
@@ -788,7 +788,7 @@ fn load_one_module(
 ) -> Result<(LoadedModule, Vec<ArchetypeLoadFailure>), ManifestLoadFailure> {
     let (manifest, origins): (Manifest, ManifestOrigins) = load_manifest_with_origins(module_root)
         .map_err(|e| ManifestLoadFailure {
-            failure: ArchetypeLoadFailure {
+            failure: Box::new(ArchetypeLoadFailure {
                 declaration: None,
                 module: module_root
                     .file_name()
@@ -798,7 +798,7 @@ fn load_one_module(
                 archetype: "<manifest>".to_string(),
                 path: module_root.join("manifest.yaml"),
                 reason: e.reason,
-            },
+            }),
             version: e.version,
         })?;
 
@@ -2375,7 +2375,7 @@ mod tests {
 
     #[trace("FR-050-AC-63")]
     #[test]
-    fn an_obligation_bound_to_another_modules_unreadable_target_fails_load() {
+    fn an_obligation_bound_to_another_modules_unreadable_target_is_dropped() {
         for (a_target, expected) in [
             ("id_column: [ID, Other]", "list or contains"),
             ("id_column: 'I*'", "list or contains"),
@@ -2414,9 +2414,10 @@ mod tests {
                 shape.failures
             );
             assert!(
-                shape.traceability.is_empty(),
-                "a contradictory model is never exposed"
+                shape.traceability.obligations.is_empty(),
+                "the contradicted source is dropped alone"
             );
+            assert_eq!(shape.traceability.trace_targets.len(), 1);
         }
     }
 
@@ -2493,12 +2494,12 @@ mod tests {
         assert!(
             conflict
                 .iter()
-                .any(|f| f.reason.contains("declares prefix 'F-' twice")),
+                .any(|f| f.reason.contains("prefix 'F-' is not unique or overlaps")),
             "{conflict:?}"
         );
         let overlap = merged_failures("q-overlap", ("F-", "o/a"), ("F-X-", "o/b"));
         assert!(
-            overlap.iter().any(|f| f.reason.contains("overlap")),
+            overlap.iter().any(|f| f.reason.contains("overlaps")),
             "{overlap:?}"
         );
     }

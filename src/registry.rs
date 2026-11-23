@@ -505,7 +505,7 @@ impl Registry {
         self.inner
             .failures
             .iter()
-            .filter_map(|failure| failure.declaration.as_ref().map(|d| (failure, d)))
+            .filter_map(|failure| failure.declaration.as_deref().map(|d| (failure, d)))
     }
 
     /// Advisory lint rules declared by the loaded modules, in load
@@ -1722,7 +1722,13 @@ roles:
             assert!(msg.contains(key), "{msg}");
             assert!(msg.contains(version), "{msg}");
         };
-        check(Registry::load_module(&nested), "a_future_key", "9.9.9");
+        // A key the traceability section does not know drops the section, never
+        // the module, and the dropped declaration is on record.
+        let skewed = Registry::load_module(&nested).expect("the module loads");
+        assert!(skewed
+            .failures()
+            .iter()
+            .any(|f| f.declaration.is_some() && f.reason.contains("a_future_key")));
         check(
             Registry::load_module_strict(&top),
             "a_top_future_key",
@@ -1733,22 +1739,14 @@ roles:
             "a_top_future_key",
             "8.8.8",
         );
-        check(
-            Registry::load_module_set_strict(&[&nested]),
-            "a_future_key",
-            "9.9.9",
-        );
         // A search root holding one skewed module among good ones.
         check(Registry::load_from(&[&p]), "a_top_future_key", "8.8.8");
-        check(Registry::load_strict(&[&p]), "a_future_key", "9.9.9");
+        check(Registry::load_strict(&[&p]), "a_top_future_key", "8.8.8");
         // Every failure in a set is reported, not only the first.
         let both = Registry::load_module_set(&[&nested, &top])
-            .expect_err("both fail")
+            .expect_err("the skewed module fails")
             .to_string();
-        assert!(
-            both.contains("a_future_key") && both.contains("a_top_future_key"),
-            "{both}"
-        );
+        assert!(both.contains("a_top_future_key"), "{both}");
         // Inline modules go through the same check.
         let inline =
             Registry::from_inline_parts(b"name: i\nversion: 7.7.7\nzzz: 1\n", &Default::default());
@@ -1775,7 +1773,7 @@ roles:
     // load like any other manifest shape error; an absent section loads and
     // marks the model undeclared.
     #[test]
-    fn tc733_malformed_model_fails_load_absent_is_undeclared() {
+    fn tc733_malformed_model_drops_declarations_absent_is_undeclared() {
         // Absent section → loads, model undeclared.
         let p = tmpdir("trace-733-absent");
         write_vocab_module(&p.join("m"), "m", "artifact_types: []\n");
@@ -1791,8 +1789,11 @@ roles:
             "traceability:\n  document_references:\n  - name: r\n    archetype: FR\n    \
              section: S\n    column: C\n    pattern: '(TC-\\d+)'\n    targets: [nope]\n",
         );
-        let err2 = Registry::load_from(&[&bad]).expect_err("module must not load");
-        assert!(err2.to_string().contains("undeclared target"));
+        let loaded = Registry::load_from(&[&bad]).expect("the module loads");
+        assert!(loaded
+            .failures()
+            .iter()
+            .any(|f| f.reason.contains("undeclared target")));
 
         // Malformed: an unknown field inside the section.
         let typo = tmpdir("trace-733-typo");
@@ -1802,8 +1803,11 @@ roles:
             "traceability:\n  trace_targets:\n  - name: t\n    archetype: FR\n    section: S\n    \
              id_column: ID\n    typo: x\n",
         );
-        let err3 = Registry::load_from(&[&typo]).expect_err("module must not load");
-        assert!(err3.to_string().contains("typo"));
+        let loaded = Registry::load_from(&[&typo]).expect("the module loads");
+        assert!(loaded
+            .failures()
+            .iter()
+            .any(|f| f.reason.contains("typo") && f.declaration.is_some()));
     }
 
     #[trace("FR-044-AC-3")]

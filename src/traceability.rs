@@ -2253,7 +2253,7 @@ document_references:
             // duplicate target names
             (
                 "trace_targets:\n- name: t\n  archetype: FR\n  section: S\n  id_column: ID\n- name: t\n  archetype: NFR\n  section: S\n  id_column: ID\n",
-                "duplicate trace_targets",
+                "trace_targets entry 't' is declared more than once",
             ),
             // a status value in two classes
             (

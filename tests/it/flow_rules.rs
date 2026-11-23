@@ -765,10 +765,9 @@ fn duplicate_rule_names_across_modules_fail_with_both_module_names() {
     assert!(registry.failures().iter().any(|failure| {
         failure.module == "flow-module-two" && failure.reason.contains("flow-module-one")
     }));
-    let model = registry
+    assert!(registry
         .traceability()
-        .expect("the other declarations load");
-    assert!(model.flow_rules.is_empty());
+        .is_none_or(|model| model.flow_rules.is_empty()));
 }
 
 #[test]

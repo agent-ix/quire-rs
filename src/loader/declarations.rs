@@ -52,10 +52,10 @@ pub(super) fn declaration_failure(
         archetype: "<manifest>".to_string(),
         path,
         reason,
-        declaration: Some(DroppedDeclaration {
+        declaration: Some(Box::new(DroppedDeclaration {
             kind,
             item: item.to_string(),
-        }),
+        })),
     }
 }
 

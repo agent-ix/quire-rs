@@ -133,7 +133,7 @@ pub struct ArchetypeLoadFailure {
     pub reason: String,
     /// The traceability declaration this failure dropped, when it is a
     /// declaration drop rather than any other load failure.
-    pub declaration: Option<DroppedDeclaration>,
+    pub declaration: Option<Box<DroppedDeclaration>>,
 }
 
 /// The traceability declaration a load failure dropped.

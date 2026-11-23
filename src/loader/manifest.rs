@@ -770,27 +770,47 @@ fn drop_unreadable_entries(
         return dropped;
     };
     for (key, kind, name_key, read) in lists {
-        let Some(Value::Sequence(entries)) = mapping.get_mut(key) else {
-            continue;
-        };
-        let mut kept = Vec::new();
-        for (index, entry) in std::mem::take(entries).into_iter().enumerate() {
-            match read(&entry) {
-                Ok(()) => kept.push(entry),
-                Err(reason) => dropped.push(t::DeclarationFailure {
-                    kind,
-                    item: entry
-                        .get(name_key)
-                        .and_then(Value::as_str)
-                        .filter(|name| !name.trim().is_empty())
-                        .map_or_else(|| format!("#{}", index + 1), str::to_string),
-                    reason: format!("traceability: {key} entry cannot be read: {reason}"),
-                }),
+        if let Some(Value::Sequence(entries)) = mapping.get_mut(key) {
+            retain_readable(entries, key, kind, name_key, read, &mut dropped);
+        }
+    }
+    if let Some(Value::Mapping(tags)) = mapping.get_mut("trace_tags") {
+        for key in ["markers", "implements", "formalizes"] {
+            if let Some(Value::Sequence(entries)) = tags.get_mut(key) {
+                let read = readable::<t::TraceMarkerForm>;
+                let kind = t::DeclarationKind::TraceTag;
+                retain_readable(entries, key, kind, "name", read, &mut dropped);
             }
         }
-        *entries = kept;
     }
     dropped
+}
+
+/// Keep the entries `read` accepts; report each other by its `name_key`.
+fn retain_readable(
+    entries: &mut Vec<serde_yaml::Value>,
+    key: &str,
+    kind: crate::traceability::DeclarationKind,
+    name_key: &str,
+    read: fn(&serde_yaml::Value) -> Result<(), String>,
+    dropped: &mut Vec<crate::traceability::DeclarationFailure>,
+) {
+    let mut kept = Vec::new();
+    for (index, entry) in std::mem::take(entries).into_iter().enumerate() {
+        match read(&entry) {
+            Ok(()) => kept.push(entry),
+            Err(reason) => dropped.push(crate::traceability::DeclarationFailure {
+                kind,
+                item: entry
+                    .get(name_key)
+                    .and_then(serde_yaml::Value::as_str)
+                    .filter(|name| !name.trim().is_empty())
+                    .map_or_else(|| format!("#{}", index + 1), str::to_string),
+                reason: format!("traceability: {key} entry cannot be read: {reason}"),
+            }),
+        }
+    }
+    *entries = kept;
 }
 
 /// serde folds an authored `key: null` into "absent" for every optional
