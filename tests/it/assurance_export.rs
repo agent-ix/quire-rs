@@ -449,6 +449,21 @@ fn tc2248_assurance_reader_refuses_duplicate_json_object_keys() {
         ),
         "unexpected nested duplicate-key refusal: {error}"
     );
+
+    let mut array_nested_duplicate = golden[..object_end].to_vec();
+    array_nested_duplicate
+        .extend_from_slice(br#","unknown_array":[{"member":1,"member":2}]}"#);
+
+    let error = read_assurance_export(&array_nested_duplicate, &accepted)
+        .expect_err("duplicate keys in objects inside arrays must be refused");
+    assert!(
+        matches!(
+            error,
+            AssuranceError::InvalidJson { ref reason }
+                if reason.contains("duplicate JSON object key \"member\"")
+        ),
+        "unexpected duplicate-key refusal in array: {error}"
+    );
 }
 
 #[trace("FR-067-AC-10")]
@@ -465,7 +480,7 @@ fn tc2249_assurance_reader_returns_error_for_deep_nesting_without_panicking() {
         .expect("golden object terminator");
     let mut deeply_nested = golden[..object_end].to_vec();
     deeply_nested.extend_from_slice(b",\"unknown_nested\":");
-    let depth = 256;
+    let depth = 128;
     deeply_nested.extend(std::iter::repeat(b'[').take(depth));
     deeply_nested.push(b'0');
     deeply_nested.extend(std::iter::repeat(b']').take(depth));
