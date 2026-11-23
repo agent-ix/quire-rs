@@ -82,6 +82,10 @@ pub struct ClassificationDimension {
 pub struct ExpectedOutput {
     pub kind: String,
     pub description: String,
+    /// Open-vocabulary kinds of the producers that emit this output. Absent
+    /// means unspecified, which is distinct from an empty list.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub producers: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -263,6 +267,9 @@ impl ClauseSet {
                     "expected-output names, kinds, and descriptions must not be empty".into(),
                 ));
             }
+            if let Some(producers) = &output.producers {
+                validate_producers(name, producers)?;
+            }
         }
 
         let ids: BTreeSet<&str> = self
@@ -346,6 +353,30 @@ impl ClauseSet {
     }
 }
 
+fn validate_producers(name: &str, producers: &[String]) -> Result<(), ClauseSetError> {
+    let invalid = |reason: &str| {
+        ClauseSetError::Invalid(format!("outputCatalog {name:?} producers {reason}"))
+    };
+    if producers.is_empty() {
+        return Err(invalid("must not be an empty list"));
+    }
+    let mut seen = BTreeSet::new();
+    for kind in producers {
+        if kind.trim().is_empty() {
+            return Err(invalid("must not contain an empty kind"));
+        }
+        if kind.trim() != kind {
+            return Err(invalid(
+                "kinds must not have leading or trailing whitespace",
+            ));
+        }
+        if !seen.insert(kind.as_str()) {
+            return Err(invalid(&format!("lists kind {kind:?} more than once")));
+        }
+    }
+    Ok(())
+}
+
 fn validate_non_empty_unique(
     name: &str,
     clause_id: &str,
@@ -404,6 +435,65 @@ pub struct ChangedClause {
     pub after: Clause,
 }
 
+/// An output catalog entry together with its catalog name.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CatalogEntry {
+    pub name: String,
+    #[serde(flatten)]
+    pub output: ExpectedOutput,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ChangedCatalogEntry {
+    pub name: String,
+    pub before: ExpectedOutput,
+    pub after: ExpectedOutput,
+}
+
+/// Output catalog differences, keyed by catalog name.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OutputCatalogDiff {
+    pub added: Vec<CatalogEntry>,
+    pub removed: Vec<CatalogEntry>,
+    pub changed: Vec<ChangedCatalogEntry>,
+}
+
+fn diff_output_catalogs(
+    before: &BTreeMap<String, ExpectedOutput>,
+    after: &BTreeMap<String, ExpectedOutput>,
+) -> OutputCatalogDiff {
+    let entry = |(name, output): (&String, &ExpectedOutput)| CatalogEntry {
+        name: name.clone(),
+        output: output.clone(),
+    };
+    OutputCatalogDiff {
+        added: after
+            .iter()
+            .filter(|(name, _)| !before.contains_key(*name))
+            .map(entry)
+            .collect(),
+        removed: before
+            .iter()
+            .filter(|(name, _)| !after.contains_key(*name))
+            .map(entry)
+            .collect(),
+        changed: before
+            .iter()
+            .filter_map(|(name, before_output)| {
+                let after_output = after.get(name)?;
+                (before_output != after_output).then(|| ChangedCatalogEntry {
+                    name: name.clone(),
+                    before: before_output.clone(),
+                    after: after_output.clone(),
+                })
+            })
+            .collect(),
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ClauseSetDiff {
@@ -413,6 +503,7 @@ pub struct ClauseSetDiff {
     pub added: Vec<Clause>,
     pub removed: Vec<Clause>,
     pub changed: Vec<ChangedClause>,
+    pub output_catalog: OutputCatalogDiff,
 }
 
 pub fn diff_clause_sets(
@@ -462,6 +553,7 @@ pub fn diff_clause_sets(
         added,
         removed,
         changed,
+        output_catalog: diff_output_catalogs(&before.output_catalog, &after.output_catalog),
     })
 }
 
@@ -774,6 +866,7 @@ mod tests {
                 ExpectedOutput {
                     kind: "record".into(),
                     description: "A synthetic test result".into(),
+                    producers: None,
                 },
             )]),
             clauses: vec![Clause {
@@ -837,6 +930,7 @@ mod tests {
             ExpectedOutput {
                 kind: "record".into(),
                 description: "Synthetic".into(),
+                producers: None,
             },
         );
         assert!(empty_output
@@ -917,5 +1011,121 @@ mod tests {
         assert!(diff_validator
             .validate(&serde_json::to_value(diff).unwrap())
             .is_ok());
+    }
+
+    fn with_producers(producers: Option<Vec<&str>>) -> ClauseSet {
+        let mut fixture = set("1.0.0");
+        fixture
+            .output_catalog
+            .get_mut("test-result")
+            .unwrap()
+            .producers = producers.map(|kinds| kinds.into_iter().map(String::from).collect());
+        fixture
+    }
+
+    #[test]
+    #[trace("FR-073-AC-7")]
+    fn producers_round_trip_in_order_through_json_and_yaml() {
+        let fixture = with_producers(Some(vec!["run", "scan"]));
+        let json: ClauseSet =
+            serde_json::from_slice(&serde_json::to_vec(&fixture).unwrap()).unwrap();
+        let yaml: ClauseSet =
+            serde_yaml::from_str(&serde_yaml::to_string(&fixture).unwrap()).unwrap();
+        for loaded in [json, yaml] {
+            loaded.validate().unwrap();
+            assert_eq!(
+                loaded.output_catalog["test-result"].producers,
+                Some(vec!["run".to_string(), "scan".to_string()])
+            );
+        }
+    }
+
+    #[test]
+    #[trace("FR-073-AC-8")]
+    fn absent_producers_stay_absent() {
+        let fixture = with_producers(None);
+        let value = serde_json::to_value(&fixture).unwrap();
+        assert!(value["outputCatalog"]["test-result"]
+            .get("producers")
+            .is_none());
+        let loaded: ClauseSet = serde_json::from_value(value).unwrap();
+        assert_eq!(loaded.output_catalog["test-result"].producers, None);
+        let yaml = serde_yaml::to_string(&fixture).unwrap();
+        assert!(!yaml.contains("producers"));
+    }
+
+    #[test]
+    #[trace("FR-073-AC-9")]
+    fn invalid_producers_are_rejected_naming_output_catalog() {
+        for producers in [
+            vec![],
+            vec!["run", "run"],
+            vec![""],
+            vec!["  "],
+            vec![" run"],
+            vec!["run "],
+        ] {
+            let error = with_producers(Some(producers.clone()))
+                .validate()
+                .unwrap_err()
+                .to_string();
+            assert!(error.contains("outputCatalog"), "{producers:?}: {error}");
+        }
+    }
+
+    #[test]
+    #[trace("FR-073-AC-10")]
+    fn unknown_producer_kinds_load() {
+        with_producers(Some(vec!["vendor-experiment"]))
+            .validate()
+            .unwrap();
+    }
+
+    #[test]
+    #[trace("FR-073-AC-11")]
+    fn diff_reports_output_catalog_changes_by_name() {
+        let before = set("1.0.0");
+        let same = diff_clause_sets(&before, &set("2.0.0")).unwrap();
+        assert_eq!(same.output_catalog, OutputCatalogDiff::default());
+
+        let mut after = set("2.0.0");
+        after.output_catalog.remove("test-result");
+        let removed = diff_clause_sets(&before, &after).unwrap().output_catalog;
+        assert_eq!(removed.removed[0].name, "test-result");
+        assert!(removed.added.is_empty() && removed.changed.is_empty());
+        let added = diff_clause_sets(&after, &before).unwrap().output_catalog;
+        assert_eq!(added.added[0].name, "test-result");
+        assert!(added.removed.is_empty() && added.changed.is_empty());
+
+        let changed_after = with_producers(Some(vec!["run"]));
+        let changed = diff_clause_sets(&before, &changed_after)
+            .unwrap()
+            .output_catalog;
+        assert_eq!(changed.changed.len(), 1);
+        assert_eq!(changed.changed[0].name, "test-result");
+        assert_eq!(changed.changed[0].before.producers, None);
+        assert_eq!(
+            changed.changed[0].after.producers,
+            Some(vec!["run".to_string()])
+        );
+    }
+
+    #[test]
+    #[trace("FR-073-AC-12")]
+    fn diff_schema_requires_output_catalog() {
+        let schema: Value =
+            serde_json::from_str(include_str!("../schemas/output/clause-diff-v1.schema.json"))
+                .unwrap();
+        let validator = jsonschema::options()
+            .with_draft(jsonschema::Draft::Draft202012)
+            .build(&schema)
+            .unwrap();
+        let mut changed_after = with_producers(Some(vec!["run"]));
+        changed_after.version = "2.0.0".into();
+        let diff = diff_clause_sets(&set("1.0.0"), &changed_after).unwrap();
+        let mut document = serde_json::to_value(diff).unwrap();
+        assert!(validator.validate(&document).is_ok());
+        document.as_object_mut().unwrap().remove("outputCatalog");
+        assert!(validator.validate(&document).is_err());
     }
 }

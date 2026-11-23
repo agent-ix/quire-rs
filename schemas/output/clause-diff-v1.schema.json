@@ -9,7 +9,8 @@
     "after",
     "added",
     "removed",
-    "changed"
+    "changed",
+    "outputCatalog"
   ],
   "additionalProperties": false,
   "properties": {
@@ -37,9 +38,65 @@
         }
       }
     },
+    "outputCatalog": { "$ref": "#/$defs/outputCatalogDiff" },
     "engine": { "$ref": "#/$defs/engine" }
   },
   "$defs": {
+    "producers": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "output": {
+      "type": "object",
+      "required": ["kind", "description"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": { "type": "string", "minLength": 1 },
+        "description": { "type": "string", "minLength": 1 },
+        "producers": { "$ref": "#/$defs/producers" }
+      }
+    },
+    "catalogEntry": {
+      "type": "object",
+      "required": ["name", "kind", "description"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "kind": { "type": "string", "minLength": 1 },
+        "description": { "type": "string", "minLength": 1 },
+        "producers": { "$ref": "#/$defs/producers" }
+      }
+    },
+    "outputCatalogDiff": {
+      "type": "object",
+      "required": ["added", "removed", "changed"],
+      "additionalProperties": false,
+      "properties": {
+        "added": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/catalogEntry" }
+        },
+        "removed": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/catalogEntry" }
+        },
+        "changed": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "before", "after"],
+            "additionalProperties": false,
+            "properties": {
+              "name": { "type": "string", "minLength": 1 },
+              "before": { "$ref": "#/$defs/output" },
+              "after": { "$ref": "#/$defs/output" }
+            }
+          }
+        }
+      }
+    },
     "key": {
       "type": "object",
       "required": ["authority", "id", "version"],
