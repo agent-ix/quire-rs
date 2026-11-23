@@ -410,7 +410,7 @@ fn tc1087_reader_rejects_unsupported_premises_before_returning_records() {
     ));
 }
 
-#[trace("FR-067-AC-4")]
+#[trace("FR-067-AC-9")]
 #[test]
 fn tc2248_assurance_reader_refuses_duplicate_json_object_keys() {
     let export: AssuranceExport =
@@ -431,9 +431,27 @@ fn tc2248_assurance_reader_refuses_duplicate_json_object_keys() {
         ),
         "unexpected duplicate-key refusal: {error}"
     );
+
+    let object_end = golden
+        .iter()
+        .rposition(|byte| *byte == b'}')
+        .expect("golden object terminator");
+    let mut nested_duplicate = golden[..object_end].to_vec();
+    nested_duplicate.extend_from_slice(br#","unknown_nested":{"member":1,"member":2}}"#);
+
+    let error = read_assurance_export(&nested_duplicate, &accepted)
+        .expect_err("duplicate keys in nested objects must be refused");
+    assert!(
+        matches!(
+            error,
+            AssuranceError::InvalidJson { ref reason }
+                if reason.contains("duplicate JSON object key \"member\"")
+        ),
+        "unexpected nested duplicate-key refusal: {error}"
+    );
 }
 
-#[trace("FR-067-AC-4")]
+#[trace("FR-067-AC-10")]
 #[test]
 fn tc2249_assurance_reader_returns_error_for_deep_nesting_without_panicking() {
     let export: AssuranceExport =
@@ -458,8 +476,12 @@ fn tc2249_assurance_reader_returns_error_for_deep_nesting_without_panicking() {
     }))
     .expect("deep nesting must return an error instead of panicking");
     assert!(
-        matches!(result, Err(AssuranceError::InvalidJson { .. })),
-        "deeply nested JSON must be refused as invalid JSON"
+        matches!(
+            result,
+            Err(AssuranceError::InvalidJson { ref reason })
+                if reason.contains("recursion limit exceeded")
+        ),
+        "deep nesting must report the JSON recursion limit, got {result:?}"
     );
 }
 
