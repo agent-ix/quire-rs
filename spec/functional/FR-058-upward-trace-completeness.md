@@ -282,6 +282,29 @@ The `check` token is validated with `grammar::is_severity_key` — the same pred
 CLI parser uses — so the manifest and the command line accept exactly one vocabulary rather than
 drifting into two.
 
+### A declaration that cannot load drops itself, never the model
+
+A declaration that cannot be executed is **dropped**; every other declaration of the selected
+modules, and every other module, loads. The unit of a drop is one declaration:
+
+- one `required_relations`, `flow_rules` or `remediations` entry (a rule naming a dropped remediation
+  is itself unexecutable and is dropped, naming the remediation);
+- one retirement-vocabulary entry, one `trace_id_qualifiers` entry, one `obligations` source whose
+  bound target cannot be read, one `carried_fields` entry.
+
+Where a conflict between modules leaves no way to choose a declaration (the same `carried_fields`
+name declared with different keys, qualifier prefixes that overlap), each conflicting declaration is
+dropped and each failure names the other declaring module. Nothing else the module declares is
+affected, and no failure empties the merged `TraceabilityModel`.
+
+Each drop records one load failure naming the module, the declaration kind, the dropped item and the
+reason. So that the drop cannot pass as a clean run, bundle validation (`validate_bundle` and the
+view validation built on it) SHALL report one error finding, `trace:declared-model-dropped`, for each
+load failure that dropped a declaration, naming the module and the dropped item. It is an error by
+default and is tunable like any other `trace:<check>` key ([FR-057](./FR-057-corpus-check-severity.md)).
+The finding is raised by the engine from the registry's recorded failures, so every caller that
+validates a bundle exits non-zero without reading the registry itself.
+
 ### A declaration that names a kind nothing has
 
 `edges: []` fails loudly. The opposite typo fails **silently**, and it is the worse of the two.
@@ -321,7 +344,7 @@ case that needs no help.
 | FR-058-AC-7 | Findings are advisory by default: a bundle whose only faults are upward-trace findings stays valid under both postures unless a module says otherwise. | Test |
 | FR-058-AC-8 | A module declaring neither `required_relations` nor `acyclic_edges` produces byte-identical output to one that never heard of this FR. | Test |
 | FR-058-AC-9 | Findings are ordered by document then id, and identical across runs over one bundle ([NFR-006](../non-functional/NFR-006-determinism.md)). | Test |
-| FR-058-AC-10 | A declaration that cannot be executed SHALL fail at module load, naming the offending entry: no accepted `edges`, an empty `from`/`check`/`edges`/`to` entry, a duplicate relation name, a `check` token that cannot form a `trace:<check>` severity key, an uncompilable `exclude` glob, or a blank verb in `acyclic_edges`. | Test |
+| FR-058-AC-10 | A declaration that cannot be executed SHALL fail at module load, naming the offending entry, and is dropped alone (FR-058-AC-38): no accepted `edges`, an empty `from`/`check`/`edges`/`to` entry, a duplicate relation name, a `check` token that cannot form a `trace:<check>` severity key, an uncompilable `exclude` glob, or a blank verb in `acyclic_edges`. | Test |
 | FR-058-AC-11 | A relation naming a document kind that no loaded module declares **and** no document in the bundle is SHALL report itself under `trace:undeclared-relation-vocabulary`, naming the kind and the declaration. Verbs are deliberately **not** checked this way — an absent `edge_types` entry is legal (FR-041-AC-2) and a misspelt verb already fails loudly. | Test |
 | FR-058-AC-12 | A relation with `where: {field: F, values: [V1, V2]}` reports a `from` document whose frontmatter `F` is `V1` or `V2` and which has no accepted edge; it does not report a selected document that has the edge, and it does not report a `from` document whose `F` is a string outside `values`, with or without the edge. | Test |
 | FR-058-AC-13 | A `from` document whose field `F` is absent, null, empty, a number, a list or a mapping is not selected and yields no finding, and the run neither errors nor warns about it. | Test |
@@ -330,7 +353,7 @@ case that needs no help.
 | FR-058-AC-16 | A document that matches `where` and an `exclude` glob is not reported; a document that matches `where` and no glob is. | Test |
 | FR-058-AC-17 | A relation naming a document kind that no module declares and no document is still reports under `trace:undeclared-relation-vocabulary` whether or not it carries `where`. | Test |
 | FR-058-AC-18 | A relation with `where` reports under its own `trace:<check>` key, advisory by default: a bundle whose only faults are such findings stays valid under both `Okf` and `Strict`, and mapping the key to `error` or `off` through the FR-057 registry promotes or drops exactly those findings. | Test |
-| FR-058-AC-19 | Module load rejects a `where` that cannot be executed, naming the relation and `where`, and applies none of the module's declaration: `where` not a mapping, `field` missing, blank or not a string, `values` missing, empty, not a list, or holding a blank or non-string entry, two `values` entries equal after trimming and ASCII case folding, and any key other than `field` and `values`. | Test |
+| FR-058-AC-19 | Module load rejects a `where` that cannot be executed, naming the relation and `where`, and drops that relation only: `where` not a mapping, `field` missing, blank or not a string, `values` missing, empty, not a list, or holding a blank or non-string entry, two `values` entries equal after trimming and ASCII case folding, and any key other than `field` and `values`. | Test |
 | FR-058-AC-20 | A finding from a relation with `where` names the document, the declaration, the selector `field`, and the document's field value as authored; a finding from a relation without `where` is byte-identical to the pre-change text. | Test |
 | FR-058-AC-21 | A relation without `where` selects exactly the documents it selected before this amendment, and over one bundle repeated runs of a relation with `where` yield identical findings in document-then-id order ([NFR-006](../non-functional/NFR-006-determinism.md)). | Test |
 | FR-058-AC-22 | A relation with `where` reports under `trace:undeclared-relation-vocabulary`, naming the declaration and the entry, when `field` is neither a property of the `from` archetype's frontmatter schema nor carried by any `from` document, or when a `values` entry is outside that field's schema `enum` and held by no `from` document, where "outside" and "held" both compare after trimming and ASCII case folding as in FR-058-AC-14, so a `values` entry differing from an `enum` member only by case or surrounding whitespace is not reported; a field or entry that is live by either route yields no such finding, and a field whose schema declares no `enum` has its `values` unchecked. | Test |
@@ -350,6 +373,11 @@ case that needs no help.
 | FR-058-AC-35 | A relation whose `when_any` names an `other` kind that no module declares and no document is reports under `trace:undeclared-relation-vocabulary`, naming the declaration and the kind. | Test |
 | FR-058-AC-36 | Module load rejects a `record_keys` that is empty, not a list, holds a blank or repeated name, or names a key that no endpoint archetype's resolved `data_schema` declares, naming the relation and the key; a key declared by only one endpoint archetype is accepted; for a relation with `to: []` only `from`'s schema is checked, so a key declared only by counterpart archetypes is refused. | Test |
 | FR-058-AC-37 | A relation with `record_keys` selects, obliges and is satisfied by exactly the documents it did without it, and its `trace:<check>` findings are identical. | Test |
+| FR-058-AC-38 | Two modules are selected: one declares `required_relations` entry `R` and a valid `carried_fields` entry; the other declares a `flow_rules` entry whose `subject` names an archetype no selected module declares. Loading yields exactly one load failure, naming the second module and that rule; `R` and the carried field are present in the merged model; the other module's remaining rules load. | Test |
+| FR-058-AC-39 | For each declaration kind of the drop list (a required relation, a flow rule, a remediation, a retirement-vocabulary entry, a `trace_id_qualifiers` entry, an `obligations` source with an unreadable bound target, a `carried_fields` entry), one unexecutable declaration alongside a valid declaration of the same kind loads the valid one, drops the unexecutable one, and records one failure naming it. | Test |
+| FR-058-AC-40 | Two `carried_fields` declarations of one name with different keys, in different modules, are both dropped, each failure names the other module, and every other declaration of both modules loads. | Test |
+| FR-058-AC-41 | On the AC-38 selection, `validate_bundle` reports one error finding `trace:declared-model-dropped` naming the second module and the dropped rule, the relation `R` still reports its own findings, and the validation result is non-zero. A selection with no dropped declaration yields no such finding. | Test |
+| FR-058-AC-42 | Mutation: with the drop confined to the offending declaration removed (the merged model reset on a load failure), the AC-38 scenario fails, because `R` is absent from the merged model. | Test |
 
 ## Constraints
 
