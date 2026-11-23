@@ -163,7 +163,7 @@ fn tc_when_any_composes_with_where_and_exclude_by_intersection() {
 
 #[trace("FR-058-AC-33")]
 #[test]
-fn tc_a_malformed_when_any_fails_module_load_naming_relation_and_when_any() {
+fn tc_a_malformed_when_any_drops_the_relation_naming_relation_and_when_any() {
     let bad = [
         "    when_any: protects\n",
         "    when_any: null\n",
@@ -182,10 +182,10 @@ fn tc_a_malformed_when_any_fails_module_load_naming_relation_and_when_any() {
     ];
     for (n, yaml) in bad.iter().enumerate() {
         let dir = module_with(&format!("26_{n}"), yaml);
-        let err = Registry::load_module(&dir)
-            .err()
-            .unwrap_or_else(|| panic!("{yaml:?} must be rejected"))
-            .to_string();
+        let registry = Registry::load_module(&dir)
+            .unwrap_or_else(|e| panic!("{yaml:?} must drop the relation, not the module: {e}"));
+        let (kind, item, err) = crate::declaration_drop::sole_drop(&registry);
+        assert_eq!((kind, item.as_str()), ("required_relation", "ctl-has-req"));
         assert!(
             err.contains("'ctl-has-req'") && err.contains("`when_any`"),
             "{yaml:?} -> {err}"

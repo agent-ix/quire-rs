@@ -612,11 +612,11 @@ impl Archetype {
 /// Returns the typed [`Manifest`] or a `String` error message suitable
 /// for wrapping in `QuireError::ManifestError`.
 pub fn parse_manifest(bytes: &[u8]) -> Result<Manifest, String> {
-    let (mut manifest, section_error) = deserialize_manifest(bytes)?;
+    let (mut manifest, section_errors) = deserialize_manifest(bytes)?;
     note_explicit_nulls(bytes, &mut manifest)?;
     check_grammar_severity_keys(&manifest)?;
     // FR-050-AC-2: a declaration that cannot be executed is dropped alone.
-    manifest.dropped_declarations = section_error.into_iter().collect();
+    manifest.dropped_declarations = section_errors;
     manifest
         .dropped_declarations
         .extend(manifest.traceability.prune());
@@ -635,39 +635,162 @@ pub fn parse_manifest(bytes: &[u8]) -> Result<Manifest, String> {
     Ok(manifest)
 }
 
-/// Deserialize the manifest. A `traceability:` section that cannot be
-/// deserialized is one dropped declaration: the module loads with an empty
-/// model and the failure names the deserialization error.
+/// Deserialize the manifest. A traceability entry that cannot be deserialized
+/// is one dropped declaration, and a `traceability:` section that cannot be
+/// deserialized at all is one dropped declaration: the module loads with an
+/// empty model and the failure names the deserialization error.
 fn deserialize_manifest(
     bytes: &[u8],
-) -> Result<(Manifest, Option<crate::traceability::DeclarationFailure>), String> {
+) -> Result<(Manifest, Vec<crate::traceability::DeclarationFailure>), String> {
+    use crate::traceability::{DeclarationFailure, DeclarationKind, TraceabilityModel};
+
     let first = match serde_yaml::from_slice::<Manifest>(bytes) {
-        Ok(manifest) => return Ok((manifest, None)),
+        Ok(manifest) => return Ok((manifest, Vec::new())),
         Err(error) => error.to_string(),
     };
     let Ok(mut raw) = serde_yaml::from_slice::<serde_yaml::Value>(bytes) else {
         return Err(first);
     };
-    let Some(section) = raw
+    let Some(mut section) = raw
         .as_mapping_mut()
         .and_then(|mapping| mapping.remove("traceability"))
     else {
         return Err(first);
     };
-    let Err(section_error) =
-        serde_yaml::from_value::<crate::traceability::TraceabilityModel>(section)
-    else {
-        return Err(first);
+    let mut dropped = drop_unreadable_entries(&mut section);
+    let model = match serde_yaml::from_value::<TraceabilityModel>(section) {
+        Ok(model) => model,
+        Err(section_error) => {
+            dropped = vec![DeclarationFailure {
+                kind: DeclarationKind::TraceabilitySection,
+                item: "traceability".to_string(),
+                reason: format!("traceability: the section cannot be read: {section_error}"),
+            }];
+            TraceabilityModel::default()
+        }
     };
-    let manifest = serde_yaml::from_value::<Manifest>(raw).map_err(|_| first)?;
-    Ok((
-        manifest,
-        Some(crate::traceability::DeclarationFailure {
-            kind: crate::traceability::DeclarationKind::TraceabilitySection,
-            item: "traceability".to_string(),
-            reason: format!("traceability: the section cannot be read: {section_error}"),
-        }),
-    ))
+    if dropped.is_empty() {
+        return Err(first);
+    }
+    let mut manifest = serde_yaml::from_value::<Manifest>(raw).map_err(|_| first)?;
+    manifest.traceability = model;
+    Ok((manifest, dropped))
+}
+
+/// Remove the list entries of a raw `traceability:` section that cannot be
+/// deserialized, reporting each by name.
+fn drop_unreadable_entries(
+    section: &mut serde_yaml::Value,
+) -> Vec<crate::traceability::DeclarationFailure> {
+    use crate::traceability as t;
+    use serde_yaml::Value;
+
+    fn readable<T: serde::de::DeserializeOwned>(entry: &Value) -> Result<(), String> {
+        serde_yaml::from_value::<T>(entry.clone())
+            .map(|_| ())
+            .map_err(|error| error.to_string())
+    }
+    type Reader = fn(&Value) -> Result<(), String>;
+    let lists: [(&str, t::DeclarationKind, &str, Reader); 12] = [
+        (
+            "trace_targets",
+            t::DeclarationKind::TraceTarget,
+            "name",
+            readable::<t::TraceTarget>,
+        ),
+        (
+            "document_references",
+            t::DeclarationKind::DocumentReference,
+            "name",
+            readable::<t::DocumentReference>,
+        ),
+        (
+            "obligations",
+            t::DeclarationKind::Obligation,
+            "name",
+            readable::<t::ObligationSource>,
+        ),
+        (
+            "required_relations",
+            t::DeclarationKind::RequiredRelation,
+            "name",
+            readable::<t::RequiredRelation>,
+        ),
+        (
+            "vocabulary_coverage",
+            t::DeclarationKind::VocabularyCoverage,
+            "name",
+            readable::<t::VocabularyCoverage>,
+        ),
+        (
+            "carried_fields",
+            t::DeclarationKind::CarriedField,
+            "name",
+            readable::<t::CarriedField>,
+        ),
+        (
+            "field_consistency",
+            t::DeclarationKind::FieldConsistency,
+            "name",
+            readable::<t::FieldConsistency>,
+        ),
+        (
+            "required_fields",
+            t::DeclarationKind::RequiredField,
+            "name",
+            readable::<t::RequiredField>,
+        ),
+        (
+            "vocabulary",
+            t::DeclarationKind::Vocabulary,
+            "name",
+            readable::<t::VocabularyRule>,
+        ),
+        (
+            "flow_rules",
+            t::DeclarationKind::FlowRule,
+            "name",
+            readable::<t::FlowRule>,
+        ),
+        (
+            "remediations",
+            t::DeclarationKind::Remediation,
+            "name",
+            readable::<t::FlowRemediation>,
+        ),
+        (
+            "trace_id_qualifiers",
+            t::DeclarationKind::TraceIdQualifier,
+            "prefix",
+            readable::<t::TraceIdQualifier>,
+        ),
+    ];
+    let mut dropped = Vec::new();
+    let Some(mapping) = section.as_mapping_mut() else {
+        return dropped;
+    };
+    for (key, kind, name_key, read) in lists {
+        let Some(Value::Sequence(entries)) = mapping.get_mut(key) else {
+            continue;
+        };
+        let mut kept = Vec::new();
+        for (index, entry) in std::mem::take(entries).into_iter().enumerate() {
+            match read(&entry) {
+                Ok(()) => kept.push(entry),
+                Err(reason) => dropped.push(t::DeclarationFailure {
+                    kind,
+                    item: entry
+                        .get(name_key)
+                        .and_then(Value::as_str)
+                        .filter(|name| !name.trim().is_empty())
+                        .map_or_else(|| format!("#{}", index + 1), str::to_string),
+                    reason: format!("traceability: {key} entry cannot be read: {reason}"),
+                }),
+            }
+        }
+        *entries = kept;
+    }
+    dropped
 }
 
 /// serde folds an authored `key: null` into "absent" for every optional

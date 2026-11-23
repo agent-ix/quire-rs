@@ -99,6 +99,36 @@ impl DeclarationKind {
     }
 }
 
+impl DeclarationKind {
+    /// The manifest key holding declarations of this kind.
+    pub fn section(self) -> &'static str {
+        match self {
+            Self::TraceabilitySection => "traceability",
+            Self::Exclude => "exclude",
+            Self::SourceExclude => "source_exclude",
+            Self::TraceTarget => "trace_targets",
+            Self::DocumentReference => "document_references",
+            Self::Obligation => "obligations",
+            Self::RequiredRelation => "required_relations",
+            Self::DesignRelation => "design_relations",
+            Self::AcyclicEdge => "acyclic_edges",
+            Self::VocabularyCoverage => "vocabulary_coverage",
+            Self::StatusVocabulary => "status",
+            Self::RetirementVocabulary => "vocabularies.retired",
+            Self::NoSourceSymbol => "vocabularies.no_source_symbol",
+            Self::TraceIdQualifier => "trace_id_qualifiers",
+            Self::TraceTag => "trace_tags",
+            Self::CarriedField => "carried_fields",
+            Self::FieldConsistency => "field_consistency",
+            Self::RequiredField => "required_fields",
+            Self::Vocabulary => "vocabulary",
+            Self::FlowRule => "flow_rules",
+            Self::Remediation => "remediations",
+            Self::Archetype => "archetypes",
+        }
+    }
+}
+
 /// One declaration a model dropped, and why.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DeclarationFailure {
@@ -168,7 +198,7 @@ fn screen<T: Clone + PartialEq>(
                         format!(
                             "traceability: {} entry '{label}' is declared more than once with \
                              different bodies, so the name no longer identifies one declaration",
-                            kind.as_str()
+                            kind.section()
                         ),
                     );
                     continue;

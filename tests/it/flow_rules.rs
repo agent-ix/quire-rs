@@ -229,6 +229,14 @@ fn flow_rule_any_of_resolves_a_local_array_item_enum() {
     );
 }
 
+/// Whether `failure` drops the archetype `name` for an unresolvable schema reference.
+fn archetype_drop(failure: &quire_rs::ArchetypeLoadFailure, name: &str) -> bool {
+    failure
+        .declaration
+        .as_ref()
+        .is_some_and(|d| d.kind.as_str() == "archetype" && d.item == name)
+}
+
 #[test]
 #[trace("FR-096-AC-27")]
 fn flow_rule_enum_refs_fail_closed_when_missing_or_cyclic() {
@@ -240,8 +248,7 @@ fn flow_rule_enum_refs_fail_closed_when_missing_or_cyclic() {
     let missing = parse_local_ref_registry(rules, &missing_root, &[]).expect("module parses");
     assert!(
         missing.failures().iter().any(|failure| {
-            failure.reason.contains("agreement-rule")
-                && failure.reason.contains("agreement")
+            archetype_drop(failure, "sink")
                 && failure.reason.contains("schemas/sink.json")
                 && failure.reason.contains("Missing.json")
         }),
@@ -262,8 +269,7 @@ fn flow_rule_enum_refs_fail_closed_when_missing_or_cyclic() {
     .expect("module parses");
     assert!(
         cyclic.failures().iter().any(|failure| {
-            failure.reason.contains("agreement-rule")
-                && failure.reason.contains("agreement")
+            archetype_drop(failure, "sink")
                 && failure.reason.contains("schemas/sink.json")
                 && failure.reason.contains("$ref cycle")
         }),
@@ -283,8 +289,7 @@ fn flow_rule_enum_refs_fail_closed_when_missing_or_cyclic() {
     let remote = parse_local_ref_registry(rules, &remote_root, &[]).expect("module parses");
     assert!(
         remote.failures().iter().any(|failure| {
-            failure.reason.contains("agreement-rule")
-                && failure.reason.contains("agreement")
+            archetype_drop(failure, "sink")
                 && failure.reason.contains("schemas/sink.json")
                 && failure.reason.contains("Remote.json")
                 && failure.reason.contains("no shipped file")
@@ -688,8 +693,15 @@ fn loader_rejects_unknown_registry_references_values_and_check_collisions() {
         "[]",
         "[]",
     )
-    .expect_err("duplicate local rule names fail manifest parsing");
-    assert!(duplicate.contains("duplicate-rule"), "{duplicate}");
+    .expect("a duplicated name never fails the module");
+    let (kind, item, reason) = crate::declaration_drop::sole_drop(&duplicate);
+    assert_eq!((kind, item.as_str()), ("flow_rule", "duplicate-rule"));
+    assert!(reason.contains("duplicate-rule"), "{reason}");
+    assert!(duplicate
+        .traceability()
+        .expect("model")
+        .flow_rules
+        .is_empty());
     let valid = registry_with(
         "  - name: valid-enum\n    subject: [alpha]\n    match: [{path: [], field: state, any_of: [' OPEN ']}]\n    check: valid-enum\n    rationale: Valid folded enum.\n",
         "[]",
@@ -700,7 +712,7 @@ fn loader_rejects_unknown_registry_references_values_and_check_collisions() {
 
 #[test]
 #[trace("FR-096-AC-6")]
-fn blank_check_and_rationale_diagnostics_name_the_rule() {
+fn blank_check_and_rationale_drop_the_rule_naming_it() {
     for (field, value) in [("check", "''"), ("rationale", "''")] {
         let rules = format!(
             "  - name: blank-{field}\n    subject: [alpha]\n    match: [{{path: [], field: id, present: true}}]\n    check: {}\n    rationale: {}\n",
@@ -711,8 +723,13 @@ fn blank_check_and_rationale_diagnostics_name_the_rule() {
                 "Valid rationale."
             }
         );
-        let error = parse_registry_with(&rules, "[]", "[]")
-            .expect_err("blank rule fields fail module parsing");
+        let registry = parse_registry_with(&rules, "[]", "[]")
+            .expect("a blank rule field never fails the module");
+        let (kind, item, error) = crate::declaration_drop::sole_drop(&registry);
+        assert_eq!(
+            (kind, item.as_str()),
+            ("flow_rule", format!("blank-{field}").as_str())
+        );
         assert!(
             error.contains(&format!("blank-{field}")) && error.contains(&format!("`{field}`")),
             "expected a diagnostic naming rule and blank {field}, got {error}"
@@ -743,16 +760,15 @@ fn duplicate_rule_names_across_modules_fail_with_both_module_names() {
         .collect::<Vec<_>>();
     let registry = Registry::load_module_set(&roots).expect("modules load for diagnostics");
     assert!(registry.failures().iter().any(|failure| {
-        failure.module == "flow-module-one"
-            && failure.reason.contains("flow-module-one")
-            && failure.reason.contains("flow-module-two")
+        failure.module == "flow-module-one" && failure.reason.contains("flow-module-two")
     }));
     assert!(registry.failures().iter().any(|failure| {
-        failure.module == "flow-module-two"
-            && failure.reason.contains("flow-module-one")
-            && failure.reason.contains("flow-module-two")
+        failure.module == "flow-module-two" && failure.reason.contains("flow-module-one")
     }));
-    assert!(registry.traceability().is_none());
+    let model = registry
+        .traceability()
+        .expect("the other declarations load");
+    assert!(model.flow_rules.is_empty());
 }
 
 #[test]

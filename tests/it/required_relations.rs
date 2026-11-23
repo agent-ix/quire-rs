@@ -492,7 +492,7 @@ fn tc906_an_unexecutable_relation_is_rejected_at_load() {
 // against the manifest. Two entries sharing one name make a report that cannot
 // be traced back to the declaration that produced it.
 #[test]
-fn tc907_duplicate_relation_names_are_rejected() {
+fn tc907_duplicate_relation_names_with_different_bodies_are_dropped() {
     use quire_rs::traceability::{RelationDirection, RequiredRelation, TraceabilityModel};
 
     let one = RequiredRelation {
@@ -507,19 +507,29 @@ fn tc907_duplicate_relation_names_are_rejected() {
         when_any: vec![],
         record_keys: None,
     };
-    let err = TraceabilityModel {
-        required_relations: vec![one.clone(), one],
+    // Identical entries merge to one, with no failure.
+    let mut merged = TraceabilityModel {
+        required_relations: vec![one.clone(), one.clone()],
         ..TraceabilityModel::default()
-    }
-    .validate()
-    .into_iter()
-    .next()
-    .map(|failure| failure.reason)
-    .expect("duplicate names are rejected");
-    assert!(
-        err.contains("duplicate required_relations entry 'upward'"),
-        "{err}"
-    );
+    };
+    assert_eq!(merged.prune(), vec![]);
+    assert_eq!(merged.required_relations.len(), 1);
+
+    // The name no longer identifies one relation when the bodies differ: both
+    // are dropped, with one failure naming the entry.
+    let other = RequiredRelation {
+        check: "other-check".to_string(),
+        ..one.clone()
+    };
+    let mut conflicting = TraceabilityModel {
+        required_relations: vec![one, other],
+        ..TraceabilityModel::default()
+    };
+    let failures = conflicting.prune();
+    assert_eq!(failures.len(), 1, "{failures:?}");
+    assert_eq!(failures[0].kind.as_str(), "required_relation");
+    assert_eq!(failures[0].item, "upward");
+    assert!(conflicting.required_relations.is_empty());
 }
 
 #[trace("FR-058-AC-11")]

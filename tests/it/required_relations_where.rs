@@ -335,7 +335,7 @@ fn tc2253_where_findings_are_advisory_and_tunable_by_their_own_key() {
 
 #[trace("FR-058-AC-19")]
 #[test]
-fn tc2254_a_malformed_where_fails_module_load_naming_relation_and_where() {
+fn tc2254_a_malformed_where_drops_the_relation_naming_relation_and_where() {
     let bad = [
         "    where: security\n",
         "    where: null\n",
@@ -352,10 +352,10 @@ fn tc2254_a_malformed_where_fails_module_load_naming_relation_and_where() {
     ];
     for (n, yaml) in bad.iter().enumerate() {
         let dir = module_with(&format!("2254_{n}"), yaml);
-        let err = Registry::load_module(&dir)
-            .err()
-            .unwrap_or_else(|| panic!("{yaml:?} must be rejected"))
-            .to_string();
+        let registry = Registry::load_module(&dir)
+            .unwrap_or_else(|e| panic!("{yaml:?} must drop the relation, not the module: {e}"));
+        let (kind, item, err) = crate::declaration_drop::sole_drop(&registry);
+        assert_eq!((kind, item.as_str()), ("required_relation", "sel"));
         assert!(
             err.contains("'sel'") && err.contains("`where`"),
             "{yaml:?} -> {err}"

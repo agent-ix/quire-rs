@@ -53,39 +53,6 @@ pub(super) fn validate_flow_declarations(
     }
 
     let mut dropped_rules: BTreeSet<(usize, String)> = BTreeSet::new();
-    for (index, module) in modules.iter().enumerate() {
-        for rule in &module.traceability.flow_rules {
-            let dependency = rule
-                .remediations
-                .iter()
-                .find(|name| dropped_remediations.contains(*name));
-            let verdict = match dependency {
-                Some(name) => Err(format!(
-                    "traceability: flow_rules entry '{}' depends on dropped remediations entry \
-                     '{name}'",
-                    rule.name
-                )),
-                None => validate_rule(
-                    rule,
-                    &all_remediations,
-                    archetypes,
-                    edge_types,
-                    inverse_edges,
-                    &reserved_checks,
-                ),
-            };
-            if let Err(reason) = verdict {
-                dropped_rules.insert((index, rule.name.clone()));
-                drops.push(Drop::new(
-                    index,
-                    DeclarationKind::FlowRule,
-                    &rule.name,
-                    reason,
-                ));
-            }
-        }
-    }
-
     // A `sets` value the schema of a rule's subject does not admit drops the
     // rule that names the remediation; the remediation stays for the rules it
     // fits.
@@ -134,6 +101,42 @@ pub(super) fn validate_flow_declarations(
             }
         }
     }
+    for (index, module) in modules.iter().enumerate() {
+        for rule in &module.traceability.flow_rules {
+            if dropped_rules.contains(&(index, rule.name.clone())) {
+                continue;
+            }
+            let dependency = rule
+                .remediations
+                .iter()
+                .find(|name| dropped_remediations.contains(*name));
+            let verdict = match dependency {
+                Some(name) => Err(format!(
+                    "traceability: flow_rules entry '{}' depends on dropped remediations entry \
+                     '{name}'",
+                    rule.name
+                )),
+                None => validate_rule(
+                    rule,
+                    &all_remediations,
+                    archetypes,
+                    edge_types,
+                    inverse_edges,
+                    &reserved_checks,
+                ),
+            };
+            if let Err(reason) = verdict {
+                dropped_rules.insert((index, rule.name.clone()));
+                drops.push(Drop::new(
+                    index,
+                    DeclarationKind::FlowRule,
+                    &rule.name,
+                    reason,
+                ));
+            }
+        }
+    }
+
     drops
 }
 
