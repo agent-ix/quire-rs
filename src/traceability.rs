@@ -12,8 +12,8 @@
 //! The model is the same spec-semantics-as-module-data pattern as
 //! `body_extraction`, `lint_rules`, and `grammar_ref`: an absent section leaves
 //! the model **undeclared** (consumers say so rather than inventing defaults),
-//! and a malformed section fails module load like any other manifest shape
-//! error.
+//! and a declaration that cannot be executed is dropped alone, never the module
+//! or the merged model (see [`TraceabilityModel::prune`]).
 
 use std::collections::{BTreeMap, BTreeSet};
 

@@ -7,6 +7,15 @@ bumps; once 1.0 ships, semver is strict.
 
 ## [Unreleased]
 
+### Changed
+
+- **Breaking, PLAT-1804:** a traceability declaration that cannot load now drops itself instead
+  of failing its module or emptying the merged model. `TraceabilityModel::validate` returns the
+  failing declarations (`Vec<DeclarationFailure>`) and `prune` removes them; `ArchetypeLoadFailure`
+  gains `declaration` (kind and item). `validate_bundle` and `validate_corpus` report each drop as
+  the non-registrable `trace:declared-model-dropped` error, and `coverage::compute` returns
+  `CoverageError::DeclarationsDropped` naming each one.
+
 ### Added
 
 - QSL-2517 (NFR-140): `traceability.trace_id_qualifiers` declares tag prefixes (`FSpec-` for
