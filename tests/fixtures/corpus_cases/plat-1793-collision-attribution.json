@@ -1,0 +1,176 @@
+{
+  "issue_ref": "PLAT-1793",
+  "cases": [
+    {
+      "name": "cfg-variants-each-own-their-marker",
+      "issue_ref": "PLAT-1793",
+      "tags": [
+        "PLAT-1793",
+        "FR-051-AC-56"
+      ],
+      "comment": "Two #[cfg] variants share one id; each record lists only its own marker, in either discovery order.",
+      "input": {
+        "source": "#[cfg(unix)]\n#[trace(\"FR-001-AC-1\")]\n#[test]\nfn t() {}\n#[cfg(not(unix))]\n#[trace(\"FR-001-AC-2\")]\n#[test]\nfn t() {}\n"
+      },
+      "expect": {
+        "records": [
+          {
+            "line": 4,
+            "trace_ids": [
+              "FR-001-AC-1"
+            ]
+          },
+          {
+            "line": 8,
+            "trace_ids": [
+              "FR-001-AC-2"
+            ]
+          }
+        ],
+        "backed": [
+          "FR-001-AC-1",
+          "FR-001-AC-2"
+        ],
+        "inverse_ids": [
+          "FR-001-AC-1",
+          "FR-001-AC-2"
+        ],
+        "diagnostic_reasons": [
+          "symbol-id-collision"
+        ]
+      }
+    },
+    {
+      "name": "cfg-variants-reversed-discovery",
+      "issue_ref": "PLAT-1793",
+      "tags": [
+        "PLAT-1793",
+        "FR-051-AC-56"
+      ],
+      "comment": "The same two variants authored in the opposite order bind the same ids to the same variants.",
+      "input": {
+        "source": "#[cfg(not(unix))]\n#[trace(\"FR-001-AC-2\")]\n#[test]\nfn t() {}\n#[cfg(unix)]\n#[trace(\"FR-001-AC-1\")]\n#[test]\nfn t() {}\n"
+      },
+      "expect": {
+        "records": [
+          {
+            "line": 4,
+            "trace_ids": [
+              "FR-001-AC-2"
+            ]
+          },
+          {
+            "line": 8,
+            "trace_ids": [
+              "FR-001-AC-1"
+            ]
+          }
+        ],
+        "backed": [
+          "FR-001-AC-1",
+          "FR-001-AC-2"
+        ],
+        "inverse_ids": [
+          "FR-001-AC-1",
+          "FR-001-AC-2"
+        ]
+      }
+    },
+    {
+      "name": "second-variant-alone-backs-its-criterion",
+      "issue_ref": "PLAT-1793",
+      "tags": [
+        "PLAT-1793",
+        "FR-051-AC-56"
+      ],
+      "comment": "Only the second variant carries a marker; its record carries it and the first stays empty.",
+      "input": {
+        "source": "#[cfg(unix)]\n#[test]\nfn t() {}\n#[cfg(not(unix))]\n#[trace(\"FR-001-AC-2\")]\n#[test]\nfn t() {}\n"
+      },
+      "expect": {
+        "records": [
+          {
+            "line": 3,
+            "trace_ids": []
+          },
+          {
+            "line": 7,
+            "trace_ids": [
+              "FR-001-AC-2"
+            ]
+          }
+        ],
+        "backed": [
+          "FR-001-AC-2"
+        ],
+        "inverse_ids": [
+          "FR-001-AC-2"
+        ]
+      }
+    },
+    {
+      "name": "no-collision-control",
+      "issue_ref": "PLAT-1793",
+      "tags": [
+        "PLAT-1793",
+        "FR-051-AC-56"
+      ],
+      "comment": "Control: distinct names attribute as before and no collision is reported.",
+      "input": {
+        "source": "#[trace(\"FR-001-AC-1\")]\n#[test]\nfn one() {}\n#[trace(\"FR-001-AC-2\")]\n#[test]\nfn two() {}\n"
+      },
+      "expect": {
+        "records": [
+          {
+            "line": 3,
+            "trace_ids": [
+              "FR-001-AC-1"
+            ]
+          },
+          {
+            "line": 6,
+            "trace_ids": [
+              "FR-001-AC-2"
+            ]
+          }
+        ],
+        "backed": [
+          "FR-001-AC-1",
+          "FR-001-AC-2"
+        ],
+        "absent_diagnostic_reasons": [
+          "symbol-id-collision"
+        ]
+      }
+    },
+    {
+      "name": "implements-variants-each-own-their-marker",
+      "issue_ref": "PLAT-1793",
+      "tags": [
+        "PLAT-1793",
+        "FR-051-AC-56"
+      ],
+      "comment": "Colliding production variants each list their own implements ids.",
+      "input": {
+        "source": "#[cfg(unix)]\n#[implements(\"FR-001\")]\nfn p() {}\n#[cfg(not(unix))]\n#[implements(\"FR-002\")]\nfn p() {}\n"
+      },
+      "expect": {
+        "implements_records": [
+          {
+            "line": 3,
+            "ids": [
+              "FR-001"
+            ]
+          },
+          {
+            "line": 6,
+            "ids": [
+              "FR-002"
+            ]
+          }
+        ],
+        "backed": []
+      }
+    }
+  ]
+}

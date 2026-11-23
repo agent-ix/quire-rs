@@ -325,6 +325,10 @@ pub struct SymbolExtraction {
     /// is to notice that an over-broad glob subtracted real backing — which
     /// otherwise reads exactly like tests that were never written.
     pub excluded_source_files: usize,
+    /// Supported-extension, non-hidden source entries a repository ignore file
+    /// removed from the walk (FR-051-AC-55, FR-050-AC-69), those under an
+    /// ignored directory included. Disjoint from `excluded_source_files`.
+    pub ignored_source_files: usize,
     /// Languages with source in the tree that this build has no adapter for
     /// (FR-051-AC-29), sorted. Not a diagnostic and not a zero: a consumer
     /// that reads counts must refuse to when this is non-empty, because every
@@ -374,18 +378,110 @@ pub fn language_of(path: &Path) -> Option<SourceLanguage> {
     }
 }
 
-/// Count the source files (by [`language_of`]) under a pruned directory, so
-/// the prune is visible in `excluded_source_files`.
-fn count_source_files(dir: &Path) -> usize {
+/// Count the entries under a pruned template tree whose name carries a
+/// supported source extension, so the prune is visible in
+/// `excluded_source_files`. Symlinks count by name and are never followed.
+fn count_source_entries(dir: &Path) -> usize {
     ignore::WalkBuilder::new(dir)
+        .standard_filters(false)
+        .follow_links(false)
         .build()
         .flatten()
-        .filter(|e| e.path().is_file() && language_of(e.path()).is_some())
+        .filter(|e| !e.file_type().is_some_and(|t| t.is_dir()) && language_of(e.path()).is_some())
         .count()
 }
 
-/// Extract every symbol under `root`, walking gitignore-aware like the corpus
-/// loader. `root` is the identity base: emitted paths are relative to it.
+/// The document roots rule 1 prunes, in both forms the walk can meet them: the
+/// path as stated (a symlink standing at the document root is the root as it
+/// resolves) and its canonical target (the real directory, wherever a case
+/// -insensitive or symlinked spelling reaches it). A symlink under any other
+/// name that merely points at the root is not the root and is judged by the
+/// symlink rule.
+struct DocumentRoots {
+    stated: Vec<std::path::PathBuf>,
+    canonical: Vec<std::path::PathBuf>,
+}
+
+/// One non-directory entry the source walk met.
+struct WalkedEntry {
+    path: std::path::PathBuf,
+    relative: String,
+    symlink: bool,
+    regular_file: bool,
+}
+
+/// Walk `root` under rules 1 and 2 of FR-051's Source walk, and rule 3 when
+/// `honour_ignores`. Only the code root's own `.gitignore` / `.ignore` files
+/// apply: ancestor, user-global and `.git/info/exclude` sources are off, so the
+/// result never depends on where the tree sits or on the machine. Links are
+/// never followed. Source files under pruned template trees are tallied into
+/// `template_files` when it is given.
+fn walk_entries(
+    root: &Path,
+    document_roots: std::sync::Arc<DocumentRoots>,
+    honour_ignores: bool,
+    template_files: Option<std::sync::Arc<std::sync::atomic::AtomicUsize>>,
+) -> Vec<WalkedEntry> {
+    let mut walk = ignore::WalkBuilder::new(root);
+    walk.standard_filters(false)
+        .hidden(true)
+        .follow_links(false);
+    if honour_ignores {
+        walk.ignore(true).git_ignore(true).require_git(false);
+    }
+    walk.filter_entry(move |entry| {
+        let file_type = entry.file_type();
+        let is_dir = file_type.is_some_and(|t| t.is_dir());
+        // A symlinked document root is pruned like the directory it names; any
+        // other symlink is not a subtree and is judged by the later rules.
+        if !is_dir && !file_type.is_some_and(|t| t.is_symlink()) {
+            return true;
+        }
+        let path = entry.path();
+        // A cookiecutter template tree (`{{cookiecutter.repo_name}}/`) is
+        // generated-project scaffolding. Its placeholder FR ids collide with
+        // the repo's real ids, so tags inside it must never bind.
+        if is_dir && entry.depth() > 0 && crate::corpus::walk::is_template_dir(entry.file_name()) {
+            if let Some(counter) = &template_files {
+                counter.fetch_add(
+                    count_source_entries(path),
+                    std::sync::atomic::Ordering::Relaxed,
+                );
+            }
+            return false;
+        }
+        // A symlink is the document root only where the root is stated; a
+        // directory is compared by canonical path so the exclusion holds on a
+        // case-insensitive filesystem and for a symlinked `spec/` (CR-056).
+        if !is_dir {
+            return !document_roots.stated.iter().any(|ex| ex == path);
+        }
+        let canonical = std::fs::canonicalize(path);
+        let candidate: &Path = canonical.as_deref().unwrap_or(path);
+        !document_roots.canonical.iter().any(|ex| ex == candidate)
+    });
+    walk.build()
+        .flatten()
+        .filter_map(|entry| {
+            let file_type = entry.file_type()?;
+            if file_type.is_dir() {
+                return None;
+            }
+            let path = entry.path();
+            let rel = path.strip_prefix(root).unwrap_or(path);
+            Some(WalkedEntry {
+                relative: normalize_path(rel),
+                path: path.to_path_buf(),
+                symlink: file_type.is_symlink(),
+                regular_file: file_type.is_file(),
+            })
+        })
+        .collect()
+}
+
+/// Extract every symbol under `root`, applying the FR-051 Source walk rules:
+/// only ignore files at or under `root` apply, and symlinks are reported, not
+/// followed. `root` is the identity base: emitted paths are relative to it.
 pub fn extract_tree(root: &Path) -> SymbolExtraction {
     extract_tree_excluding(root, &[])
 }
@@ -442,82 +538,98 @@ pub fn extract_tree_scoped(
         }
     };
     let mut excluded_source_files = 0usize;
-    // Source files inside pruned template trees. The prune happens in
-    // `filter_entry`, which cannot reach `excluded_source_files`, so it
-    // tallies here and the total is folded in after the walk.
-    let pruned_template_files = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
-    let pruned_counter = std::sync::Arc::clone(&pruned_template_files);
     // Canonicalized, because an exclusion stated as a path must hold wherever
-    // the caller's `is_dir()` check held (CR-056). On a case-insensitive
-    // filesystem — macOS/APFS, the canonical perf runner — `<scope>/Spec`
-    // satisfies `scope.join("spec").is_dir()` while an exact path `==` never
-    // matches it, so the exclusion silently lapsed and every spec document was
-    // ingested a second time as source. Canonicalizing both sides also settles
-    // a symlinked `spec/`, which resolves to its target on one side only.
-    let excluded: Vec<std::path::PathBuf> = exclude
-        .iter()
-        .map(|e| root.join(e))
-        .map(|p| std::fs::canonicalize(&p).unwrap_or(p))
-        .collect();
-    let mut files: Vec<(String, SourceLanguage, std::path::PathBuf)> = Vec::new();
-    let mut walk = ignore::WalkBuilder::new(root);
-    walk.filter_entry(move |entry| {
-        // Only directories can be an excluded subtree, and canonicalizing
-        // every file would put a syscall on the hot path of the NFR-015 walk.
-        if !entry.file_type().is_some_and(|t| t.is_dir()) {
-            return true;
-        }
-        let path = entry.path();
-        // A cookiecutter template tree (`{{cookiecutter.repo_name}}/`) is
-        // generated-project scaffolding, not this repository's own test
-        // surface. Its placeholder FR ids collide with the repo's real ids,
-        // so tags inside it must never bind. Non-configurable, like the
-        // document-root exclusion.
-        if entry.depth() > 0 && crate::corpus::walk::is_template_dir(entry.file_name()) {
-            // Pruned files still count as excluded so reports stay honest.
-            let n = count_source_files(path);
-            pruned_counter.fetch_add(n, std::sync::atomic::Ordering::Relaxed);
-            return false;
-        }
-        let canonical = std::fs::canonicalize(path);
-        let candidate: &Path = canonical.as_deref().unwrap_or(path);
-        !excluded.iter().any(|ex| ex == candidate)
+    // the caller's `is_dir()` check held (CR-056): on a case-insensitive
+    // filesystem an exact path `==` never matches `Spec`, and a symlinked
+    // `spec/` resolves to its target on one side only.
+    let stated: Vec<std::path::PathBuf> = exclude.iter().map(|e| root.join(e)).collect();
+    let excluded = std::sync::Arc::new(DocumentRoots {
+        canonical: stated
+            .iter()
+            .map(|p| std::fs::canonicalize(p).unwrap_or_else(|_| p.clone()))
+            .collect(),
+        stated,
     });
-    for entry in walk.build().flatten() {
-        let path = entry.path();
-        if !path.is_file() {
+    // Two walks under the same rules 1-2: one without repository ignore files
+    // sees what rule 3 removes, so the removal is counted rather than silent
+    // (FR-051-AC-55). Template-tree files are tallied once, on that walk.
+    let pruned_template_files = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let unignored = walk_entries(
+        root,
+        std::sync::Arc::clone(&excluded),
+        false,
+        Some(std::sync::Arc::clone(&pruned_template_files)),
+    );
+    let surviving = walk_entries(root, excluded, true, None);
+    let kept: std::collections::BTreeSet<&str> =
+        surviving.iter().map(|e| e.relative.as_str()).collect();
+    let ignored_source_files = unignored
+        .iter()
+        .filter(|e| !kept.contains(e.relative.as_str()) && language_of(&e.path).is_some())
+        .count();
+
+    let mut pending: Vec<(String, Pending)> = Vec::new();
+    for entry in surviving {
+        let language = language_of(&entry.path);
+        if !globs.is_empty() && globs.matches(&entry.relative) {
+            if language.is_some() {
+                excluded_source_files += 1;
+            }
             continue;
         }
-        let Some(language) = language_of(path) else {
-            continue;
-        };
-        let rel = path.strip_prefix(root).unwrap_or(path);
-        let relative = normalize_path(rel);
-        if !globs.is_empty() && globs.matches(&relative) {
-            excluded_source_files += 1;
-            continue;
+        if entry.symlink {
+            pending.push((entry.relative, Pending::Symlink));
+        } else if let (Some(language), true) = (language, entry.regular_file) {
+            pending.push((entry.relative, Pending::Source(language, entry.path)));
         }
-        files.push((relative, language, path.to_path_buf()));
     }
     excluded_source_files += pruned_template_files.load(std::sync::atomic::Ordering::Relaxed);
-    // Sort before reading so the output order never depends on walk order.
-    files.sort();
-
-    let mut out = SymbolExtraction {
+    let out = SymbolExtraction {
         excluded_source_files,
+        ignored_source_files,
         // A refused glob list is reported ahead of any per-file diagnostic:
         // it is about the declaration, not about a file the walk touched.
         diagnostics: glob_diagnostics,
         ..SymbolExtraction::default()
     };
-    for (rel, language, abs) in files {
-        match std::fs::read_to_string(&abs) {
-            Ok(source) => out.extend_with_file(&rel, language, source),
-            Err(e) => out.diagnostics.push(SymbolDiagnostic {
+    read_pending(pending, out)
+}
+
+/// What the walk decided about one surviving path.
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+enum Pending {
+    /// A regular source file to read.
+    Source(SourceLanguage, std::path::PathBuf),
+    /// A symlink: reported, never followed or read (FR-051-AC-54).
+    Symlink,
+}
+
+/// Read the surviving paths into `out` in path order, so the symbols,
+/// files and per-file diagnostics never depend on the order the walk, or the
+/// filesystem, listed them in (FR-051-AC-57).
+fn read_pending(
+    mut pending: Vec<(String, Pending)>,
+    mut out: SymbolExtraction,
+) -> SymbolExtraction {
+    pending.sort();
+    for (rel, entry) in pending {
+        match entry {
+            Pending::Symlink => out.diagnostics.push(SymbolDiagnostic {
+                reason: format!(
+                    "symlink-not-followed: {rel} is a symbolic link; it is not followed and \
+                     yields no symbols"
+                ),
                 path: rel,
-                reason: format!("unreadable: {e}"),
-                severity: DiagnosticSeverity::Error,
+                severity: DiagnosticSeverity::Warning,
             }),
+            Pending::Source(language, abs) => match std::fs::read_to_string(&abs) {
+                Ok(source) => out.extend_with_file(&rel, language, source),
+                Err(e) => out.diagnostics.push(SymbolDiagnostic {
+                    path: rel,
+                    reason: format!("unreadable: {e}"),
+                    severity: DiagnosticSeverity::Error,
+                }),
+            },
         }
     }
     out
@@ -887,6 +999,47 @@ mod tests {
     // check-no-adapters` runs the `tc206` tests with every adapter off, which
     // is the only configuration where the first arm executes.
     #[trace("FR-051-AC-29")]
+    /// FR-051-AC-57: the read stage orders its input itself. Every permutation
+    /// of one listing yields the same extraction, diagnostics included.
+    #[trace("FR-051-AC-57")]
+    #[test]
+    fn read_order_never_depends_on_listing_order() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let colliding = "#[cfg(unix)]\nfn go() {}\n#[cfg(not(unix))]\nfn go() {}\n";
+        for name in ["a.rs", "b.rs", "c.rs"] {
+            std::fs::write(dir.path().join(name), colliding).expect("write");
+        }
+        let listing = |order: &[usize]| -> Vec<(String, Pending)> {
+            let entries = ["c.rs", "a.rs", "b.rs", "b_link", "a_link"];
+            order
+                .iter()
+                .map(|&i| {
+                    let name = entries[i];
+                    let pending = if name.ends_with("_link") {
+                        Pending::Symlink
+                    } else {
+                        Pending::Source(SourceLanguage::Rust, dir.path().join(name))
+                    };
+                    (name.to_string(), pending)
+                })
+                .collect()
+        };
+        let reference = read_pending(listing(&[0, 1, 2, 3, 4]), SymbolExtraction::default());
+        let paths: Vec<&str> = reference
+            .diagnostics
+            .iter()
+            .map(|d| d.path.as_str())
+            .collect();
+        assert_eq!(paths, ["a.rs", "a_link", "b.rs", "b_link", "c.rs"]);
+        for order in [[4, 3, 2, 1, 0], [2, 4, 0, 3, 1], [1, 0, 3, 2, 4]] {
+            assert_eq!(
+                read_pending(listing(&order), SymbolExtraction::default()),
+                reference,
+                "{order:?}"
+            );
+        }
+    }
+
     #[test]
     fn tc2060_missing_adapter_is_unavailable_not_a_diagnostic() {
         let out = extract_file("src/lib.rs", SourceLanguage::Rust, "fn a() {}\n");

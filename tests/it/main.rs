@@ -75,6 +75,8 @@ mod semantic_surface;
 mod semantic_systems;
 #[cfg(feature = "shell-symbols")]
 mod shell_symbols;
+#[cfg(feature = "rust-symbols")]
+mod source_walk;
 mod spec_dogfood;
 mod trace_dogfood;
 mod trace_reference_kinds;

@@ -147,6 +147,11 @@
       "minimum": 1,
       "description": "FR-050-AC-24 (#215): source files a declared `source_exclude` glob removed from the symbol walk. ABSENT \u2014 never 0 \u2014 for a model declaring no `source_exclude` or one whose globs match nothing, which is what keeps FR-050-AC-7 byte-identity. Additive under FR-055-CON-3. Without it an over-broad glob silently drops legitimate backing and the report reads as a coverage regression."
     },
+    "ignored_source_files": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "FR-050-AC-69 (PLAT-1793): supported-extension, non-hidden source entries a repository `.gitignore` or `.ignore` file removed from the symbol walk, those under an ignored directory included. Distinct from `excluded_source_files`. ABSENT \u2014 never 0 \u2014 when nothing was removed. Additive under FR-055-CON-3."
+    },
     "binding_census": {
       "type": "array",
       "description": "FR-050-AC-27 / FR-051-AC-19 (CR-093, #227): what the trace binder examined and what bound, per language. Unlike every other list here this is not a defect list \u2014 it is the premise the backed/total ratio rests on, so it is present whenever the code walk found an evidence symbol, whether or not anything bound. `1292 candidates, 0 bound` is the shape that produced a confident 23% over a corpus the binder could not read; `1292 candidates, 1290 bound` is a reassurance no earlier payload could give. ABSENT only when no language yielded an evidence symbol. Additive under FR-055-CON-3.",

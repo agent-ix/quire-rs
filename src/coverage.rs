@@ -467,6 +467,10 @@ pub struct CoverageReport {
     /// from tests that were never written.
     #[serde(default, skip_serializing_if = "is_zero")]
     pub excluded_source_files: usize,
+    /// Source files a repository ignore file removed from the symbol walk
+    /// (FR-050-AC-69, FR-051-AC-55). Absent, never `0`, when nothing was removed.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub ignored_source_files: usize,
     /// What the trace binder looked at and what bound, per language
     /// (FR-050-AC-27, CR-093).
     ///

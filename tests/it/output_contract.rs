@@ -335,6 +335,7 @@ fn tc856_payload_carrying_every_optional_key_conforms() {
             }]
         }],
         "excluded_source_files": 3,
+        "ignored_source_files": 2,
         // CR-104 review: five optional keys had drifted out of this payload —
         // `implements` (CR-080), `binding_census` (CR-093), `metrics` (CR-094),
         // `suspicions` (CR-100) and `engine` (CR-104) — so the test whose whole
@@ -604,6 +605,7 @@ fn tc859_optional_and_required_split_matches_the_engine() {
         "obligations",
         "implements",
         "excluded_source_files",
+        "ignored_source_files",
         "vocabulary_coverage",
         "carried_vocabulary",
         // CR-093: present whenever the walk found an evidence symbol, so a

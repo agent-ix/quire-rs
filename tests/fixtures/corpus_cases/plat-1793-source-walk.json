@@ -1,0 +1,459 @@
+{
+  "issue_ref": "PLAT-1793",
+  "cases": [
+    {
+      "name": "gitignore-removes-source-without-git",
+      "issue_ref": "PLAT-1793",
+      "tags": [
+        "PLAT-1793",
+        "FR-051-AC-55"
+      ],
+      "comment": "A .gitignore at the code root removes a directory of source with no .git directory; the removal is counted.",
+      "input": {
+        "files": {
+          ".gitignore": "ignored_tests/\n",
+          "lib.rs": "fn a() {}\n",
+          "ignored_tests/a.rs": "fn a() {}\n",
+          "ignored_tests/b.py": "def f():\n    pass\n",
+          "ignored_tests/notes.txt": "x\n"
+        }
+      },
+      "expect": {
+        "symbol_files": [
+          "lib.rs"
+        ],
+        "ignored_source_files": 2,
+        "excluded_source_files": 0
+      }
+    },
+    {
+      "name": "gitignore-control-unignored",
+      "issue_ref": "PLAT-1793",
+      "tags": [
+        "PLAT-1793",
+        "FR-051-AC-55"
+      ],
+      "comment": "Control: the same tree without the ignore file extracts everything and counts nothing.",
+      "input": {
+        "files": {
+          "lib.rs": "fn a() {}\n",
+          "ignored_tests/a.rs": "fn a() {}\n",
+          "ignored_tests/b.py": "def f():\n    pass\n",
+          "ignored_tests/notes.txt": "x\n"
+        }
+      },
+      "expect": {
+        "symbol_files": [
+          "ignored_tests/a.rs",
+          "ignored_tests/b.py",
+          "lib.rs"
+        ],
+        "ignored_source_files": 0
+      }
+    },
+    {
+      "name": "ignore-file-removes-source",
+      "issue_ref": "PLAT-1793",
+      "tags": [
+        "PLAT-1793",
+        "FR-051-AC-55"
+      ],
+      "comment": "A .ignore file is honoured the same way, and a nested ignore file applies below its own directory only.",
+      "input": {
+        "files": {
+          ".ignore": "skipped.rs\n",
+          "lib.rs": "fn a() {}\n",
+          "skipped.rs": "fn a() {}\n",
+          "sub/.gitignore": "inner.rs\n",
+          "sub/inner.rs": "fn a() {}\n",
+          "sub/keep.rs": "fn a() {}\n",
+          "inner.rs": "fn a() {}\n"
+        }
+      },
+      "expect": {
+        "symbol_files": [
+          "inner.rs",
+          "lib.rs",
+          "sub/keep.rs"
+        ],
+        "ignored_source_files": 2
+      }
+    },
+    {
+      "name": "hidden-entries-are-not-source",
+      "issue_ref": "PLAT-1793",
+      "tags": [
+        "PLAT-1793",
+        "FR-051-AC-55"
+      ],
+      "comment": "A hidden directory and a hidden file yield nothing and are not counted as ignored; their non-hidden twins yield symbols.",
+      "input": {
+        "files": {
+          ".hidden/x.rs": "fn a() {}\n",
+          ".gen.rs": "fn a() {}\n",
+          "visible/x.rs": "fn a() {}\n",
+          "gen.rs": "fn a() {}\n"
+        }
+      },
+      "expect": {
+        "symbol_files": [
+          "gen.rs",
+          "visible/x.rs"
+        ],
+        "ignored_source_files": 0
+      }
+    },
+    {
+      "name": "ignore-above-the-code-root-is-not-consulted",
+      "issue_ref": "PLAT-1793",
+      "tags": [
+        "PLAT-1793",
+        "FR-051-AC-55"
+      ],
+      "comment": "Scoped to packages/x, a repo-root ignore entry naming packages/x/node_modules/ does not apply.",
+      "input": {
+        "root": "packages/x",
+        "files": {
+          ".git/HEAD": "ref: refs/heads/main\n",
+          ".gitignore": "packages/x/node_modules/\n",
+          "packages/x/lib.rs": "fn a() {}\n",
+          "packages/x/node_modules/dep.rs": "fn a() {}\n"
+        }
+      },
+      "expect": {
+        "symbol_files": [
+          "lib.rs",
+          "node_modules/dep.rs"
+        ],
+        "ignored_source_files": 0
+      }
+    },
+    {
+      "name": "unrelated-enclosing-repo-ignoring-everything",
+      "issue_ref": "PLAT-1793",
+      "tags": [
+        "PLAT-1793",
+        "FR-051-AC-55"
+      ],
+      "comment": "A tree beneath an unrelated repository whose .gitignore is `*` extracts as it does elsewhere.",
+      "input": {
+        "root": "home/proj",
+        "files": {
+          ".git/HEAD": "ref: refs/heads/main\n",
+          ".gitignore": "*\n",
+          "home/proj/lib.rs": "fn a() {}\n",
+          "home/proj/src/b.rs": "fn a() {}\n"
+        }
+      },
+      "expect": {
+        "symbol_files": [
+          "lib.rs",
+          "src/b.rs"
+        ],
+        "ignored_source_files": 0
+      }
+    },
+    {
+      "name": "git-info-exclude-is-not-consulted",
+      "issue_ref": "PLAT-1793",
+      "tags": [
+        "PLAT-1793",
+        "FR-051-AC-55"
+      ],
+      "comment": "A pattern in .git/info/exclude removes nothing.",
+      "input": {
+        "files": {
+          ".git/HEAD": "ref: refs/heads/main\n",
+          ".git/info/exclude": "*.rs\n",
+          "lib.rs": "fn a() {}\n"
+        }
+      },
+      "expect": {
+        "symbol_files": [
+          "lib.rs"
+        ],
+        "ignored_source_files": 0
+      }
+    },
+    {
+      "name": "symlinks-are-reported-not-followed",
+      "issue_ref": "PLAT-1793",
+      "tags": [
+        "PLAT-1793",
+        "FR-051-AC-54"
+      ],
+      "comment": "A link to a file, a directory, a missing target and an outside target are each one warning; the in-root target is read once through its own path.",
+      "input": {
+        "files": {
+          "lib.rs": "fn a() {}\n",
+          "real/target.rs": "fn a() {}\n"
+        },
+        "symlinks": {
+          "alias.rs": "lib.rs",
+          "dirlink": "real",
+          "dangling": "missing/nowhere.rs",
+          "outside": "/nonexistent-plat-1793/elsewhere"
+        }
+      },
+      "expect": {
+        "symbol_files": [
+          "lib.rs",
+          "real/target.rs"
+        ],
+        "symlink_diagnostics": [
+          "alias.rs",
+          "dangling",
+          "dirlink",
+          "outside"
+        ],
+        "ignored_source_files": 0,
+        "excluded_source_files": 0
+      }
+    },
+    {
+      "name": "tree-without-symlinks-reports-none",
+      "issue_ref": "PLAT-1793",
+      "tags": [
+        "PLAT-1793",
+        "FR-051-AC-54"
+      ],
+      "comment": "Control: the same files without links carry no symlink diagnostic.",
+      "input": {
+        "files": {
+          "lib.rs": "fn a() {}\n",
+          "real/target.rs": "fn a() {}\n"
+        }
+      },
+      "expect": {
+        "symbol_files": [
+          "lib.rs",
+          "real/target.rs"
+        ],
+        "symlink_diagnostics": []
+      }
+    },
+    {
+      "name": "symlink-precedence-earlier-rules-win",
+      "issue_ref": "PLAT-1793",
+      "tags": [
+        "PLAT-1793",
+        "FR-051-AC-54"
+      ],
+      "comment": "Each earlier rule removes a symlink before the symlink rule: ignored dir (counted by name), hidden, source_exclude (counted by name), template tree (counted by name), symlinked document root. Nothing is reported. The real_spec target is the document root as it resolves, so it is pruned too.",
+      "input": {
+        "document_root": "spec",
+        "source_exclude": [
+          "gen/**"
+        ],
+        "files": {
+          ".gitignore": "ign/\n",
+          "lib.rs": "fn a() {}\n",
+          "ign/x.rs": "fn a() {}\n",
+          "gen/keep.txt": "x\n",
+          "real_spec/doc.rs": "fn a() {}\n"
+        },
+        "symlinks": {
+          "ign/link.rs": "../lib.rs",
+          "ign/plain": "../lib.rs",
+          ".h.rs": "lib.rs",
+          "gen/l.rs": "../lib.rs",
+          "gen/plain": "../lib.rs",
+          "{{cookiecutter.x}}/t.rs": "../lib.rs",
+          "spec": "real_spec"
+        }
+      },
+      "expect": {
+        "symbol_files": [
+          "lib.rs"
+        ],
+        "symlink_diagnostics": [],
+        "ignored_source_files": 2,
+        "excluded_source_files": 2
+      }
+    },
+    {
+      "name": "gitignore-removes-source-with-git",
+      "issue_ref": "PLAT-1793",
+      "tags": [
+        "PLAT-1793",
+        "FR-051-AC-55"
+      ],
+      "comment": "Twin of the no-.git case: the same tree with a .git directory yields the identical result.",
+      "input": {
+        "files": {
+          ".gitignore": "ignored_tests/\n",
+          "lib.rs": "fn a() {}\n",
+          "ignored_tests/a.rs": "fn a() {}\n",
+          "ignored_tests/b.py": "def f():\n    pass\n",
+          "ignored_tests/notes.txt": "x\n",
+          ".git/HEAD": "ref: refs/heads/main\n"
+        }
+      },
+      "expect": {
+        "symbol_files": [
+          "lib.rs"
+        ],
+        "ignored_source_files": 2,
+        "excluded_source_files": 0
+      }
+    },
+    {
+      "name": "symlink-to-the-document-root-under-another-name",
+      "issue_ref": "PLAT-1793",
+      "tags": [
+        "PLAT-1793",
+        "FR-051-AC-54"
+      ],
+      "comment": "`docs -> spec` is a symlink, not the document root: it is reported from link metadata, as is a link into the root, and neither is followed. The real root stays pruned.",
+      "input": {
+        "document_root": "spec",
+        "files": {
+          "lib.rs": "fn a() {}\n",
+          "spec/doc.rs": "fn a() {}\n"
+        },
+        "symlinks": {
+          "docs": "spec",
+          "doc_alias.rs": "spec/doc.rs"
+        }
+      },
+      "expect": {
+        "symbol_files": [
+          "lib.rs"
+        ],
+        "symlink_diagnostics": [
+          "doc_alias.rs",
+          "docs"
+        ]
+      }
+    },
+    {
+      "name": "gitignored-and-source-excluded-counts-once",
+      "issue_ref": "PLAT-1793",
+      "tags": [
+        "PLAT-1793",
+        "FR-050-AC-69"
+      ],
+      "comment": "One file both gitignored and glob-excluded is removed by rule 3 first: counted ignored, not excluded.",
+      "input": {
+        "source_exclude": [
+          "ign/**"
+        ],
+        "files": {
+          ".gitignore": "ign/\n",
+          "lib.rs": "fn a() {}\n",
+          "ign/x.rs": "fn a() {}\n"
+        }
+      },
+      "expect": {
+        "symbol_files": [
+          "lib.rs"
+        ],
+        "ignored_source_files": 1,
+        "excluded_source_files": 0
+      }
+    },
+    {
+      "name": "source-excluded-only-control",
+      "issue_ref": "PLAT-1793",
+      "tags": [
+        "PLAT-1793",
+        "FR-050-AC-69"
+      ],
+      "comment": "Control: the same glob without the ignore file counts the file as excluded and not ignored.",
+      "input": {
+        "source_exclude": [
+          "ign/**"
+        ],
+        "files": {
+          "lib.rs": "fn a() {}\n",
+          "ign/x.rs": "fn a() {}\n"
+        }
+      },
+      "expect": {
+        "symbol_files": [
+          "lib.rs"
+        ],
+        "ignored_source_files": 0,
+        "excluded_source_files": 1
+      }
+    },
+    {
+      "name": "symlink-target-present-or-absent",
+      "issue_ref": "PLAT-1793",
+      "tags": [
+        "PLAT-1793",
+        "FR-051-AC-54"
+      ],
+      "comment": "The same tree before and after an out-of-root file, an out-of-root directory and a hidden in-root file appear at the link targets: the extraction is identical, diagnostics included.",
+      "input": {
+        "files": {
+          "lib.rs": "fn a() {}\n"
+        },
+        "symlinks": {
+          "out.rs": "{outside}/elsewhere.rs",
+          "outdir": "{outside}/dir",
+          "ghost.rs": ".stash/target.rs"
+        }
+      },
+      "expect": {
+        "symbol_files": [
+          "lib.rs"
+        ],
+        "symlink_diagnostics": [
+          "ghost.rs",
+          "out.rs",
+          "outdir"
+        ]
+      },
+      "after": {
+        "files": {
+          ".stash/target.rs": "fn a() {}\n"
+        },
+        "outside_files": {
+          "elsewhere.rs": "fn a() {}\n",
+          "dir/x.rs": "fn a() {}\n"
+        }
+      },
+      "expect_after": {
+        "identical": true
+      }
+    },
+    {
+      "name": "deleting-an-in-tree-target-removes-only-its-symbols",
+      "issue_ref": "PLAT-1793",
+      "tags": [
+        "PLAT-1793",
+        "FR-051-AC-54"
+      ],
+      "comment": "A link to an in-root source file adds no symbols of its own; deleting the target removes the target's symbols and changes nothing else.",
+      "input": {
+        "files": {
+          "lib.rs": "fn a() {}\n",
+          "other.rs": "fn b() {}\n"
+        },
+        "symlinks": {
+          "alias.rs": "lib.rs"
+        }
+      },
+      "expect": {
+        "symbol_files": [
+          "lib.rs",
+          "other.rs"
+        ],
+        "symlink_diagnostics": [
+          "alias.rs"
+        ]
+      },
+      "after": {
+        "remove": [
+          "lib.rs"
+        ]
+      },
+      "expect_after": {
+        "removed_symbol_files": [
+          "lib.rs"
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,87 @@
+{
+  "issue_ref": "PLAT-1793",
+  "cases": [
+    {
+      "name": "insertion-keeps-identity-and-shifts-lines",
+      "issue_ref": "PLAT-1793",
+      "tags": [
+        "PLAT-1793",
+        "FR-051-AC-57"
+      ],
+      "comment": "A function inserted between two tests changes only the lower test's lines; identity, relations and the untouched file are unchanged.",
+      "input": {
+        "before": {
+          "a.rs": "#[trace(\"FR-001-AC-1\")]\n#[test]\nfn first() {}\n\n#[trace(\"FR-001-AC-2\")]\n#[test]\nfn second() {}\n",
+          "b.rs": "#[trace(\"FR-001-AC-3\")]\n#[test]\nfn other() {}\n"
+        },
+        "after": {
+          "a.rs": "#[trace(\"FR-001-AC-1\")]\n#[test]\nfn first() {}\n\nfn extra() {}\n\n#[trace(\"FR-001-AC-2\")]\n#[test]\nfn second() {}\n",
+          "b.rs": "#[trace(\"FR-001-AC-3\")]\n#[test]\nfn other() {}\n"
+        }
+      },
+      "expect": {
+        "identical_files": [
+          "b.rs"
+        ],
+        "kept": {
+          "first": [
+            "FR-001-AC-1"
+          ],
+          "second": [
+            "FR-001-AC-2"
+          ]
+        },
+        "line_shift": {
+          "first": 0,
+          "second": 2
+        },
+        "added": [
+          "extra"
+        ]
+      }
+    },
+    {
+      "name": "unrelated-file-edit-control",
+      "issue_ref": "PLAT-1793",
+      "tags": [
+        "PLAT-1793",
+        "FR-051-AC-57"
+      ],
+      "comment": "Control: editing only b.rs leaves a.rs byte-identical in every attribute, positions included.",
+      "input": {
+        "before": {
+          "a.rs": "#[trace(\"FR-001-AC-1\")]\n#[test]\nfn first() {}\n\n#[trace(\"FR-001-AC-2\")]\n#[test]\nfn second() {}\n",
+          "b.rs": "#[trace(\"FR-001-AC-3\")]\n#[test]\nfn other() {}\n"
+        },
+        "after": {
+          "a.rs": "#[trace(\"FR-001-AC-1\")]\n#[test]\nfn first() {}\n\n#[trace(\"FR-001-AC-2\")]\n#[test]\nfn second() {}\n",
+          "b.rs": "#[trace(\"FR-001-AC-3\")]\n#[test]\nfn other() {}\n\nfn more() {}\n"
+        }
+      },
+      "expect": {
+        "identical_files": [
+          "a.rs"
+        ],
+        "kept": {
+          "first": [
+            "FR-001-AC-1"
+          ],
+          "second": [
+            "FR-001-AC-2"
+          ],
+          "other": [
+            "FR-001-AC-3"
+          ]
+        },
+        "line_shift": {
+          "first": 0,
+          "second": 0,
+          "other": 0
+        },
+        "added": [
+          "more"
+        ]
+      }
+    }
+  ]
+}

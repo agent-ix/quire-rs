@@ -170,6 +170,8 @@ impl<'m> ShellBinder<'m> {
                         path: symbol.path.clone(),
                         trace_id,
                         form: form.name.clone(),
+                        line: symbol.line,
+                        column: symbol.column,
                     });
                 }
             }

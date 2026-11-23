@@ -857,6 +857,7 @@ pub(super) fn reconcile(
         // carried by the graph because this reconciliation never sees the
         // extraction itself.
         excluded_source_files: graph.excluded_source_files,
+        ignored_source_files: graph.ignored_source_files,
         // FR-050-AC-27 (CR-093): the premise, carried whether or not it holds.
         binding_census: graph.binding_census.clone(),
         // FR-050-AC-39 (#362): engine-owned annotation parsing, exposed so a
