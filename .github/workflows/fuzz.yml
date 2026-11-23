@@ -20,6 +20,9 @@ jobs:
           - fuzz_extract_dsl
           - fuzz_load_manifest
           - fuzz_load_schema
+          - fuzz_assurance_export
+          - fuzz_evidence_record
+          - fuzz_trace_trailers
     steps:
       - uses: actions/checkout@v4
 
@@ -54,12 +57,10 @@ jobs:
         # -max_total_time=300 caps wall-clock at 5 minutes per NFR-011.
         run: cargo +nightly fuzz run ${{ matrix.target }} -- -max_total_time=300
 
-      - name: Upload corpus artifact
-        if: always()
+      - name: Upload crash reproducer
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: fuzz-corpus-${{ matrix.target }}
-          path: |
-            fuzz/corpus/${{ matrix.target }}
-            fuzz/artifacts/${{ matrix.target }}
+          name: fuzz-crash-${{ matrix.target }}
+          path: fuzz/artifacts/${{ matrix.target }}
           if-no-files-found: ignore

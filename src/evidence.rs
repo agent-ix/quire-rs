@@ -84,6 +84,7 @@ impl<'a> From<DeclaredTarget<'a>> for EvidenceTarget<'a> {
 /// Resolve a non-criterion target using the existing trace-target declarations.
 /// Duplicate rows refuse lookup; no first-match or shared-TC inference is used.
 /// The document path is relative to the inventory's original scope root.
+/// Implements: FR-078
 pub fn declared_target<'a>(
     inventory: &'a SelectedInventory,
     spec: &'a crate::Spec,
@@ -408,7 +409,42 @@ fn lookup_cause(error: InventoryLookupError) -> CauseCode {
     }
 }
 
+fn declared_claim_matches_minted(
+    target: &DeclaredTarget<'_>,
+    document: &str,
+    id: &str,
+    line: usize,
+    target_name: &str,
+) -> bool {
+    target.document == document
+        && target.id == id
+        && target.line == Some(line)
+        && target.declaration.name == target_name
+}
+
+fn criterion_claim_matches_minted(
+    inventory: &SelectedInventory,
+    identity: &CriterionIdentity<'_>,
+    document: &str,
+    id: &str,
+    line: usize,
+    target_name: &str,
+) -> bool {
+    inventory.lookup(identity).is_ok_and(|entry| {
+        identity.document() == document
+            && entry.obligation().id == id
+            && entry.line() == Some(line)
+            && inventory.selection().is_some_and(|selection| {
+                selection.sources().iter().any(|source| {
+                    source.declaration().name == identity.source_name()
+                        && source.declaration().target.as_deref() == Some(target_name)
+                })
+            })
+    })
+}
+
 impl<'a> ReconciledEvidence<'a> {
+    /// Implements: FR-078
     pub fn new(input: &'a BackingInput<'a>) -> Self {
         let mut this = Self {
             input,
@@ -569,24 +605,16 @@ impl<'a> ReconciledEvidence<'a> {
     pub fn backs_minted(&self, document: &str, id: &str, line: usize, target_name: &str) -> bool {
         self.accepted.iter().any(|claim| match claim.target {
             EvidenceTarget::Declared(target) => {
-                target.document == document
-                    && target.id == id
-                    && target.line == Some(line)
-                    && target.declaration.name == target_name
+                declared_claim_matches_minted(&target, document, id, line, target_name)
             }
-            EvidenceTarget::Criterion(identity) => {
-                self.input.inventory.lookup(&identity).is_ok_and(|entry| {
-                    identity.document() == document
-                        && entry.obligation().id == id
-                        && entry.line() == Some(line)
-                        && self.input.inventory.selection().is_some_and(|selection| {
-                            selection.sources().iter().any(|source| {
-                                source.declaration().name == identity.source_name()
-                                    && source.declaration().target.as_deref() == Some(target_name)
-                            })
-                        })
-                })
-            }
+            EvidenceTarget::Criterion(identity) => criterion_claim_matches_minted(
+                self.input.inventory,
+                &identity,
+                document,
+                id,
+                line,
+                target_name,
+            ),
         })
     }
 
@@ -618,6 +646,7 @@ pub enum TraceQuery<'a> {
 }
 
 /// Query the same projection used by coverage; source search remains separate.
+/// Implements: FR-078
 pub fn trace(input: &BackingInput<'_>, query: TraceQuery<'_>) -> Vec<RecordBinder> {
     let evidence = ReconciledEvidence::new(input);
     evidence
@@ -673,6 +702,7 @@ pub struct StrictRejection {
 ///
 /// The host supplies actual declared-input evaluation errors and prints the full
 /// coverage report and reasons before mapping `Ok` to exit 0 or `Err` to exit 1.
+/// Implements: FR-078
 pub fn strict_decision(
     report: &CoverageReport,
     declared_inputs: &[DeclaredInputError],
@@ -698,5 +728,214 @@ pub fn strict_decision(
             inherited,
             declared_inputs: declared_inputs.to_vec(),
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use ix_trace_rs::trace;
+
+    use super::{
+        criterion_claim_matches_minted, declared_claim_matches_minted, declared_target,
+        BackingInput, CauseCode, ReconciledEvidence, RecordClaim, RecordLocator,
+    };
+    use crate::obligation::inventory::{inventory, InventoryOptions};
+    use crate::{Registry, Spec};
+
+    #[trace("FR-078-AC-9")]
+    #[test]
+    fn tc1799_declared_target_backing_requires_every_locus_component() {
+        let root = tempfile::tempdir().unwrap();
+        let spec_dir = root.path().join("spec");
+        std::fs::create_dir_all(&spec_dir).unwrap();
+        std::fs::write(
+            spec_dir.join("FR-001.md"),
+            "---\nid: FR-001\ntype: FR\n---\n\n## Acceptance Criteria\n\n| ID | Criteria | Verification |\n|---|---|---|\n| FR-001-AC-1 | A live row exists. | Inspection |\n",
+        )
+        .unwrap();
+        std::fs::write(
+            spec_dir.join("tests.md"),
+            "---\nid: TM-001\ntype: TestMatrix\n---\n\n## Test Cases\n\n| ID | Traces To | Status |\n|---|---|---|\n| TC-001 | FR-001-AC-1 | ✅ |\n",
+        )
+        .unwrap();
+
+        let registry = Registry::load_module(
+            &std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("tests/fixtures/traceability/iso-obligations"),
+        )
+        .unwrap();
+        let model = registry.traceability().unwrap();
+        let inventory = inventory(
+            root.path(),
+            model,
+            &["acceptance-criterion"],
+            InventoryOptions::default(),
+        );
+        let spec = Spec::from_path(&spec_dir);
+        let target = declared_target(&inventory, &spec, "test-case", "spec/tests.md", "TC-001")
+            .expect("exact table row resolves");
+        let line = target.line().unwrap();
+        let declaration = target.declaration().name.as_str();
+
+        assert!(declared_claim_matches_minted(
+            &target,
+            "spec/tests.md",
+            "TC-001",
+            line,
+            declaration
+        ));
+        assert!(!declared_claim_matches_minted(
+            &target,
+            "spec/other.md",
+            "TC-001",
+            line,
+            declaration
+        ));
+        assert!(!declared_claim_matches_minted(
+            &target,
+            "spec/tests.md",
+            "TC-002",
+            line,
+            declaration
+        ));
+        assert!(!declared_claim_matches_minted(
+            &target,
+            "spec/tests.md",
+            "TC-001",
+            line + 1,
+            declaration
+        ));
+        assert!(!declared_claim_matches_minted(
+            &target,
+            "spec/tests.md",
+            "TC-001",
+            line,
+            "test-case-document"
+        ));
+    }
+
+    #[trace("FR-078-AC-9")]
+    #[test]
+    fn tc1799_criterion_target_backing_requires_exact_locus_and_selection() {
+        let root = tempfile::tempdir().unwrap();
+        let spec_dir = root.path().join("spec");
+        std::fs::create_dir_all(&spec_dir).unwrap();
+        std::fs::write(
+            spec_dir.join("FR-001.md"),
+            "---\nid: FR-001\ntype: FR\n---\n\n## Acceptance Criteria\n\n| ID | Criteria | Verification |\n|---|---|---|\n| FR-001-AC-1 | A live row exists. | Inspection |\n",
+        )
+        .unwrap();
+        let registry = Registry::load_module(
+            &std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("tests/fixtures/traceability/iso-obligations"),
+        )
+        .unwrap();
+        let model = registry.traceability().unwrap();
+        let inventory = inventory(
+            root.path(),
+            model,
+            &["acceptance-criterion"],
+            InventoryOptions::default(),
+        );
+        let identity = inventory.entries().next().unwrap().identity();
+        let line = inventory.entries().next().unwrap().line().unwrap();
+
+        assert!(criterion_claim_matches_minted(
+            &inventory,
+            &identity,
+            "spec/FR-001.md",
+            "FR-001-AC-1",
+            line,
+            "acceptance-criterion"
+        ));
+        assert!(!criterion_claim_matches_minted(
+            &inventory,
+            &identity,
+            "spec/FR-001.md",
+            "FR-001-AC-1",
+            line + 1,
+            "acceptance-criterion"
+        ));
+        assert!(!criterion_claim_matches_minted(
+            &inventory,
+            &identity,
+            "spec/FR-other.md",
+            "FR-001-AC-1",
+            line,
+            "acceptance-criterion"
+        ));
+        assert!(!criterion_claim_matches_minted(
+            &inventory,
+            &identity,
+            "spec/FR-001.md",
+            "FR-001-AC-1",
+            line,
+            "test-case"
+        ));
+    }
+
+    #[trace("FR-078-AC-9")]
+    #[test]
+    fn tc1799_declared_target_snapshot_change_refuses_claim() {
+        let root = tempfile::tempdir().unwrap();
+        let spec_dir = root.path().join("spec");
+        std::fs::create_dir_all(&spec_dir).unwrap();
+        std::fs::write(
+            spec_dir.join("FR-001.md"),
+            "---\nid: FR-001\ntype: FR\n---\n\n## Acceptance Criteria\n\n| ID | Criteria | Verification |\n|---|---|---|\n| FR-001-AC-1 | A live row exists. | Inspection |\n",
+        )
+        .unwrap();
+        let matrix_path = spec_dir.join("tests.md");
+        let matrix = "---\nid: TM-001\ntype: TestMatrix\n---\n\n## Test Cases\n\n| ID | Traces To | Status |\n|---|---|---|\n| TC-001 | FR-001-AC-1 | ✅ |\n";
+        std::fs::write(&matrix_path, matrix).unwrap();
+        let registry = Registry::load_module(
+            &std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("tests/fixtures/traceability/iso-obligations"),
+        )
+        .unwrap();
+        let model = registry.traceability().unwrap();
+        let inventory = inventory(
+            root.path(),
+            model,
+            &["acceptance-criterion"],
+            InventoryOptions::default(),
+        );
+        let original = Spec::from_path(&spec_dir);
+        let target = declared_target(
+            &inventory,
+            &original,
+            "test-case",
+            "spec/tests.md",
+            "TC-001",
+        )
+        .expect("declared target resolves from original loaded bytes");
+        let claims = [RecordClaim {
+            target: target.into(),
+            locator: RecordLocator {
+                record: "record",
+                run: "run",
+                entry: "entry",
+            },
+            method: "Test",
+            actor: "runner",
+            provenance: &["observation"],
+        }];
+        let input = BackingInput {
+            inventory: &inventory,
+            claims: &claims,
+            results: &[],
+        };
+        let mut evidence = ReconciledEvidence::new(&input);
+        assert_eq!(evidence.accepted.len(), 1);
+
+        std::fs::write(&matrix_path, matrix.replace("FR-001-AC-1", "FR-001-AC-9")).unwrap();
+        let changed = Spec::from_path(&spec_dir);
+        evidence.check_context(&changed, model, root.path());
+
+        assert!(evidence.accepted.is_empty());
+        assert!(evidence
+            .results
+            .iter()
+            .any(|result| result.cause == CauseCode::SelectionMismatch));
     }
 }

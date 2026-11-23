@@ -74,3 +74,21 @@ name = "fuzz_validate_extract_query"
 path = "fuzz_targets/fuzz_validate_extract_query.rs"
 test = false
 doc = false
+
+[[bin]]
+name = "fuzz_assurance_export"
+path = "fuzz_targets/fuzz_assurance_export.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_evidence_record"
+path = "fuzz_targets/fuzz_evidence_record.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_trace_trailers"
+path = "fuzz_targets/fuzz_trace_trailers.rs"
+test = false
+doc = false

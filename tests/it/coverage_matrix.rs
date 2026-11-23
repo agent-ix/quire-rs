@@ -918,6 +918,11 @@ fn retained_gate_targets_do_not_discharge_inspection_siblings() {
             .unwrap()
         })
         .collect();
+    assert_eq!(targets[0].selection(), inventory.selection().unwrap());
+    assert_eq!(targets[0].declaration().name, "test-case");
+    assert_eq!(targets[0].document(), "spec/exact/matrix/tests.md");
+    assert_eq!(targets[0].id(), "TC-198");
+    assert!(targets[0].line().is_some());
     assert_eq!(
         declared_target(&inventory, &spec, "test-case", "spec/foreign.md", "TC-198"),
         Err(InventoryLookupError::UnknownIdentity)
@@ -1786,6 +1791,25 @@ fn retained_native_origins_preserve_unmapped_rows_and_refuse_rendered_reordering
         1
     );
     fs::remove_dir_all(root).unwrap();
+}
+
+/// Named mutation oracle: run the existing focused refusal controls together
+/// so `make mutants-fr` does not need the full workspace test population.
+#[trace(
+    "FR-078-AC-6",
+    "FR-078-AC-9",
+    "FR-078-AC-10",
+    "FR-078-AC-15",
+    "FR-078-AC-16"
+)]
+#[test]
+fn tc1799_mutation_sensitive_retained_evidence_refusals() {
+    retained_backing_components_reconcile_named_source_free_boundaries();
+    retained_gate_targets_do_not_discharge_inspection_siblings();
+    retained_results_preserve_source_claims_all_causes_and_record_order();
+    retained_backing_uses_native_snapshot_and_preserves_partial_population();
+    criterion_claims_execute_native_lookup_refusals_and_exact_record_queries();
+    retained_native_origins_preserve_unmapped_rows_and_refuse_rendered_reordering();
 }
 
 // FR-082: requirement-level criticality on `coverage_matrix` entries.

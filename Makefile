@@ -11,7 +11,10 @@ FUZZ_TARGETS := \
 	fuzz_apply_patch \
 	fuzz_extract_dsl \
 	fuzz_load_manifest \
-	fuzz_load_schema
+	fuzz_load_schema \
+	fuzz_assurance_export \
+	fuzz_evidence_record \
+	fuzz_trace_trailers
 
 .PHONY: help
 help:
@@ -232,7 +235,7 @@ mutants-fr:
 	fi; \
 	echo "$(FR) mutation scope:"; echo "$$files" | sed 's/^/  /'; \
 	args=""; for f in $$files; do args="$$args --file $$f"; done; \
-	$(CARGO) mutants -p quire-rs $$args
+	$(CARGO) mutants -p quire-rs $$args $(MUTANTS_ARGS)
 
 .PHONY: mutants-scope
 mutants-scope:
