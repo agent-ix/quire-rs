@@ -33,6 +33,25 @@ identity unchanged; the current line number SHALL be carried as a non-identity
 attribute. Record ids SHALL be the identity itself, per the
 [FR-045](./FR-045-filament-core-extraction-engine.md) record-id convention.
 
+## Source walk
+
+Which files the extractor reads SHALL NOT depend on the machine it runs on. The walk under
+a code root SHALL apply, besides the document-root prune and a declared `source_exclude`
+([FR-050](./FR-050-declarative-coverage-computation.md)-AC-22), only these rules:
+
+- **Ignore files.** Entries matched by a `.gitignore` or `.ignore` file at or under the code
+  root are not source, with or without a `.git` directory. A user-global ignore file, a
+  `.git/info/exclude` and any ignore file above the code root are never consulted.
+- **Symlinks.** A symlink is never followed and never read, whether it names a file or a
+  directory. Each symlink that is a directory, or whose name carries a supported source
+  extension, is reported (AC-54), so a symlinked source is never indistinguishable from a
+  source that was never written.
+- **Hidden entries** (a name starting with `.`) are not source.
+
+Only languages the extractor supports (Rust, Python, TypeScript, shell, QSL) are in scope:
+an unsupported extension is not reported file by file, and a supported language the build
+cannot read is recorded as unavailable (AC-29).
+
 ## Language adapters
 
 > **CR note (agent-ix/quire-rs#407, 2026-09-06):** Python `test_` methods
@@ -259,6 +278,10 @@ byte-identical JSON ordering and stable record ids.
 | FR-051-AC-51 | A TypeScript `const`, `let` or `var` declarator, `export`ed or not and alone or inside a multi-declarator statement, whose initializer is a **wrapper chain** — a curried call `callee(...)(argument)` whose single argument is an arrow function, a function expression, or another wrapper chain — mints a Function symbol named by the declarator, with the identity and position of the arrow-valued declarator it parallels. An arrow-valued declarator keeps its own rule, a function-expression-valued declarator that is not wrapped still mints nothing, and a call that is not a curried call with one such argument (`memoize(fn)`, `callee(...)(memoize(fn))`) mints nothing. The rule reads only the shape of the call and names no function, so the engine carries no wrapper name; the module's `typescript_wrapper` form (FR-062) decides which chains bind a scope id. The symbol is a production Function, so the census `candidates` denominator is unchanged (PLAT-866). | Test |
 | FR-051-AC-52 | The extractor reads a file whose extension is `.native` through the QSL adapter and reports it as language `qsl`, and `SourceLanguage::Qsl` serializes as `qsl`. Every symbol it mints has kind `declaration` and id `qsl:<repo-relative path>::<label>`; a declaration head is a column-0 line at brace depth 0 matching `^([a-z][a-z0-9_]*)\s+([A-Za-z_][A-Za-z0-9_]*)` whose keyword is not `language`, `profile` or `model` (FR-094). A repository with no `.native` file reports no `qsl` language, and a `.native` file under a model declaring no `formalizes` form mints symbols that carry no relation. | Test |
 | FR-051-AC-53 | The QSL adapter is line-level and needs no Cargo feature: a `.native` file whose braces do not balance yields a per-file diagnostic naming the file and the line, and the rest of the tree extracts normally (CON-2). | Test |
+| FR-051-AC-54 | A symlink under the code root that is a directory, or whose name carries a supported source extension, yields no symbol and one per-file diagnostic, reason `symlink-not-followed`, at severity `warning` (as AC-28 does), naming its repo-relative path; its target is read only when it is itself reached as a non-symlink entry under the root, so a symlinked file and its in-tree target mint one set of symbols, not two. A tree with no such symlink yields no such diagnostic, and the same tree extracts identically whether or not the symlink targets exist or lie outside the root (CR-423, PLAT-1793). | Test |
+| FR-051-AC-55 | A source file matched by a `.gitignore` or `.ignore` file at or under the code root yields no symbols and no trace bindings, identically in a tree with a `.git` directory and in one without; the same tree with that file un-ignored yields its symbols. A file matched only by a user-global ignore file, by `.git/info/exclude` or by an ignore file above the code root is extracted, and a hidden-named directory is not walked. Extraction of one fixture tree is byte-identical under any value of the process's `HOME` and `XDG_CONFIG_HOME` (CR-423, PLAT-1793). | Test |
+| FR-051-AC-56 | When AC-31 reports colliding symbol ids, every `verifies` and `implements` relation of every colliding declaration is retained under the shared id: none is dropped in favour of the first-declared, and the relation set is identical under any order the colliding declarations are discovered in. A coverage criterion backed only by the second of two `#[cfg]` variants is backed, and an inverse query by the shared `path#qualified_name` ref (FR-077-AC-4) returns the claims of all colliding declarations (CR-423, PLAT-1793). | Test |
+| FR-051-AC-57 | Adding, removing or reformatting a declaration in one file, or presenting the same tree in a different file-discovery order, leaves every other symbol's id, relations, mentions and report position unchanged, and the extraction byte-identical for every file not edited. A marker whose id no declared trace target mints is reported by FR-050-AC-39 and binds nothing, whether it is stale or misspelled; correcting it changes only that symbol's relations (CR-423, PLAT-1793). | Test |
 
 > **CR-215 note (2026-11-08, PLAT-847, PLAT-912):** only marker forms bind.
 > The ruling is to take one advisory pattern rather than quarantine the
@@ -1089,6 +1112,21 @@ report it as language `qsl`. It mints one `declaration` symbol per declaration h
 [FR-094](./FR-094-formalizes-relation.md) defines, and nothing else: no function, container or
 entry point. A declaration symbol binds no `verifies` and no `implements`; the only relation it
 carries is `formalizes`. The adapter uses no syntax-tree library and adds no dependency.
+
+> **CR-423 note (2026-11-22, PLAT-1793):** Spec-only; no code or corpus changed here. The
+> extractor's walk (`src/symbols/mod.rs`, `extract_tree_scoped`) uses the `ignore` crate with
+> its defaults, so two behaviours depended on the machine: `.gitignore` is honoured only
+> inside a git work tree (`require_git` is on), and the user's global git ignore file is
+> read. A symlinked directory is silently not entered. A symlinked file is read today
+> (`Path::is_file` follows it), so AC-54 *changes* that case. These went unreported, so an
+> extraction could differ per machine with no diagnostic. The corpus walk already pins the
+> same choices (`require_git(false)`, `follow_links(false)`, FR-024-AC-5). AC-31 already
+> reports colliding ids, including Rust `#[cfg]` variants, and is sufficient for *reporting*;
+> what it left unstated is what binding does with the colliders, which AC-56 fixes. Exact
+> versus parent ids (FR-077-AC-6), mention versus claim (FR-077-AC-1/2, AC-49/50), ignored
+> tests (AC-27) and duplicate status ids (FR-050-AC-23) are already covered and not repeated.
+> Per project rule, each of AC-54..57 lands with a declarative corpus case, `issue_ref`
+> `PLAT-1793`, a healthy control and absence assertions; that is implementation work.
 
 ## Dependencies
 
