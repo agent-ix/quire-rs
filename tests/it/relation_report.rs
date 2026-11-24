@@ -936,14 +936,7 @@ fn dropped_record_key_relation_is_reported_with_its_valid_sibling() {
     let manifest = case["input"]["module_manifest"]
         .as_str()
         .expect("fixture module manifest");
-    let schema = case["input"]["classification_schema"]
-        .as_str()
-        .expect("fixture classification schema");
-    let schemas = std::collections::BTreeMap::from([(
-        "schemas/classification.json".to_string(),
-        schema.to_string(),
-    )]);
-    let registry = Registry::from_inline_parts(manifest.as_bytes(), &schemas)
+    let registry = Registry::from_inline_parts(manifest.as_bytes(), &std::collections::BTreeMap::new())
         .expect("module loads with one dropped relation");
     assert_eq!(registry.failures().len(), 1, "{:?}", registry.failures());
 
