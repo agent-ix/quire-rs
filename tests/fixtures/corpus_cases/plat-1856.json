@@ -1,7 +1,7 @@
 {
   "name": "valid-relations-survive-record-key-drop",
   "issue_ref": "PLAT-1856",
-  "tags": ["FR-058-AC-47", "relation-report", "validation"],
+  "tags": ["FR-058-AC-48", "relation-report", "validation"],
   "input": {
     "module_manifest": "name: plat-1856\nversion: 0.1.0\nartifact_types:\n- name: Requirement\n- name: DesignElement\n- name: Connection\n- name: Classification\nedge_types:\n  realizes: {description: realizes, category: traceability}\n  carries: {description: carries, category: dataflow}\ntraceability:\n  required_relations:\n  - name: requirement-has-design\n    from: Requirement\n    edges: [realizes]\n    to: [DesignElement]\n    direction: outgoing\n    check: requirement-without-design\n  - name: connection-carries-classification\n    from: Connection\n    edges: [carries]\n    to: [Classification]\n    direction: outgoing\n    check: connection-without-classification\n    record_keys: [regulatedCategories]\n",
     "documents": {

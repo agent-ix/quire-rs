@@ -924,7 +924,7 @@ fn rows_carry_the_member_identity_and_link_across_members() {
     assert_eq!(document.path, "spec/RULE-001.md");
 }
 
-#[trace("FR-058-AC-47")]
+#[trace("FR-058-AC-48")]
 #[test]
 fn dropped_record_key_relation_is_reported_with_its_valid_sibling() {
     let case: serde_json::Value = serde_json::from_str(include_str!(
