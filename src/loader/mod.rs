@@ -1489,6 +1489,7 @@ pub fn flatten_into_registry(mut outcome: LoadOutcome) -> RegistryShape {
             // `allowed_links` key that is an inverse label is not unknown.
             if !edge_types.contains_key(verb) && !inverse_edges.contains_key(verb) {
                 outcome.diagnostics.push(Diagnostic::UnknownEdgeType {
+                    module: arch.module.clone(),
                     archetype: arch.name.clone(),
                     edge_type: verb.clone(),
                 });
@@ -1504,6 +1505,7 @@ pub fn flatten_into_registry(mut outcome: LoadOutcome) -> RegistryShape {
                     continue;
                 }
                 outcome.diagnostics.push(Diagnostic::UnknownRole {
+                    module: arch.module.clone(),
                     archetype: arch.name.clone(),
                     role: token.clone(),
                 });
@@ -1512,6 +1514,7 @@ pub fn flatten_into_registry(mut outcome: LoadOutcome) -> RegistryShape {
         for role in arch.roles() {
             if !roles.contains_key(role) {
                 outcome.diagnostics.push(Diagnostic::UnknownRole {
+                    module: arch.module.clone(),
                     archetype: arch.name.clone(),
                     role: role.clone(),
                 });

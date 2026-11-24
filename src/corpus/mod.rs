@@ -43,9 +43,9 @@ pub use flow_rules::{
 };
 pub use glossary::{glossary_terms, glossary_terms_from_path};
 pub use relation_report::{
-    design_join, relation_report, Criteria, DanglingEntry, KindMismatchEntry, LinkResolution,
-    LinkedEntry, RelationReport, RelationReportError, RelationReportMember, RelationRow,
-    RelationSection, RelationSummary, RowDocument, RowSelector, RowState, StateCounts,
+    design_join, relation_report, Criteria, DanglingEntry, DroppedRelation, KindMismatchEntry,
+    LinkResolution, LinkedEntry, RelationReport, RelationReportError, RelationReportMember,
+    RelationRow, RelationSection, RelationSummary, RowDocument, RowSelector, RowState, StateCounts,
     Verification, VerificationCounts,
 };
 pub use resolve::{harvest_edges, Edge, Resolution};

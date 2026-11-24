@@ -1,0 +1,14 @@
+{
+  "name": "unknown-edge-and-role-name-their-module",
+  "issue_ref": "PLAT-1852",
+  "tags": ["FR-040-AC-15", "diagnostics"],
+  "input": {
+    "module_manifest": "name: plat-1852-security\nversion: 0.1.0\nobject_types:\n- name: asset\n  allowed_links:\n    unregistered-verb: [unregistered-role]\n  roles: [unregistered-role]\nedge_types: {}\nroles: {}\n"
+  },
+  "expect": {
+    "module": "plat-1852-security",
+    "archetype": "asset",
+    "edge_type": "unregistered-verb",
+    "role": "unregistered-role"
+  }
+}
