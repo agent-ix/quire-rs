@@ -103,6 +103,7 @@ fn matrix_of(dir: &TempDir, registry: &Registry) -> Vec<DesignMatrixEntry> {
         }],
     )
     .expect("design matrix")
+    .entries
 }
 
 fn json_of(entries: &[DesignMatrixEntry]) -> Value {
@@ -380,7 +381,7 @@ fn a_requirement_outside_from_where_or_exclude_has_no_design_key() {
         }],
     )
     .expect("matrix");
-    let matrix = json_of(&entries);
+    let matrix = json_of(&entries.entries);
     assert_eq!(matrix.as_array().expect("array").len(), 4);
     assert!(entry(&matrix, "spec/GLY-001.md").get("design").is_some());
     for out in ["spec/GLY-002.md", "spec/PRI-001.md", "skip/GLY-003.md"] {
@@ -530,7 +531,9 @@ fn multi(dirs: &[(&TempDir, &str)], registry: &Registry) -> Vec<DesignMatrixEntr
             matrix: &report.coverage_matrix,
         })
         .collect();
-    design_matrix(&identified(dirs), registry, &members).expect("design matrix")
+    design_matrix(&identified(dirs), registry, &members)
+        .expect("design matrix")
+        .entries
 }
 
 #[trace("FR-092-AC-8")]
@@ -630,7 +633,7 @@ fn a_retired_criterion_keeps_its_place_under_the_design_block() {
         }],
     )
     .expect("matrix");
-    let matrix = json_of(&entries);
+    let matrix = json_of(&entries.entries);
     let found = entry(&matrix, "spec/GLY-001.md");
     assert_eq!(found["criteria"][1]["status"], "retired");
     assert_eq!(
@@ -717,8 +720,12 @@ fn the_matrix_is_byte_identical_across_runs_and_changes_no_document() {
                 matrix: &report.coverage_matrix,
             })
             .collect();
-        serde_json::to_string(&design_matrix(&corpus, &registry, &members).expect("matrix"))
-            .expect("json")
+        serde_json::to_string(
+            &design_matrix(&corpus, &registry, &members)
+                .expect("matrix")
+                .entries,
+        )
+        .expect("json")
     };
     let first = render(&[(&a, "o/a"), (&b, "o/b")]);
     assert_eq!(first, render(&[(&a, "o/a"), (&b, "o/b")]));
@@ -779,7 +786,11 @@ fn each_block_equals_the_join_row_and_a_wrong_kind_target_is_a_mismatch() {
     }];
     let join =
         serde_json::to_value(design_join(&spec, &registry, &members).expect("join")).expect("json");
-    let matrix = json_of(&design_matrix(&spec, &registry, &members).expect("matrix"));
+    let matrix = json_of(
+        &design_matrix(&spec, &registry, &members)
+            .expect("matrix")
+            .entries,
+    );
 
     let mut mismatches = 0;
     let mut blocks = 0;

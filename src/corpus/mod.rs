@@ -34,8 +34,8 @@ pub mod vocabulary_coverage;
 pub mod walk;
 
 pub use design_matrix::{
-    design_matrix, DesignBlock, DesignElement, DesignElementRef, DesignMatrixCriterion,
-    DesignMatrixEntry,
+    design_matrix, DesignBlock, DesignElement, DesignElementRef, DesignMatrix,
+    DesignMatrixCriterion, DesignMatrixEntry,
 };
 pub use flow_rules::{
     FlowDenial, FlowDenialRemediation, FlowDocumentRef, FlowFact, FlowFactEdge,

@@ -8,9 +8,9 @@ use std::path::{Path, PathBuf};
 
 use ix_trace_rs::trace;
 use quire_rs::corpus::{
-    relation_report, validate_bundle, validate_bundle_at, CorpusMember, LinkResolution,
-    LinkedEntry, RelationReport, RelationReportError, RelationReportMember, RowState, Spec,
-    Verification,
+    design_matrix, relation_report, validate_bundle, validate_bundle_at, CorpusMember,
+    LinkResolution, LinkedEntry, RelationReport, RelationReportError, RelationReportMember,
+    RowState, Spec, Verification,
 };
 use quire_rs::coverage::{
     compute, CoverageMatrixCriterion, CoverageMatrixRequirement, CoverageMatrixStatus,
@@ -926,6 +926,7 @@ fn rows_carry_the_member_identity_and_link_across_members() {
 }
 
 #[trace("FR-058-AC-48")]
+#[trace("FR-092-AC-19")]
 #[test]
 fn dropped_record_key_relation_is_reported_with_its_valid_sibling() {
     let case: serde_json::Value =
@@ -977,6 +978,26 @@ fn dropped_record_key_relation_is_reported_with_its_valid_sibling() {
         "{}",
         report.errors[0].reason
     );
+
+    let matrix = design_matrix(
+        &spec,
+        &registry,
+        &[RelationReportMember {
+            root: root.path(),
+            matrix: &[],
+        }],
+    )
+    .expect("valid sibling relation still produces a matrix");
+    assert_eq!(matrix.entries.len(), 1, "{matrix:?}");
+    assert_eq!(matrix.entries[0].document, "spec/FR-001.md");
+    assert_eq!(matrix.errors, report.errors);
+    let matrix_json = serde_json::to_value(&matrix).expect("serializes matrix and errors");
+    assert_eq!(matrix_json["entries"].as_array().expect("entries").len(), 1);
+    assert_eq!(
+        matrix_json["errors"][0]["item"],
+        "connection-carries-classification"
+    );
+
     let json = serde_json::to_value(&report).expect("serializes report errors");
     assert_eq!(json["errors"][0]["module"], "plat-1856");
     assert_eq!(

@@ -500,14 +500,13 @@ fn report_of(
 fn dropped_relations(registry: &Registry) -> Vec<DroppedRelation> {
     registry
         .dropped_declarations()
-        .filter_map(|(failure, declaration)| {
-            (declaration.kind == crate::traceability::DeclarationKind::RequiredRelation).then(
-                || DroppedRelation {
-                    module: failure.module.clone(),
-                    item: declaration.item.clone(),
-                    reason: failure.reason.clone(),
-                },
-            )
+        .filter(|(_, declaration)| {
+            declaration.kind == crate::traceability::DeclarationKind::RequiredRelation
+        })
+        .map(|(failure, declaration)| DroppedRelation {
+            module: failure.module.clone(),
+            item: declaration.item.clone(),
+            reason: failure.reason.clone(),
         })
         .collect()
 }
