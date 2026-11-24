@@ -218,9 +218,13 @@ jobs:
         with:
           tool: cargo-mutants@27.1.0
       - name: cargo mutants
-        run: cargo mutants -p quire-rs --cargo-arg=--locked --output mutants.json
+        run: >-
+          cargo mutants -p quire-rs --file 'src/parser/**'
+          --file 'src/extract/**' --file src/corpus/resolve.rs
+          --cargo-arg=--locked --output mutants.json
       - name: Upload mutants.json
         uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: mutants-report
           path: mutants.json

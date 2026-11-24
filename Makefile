@@ -4,7 +4,9 @@
 
 CARGO ?= cargo
 QUOIN ?= quoin
-MUTANTS_RUN_ID ?= $(shell date -u +%Y%m%dT%H%M%SZ)
+ifndef MUTANTS_RUN_ID
+MUTANTS_RUN_ID := $(shell date -u +%Y%m%dT%H%M%S%N)-$(shell od -An -N8 -tx1 /dev/urandom | tr -d ' \n')
+endif
 MUTANTS_OUTPUT_DIR ?= $(HOME)/.local/state/quire-rs/mutations/$(MUTANTS_RUN_ID)
 
 # Fuzz targets (must mirror .github/workflows/fuzz.yml matrix).

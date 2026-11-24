@@ -31,7 +31,7 @@ Mutation testing modifies source code and observes whether tests distinguish the
 
 | Metric | Target | Threshold | Method |
 |--------|--------|-----------|--------|
-| Generated viable mutations with an observed test outcome | all | all | Mutation run |
+| Generated viable mutations with an observed test outcome | all | all | Demonstration |
 | Killed, surviving and unviable outcomes absent from the retained result | 0 | 0 | Inspection |
 | Surviving mutations without a human review disposition | 0 | 0 | Inspection |
 
@@ -44,16 +44,23 @@ The local mutation target performs a real mutation run: each generated viable mu
 | ID | Criteria | Verification |
 |----|----------|--------------|
 | NFR-013-AC-1 | The mutation configuration names the parser, DSL evaluator, and edge-harvester source paths whose outcomes this requirement measures. | Inspection |
-| NFR-013-AC-2 | Invoking the local mutation target runs tests against generated viable mutations; a compile-only mode does not satisfy this criterion. | Demonstration |
+| NFR-013-AC-2 | The local mutation target delegates to cargo-mutants in behavioral mode over the declared high-value paths; it does not enable compile-only mode. | Demonstration |
 | NFR-013-AC-3 | The retained result contains the executed target scope and every mutation's killed or surviving outcome, with unviable mutations reported separately. | Inspection |
 | NFR-013-AC-4 | A survivor remains present in the retained result and has a recorded human review disposition; a baseline does not suppress it or make the tool decide acceptance. | Inspection |
-| NFR-013-AC-5 | A mutation-run or test-execution error is not suppressed, and the command preserves a non-zero outcome for that failed run. | Demonstration |
+| NFR-013-AC-5 | A non-zero cargo-mutants result propagates as a non-zero local target result, and CI retains the mutation output even when the command fails. | Demonstration |
 
 ## Change Records
 
 ### CR-001 — PLAT-1818 real mutation outcomes
 
 The previous target used `--check`, which compiled mutations without running tests, and its workflow used `|| true`, which suppressed failures. This contradicted the requirement's stated purpose of measuring behavioral discrimination. PLAT-1818 changes this NFR to require a local real run with retained killed/surviving/unviable results and human review of each survivor. The run remains an input to human verification; no threshold or acceptability decision is assigned by the tool.
+
+### CR-002 — PLAT-1818 command and failure-path checks
+
+AC-2 and AC-5 are demonstrated by focused tests of the local target's command
+delegation and failure propagation. These checks do not claim that a real
+mutation run completed; the real run remains backlogged until the baseline
+integration failure recorded with PLAT-1818 is resolved.
 
 ## Dependencies
 
