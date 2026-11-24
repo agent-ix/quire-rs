@@ -11,6 +11,8 @@ safety_impact: unassessed
 
 The 2026-11-23 regulated standards review identifies FND-009: Quire-rs had no
 retained behavioral-mutation kill/survivor result for the decision kernels. The
+repository CI workflow at `.github/workflows/ci.yml` is configured only for
+`workflow_dispatch`; it does not run on push, pull request, or a schedule. The
 mutation run is backlogged. No behavioral mutation run has been performed for
 this record, and no kill or survivor result is claimed.
 
