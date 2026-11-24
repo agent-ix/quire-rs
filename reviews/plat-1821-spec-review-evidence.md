@@ -24,3 +24,11 @@ Inspected `spec/assurance/AP-201-detection-minting.md`. It does not apply: its d
 | ID | Severity | Summary | Refs | Escape Cause |
 | --- | --- | --- | --- | --- |
 | FND-001 | medium | FR-097-AC-4 through AC-6 are marked Test, but the computed matrix contains no FR-097 rows or binders and this change adds no tests. The anomaly file’s successful structural validation does not establish the status-field assertions or Quoin consumption behavior those criteria require. | spec/functional/FR-097-anomaly-records-for-release-reporting.md:32 | correct-requirement-no-evidence |
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | FR-097 and its Test-classified AC-4 through AC-6 are absent from the current branch diff; this PR no longer makes unbound test-verification claims. |
+
+**Disposition round 1: PASS** — the unsupported Test bindings are no longer claimed.

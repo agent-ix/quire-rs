@@ -25,3 +25,12 @@ Inspected `spec/assurance/AP-201-detection-minting.md`. It does not apply: its d
 | --- | --- | --- | --- | --- |
 | FND-001 | medium | FR-097 requires one distinct artifact for every applicable open finding, but AN-001 covers only FND-009. Lane-D separately lists dispatch-only CI as an open finding and separately includes it in the plan to seed anomaly records, leaving FR-097-AC-1 false for the submitted corpus. | spec/functional/FR-097-anomaly-records-for-release-reporting.md:26 | correct-requirement-no-evidence |
 | FND-002 | low | FR-097 acceptance-criterion identifiers skip AC-3, leaving a gap that makes references to this requirement less stable and suggests an omitted criterion. | spec/functional/FR-097-anomaly-records-for-release-reporting.md:62-69 | wrong-requirement |
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | AN-002 now supplies the distinct anomaly record for dispatch-only CI. |
+| FND-002 | fixed | FR-097, including the acceptance-criterion sequence with the AC-3 gap, is absent from the current branch diff. |
+
+**Disposition round 1: PASS** — both the record set and the changed requirement structure are resolved by the current tree.

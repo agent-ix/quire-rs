@@ -24,3 +24,11 @@ Inspected `spec/assurance/AP-201-detection-minting.md`. It does not apply: its d
 | ID | Severity | Summary | Refs | Escape Cause |
 | --- | --- | --- | --- | --- |
 | FND-001 | medium | US-020-EX-2 depends on a Fixed Anomalies section, while Quoin FR-162 defines its report as anomalies a release still carries and explicitly omits closed fixed anomalies. FR-097 points to FR-162 through FR-164 as the source of release-note behavior, so the fixed-list promise needs an actual supporting Quoin requirement or should be removed. | spec/usecase/US-020-adopter-reviews-release-anomalies.md:32 | wrong-requirement |
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | FR-097 and US-020 are absent from the current branch diff, so no unsupported Fixed Anomalies output dependency remains in this PR. |
+
+**Disposition round 1: PASS** — the unsupported dependency promise has been removed.

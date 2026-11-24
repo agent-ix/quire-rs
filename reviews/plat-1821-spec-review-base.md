@@ -24,3 +24,11 @@ Inspected `spec/assurance/AP-201-detection-minting.md`. It does not apply: its d
 | ID | Severity | Summary | Refs | Escape Cause |
 | --- | --- | --- | --- | --- |
 | FND-001 | medium | The 2026-11-23 review lists dispatch-only CI separately from FND-009 and its closure plan explicitly includes both FND-009 and dispatch-only CI, but the change adds only AN-001 for FND-009. FR-097-AC-1 therefore lacks a distinct source record for that separately listed finding. | spec/functional/FR-097-anomaly-records-for-release-reporting.md:26 | missing-requirement |
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | AN-002 now records the separately listed dispatch-only CI finding, distinct from AN-001 for FND-009. |
+
+**Disposition round 1: PASS** — the missing record is now present.
