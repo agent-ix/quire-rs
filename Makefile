@@ -3,6 +3,8 @@
 # =============================================================================
 
 CARGO ?= cargo
+MUTANTS_RUN_ID ?= $(shell date -u +%Y%m%dT%H%M%SZ)
+MUTANTS_OUTPUT_DIR ?= $(HOME)/.local/state/quire-rs/mutations/$(MUTANTS_RUN_ID)
 
 # Fuzz targets (must mirror .github/workflows/fuzz.yml matrix).
 FUZZ_TARGETS := \
@@ -32,7 +34,8 @@ help:
 	@echo ""
 	@echo "Hardening (scheduled / pre-tag):"
 	@echo "  make cargo-audit      - cargo audit (RUSTSEC advisories)"
-	@echo "  make mutants          - cargo mutants -p quire-rs --in-place --check"
+	@echo "  make mutants          - Run behavioral mutants and retain results under MUTANTS_OUTPUT_DIR"
+	@echo "  make real-tool-test   - Report whether this repository has applicable real-tool tests"
 	@echo "  make fuzz             - 60s smoke run of each cargo-fuzz target"
 	@echo "  make audit-static     - Run all scripts/audits/*.sh (globbed, #353)"
 	@echo "  make hardening        - Full pre-tag set: audit-static + cargo-audit + mutants + fuzz + loom"
@@ -212,7 +215,18 @@ audit-static:
 
 .PHONY: mutants
 mutants:
-	$(CARGO) mutants -p quire-rs --in-place --check
+	@echo "Mutation results: $(MUTANTS_OUTPUT_DIR)"
+	@mutation_jobs="$${CARGO_BUILD_JOBS:-2}"; \
+	  echo "Mutation worker jobs: $$mutation_jobs"; \
+	  CARGO_BUILD_JOBS=1 RUST_TEST_THREADS=1 $(CARGO) mutants -p quire-rs --jobs="$$mutation_jobs" --file 'src/parser/**' --file 'src/extract/**' --file src/corpus/resolve.rs --cargo-arg=--locked --output "$(MUTANTS_OUTPUT_DIR)"
+
+# There are no ignored tests for the local git/SSH/gitsign, Syft, OSV-Scanner,
+# or Z3/cvc5 real-tool lane in this repository. Emit an explicit result for the
+# Quoin run-record aggregator and return 77 so an empty lane cannot pass.
+.PHONY: real-tool-test
+real-tool-test:
+	@printf '%s\n' '{"entries":[{"label":"real-tool-tests","outcome":"error","config":{"execution_state":"not-executed","reason":"no-applicable-ignored-real-tool-tests"}}]}'
+	@exit 77
 
 # agent-ix/quoin#48 pilot: mutation-score one requirement instead of the whole
 # crate. The file set is *computed*, not guessed — `mutants_scope` resolves
@@ -239,7 +253,7 @@ mutants-fr:
 	fi; \
 	echo "$(FR) mutation scope:"; echo "$$files" | sed 's/^/  /'; \
 	args=""; for f in $$files; do args="$$args --file $$f"; done; \
-	$(CARGO) mutants -p quire-rs $$args $(MUTANTS_ARGS)
+	$(CARGO) mutants -p quire-rs $$args --cargo-arg=--locked --output "$(MUTANTS_OUTPUT_DIR)/$(FR)" $(MUTANTS_ARGS)
 
 .PHONY: mutants-scope
 mutants-scope:

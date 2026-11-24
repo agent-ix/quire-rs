@@ -218,7 +218,7 @@ jobs:
         with:
           tool: cargo-mutants@27.1.0
       - name: cargo mutants
-        run: cargo mutants -p quire-rs --in-place --check --cargo-arg=--locked --json > mutants.json || true
+        run: cargo mutants -p quire-rs --cargo-arg=--locked --output mutants.json
       - name: Upload mutants.json
         uses: actions/upload-artifact@v4
         with:
