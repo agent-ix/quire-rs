@@ -92,3 +92,4 @@ description: "Index of artifacts in this directory."
 * [FR-093: Tag attestation preserves the manual wheel release](./FR-093-tag-attestation-preserves-manual-wheel-release.md)
 * [FR-095: Carry Quire-rs release test evidence with the tag attestation](./FR-095-tag-release-evidence.md)
 * [FR-096: Flow rules and remediations, declared as module data](./FR-096-flow-rules.md)
+* [FR-097: Private vulnerability reporting policy](./FR-097-security-reporting-policy.md)
