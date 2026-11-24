@@ -26,4 +26,3 @@ description: "Index of artifacts in this directory."
 * [US-017: Agent Verifies Requirement Coverage Deterministically](./US-017-agent-verifies-coverage.md)
 * [US-018: Consume a source-grounded assurance export](./US-018-consume-assurance-export.md)
 * [US-019: Extract semantic declarations from an object artifact](./US-019-extract-semantic-declarations.md)
-* [US-020: Adopter reviews fixed and known anomalies for a release](./US-020-adopter-reviews-release-anomalies.md)
