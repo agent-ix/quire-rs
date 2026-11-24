@@ -2,6 +2,9 @@
 id: FR-097
 title: "Private vulnerability reporting policy"
 type: FR
+relationships:
+  - target: "ix://agent-ix/quire-rs/spec/usecase/US-020"
+    type: "references"
 ---
 # FR-097: Private vulnerability reporting policy
 
@@ -14,7 +17,8 @@ Quire-rs to GitHub's private vulnerability reporting flow for
 `agent-ix/quire-rs`. It SHALL tell reporters not to disclose vulnerabilities
 through public issues, discussions, or pull requests. It SHALL NOT promise a
 response or remediation time, supported version range, safe harbor, severity
-classification, or disclosure schedule.
+classification, or disclosure schedule. This requirement answers
+[US-020](../usecase/US-020-report-security-vulnerability.md).
 
 ## Acceptance Criteria
 
