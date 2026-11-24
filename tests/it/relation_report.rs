@@ -8,8 +8,9 @@ use std::path::{Path, PathBuf};
 
 use ix_trace_rs::trace;
 use quire_rs::corpus::{
-    relation_report, validate_bundle, CorpusMember, LinkResolution, LinkedEntry, RelationReport,
-    RelationReportError, RelationReportMember, RowState, Spec, Verification,
+    design_matrix, relation_report, validate_bundle, validate_bundle_at, CorpusMember,
+    LinkResolution, LinkedEntry, RelationReport, RelationReportError, RelationReportMember,
+    RowState, Spec, Verification,
 };
 use quire_rs::coverage::{
     compute, CoverageMatrixCriterion, CoverageMatrixRequirement, CoverageMatrixStatus,
@@ -922,4 +923,109 @@ fn rows_carry_the_member_identity_and_link_across_members() {
     };
     assert_eq!(document.repo.as_deref(), Some("o/a"));
     assert_eq!(document.path, "spec/RULE-001.md");
+}
+
+#[trace("FR-058-AC-48")]
+#[trace("FR-092-AC-19")]
+#[test]
+fn dropped_record_key_relation_is_reported_with_its_valid_sibling() {
+    let case: serde_json::Value =
+        serde_json::from_str(include_str!("../fixtures/corpus_cases/plat-1856.json"))
+            .expect("PLAT-1856 fixture parses");
+    assert_eq!(case["issue_ref"], "PLAT-1856");
+
+    let manifest = case["input"]["module_manifest"]
+        .as_str()
+        .expect("fixture module manifest");
+    let registry =
+        Registry::from_inline_parts(manifest.as_bytes(), &std::collections::BTreeMap::new())
+            .expect("module loads with one dropped relation");
+    assert_eq!(registry.failures().len(), 1, "{:?}", registry.failures());
+
+    let root = TempDir::new().expect("corpus directory");
+    for (path, text) in case["input"]["documents"]
+        .as_object()
+        .expect("fixture documents")
+    {
+        write(
+            root.path(),
+            &format!("spec/{path}"),
+            text.as_str().expect("document"),
+        );
+    }
+    let spec_root = root.path().join("spec");
+    let spec = Spec::from_path(&spec_root);
+    let report = relation_report(
+        &spec,
+        &registry,
+        &[RelationReportMember {
+            root: root.path(),
+            matrix: &[],
+        }],
+        &[],
+    )
+    .expect("valid sibling relation still reports");
+
+    assert_eq!(report.relations.len(), 1, "{report:?}");
+    assert_eq!(report.relations[0].name, "requirement-has-design");
+    assert_eq!(report.relations[0].rows.len(), 1, "{report:?}");
+    assert_eq!(report.relations[0].rows[0].state, RowState::Uncovered);
+    assert_eq!(report.errors.len(), 1, "{report:?}");
+    assert_eq!(report.errors[0].module, "plat-1856");
+    assert_eq!(report.errors[0].item, "connection-carries-classification");
+    assert!(
+        report.errors[0].reason.contains("regulatedCategories"),
+        "{}",
+        report.errors[0].reason
+    );
+
+    let matrix = design_matrix(
+        &spec,
+        &registry,
+        &[RelationReportMember {
+            root: root.path(),
+            matrix: &[],
+        }],
+    )
+    .expect("valid sibling relation still produces a matrix");
+    assert_eq!(matrix.entries.len(), 1, "{matrix:?}");
+    assert_eq!(matrix.entries[0].document, "spec/FR-001.md");
+    assert_eq!(matrix.errors, report.errors);
+    let matrix_json = serde_json::to_value(&matrix).expect("serializes matrix and errors");
+    assert_eq!(matrix_json["entries"].as_array().expect("entries").len(), 1);
+    assert_eq!(
+        matrix_json["errors"][0]["item"],
+        "connection-carries-classification"
+    );
+
+    let json = serde_json::to_value(&report).expect("serializes report errors");
+    assert_eq!(json["errors"][0]["module"], "plat-1856");
+    assert_eq!(
+        json["errors"][0]["item"],
+        "connection-carries-classification"
+    );
+    assert!(json["errors"][0]["reason"]
+        .as_str()
+        .unwrap()
+        .contains("regulatedCategories"));
+
+    let validation = validate_bundle_at(&spec_root, &registry, BundlePosture::Okf);
+    let dropped = validation
+        .errors
+        .iter()
+        .find(|finding| finding.reason == "declared-model-dropped")
+        .expect("validate surfaces dropped relation as an error");
+    assert!(dropped.message.contains("plat-1856"), "{}", dropped.message);
+    assert!(
+        dropped
+            .message
+            .contains("connection-carries-classification"),
+        "{}",
+        dropped.message
+    );
+    assert!(
+        dropped.message.contains("regulatedCategories"),
+        "{}",
+        dropped.message
+    );
 }

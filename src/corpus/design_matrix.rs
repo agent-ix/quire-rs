@@ -18,8 +18,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use serde::Serialize;
 
 use super::relation_report::{
-    design_join, DanglingEntry, KindMismatchEntry, LinkedEntry, RelationReportError,
-    RelationReportMember, RelationRow, RowState,
+    design_join, DanglingEntry, DroppedRelation, KindMismatchEntry, LinkedEntry,
+    RelationReportError, RelationReportMember, RelationRow, RowState,
 };
 use super::spec::Spec;
 use crate::coverage::{CoverageMatrixCriterion, CoverageMatrixRequirement};
@@ -143,6 +143,18 @@ pub struct DesignMatrixEntry {
     pub design: Option<Vec<DesignBlock>>,
 }
 
+/// The design matrix entries and load-time errors for dropped relations.
+///
+/// Valid relations still contribute entries when a sibling required relation
+/// was dropped while loading its declaring module.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct DesignMatrix {
+    /// Matrix entries, ordered by `repo` (absent first), then `document`.
+    pub entries: Vec<DesignMatrixEntry>,
+    /// Required relations dropped while loading their declaring modules.
+    pub errors: Vec<DroppedRelation>,
+}
+
 /// Implements: FR-092
 /// Produce the `coverage_matrix` with a `design` column, for `corpus`.
 ///
@@ -152,14 +164,16 @@ pub struct DesignMatrixEntry {
 /// row's path, and a document a relation obliges that the matrix has no entry
 /// for gets an entry with `criteria: []`. Entries are ordered by `repo`
 /// (absent first), then `document`. An entry no design relation obliges has no
-/// `design` key. A `design_relations` entry naming no declared relation is an
-/// error and no matrix.
+/// `design` key. Load-time errors for dropped required relations are returned
+/// alongside valid entries. A `design_relations` entry naming no declared
+/// relation is an error and no matrix.
 pub fn design_matrix(
     corpus: &Spec,
     registry: &Registry,
     members: &[RelationReportMember<'_>],
-) -> Result<Vec<DesignMatrixEntry>, RelationReportError> {
+) -> Result<DesignMatrix, RelationReportError> {
     let join = design_join(corpus, registry, members)?;
+    let errors = join.errors;
 
     // The obliged document's id and blocks per (repo, document path), the
     // blocks in section (design_relations) order.
@@ -213,7 +227,7 @@ pub fn design_matrix(
         });
     }
     entries.sort_by(|a, b| (&a.repo, &a.document).cmp(&(&b.repo, &b.document)));
-    Ok(entries)
+    Ok(DesignMatrix { entries, errors })
 }
 
 fn entry_of(

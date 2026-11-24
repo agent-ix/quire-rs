@@ -348,9 +348,24 @@ pub struct RelationSection {
 pub struct RelationReport {
     /// One section per reported relation, in declaration order.
     pub relations: Vec<RelationSection>,
+    /// Load-time errors for required relations that could not be executed.
+    /// Their valid siblings still appear in `relations`.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub errors: Vec<DroppedRelation>,
     /// Generic flow report, present only when a loaded module declares rules.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub flow: Option<super::FlowReport>,
+}
+
+/// A required relation dropped while loading its declaring module.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct DroppedRelation {
+    /// The module that declared the relation.
+    pub module: String,
+    /// The relation declaration's name.
+    pub item: String,
+    /// Why the relation could not be executed.
+    pub reason: String,
 }
 
 /// Implements: FR-084
@@ -366,13 +381,13 @@ pub fn relation_report(
     names: &[String],
 ) -> Result<RelationReport, RelationReportError> {
     check_members(corpus, members)?;
-    registry.require_complete_model()?;
+    ensure_non_relation_declarations_complete(registry)?;
+    let errors = dropped_relations(registry);
     let model = registry.traceability();
     let declared = model.map_or(&[][..], |m| m.required_relations.as_slice());
-    if let Some(name) = names
-        .iter()
-        .find(|n| !declared.iter().any(|r| &r.name == *n))
-    {
+    if let Some(name) = names.iter().find(|n| {
+        !declared.iter().any(|r| &r.name == *n) && !errors.iter().any(|error| &error.item == *n)
+    }) {
         return Err(RelationReportError::UnknownRelation { name: name.clone() });
     }
     let relations: Vec<&RequiredRelation> = declared
@@ -385,6 +400,7 @@ pub fn relation_report(
         members,
         &relations,
         Linking::Plain,
+        errors,
     ))
 }
 
@@ -402,10 +418,12 @@ pub fn design_join(
     members: &[RelationReportMember<'_>],
 ) -> Result<RelationReport, RelationReportError> {
     check_members(corpus, members)?;
-    registry.require_complete_model()?;
+    ensure_non_relation_declarations_complete(registry)?;
+    let errors = dropped_relations(registry);
     let Some(model) = registry.traceability() else {
         return Ok(RelationReport {
             relations: vec![],
+            errors,
             flow: None,
         });
     };
@@ -426,6 +444,7 @@ pub fn design_join(
         members,
         &relations,
         Linking::Join,
+        errors,
     ))
 }
 
@@ -448,6 +467,7 @@ fn report_of(
     members: &[RelationReportMember<'_>],
     relations: &[&RequiredRelation],
     linking: Linking,
+    errors: Vec<DroppedRelation>,
 ) -> RelationReport {
     let model_exclude = ExcludeSet::compile_validated(
         registry
@@ -472,8 +492,34 @@ fn report_of(
             .iter()
             .map(|relation| ctx.section(relation, &model_exclude, &mut records))
             .collect(),
+        errors,
         flow: super::flow_rules::flow_report(corpus, registry, &context.flow_edges, &roots),
     }
+}
+
+fn dropped_relations(registry: &Registry) -> Vec<DroppedRelation> {
+    registry
+        .dropped_declarations()
+        .filter(|(_, declaration)| {
+            declaration.kind == crate::traceability::DeclarationKind::RequiredRelation
+        })
+        .map(|(failure, declaration)| DroppedRelation {
+            module: failure.module.clone(),
+            item: declaration.item.clone(),
+            reason: failure.reason.clone(),
+        })
+        .collect()
+}
+
+fn ensure_non_relation_declarations_complete(
+    registry: &Registry,
+) -> Result<(), RelationReportError> {
+    if registry.dropped_declarations().any(|(_, declaration)| {
+        declaration.kind != crate::traceability::DeclarationKind::RequiredRelation
+    }) {
+        registry.require_complete_model()?;
+    }
+    Ok(())
 }
 
 /// Criteria counts per document path, from one member's matrix.

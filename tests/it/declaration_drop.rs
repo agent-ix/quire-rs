@@ -953,8 +953,7 @@ fn an_unknown_key_fails_the_load_even_after_a_shape_error_in_the_section() {
                     required_relations: 5\n  a_future_key: 1\n";
     let (_dir, root) = write_one("skew", manifest);
     let error = Registry::load_module(&root)
-        .err()
-        .expect("an unknown key is a manifest from a newer engine")
+        .expect_err("an unknown key is a manifest from a newer engine")
         .to_string();
     for named in ["a_future_key", "skew", "4.5.6"] {
         assert!(error.contains(named), "{error}");

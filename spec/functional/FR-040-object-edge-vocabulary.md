@@ -110,6 +110,10 @@ these diagnostics to errors. This keeps the vocabulary controlled (every
 violation is surfaced) without the engine inventing a stricter default-load
 policy than any other manifest section uses.
 
+Each `UnknownEdgeType` and `UnknownRole` diagnostic identifies the module and
+archetype that authored the unregistered use, so a module missing an import
+can be located directly.
+
 ### allowed_links normalization
 
 `allowed_links` SHALL deserialize from either shape:
@@ -160,6 +164,10 @@ matching; the unresolved object contributes neither an object type nor roles.
 Dangling edges remain covered by FR-026. These changes supersede the earlier
 Tier-2 wording in this requirement; the authored relationship vocabulary and
 the corpus graph are unchanged.
+
+> **CR-003 note (PLAT-1852):** Unknown edge and role diagnostics now name the
+> module as well as the archetype. This makes the missing module declaration
+> actionable without changing the open-vocabulary behavior.
 
 ### Resolution and target matching
 
@@ -261,6 +269,7 @@ vocabulary; with no object, it lists the artifact vocabulary alone.
 | FR-040-AC-12 | A target list is matched against the target document's registered archetype name as well as its registered object type and roles: an `adr` source whose `realizes` list is `[FR, NFR]` passes to registered `FR`/`NFR` documents and is flagged to a registered `adr` document, none of them declaring `object:`. | Test |
 | FR-040-AC-13 | Under `Strict` a Tier-2 `disallowed-edge-target` is an error (bundle invalid); under `Okf` it is a warning. The finding's path is the source document's file path and its message names the source and target file paths, not only their ids. | Test |
 | FR-040-AC-14 | `edges:disallowed-edge-target` set to `error`, `warning` or `off` in `grammar_severity` overrides the posture-routed tier in both postures. | Test |
+| FR-040-AC-15 | Each `UnknownEdgeType` and `UnknownRole` diagnostic names the module and archetype that authored the use, in both human and JSON forms. The diagnostics remain advisory under default load and do not change relation matching. | Test |
 
 ## Dependencies
 

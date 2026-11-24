@@ -140,6 +140,7 @@ pub enum Diagnostic {
     /// merged `edge_types` registry (FR-040-AC-3). Advisory; the
     /// vocabulary is open until declared. `load_strict` escalates.
     UnknownEdgeType {
+        module: String,
         archetype: String,
         edge_type: String,
     },
@@ -147,6 +148,7 @@ pub enum Diagnostic {
     /// references a role absent from the merged `roles` registry
     /// (FR-040-AC-3). Advisory. `load_strict` escalates.
     UnknownRole {
+        module: String,
         archetype: String,
         role: String,
     },
@@ -325,15 +327,16 @@ impl std::fmt::Display for Diagnostic {
                 name, forwards
             ),
             Self::UnknownEdgeType {
+                module,
                 archetype,
                 edge_type,
             } => write!(
                 f,
-                "UnknownEdgeType: archetype '{archetype}' allowed_links uses '{edge_type}' which is not in any edge_types registry"
+                "UnknownEdgeType: module '{module}' archetype '{archetype}' allowed_links uses '{edge_type}' which is not in any edge_types registry"
             ),
-            Self::UnknownRole { archetype, role } => write!(
+            Self::UnknownRole { module, archetype, role } => write!(
                 f,
-                "UnknownRole: archetype '{archetype}' references role '{role}' which is not in any roles registry"
+                "UnknownRole: module '{module}' archetype '{archetype}' references role '{role}' which is not in any roles registry"
             ),
             Self::DocumentWithoutFrontmatter { path, malformed } => {
                 if *malformed {
@@ -493,15 +496,22 @@ impl Diagnostic {
                 "forwards": forwards,
             }),
             Self::UnknownEdgeType {
+                module,
                 archetype,
                 edge_type,
             } => json!({
                 "kind": "UnknownEdgeType",
+                "module": module,
                 "archetype": archetype,
                 "edge_type": edge_type,
             }),
-            Self::UnknownRole { archetype, role } => json!({
+            Self::UnknownRole {
+                module,
+                archetype,
+                role,
+            } => json!({
                 "kind": "UnknownRole",
+                "module": module,
                 "archetype": archetype,
                 "role": role,
             }),

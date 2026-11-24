@@ -36,6 +36,9 @@ each relation's `from`, `where` and `exclude` ([FR-058](./FR-058-upward-trace-co
 `design_matrix` is a separate operation with a payload of its own. Its output is not a coverage-v1
 `coverage_matrix` and does not conform to that schema, because it adds keys the schema refuses. Like the
 FR-084 and FR-086 reports, the `design_matrix` payload has no schema under FR-055; this FR is its contract.
+The public result has `entries`, the matrix entries described below, and `errors`, the dropped required
+relations reported by the FR-086 join. A dropped relation does not discard entries produced by valid
+sibling relations. `errors` is an empty array when no required relations were dropped.
 The `coverage` computation and its `coverage_matrix` are unchanged: a module with a faulty
 `design_relations` never makes `coverage` fail.
 
@@ -103,7 +106,8 @@ status.
 ### Errors
 
 When a `design_relations` entry names no declared relation, `design_matrix` SHALL fail with the FR-086
-error naming the entry and SHALL return no matrix.
+error naming the entry and SHALL return no result. For a relation dropped while loading its declaring
+module, `design_matrix` SHALL return the error alongside entries produced by its valid relations.
 
 ## Acceptance Criteria
 
@@ -113,7 +117,7 @@ error naming the entry and SHALL return no matrix.
 | FR-092-AC-2 | An `elements` entry carries `id`, `kind` equal to the element's archetype, `path`, `verb` and `realized_criteria`, and `repo` only when the member has an identity; an element with no `type` carries no `kind` key. | Test |
 | FR-092-AC-3 | A requirement that a design relation obliges and that has no acceptance criteria yields an entry with `"criteria": []` and an `uncovered` block, positioned by `document` among the other entries. | Test |
 | FR-092-AC-4 | A requirement outside the relation's `from`, outside its `where` selector or excluded by `exclude` has no `design` key, while a selected requirement beside it in the same document set has one; both entries are present. | Test |
-| FR-092-AC-5 | With no `design_relations` declared, over a single member with no identity, `design_matrix` output is byte-identical to `coverage_matrix`. | Test |
+| FR-092-AC-5 | With no `design_relations` declared, over a single member with no identity, `design_matrix.entries` is byte-identical to `coverage_matrix` and `errors` is empty. | Test |
 | FR-092-AC-6 | Two design relations obliging one document yield two blocks in `design_relations` order, each with its own `relation`, `check` and `state`. | Test |
 | FR-092-AC-7 | For each block, `state`, `dangling` and `kind_mismatch` equal the FR-086 row for the same document, relation and inputs, and `elements` equal the row's resolved `linked` entries projected to `id`, `kind`, `path`, `repo`, `verb`, `realized_criteria`; a dangling edge of a relation with a non-empty `to` is listed in `dangling` and leaves the block `uncovered`. | Test |
 | FR-092-AC-8 | In a two-member corpus, a design element in member `o/b` realizing a requirement in `o/a` appears in the requirement's `elements` with `repo` `o/b`. | Test |
@@ -127,6 +131,7 @@ error naming the entry and SHALL return no matrix.
 | FR-092-AC-16 | The `coverage` report is byte-identical whether or not `design_relations` is declared. | Test |
 | FR-092-AC-17 | Under a relation with `to: []`, a requirement whose only edge is to an absent target has a `covered` block with `elements: []` and the reference in `dangling`; no element without `id` and `path` appears. | Test |
 | FR-092-AC-18 | A corpus whose `obligations:` source yields no criterion but whose design relation obliges a document still yields the entry array. | Test |
+| FR-092-AC-19 | When one required relation is dropped and a valid sibling relation remains, `design_matrix` returns the valid sibling's entries and reports the dropped relation in `errors`. | Test |
 
 ## Constraints
 
