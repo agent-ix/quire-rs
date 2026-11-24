@@ -3,6 +3,7 @@
 # =============================================================================
 
 CARGO ?= cargo
+QUOIN ?= quoin
 MUTANTS_RUN_ID ?= $(shell date -u +%Y%m%dT%H%M%SZ)
 MUTANTS_OUTPUT_DIR ?= $(HOME)/.local/state/quire-rs/mutations/$(MUTANTS_RUN_ID)
 
@@ -220,13 +221,20 @@ mutants:
 	  echo "Mutation worker jobs: $$mutation_jobs"; \
 	  CARGO_BUILD_JOBS=1 RUST_TEST_THREADS=1 $(CARGO) mutants -p quire-rs --jobs="$$mutation_jobs" --file 'src/parser/**' --file 'src/extract/**' --file src/corpus/resolve.rs --cargo-arg=--locked --output "$(MUTANTS_OUTPUT_DIR)"
 
-# There are no ignored tests for the local git/SSH/gitsign, Syft, OSV-Scanner,
-# or Z3/cvc5 real-tool lane in this repository. Emit an explicit result for the
-# Quoin run-record aggregator and return 77 so an empty lane cannot pass.
+# There are no applicable ignored tests for the local git/SSH/gitsign,
+# Syft, OSV-Scanner, or Z3/cvc5 real-tool lane in this repository. Retain that
+# non-execution as a Quoin run entry, then return 77 so an empty lane cannot
+# pass.
 .PHONY: real-tool-test
 real-tool-test:
-	@printf '%s\n' '{"entries":[{"label":"real-tool-tests","outcome":"error","config":{"execution_state":"not-executed","reason":"no-applicable-ignored-real-tool-tests"}}]}'
-	@exit 77
+	@set -eu; \
+	  results=$$(mktemp); \
+	  trap 'rm -f "$$results"' EXIT; \
+	  printf '%s\n' '{"entries":[{"symbol":"real-tool-tests","outcome":"error","config":{"execution_state":"not-executed","reason":"no-applicable-ignored-real-tool-tests"}}]}' > "$$results"; \
+	  $(QUOIN) evidence record --suite SUITE-004 --tool 'make $(MAKE_VERSION)' \
+	    --adapter entries --results "$$results" --kind Integration --repo .; \
+	  echo "real-tool-test: recorded not-executed result; no applicable tests"; \
+	  exit 77
 
 # agent-ix/quoin#48 pilot: mutation-score one requirement instead of the whole
 # crate. The file set is *computed*, not guessed — `mutants_scope` resolves
