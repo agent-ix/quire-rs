@@ -41,6 +41,8 @@ mod inverse_edges;
 mod legacy_implements_warning;
 mod located_findings;
 mod markdown_validation;
+#[cfg(unix)]
+mod mutation_target;
 mod no_hidden_recompile;
 mod obligation_criticality;
 mod obligations;

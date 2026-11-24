@@ -24,3 +24,4 @@ committed.
 | ID | Name | Command | Tool | Evidence Kind |
 |----|------|---------|------|---------------|
 | SUITE-001 | Rust unit and integration tests | `make evidence` | cargo-nextest | Unit |
+| SUITE-004 | Local real-tool tests | `make real-tool-test` | make | Integration |
