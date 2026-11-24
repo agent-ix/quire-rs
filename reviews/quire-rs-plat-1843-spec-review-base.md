@@ -33,3 +33,4 @@ Reviewed FR-097 and the matching SECURITY.md in PR #721. The policy names the en
 | --- | --- | --- |
 | FND-001 | fixed | - |
 | FND-002 | still-open | The newly added US-020 has no acceptance examples. |
+| FND-002 | fixed | - |
