@@ -125,7 +125,27 @@ Feature flags:
 | `python`       |   ❌    | PyO3 bindings → the `quire` Python wheel.                         |
 | `wasm`         |   ❌    | `wasm32` build; disables `resolve-file`, schemas passed in-memory.|
 
+**Build from source**:
+
+The Cargo workspace uses the `corpus` submodule. Include it when cloning to build the
+repository, the Python feature, or the wheel:
+
+```bash
+git clone --recurse-submodules --shallow-submodules https://github.com/agent-ix/quire-rs.git
+cd quire-rs
+```
+
+For an existing checkout, run `git submodule update --init --recursive --depth 1` first.
+
 **Python wheel** (`quire`):
+
+Build it from the repository root with:
+
+```bash
+maturin build --release
+```
+
+Install the published wheel from the internal `pypi.ix` index:
 
 ```bash
 pip install quire   # from the internal pypi.ix index
