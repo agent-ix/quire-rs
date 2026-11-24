@@ -207,6 +207,12 @@ is minted for this purpose and every such edge stays dangling.
 > criteria, and the only way to address a criterion is its own id, which resolution cannot find.
 > The minting set is defined by the `obligations:` source's `target:` field because trace targets carry no kind and the engine may not name one. `#fragment` addressing was rejected because it would change FR-026 resolution for every
 > fragment-bearing reference in the ecosystem.
+>
+> **CR-418 note (PLAT-1856):** A missing endpoint kind can make a `record_keys`
+> declaration unexecutable. That failure drops only the affected relation and
+> is surfaced with its module, relation, missing key and reason. Relation
+> consumers report the drop before an empty-model condition, while unrelated
+> declarations remain available for their own checks.
 
 ### Narrowing the obligation by an edge
 
@@ -349,6 +355,15 @@ severity entry applies; it is an error under both `Okf` and `Strict`; and a mani
 entry naming it is refused. The engine raises it from the registry's recorded failures, so every
 caller that validates a bundle exits non-zero without reading the registry itself.
 
+`quire validate` SHALL surface each load-time dropped relation as an error,
+even when using structural document validation rather than `--okf`. A relation
+report SHALL include an error for each dropped declaration and still compute
+findings from every valid declaration that remains in the merged model. It
+SHALL NOT replace the entire model with an empty one or suppress valid
+relations' findings because another relation was dropped. When no relation
+remains, the report SHALL name the dropped declaration and reason rather than
+claiming that no module declared relations.
+
 **Consumers of the model.** `quire coverage` and every other consumer that computes over the merged
 model SHALL NOT compute silently over a model with dropped declarations: when any declaration was
 dropped, `quire coverage` exits with the distinct non-zero exit of FR-050 and names each dropped
@@ -413,6 +428,7 @@ case that needs no help.
 | FR-058-AC-27 | Given a trace target named by an `obligations:` source that mints `X-AC-1` from document `X`, an edge whose target is `X-AC-1` satisfies a relation on `X` as an edge to `X`, keeps `X-AC-1` attached, is not listed as `dangling`, and leaves FR-026's classification of the edge `Dangling`. | Test |
 | FR-058-AC-28 | A document whose id equals a minted criterion id takes precedence; a criterion id minted by two documents of one member stays dangling and is named as authored; an id minted by a trace target no `obligations:` source names (a test-case target, say) is never read as an edge to its document; with no `obligations:` source every such edge stays dangling. | Test |
 | FR-058-AC-29 | In a two-member corpus, `ix://o/b/X-AC-1` is read against the criteria member `o/b` minted and is dangling when `o/b` holds no such criterion, even if member `o/a` mints it; the engine reads no id prefix (a fixture with neutral id spellings behaves identically). | Test |
+| FR-058-AC-48 | With architecture, ISO and process modules loaded without security, each relation whose `record_keys` names a key absent from all loaded endpoint schemas is dropped alone and reported as an error naming its module, relation and missing key. Other relations remain in the merged model and report their own findings, including undeclared-kind findings; `quire validate` and `quire relations` surface the dropped declaration and still report valid relations, instead of returning success or claiming that no required relations are declared. | Test |
 
 | FR-058-AC-30 | A relation with `when_any` reports an in-scope `from` document that has no accepted edge and does not report one that has it. A `from` document is in scope when any one condition holds, so a document holding the first condition only, one holding the second only, and one holding both are each reported when unsatisfied. | Test |
 | FR-058-AC-31 | A `from` document with no condition holding is never reported, with or without the satisfying edge. An outgoing condition is not held by an incoming edge of the same verb, and the reverse; an edge to a dangling target, or to a document outside `other`, holds no condition. | Test |
