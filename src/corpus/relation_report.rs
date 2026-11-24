@@ -350,6 +350,7 @@ pub struct RelationReport {
     pub relations: Vec<RelationSection>,
     /// Load-time errors for required relations that could not be executed.
     /// Their valid siblings still appear in `relations`.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub errors: Vec<DroppedRelation>,
     /// Generic flow report, present only when a loaded module declares rules.
     #[serde(skip_serializing_if = "Option::is_none")]
