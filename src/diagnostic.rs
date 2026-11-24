@@ -505,7 +505,11 @@ impl Diagnostic {
                 "archetype": archetype,
                 "edge_type": edge_type,
             }),
-            Self::UnknownRole { module, archetype, role } => json!({
+            Self::UnknownRole {
+                module,
+                archetype,
+                role,
+            } => json!({
                 "kind": "UnknownRole",
                 "module": module,
                 "archetype": archetype,

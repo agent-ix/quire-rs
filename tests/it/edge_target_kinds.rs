@@ -162,19 +162,16 @@ fn wrong_kind_is_error_under_strict_with_file_path() {
 #[trace("FR-040-AC-15")]
 #[test]
 fn unknown_vocabulary_diagnostics_name_module_in_human_and_json() {
-    let case: serde_json::Value = serde_json::from_str(include_str!(
-        "../fixtures/corpus_cases/plat-1852.json"
-    ))
-    .expect("PLAT-1852 fixture parses");
+    let case: serde_json::Value =
+        serde_json::from_str(include_str!("../fixtures/corpus_cases/plat-1852.json"))
+            .expect("PLAT-1852 fixture parses");
     assert_eq!(case["issue_ref"], "PLAT-1852");
     let manifest = case["input"]["module_manifest"]
         .as_str()
         .expect("fixture module manifest");
-    let registry = Registry::from_inline_parts(
-        manifest.as_bytes(),
-        &std::collections::BTreeMap::new(),
-    )
-    .expect("unknown vocabulary remains advisory on default load");
+    let registry =
+        Registry::from_inline_parts(manifest.as_bytes(), &std::collections::BTreeMap::new())
+            .expect("unknown vocabulary remains advisory on default load");
     assert!(registry.failures().is_empty(), "{:?}", registry.failures());
     assert!(registry.archetype("asset").is_some());
 
@@ -194,7 +191,9 @@ fn unknown_vocabulary_diagnostics_name_module_in_human_and_json() {
         })
         .expect("unknown role diagnostic");
 
-    let module = case["expect"]["module"].as_str().expect("module expectation");
+    let module = case["expect"]["module"]
+        .as_str()
+        .expect("module expectation");
     for diagnostic in [edge, role] {
         let human = diagnostic.to_string();
         assert!(human.contains(module), "{human}");
@@ -203,8 +202,14 @@ fn unknown_vocabulary_diagnostics_name_module_in_human_and_json() {
         assert_eq!(json["module"], module);
         assert_eq!(json["archetype"], "asset");
     }
-    assert!(edge.to_json()["edge_type"].as_str().unwrap().contains("unregistered-verb"));
-    assert!(role.to_json()["role"].as_str().unwrap().contains("unregistered-role"));
+    assert!(edge.to_json()["edge_type"]
+        .as_str()
+        .unwrap()
+        .contains("unregistered-verb"));
+    assert!(role.to_json()["role"]
+        .as_str()
+        .unwrap()
+        .contains("unregistered-role"));
 }
 
 /// The unconfigured tier is overridable through the existing mechanism.

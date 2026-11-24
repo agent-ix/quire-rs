@@ -8,8 +8,9 @@ use std::path::{Path, PathBuf};
 
 use ix_trace_rs::trace;
 use quire_rs::corpus::{
-    relation_report, validate_bundle, validate_bundle_at, CorpusMember, LinkResolution, LinkedEntry,
-    RelationReport, RelationReportError, RelationReportMember, RowState, Spec, Verification,
+    relation_report, validate_bundle, validate_bundle_at, CorpusMember, LinkResolution,
+    LinkedEntry, RelationReport, RelationReportError, RelationReportMember, RowState, Spec,
+    Verification,
 };
 use quire_rs::coverage::{
     compute, CoverageMatrixCriterion, CoverageMatrixRequirement, CoverageMatrixStatus,
@@ -927,17 +928,17 @@ fn rows_carry_the_member_identity_and_link_across_members() {
 #[trace("FR-058-AC-48")]
 #[test]
 fn dropped_record_key_relation_is_reported_with_its_valid_sibling() {
-    let case: serde_json::Value = serde_json::from_str(include_str!(
-        "../fixtures/corpus_cases/plat-1856.json"
-    ))
-    .expect("PLAT-1856 fixture parses");
+    let case: serde_json::Value =
+        serde_json::from_str(include_str!("../fixtures/corpus_cases/plat-1856.json"))
+            .expect("PLAT-1856 fixture parses");
     assert_eq!(case["issue_ref"], "PLAT-1856");
 
     let manifest = case["input"]["module_manifest"]
         .as_str()
         .expect("fixture module manifest");
-    let registry = Registry::from_inline_parts(manifest.as_bytes(), &std::collections::BTreeMap::new())
-        .expect("module loads with one dropped relation");
+    let registry =
+        Registry::from_inline_parts(manifest.as_bytes(), &std::collections::BTreeMap::new())
+            .expect("module loads with one dropped relation");
     assert_eq!(registry.failures().len(), 1, "{:?}", registry.failures());
 
     let root = TempDir::new().expect("corpus directory");
@@ -945,7 +946,11 @@ fn dropped_record_key_relation_is_reported_with_its_valid_sibling() {
         .as_object()
         .expect("fixture documents")
     {
-        write(root.path(), &format!("spec/{path}"), text.as_str().expect("document"));
+        write(
+            root.path(),
+            &format!("spec/{path}"),
+            text.as_str().expect("document"),
+        );
     }
     let spec_root = root.path().join("spec");
     let spec = Spec::from_path(&spec_root);
@@ -974,13 +979,14 @@ fn dropped_record_key_relation_is_reported_with_its_valid_sibling() {
     );
     let json = serde_json::to_value(&report).expect("serializes report errors");
     assert_eq!(json["errors"][0]["module"], "plat-1856");
-    assert_eq!(json["errors"][0]["item"], "connection-carries-classification");
-    assert!(
-        json["errors"][0]["reason"]
-            .as_str()
-            .unwrap()
-            .contains("regulatedCategories")
+    assert_eq!(
+        json["errors"][0]["item"],
+        "connection-carries-classification"
     );
+    assert!(json["errors"][0]["reason"]
+        .as_str()
+        .unwrap()
+        .contains("regulatedCategories"));
 
     let validation = validate_bundle_at(&spec_root, &registry, BundlePosture::Okf);
     let dropped = validation
@@ -990,7 +996,9 @@ fn dropped_record_key_relation_is_reported_with_its_valid_sibling() {
         .expect("validate surfaces dropped relation as an error");
     assert!(dropped.message.contains("plat-1856"), "{}", dropped.message);
     assert!(
-        dropped.message.contains("connection-carries-classification"),
+        dropped
+            .message
+            .contains("connection-carries-classification"),
         "{}",
         dropped.message
     );

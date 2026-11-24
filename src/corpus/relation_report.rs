@@ -385,13 +385,9 @@ pub fn relation_report(
     let errors = dropped_relations(registry);
     let model = registry.traceability();
     let declared = model.map_or(&[][..], |m| m.required_relations.as_slice());
-    if let Some(name) = names
-        .iter()
-        .find(|n| {
-            !declared.iter().any(|r| &r.name == *n)
-                && !errors.iter().any(|error| &error.item == *n)
-        })
-    {
+    if let Some(name) = names.iter().find(|n| {
+        !declared.iter().any(|r| &r.name == *n) && !errors.iter().any(|error| &error.item == *n)
+    }) {
         return Err(RelationReportError::UnknownRelation { name: name.clone() });
     }
     let relations: Vec<&RequiredRelation> = declared
@@ -505,13 +501,13 @@ fn dropped_relations(registry: &Registry) -> Vec<DroppedRelation> {
     registry
         .dropped_declarations()
         .filter_map(|(failure, declaration)| {
-            (declaration.kind == crate::traceability::DeclarationKind::RequiredRelation).then(|| {
-                DroppedRelation {
+            (declaration.kind == crate::traceability::DeclarationKind::RequiredRelation).then(
+                || DroppedRelation {
                     module: failure.module.clone(),
                     item: declaration.item.clone(),
                     reason: failure.reason.clone(),
-                }
-            })
+                },
+            )
         })
         .collect()
 }
