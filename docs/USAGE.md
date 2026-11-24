@@ -477,6 +477,10 @@ Reference handling:
 - `unlinked_references(&spec)` finds dangling edges and returns `UnlinkedReference`s with
   autofix `suggestions` (candidate target ids + scores).
 
+This check currently recognizes ids in the `FR`, `NFR`, `StR`, `US`, `IT`, and `TC`
+families, with optional `AC`, `CON`, or `VC` suffixes. It does not read a module's
+`id_pattern`, so references to ids from other families (such as `RB-001`) are not checked.
+
 ---
 
 ## 10. Using the engine from each surface
