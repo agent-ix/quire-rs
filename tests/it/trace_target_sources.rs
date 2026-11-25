@@ -171,3 +171,67 @@ fn malformed_non_table_sources_are_dropped() {
         assert!(error.contains(expected), "{name}: {error}");
     }
 }
+
+#[trace("FR-050-AC-69")]
+#[test]
+fn frontmatter_ids_resolve_typed_documents_without_a_section() {
+    let root = tempfile::tempdir().expect("scope");
+    let module = "name: frontmatter-targets\nversion: 0.1.0\nartifact_types:\n- name: FR\n- name: TC\ntraceability:\n  trace_targets:\n  - name: typed-case\n    archetype: TC\n    from: frontmatter_id\n  - name: table-case\n    archetype: TC\n    section: Test Procedure\n    id_column: ID\n    required: false\n  document_references:\n  - name: verification\n    archetype: FR\n    section: Acceptance Criteria\n    column: Verification\n    row_id_column: ID\n    pattern: '(TC-[0-9]+)'\n    targets: [typed-case, table-case]\n";
+    let case = serde_json::json!({
+        "input": {
+            "documents": {
+                "FR-1.md": "---\nid: FR-1\ntype: FR\n---\n\n## Acceptance Criteria\n\n| ID | Criterion | Verification |\n|---|---|---|\n| FR-1-AC-1 | Covered | TC-7 |\n| FR-1-AC-2 | Missing | TC-99 |\n",
+                "TC-7.md": "---\nid: TC-7\ntype: TC\n---\n\n## Test Procedure\n\nRuns the behavior.\n",
+            },
+            "sources": {}
+        }
+    });
+    let (report, registry) = run(&case, module, root.path());
+    let minted: Vec<_> = report
+        .minted_targets
+        .iter()
+        .map(|record| {
+            (
+                record.target.as_str(),
+                record.id.as_str(),
+                record.document.as_str(),
+            )
+        })
+        .collect();
+    assert_eq!(minted, [("typed-case", "TC-7", "TC-7.md")]);
+
+    let validation =
+        validate_bundle_at(&root.path().join("spec"), &registry, BundlePosture::Strict);
+    let dangling: Vec<_> = validation
+        .errors
+        .iter()
+        .chain(&validation.warnings)
+        .filter(|finding| finding.reason == "dangling-trace-reference")
+        .map(|finding| finding.message.as_str())
+        .collect();
+    assert_eq!(dangling.len(), 1, "{dangling:?}");
+    assert!(dangling[0].contains("TC-99"), "{dangling:?}");
+}
+
+#[trace("FR-050-AC-69")]
+#[test]
+fn frontmatter_id_rejects_section_and_pattern_fields() {
+    let root = tempfile::tempdir().expect("module");
+    write(
+        root.path(),
+        "manifest.yaml",
+        "name: malformed-frontmatter-target\nversion: 0.1.0\nartifact_types:\n- name: TC\ntraceability:\n  trace_targets:\n  - name: cases\n    archetype: TC\n    from: frontmatter_id\n    section: Tests\n    pattern: '(TC-[0-9]+)'\n",
+    );
+    let registry = Registry::load_module(root.path()).expect("malformed declaration is dropped");
+    assert!(registry.failures().iter().any(|failure| {
+        failure.reason.contains("frontmatter_id")
+            && failure
+                .reason
+                .contains("no `section`, `id_column`, or `pattern`")
+    }));
+    assert!(registry
+        .traceability()
+        .expect("trace model remains")
+        .trace_targets
+        .is_empty());
+}

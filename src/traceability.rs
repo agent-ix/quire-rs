@@ -1127,9 +1127,11 @@ fn is_true(value: &bool) -> bool {
     *value
 }
 
-/// Which authored shape inside a target's section mints its ids.
+/// Which authored source mints a target's ids.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TraceTargetSource {
+    /// The document's frontmatter `id`, selected by its archetype.
+    FrontmatterId,
     /// One id per table row, read from `id_column`.
     TableRow { id_column: IdColumns },
     /// One id per list item: capture group 1 of `pattern` over the item text.
@@ -1146,6 +1148,7 @@ enum TraceTargetFrom {
     TableRow,
     ListItem,
     Heading,
+    FrontmatterId,
 }
 
 impl TraceTargetFrom {
@@ -1158,6 +1161,7 @@ impl TraceTargetFrom {
             Self::TableRow => "table_row",
             Self::ListItem => "list_item",
             Self::Heading => "heading",
+            Self::FrontmatterId => "frontmatter_id",
         }
     }
 }
@@ -1171,7 +1175,8 @@ struct TraceTargetWire {
     archetype: String,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     exclude: Vec<String>,
-    section: SectionNames,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    section: Option<SectionNames>,
     #[serde(default, skip_serializing_if = "TraceTargetFrom::is_table_row")]
     from: TraceTargetFrom,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -1189,37 +1194,63 @@ impl TryFrom<TraceTargetWire> for TraceTarget {
 
     fn try_from(wire: TraceTargetWire) -> Result<Self, Self::Error> {
         let name = &wire.name;
-        let source = match (wire.from, wire.id_column, wire.pattern) {
-            (TraceTargetFrom::TableRow, Some(id_column), None) => {
-                TraceTargetSource::TableRow { id_column }
+        let (source, section) = match (wire.from, wire.section, wire.id_column, wire.pattern) {
+            (TraceTargetFrom::FrontmatterId, None, None, None) => {
+                (TraceTargetSource::FrontmatterId, None)
             }
-            (TraceTargetFrom::TableRow, None, _) => {
+            (TraceTargetFrom::FrontmatterId, _, _, _) => {
+                return Err(format!(
+                    "trace_targets entry '{name}' with `from: frontmatter_id` accepts no `section`, `id_column`, or `pattern`"
+                ))
+            }
+            (TraceTargetFrom::TableRow, Some(section), Some(id_column), None) => {
+                (TraceTargetSource::TableRow { id_column }, Some(section))
+            }
+            (TraceTargetFrom::TableRow, Some(_), None, _) => {
                 return Err(format!(
                     "trace_targets entry '{name}' reads table rows and declares no `id_column`"
                 ))
             }
-            (TraceTargetFrom::TableRow, Some(_), Some(_)) => {
+            (TraceTargetFrom::TableRow, Some(_), Some(_), Some(_)) => {
                 return Err(format!(
                     "trace_targets entry '{name}' reads table rows by `id_column`; `pattern` \
                      applies only to `from: list_item` or `from: heading`"
                 ))
             }
-            (TraceTargetFrom::ListItem, None, Some(pattern)) => {
-                TraceTargetSource::ListItem { pattern }
+            (TraceTargetFrom::ListItem, Some(section), None, Some(pattern)) => {
+                (TraceTargetSource::ListItem { pattern }, Some(section))
             }
-            (TraceTargetFrom::Heading, None, Some(pattern)) => {
-                TraceTargetSource::Heading { pattern }
+            (TraceTargetFrom::Heading, Some(section), None, Some(pattern)) => {
+                (TraceTargetSource::Heading { pattern }, Some(section))
             }
-            (from, Some(_), _) => {
+            (from, Some(_), _, _) if from != TraceTargetFrom::TableRow => {
                 return Err(format!(
                     "trace_targets entry '{name}' reads `from: {}`, which has no columns; \
                      declare `pattern` instead of `id_column`",
                     from.spelling()
                 ))
             }
-            (from, None, None) => {
+            (TraceTargetFrom::TableRow, None, _, _) => {
                 return Err(format!(
-                    "trace_targets entry '{name}' reads `from: {}` and declares no `pattern`",
+                    "trace_targets entry '{name}' reads table rows and declares no `section`"
+                ))
+            }
+            (from, None, Some(_), _) => {
+                return Err(format!(
+                    "trace_targets entry '{name}' reads `from: {}`, which has no columns; \
+                     declare `section` and `pattern` instead",
+                    from.spelling()
+                ))
+            }
+            (from, None, None, _) => {
+                return Err(format!(
+                    "trace_targets entry '{name}' reads `from: {}`, which requires `section`",
+                    from.spelling()
+                ))
+            }
+            (from, Some(_), None, None) => {
+                return Err(format!(
+                    "trace_targets entry '{name}' reads `from: {}`, which declares no `pattern`",
                     from.spelling()
                 ))
             }
@@ -1228,7 +1259,7 @@ impl TryFrom<TraceTargetWire> for TraceTarget {
             name: wire.name,
             archetype: wire.archetype,
             exclude: wire.exclude,
-            section: wire.section,
+            section,
             source,
             required: wire.required,
             evidence: wire.evidence,
@@ -1239,6 +1270,7 @@ impl TryFrom<TraceTargetWire> for TraceTarget {
 impl From<TraceTarget> for TraceTargetWire {
     fn from(target: TraceTarget) -> Self {
         let (from, id_column, pattern) = match target.source {
+            TraceTargetSource::FrontmatterId => (TraceTargetFrom::FrontmatterId, None, None),
             TraceTargetSource::TableRow { id_column } => {
                 (TraceTargetFrom::TableRow, Some(id_column), None)
             }
@@ -1277,12 +1309,10 @@ pub struct TraceTarget {
     /// lets a fixture matrix mint phantom ids, and a fixture that exercises the
     /// `TestMatrix` contract legitimately *is* `type: TestMatrix`.
     pub exclude: Vec<String>,
-    /// Heading of the section carrying the minting table, list or headings,
-    /// or several headings (CR-118): a matrix whose rows are grouped under
-    /// `Test Case Summary (plugin scope)` and `Test Case Summary (discovery
-    /// scope)` mints from both, and one heading name minted from neither.
-    pub section: SectionNames,
-    /// What inside the section mints the ids (`from:`, FR-050-AC-60).
+    /// Heading(s) carrying a table/list/heading source. Absent only for
+    /// `FrontmatterId`, which reads the document's own id.
+    pub section: Option<SectionNames>,
+    /// What mints the ids (`from:`, FR-050-AC-60/69).
     pub source: TraceTargetSource,
     /// Whether this target must be represented in the corpus. Omitted
     /// preserves the historical required posture. An optional target may have
@@ -1301,7 +1331,9 @@ impl TraceTarget {
     pub fn id_columns(&self) -> Option<&IdColumns> {
         match &self.source {
             TraceTargetSource::TableRow { id_column } => Some(id_column),
-            TraceTargetSource::ListItem { .. } | TraceTargetSource::Heading { .. } => None,
+            TraceTargetSource::FrontmatterId
+            | TraceTargetSource::ListItem { .. }
+            | TraceTargetSource::Heading { .. } => None,
         }
     }
 
@@ -1310,7 +1342,9 @@ impl TraceTarget {
     pub fn id_column(&self) -> Option<&str> {
         match &self.source {
             TraceTargetSource::TableRow { id_column } => id_column.single_name(),
-            TraceTargetSource::ListItem { .. } | TraceTargetSource::Heading { .. } => None,
+            TraceTargetSource::FrontmatterId
+            | TraceTargetSource::ListItem { .. }
+            | TraceTargetSource::Heading { .. } => None,
         }
     }
 }
@@ -2427,7 +2461,8 @@ document_references:
     #[trace("FR-050-AC-60")]
     #[test]
     fn trace_target_source_round_trips_its_authored_shape() {
-        let yaml = "trace_targets:\n- name: rows\n  archetype: FR\n  section: S\n  id_column: ID\n\
+        let yaml = "trace_targets:\n- name: frontmatter\n  archetype: TC\n  from: frontmatter_id\n\
+                    - name: rows\n  archetype: FR\n  section: S\n  id_column: ID\n\
                     - name: items\n  archetype: IT\n  section: S\n  from: list_item\n  pattern: '^(IT-\\d+):'\n\
                     - name: headings\n  archetype: US\n  section: S\n  from: heading\n  pattern: '^\\[(US-\\d+)\\]'\n";
         let m = model(yaml);
@@ -2437,6 +2472,7 @@ document_references:
                 .map(|target| target.source.clone())
                 .collect::<Vec<_>>(),
             vec![
+                TraceTargetSource::FrontmatterId,
                 TraceTargetSource::TableRow {
                     id_column: "ID".into()
                 },
@@ -2449,9 +2485,12 @@ document_references:
             ]
         );
         let wire = serde_json::to_value(&m.trace_targets).expect("serialize");
-        assert!(wire[0].get("from").is_none(), "{wire}");
-        assert_eq!(wire[1]["from"], "list_item");
-        assert!(wire[1].get("id_column").is_none(), "{wire}");
+        assert_eq!(wire[0]["from"], "frontmatter_id");
+        assert!(wire[0].get("section").is_none(), "{wire}");
+        assert!(wire[0].get("id_column").is_none(), "{wire}");
+        assert!(wire[1].get("from").is_none(), "{wire}");
+        assert_eq!(wire[2]["from"], "list_item");
+        assert!(wire[2].get("id_column").is_none(), "{wire}");
         let back: Vec<TraceTarget> = serde_json::from_value(wire).expect("deserialize");
         assert_eq!(back, m.trace_targets);
     }
@@ -2533,7 +2572,10 @@ document_references:
              section: Test Case Summary\n  id_column: Test ID\n",
         );
         assert_eq!(scalar.validate(), vec![], "the single-string form is valid");
-        let section = &scalar.trace_targets[0].section;
+        let section = scalar.trace_targets[0]
+            .section
+            .as_ref()
+            .expect("table target section");
         assert_eq!(section.names(), ["Test Case Summary"]);
 
         // Unchanged down to the byte: a model that round-trips — every
@@ -2547,7 +2589,10 @@ document_references:
              section: ['Test Case Summary', 'Integration Test Matrix']\n  id_column: Test ID\n",
         );
         assert_eq!(sequence.validate(), vec![], "the sequence form is valid");
-        let section = &sequence.trace_targets[0].section;
+        let section = sequence.trace_targets[0]
+            .section
+            .as_ref()
+            .expect("table target section");
         assert_eq!(
             section.names(),
             ["Test Case Summary", "Integration Test Matrix"]

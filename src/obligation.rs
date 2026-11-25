@@ -503,7 +503,7 @@ fn resolve<'a>(source: &'a ObligationSource, model: &'a TraceabilityModel) -> Op
             let target = model.trace_targets.iter().find(|t| &t.name == target)?;
             Some(Resolved {
                 archetype: &target.archetype,
-                section: &target.section,
+                section: target.section.as_ref()?,
                 // Load validation admits only table-row targets here.
                 id_column: Some(target.id_column()?),
                 id_format: None,
