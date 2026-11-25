@@ -1223,7 +1223,7 @@ impl TryFrom<TraceTargetWire> for TraceTarget {
             (TraceTargetFrom::Heading, Some(section), None, Some(pattern)) => {
                 (TraceTargetSource::Heading { pattern }, Some(section))
             }
-            (from, Some(_), _, _) if from != TraceTargetFrom::TableRow => {
+            (from @ (TraceTargetFrom::ListItem | TraceTargetFrom::Heading), Some(_), _, _) => {
                 return Err(format!(
                     "trace_targets entry '{name}' reads `from: {}`, which has no columns; \
                      declare `pattern` instead of `id_column`",

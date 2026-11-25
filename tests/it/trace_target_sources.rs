@@ -176,12 +176,13 @@ fn malformed_non_table_sources_are_dropped() {
 #[test]
 fn frontmatter_ids_resolve_typed_documents_without_a_section() {
     let root = tempfile::tempdir().expect("scope");
-    let module = "name: frontmatter-targets\nversion: 0.1.0\nartifact_types:\n- name: FR\n- name: TC\ntraceability:\n  trace_targets:\n  - name: typed-case\n    archetype: TC\n    from: frontmatter_id\n  - name: table-case\n    archetype: TC\n    section: Test Procedure\n    id_column: ID\n    required: false\n  document_references:\n  - name: verification\n    archetype: FR\n    section: Acceptance Criteria\n    column: Verification\n    row_id_column: ID\n    pattern: '(TC-[0-9]+)'\n    targets: [typed-case, table-case]\n";
+    let module = "name: frontmatter-targets\nversion: 0.1.0\nartifact_types:\n- name: FR\n- name: TC\ntraceability:\n  trace_targets:\n  - name: typed-case\n    archetype: TC\n    from: frontmatter_id\n    exclude: [fixtures/**]\n  - name: table-case\n    archetype: TC\n    section: Test Procedure\n    id_column: ID\n    required: false\n  document_references:\n  - name: verification\n    archetype: FR\n    section: Acceptance Criteria\n    column: Verification\n    row_id_column: ID\n    pattern: '(TC-[0-9]+)'\n    targets: [typed-case, table-case]\n";
     let case = serde_json::json!({
         "input": {
             "documents": {
                 "FR-1.md": "---\nid: FR-1\ntype: FR\n---\n\n## Acceptance Criteria\n\n| ID | Criterion | Verification |\n|---|---|---|\n| FR-1-AC-1 | Covered | TC-7 |\n| FR-1-AC-2 | Missing | TC-99 |\n",
                 "TC-7.md": "---\nid: TC-7\ntype: TC\n---\n\n## Test Procedure\n\nRuns the behavior.\n",
+                "fixtures/TC-8.md": "---\nid: TC-8\ntype: TC\n---\n\n## Test Procedure\n\nFixture only.\n",
             },
             "sources": {}
         }
