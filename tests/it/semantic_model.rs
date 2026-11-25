@@ -161,7 +161,9 @@ const FRONTMATTER: &str = "---\nid: FR-102\ntitle: PriorityOrder\nobject: entity
 const PROPERTIES: &str = "---\nid: FR-102\ntitle: PriorityOrder\nobject: entity\n---\n# FR-102: PriorityOrder\n\n## Properties\n\n| Field | Type | Multiplicity | Constraints | Presence | Subsets | Redefines |\n|---|---|---|---|---|---|---|\n| id | UUID | 1 | identity | required | | |\n| lines | String | 0..* | | | parts, items | |\n| parts | String | 0..* | | | | |\n| label | String | 0..1 | | optional | | name |\n";
 
 fn operations(pre: &str) -> String {
-    format!("---\nid: FR-102\ntitle: PriorityOrder\nobject: entity\n---\n# FR-102: PriorityOrder\n\n## Invariants\n\n### placed\n\n```quire\nx\n```\n\n### shipped\n\n```quire\ny\n```\n\n## Operations\n\n### ship\n\n{pre}\nPost: shipped\nModifies: self.status, total\nCreates: Shipment\nDeletes: cart.items\n")
+    format!(
+        "---\nid: FR-102\ntitle: PriorityOrder\nobject: entity\n---\n# FR-102: PriorityOrder\n\n## Invariants\n\n### placed\n\n```quire\nx\n```\n\n### shipped\n\n```quire\ny\n```\n\n## Operations\n\n### ship\n\n{pre}\nPost: shipped\nModifies: self.status, total\nCreates: Shipment\nDeletes: cart.items\n"
+    )
 }
 
 const POPULATION: &str = "---\nid: POP-001\ntitle: Shop Population\nobject: population\nextent: closed\n---\n# POP-001: Shop Population\n\n## Members\n\n| Type |\n|---|\n| Order |\n| Customer |\n";
@@ -1432,6 +1434,103 @@ fn reference_cell_rules() {
             None,
             TRANSITION_LINE
         )]
+    );
+}
+
+#[trace("FR-075-AC-25")]
+#[test]
+fn imported_transition_emits_validate_against_explicit_inventory() {
+    let identity = "ix://agent-ix/billing/INV-1";
+    let document = machine(identity, "", "");
+    let mut request = under_construct(machine_request(identity, "", ""));
+    request["module"]["imports"] = json!({ "agent-ix/billing": "*" });
+    request["bundle"]["importedArtifacts"] = json!([
+        {
+            "package": "agent-ix/billing",
+            "id": "INV-1",
+            "object": "event",
+            "sourceSpan": {
+                "sourceIdentity": "ix://agent-ix/billing/spec",
+                "path": "spec/events.md",
+                "startLine": 11,
+                "startColumn": 1,
+                "endLine": 11,
+                "endColumn": 26,
+            },
+        },
+    ]);
+    let success = extract_request(&request);
+    assert_eq!(success["model"]["transitions"][0]["emits"], identity);
+    let resolved = &success["resolvedReferences"][0];
+    assert_eq!(resolved["identity"], identity);
+    assert_eq!(
+        resolved["referenceSpan"]["sourceIdentity"],
+        "ix://agent-ix/shop/spec"
+    );
+    assert_eq!(resolved["referenceSpan"]["path"], PATH);
+    assert_eq!(
+        resolved["referenceSpan"]["startLine"],
+        line_of(&document, identity)
+    );
+    assert_eq!(
+        resolved["targetSpan"]["sourceIdentity"],
+        "ix://agent-ix/billing/spec"
+    );
+    assert_eq!(resolved["targetSpan"]["path"], "spec/events.md");
+    assert_eq!(resolved["targetSpan"]["startLine"], 11);
+
+    request["bundle"]["importedArtifacts"][0]["object"] = json!("entity");
+    let wrong_kind = extract_request(&request);
+    let refusal = wrong_kind["diagnostics"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|diagnostic| diagnostic["code"] == "semantic.reference-kind-mismatch")
+        .unwrap();
+    assert_eq!(
+        refusal["sourceSpan"]["startLine"],
+        line_of(&document, identity)
+    );
+    assert_eq!(
+        refusal["targetSpan"]["sourceIdentity"],
+        "ix://agent-ix/billing/spec"
+    );
+    assert_eq!(refusal["targetSpan"]["startLine"], 11);
+    assert_model_unavailable(&wrong_kind);
+
+    request["bundle"]["importedArtifacts"][0]["id"] = json!("INV-2");
+    request["bundle"]["importedArtifacts"][0]["object"] = json!("event");
+    let missing = extract_request(&request);
+    let refusal = diagnostic(&missing, "semantic.unknown-reference", "unknown-id");
+    assert_eq!(
+        refusal["sourceSpan"]["startLine"],
+        line_of(&document, identity)
+    );
+    assert!(refusal.get("targetSpan").is_none());
+    assert_model_unavailable(&missing);
+
+    let mut untyped_request = machine_request(identity, "", "");
+    untyped_request["module"]["imports"] = json!({ "agent-ix/billing": "*" });
+    untyped_request["bundle"]["importedArtifacts"] = json!([
+        {
+            "package": "agent-ix/billing",
+            "id": "INV-1",
+            "sourceSpan": {
+                "sourceIdentity": "ix://agent-ix/billing/spec",
+                "path": "spec/events.md",
+                "startLine": 11,
+                "startColumn": 1,
+                "endLine": 11,
+                "endColumn": 26,
+            },
+        },
+    ]);
+    let untyped = extract_request(&untyped_request);
+    assert!(reference_findings(&untyped).is_empty(), "{untyped:#}");
+    assert_eq!(untyped["model"]["transitions"][0]["emits"], identity);
+    assert_eq!(
+        untyped["resolvedReferences"][0]["targetSpan"]["startLine"],
+        11
     );
 }
 

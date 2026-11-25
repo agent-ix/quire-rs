@@ -143,6 +143,13 @@ pub struct SemanticDiagnostic {
         skip_serializing_if = "Option::is_none"
     )]
     pub source_span: Option<clauses::SourceLocus>,
+    /// The resolved target's declaration locus for a typed reference refusal.
+    #[serde(
+        rename = "targetSpan",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub target_span: Option<clauses::SourceLocus>,
     /// The section holding the declaration, on FR-075 refusals:
     /// `frontmatter`, `preamble`, a `##` heading, or `Operations / <name>`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -164,6 +171,7 @@ impl SemanticDiagnostic {
             column: Some(1),
             reason: None,
             source_span: None,
+            target_span: None,
             section: None,
         }
     }
@@ -174,4 +182,14 @@ impl SemanticDiagnostic {
     pub fn is_error(&self) -> bool {
         self.severity == SemanticSeverity::Error
     }
+}
+
+/// One successfully resolved cross-module reference, with the source row
+/// that authored it and the declaration that supplied its target identity.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ResolvedReference {
+    pub identity: String,
+    pub reference_span: clauses::SourceLocus,
+    pub target_span: clauses::SourceLocus,
 }

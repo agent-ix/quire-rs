@@ -23,6 +23,7 @@ use super::properties::{extract_fields, FieldsForm};
 use super::record::{copy_model_keys, extract_record, RecordSource};
 use super::relations::{extract_relations, ExtractedRelation, RelationDecl, RelationSource};
 use super::systems::{AllocationRecord, ConnectionRecord, PartRecord, PortRecord};
+use super::ResolvedReference;
 use super::{AvailabilityState, KindAvailability, SemanticDiagnostic};
 
 pub const SEMANTIC_FORMAT_VERSION: u64 = 1;
@@ -82,6 +83,14 @@ pub struct SemanticExtraction {
     pub operation_expressions: Option<Vec<OperationExpression>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub model: Option<ModelDeclarations>,
+    /// Successfully resolved cross-module model references whose bundle
+    /// index carried the target declaration location.
+    #[serde(
+        default,
+        rename = "resolvedReferences",
+        skip_serializing_if = "Vec::is_empty"
+    )]
+    pub resolved_references: Vec<ResolvedReference>,
     /// FR-076 `RelationDecl[]`, present exactly when `availability.relations`
     /// is `available`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -329,6 +338,10 @@ pub fn extract_semantic(
             }
             keys
         });
+    let mut resolved_references = model_outcome.resolved_references;
+    if let Some(outcome) = record.as_ref() {
+        resolved_references.extend(outcome.resolved_references.iter().cloned());
+    }
     let record = record.unwrap_or_default();
     diagnostics.extend(record.diagnostics.iter().cloned());
     let mut extraction = SemanticExtraction {
@@ -354,6 +367,7 @@ pub fn extract_semantic(
         operation_expressions: (!operations.expressions.is_empty())
             .then_some(operations.expressions),
         model,
+        resolved_references,
         relations: relation_record.relations,
         relation_sources: relation_record.sources,
         typed_relations: relation_record.typed,

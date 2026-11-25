@@ -42,10 +42,9 @@ fn body_extraction(kind: &str) -> Value {
     json!({ "yield_pattern": { "match": { kind: locator(section, columns) } } })
 }
 
-/// Extract `md` under `body_extraction`, against a bundle holding
-/// `artifacts` as already-built `BundleArtifact` JSON; the record must
-/// validate against semantic-v1.
-fn extract_with_bundle_artifacts(md: &str, body_extraction: Value, artifacts: Value) -> Value {
+/// Extract `md` under `body_extraction` and the supplied bundle; the record
+/// must validate against semantic-v1.
+fn extract_with_bundle(md: &str, body_extraction: Value, bundle: Value) -> Value {
     let request = json!({
         "markdown": md,
         "module": {
@@ -56,11 +55,7 @@ fn extract_with_bundle_artifacts(md: &str, body_extraction: Value, artifacts: Va
         },
         "path": PATH,
         "sourceIdentity": "ix://agent-ix/shop/spec",
-        "bundle": {
-            "package": "agent-ix/shop",
-            "objects": [{ "id": "quant_codec", "names": ["QuantCodec"] }],
-            "artifacts": artifacts,
-        },
+        "bundle": bundle,
         "bodyExtraction": body_extraction,
     });
     let record = extract_semantic_json(&request).unwrap();
@@ -77,6 +72,39 @@ fn extract_with_bundle_artifacts(md: &str, body_extraction: Value, artifacts: Va
         .collect();
     assert!(errors.is_empty(), "{errors:?}\n{value:#}");
     value
+}
+
+/// Extract against the ordinary shop declarations and given artifacts.
+fn extract_with_bundle_artifacts(md: &str, body_extraction: Value, artifacts: Value) -> Value {
+    let bundle = json!({
+        "package": "agent-ix/shop",
+        "objects": [{ "id": "quant_codec", "names": ["QuantCodec"] }],
+        "artifacts": artifacts,
+    });
+    extract_with_bundle(md, body_extraction, bundle)
+}
+
+fn extract_with_imported_artifact(md: &str, imported_id: &str, imported_object: &str) -> Value {
+    let bundle = json!({
+        "package": "agent-ix/shop",
+        "artifacts": [
+            { "id": "quant_codec", "object": "interface", "operations": ["score_ip_batch"] },
+        ],
+        "importedArtifacts": [
+            {
+                "package": "agent-ix/fleet",
+                "id": imported_id,
+                "object": imported_object,
+                "sourceSpan": {
+                    "sourceIdentity": "ix://agent-ix/fleet/spec",
+                    "path": "spec/part.md",
+                    "startLine": 7,
+                    "startColumn": 1,
+                },
+            },
+        ],
+    });
+    extract_with_bundle(md, body_extraction("allocation"), bundle)
 }
 
 /// Extract `md` under `body_extraction`, against a bundle holding
@@ -124,7 +152,9 @@ fn advisories(record: &Value) -> usize {
 }
 
 fn doc(id: &str, kind: &str, section: &str, table: &str) -> String {
-    format!("---\nid: {id}\ntitle: \"{id}\"\ntype: {kind}\nobject: {kind}\n---\n# [{id}] {id}\n\n## {section}\n\n{table}")
+    format!(
+        "---\nid: {id}\ntitle: \"{id}\"\ntype: {kind}\nobject: {kind}\n---\n# [{id}] {id}\n\n## {section}\n\n{table}"
+    )
 }
 
 const PART: &str = "| Owner | Declared Type | Multiplicity |\n|---|---|---|\n| search_service | QuantCodec | 0..* |\n";
@@ -534,6 +564,71 @@ fn systems_references_resolve_qualified_and_imported_names_of_the_admitted_kind(
         ),
         "{record:#}"
     );
+}
+
+#[trace("FR-075-AC-12")]
+#[test]
+fn explicitly_indexed_cross_module_references_carry_both_locations_and_refuse_bad_targets() {
+    let target = "ix://agent-ix/fleet/RemotePart";
+    let table =
+        format!("| Source | Target |\n|---|---|\n| quant_codec/score_ip_batch | {target} |\n");
+    let md = doc("alloc", "allocation", "Allocation", &table);
+    let record = extract_with_imported_artifact(&md, "RemotePart", "part");
+    assert_eq!(record["model"]["allocation"]["targetElement"], target);
+    assert_eq!(record["resolvedReferences"].as_array().unwrap().len(), 1);
+    let reference = &record["resolvedReferences"][0];
+    assert_eq!(reference["identity"], target);
+    assert_eq!(
+        reference["referenceSpan"]["sourceIdentity"],
+        "ix://agent-ix/shop/spec"
+    );
+    assert_eq!(reference["referenceSpan"]["path"], PATH);
+    assert_eq!(
+        reference["referenceSpan"]["startLine"],
+        line_of(&md, target)
+    );
+    assert_eq!(
+        reference["targetSpan"]["sourceIdentity"],
+        "ix://agent-ix/fleet/spec"
+    );
+    assert_eq!(reference["targetSpan"]["path"], "spec/part.md");
+    assert_eq!(reference["targetSpan"]["startLine"], 7);
+
+    let wrong = extract_with_imported_artifact(&md, "RemotePart", "port");
+    let wrong_diag = wrong["diagnostics"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|d| d["code"] == "semantic.reference-kind-mismatch")
+        .unwrap();
+    assert_eq!(wrong_diag["sourceSpan"]["path"], PATH);
+    assert_eq!(wrong_diag["sourceSpan"]["startLine"], line_of(&md, target));
+    assert_eq!(
+        wrong_diag["targetSpan"]["sourceIdentity"],
+        "ix://agent-ix/fleet/spec"
+    );
+    assert_eq!(wrong_diag["targetSpan"]["path"], "spec/part.md");
+    assert_eq!(wrong_diag["targetSpan"]["startLine"], 7);
+    assert!(wrong["resolvedReferences"].is_null());
+
+    let missing_target = "ix://agent-ix/fleet/MissingPart";
+    let missing_md = doc(
+        "alloc",
+        "allocation",
+        "Allocation",
+        &table.replace(target, missing_target),
+    );
+    let unresolved = extract_with_imported_artifact(&missing_md, "RemotePart", "part");
+    let unresolved_diag = unresolved["diagnostics"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|d| d["code"] == "semantic.unknown-reference")
+        .unwrap();
+    assert_eq!(unresolved_diag["reason"], "unknown-id");
+    assert_eq!(unresolved_diag["sourceSpan"]["path"], PATH);
+    assert!(unresolved_diag.get("targetSpan").is_none());
+    assert!(unresolved["resolvedReferences"].is_null());
 }
 
 /// TC-197 Y01, Sys/Pump/sys_pump/pump_alloc: a Part `Owner`

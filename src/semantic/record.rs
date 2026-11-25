@@ -27,7 +27,7 @@ use super::target::{
     is_id_segment, resolve_reference, resolve_target, Admission, Declarations, OwnArtifact,
     OwnDeclaration, ReferenceRefusal, Target,
 };
-use super::{AvailabilityState, KindAvailability, SemanticDiagnostic};
+use super::{AvailabilityState, KindAvailability, ResolvedReference, SemanticDiagnostic};
 
 /// The `semantic.mappings` token that declares record-sections extraction.
 pub const RECORD_SECTIONS_TOKEN: &str = "record-sections";
@@ -405,6 +405,7 @@ pub(crate) struct RecordOutcome {
     pub(crate) sources: Vec<RecordSource>,
     pub(crate) availability: BTreeMap<String, KindAvailability>,
     pub(crate) diagnostics: Vec<SemanticDiagnostic>,
+    pub(crate) resolved_references: Vec<ResolvedReference>,
 }
 
 /// One `##` section: its heading text, heading line and exclusive end line.
@@ -1418,6 +1419,7 @@ struct Copied {
     diagnostics: Vec<SemanticDiagnostic>,
     /// Why the bundle cannot resolve the key's references at all.
     unresolved: Option<&'static str>,
+    resolved_references: Vec<ResolvedReference>,
 }
 
 impl Copied {
@@ -1435,6 +1437,7 @@ impl Copied {
             entries: entries.iter().map(span).collect(),
             diagnostics: Vec::new(),
             unresolved: None,
+            resolved_references: Vec::new(),
         }
     }
 }
@@ -1542,30 +1545,54 @@ fn copy_members(raw: &str, ctx: &SemanticContext, members: &[MemberDecl]) -> Cop
     };
     for member in members {
         let item = member.target.as_str();
-        let identity = match resolve_reference(ctx, package, &own, &declarations, item, admission) {
-            Ok(identity) => identity,
+        let resolved = match resolve_reference(ctx, package, &own, &declarations, item, admission) {
+            Ok(reference) => reference,
             Err(refusal) => {
-                let (code, reason, detail) = match refusal {
+                let (code, reason, detail, target_span) = match refusal {
                     ReferenceRefusal::UnknownName => (
                         "semantic.unknown-reference",
                         Some("unknown-name"),
                         format!("Member item {item:?} names no declaration of the bundle"),
+                        None,
                     ),
-                    ReferenceRefusal::KindMismatch => (
+                    ReferenceRefusal::UnknownId => (
+                        "semantic.unknown-reference",
+                        Some("unknown-id"),
+                        format!("Member item {item:?} names no id in the selected imported bundle"),
+                        None,
+                    ),
+                    ReferenceRefusal::KindMismatch(target_span) => (
                         "semantic.reference-kind-mismatch",
                         None,
-                        format!("Member item {item:?} names no declaration the members reference admits"),
+                        format!(
+                            "Member item {item:?} names no declaration the members reference admits"
+                        ),
+                        target_span,
                     ),
                     ReferenceRefusal::Ambiguous(ids) => (
                         "semantic.ambiguous-reference",
                         None,
-                        format!("Member item {item:?} names more than one declaration: {}", ids.join(", ")),
+                        format!(
+                            "Member item {item:?} names more than one declaration: {}",
+                            ids.join(", ")
+                        ),
+                        None,
                     ),
                 };
-                out.diagnostics.push(at(code, reason, member, detail));
+                let mut diagnostic = at(code, reason, member, detail);
+                diagnostic.target_span = target_span;
+                out.diagnostics.push(diagnostic);
                 continue;
             }
         };
+        if let Some(target_span) = resolved.source_span {
+            out.resolved_references.push(ResolvedReference {
+                identity: resolved.identity.clone(),
+                reference_span: member.source_span.clone(),
+                target_span,
+            });
+        }
+        let identity = resolved.identity;
         let id = identity.rsplit('/').next().unwrap_or_default();
         let object = if own.id.as_deref() == Some(id) {
             own.object.as_deref()
@@ -1575,6 +1602,15 @@ fn copy_members(raw: &str, ctx: &SemanticContext, members: &[MemberDecl]) -> Cop
                 .iter()
                 .find(|a| a.id == id)
                 .and_then(|a| a.object.as_deref())
+                .or_else(|| {
+                    ctx.bundle
+                        .imported_artifacts
+                        .iter()
+                        .find(|a| {
+                            a.id == id && identity.starts_with(&format!("ix://{}/", a.package))
+                        })
+                        .and_then(|a| a.object.as_deref())
+                })
         };
         let verbs = vocabulary.composite_verbs_admitting(object);
         let [(verb, entry)] = verbs.as_slice() else {
@@ -1664,6 +1700,9 @@ pub(crate) fn copy_model_keys(
                 outcome
                     .record
                     .insert(name.to_string(), Value::Array(copied.elements));
+                outcome
+                    .resolved_references
+                    .extend(copied.resolved_references);
                 KindAvailability::available(false)
             }
             None => match model_state {
