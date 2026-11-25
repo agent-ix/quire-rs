@@ -1193,6 +1193,88 @@ fn surfaces_supply_the_relation_vocabulary() {
     assert!(record.get("relations").is_none());
 }
 
+#[trace("FR-076-AC-12")]
+#[test]
+fn imported_relationship_targets_resolve_and_refuse_wrong_kinds() {
+    use quire_rs::semantic::python_entry::extract_semantic_json;
+
+    let target = "ix://agent-ix/role-fixture/role-1";
+    let markdown = format!(
+        "---\nid: assignment-1\nobject: role_assignment\n---\n\n# Assignment\n\n## Relationships\n\n| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| assigned_role | assigned_role | {target} | 1 |\n"
+    );
+    let mut request = json!({
+        "markdown": markdown,
+        "path": "spec/assignment.md",
+        "sourceIdentity": "ix://agent-ix/assignment-fixture/spec",
+        "module": {
+            "contractVersion": "1.0.0",
+            "package": "agent-ix/assignment-fixture",
+            "imports": { "agent-ix/role-fixture": "*" },
+            "mappings": ["relationships"]
+        },
+        "bundle": {
+            "package": "agent-ix/assignment-fixture",
+            "importedArtifacts": [{
+                "package": "agent-ix/role-fixture",
+                "id": "role-1",
+                "object": "role_spec",
+                "sourceSpan": {
+                    "sourceIdentity": "ix://agent-ix/role-fixture/spec",
+                    "path": "spec/role.md",
+                    "startLine": 7,
+                    "startColumn": 1,
+                    "endLine": 7,
+                    "endColumn": 22
+                }
+            }]
+        },
+        "relationVocabulary": {
+            "objectType": "role_assignment",
+            "edgeTypes": { "assigned_role": { "category": "governance" } },
+            "roles": { "role_spec": [] },
+            "allowedLinks": { "role_assignment": { "assigned_role": ["role_spec"] } }
+        }
+    });
+
+    let valid = serde_json::to_value(extract_semantic_json(&request).unwrap()).unwrap();
+    assert_eq!(valid["resolvedReferences"].as_array().unwrap().len(), 1);
+    let resolved = &valid["resolvedReferences"][0];
+    assert_eq!(resolved["identity"], target);
+    assert_eq!(resolved["referenceSpan"]["path"], "spec/assignment.md");
+    assert_eq!(resolved["referenceSpan"]["startLine"], 12);
+    assert_eq!(resolved["targetSpan"]["path"], "spec/role.md");
+    assert_eq!(resolved["targetSpan"]["startLine"], 7);
+
+    request["bundle"]["importedArtifacts"][0]["object"] = json!("capability");
+    let wrong_kind = serde_json::to_value(extract_semantic_json(&request).unwrap()).unwrap();
+    let refusal = wrong_kind["diagnostics"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|diagnostic| diagnostic["code"] == "semantic.reference-kind-mismatch")
+        .unwrap();
+    assert_eq!(refusal["reason"], "wrong-kind");
+    assert_eq!(refusal["sourceSpan"]["path"], "spec/assignment.md");
+    assert_eq!(refusal["sourceSpan"]["startLine"], 12);
+    assert_eq!(refusal["targetSpan"]["path"], "spec/role.md");
+    assert_eq!(refusal["targetSpan"]["startLine"], 7);
+    assert!(wrong_kind["resolvedReferences"].is_null());
+
+    request["bundle"]["importedArtifacts"][0]["id"] = json!("another-role");
+    request["bundle"]["importedArtifacts"][0]["object"] = json!("role_spec");
+    let missing = serde_json::to_value(extract_semantic_json(&request).unwrap()).unwrap();
+    let refusal = missing["diagnostics"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|diagnostic| diagnostic["code"] == "semantic.invalid-model-cell")
+        .unwrap();
+    assert_eq!(refusal["reason"], "target-not-id");
+    assert_eq!(refusal["sourceSpan"]["path"], "spec/assignment.md");
+    assert_eq!(refusal["sourceSpan"]["startLine"], 12);
+    assert!(refusal.get("targetSpan").is_none());
+}
+
 #[trace("FR-076-AC-15")]
 // validate_document qualifies targets under the caller's bundle package,
 // never the module's; with no bundle package the feature is unavailable
