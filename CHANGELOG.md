@@ -9,6 +9,12 @@ bumps; once 1.0 ships, semver is strict.
 
 ### Changed
 
+- **Breaking, PLAT-1873:** `semantic::BundleArtifact` and
+  `semantic::ImportedArtifact` gain optional `source_span` fields (JSON
+  `sourceSpan`) so callers can provide declaration locations for typed
+  cross-module references. Existing Rust struct literals must initialize the
+  new fields. The crate version advances from `0.62.3` to `0.63.0` under the
+  pre-1.0 breaking-change policy.
 - **Breaking, PLAT-1804:** a traceability declaration that cannot load now drops itself instead
   of failing its module or emptying the merged model. `TraceabilityModel::validate` returns the
   failing declarations (`Vec<DeclarationFailure>`) and `prune` removes them; `ArchetypeLoadFailure`

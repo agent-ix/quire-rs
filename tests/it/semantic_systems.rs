@@ -42,10 +42,9 @@ fn body_extraction(kind: &str) -> Value {
     json!({ "yield_pattern": { "match": { kind: locator(section, columns) } } })
 }
 
-/// Extract `md` under `body_extraction`, against a bundle holding
-/// `artifacts` as already-built `BundleArtifact` JSON; the record must
-/// validate against semantic-v1.
-fn extract_with_bundle_artifacts(md: &str, body_extraction: Value, artifacts: Value) -> Value {
+/// Extract `md` under `body_extraction` and the supplied bundle; the record
+/// must validate against semantic-v1.
+fn extract_with_bundle(md: &str, body_extraction: Value, bundle: Value) -> Value {
     let request = json!({
         "markdown": md,
         "module": {
@@ -56,11 +55,7 @@ fn extract_with_bundle_artifacts(md: &str, body_extraction: Value, artifacts: Va
         },
         "path": PATH,
         "sourceIdentity": "ix://agent-ix/shop/spec",
-        "bundle": {
-            "package": "agent-ix/shop",
-            "objects": [{ "id": "quant_codec", "names": ["QuantCodec"] }],
-            "artifacts": artifacts,
-        },
+        "bundle": bundle,
         "bodyExtraction": body_extraction,
     });
     let record = extract_semantic_json(&request).unwrap();
@@ -79,52 +74,37 @@ fn extract_with_bundle_artifacts(md: &str, body_extraction: Value, artifacts: Va
     value
 }
 
-fn extract_with_imported_artifact(md: &str, imported_id: &str, imported_object: &str) -> Value {
-    let request = json!({
-        "markdown": md,
-        "module": {
-            "contractVersion": "1.0.0",
-            "package": "agent-ix/spec-objects-architecture",
-            "exports": ["part", "port", "connection", "allocation"],
-            "imports": { "agent-ix/fleet": "*" },
-        },
-        "path": PATH,
-        "sourceIdentity": "ix://agent-ix/shop/spec",
-        "bundle": {
-            "package": "agent-ix/shop",
-            "artifacts": [
-                { "id": "quant_codec", "object": "interface", "operations": ["score_ip_batch"] },
-            ],
-            "importedArtifacts": [
-                {
-                    "package": "agent-ix/fleet",
-                    "id": imported_id,
-                    "object": imported_object,
-                    "sourceSpan": {
-                        "sourceIdentity": "ix://agent-ix/fleet/spec",
-                        "path": "spec/part.md",
-                        "startLine": 7,
-                        "startColumn": 1,
-                    },
-                },
-            ],
-        },
-        "bodyExtraction": body_extraction("allocation"),
+/// Extract against the ordinary shop declarations and given artifacts.
+fn extract_with_bundle_artifacts(md: &str, body_extraction: Value, artifacts: Value) -> Value {
+    let bundle = json!({
+        "package": "agent-ix/shop",
+        "objects": [{ "id": "quant_codec", "names": ["QuantCodec"] }],
+        "artifacts": artifacts,
     });
-    let record = extract_semantic_json(&request).unwrap();
-    let value = serde_json::to_value(&record).unwrap();
-    let schema = compile_module_schema(
-        &serde_json::from_str::<Value>(SEMANTIC_V1_SCHEMA).unwrap(),
-        &|_| None,
-        "https://agent-ix.github.io/quire-rs/schemas/output/",
-    )
-    .unwrap();
-    let errors: Vec<String> = schema
-        .iter_errors(&value)
-        .map(|e| format!("{e} at {}", e.instance_path()))
-        .collect();
-    assert!(errors.is_empty(), "{errors:?}\n{value:#}");
-    value
+    extract_with_bundle(md, body_extraction, bundle)
+}
+
+fn extract_with_imported_artifact(md: &str, imported_id: &str, imported_object: &str) -> Value {
+    let bundle = json!({
+        "package": "agent-ix/shop",
+        "artifacts": [
+            { "id": "quant_codec", "object": "interface", "operations": ["score_ip_batch"] },
+        ],
+        "importedArtifacts": [
+            {
+                "package": "agent-ix/fleet",
+                "id": imported_id,
+                "object": imported_object,
+                "sourceSpan": {
+                    "sourceIdentity": "ix://agent-ix/fleet/spec",
+                    "path": "spec/part.md",
+                    "startLine": 7,
+                    "startColumn": 1,
+                },
+            },
+        ],
+    });
+    extract_with_bundle(md, body_extraction("allocation"), bundle)
 }
 
 /// Extract `md` under `body_extraction`, against a bundle holding
