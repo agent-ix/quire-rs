@@ -52,3 +52,11 @@ Ran the planless repository audit using the computed Quoin matrix, coverage repo
 ## Audit Notes
 
 The whole-repository matrix includes many pre-existing gaps beyond the PR's scope; the FR-099 untagged criteria are called out because the PR body and PLAT-1889 ticket explicitly record them as staged debt. The audit used the engine's matrix rather than handwritten matrix rows. No plan was supplied, so no plan bundle was selected or inferred.
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | deferred | The 234 pre-existing non-FR-099 gaps belong to PLAT-1297 (Triage Quire matrix gaps and fixture-boundary noise). FR-099-AC-9/10 remain staged coverage under PLAT-1889, with implementation owned by PLAT-1892/PLAT-1898. The repository-wide gap is not fixed by PR #734. |
+
+Disposition recheck: the current matrix has 236 untagged criteria after FR-099-CON-4 gained a test tag; the residual 236 are the 234 pre-existing non-FR-099 gaps plus FR-099-AC-9 and FR-099-AC-10.

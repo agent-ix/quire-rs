@@ -57,3 +57,10 @@ AP-201 (`spec/assurance/AP-201-detection-minting.md`) applies because this chang
 ## Verdict Detail
 
 The new code is largely cohesive and uses the existing extractor, binder, and exact trace-search APIs. The diagnostics filter misses malformed untouched files even though those files participate in whole-snapshot test lookup. The AC-6 test only checks a normalized criterion id against a different criterion id; it does not protect the other explicitly required exact-identity cases.
+
+## Dispositions
+
+| FND | outcome | reason / after_excerpt |
+| --- | --- | --- |
+| FND-001 | fixed | after_excerpt: `for (side, extraction) in [` |
+| FND-002 | fixed | after_excerpt: `assert!(!criterion` |
