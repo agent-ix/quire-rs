@@ -32,3 +32,23 @@ Resolved executables: `quoin` = `/home/peter/.npm-global/lib/node_modules/@agent
 
 The enforced workflow's final transition is `validated -> accepted` with a HITL gate. It requires an explicit human acknowledgment after all selected review artifacts validate. No gate is currently open and no acknowledgment token exists because the workflow cannot pass `intake -> analyses_run`; do not acknowledge.
 
+
+
+## Dispositions
+
+Disposition pass 1 — rechecked PR #730 at head `4c3be945c3433821cf2d45efbc5bd6e2b902e362`.
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | AC-1 now has both path-order and source-discovery binders. The new fixture test exercises matching and nonmatching entries, and build.rs consumes that same selector to generate includes. Focused selftest passes 3/3, focused Clippy passes, and matrix reports AC-1/2 tagged. |
+
+`after_excerpt` (fixed implementation evidence, `build.rs`):
+
+```rust
+let sources = anomaly_sources::anomaly_sources(&anomaly_dir)
+    .unwrap_or_else(|error| panic!("failed to discover anomaly documents: {error}"));
+```
+
+Focused evidence: `cargo test -p quire-rs --lib selftest::tests` passed 3/3; `cargo clippy -p quire-rs --lib --tests -- -D warnings` passed; `quire matrix --scope . --format json` exited 0 and reports FR-098-AC-1/2 tagged. `quire validate --scope <repo> spec/functional/FR-098-embedded-anomaly-documents.md spec/usecase/US-021-consume-quire-rs-anomaly-documents.md 'reviews/pr730/*.md'` exits 0 after review-doc frontmatter is present. Optional architecture fixture package fetch warning recurred; dependent tests skip as documented.
+
+AP-201 enforced review remains blocked at intake by the Quoin workflow invariant provider; final `validated -> accepted` still requires explicit human acknowledgment after artifact validation. No gate was acknowledged.

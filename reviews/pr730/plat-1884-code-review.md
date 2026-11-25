@@ -1,3 +1,12 @@
+---
+id: SR-202611251800000008
+title: "Code review — PLAT-1884, quire-rs PR 730"
+type: SpecReview
+analysis: code-review
+scope: "agent-ix/quire-rs; PR 730 diff at 4c3be945c3433821cf2d45efbc5bd6e2b902e362"
+review_set: subset
+---
+
 # Code review — PLAT-1884, quire-rs PR #730
 
 Scope: `git diff origin/main...HEAD`, repository `agent-ix/quire-rs`, branch `peter/plat-1884-embedded-anomaly-records`, head `18b534f235c0b760a455bcc8d3010a41d460b79b`. Changes are limited to FR-098, US-021, and `src/selftest.rs`.
@@ -34,3 +43,23 @@ Reproduction on machine `terra`, repository `agent-ix/quire-rs`, PR #730, head `
 Resolved executables: `quoin` = `/home/peter/.npm-global/lib/node_modules/@agent-ix/quoin/bin/launcher.js`, version `0.36.8`; `ix-flow` = `/home/peter/.npm-global/lib/node_modules/@agent-ix/ix-flow/bin/ix-flow.js`, version `0.3.3`; `quire` = `/home/peter/.npm-global/lib/node_modules/@agent-ix/quire-cli/bin/launcher.js`, version `0.52.0 (engine 0.62.2)`. The machine release notice expects quoin 0.30.0, so the resolved Quoin differs from the announced chain.
 
 The enforced workflow's final transition is `validated -> accepted` with a HITL gate. It requires an explicit human acknowledgment after all selected review artifacts validate. No gate is currently open and no acknowledgment token exists because the workflow cannot pass `intake -> analyses_run`; do not acknowledge.
+
+
+## Dispositions
+
+Disposition pass 1 — rechecked PR #730 at head `4c3be945c3433821cf2d45efbc5bd6e2b902e362`.
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | The fixed static path list is replaced by build-time source discovery. `build.rs` calls the shared `anomaly_sources()` selector and emits one `include_str!` entry per selected source; the selector sorts regular `AN-*.md` files. The focused selector fixture and embedded API tests pass. |
+
+`after_excerpt` (fixed implementation evidence, `build.rs`):
+
+```rust
+let sources = anomaly_sources::anomaly_sources(&anomaly_dir)
+    .unwrap_or_else(|error| panic!("failed to discover anomaly documents: {error}"));
+```
+
+Focused evidence: `cargo test -p quire-rs --lib selftest::tests` passed 3/3; `cargo clippy -p quire-rs --lib --tests -- -D warnings` passed; `quire matrix --scope . --format json` exited 0 and reports FR-098-AC-1/2 tagged. `quire validate --scope <repo> spec/functional/FR-098-embedded-anomaly-documents.md spec/usecase/US-021-consume-quire-rs-anomaly-documents.md 'reviews/pr730/*.md'` exits 0 after review-doc frontmatter is present. Optional architecture fixture package fetch warning recurred; dependent tests skip as documented.
+
+AP-201 enforced review remains blocked at intake by the Quoin workflow invariant provider; final `validated -> accepted` still requires explicit human acknowledgment after artifact validation. No gate was acknowledged.
