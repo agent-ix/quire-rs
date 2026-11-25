@@ -10,20 +10,20 @@ use serde_json::Value;
 use crate::extract::dsl::{EdgeTarget, ExtractionDsl};
 use crate::extract::locator::{Locator, LocatorPrimitive};
 
-use super::ResolvedReference;
 use super::clauses::{
-    ClauseRef, OperationDecl, OperationExpression, OperationSource, SourceLocus, extract_clauses,
-    extract_operations,
+    extract_clauses, extract_operations, ClauseRef, OperationDecl, OperationExpression,
+    OperationSource, SourceLocus,
 };
 use super::context::SemanticContext;
 use super::decl::FieldDecl;
 use super::model::{
-    ModelDeclarations, ModelRefs, ModelSource, extract_model, failed, model_availability,
+    extract_model, failed, model_availability, ModelDeclarations, ModelRefs, ModelSource,
 };
-use super::properties::{FieldsForm, extract_fields};
-use super::record::{RecordSource, copy_model_keys, extract_record};
-use super::relations::{ExtractedRelation, RelationDecl, RelationSource, extract_relations};
+use super::properties::{extract_fields, FieldsForm};
+use super::record::{copy_model_keys, extract_record, RecordSource};
+use super::relations::{extract_relations, ExtractedRelation, RelationDecl, RelationSource};
 use super::systems::{AllocationRecord, ConnectionRecord, PartRecord, PortRecord};
+use super::ResolvedReference;
 use super::{AvailabilityState, KindAvailability, SemanticDiagnostic};
 
 pub const SEMANTIC_FORMAT_VERSION: u64 = 1;

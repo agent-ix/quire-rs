@@ -6,13 +6,13 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::SemanticDiagnostic;
 use super::clauses::SourceLocus;
 use super::contract::SemanticSeverity;
-use super::decl::{Multiplicity, TypeRef, is_identifier};
+use super::decl::{is_identifier, Multiplicity, TypeRef};
 use super::model::TableRead;
-use super::properties::{RowInput, map_multiplicity, map_type};
-use super::target::{OwnArtifact, Target, Unresolved, is_object_id, resolve_target};
+use super::properties::{map_multiplicity, map_type, RowInput};
+use super::target::{is_object_id, resolve_target, OwnArtifact, Target, Unresolved};
+use super::SemanticDiagnostic;
 
 /// One systems record at its declaring row. The record keys serialize flat
 /// beside `sourceSpan`; the declaration record carries the keys alone.

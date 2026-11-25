@@ -30,16 +30,16 @@ pub(crate) mod target;
 pub(crate) mod units;
 
 pub use clauses::{
-    ClauseRef, ClausesOutcome, OperationDecl, OperationSource, OperationsOutcome, SourceLocus,
-    extract_clauses, extract_operations,
+    extract_clauses, extract_operations, ClauseRef, ClausesOutcome, OperationDecl, OperationSource,
+    OperationsOutcome, SourceLocus,
 };
 pub use context::{
     BundleArtifact, BundleEntry, BundleIndex, ConstructReferences, ImportedArtifact,
     SemanticContext,
 };
 pub use contract::{
-    DataSchemaRef, SemanticFailure, SemanticModule, SemanticSeverity, read_semantic_block,
-    reference_form,
+    read_semantic_block, reference_form, DataSchemaRef, SemanticFailure, SemanticModule,
+    SemanticSeverity,
 };
 pub use decl::{
     Constraint, ConstraintKeyword, DecimalPolicy, EnumConstraintValue, FieldDecl, Multiplicity,
@@ -51,17 +51,17 @@ pub use model::{
     PopulationMemberDecl, Presence, StepDecl, StepKind, SupertypeDecl, TermDecl, TransitionDecl,
     UnknownFeatureKind, UnknownStepKind,
 };
-pub use properties::{FieldsForm, FieldsOutcome, extract_fields};
-pub use record::{KeyOwner, RECORD_SECTIONS_TOKEN, RecordSource, record_key_owners};
+pub use properties::{extract_fields, FieldsForm, FieldsOutcome};
+pub use record::{record_key_owners, KeyOwner, RecordSource, RECORD_SECTIONS_TOKEN};
 pub use relations::{
-    EdgeVerb, RELATIONSHIPS_TOKEN, RelationDecl, RelationSource, RelationVocabulary,
+    EdgeVerb, RelationDecl, RelationSource, RelationVocabulary, RELATIONSHIPS_TOKEN,
 };
 pub use resolver::{
-    ResolvedSchema, SchemaSource, compile_documents, compile_module_schema, module_schema_documents,
+    compile_documents, compile_module_schema, module_schema_documents, ResolvedSchema, SchemaSource,
 };
 pub use surface::{
-    Availability, DeclarationError, DeclarationRecord, RequiredSections, SEMANTIC_FORMAT_VERSION,
-    SEMANTIC_V1_SCHEMA, SemanticExtraction, SystemsRecord, extract_semantic,
+    extract_semantic, Availability, DeclarationError, DeclarationRecord, RequiredSections,
+    SemanticExtraction, SystemsRecord, SEMANTIC_FORMAT_VERSION, SEMANTIC_V1_SCHEMA,
 };
 pub use systems::{
     AllocationRecord, ConnectionDirection, ConnectionEnd, ConnectionRecord, PartRecord,

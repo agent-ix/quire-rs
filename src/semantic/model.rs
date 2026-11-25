@@ -14,15 +14,15 @@ use serde_json::Value;
 use super::clauses::{Expression, SourceLocus};
 use super::context::SemanticContext;
 use super::contract::SemanticSeverity;
-use super::decl::{Multiplicity, TypeRef, is_identifier};
+use super::decl::{is_identifier, Multiplicity, TypeRef};
 use super::properties::{
-    RowInput, feature_columns, is_typed_prefix, map_multiplicity, map_type, strip_ticks,
+    feature_columns, is_typed_prefix, map_multiplicity, map_type, strip_ticks, RowInput,
 };
-use super::scan::{Block, Table, blocks_in, level2_headings, lines, split_row_spans};
+use super::scan::{blocks_in, level2_headings, lines, split_row_spans, Block, Table};
 use super::systems::{
     self, AllocationRecord, ConnectionRecord, PartRecord, PortRecord, SystemsDecl,
 };
-use super::target::{Admission, Declarations, OwnDeclaration, ReferenceRefusal, resolve_reference};
+use super::target::{resolve_reference, Admission, Declarations, OwnDeclaration, ReferenceRefusal};
 use super::{AvailabilityState, KindAvailability, ResolvedReference, SemanticDiagnostic};
 use crate::extract::assert_eval::headers_conform;
 use crate::extract::dsl::ExtractionDsl;

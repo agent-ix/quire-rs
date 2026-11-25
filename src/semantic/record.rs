@@ -12,20 +12,20 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
-use serde_json::{Map, Number, Value, json};
+use serde_json::{json, Map, Number, Value};
 
-use super::clauses::{SourceLocus, declared_operation_names};
+use super::clauses::{declared_operation_names, SourceLocus};
 use super::context::SemanticContext;
 use super::contract::SemanticSeverity;
-use super::embedded::{SEMANTIC_CORE_BASE, semantic_core_bundle};
-use super::model::{MemberDecl, ModelDeclarations, ModelFeature, entry_errors, line_span};
-use super::properties::{RowInput, map_multiplicity, map_type, strip_ticks};
-use super::relations::RelationDecl;
+use super::embedded::{semantic_core_bundle, SEMANTIC_CORE_BASE};
+use super::model::{entry_errors, line_span, MemberDecl, ModelDeclarations, ModelFeature};
+use super::properties::{map_multiplicity, map_type, strip_ticks, RowInput};
 use super::relations::bundle_package;
-use super::scan::{Block, Fence, Table, blocks_in, level2_headings, lines};
+use super::relations::RelationDecl;
+use super::scan::{blocks_in, level2_headings, lines, Block, Fence, Table};
 use super::target::{
-    Admission, Declarations, OwnArtifact, OwnDeclaration, ReferenceRefusal, Target, is_id_segment,
-    resolve_reference, resolve_target,
+    is_id_segment, resolve_reference, resolve_target, Admission, Declarations, OwnArtifact,
+    OwnDeclaration, ReferenceRefusal, Target,
 };
 use super::{AvailabilityState, KindAvailability, ResolvedReference, SemanticDiagnostic};
 

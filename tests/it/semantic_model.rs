@@ -6,8 +6,8 @@ use std::path::PathBuf;
 use ix_trace_rs::trace;
 use jsonschema::Validator;
 use quire_rs::semantic::python_entry::extract_semantic_json;
-use quire_rs::semantic::{SEMANTIC_V1_SCHEMA, compile_module_schema};
-use serde_json::{Value, json};
+use quire_rs::semantic::{compile_module_schema, SEMANTIC_V1_SCHEMA};
+use serde_json::{json, Value};
 
 const PATH: &str = "spec/functional/FR-100.md";
 
@@ -1566,13 +1566,11 @@ fn unresolvable_bundle_advises_and_keeps_validating() {
             ),
         ]
     );
-    assert!(
-        record["diagnostics"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .all(|d| d["severity"] != "error")
-    );
+    assert!(record["diagnostics"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .all(|d| d["severity"] != "error"));
     assert_eq!(
         record["availability"]["model"],
         json!({ "state": "unavailable", "reason": "no-bundle-index", "lossy": false })

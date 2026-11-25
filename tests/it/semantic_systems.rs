@@ -4,10 +4,10 @@
 use std::fs;
 
 use ix_trace_rs::trace;
-use quire_rs::Registry;
 use quire_rs::semantic::python_entry::extract_semantic_json;
-use quire_rs::semantic::{BundleIndex, SEMANTIC_V1_SCHEMA, SemanticModule, compile_module_schema};
-use serde_json::{Value, json};
+use quire_rs::semantic::{compile_module_schema, BundleIndex, SemanticModule, SEMANTIC_V1_SCHEMA};
+use quire_rs::Registry;
+use serde_json::{json, Value};
 
 const PATH: &str = "spec/architecture/part.md";
 
