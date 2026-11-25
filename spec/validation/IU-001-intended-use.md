@@ -10,19 +10,19 @@ relationships: []
 
 ## Purpose
 
-`quire-rs` is a Rust library for parsing and validating Quire documents and
-computing repository-level traceability and coverage information. It is used
-as an engine by command-line and application layers that present or retain
-those results.
+`quire-rs` provides the Rust library engine used by Quire interfaces to derive
+document and repository results from authored specification repositories.
 
 ## Records produced
 
-The library returns parsed `QuireDocument` values, document validation results,
-repository `BundleReport` values, and `CoverageReport` and coverage-matrix
-values. These are structured results returned to the caller; `quire-rs` does
-not itself write them as files. In the `quire` command-line application,
-`quire validate` presents validation results and `quire matrix` presents
-coverage results. The command-line writer is supplied by `quire-cli`.
+The library returns structured results to its caller; it has no command that
+writes result files. The `quire-cli` interface presents or emits the results
+from these commands:
+
+| Record kind | Command that presents or emits it |
+|---|---|
+| Document and repository validation findings (`ValidationResult`, `BundleReport`) | `quire validate` |
+| Repository coverage and traceability matrix (`CoverageReport`, coverage matrix) | `quire matrix` |
 
 ## Who relies on them
 

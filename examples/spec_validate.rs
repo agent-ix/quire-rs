@@ -27,19 +27,26 @@ use quire_rs::Registry;
 struct ProviderRoots {
     process: PathBuf,
     iso: PathBuf,
+    severity_overrides: Vec<String>,
 }
 
 fn parse_provider_roots(args: impl IntoIterator<Item = OsString>) -> Result<ProviderRoots, String> {
     let mut args = args.into_iter();
     let mut process = None;
     let mut iso = None;
+    let mut severity_overrides = Vec::new();
     while let Some(option) = args.next() {
         let value = args
             .next()
-            .ok_or_else(|| format!("{} requires a path", option.to_string_lossy()))?;
+            .ok_or_else(|| format!("{} requires a value", option.to_string_lossy()))?;
         match option.to_str() {
             Some("--process-root") if process.is_none() => process = Some(PathBuf::from(value)),
             Some("--iso-root") if iso.is_none() => iso = Some(PathBuf::from(value)),
+            Some("--severity") => severity_overrides.push(
+                value
+                    .into_string()
+                    .map_err(|_| "--severity value is not valid UTF-8".to_string())?,
+            ),
             _ => {
                 return Err(format!(
                     "unknown or duplicate option: {}",
@@ -51,6 +58,7 @@ fn parse_provider_roots(args: impl IntoIterator<Item = OsString>) -> Result<Prov
     Ok(ProviderRoots {
         process: process.ok_or("missing --process-root")?,
         iso: iso.ok_or("missing --iso-root")?,
+        severity_overrides,
     })
 }
 
@@ -107,7 +115,16 @@ fn load_provider_registry(providers: &ProviderRoots) -> Result<Registry, String>
             causes.join("\n")
         ));
     }
-    Ok(registry)
+    if providers.severity_overrides.is_empty() {
+        Ok(registry)
+    } else {
+        let severity = quire_rs::grammar::merge_severity_overrides(
+            registry.grammar_severity(),
+            providers.severity_overrides.iter().map(String::as_str),
+        )
+        .map_err(|error| format!("invalid severity override: {error}"))?;
+        Ok(registry.with_grammar_severity(severity))
+    }
 }
 
 fn validation_exclusions(
@@ -340,6 +357,39 @@ fn main() {
          {warning_count} warning(s), {} untyped skipped, {excluded_documents} Phase-7 excluded",
         skipped_untyped.len(),
     );
+    if providers
+        .severity_overrides
+        .iter()
+        .any(|entry| entry.starts_with("trace:feature-without-risk-rating="))
+    {
+        let spec_root = root.join("spec");
+        let spec = quire_rs::Spec::from_path(&spec_root);
+        let report = quire_rs::validate_bundle(
+            &spec,
+            &registry,
+            quire_rs::BundlePosture::Okf,
+            &spec_root,
+            &root,
+        );
+        let findings = report
+            .errors
+            .iter()
+            .chain(report.warnings.iter())
+            .filter(|finding| finding.reason == "feature-without-risk-rating");
+        let mut count = 0;
+        for finding in findings {
+            count += 1;
+            eprintln!(
+                "error: {}: {}",
+                finding.path.display(),
+                finding.message
+            );
+            failed_documents += 1;
+        }
+        println!(
+            "spec_validate: {count} feature-without-risk-rating finding(s) at configured severity"
+        );
+    }
     if failed_documents > 0 {
         std::process::exit(1);
     }
@@ -391,6 +441,8 @@ mod tests {
             process_root.into_os_string(),
             OsString::from("--iso-root"),
             iso_root.into_os_string(),
+            OsString::from("--severity"),
+            OsString::from("trace:feature-without-risk-rating=error"),
         ];
         let providers = parse_provider_roots(args).expect("two explicit provider roots");
         let registry = load_provider_registry(&providers).expect("load selected providers");
@@ -436,6 +488,7 @@ mod tests {
         let providers = ProviderRoots {
             process: process_root,
             iso: iso_root,
+            severity_overrides: Vec::new(),
         };
         let Err(error) = load_provider_registry(&providers) else {
             panic!("a provider archetype that fails to load must fail the gate");
