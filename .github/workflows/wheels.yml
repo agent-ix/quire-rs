@@ -98,7 +98,8 @@ jobs:
       # library. Checkout initializes the submodule after applying the sparse
       # directory list; the corpus gitlink is not a cone directory.
       # tests/ stays excluded — it carries the con.md.j2 fixture that
-      # would otherwise break Windows.
+      # would otherwise break Windows. selftest/ is included because
+      # src embeds its case files with include_str!.
       - uses: actions/checkout@v4
         with:
           submodules: true
@@ -109,6 +110,7 @@ jobs:
             examples
             schemas
             tools
+            selftest
             .cargo
 
       - name: Build abi3 wheel
