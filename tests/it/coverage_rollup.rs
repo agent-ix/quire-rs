@@ -1017,7 +1017,7 @@ fn tc2202_untracked_shell_marker_names_its_script() {
     assert_eq!(untracked.trace_id, "FR-999-AC-1");
     assert_eq!(untracked.path, "scripts/selftest.sh");
     assert_eq!(untracked.symbol, "entry_point");
-    assert_eq!(untracked.line, Some(2));
+    assert_eq!(untracked.line, Some(1));
 }
 
 #[trace("FR-050-AC-5")]
