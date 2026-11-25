@@ -47,6 +47,12 @@ bumps; once 1.0 ships, semver is strict.
   binds nothing and is reported as `unresolved-qualified-trace-id` (repository outside the corpus,
   or id the member does not mint).
 
+## [0.63.1] — 2026-11-25
+
+### Fixed
+
+- Preserve scalar `owner` metadata when extracting typed declarations, and resolve imported relationship targets against their declared sources.
+
 ## [0.62.0] — 2026-11-16
 
 ### Added
