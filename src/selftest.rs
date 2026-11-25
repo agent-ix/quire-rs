@@ -1,0 +1,76 @@
+//! Compile-time resources for quire-rs-owned self-test cases.
+//!
+//! The quire CLI combines these resources with its own cases at build time;
+//! the case files remain maintained in this repository (FR-047).
+
+/// One file embedded for an owned self-test case.
+#[derive(Clone, Copy, Debug)]
+#[non_exhaustive]
+pub struct EmbeddedCaseFile {
+    /// The file's normalized path relative to the case root, using `/` separators.
+    pub path: &'static str,
+    /// The exact file bytes embedded in the compiled library.
+    pub bytes: &'static [u8],
+}
+
+/// A quire-rs-owned self-test case and its embedded files.
+#[derive(Clone, Copy, Debug)]
+#[non_exhaustive]
+pub struct EmbeddedCase {
+    /// The stable case identifier, matching its directory under `selftest/cases/`.
+    pub id: &'static str,
+    /// The case files, addressed by paths relative to the case root.
+    pub files: &'static [EmbeddedCaseFile],
+}
+
+static CASES: &[EmbeddedCase] = &[EmbeddedCase {
+    id: "fr-032-placeholder-detection",
+    files: &[
+        EmbeddedCaseFile {
+            path: "run.sh",
+            bytes: include_bytes!("../selftest/cases/fr-032-placeholder-detection/run.sh"),
+        },
+        EmbeddedCaseFile {
+            path: "required-tools",
+            bytes: include_bytes!(
+                "../selftest/cases/fr-032-placeholder-detection/required-tools"
+            ),
+        },
+        EmbeddedCaseFile {
+            path: "input/FR-001.md",
+            bytes: include_bytes!(
+                "../selftest/cases/fr-032-placeholder-detection/input/FR-001.md"
+            ),
+        },
+        EmbeddedCaseFile {
+            path: "input/module/manifest.yaml",
+            bytes: include_bytes!(
+                "../selftest/cases/fr-032-placeholder-detection/input/module/manifest.yaml"
+            ),
+        },
+        EmbeddedCaseFile {
+            path: "input/module/schemas/fr-frontmatter.schema.json",
+            bytes: include_bytes!(
+                "../selftest/cases/fr-032-placeholder-detection/input/module/schemas/fr-frontmatter.schema.json"
+            ),
+        },
+        EmbeddedCaseFile {
+            path: "expected/exit_code",
+            bytes: include_bytes!(
+                "../selftest/cases/fr-032-placeholder-detection/expected/exit_code"
+            ),
+        },
+        EmbeddedCaseFile {
+            path: "expected/stdout",
+            bytes: include_bytes!(
+                "../selftest/cases/fr-032-placeholder-detection/expected/stdout"
+            ),
+        },
+    ],
+}];
+
+/// Returns every quire-rs-owned case embedded for use by the `quire` CLI.
+#[must_use]
+pub fn embedded_cases() -> &'static [EmbeddedCase] {
+    CASES
+}
