@@ -27,3 +27,5 @@ description: "Index of artifacts in this directory."
 * [US-018: Consume a source-grounded assurance export](./US-018-consume-assurance-export.md)
 * [US-019: Extract semantic declarations from an object artifact](./US-019-extract-semantic-declarations.md)
 * [US-020: Report a Quire-rs security vulnerability privately](./US-020-report-security-vulnerability.md)
+* [US-021: Consume Quire-RS anomaly documents in validation runs](./US-021-consume-quire-rs-anomaly-documents.md)
+* [US-022: Review the impact of a source change](./US-022-review-source-change-impact.md)
