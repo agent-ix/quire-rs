@@ -286,4 +286,4 @@ Under IU-001, callers rely on the engine results to review specification reposit
 | Run the focused acceptance check for FR-095: inspect the focused fixture result and its diagnostics. | FR-095-AC-1 |
 | Run the focused acceptance check for FR-096: inspect the focused fixture result and its diagnostics. | FR-096-AC-1 |
 | Run the focused acceptance check for FR-098: inspect the embedded anomaly documents and ownership boundary. | FR-098-AC-1 |
-| Run the focused acceptance check for FR-099: inspect the impact report, selection reasons, and uncovered-change diagnostics. | FR-099-AC-1 |
+| Run the focused acceptance check for FR-099: inspect how changed Rust lines map to changed symbols and report unavailable revisions. | FR-099-AC-1 |
