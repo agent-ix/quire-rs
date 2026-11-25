@@ -1193,7 +1193,7 @@ fn surfaces_supply_the_relation_vocabulary() {
     assert!(record.get("relations").is_none());
 }
 
-#[trace("FR-076-AC-12")]
+#[trace("FR-076-AC-24")]
 #[test]
 fn imported_relationship_targets_resolve_and_refuse_wrong_kinds() {
     use quire_rs::semantic::python_entry::extract_semantic_json;
@@ -1273,6 +1273,16 @@ fn imported_relationship_targets_resolve_and_refuse_wrong_kinds() {
     assert_eq!(refusal["sourceSpan"]["path"], "spec/assignment.md");
     assert_eq!(refusal["sourceSpan"]["startLine"], 12);
     assert!(refusal.get("targetSpan").is_none());
+
+    request["bundle"]["importedArtifacts"] = json!([]);
+    let unindexed = serde_json::to_value(extract_semantic_json(&request).unwrap()).unwrap();
+    assert!(unindexed["diagnostics"].as_array().unwrap().is_empty());
+    assert!(unindexed.get("resolvedReferences").is_none());
+    assert_eq!(
+        unindexed["relations"][0]["target"],
+        "ix://agent-ix/role-fixture/role-1"
+    );
+    assert_eq!(unindexed["availability"]["relations"]["state"], "available");
 }
 
 #[trace("FR-076-AC-15")]

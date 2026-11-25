@@ -177,7 +177,16 @@ Rows, with backticks around a cell stripped:
   with `reason` `no-bundle-index` and a message naming the target.
 - A bundle target SHALL satisfy an `allowed_links` token of the verb: `*`,
   the target's object type, or a role of that object type. A target with no
-  object type satisfies only `*`. An imported target is not checked.
+  object type satisfies only `*`. An imported target found in an explicitly
+  indexed imported-artifact inventory SHALL satisfy the same `allowed_links`
+  rule.
+- For an imported target whose artifact inventory provides its declaration
+  source span, the engine SHALL emit one `resolvedReferences` entry with the
+  imported identity, the relationship row's source span, and the imported
+  declaration's source span.
+- An imported package with no imported-artifact inventory SHALL retain the
+  imported identity verbatim for compatibility. The row has no
+  `resolvedReferences` entry and no `semantic.unresolved-target` advisory.
 - `Multiplicity` SHALL be present and map as the FR-070 multiplicity cell,
   with no upper bound for `*`.
 
@@ -194,6 +203,7 @@ Refusals, one diagnostic per row, first failing check only, in this order:
 | the object type's schema declares no `relations` and the `Verb` is no typed relation key | `semantic.invalid-model-cell` | `verb-not-typed-key` |
 | `Target` is a title, an unknown id, an own-package identity naming no artifact, or an identity of a package neither the bundle's nor imported | `semantic.invalid-model-cell` | `target-not-id` |
 | a bundle target satisfies no `allowed_links` token | `semantic.invalid-model-cell` | `target-not-allowed` |
+| an indexed imported target is present but satisfies no `allowed_links` token | `semantic.reference-kind-mismatch` | `wrong-kind` |
 | `Multiplicity` is empty or malformed | `semantic.invalid-model-cell` | `multiplicity` |
 | frontmatter `relationships` declares the same verb and target | `semantic.duplicate-model-entry` | `declared-in-frontmatter` |
 
@@ -330,6 +340,7 @@ Availability:
 | FR-076-AC-21 | `tests/fixtures/semantic/cases.json` carries, for each of `emits` on `aggregate_root`, `emits` on `process` and `persists` on `repository`, a case with `issue_ref` `PLAT-55` asserting the lowered identity, a refusal case and a control asserting its `absent_diagnostic_reasons`. | Test |
 | FR-076-AC-22 | In `relationships-cases.json` and `operations-cases.json`, no `availability` states an `entry-errors` reason as a string: every kind unavailable through entry errors states `reasonLoci`, including a case with two erroring rows (`row`, `second-row`); the harness fails when the engine's reason lines differ from the resolved loci. | Test |
 | FR-076-AC-23 | The own-package check on a `## Relationships` `ix://<org>/<repo>/<id>` target compares the target's package with the bundle package under ASCII case folding on both sides, and a matching target lowers to the identity `ix://<declared bundle package>/<id>` in the declared package's spelling, not the cell's: with bundle package `acme/widgets`, the cells `X` and `ix://Acme/Widgets/X` both lower `ix://acme/widgets/X`, and with bundle package `Acme/Widgets` the cell `ix://acme/widgets/X` lowers `ix://Acme/Widgets/X`, and a frontmatter `relationships` entry `ix://Acme/Widgets/X` under bundle package `acme/widgets` compares as `ix://acme/widgets/X`, so a row declaring the same verb and target is `declared-in-frontmatter`. A target under another package without an import is still refused with `semantic.invalid-model-cell` and reason `target-not-id`. | Test |
+| FR-076-AC-24 | An imported target present in an explicit imported-artifact inventory is checked against `allowed_links`: an allowed target with an indexed declaration source span emits one `resolvedReferences` entry carrying its identity, the authored relationship row span, and target declaration span; a wrong-kind target yields `semantic.reference-kind-mismatch` with reason `wrong-kind` at the row and includes the target span when present; an absent ID in an indexed imported package yields `semantic.invalid-model-cell` with reason `target-not-id` at the row. When the imported package has no artifact inventory, the imported identity is retained verbatim as a relation, with no diagnostic or `resolvedReferences` entry. | Test |
 
 ## Dependencies
 

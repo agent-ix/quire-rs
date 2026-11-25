@@ -109,6 +109,12 @@ fn request(fixture: &Value, markdown: &str, path: &str, case: Option<&Value>) ->
             .unwrap()
             .remove("artifacts");
     }
+    if let Some(package) = case.and_then(|c| c["importedPackage"].as_str()) {
+        request_map["module"]["imports"][package] = json!("*");
+    }
+    if flag("withoutImportedArtifactIndex") {
+        request_map["bundle"]["importedArtifacts"] = json!([]);
+    }
     request
 }
 
@@ -206,6 +212,18 @@ fn assert_case(file: &Value, case: &Value) {
                 "{id}: {message:?} lacks {needle:?}"
             );
         }
+    }
+    if let Some(resolved) = case.get("resolvedReferences") {
+        let actual = record
+            .get("resolvedReferences")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert_eq!(
+            Value::Array(actual),
+            resolved.clone(),
+            "{id}: resolvedReferences"
+        );
     }
     if case["relations"].is_null() {
         assert!(record.get("relations").is_none(), "{id}: relations emitted");
@@ -347,6 +365,7 @@ const NO_BUNDLE_INDEX_CASES: &[&str] = &[
     "no-bundle-index-own-package-identity",
     "no-bundle-index-bad-multiplicity",
 ];
+const NO_IMPORTED_ARTIFACT_INDEX_CASES: &[&str] = &["imported-target-without-artifact-index"];
 const NO_BLOCK_CASES: &[&str] = &["prose-only-section"];
 const AVAILABILITY_CASES: &[&str] = &[
     "good-and-bad-rows",
@@ -424,6 +443,7 @@ fn availability_cases_and_full_coverage() {
         AVAILABILITY_CASES,
         NO_VOCABULARY_CASES,
         NO_BUNDLE_INDEX_CASES,
+        NO_IMPORTED_ARTIFACT_INDEX_CASES,
         NO_BLOCK_CASES,
         MIXED_ROWS_CASES,
         NO_BUNDLE_PACKAGE_CASES,
@@ -438,7 +458,7 @@ fn availability_cases_and_full_coverage() {
         .iter()
         .map(|c| c["id"].as_str().unwrap())
         .collect();
-    assert_eq!(in_fixture.len(), 44);
+    assert_eq!(in_fixture.len(), 45);
     assert_eq!(unique, in_fixture);
 }
 
@@ -456,6 +476,12 @@ fn no_relation_vocabulary_cases() {
 #[test]
 fn no_bundle_index_cases() {
     run(NO_BUNDLE_INDEX_CASES);
+}
+
+#[trace("FR-076-AC-24")]
+#[test]
+fn imported_target_without_artifact_index_is_retained_unchecked() {
+    run(NO_IMPORTED_ARTIFACT_INDEX_CASES);
 }
 
 #[trace("FR-076-AC-12")]
