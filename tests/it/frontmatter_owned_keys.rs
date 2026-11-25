@@ -7,7 +7,7 @@ use std::collections::BTreeMap;
 
 use ix_trace_rs::trace;
 use quire_rs::semantic::python_entry::extract_semantic_json;
-use quire_rs::{validate_document_in_registry, Registry, ValidationResult};
+use quire_rs::{parse_document, validate_document_in_registry, Registry, ValidationResult};
 use serde_json::{json, Value};
 
 const DRAFT: &str = "https://json-schema.org/draft/2020-12/schema";
@@ -298,6 +298,145 @@ fn tc_two_frontmatter_sources_of_one_key_are_a_duplicate() {
 
 fn registry_same_name() -> Registry {
     registry(&locator("[cats]", ""), &list_schema(), "")
+}
+
+fn owner_case() -> Value {
+    serde_json::from_str(include_str!("../fixtures/corpus_cases/plat-1874.json"))
+        .expect("PLAT-1874 fixture")
+}
+
+fn owner_registry(case: &Value) -> Registry {
+    let module = &case["module"];
+    let locator = &case["locator"];
+    let path = serde_json::to_string(&locator["path"]).expect("locator path");
+    let targets = module["targets"]
+        .as_array()
+        .expect("targets")
+        .iter()
+        .map(|target| target.as_str().expect("target"))
+        .collect::<Vec<_>>()
+        .join(", ");
+    let manifest = format!(
+        "name: owner-fixture\nversion: 0.1.0\nartifact_types:\n- name: {}\nobject_types:\n- name: {}\n  data_schema:\n    schema: {}\n  body_extraction:\n    yield_pattern:\n      match:\n        {}: {{ from: {}, path: {}, required: {} }}\nsemantic:\n  contract_version: {}\n  package: {}\n  exports: [{}]\n  targets: [{}]\n",
+        module["artifact_type"].as_str().expect("artifact type"),
+        module["object_type"].as_str().expect("object type"),
+        module["schema_path"].as_str().expect("schema path"),
+        locator["key"].as_str().expect("locator key"),
+        locator["from"].as_str().expect("locator source"),
+        path,
+        locator["required"],
+        module["contract_version"].as_str().expect("contract version"),
+        module["package"].as_str().expect("package"),
+        module["object_type"].as_str().expect("export"),
+        targets
+    );
+    let schemas = BTreeMap::from([(
+        module["schema_path"]
+            .as_str()
+            .expect("schema path")
+            .to_string(),
+        case["schema"].to_string(),
+    )]);
+    let registry = Registry::from_inline_parts(manifest.as_bytes(), &schemas).expect("registry");
+    assert!(registry.failures().is_empty(), "{:?}", registry.failures());
+    registry
+}
+
+fn owner_extraction(case: &Value, text: &str) -> Value {
+    let module = &case["module"];
+    let locator = &case["locator"];
+    let mut match_fields = serde_json::Map::new();
+    match_fields.insert(
+        locator["key"].as_str().expect("locator key").to_string(),
+        json!({
+            "from": locator["from"],
+            "path": locator["path"],
+            "required": locator["required"]
+        }),
+    );
+    let request = json!({
+        "markdown": text,
+        "module": {
+            "contractVersion": module["contract_version"],
+            "package": module["package"],
+            "exports": [module["object_type"]],
+            "targets": module["targets"]
+        },
+        "objectType": module["object_type"],
+        "dataSchema": case["schema"],
+        "bodyExtraction": {"yield_pattern": {"match": match_fields}}
+    });
+    let out = extract_semantic_json(&request).expect("extraction");
+    serde_json::to_value(out).expect("serializes")
+}
+
+#[trace("FR-069-AC-34", "FR-069-AC-45", "FR-069-AC-47")]
+#[test]
+fn tc_scalar_owner_metadata_coexists_with_typed_nested_owner() {
+    let case = owner_case();
+    assert_eq!(case["issue_ref"], "PLAT-1874");
+    let registry = owner_registry(&case);
+
+    let control = case["control"].as_str().expect("healthy control");
+    let control_result = validate(&registry, control);
+    assert!(control_result.is_valid, "{:?}", control_result.errors);
+    assert_eq!(
+        owner_extraction(&case, control)["record"],
+        case["expect"]["control_record"]
+    );
+
+    let collision = case["input"]["collision"]
+        .as_str()
+        .expect("collision input");
+    let collision_result = validate(&registry, collision);
+    assert!(collision_result.is_valid, "{:?}", collision_result.errors);
+    assert!(!collision_result
+        .errors
+        .iter()
+        .any(|e| { e.message.starts_with("semantic.duplicate-record-key") }));
+    let collision_output = owner_extraction(&case, collision);
+    assert_eq!(
+        collision_output["record"],
+        case["expect"]["collision_record"]
+    );
+    assert_eq!(
+        collision_output["diagnostics"],
+        case["expect"]["collision_diagnostics"]
+    );
+    let parsed = parse_document(collision);
+    assert_eq!(
+        parsed.frontmatter.expect("frontmatter")["owner"],
+        case["expect"]["note_metadata_owner"]
+    );
+
+    let invalid_doc = case["input"]["invalid_leaf"]
+        .as_str()
+        .expect("invalid typed owner input");
+    let invalid_result = validate(&registry, invalid_doc);
+    assert!(!invalid_result.is_valid);
+    let findings = invalid(&invalid_result);
+    assert_eq!(findings.len(), 1, "{findings:?}");
+    assert!(
+        findings[0]
+            .1
+            .contains(case["expect"]["invalid_record_error"].as_str().unwrap()),
+        "{findings:?}"
+    );
+    let leaf_key = case["expect"]["invalid_record_error_source"]
+        .as_str()
+        .unwrap()
+        .rsplit('.')
+        .next()
+        .unwrap();
+    assert_eq!(
+        findings[0].0,
+        Some(line_of(invalid_doc, &format!("  {leaf_key}: 42"))),
+        "{findings:?}"
+    );
+    assert!(!invalid_result
+        .errors
+        .iter()
+        .any(|e| { e.message.starts_with("semantic.duplicate-record-key") }));
 }
 
 fn section_text(body: &str) -> String {

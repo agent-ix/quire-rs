@@ -11,14 +11,14 @@ relationships:
 
 ## Summary
 
-The change is low technical risk and low volatility: it distinguishes one reserved metadata key from schema-defined typed projection in the existing frontmatter composition path. The healthy collision case and invalid mapped-leaf case provide proportionate regression coverage once implemented.
+The change is low technical risk and low volatility: it distinguishes one reserved metadata key from schema-defined typed projection in the existing frontmatter composition path. The healthy control, collision case, and invalid mapped-leaf case provide proportionate regression coverage.
 
 ## Findings
 
 | ID | Severity | Summary | Refs |
 | --- | --- | --- | --- |
-| FND-001 | low | No high-risk or high-volatility driver found; retain the synthetic control and invalid-value regression cases specified by AC-47. | FR-069-AC-47 |
+| FND-001 | low | No high-risk or high-volatility driver found; the synthetic control and invalid-value regression cases cover the changed boundary. | FR-069-AC-47 |
 
 ## Verdict
 
-No spike or additional requirement is needed before implementation; close the test-evidence item recorded by the base review before release.
+No spike or additional requirement is needed before release; the test-evidence item recorded by the base review is closed.
