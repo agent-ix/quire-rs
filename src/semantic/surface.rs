@@ -339,6 +339,7 @@ pub fn extract_semantic(
             keys
         });
     let mut resolved_references = model_outcome.resolved_references;
+    resolved_references.extend(relations.resolved_references.iter().cloned());
     if let Some(outcome) = record.as_ref() {
         resolved_references.extend(outcome.resolved_references.iter().cloned());
     }

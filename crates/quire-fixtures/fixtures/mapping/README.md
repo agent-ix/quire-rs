@@ -28,6 +28,8 @@ Each case in `cases[]` has these fields:
 | `mappings` | Replaces `context.mappings` for this case. |
 | `withoutRelationVocabulary` | When `true`, the extraction runs with no relation vocabulary: no `edgeTypes`, `roles`, or `allowedLinks` (FR-104 `no-relation-vocabulary`). |
 | `withoutBundleIndex` | When `true`, the extraction runs with no bundle index: no `bundle.artifacts`; `bundle.package` and `bundle.imports` stay (FR-104 `no-bundle-index`). An absent `bundle.artifacts` and an empty one are equivalent: both are the no-index state. |
+| `importedPackage` | Adds this package to `module.imports` for a synthetic imported-target case. |
+| `withoutImportedArtifactIndex` | When `true`, provides an imported module without any imported-artifact inventory, exercising the unchecked compatibility behavior. |
 | `withoutBundlePackage` | When `true`, the extraction runs with no bundle package: an empty `bundle.package` and no `sourceIdentity` (FR-104 `no-bundle-package`). |
 | `diagnostics[]` | Expected diagnostics: `code`, `severity`, `locus`, `line`, `section`, `reason`, and optionally `messageContains`. |
 | `diagnostics[].locus` | Where the diagnostic sits: `row`, `second-row`, `header`, `second-header`, `heading`, `second-heading`, or `list`. |

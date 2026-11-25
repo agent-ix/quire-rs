@@ -397,6 +397,8 @@ pub(crate) struct RelationsOutcome {
     /// relationship-shaped table.
     pub(crate) availability: Option<KindAvailability>,
     pub(crate) diagnostics: Vec<SemanticDiagnostic>,
+    /// Indexed targets resolved by relationship rows, with both source loci.
+    pub(crate) resolved_references: Vec<super::ResolvedReference>,
 }
 
 /// Every diagnostic FR-104 names; each variant fixes its code, severity, and
@@ -420,6 +422,10 @@ enum Finding {
     TargetNotId,
     TargetNotAllowed {
         object: Option<String>,
+    },
+    TargetKindMismatch {
+        object: Option<String>,
+        target_span: Option<SourceLocus>,
     },
     Multiplicity {
         why: String,
@@ -462,6 +468,7 @@ impl Finding {
             | Self::TargetNotId
             | Self::TargetNotAllowed { .. }
             | Self::Multiplicity { .. } => "semantic.invalid-model-cell",
+            Self::TargetKindMismatch { .. } => "semantic.reference-kind-mismatch",
             Self::NoBlock => "semantic.relationships-no-block",
             Self::NoVocabulary => "semantic.relationships-no-vocabulary",
             Self::NoBundlePackage => "semantic.relationships-no-bundle-package",
@@ -487,6 +494,7 @@ impl Finding {
             | Self::VerbNotTypedKey
             | Self::TargetNotId
             | Self::TargetNotAllowed { .. }
+            | Self::TargetKindMismatch { .. }
             | Self::Multiplicity { .. }
             | Self::DeclaredInFrontmatter
             | Self::DeclaredInMembers
@@ -508,6 +516,7 @@ impl Finding {
             Self::VerbNotTypedKey => "verb-not-typed-key",
             Self::TargetNotId => "target-not-id",
             Self::TargetNotAllowed { .. } => "target-not-allowed",
+            Self::TargetKindMismatch { .. } => "wrong-kind",
             Self::Multiplicity { .. } => "multiplicity",
             Self::DeclaredInFrontmatter => "declared-in-frontmatter",
             Self::DeclaredInMembers => "declared-in-members",
@@ -568,6 +577,10 @@ impl Finding {
                 "target {target} (object type {}) satisfies no allowed_links token of `{verb}` for object type {object_type}",
                 object.as_deref().unwrap_or("<none>")
             ),
+            Self::TargetKindMismatch { object, .. } => format!(
+                "target {target} (object type {}) satisfies no allowed_links token of `{verb}` for object type {object_type}",
+                object.as_deref().unwrap_or("<none>")
+            ),
             Self::Multiplicity { why } => format!("row {name}: {why}"),
             Self::DeclaredInFrontmatter => format!(
                 "`{verb}` {target} is also declared in frontmatter `relationships`; declare it once"
@@ -611,6 +624,13 @@ impl Finding {
         )
         .with_reason(self.reason());
         d.source_span = Some(line_span(ctx, lines, line));
+        if let Self::TargetKindMismatch {
+            target_span: Some(target_span),
+            ..
+        } = self
+        {
+            d.target_span = Some(target_span.clone());
+        }
         d.section = Some(section.label());
         d
     }
@@ -702,6 +722,7 @@ struct Lowered {
     relation: ExtractedRelation,
     /// Lowered without a bundle index to check its target.
     unchecked: bool,
+    resolved_reference: Option<super::ResolvedReference>,
 }
 
 /// Row reader state: names seen, frontmatter edges.
@@ -761,6 +782,23 @@ impl RowCheck<'_> {
                 });
             }
         }
+        if let Target::Imported {
+            object,
+            indexed: true,
+            source_span,
+            ..
+        } = &target
+        {
+            if !allowed
+                .iter()
+                .any(|token| vocabulary.satisfies(token, *object))
+            {
+                return Err(Finding::TargetKindMismatch {
+                    object: object.map(str::to_string),
+                    target_span: source_span.clone(),
+                });
+            }
+        }
         let multiplicity = parse_multiplicity(row)?;
         let identity = target.identity();
         if self
@@ -770,6 +808,19 @@ impl RowCheck<'_> {
         {
             return Err(Finding::DeclaredInFrontmatter);
         }
+        let source_span = line_span(self.ctx, lines, row.line);
+        let resolved_reference = match &target {
+            Target::Imported {
+                indexed: true,
+                source_span: Some(target_span),
+                ..
+            } => Some(super::ResolvedReference {
+                identity: identity.to_string(),
+                reference_span: source_span.clone(),
+                target_span: target_span.clone(),
+            }),
+            _ => None,
+        };
         Ok(Lowered {
             relation: ExtractedRelation {
                 name: row.name.to_string(),
@@ -780,11 +831,12 @@ impl RowCheck<'_> {
                     target: identity.to_string(),
                     multiplicity,
                 },
-                source_span: line_span(self.ctx, lines, row.line),
+                source_span,
                 target_cell: row.target.to_string(),
                 multiplicity_cell: row.multiplicity.to_string(),
             },
             unchecked: matches!(target, Target::Unchecked { .. }),
+            resolved_reference,
         })
     }
 }
@@ -988,6 +1040,9 @@ pub(crate) fn extract_relations(raw: &str, ctx: &SemanticContext) -> RelationsOu
                     ));
                 }
                 rows.push(lowered.relation);
+                if let Some(reference) = lowered.resolved_reference {
+                    out.resolved_references.push(reference);
+                }
             }
             Err(refusal) => {
                 out.diagnostics

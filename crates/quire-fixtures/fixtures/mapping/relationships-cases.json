@@ -372,6 +372,7 @@
       "relationships": "| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| requirement | references | ix://agent-ix/spec-artifacts-iso/FR-001 | 0..* |\n",
       "diagnostics": [],
       "exactDiagnostics": 0,
+      "resolvedReferences": [],
       "relations": [
         {
           "verb": "references",
@@ -1070,6 +1071,47 @@
             "startColumn": 1,
             "endLine": 21,
             "endColumn": 45
+          }
+        }
+      ],
+      "availability": {
+        "relations": {
+          "state": "available",
+          "lossy": false
+        }
+      }
+    },
+    {
+      "id": "imported-target-without-artifact-index",
+      "importedPackage": "agent-ix/role-fixture",
+      "withoutImportedArtifactIndex": true,
+      "relationships": "| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| overlay | references | ix://agent-ix/role-fixture/role-1 | 1..1 |\n",
+      "diagnostics": [],
+      "exactDiagnostics": 0,
+      "relations": [
+        {
+          "verb": "references",
+          "category": "traceability",
+          "composite": false,
+          "target": "ix://agent-ix/role-fixture/role-1",
+          "multiplicity": {
+            "lower": 1,
+            "upper": 1,
+            "ordered": false,
+            "unique": false
+          }
+        }
+      ],
+      "relationSources": [
+        {
+          "name": "overlay",
+          "sourceSpan": {
+            "sourceIdentity": "ix://agent-ix/config-service/spec",
+            "path": "case.md",
+            "startLine": 20,
+            "startColumn": 1,
+            "endLine": 20,
+            "endColumn": 68
           }
         }
       ],
