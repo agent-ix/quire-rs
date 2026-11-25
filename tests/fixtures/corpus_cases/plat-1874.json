@@ -1,0 +1,45 @@
+{
+  "name": "scalar-owner-metadata-coexists-with-typed-owner",
+  "issue_ref": "PLAT-1874",
+  "tags": ["FR-069-AC-34", "FR-069-AC-45", "FR-069-AC-47"],
+  "language_scope": {
+    "included": ["rust"],
+    "excluded": {
+      "other": "The semantic registry projection and validation APIs exercised here are implemented in this Rust repository."
+    }
+  },
+  "module": {
+    "contract_version": "1.0.0",
+    "package": "example/owner-fixture",
+    "artifact_type": "Doc",
+    "object_type": "Thing",
+    "schema_path": "schemas/Thing.json",
+    "targets": ["json-schema", "markdown"]
+  },
+  "locator": {
+    "from": "frontmatter_field",
+    "key": "owner",
+    "path": ["ownership", "owner"],
+    "required": false
+  },
+  "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "required": ["owner"],
+    "properties": {"owner": {"type": "string"}},
+    "additionalProperties": false
+  },
+  "control": "---\nid: DOC-001\ntitle: Fixture\ntype: Doc\nobject: Thing\nownership:\n  owner: team-b\n---\n\n# Fixture\n",
+  "input": {
+    "collision": "---\nid: DOC-001\ntitle: Fixture\ntype: Doc\nobject: Thing\nowner: team-a\nownership:\n  owner: team-b\n---\n\n# Fixture\n",
+    "invalid_leaf": "---\nid: DOC-001\ntitle: Fixture\ntype: Doc\nobject: Thing\nowner: team-a\nownership:\n  owner: 42\n---\n\n# Fixture\n"
+  },
+  "expect": {
+    "control_record": {"owner": "team-b"},
+    "collision_record": {"owner": "team-b"},
+    "note_metadata_owner": "team-a",
+    "collision_diagnostics": [],
+    "invalid_record_error": "owner",
+    "invalid_record_error_source": "ownership.owner"
+  }
+}

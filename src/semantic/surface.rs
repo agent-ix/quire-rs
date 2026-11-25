@@ -387,7 +387,7 @@ pub fn extract_semantic(
     extraction
 }
 
-const RESERVED_FRONTMATTER_KEYS: [&str; 8] = [
+const RESERVED_FRONTMATTER_KEYS: [&str; 9] = [
     "id",
     "title",
     "type",
@@ -396,6 +396,7 @@ const RESERVED_FRONTMATTER_KEYS: [&str; 8] = [
     "relationships",
     "description",
     "tags",
+    "owner",
 ];
 
 #[derive(Clone, PartialEq, Eq)]
