@@ -230,11 +230,10 @@ fn frontmatter_id_rejects_section_and_pattern_fields() {
                 .reason
                 .contains("no `section`, `id_column`, or `pattern`")
     }));
-    assert!(registry
-        .traceability()
-        .expect("trace model remains")
-        .trace_targets
-        .is_empty());
+    assert!(
+        registry.traceability().is_none(),
+        "the only invalid declaration is removed with its empty model"
+    );
 }
 
 #[trace("FR-050-AC-70")]

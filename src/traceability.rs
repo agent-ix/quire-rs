@@ -1232,7 +1232,7 @@ impl TryFrom<TraceTargetWire> for TraceTarget {
             }
             (from @ (TraceTargetFrom::ListItem | TraceTargetFrom::Heading), Some(_), None, None) => {
                 return Err(format!(
-                    "trace_targets entry '{name}' reads `from: {}`, which declares no `pattern`",
+                    "trace_targets entry '{name}' reads `from: {}` and declares no `pattern`",
                     from.spelling()
                 ))
             }
