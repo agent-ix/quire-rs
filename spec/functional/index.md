@@ -93,3 +93,5 @@ description: "Index of artifacts in this directory."
 * [FR-095: Carry Quire-rs release test evidence with the tag attestation](./FR-095-tag-release-evidence.md)
 * [FR-096: Flow rules and remediations, declared as module data](./FR-096-flow-rules.md)
 * [FR-097: Private vulnerability reporting policy](./FR-097-security-reporting-policy.md)
+* [FR-098: Expose embedded Quire-RS anomaly documents](./FR-098-embedded-anomaly-documents.md)
+* [FR-099: Change impact analysis from source diffs](./FR-099-diff-impact-analysis.md)

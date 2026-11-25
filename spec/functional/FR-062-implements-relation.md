@@ -7,6 +7,8 @@ relationships:
     type: "extends"
   - target: "ix://agent-ix/quire-rs/StR-001"
     type: "traces_to"
+  - target: "ix://agent-ix/quire-rs/spec/functional/FR-099"
+    type: "references"
 ---
 
 # FR-062: The requirement-to-production-code relation
