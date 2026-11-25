@@ -975,6 +975,51 @@ fn tc956_untracked_symbols_carry_the_tagged_tests_line() {
 }
 
 #[trace("FR-050-AC-5")]
+// An unresolved shell marker remains visible as an untracked symbol at its
+// script path, rather than disappearing during coverage reconciliation.
+#[test]
+fn tc2202_untracked_shell_marker_names_its_script() {
+    let root = tempfile::tempdir().expect("temporary fixture");
+    let module = root.path().join("module");
+    let scope = root.path().join("spec");
+    let source = root.path().join("src");
+
+    let manifest = fs::read_to_string(fixture_module("iso").join("manifest.yaml"))
+        .expect("read ISO fixture module");
+    let manifest = format!(
+        "{manifest}    - name: shell-trace-comment\n\
+          language: shell\n\
+          syntax: comment\n\
+          pattern: '#\\s*[Tt]race:\\s*(.+)$'\n\
+          entry_paths: [\"scripts/**\"]\n"
+    );
+    write(&module, "manifest.yaml", &manifest);
+    write(
+        &scope,
+        "FR-001.md",
+        "---\nid: FR-001\ntype: FR\n---\n\n## Acceptance Criteria\n\n| ID | Criteria | Verification |\n|----|----------|--------------|\n| FR-001-AC-1 | The system shall accept a valid source marker. | Test |\n",
+    );
+    write(
+        &source,
+        "scripts/selftest.sh",
+        "#!/bin/sh\n# Trace: FR-999-AC-1\nset -eu\n",
+    );
+
+    let registry = Registry::load_module(&module).expect("load fixture model");
+    let model = registry.traceability().expect("traceability model");
+    let graph = trace::bind(&extract_tree(&source), model);
+    let report = compute(&Spec::from_path(&scope), &registry, &graph, &scope)
+        .expect("coverage report");
+
+    assert_eq!(report.untracked_symbols.len(), 1, "{:#?}", report.untracked_symbols);
+    let untracked = &report.untracked_symbols[0];
+    assert_eq!(untracked.trace_id, "FR-999-AC-1");
+    assert_eq!(untracked.path, "scripts/selftest.sh");
+    assert_eq!(untracked.symbol, "entry_point");
+    assert_eq!(untracked.line, Some(2));
+}
+
+#[trace("FR-050-AC-5")]
 // a symbol whose trace tag resolves to no declared
 // target or row appears in untracked symbols with its file and symbol name.
 #[test]
