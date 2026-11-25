@@ -30,6 +30,23 @@ struct ProviderRoots {
     severity_overrides: Vec<String>,
 }
 
+fn final_failure_count(document_failures: usize, completeness_failures: usize) -> usize {
+    document_failures + completeness_failures
+}
+
+fn validation_summary(
+    documents: usize,
+    failures: usize,
+    warnings: usize,
+    untyped_skipped: usize,
+    phase7_excluded: usize,
+) -> String {
+    format!(
+        "spec_validate: {documents} document(s), {failures} failed, \
+         {warnings} warning(s), {untyped_skipped} untyped skipped, {phase7_excluded} Phase-7 excluded"
+    )
+}
+
 fn parse_provider_roots(args: impl IntoIterator<Item = OsString>) -> Result<ProviderRoots, String> {
     let mut args = args.into_iter();
     let mut process = None;
@@ -352,11 +369,7 @@ fn main() {
         );
         failed_documents += 1;
     }
-    println!(
-        "spec_validate: {documents} document(s), {failed_documents} failed, \
-         {warning_count} warning(s), {} untyped skipped, {excluded_documents} Phase-7 excluded",
-        skipped_untyped.len(),
-    );
+    let mut completeness_failures = 0;
     if providers
         .severity_overrides
         .iter()
@@ -376,17 +389,26 @@ fn main() {
             .iter()
             .chain(report.warnings.iter())
             .filter(|finding| finding.reason == "feature-without-risk-rating");
-        let mut count = 0;
         for finding in findings {
-            count += 1;
+            completeness_failures += 1;
             eprintln!("error: {}: {}", finding.path.display(), finding.message);
-            failed_documents += 1;
         }
         println!(
-            "spec_validate: {count} feature-without-risk-rating finding(s) at configured severity"
+            "spec_validate: {completeness_failures} feature-without-risk-rating finding(s) at configured severity"
         );
     }
-    if failed_documents > 0 {
+    let total_failures = final_failure_count(failed_documents, completeness_failures);
+    println!(
+        "{}",
+        validation_summary(
+            documents,
+            total_failures,
+            warning_count,
+            skipped_untyped.len(),
+            excluded_documents,
+        )
+    );
+    if total_failures > 0 {
         std::process::exit(1);
     }
 }
@@ -397,6 +419,13 @@ mod tests {
     use ix_trace_rs::trace;
     use std::ffi::OsString;
     use std::path::Path;
+
+    #[test]
+    fn final_summary_includes_bundle_completeness_failures() {
+        let total = super::final_failure_count(2, 1);
+        let summary = super::validation_summary(224, total, 40, 0, 9);
+        assert!(summary.contains("3 failed"), "{summary}");
+    }
 
     fn write_module(root: &Path, name: &str, archetype: &str) {
         std::fs::create_dir_all(root.join("schemas")).expect("module directory");
