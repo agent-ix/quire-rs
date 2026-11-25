@@ -381,6 +381,28 @@ pub fn analyze(input: ImpactInput<'_>) -> Result<ImpactReport, ImpactError> {
                     }
                 }
                 for id in ids {
+                    let normalized_id = trace::normalized_trace_id(&id);
+                    let available = input
+                        .available_spec_ids
+                        .iter()
+                        .any(|candidate| trace::normalized_trace_id(candidate) == normalized_id);
+                    let unavailable = input
+                        .unavailable_spec_ids
+                        .iter()
+                        .any(|candidate| trace::normalized_trace_id(candidate) == normalized_id);
+                    if unavailable {
+                        report
+                            .findings
+                            .push(ImpactFinding::UnavailableSpecification {
+                                path: symbol.path.clone(),
+                                trace_id: id.clone(),
+                            });
+                    } else if !available {
+                        report.findings.push(ImpactFinding::UnresolvedId {
+                            path: symbol.path.clone(),
+                            trace_id: id.clone(),
+                        });
+                    }
                     let matches = match trace_search::search(
                         graph,
                         extraction,
@@ -465,7 +487,7 @@ pub fn analyze(input: ImpactInput<'_>) -> Result<ImpactReport, ImpactError> {
             reason,
         })
         .collect();
-    report.selection_complete = report.findings.is_empty();
+    report.selection_complete = report.findings.is_empty() && report.unmapped_changes.is_empty();
     report.changed_symbols.sort_by(|a, b| {
         (&a.path, a.lines.start, &a.name, a.side).cmp(&(&b.path, b.lines.start, &b.name, b.side))
     });
@@ -629,6 +651,24 @@ mod tests {
             report.unmapped_changes[0].lines,
             LineRange { start: 1, end: 1 }
         );
+        let report = run(
+            "mod outer { fn changed() {} }\n",
+            "mod outer { fn changed() {} }\n",
+            FileChange {
+                path: "src/lib.rs".into(),
+                base: Some(LineRange { start: 1, end: 1 }),
+                head: Some(LineRange { start: 1, end: 1 }),
+            },
+        )
+        .unwrap();
+        assert!(report
+            .changed_symbols
+            .iter()
+            .any(|symbol| symbol.name == "outer"));
+        assert!(report
+            .changed_symbols
+            .iter()
+            .any(|symbol| symbol.name.ends_with("changed")));
     }
 
     #[trace("FR-099-AC-1")]
@@ -695,7 +735,7 @@ mod tests {
         let root = tempfile::tempdir().unwrap();
         let registry = model_with_implements_form(root.path());
         let model = registry.traceability().unwrap();
-        let source = "#[implements(\"FR-099-AC-4\")]\nfn changed() {}\n#[implements(\"FR-099-AC-4\")]\nfn twin() {}\n#[test]\n#[trace(\"FR-099-AC-4\")]\nfn matching_test() {}\n#[test]\n#[trace(\"FR-099-AC-3\")]\nfn different_test() {}\n";
+        let source = "#[implements(\"fr_099_ac_4\")]\nfn changed() {}\n#[implements(\"FR-099-AC-4\")]\nfn twin() {}\n#[test]\n#[trace(\"FR-099-AC-4\")]\nfn matching_test() {}\n#[test]\n#[trace(\"FR-099-AC-3\")]\nfn different_test() {}\n";
         let base = snapshot("base", "");
         let head = snapshot("head", source);
         let available = BTreeSet::from(["FR-099-AC-4".to_string(), "FR-099-AC-3".to_string()]);
@@ -832,6 +872,26 @@ mod tests {
         ));
         assert!(!report.selection_complete);
         assert!(report.selected_tests.is_empty());
+    }
+
+    #[trace("FR-099-AC-8")]
+    #[test]
+    fn parser_failure_marks_selection_incomplete() {
+        let broken = include_str!("../tests/fixtures/symbols/broken/truncated.rs");
+        let report = run(
+            "",
+            broken,
+            FileChange {
+                path: "src/lib.rs".into(),
+                base: None,
+                head: Some(LineRange { start: 1, end: 4 }),
+            },
+        )
+        .unwrap();
+        assert!(report.findings.iter().any(
+            |item| matches!(item, ImpactFinding::ExtractionUnavailable { path, .. } if path == "src/lib.rs")
+        ));
+        assert!(!report.selection_complete);
     }
 
     #[trace("FR-099-AC-11")]
