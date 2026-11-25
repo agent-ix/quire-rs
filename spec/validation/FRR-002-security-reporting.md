@@ -1,6 +1,6 @@
 ---
 id: FRR-002
-title: quire-rs supplier process-risk rating: vulnerability reporting policy
+title: "quire-rs supplier process-risk rating: vulnerability reporting policy"
 type: FeatureRiskRating
 scope: supplier
 rating: not_high_process_risk
@@ -16,7 +16,7 @@ relationships:
 
 ## Feature assessments
 
-| Requirement | Failure mode | Detection activity |
+| Requirement | Failure mode | Detection |
 |---|---|---|
 | FR-097 | A defect in this feature can omit or misstate information in validation, traceability, or coverage results used to assess the supplied specification repository. | Exercise the focused check for FR-097-AC-1; compare the emitted validation or coverage record with its expected fixture result. |
 

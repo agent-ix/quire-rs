@@ -1,6 +1,6 @@
 ---
 id: FRR-001
-title: quire-rs supplier process-risk rating: specification records
+title: "quire-rs supplier process-risk rating: specification records"
 type: FeatureRiskRating
 scope: supplier
 rating: high_process_risk
@@ -188,7 +188,7 @@ relationships:
 
 ## Feature assessments
 
-| Requirement | Failure mode | Detection activity |
+| Requirement | Failure mode | Detection |
 |---|---|---|
 | FR-001 | A contract or classification defect can accept a nonconforming document or report a conforming one as defective, making validation and coverage records unreliable. | Exercise the focused check for FR-001-AC-1; compare the emitted validation or coverage record with its expected fixture result. |
 | FR-002 | A contract or classification defect can accept a nonconforming document or report a conforming one as defective, making validation and coverage records unreliable. | Exercise the focused check for FR-002-AC-1; compare the emitted validation or coverage record with its expected fixture result. |

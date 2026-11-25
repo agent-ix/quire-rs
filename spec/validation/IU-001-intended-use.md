@@ -19,10 +19,10 @@ The library returns structured results to its caller; it has no command that
 writes result files. The `quire-cli` interface presents or emits the results
 from these commands:
 
-| Record kind | Command that presents or emits it |
+| Record kind | Command that writes it |
 |---|---|
-| Document and repository validation findings (`ValidationResult`, `BundleReport`) | `quire validate` |
-| Repository coverage and traceability matrix (`CoverageReport`, coverage matrix) | `quire matrix` |
+| Document and repository validation findings (`ValidationResult`, `BundleReport`) | `quire validate` (emits the result to standard output) |
+| Repository coverage and traceability matrix (`CoverageReport`, coverage matrix) | `quire matrix` (emits the result to standard output) |
 
 ## Who relies on them
 

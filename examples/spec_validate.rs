@@ -10,15 +10,15 @@
 // Run: cargo run --locked --quiet --example spec_validate --
 //        --process-root <repo> --iso-root <repo>  (wired as `make validate`)
 //
-// Scope is exactly `quire validate <file>` over every document in `spec/`:
-// per-document structural validation (frontmatter schema + `body_extraction`
-// asserts + heading uniqueness + grammar severity promotions) — the layer that
-// catches a malformed matrix row. Deliberately NOT `BundlePosture::Strict`
-// bundle validation: the whole-bundle posture reports pre-existing
-// corpus-debt errors (dangling trace references,
-// index-incomplete, unowned quality characteristics) that are real, tracked
-// authoring debt but not this gate's regression surface — a gate that fails on
-// clean main gates nothing.
+// Scope is per-document structural validation (frontmatter schema +
+// `body_extraction` asserts + heading uniqueness + grammar severity
+// promotions), plus only the explicitly configured bundle checks. The
+// `make validate` target enables the supplier feature-rating completeness
+// check because these records and their targets live in the same spec tree.
+// Deliberately NOT `BundlePosture::Strict` bundle validation: unrelated
+// corpus-debt errors (dangling references, index-incomplete and unowned
+// quality characteristics) are tracked authoring debt, not this gate's
+// regression surface — a gate that fails on clean main gates nothing.
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
