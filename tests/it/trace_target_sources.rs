@@ -172,7 +172,7 @@ fn malformed_non_table_sources_are_dropped() {
     }
 }
 
-#[trace("FR-050-AC-69")]
+#[trace("FR-050-AC-70")]
 #[test]
 fn frontmatter_ids_resolve_typed_documents_without_a_section() {
     let root = tempfile::tempdir().expect("scope");
@@ -214,7 +214,7 @@ fn frontmatter_ids_resolve_typed_documents_without_a_section() {
     assert!(dangling[0].contains("TC-99"), "{dangling:?}");
 }
 
-#[trace("FR-050-AC-69")]
+#[trace("FR-050-AC-70")]
 #[test]
 fn frontmatter_id_rejects_section_and_pattern_fields() {
     let root = tempfile::tempdir().expect("module");
@@ -235,4 +235,26 @@ fn frontmatter_id_rejects_section_and_pattern_fields() {
         .expect("trace model remains")
         .trace_targets
         .is_empty());
+}
+
+#[trace("FR-050-AC-70")]
+#[test]
+fn frontmatter_targets_report_missing_required_archetype_only() {
+    let root = tempfile::tempdir().expect("scope");
+    let module = "name: absent-frontmatter-targets\nversion: 0.1.0\nartifact_types:\n- name: TC\ntraceability:\n  trace_targets:\n  - name: required-case\n    archetype: TC\n    from: frontmatter_id\n  - name: optional-case\n    archetype: TC\n    from: frontmatter_id\n    required: false\n";
+    let case = serde_json::json!({
+        "input": {
+            "documents": {},
+            "sources": {}
+        }
+    });
+    let (report, _) = run(&case, module, root.path());
+
+    let archetype_diagnostics: Vec<_> = report
+        .diagnostics
+        .iter()
+        .filter(|diagnostic| diagnostic.reason == "archetype-matches-nothing")
+        .map(|diagnostic| diagnostic.declaration.as_str())
+        .collect();
+    assert_eq!(archetype_diagnostics, ["required-case"]);
 }

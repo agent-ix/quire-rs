@@ -651,7 +651,7 @@ pub(crate) struct MintedId {
 }
 
 /// Every id `target` mints in corpus order by whichever source its `from:`
-/// selects (FR-050-AC-60, AC-69).
+/// selects (FR-050-AC-60, FR-050-AC-70).
 pub(crate) fn mint(
     spec: &Spec,
     root: &Path,
