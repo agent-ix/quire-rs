@@ -1223,10 +1223,16 @@ impl TryFrom<TraceTargetWire> for TraceTarget {
             (TraceTargetFrom::Heading, Some(section), None, Some(pattern)) => {
                 (TraceTargetSource::Heading { pattern }, Some(section))
             }
-            (from @ (TraceTargetFrom::ListItem | TraceTargetFrom::Heading), Some(_), _, _) => {
+            (from @ (TraceTargetFrom::ListItem | TraceTargetFrom::Heading), Some(_), Some(_), _) => {
                 return Err(format!(
                     "trace_targets entry '{name}' reads `from: {}`, which has no columns; \
                      declare `pattern` instead of `id_column`",
+                    from.spelling()
+                ))
+            }
+            (from @ (TraceTargetFrom::ListItem | TraceTargetFrom::Heading), Some(_), None, None) => {
+                return Err(format!(
+                    "trace_targets entry '{name}' reads `from: {}`, which declares no `pattern`",
                     from.spelling()
                 ))
             }
@@ -1245,12 +1251,6 @@ impl TryFrom<TraceTargetWire> for TraceTarget {
             (from, None, None, _) => {
                 return Err(format!(
                     "trace_targets entry '{name}' reads `from: {}`, which requires `section`",
-                    from.spelling()
-                ))
-            }
-            (from, Some(_), None, None) => {
-                return Err(format!(
-                    "trace_targets entry '{name}' reads `from: {}`, which declares no `pattern`",
                     from.spelling()
                 ))
             }
