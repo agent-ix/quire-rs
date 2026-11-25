@@ -4,7 +4,7 @@ title: "quire-rs supplier process-risk rating: vulnerability reporting policy"
 type: FeatureRiskRating
 scope: supplier
 rating: not_high_process_risk
-rated_by: Peter Krenesky
+status: proposed
 relationships:
   - target: ix://agent-ix/quire-rs/IU-001
     type: uses_intended_use
@@ -13,12 +13,6 @@ relationships:
 ---
 
 # quire-rs supplier process-risk rating: vulnerability reporting policy
-
-## Feature assessments
-
-| Requirement | Failure mode | Detection |
-|---|---|---|
-| FR-097 | A defect in this feature can omit or misstate information in validation, traceability, or coverage results used to assess the supplied specification repository. | Exercise the focused check for FR-097-AC-1; compare the emitted validation or coverage record with its expected fixture result. |
 
 ## Rationale
 
