@@ -162,6 +162,8 @@ pub enum ImpactFinding {
     },
     /// Source is outside the Rust-only support boundary.
     UnsupportedSource { path: String },
+    /// Existing trace search could not prove a complete result.
+    TraceSearchUnavailable { trace_id: String, reason: String },
 }
 
 /// Deterministically ordered impact report.
@@ -379,7 +381,20 @@ pub fn analyze(input: ImpactInput<'_>) -> Result<ImpactReport, ImpactError> {
                     }
                 }
                 for id in ids {
-                    let matches = trace_search::search(graph, trace_search::Query::Id(id.clone()));
+                    let matches = match trace_search::search(
+                        graph,
+                        extraction,
+                        &trace_search::Query::Id(id.clone()),
+                    ) {
+                        Ok(matches) => matches,
+                        Err(error) => {
+                            report.findings.push(ImpactFinding::TraceSearchUnavailable {
+                                trace_id: id,
+                                reason: error.to_string(),
+                            });
+                            continue;
+                        }
+                    };
                     for test in matches.verifies {
                         selected
                             .entry((test.path, test.symbol))
