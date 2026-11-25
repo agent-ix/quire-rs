@@ -150,7 +150,16 @@ pub enum ImpactFinding {
         changed_lines: LineRange,
     },
     /// Existing extraction reported a parse problem.
-    ExtractionUnavailable { path: String, reason: String },
+    ExtractionUnavailable {
+        path: String,
+        side: RevisionSide,
+        reason: String,
+    },
+    /// The build lacks an extractor for a language present in the snapshot.
+    LanguagesUnavailable {
+        side: RevisionSide,
+        languages: Vec<String>,
+    },
     /// A mentioned id has no entry in the supplied specifications.
     UnresolvedId { path: String, trace_id: String },
     /// A mentioned id belongs to an unavailable specification.
@@ -223,6 +232,7 @@ pub enum ImpactError {
 #[implements("FR-099-AC-7")]
 #[implements("FR-099-AC-8")]
 #[implements("FR-099-AC-11")]
+#[implements("FR-099-CON-4")]
 pub fn analyze(input: ImpactInput<'_>) -> Result<ImpactReport, ImpactError> {
     let base = input
         .base
@@ -277,6 +287,28 @@ pub fn analyze(input: ImpactInput<'_>) -> Result<ImpactReport, ImpactError> {
     };
     let mut selected: BTreeMap<(String, String), BTreeSet<ImpactReason>> = BTreeMap::new();
     let mut related = BTreeSet::new();
+    for (side, extraction) in [
+        (RevisionSide::Base, &base_extraction),
+        (RevisionSide::Head, &head_extraction),
+    ] {
+        for diagnostic in &extraction.diagnostics {
+            report.findings.push(ImpactFinding::ExtractionUnavailable {
+                path: diagnostic.path.clone(),
+                side,
+                reason: diagnostic.reason.clone(),
+            });
+        }
+        if !extraction.unavailable_languages.is_empty() {
+            report.findings.push(ImpactFinding::LanguagesUnavailable {
+                side,
+                languages: extraction
+                    .unavailable_languages
+                    .iter()
+                    .map(|language| language.as_str().to_string())
+                    .collect(),
+            });
+        }
+    }
     for change in input.changes {
         for (side, range, extraction, graph) in [
             (
@@ -445,25 +477,6 @@ pub fn analyze(input: ImpactInput<'_>) -> Result<ImpactReport, ImpactError> {
                         related.insert((other.path, other.symbol, id.clone(), reason));
                     }
                 }
-            }
-            for diagnostic in extraction
-                .diagnostics
-                .iter()
-                .filter(|item| item.path == change.path)
-            {
-                report.findings.push(ImpactFinding::ExtractionUnavailable {
-                    path: diagnostic.path.clone(),
-                    reason: diagnostic.reason.clone(),
-                });
-            }
-            if !extraction.unavailable_languages.is_empty() {
-                report.findings.push(ImpactFinding::ExtractionUnavailable {
-                    path: change.path.clone(),
-                    reason: format!(
-                        "symbol extraction unavailable for {:?}",
-                        extraction.unavailable_languages
-                    ),
-                });
             }
             if !change.path.ends_with(".rs") {
                 report.findings.push(ImpactFinding::UnsupportedSource {
@@ -806,6 +819,61 @@ mod tests {
             .any(|item| item.name == "twin" && item.trace_id == "fr_099_ac_4"));
     }
 
+    #[trace("FR-099-AC-6")]
+    #[test]
+    fn requirement_and_repository_prefixed_ids_remain_distinct() {
+        let root = tempfile::tempdir().unwrap();
+        let registry = model_with_implements_form(root.path());
+        let model = registry.traceability().unwrap();
+        let source = "#[implements(\"FR-099\")]\nfn requirement_impl() {}\n#[implements(\"FR-099-AC-4\")]\nfn criterion_impl() {}\n#[implements(\"FSpec-FR-099-AC-4\")]\nfn foreign_impl() {}\n#[test]\n#[trace(\"FR-099\")]\nfn requirement_test() {}\n#[test]\n#[trace(\"FR-099-AC-4\")]\nfn criterion_test() {}\n#[test]\n#[trace(\"FSpec-FR-099-AC-4\")]\nfn foreign_test() {}\n";
+        let base = snapshot("base", "");
+        let head = snapshot("head", source);
+        let available = BTreeSet::from([
+            "FR-099".to_string(),
+            "FR-099-AC-4".to_string(),
+            "FSpec-FR-099-AC-4".to_string(),
+        ]);
+        let unavailable = BTreeSet::new();
+        let run_range = |start, end| {
+            analyze(ImpactInput {
+                base: Some(&base),
+                head: Some(&head),
+                changes: &[FileChange {
+                    path: "src/lib.rs".into(),
+                    base: None,
+                    head: Some(LineRange { start, end }),
+                }],
+                traceability: model,
+                available_spec_ids: &available,
+                unavailable_spec_ids: &unavailable,
+            })
+            .unwrap()
+        };
+
+        let requirement = run_range(1, 2);
+        assert_eq!(
+            requirement
+                .selected_tests
+                .iter()
+                .map(|test| test.name.as_str())
+                .collect::<Vec<_>>(),
+            ["requirement_test"]
+        );
+        let criterion = run_range(3, 4);
+        assert_eq!(
+            criterion
+                .selected_tests
+                .iter()
+                .map(|test| test.name.as_str())
+                .collect::<Vec<_>>(),
+            ["criterion_test"]
+        );
+        assert!(!criterion
+            .selected_tests
+            .iter()
+            .any(|test| test.name == "foreign_test"));
+    }
+
     #[trace("FR-099-AC-8")]
     #[test]
     fn unlinked_code_is_reported_with_empty_test_selection() {
@@ -825,6 +893,7 @@ mod tests {
     }
 
     #[trace("FR-099-AC-7")]
+    #[trace("FR-099-CON-4")]
     #[test]
     fn unmatched_requirement_mentions_are_classified_by_spec_availability() {
         let root = tempfile::tempdir().unwrap();
@@ -929,6 +998,44 @@ mod tests {
         .unwrap();
         assert!(report.findings.iter().any(
             |item| matches!(item, ImpactFinding::ExtractionUnavailable { path, .. } if path == "src/lib.rs")
+        ));
+        assert!(!report.selection_complete);
+    }
+
+    #[trace("FR-099-AC-8")]
+    #[test]
+    fn unchanged_malformed_file_keeps_whole_snapshot_selection_incomplete() {
+        let malformed = include_str!("../tests/fixtures/symbols/broken/truncated.rs").to_string();
+        let files = BTreeMap::from([
+            (
+                "src/lib.rs".to_string(),
+                "#[test]\nfn touched() {}\n".to_string(),
+            ),
+            ("src/broken.rs".to_string(), malformed),
+        ]);
+        let base = SourceSnapshot {
+            revision: "base".into(),
+            files: files.clone(),
+        };
+        let head = SourceSnapshot {
+            revision: "head".into(),
+            files,
+        };
+        let report = analyze(ImpactInput {
+            base: Some(&base),
+            head: Some(&head),
+            changes: &[FileChange {
+                path: "src/lib.rs".into(),
+                base: Some(LineRange { start: 2, end: 2 }),
+                head: Some(LineRange { start: 2, end: 2 }),
+            }],
+            traceability: &TraceabilityModel::default(),
+            available_spec_ids: &BTreeSet::new(),
+            unavailable_spec_ids: &BTreeSet::new(),
+        })
+        .unwrap();
+        assert!(report.findings.iter().any(
+            |finding| matches!(finding, ImpactFinding::ExtractionUnavailable { path, .. } if path == "src/broken.rs")
         ));
         assert!(!report.selection_complete);
     }
