@@ -74,3 +74,86 @@ static CASES: &[EmbeddedCase] = &[EmbeddedCase {
 pub fn embedded_cases() -> &'static [EmbeddedCase] {
     CASES
 }
+
+/// One Quire-RS-owned anomaly document embedded for downstream validation runs.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub struct EmbeddedAnomalyDocument {
+    /// The document's stable path relative to the repository root.
+    pub path: &'static str,
+    /// The exact UTF-8 source content embedded in the compiled library.
+    pub content: &'static str,
+}
+
+static ANOMALY_DOCUMENTS: &[EmbeddedAnomalyDocument] = &[
+    EmbeddedAnomalyDocument {
+        path: "spec/anomalies/AN-001-behavioral-mutation-result-not-retained.md",
+        content: include_str!(
+            "../spec/anomalies/AN-001-behavioral-mutation-result-not-retained.md"
+        ),
+    },
+    EmbeddedAnomalyDocument {
+        path: "spec/anomalies/AN-002-ci-trigger-is-dispatch-only.md",
+        content: include_str!("../spec/anomalies/AN-002-ci-trigger-is-dispatch-only.md"),
+    },
+];
+
+/// Returns every Quire-RS-owned anomaly document embedded in this library.
+#[must_use]
+pub fn embedded_anomaly_documents() -> &'static [EmbeddedAnomalyDocument] {
+    ANOMALY_DOCUMENTS
+}
+
+#[cfg(test)]
+mod tests {
+    use super::embedded_anomaly_documents;
+    use ix_trace_rs::trace;
+    use std::{fs, path::Path};
+
+    #[test]
+    #[trace("FR-098-AC-1")]
+    fn embedded_anomaly_documents_list_only_owned_paths_in_order() {
+        let paths = embedded_anomaly_documents()
+            .iter()
+            .map(|document| document.path)
+            .collect::<Vec<_>>();
+
+        assert_eq!(
+            paths,
+            [
+                "spec/anomalies/AN-001-behavioral-mutation-result-not-retained.md",
+                "spec/anomalies/AN-002-ci-trigger-is-dispatch-only.md",
+            ]
+        );
+        assert!(paths
+            .iter()
+            .all(|path| path.starts_with("spec/anomalies/AN-")));
+    }
+
+    #[test]
+    #[trace("FR-098-AC-2")]
+    fn embedded_anomaly_documents_preserve_source_content_and_ids() {
+        let repository_root = Path::new(env!("CARGO_MANIFEST_DIR"));
+
+        for document in embedded_anomaly_documents() {
+            let source_path = repository_root.join(document.path);
+            let source_content = fs::read_to_string(&source_path).unwrap_or_else(|error| {
+                panic!("failed to read {}: {error}", source_path.display())
+            });
+            assert_eq!(document.content, source_content, "{}", document.path);
+
+            let file_name = Path::new(document.path)
+                .file_name()
+                .and_then(|name| name.to_str())
+                .expect("embedded anomaly path has a UTF-8 file name");
+            let path_id = file_name.split('-').take(2).collect::<Vec<_>>().join("-");
+            let content_id = document
+                .content
+                .lines()
+                .find_map(|line| line.strip_prefix("id: "))
+                .expect("anomaly frontmatter contains an id");
+
+            assert_eq!(content_id, path_id, "{}", document.path);
+        }
+    }
+}
