@@ -26,6 +26,6 @@ Under IU-001, this policy does not compute the parse, validation, traceability, 
 
 ## Assurance activities
 
-| Activity | Acceptance criterion addressed |
+| Activity | Acceptance criterion |
 |---|---|
 | Inspect the reporting-policy examples for FR-097: inspect the focused fixture result and its diagnostics. | FR-097-AC-1 |

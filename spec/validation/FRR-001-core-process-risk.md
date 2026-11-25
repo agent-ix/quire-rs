@@ -284,7 +284,7 @@ Under IU-001, callers rely on the engine results to review specification reposit
 
 ## Assurance activities
 
-| Activity | Acceptance criterion addressed |
+| Activity | Acceptance criterion |
 |---|---|
 | Run the focused acceptance check for FR-001: inspect the focused fixture result and its diagnostics. | FR-001-AC-1 |
 | Run the focused acceptance check for FR-002: inspect the focused fixture result and its diagnostics. | FR-002-AC-1 |
