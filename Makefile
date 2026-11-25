@@ -378,7 +378,8 @@ VALIDATION_ISO_ROOT ?= ../spec-artifacts-iso
 validate:
 	cargo run --locked --quiet --example spec_validate -- \
 		--process-root "$(VALIDATION_PROCESS_ROOT)" \
-		--iso-root "$(VALIDATION_ISO_ROOT)"
+		--iso-root "$(VALIDATION_ISO_ROOT)" \
+		--severity trace:feature-without-risk-rating=error
 
 QUIRE_CLI ?= ../quire-cli
 

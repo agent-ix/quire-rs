@@ -10,15 +10,15 @@
 // Run: cargo run --locked --quiet --example spec_validate --
 //        --process-root <repo> --iso-root <repo>  (wired as `make validate`)
 //
-// Scope is exactly `quire validate <file>` over every document in `spec/`:
-// per-document structural validation (frontmatter schema + `body_extraction`
-// asserts + heading uniqueness + grammar severity promotions) — the layer that
-// catches a malformed matrix row. Deliberately NOT `BundlePosture::Strict`
-// bundle validation: the whole-bundle posture reports pre-existing
-// corpus-debt errors (dangling trace references,
-// index-incomplete, unowned quality characteristics) that are real, tracked
-// authoring debt but not this gate's regression surface — a gate that fails on
-// clean main gates nothing.
+// Scope is per-document structural validation (frontmatter schema +
+// `body_extraction` asserts + heading uniqueness + grammar severity
+// promotions), plus only the explicitly configured bundle checks. The
+// `make validate` target enables the supplier feature-rating completeness
+// check because these records and their targets live in the same spec tree.
+// Deliberately NOT `BundlePosture::Strict` bundle validation: unrelated
+// corpus-debt errors (dangling references, index-incomplete and unowned
+// quality characteristics) are tracked authoring debt, not this gate's
+// regression surface — a gate that fails on clean main gates nothing.
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
@@ -27,19 +27,43 @@ use quire_rs::Registry;
 struct ProviderRoots {
     process: PathBuf,
     iso: PathBuf,
+    severity_overrides: Vec<String>,
+}
+
+fn final_failure_count(document_failures: usize, completeness_failures: usize) -> usize {
+    document_failures + completeness_failures
+}
+
+fn validation_summary(
+    documents: usize,
+    failures: usize,
+    warnings: usize,
+    untyped_skipped: usize,
+    phase7_excluded: usize,
+) -> String {
+    format!(
+        "spec_validate: {documents} document(s), {failures} failed, \
+         {warnings} warning(s), {untyped_skipped} untyped skipped, {phase7_excluded} Phase-7 excluded"
+    )
 }
 
 fn parse_provider_roots(args: impl IntoIterator<Item = OsString>) -> Result<ProviderRoots, String> {
     let mut args = args.into_iter();
     let mut process = None;
     let mut iso = None;
+    let mut severity_overrides = Vec::new();
     while let Some(option) = args.next() {
         let value = args
             .next()
-            .ok_or_else(|| format!("{} requires a path", option.to_string_lossy()))?;
+            .ok_or_else(|| format!("{} requires a value", option.to_string_lossy()))?;
         match option.to_str() {
             Some("--process-root") if process.is_none() => process = Some(PathBuf::from(value)),
             Some("--iso-root") if iso.is_none() => iso = Some(PathBuf::from(value)),
+            Some("--severity") => severity_overrides.push(
+                value
+                    .into_string()
+                    .map_err(|_| "--severity value is not valid UTF-8".to_string())?,
+            ),
             _ => {
                 return Err(format!(
                     "unknown or duplicate option: {}",
@@ -51,6 +75,7 @@ fn parse_provider_roots(args: impl IntoIterator<Item = OsString>) -> Result<Prov
     Ok(ProviderRoots {
         process: process.ok_or("missing --process-root")?,
         iso: iso.ok_or("missing --iso-root")?,
+        severity_overrides,
     })
 }
 
@@ -107,7 +132,16 @@ fn load_provider_registry(providers: &ProviderRoots) -> Result<Registry, String>
             causes.join("\n")
         ));
     }
-    Ok(registry)
+    if providers.severity_overrides.is_empty() {
+        Ok(registry)
+    } else {
+        let severity = quire_rs::grammar::merge_severity_overrides(
+            registry.grammar_severity(),
+            providers.severity_overrides.iter().map(String::as_str),
+        )
+        .map_err(|error| format!("invalid severity override: {error}"))?;
+        Ok(registry.with_grammar_severity(severity))
+    }
 }
 
 fn validation_exclusions(
@@ -335,12 +369,46 @@ fn main() {
         );
         failed_documents += 1;
     }
+    let mut completeness_failures = 0;
+    if providers
+        .severity_overrides
+        .iter()
+        .any(|entry| entry.starts_with("trace:feature-without-risk-rating="))
+    {
+        let spec_root = root.join("spec");
+        let spec = quire_rs::Spec::from_path(&spec_root);
+        let report = quire_rs::validate_bundle(
+            &spec,
+            &registry,
+            quire_rs::BundlePosture::Okf,
+            &spec_root,
+            &root,
+        );
+        let findings = report
+            .errors
+            .iter()
+            .chain(report.warnings.iter())
+            .filter(|finding| finding.reason == "feature-without-risk-rating");
+        for finding in findings {
+            completeness_failures += 1;
+            eprintln!("error: {}: {}", finding.path.display(), finding.message);
+        }
+        println!(
+            "spec_validate: {completeness_failures} feature-without-risk-rating finding(s) at configured severity"
+        );
+    }
+    let total_failures = final_failure_count(failed_documents, completeness_failures);
     println!(
-        "spec_validate: {documents} document(s), {failed_documents} failed, \
-         {warning_count} warning(s), {} untyped skipped, {excluded_documents} Phase-7 excluded",
-        skipped_untyped.len(),
+        "{}",
+        validation_summary(
+            documents,
+            total_failures,
+            warning_count,
+            skipped_untyped.len(),
+            excluded_documents,
+        )
     );
-    if failed_documents > 0 {
+    if total_failures > 0 {
         std::process::exit(1);
     }
 }
@@ -351,6 +419,13 @@ mod tests {
     use ix_trace_rs::trace;
     use std::ffi::OsString;
     use std::path::Path;
+
+    #[test]
+    fn final_summary_includes_bundle_completeness_failures() {
+        let total = super::final_failure_count(2, 1);
+        let summary = super::validation_summary(224, total, 40, 0, 9);
+        assert!(summary.contains("3 failed"), "{summary}");
+    }
 
     fn write_module(root: &Path, name: &str, archetype: &str) {
         std::fs::create_dir_all(root.join("schemas")).expect("module directory");
@@ -391,6 +466,8 @@ mod tests {
             process_root.into_os_string(),
             OsString::from("--iso-root"),
             iso_root.into_os_string(),
+            OsString::from("--severity"),
+            OsString::from("trace:feature-without-risk-rating=error"),
         ];
         let providers = parse_provider_roots(args).expect("two explicit provider roots");
         let registry = load_provider_registry(&providers).expect("load selected providers");
@@ -436,6 +513,7 @@ mod tests {
         let providers = ProviderRoots {
             process: process_root,
             iso: iso_root,
+            severity_overrides: Vec::new(),
         };
         let Err(error) = load_provider_registry(&providers) else {
             panic!("a provider archetype that fails to load must fail the gate");
