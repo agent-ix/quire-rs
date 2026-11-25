@@ -30,3 +30,13 @@ Ticket: PLAT-1639. Reviewed PR #722 at `00710b424b22802244a9315cfcd0eee301559b92
 - The exported table uses `include_bytes!` for each owned path; no foreign case assets or runtime filesystem lookup are added.
 - `git diff --check` passed. The coder reported `cargo check --locked -p quire-rs --lib` through `locked-build.sh`, rustfmt, shell syntax validation, and a manual case run with quire 0.52.0; the review did not repeat builds or suites.
 - Computed `quire matrix --scope . --format json` exited 0. FR-032-AC-3 currently has two existing tagged test binders; this review did not treat the self-test case source marker as a repository matrix binder.
+
+## Dispositions
+
+| FND | Outcome | Reason |
+| --- | --- | --- |
+| FND-001 | fixed | The resource is now zero bytes; `wc -c` reported 0 on the disposition head. |
+
+## Disposition Review
+
+**PASS** at `9882a7a681d631de84661512ae17348486247a24`. FND-001 is fixed; no other findings remain from this review.

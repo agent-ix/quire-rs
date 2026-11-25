@@ -30,3 +30,13 @@ Ticket: PLAT-1639. Audited the changed case-resource surface against the local F
 - Computed matrix: `quire matrix --scope . --format json` exited 0; FR-032-AC-3 had two existing tagged binders in `src/validate_document.rs` and `tests/it/markdown_validation.rs`.
 - Reverse-gap inspection was limited to the changed API and case: the exported case table serves the downstream quire-cli FR-047 contract; the case behavior is owned by local FR-032-AC-3. No source stub or copied case asset was found.
 - The matrix command emitted many pre-existing diagnostics outside the changed case. No full repository audit or semantic review was performed; semantic review is opt-in.
+
+## Dispositions
+
+| FND | Outcome | Reason |
+| --- | --- | --- |
+| FND-001 | fixed | The resource is now zero bytes; `wc -c` reported 0 on the disposition head. |
+
+## Disposition Review
+
+**PASS** at `9882a7a681d631de84661512ae17348486247a24`. FND-001 is fixed; no other findings remain from this review.
