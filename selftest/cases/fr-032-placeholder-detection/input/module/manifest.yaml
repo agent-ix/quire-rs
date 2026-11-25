@@ -1,0 +1,21 @@
+manifest_version: 1.0.0
+name: quire-selftest
+version: 0.1.0
+description: Minimal module for the quire-rs placeholder-detection self-test.
+grammars:
+  - name: selftest-grammar
+    version: 0.1.0
+    description: Minimal grammar for the embedded self-test.
+    doc_kinds: [spec]
+artifact_types:
+  - name: FR
+    grammar_ref: selftest-grammar
+    frontmatter_schema_ref: schemas/fr-frontmatter.schema.json
+    body_extraction:
+      yield_pattern:
+        match:
+          specification:
+            from: section_body
+            after_heading: Specification
+            required: true
+doc_kinds: [spec]

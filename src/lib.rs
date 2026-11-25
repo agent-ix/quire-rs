@@ -42,6 +42,7 @@ mod record_check;
 pub mod registry;
 pub mod semantic;
 pub mod skeptic;
+pub mod selftest;
 pub mod symbol_table;
 pub mod symbols;
 pub mod traceability;
