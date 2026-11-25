@@ -987,11 +987,7 @@ fn tc2202_untracked_shell_marker_names_its_script() {
     let manifest = fs::read_to_string(fixture_module("iso").join("manifest.yaml"))
         .expect("read ISO fixture module");
     let manifest = format!(
-        "{manifest}    - name: shell-trace-comment\n\
-          language: shell\n\
-          syntax: comment\n\
-          pattern: '#\\s*[Tt]race:\\s*(.+)$'\n\
-          entry_paths: [\"scripts/**\"]\n"
+        "{manifest}    - name: shell-trace-comment\n      language: shell\n      syntax: comment\n      pattern: '#\\s*[Tt]race:\\s*(.+)$'\n      entry_paths: [\"scripts/**\"]\n"
     );
     write(&module, "manifest.yaml", &manifest);
     write(
