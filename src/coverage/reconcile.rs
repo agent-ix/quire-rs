@@ -1138,7 +1138,14 @@ fn retired_obligation_flags(
         let (archetype, section, id_column) = match target {
             // Load validation admits only table-row targets here.
             Some(target) => match target.id_column() {
-                Some(id_column) => (target.archetype.as_str(), &target.section, Some(id_column)),
+                Some(id_column) => (
+                    target.archetype.as_str(),
+                    target
+                        .section
+                        .as_ref()
+                        .expect("validated table target section"),
+                    Some(id_column),
+                ),
                 None => continue,
             },
             None => {

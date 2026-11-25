@@ -9,6 +9,11 @@ bumps; once 1.0 ships, semver is strict.
 
 ### Changed
 
+- **Breaking, PLAT-1449 (FR-050-AC-70):** `TraceTargetSource::FrontmatterId` and the
+  `from: frontmatter_id` manifest source let a target mint typed artifact ids without
+  a section. `TraceTarget.section` is now optional to represent this source; Rust
+  callers that read it must handle the absent section. Existing section-based
+  targets retain their behavior.
 - **Breaking, PLAT-1873:** `semantic::BundleArtifact` and
   `semantic::ImportedArtifact` gain optional `source_span` fields (JSON
   `sourceSpan`) so callers can provide declaration locations for typed

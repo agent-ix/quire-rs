@@ -645,13 +645,13 @@ pub(crate) fn scan(
 pub(crate) struct MintedId {
     pub id: String,
     pub path: PathBuf,
-    /// 1-based document line of the row, list item or heading.
+    /// 1-based document line of the row, list item or heading; document-level
+    /// frontmatter identity uses line 1.
     pub line: usize,
 }
 
-/// Every id `target` mints from its declared sections, in corpus order, by
-/// whichever source its `from:` selects (FR-050-AC-60). Frontmatter-minted
-/// ids are not included; see `trace_refs::target_documents`.
+/// Every id `target` mints in corpus order by whichever source its `from:`
+/// selects (FR-050-AC-60, FR-050-AC-70).
 pub(crate) fn mint(
     spec: &Spec,
     root: &Path,
@@ -671,24 +671,68 @@ pub(crate) fn mint(
         target_required: target.required,
     };
     match &target.source {
-        TraceTargetSource::TableRow { id_column } => scan(spec, root, scope, &target.section, ctx)
-            .into_iter()
-            .flat_map(|row| {
-                row.ids(id_column)
-                    .into_iter()
-                    .map(|id| MintedId {
-                        id: id.to_string(),
-                        path: row.path.clone(),
-                        line: row.line,
-                    })
-                    .collect::<Vec<_>>()
-            })
-            .collect(),
+        TraceTargetSource::FrontmatterId => {
+            let mut out = Vec::new();
+            let mut of_archetype = 0usize;
+            for doc in spec.documents() {
+                if doc.concept_type() != Some(scope.archetype) {
+                    continue;
+                }
+                of_archetype += 1;
+                if scope.excludes(root, &doc.path) {
+                    continue;
+                }
+                if doc.id.is_empty() {
+                    continue;
+                }
+                out.push(MintedId {
+                    id: doc.id.clone(),
+                    path: doc.path.clone(),
+                    // Frontmatter identity belongs to the document as a
+                    // whole; there is no body row or heading location.
+                    line: 1,
+                });
+            }
+            if of_archetype == 0 && target.required {
+                ctx.note(
+                    &target.name,
+                    ScanDiagnostic::ArchetypeMatchesNothing {
+                        archetype: target.archetype.clone(),
+                    },
+                );
+            }
+            out
+        }
+        TraceTargetSource::TableRow { id_column } => scan(
+            spec,
+            root,
+            scope,
+            target
+                .section
+                .as_ref()
+                .expect("validated table target section"),
+            ctx,
+        )
+        .into_iter()
+        .flat_map(|row| {
+            row.ids(id_column)
+                .into_iter()
+                .map(|id| MintedId {
+                    id: id.to_string(),
+                    path: row.path.clone(),
+                    line: row.line,
+                })
+                .collect::<Vec<_>>()
+        })
+        .collect(),
         TraceTargetSource::ListItem { pattern } => scan_text(
             spec,
             root,
             scope,
-            &target.section,
+            target
+                .section
+                .as_ref()
+                .expect("validated list target section"),
             TextSource::ListItem,
             pattern,
             ctx,
@@ -697,7 +741,10 @@ pub(crate) fn mint(
             spec,
             root,
             scope,
-            &target.section,
+            target
+                .section
+                .as_ref()
+                .expect("validated heading target section"),
             TextSource::Heading,
             pattern,
             ctx,

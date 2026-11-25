@@ -41,7 +41,7 @@ impl RowBindings {
                 .iter()
                 .filter(|target| {
                     target.archetype == declaration.archetype
-                        && target.section == declaration.section
+                        && target.section.as_ref() == Some(&declaration.section)
                         && target
                             .id_column()
                             .is_some_and(|column| column.eq_ignore_ascii_case(row_id_column))

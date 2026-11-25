@@ -709,8 +709,24 @@ fn check_trace_target(target: &TraceTarget) -> Result<(), String> {
         "exclude",
         &target.exclude,
     )?;
-    check_sections("trace_targets", &target.name, &target.section)?;
+    match (&target.source, &target.section) {
+        (TraceTargetSource::FrontmatterId, None) => {}
+        (TraceTargetSource::FrontmatterId, Some(_)) => {
+            return Err(format!(
+            "traceability: trace_targets entry '{}' with `from: frontmatter_id` has no `section`",
+            target.name
+        ))
+        }
+        (_, Some(section)) => check_sections("trace_targets", &target.name, section)?,
+        (_, None) => {
+            return Err(format!(
+                "traceability: trace_targets entry '{}' requires `section` for its source",
+                target.name
+            ))
+        }
+    }
     match &target.source {
+        TraceTargetSource::FrontmatterId => {}
         TraceTargetSource::TableRow { id_column } => {
             if id_column.is_empty() {
                 return Err(format!(
