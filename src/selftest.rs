@@ -85,18 +85,7 @@ pub struct EmbeddedAnomalyDocument {
     pub content: &'static str,
 }
 
-static ANOMALY_DOCUMENTS: &[EmbeddedAnomalyDocument] = &[
-    EmbeddedAnomalyDocument {
-        path: "spec/anomalies/AN-001-behavioral-mutation-result-not-retained.md",
-        content: include_str!(
-            "../spec/anomalies/AN-001-behavioral-mutation-result-not-retained.md"
-        ),
-    },
-    EmbeddedAnomalyDocument {
-        path: "spec/anomalies/AN-002-ci-trigger-is-dispatch-only.md",
-        content: include_str!("../spec/anomalies/AN-002-ci-trigger-is-dispatch-only.md"),
-    },
-];
+include!(concat!(env!("OUT_DIR"), "/embedded_anomalies.rs"));
 
 /// Returns every Quire-RS-owned anomaly document embedded in this library.
 #[must_use]
@@ -110,24 +99,48 @@ mod tests {
     use ix_trace_rs::trace;
     use std::{fs, path::Path};
 
+    mod anomaly_sources {
+        include!("anomaly_sources.rs");
+    }
+
     #[test]
     #[trace("FR-098-AC-1")]
-    fn embedded_anomaly_documents_list_only_owned_paths_in_order() {
+    fn embedded_anomaly_documents_list_owned_paths_in_order() {
         let paths = embedded_anomaly_documents()
             .iter()
             .map(|document| document.path)
             .collect::<Vec<_>>();
 
-        assert_eq!(
-            paths,
-            [
-                "spec/anomalies/AN-001-behavioral-mutation-result-not-retained.md",
-                "spec/anomalies/AN-002-ci-trigger-is-dispatch-only.md",
-            ]
-        );
         assert!(paths
             .iter()
             .all(|path| path.starts_with("spec/anomalies/AN-")));
+        assert!(paths.windows(2).all(|pair| pair[0] < pair[1]));
+        assert_eq!(paths.len(), embedded_anomaly_documents().len());
+    }
+
+    #[test]
+    #[trace("FR-098-AC-1")]
+    fn source_discovery_includes_every_anomaly_file_and_ignores_other_files() {
+        let directory = tempfile::tempdir().expect("temporary anomaly directory");
+        for name in [
+            "AN-001-first.md",
+            "AN-002-second.md",
+            "notes.md",
+            "AN-003-not-markdown.txt",
+        ] {
+            fs::write(directory.path().join(name), "fixture").expect("write fixture");
+        }
+        fs::create_dir(directory.path().join("AN-004-directory.md"))
+            .expect("create directory named like an anomaly");
+
+        let sources = anomaly_sources::anomaly_sources(directory.path())
+            .expect("discover fixture anomaly documents");
+        let names = sources
+            .iter()
+            .map(|source| source.file_name().unwrap().to_string_lossy().into_owned())
+            .collect::<Vec<_>>();
+
+        assert_eq!(names, ["AN-001-first.md", "AN-002-second.md"]);
     }
 
     #[test]
