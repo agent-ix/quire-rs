@@ -14,12 +14,6 @@ relationships:
 
 # quire-rs supplier process-risk rating: vulnerability reporting policy
 
-## Feature assessments
-
-| Requirement |
-|---|
-| FR-097 |
-
 ## Rationale
 
 Under IU-001, this policy does not compute the parse, validation, traceability, or coverage records produced by quire-rs. A failure could affect how a vulnerability report is submitted, but would not change those records. This proposed rating is a human decision for the stated intended use; it is not calculated.
