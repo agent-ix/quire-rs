@@ -379,11 +379,7 @@ fn main() {
         let mut count = 0;
         for finding in findings {
             count += 1;
-            eprintln!(
-                "error: {}: {}",
-                finding.path.display(),
-                finding.message
-            );
+            eprintln!("error: {}: {}", finding.path.display(), finding.message);
             failed_documents += 1;
         }
         println!(
