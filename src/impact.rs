@@ -107,6 +107,7 @@ pub enum ImpactReason {
     ImplementedId {
         changed_path: String,
         changed_lines: LineRange,
+        implementation_path: String,
         implementation: String,
         trace_id: String,
     },
@@ -404,8 +405,8 @@ pub fn analyze(input: ImpactInput<'_>) -> Result<ImpactReport, ImpactError> {
                         });
                     }
                     let matches = match trace_search::search(
-                        graph,
-                        extraction,
+                        &head_graph,
+                        &head_extraction,
                         &trace_search::Query::Id(id.clone()),
                     ) {
                         Ok(matches) => matches,
@@ -424,6 +425,7 @@ pub fn analyze(input: ImpactInput<'_>) -> Result<ImpactReport, ImpactError> {
                             .insert(ImpactReason::ImplementedId {
                                 changed_path: change.path.clone(),
                                 changed_lines: range,
+                                implementation_path: symbol.path.clone(),
                                 implementation: symbol.qualified_name.clone(),
                                 trace_id: id.clone(),
                             });
@@ -436,6 +438,7 @@ pub fn analyze(input: ImpactInput<'_>) -> Result<ImpactReport, ImpactError> {
                         let reason = ImpactReason::ImplementedId {
                             changed_path: change.path.clone(),
                             changed_lines: range,
+                            implementation_path: symbol.path.clone(),
                             implementation: symbol.qualified_name.clone(),
                             trace_id: id.clone(),
                         };
@@ -727,6 +730,42 @@ mod tests {
         assert!(report.selected_tests.is_empty());
     }
 
+    #[trace("FR-099-AC-3")]
+    #[trace("FR-099-AC-4")]
+    #[test]
+    fn changed_base_implementation_does_not_select_a_test_deleted_at_head() {
+        let root = tempfile::tempdir().unwrap();
+        let registry = model_with_implements_form(root.path());
+        let model = registry.traceability().unwrap();
+        let base = snapshot(
+            "base",
+            "#[implements(\"FR-099-AC-4\")]\nfn changed() {}\n#[test]\n#[trace(\"FR-099-AC-4\")]\nfn deleted_test() {}\n",
+        );
+        let head = snapshot(
+            "head",
+            "#[implements(\"FR-099-AC-4\")]\nfn changed() { let _ = 1; }\n",
+        );
+        let available = BTreeSet::from(["FR-099-AC-4".to_string()]);
+        let unavailable = BTreeSet::new();
+        let report = analyze(ImpactInput {
+            base: Some(&base),
+            head: Some(&head),
+            changes: &[FileChange {
+                path: "src/lib.rs".into(),
+                base: Some(LineRange { start: 2, end: 2 }),
+                head: Some(LineRange { start: 2, end: 2 }),
+            }],
+            traceability: model,
+            available_spec_ids: &available,
+            unavailable_spec_ids: &unavailable,
+        })
+        .unwrap();
+        assert!(!report
+            .selected_tests
+            .iter()
+            .any(|test| test.name == "deleted_test"));
+    }
+
     #[trace("FR-099-AC-4")]
     #[trace("FR-099-AC-5")]
     #[trace("FR-099-AC-6")]
@@ -764,7 +803,7 @@ mod tests {
         assert!(report
             .related_implementations
             .iter()
-            .any(|item| item.name == "twin" && item.trace_id == "FR-099-AC-4"));
+            .any(|item| item.name == "twin" && item.trace_id == "fr_099_ac_4"));
     }
 
     #[trace("FR-099-AC-8")]
