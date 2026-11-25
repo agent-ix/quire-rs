@@ -1008,10 +1008,15 @@ fn tc2202_untracked_shell_marker_names_its_script() {
     let registry = Registry::load_module(&module).expect("load fixture model");
     let model = registry.traceability().expect("traceability model");
     let graph = trace::bind(&extract_tree(&source), model);
-    let report = compute(&Spec::from_path(&scope), &registry, &graph, &scope)
-        .expect("coverage report");
+    let report =
+        compute(&Spec::from_path(&scope), &registry, &graph, &scope).expect("coverage report");
 
-    assert_eq!(report.untracked_symbols.len(), 1, "{:#?}", report.untracked_symbols);
+    assert_eq!(
+        report.untracked_symbols.len(),
+        1,
+        "{:#?}",
+        report.untracked_symbols
+    );
     let untracked = &report.untracked_symbols[0];
     assert_eq!(untracked.trace_id, "FR-999-AC-1");
     assert_eq!(untracked.path, "scripts/selftest.sh");
