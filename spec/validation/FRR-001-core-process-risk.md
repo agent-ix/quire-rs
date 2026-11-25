@@ -4,7 +4,7 @@ title: "quire-rs supplier process-risk rating: specification records"
 type: FeatureRiskRating
 scope: supplier
 rating: high_process_risk
-rated_by: Peter Krenesky
+status: proposed
 relationships:
   - target: ix://agent-ix/quire-rs/IU-001
     type: uses_intended_use
@@ -188,95 +188,95 @@ relationships:
 
 ## Feature assessments
 
-| Requirement | Failure mode | Detection |
-|---|---|---|
-| FR-001 | A contract or classification defect can accept a nonconforming document or report a conforming one as defective, making validation and coverage records unreliable. | Exercise the focused check for FR-001-AC-1; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-002 | A contract or classification defect can accept a nonconforming document or report a conforming one as defective, making validation and coverage records unreliable. | Exercise the focused check for FR-002-AC-1; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-003 | A contract or classification defect can accept a nonconforming document or report a conforming one as defective, making validation and coverage records unreliable. | Exercise the focused check for FR-003-AC-1; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-004 | A defect in this feature can omit or misstate information in validation, traceability, or coverage results used to assess the supplied specification repository. | Exercise the focused check for FR-004-AC-1; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-005 | A parsing or edit-boundary defect can associate findings with the wrong authored text or leave changed source bytes that later validation and coverage results misstate. | Exercise the focused check for FR-005-AC-1; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-006 | A parsing or edit-boundary defect can associate findings with the wrong authored text or leave changed source bytes that later validation and coverage results misstate. | Exercise the focused check for FR-006-AC-1; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-007 | A parsing or edit-boundary defect can associate findings with the wrong authored text or leave changed source bytes that later validation and coverage results misstate. | Exercise the focused check for FR-007-AC-4; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-008 | A parsing or edit-boundary defect can associate findings with the wrong authored text or leave changed source bytes that later validation and coverage results misstate. | Exercise the focused check for FR-008-AC-1; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-009 | A defect in this feature can omit or misstate information in validation, traceability, or coverage results used to assess the supplied specification repository. | Exercise the focused check for FR-009-AC-1; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-010 | A parsing or edit-boundary defect can associate findings with the wrong authored text or leave changed source bytes that later validation and coverage results misstate. | Exercise the focused check for FR-010-AC-4; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-011 | A contract or classification defect can accept a nonconforming document or report a conforming one as defective, making validation and coverage records unreliable. | Exercise the focused check for FR-011-AC-20; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-012 | A defect in this feature can omit or misstate information in validation, traceability, or coverage results used to assess the supplied specification repository. | Exercise the focused check for FR-012-AC-1; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-013 | A defect in this feature can omit or misstate information in validation, traceability, or coverage results used to assess the supplied specification repository. | Exercise the focused check for FR-013-AC-1; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-014 | A defect in this feature can omit or misstate information in validation, traceability, or coverage results used to assess the supplied specification repository. | Exercise the focused check for FR-014-AC-1; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-016 | A defect in this feature can omit or misstate information in validation, traceability, or coverage results used to assess the supplied specification repository. | Exercise the focused check for FR-016-AC-1; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-019 | A parsing or edit-boundary defect can associate findings with the wrong authored text or leave changed source bytes that later validation and coverage results misstate. | Exercise the focused check for FR-019-AC-1; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-020 | A parsing or edit-boundary defect can associate findings with the wrong authored text or leave changed source bytes that later validation and coverage results misstate. | Exercise the focused check for FR-020-AC-1; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-022 | A parsing or edit-boundary defect can associate findings with the wrong authored text or leave changed source bytes that later validation and coverage results misstate. | Exercise the focused check for FR-022-AC-1; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-023 | A binding defect can return different validation or coverage data from the Rust engine, so a caller may rely on a mismatched result record. | Exercise the focused check for FR-023-AC-1; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-024 | A parsing or edit-boundary defect can associate findings with the wrong authored text or leave changed source bytes that later validation and coverage results misstate. | Exercise the focused check for FR-024-AC-1; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-025 | A defect in this feature can omit or misstate information in validation, traceability, or coverage results used to assess the supplied specification repository. | Exercise the focused check for FR-025-AC-1; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-026 | A trace or coverage defect can omit a real relation or count an unsupported one, leaving the repository coverage record falsely complete or incomplete. | Exercise the focused check for FR-026-AC-12; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-027 | A parsing or edit-boundary defect can associate findings with the wrong authored text or leave changed source bytes that later validation and coverage results misstate. | Exercise the focused check for FR-027-AC-1; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-028 | A binding defect can return different validation or coverage data from the Rust engine, so a caller may rely on a mismatched result record. | Exercise the focused check for FR-028-AC-1; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-029 | A defect in this feature can omit or misstate information in validation, traceability, or coverage results used to assess the supplied specification repository. | Exercise the focused check for FR-029-AC-1; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-030 | A contract or classification defect can accept a nonconforming document or report a conforming one as defective, making validation and coverage records unreliable. | Exercise the focused check for FR-030-AC-1; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-031 | A defect in this feature can omit or misstate information in validation, traceability, or coverage results used to assess the supplied specification repository. | Exercise the focused check for FR-031-AC-5; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-032 | A contract or classification defect can accept a nonconforming document or report a conforming one as defective, making validation and coverage records unreliable. | Exercise the focused check for FR-032-AC-9; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-033 | A contract or classification defect can accept a nonconforming document or report a conforming one as defective, making validation and coverage records unreliable. | Exercise the focused check for FR-033-AC-10; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-034 | A contract or classification defect can accept a nonconforming document or report a conforming one as defective, making validation and coverage records unreliable. | Exercise the focused check for FR-034-AC-1; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-035 | A parsing or edit-boundary defect can associate findings with the wrong authored text or leave changed source bytes that later validation and coverage results misstate. | Exercise the focused check for FR-035-AC-1; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-036 | A contract or classification defect can accept a nonconforming document or report a conforming one as defective, making validation and coverage records unreliable. | Exercise the focused check for FR-036-AC-6; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-037 | A parsing or edit-boundary defect can associate findings with the wrong authored text or leave changed source bytes that later validation and coverage results misstate. | Exercise the focused check for FR-037-AC-1; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-038 | A contract or classification defect can accept a nonconforming document or report a conforming one as defective, making validation and coverage records unreliable. | Exercise the focused check for FR-038-AC-12; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-039 | A trace or coverage defect can omit a real relation or count an unsupported one, leaving the repository coverage record falsely complete or incomplete. | Exercise the focused check for FR-039-AC-1; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-040 | A contract or classification defect can accept a nonconforming document or report a conforming one as defective, making validation and coverage records unreliable. | Exercise the focused check for FR-040-AC-5; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-041 | A defect in this feature can omit or misstate information in validation, traceability, or coverage results used to assess the supplied specification repository. | Exercise the focused check for FR-041-AC-1; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-042 | A contract or classification defect can accept a nonconforming document or report a conforming one as defective, making validation and coverage records unreliable. | Exercise the focused check for FR-042-AC-1; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-043 | A contract or classification defect can accept a nonconforming document or report a conforming one as defective, making validation and coverage records unreliable. | Exercise the focused check for FR-043-AC-1; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-044 | A contract or classification defect can accept a nonconforming document or report a conforming one as defective, making validation and coverage records unreliable. | Exercise the focused check for FR-044-AC-1; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-045 | A contract or classification defect can accept a nonconforming document or report a conforming one as defective, making validation and coverage records unreliable. | Exercise the focused check for FR-045-AC-1; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-046 | A binding defect can return different validation or coverage data from the Rust engine, so a caller may rely on a mismatched result record. | Exercise the focused check for FR-046-AC-1; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-047 | A contract or classification defect can accept a nonconforming document or report a conforming one as defective, making validation and coverage records unreliable. | Exercise the focused check for FR-047-AC-14; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-048 | A contract or classification defect can accept a nonconforming document or report a conforming one as defective, making validation and coverage records unreliable. | Exercise the focused check for FR-048-AC-1; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-049 | A trace or coverage defect can omit a real relation or count an unsupported one, leaving the repository coverage record falsely complete or incomplete. | Exercise the focused check for FR-049-AC-18; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-050 | A trace or coverage defect can omit a real relation or count an unsupported one, leaving the repository coverage record falsely complete or incomplete. | Exercise the focused check for FR-050-AC-45; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-051 | A trace or coverage defect can omit a real relation or count an unsupported one, leaving the repository coverage record falsely complete or incomplete. | Exercise the focused check for FR-051-AC-1; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-052 | A contract or classification defect can accept a nonconforming document or report a conforming one as defective, making validation and coverage records unreliable. | Exercise the focused check for FR-052-AC-1; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-053 | A trace or coverage defect can omit a real relation or count an unsupported one, leaving the repository coverage record falsely complete or incomplete. | Exercise the focused check for FR-053-AC-1; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-054 | A defect in this feature can omit or misstate information in validation, traceability, or coverage results used to assess the supplied specification repository. | Exercise the focused check for FR-054-AC-1; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-055 | A contract or classification defect can accept a nonconforming document or report a conforming one as defective, making validation and coverage records unreliable. | Exercise the focused check for FR-055-AC-1; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-056 | A contract or classification defect can accept a nonconforming document or report a conforming one as defective, making validation and coverage records unreliable. | Exercise the focused check for FR-056-AC-1; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-057 | A contract or classification defect can accept a nonconforming document or report a conforming one as defective, making validation and coverage records unreliable. | Exercise the focused check for FR-057-AC-1; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-058 | A trace or coverage defect can omit a real relation or count an unsupported one, leaving the repository coverage record falsely complete or incomplete. | Exercise the focused check for FR-058-AC-23; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-059 | A trace or coverage defect can omit a real relation or count an unsupported one, leaving the repository coverage record falsely complete or incomplete. | Exercise the focused check for FR-059-AC-8; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-060 | A trace or coverage defect can omit a real relation or count an unsupported one, leaving the repository coverage record falsely complete or incomplete. | Exercise the focused check for FR-060-AC-1; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-061 | A trace or coverage defect can omit a real relation or count an unsupported one, leaving the repository coverage record falsely complete or incomplete. | Exercise the focused check for FR-061-AC-1; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-062 | A trace or coverage defect can omit a real relation or count an unsupported one, leaving the repository coverage record falsely complete or incomplete. | Exercise the focused check for FR-062-AC-1; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-063 | A defect in this feature can omit or misstate information in validation, traceability, or coverage results used to assess the supplied specification repository. | Exercise the focused check for FR-063-AC-1; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-064 | A defect in this feature can omit or misstate information in validation, traceability, or coverage results used to assess the supplied specification repository. | Exercise the focused check for FR-064-AC-1; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-065 | A defect in this feature can omit or misstate information in validation, traceability, or coverage results used to assess the supplied specification repository. | Exercise the focused check for FR-065-AC-49; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-066 | A defect in this feature can omit or misstate information in validation, traceability, or coverage results used to assess the supplied specification repository. | Exercise the focused check for FR-066-AC-1; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-067 | A trace or coverage defect can omit a real relation or count an unsupported one, leaving the repository coverage record falsely complete or incomplete. | Exercise the focused check for FR-067-AC-1; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-068 | A trace or coverage defect can omit a real relation or count an unsupported one, leaving the repository coverage record falsely complete or incomplete. | Exercise the focused check for FR-068-AC-1; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-069 | A defect in this feature can omit or misstate information in validation, traceability, or coverage results used to assess the supplied specification repository. | Exercise the focused check for FR-069-AC-3; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-070 | A contract or classification defect can accept a nonconforming document or report a conforming one as defective, making validation and coverage records unreliable. | Exercise the focused check for FR-070-AC-1; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-071 | A contract or classification defect can accept a nonconforming document or report a conforming one as defective, making validation and coverage records unreliable. | Exercise the focused check for FR-071-AC-10; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-072 | A binding defect can return different validation or coverage data from the Rust engine, so a caller may rely on a mismatched result record. | Exercise the focused check for FR-072-AC-8; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-073 | A contract or classification defect can accept a nonconforming document or report a conforming one as defective, making validation and coverage records unreliable. | Exercise the focused check for FR-073-AC-1; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-074 | A defect in this feature can omit or misstate information in validation, traceability, or coverage results used to assess the supplied specification repository. | Exercise the focused check for FR-074-AC-1; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-075 | A contract or classification defect can accept a nonconforming document or report a conforming one as defective, making validation and coverage records unreliable. | Exercise the focused check for FR-075-AC-5; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-076 | A trace or coverage defect can omit a real relation or count an unsupported one, leaving the repository coverage record falsely complete or incomplete. | Exercise the focused check for FR-076-AC-8; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-077 | A trace or coverage defect can omit a real relation or count an unsupported one, leaving the repository coverage record falsely complete or incomplete. | Exercise the focused check for FR-077-AC-1; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-078 | A trace or coverage defect can omit a real relation or count an unsupported one, leaving the repository coverage record falsely complete or incomplete. | Exercise the focused check for FR-078-AC-1; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-081 | A contract or classification defect can accept a nonconforming document or report a conforming one as defective, making validation and coverage records unreliable. | Exercise the focused check for FR-081-AC-1; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-082 | A trace or coverage defect can omit a real relation or count an unsupported one, leaving the repository coverage record falsely complete or incomplete. | Exercise the focused check for FR-082-AC-1; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-083 | A contract or classification defect can accept a nonconforming document or report a conforming one as defective, making validation and coverage records unreliable. | Exercise the focused check for FR-083-AC-1; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-084 | A trace or coverage defect can omit a real relation or count an unsupported one, leaving the repository coverage record falsely complete or incomplete. | Exercise the focused check for FR-084-AC-18; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-085 | A defect in this feature can omit or misstate information in validation, traceability, or coverage results used to assess the supplied specification repository. | Exercise the focused check for FR-085-AC-1; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-086 | A trace or coverage defect can omit a real relation or count an unsupported one, leaving the repository coverage record falsely complete or incomplete. | Exercise the focused check for FR-086-AC-1; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-090 | A trace or coverage defect can omit a real relation or count an unsupported one, leaving the repository coverage record falsely complete or incomplete. | Exercise the focused check for FR-090-AC-1; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-091 | A contract or classification defect can accept a nonconforming document or report a conforming one as defective, making validation and coverage records unreliable. | Exercise the focused check for FR-091-AC-1; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-092 | A trace or coverage defect can omit a real relation or count an unsupported one, leaving the repository coverage record falsely complete or incomplete. | Exercise the focused check for FR-092-AC-1; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-093 | A defect in this feature can omit or misstate information in validation, traceability, or coverage results used to assess the supplied specification repository. | Exercise the focused check for FR-093-AC-1; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-094 | A trace or coverage defect can omit a real relation or count an unsupported one, leaving the repository coverage record falsely complete or incomplete. | Exercise the focused check for FR-094-AC-1; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-095 | A trace or coverage defect can omit a real relation or count an unsupported one, leaving the repository coverage record falsely complete or incomplete. | Exercise the focused check for FR-095-AC-1; compare the emitted validation or coverage record with its expected fixture result. |
-| FR-096 | A contract or classification defect can accept a nonconforming document or report a conforming one as defective, making validation and coverage records unreliable. | Exercise the focused check for FR-096-AC-1; compare the emitted validation or coverage record with its expected fixture result. |
+| Requirement |
+|---|
+| FR-001 |
+| FR-002 |
+| FR-003 |
+| FR-004 |
+| FR-005 |
+| FR-006 |
+| FR-007 |
+| FR-008 |
+| FR-009 |
+| FR-010 |
+| FR-011 |
+| FR-012 |
+| FR-013 |
+| FR-014 |
+| FR-016 |
+| FR-019 |
+| FR-020 |
+| FR-022 |
+| FR-023 |
+| FR-024 |
+| FR-025 |
+| FR-026 |
+| FR-027 |
+| FR-028 |
+| FR-029 |
+| FR-030 |
+| FR-031 |
+| FR-032 |
+| FR-033 |
+| FR-034 |
+| FR-035 |
+| FR-036 |
+| FR-037 |
+| FR-038 |
+| FR-039 |
+| FR-040 |
+| FR-041 |
+| FR-042 |
+| FR-043 |
+| FR-044 |
+| FR-045 |
+| FR-046 |
+| FR-047 |
+| FR-048 |
+| FR-049 |
+| FR-050 |
+| FR-051 |
+| FR-052 |
+| FR-053 |
+| FR-054 |
+| FR-055 |
+| FR-056 |
+| FR-057 |
+| FR-058 |
+| FR-059 |
+| FR-060 |
+| FR-061 |
+| FR-062 |
+| FR-063 |
+| FR-064 |
+| FR-065 |
+| FR-066 |
+| FR-067 |
+| FR-068 |
+| FR-069 |
+| FR-070 |
+| FR-071 |
+| FR-072 |
+| FR-073 |
+| FR-074 |
+| FR-075 |
+| FR-076 |
+| FR-077 |
+| FR-078 |
+| FR-081 |
+| FR-082 |
+| FR-083 |
+| FR-084 |
+| FR-085 |
+| FR-086 |
+| FR-090 |
+| FR-091 |
+| FR-092 |
+| FR-093 |
+| FR-094 |
+| FR-095 |
+| FR-096 |
 
 ## Rationale
 
