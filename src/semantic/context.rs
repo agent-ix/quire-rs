@@ -5,6 +5,7 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
+use super::clauses::SourceLocus;
 use super::contract::SemanticModule;
 use super::frontmatter_owned::FrontmatterOwned;
 use super::model::{DeclaredSections, DeclaredTables};
@@ -46,6 +47,16 @@ pub struct BundleArtifact {
     #[serde(default)]
     pub object: Option<String>,
     pub operations: Vec<String>,
+    /// Where this artifact's identity was declared when the caller has a
+    /// source-aware bundle. Omitted by callers that do not carry paths into
+    /// the semantic index.
+    #[serde(
+        default,
+        rename = "sourceSpan",
+        alias = "source_span",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub source_span: Option<SourceLocus>,
 }
 
 /// One artifact of a package a module imports and a loaded corpus provides:
@@ -60,6 +71,15 @@ pub struct ImportedArtifact {
     pub names: Vec<String>,
     #[serde(default)]
     pub object: Option<String>,
+    /// Location of the imported artifact declaration in its explicitly
+    /// loaded module root.
+    #[serde(
+        default,
+        rename = "sourceSpan",
+        alias = "source_span",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub source_span: Option<SourceLocus>,
 }
 
 /// The bundle-wide name index type resolution reads (FR-070). An empty
@@ -125,6 +145,7 @@ impl BundleIndex {
                 id: id.to_string(),
                 object: object.map(str::to_string),
                 operations: super::clauses::declared_operation_names(raw),
+                source_span: None,
             });
             let Some(object) = object else {
                 continue;

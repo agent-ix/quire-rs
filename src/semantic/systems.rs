@@ -6,13 +6,13 @@
 
 use serde::{Deserialize, Serialize};
 
+use super::SemanticDiagnostic;
 use super::clauses::SourceLocus;
 use super::contract::SemanticSeverity;
-use super::decl::{is_identifier, Multiplicity, TypeRef};
+use super::decl::{Multiplicity, TypeRef, is_identifier};
 use super::model::TableRead;
-use super::properties::{map_multiplicity, map_type, RowInput};
-use super::target::{is_object_id, resolve_target, OwnArtifact, Target, Unresolved};
-use super::SemanticDiagnostic;
+use super::properties::{RowInput, map_multiplicity, map_type};
+use super::target::{OwnArtifact, Target, Unresolved, is_object_id, resolve_target};
 
 /// One systems record at its declaring row. The record keys serialize flat
 /// beside `sourceSpan`; the declaration record carries the keys alone.
@@ -341,18 +341,30 @@ impl<'a> TableRead<'a> {
             operations: self.own_operations(),
         };
         let resolved = resolve_target(ctx, ctx.identity_package(), &own, base, is_object_id);
-        let (identity, unchecked, bundle) = match resolved {
+        let (identity, unchecked, bundle, target_span) = match resolved {
             Ok(Target::Bundle {
                 identity,
                 object,
                 operations,
+                source_span,
             }) => (
                 identity,
                 false,
                 Some((object.map(str::to_string), operations.to_vec())),
+                source_span,
             ),
-            Ok(Target::Imported { identity }) => (identity, false, None),
-            Ok(Target::Unchecked { identity }) => (identity, true, None),
+            Ok(Target::Imported {
+                identity,
+                object,
+                source_span,
+                indexed,
+            }) => (
+                identity,
+                false,
+                indexed.then(|| (object.map(str::to_string), Vec::new())),
+                source_span,
+            ),
+            Ok(Target::Unchecked { identity }) => (identity, true, None, None),
             Err(Unresolved::Malformed) => {
                 let expected = if role.admits_member() {
                     "an object id or `<id>/<member>`"
@@ -366,7 +378,24 @@ impl<'a> TableRead<'a> {
                 );
                 return None;
             }
-            Err(Unresolved::UnknownId | Unresolved::UnimportedPackage) => {
+            Err(Unresolved::UnknownImportedId) => {
+                self.error_with_reason(
+                    SystemsFinding::UnknownReference.code(),
+                    line,
+                    format!("{what} {base} names no artifact in the selected bundle"),
+                    "unknown-id",
+                );
+                return None;
+            }
+            Err(Unresolved::UnknownId) => {
+                self.finding(
+                    SystemsFinding::UnknownReference,
+                    line,
+                    format!("{what} {base} names no artifact in the bundle"),
+                );
+                return None;
+            }
+            Err(Unresolved::UnimportedPackage) => {
                 self.finding(
                     SystemsFinding::UnknownReference,
                     line,
@@ -396,7 +425,16 @@ impl<'a> TableRead<'a> {
                     }
                     None => format!("{what} {base} declares no object type, not {label}"),
                 };
-                self.finding(SystemsFinding::WrongKind, line, message);
+                if let Some(target_span) = target_span.clone() {
+                    self.error_with_target(
+                        SystemsFinding::WrongKind.code(),
+                        line,
+                        message,
+                        target_span,
+                    );
+                } else {
+                    self.finding(SystemsFinding::WrongKind, line, message);
+                }
                 return None;
             }
             if let Some(member) = member {
@@ -414,6 +452,13 @@ impl<'a> TableRead<'a> {
             Some(member) => format!("{identity}/{member}"),
             None => identity,
         };
+        if let Some(target_span) = target_span.clone() {
+            self.out.resolved_references.push(super::ResolvedReference {
+                identity: identity.clone(),
+                reference_span: self.span(line),
+                target_span,
+            });
+        }
         Some(Reference {
             identity,
             unchecked,

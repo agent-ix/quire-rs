@@ -7,6 +7,7 @@
 
 use std::collections::BTreeMap;
 
+use super::clauses::SourceLocus;
 use super::context::SemanticContext;
 use super::relations::RelationVocabulary;
 use crate::ix_ref::IxRef;
@@ -46,9 +47,15 @@ pub(crate) enum Target<'a> {
         identity: String,
         object: Option<&'a str>,
         operations: &'a [String],
+        source_span: Option<SourceLocus>,
     },
-    /// An identity in an imported package; its object type is unknown.
-    Imported { identity: String },
+    /// An identity in an explicitly indexed imported package.
+    Imported {
+        identity: String,
+        object: Option<&'a str>,
+        source_span: Option<SourceLocus>,
+        indexed: bool,
+    },
     /// An own-package identity with no bundle index to check it against.
     Unchecked { identity: String },
 }
@@ -57,7 +64,7 @@ impl Target<'_> {
     pub(crate) fn identity(&self) -> &str {
         match self {
             Self::Bundle { identity, .. }
-            | Self::Imported { identity }
+            | Self::Imported { identity, .. }
             | Self::Unchecked { identity } => identity,
         }
     }
@@ -72,6 +79,8 @@ pub(crate) enum Unresolved {
     UnimportedPackage,
     /// An own-package id no bundle artifact carries.
     UnknownId,
+    /// An id is absent from an explicit imported-package artifact inventory.
+    UnknownImportedId,
 }
 
 /// `ix://<org>/<repo>/<id>` with a `SemanticId` package and an `id` of
@@ -91,7 +100,7 @@ fn semantic_identity(cell: &str, alphabet: fn(&str) -> bool) -> Option<IxRef<'_>
 
 /// Resolve `cell` under `package`: a bare id of `alphabet` qualifies under
 /// `package`; an `ix://` identity in `package` resolves by its id, and one in
-/// an imported package resolves unchecked. An own-package id resolves to the
+/// an explicitly indexed imported package resolves by its id. An own-package id resolves to the
 /// artifact itself or a bundle artifact; with no bundle artifacts it lowers
 /// unchecked.
 pub(crate) fn resolve_target<'a>(
@@ -105,9 +114,35 @@ pub(crate) fn resolve_target<'a>(
         let parsed = semantic_identity(cell, alphabet).ok_or(Unresolved::Malformed)?;
         if !parsed.package().eq_ignore_ascii_case(package) {
             return if ctx.module.imports.contains_key(parsed.package()) {
-                Ok(Target::Imported {
-                    identity: cell.to_string(),
-                })
+                let package_indexed = ctx
+                    .bundle
+                    .imported_artifacts
+                    .iter()
+                    .any(|artifact| artifact.package.eq_ignore_ascii_case(parsed.package()));
+                if package_indexed {
+                    match ctx.bundle.imported_artifacts.iter().find(|artifact| {
+                        artifact.package.eq_ignore_ascii_case(parsed.package())
+                            && artifact.id == parsed.path()
+                    }) {
+                        Some(artifact) => Ok(Target::Imported {
+                            identity: cell.to_string(),
+                            object: artifact.object.as_deref(),
+                            source_span: artifact.source_span.clone(),
+                            indexed: true,
+                        }),
+                        None => Err(Unresolved::UnknownImportedId),
+                    }
+                } else {
+                    // Older callers provide the imported module contract but
+                    // no artifact inventory. Keep that explicit unchecked
+                    // state; a supplied inventory is authoritative.
+                    Ok(Target::Imported {
+                        identity: cell.to_string(),
+                        object: None,
+                        source_span: None,
+                        indexed: false,
+                    })
+                }
             } else {
                 Err(Unresolved::UnimportedPackage)
             };
@@ -118,20 +153,24 @@ pub(crate) fn resolve_target<'a>(
     } else {
         return Err(Unresolved::Malformed);
     };
-    let bundle_match: Option<(Option<&str>, &[String])> = if own.id == Some(id) {
-        Some((own.object, own.operations))
+    let bundle_match: Option<(Option<&str>, &[String], Option<SourceLocus>)> = if own.id == Some(id)
+    {
+        Some((own.object, own.operations, None))
     } else {
-        ctx.bundle
-            .artifacts
-            .iter()
-            .find(|a| a.id == id)
-            .map(|a| (a.object.as_deref(), a.operations.as_slice()))
+        ctx.bundle.artifacts.iter().find(|a| a.id == id).map(|a| {
+            (
+                a.object.as_deref(),
+                a.operations.as_slice(),
+                a.source_span.clone(),
+            )
+        })
     };
     match bundle_match {
-        Some((object, operations)) => Ok(Target::Bundle {
+        Some((object, operations, source_span)) => Ok(Target::Bundle {
             identity,
             object,
             operations,
+            source_span,
         }),
         None if ctx.bundle.artifacts.is_empty() => Ok(Target::Unchecked { identity }),
         None => Err(Unresolved::UnknownId),
@@ -175,6 +214,7 @@ struct Declaration {
     id: String,
     names: Vec<String>,
     object: Option<String>,
+    source_span: Option<SourceLocus>,
 }
 
 /// The object types a reference cell admits, from the first module source
@@ -218,8 +258,9 @@ impl Admission<'_> {
 pub(crate) enum ReferenceRefusal {
     /// The item names no declaration at all.
     UnknownName,
+    UnknownId,
     /// The item names declarations, none of an admitted object type.
-    KindMismatch,
+    KindMismatch(Option<SourceLocus>),
     /// The item names more than one admitted declaration: their ids.
     Ambiguous(Vec<String>),
 }
@@ -229,6 +270,11 @@ pub(crate) enum ReferenceRefusal {
 /// `id`. One declaration authored in two forms under one `id` is one
 /// declaration with the union of its names.
 pub(crate) struct Declarations(BTreeMap<String, Declaration>);
+
+pub(crate) struct ResolvedReferenceTarget {
+    pub(crate) identity: String,
+    pub(crate) source_span: Option<SourceLocus>,
+}
 
 impl Declarations {
     pub(crate) fn new(ctx: &SemanticContext, own: &OwnDeclaration) -> Self {
@@ -244,7 +290,7 @@ impl Declarations {
             let names = [own.title.as_deref(), own.name.as_deref()]
                 .into_iter()
                 .flatten();
-            out.add(id, names, own.object.as_deref());
+            out.add(id, names, own.object.as_deref(), None);
         }
         for artifact in &ctx.bundle.artifacts {
             let names = names_by_id
@@ -252,16 +298,28 @@ impl Declarations {
                 .into_iter()
                 .flatten()
                 .copied();
-            out.add(&artifact.id, names, artifact.object.as_deref());
+            out.add(
+                &artifact.id,
+                names,
+                artifact.object.as_deref(),
+                artifact.source_span.clone(),
+            );
         }
         out
     }
 
-    fn add<'n>(&mut self, id: &str, names: impl Iterator<Item = &'n str>, object: Option<&str>) {
+    fn add<'n>(
+        &mut self,
+        id: &str,
+        names: impl Iterator<Item = &'n str>,
+        object: Option<&str>,
+        source_span: Option<SourceLocus>,
+    ) {
         let entry = self.0.entry(id.to_string()).or_insert_with(|| Declaration {
             id: id.to_string(),
             names: vec![id.to_string()],
             object: None,
+            source_span: None,
         });
         for name in names {
             if !entry.names.iter().any(|n| n == name) {
@@ -270,6 +328,9 @@ impl Declarations {
         }
         if entry.object.is_none() {
             entry.object = object.map(str::to_string);
+        }
+        if entry.source_span.is_none() {
+            entry.source_span = source_span;
         }
     }
 }
@@ -286,7 +347,7 @@ pub(crate) fn resolve_reference(
     declarations: &Declarations,
     item: &str,
     admission: Admission<'_>,
-) -> Result<String, ReferenceRefusal> {
+) -> Result<ResolvedReferenceTarget, ReferenceRefusal> {
     if item.starts_with("ix://") {
         let own_artifact = OwnArtifact {
             id: own.id.as_deref(),
@@ -295,15 +356,41 @@ pub(crate) fn resolve_reference(
         };
         return match resolve_target(ctx, package, &own_artifact, item, is_id_segment) {
             Ok(Target::Bundle {
-                identity, object, ..
+                identity,
+                object,
+                source_span,
+                ..
             }) => {
                 if admission.admits(object) {
-                    Ok(identity)
+                    Ok(ResolvedReferenceTarget {
+                        identity,
+                        source_span,
+                    })
                 } else {
-                    Err(ReferenceRefusal::KindMismatch)
+                    Err(ReferenceRefusal::KindMismatch(source_span))
                 }
             }
-            Ok(Target::Imported { identity } | Target::Unchecked { identity }) => Ok(identity),
+            Ok(Target::Imported {
+                identity,
+                object,
+                source_span,
+                indexed,
+            }) => {
+                if indexed && !admission.admits(object) {
+                    Err(ReferenceRefusal::KindMismatch(source_span))
+                } else {
+                    Ok(ResolvedReferenceTarget {
+                        identity,
+                        source_span,
+                    })
+                }
+            }
+            Ok(Target::Unchecked { identity }) => Ok(ResolvedReferenceTarget {
+                identity,
+                source_span: None,
+            }),
+            Err(Unresolved::UnknownImportedId) => Err(ReferenceRefusal::UnknownId),
+            Err(Unresolved::UnknownId) => Err(ReferenceRefusal::UnknownName),
             Err(_) => Err(ReferenceRefusal::UnknownName),
         };
     }
@@ -315,13 +402,18 @@ pub(crate) fn resolve_reference(
     if candidates.is_empty() {
         return Err(ReferenceRefusal::UnknownName);
     }
+    let mismatch_source = candidates.first().and_then(|d| d.source_span.clone());
     let admitted: Vec<&Declaration> = candidates
-        .into_iter()
+        .iter()
+        .copied()
         .filter(|d| admission.admits(d.object.as_deref()))
         .collect();
     match admitted.as_slice() {
-        [] => Err(ReferenceRefusal::KindMismatch),
-        [one] => Ok(format!("ix://{package}/{}", one.id)),
+        [] => Err(ReferenceRefusal::KindMismatch(mismatch_source)),
+        [one] => Ok(ResolvedReferenceTarget {
+            identity: format!("ix://{package}/{}", one.id),
+            source_span: one.source_span.clone(),
+        }),
         many => Err(ReferenceRefusal::Ambiguous(
             many.iter().map(|d| d.id.clone()).collect(),
         )),

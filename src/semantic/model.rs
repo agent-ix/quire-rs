@@ -14,16 +14,16 @@ use serde_json::Value;
 use super::clauses::{Expression, SourceLocus};
 use super::context::SemanticContext;
 use super::contract::SemanticSeverity;
-use super::decl::{is_identifier, Multiplicity, TypeRef};
+use super::decl::{Multiplicity, TypeRef, is_identifier};
 use super::properties::{
-    feature_columns, is_typed_prefix, map_multiplicity, map_type, strip_ticks, RowInput,
+    RowInput, feature_columns, is_typed_prefix, map_multiplicity, map_type, strip_ticks,
 };
-use super::scan::{blocks_in, level2_headings, lines, split_row_spans, Block, Table};
+use super::scan::{Block, Table, blocks_in, level2_headings, lines, split_row_spans};
 use super::systems::{
     self, AllocationRecord, ConnectionRecord, PartRecord, PortRecord, SystemsDecl,
 };
-use super::target::{resolve_reference, Admission, Declarations, OwnDeclaration, ReferenceRefusal};
-use super::{AvailabilityState, KindAvailability, SemanticDiagnostic};
+use super::target::{Admission, Declarations, OwnDeclaration, ReferenceRefusal, resolve_reference};
+use super::{AvailabilityState, KindAvailability, ResolvedReference, SemanticDiagnostic};
 use crate::extract::assert_eval::headers_conform;
 use crate::extract::dsl::ExtractionDsl;
 use crate::extract::locator::{Locator, LocatorPrimitive};
@@ -867,6 +867,7 @@ pub(crate) struct ModelOutcome {
     /// with no error.
     pub(crate) unresolved: Option<&'static str>,
     pub(crate) diagnostics: Vec<SemanticDiagnostic>,
+    pub(crate) resolved_references: Vec<ResolvedReference>,
 }
 
 /// Names transitions and the `Features` table are checked against; `None`
@@ -1493,7 +1494,7 @@ pub(super) struct TableRead<'a> {
     /// `<member>` against (FR-075 Inputs).
     own_operations: &'a [String],
     /// What declaration references resolve against.
-    scope: &'a ReferenceScope,
+    pub(super) scope: &'a ReferenceScope,
 }
 
 impl<'a> TableRead<'a> {
@@ -1623,7 +1624,8 @@ impl<'a> TableRead<'a> {
             );
             return ReferenceCell::Failed;
         }
-        let (scope, ctx) = (self.scope, self.ctx);
+        let scope = self.scope;
+        let ctx = self.ctx;
         let package = match &scope.state {
             ScopeState::Unresolvable(_) => return ReferenceCell::Unresolvable,
             ScopeState::Indexed { package } => package,
@@ -1640,18 +1642,28 @@ impl<'a> TableRead<'a> {
                 item,
                 admission,
             ) {
-                Ok(identity) if resolved.contains(&identity) => {
+                Ok(reference) if resolved.contains(&reference.identity) => {
                     failed = true;
                     self.reference_error(
                         "semantic.duplicate-model-entry",
                         Some("repeated-reference"),
                         line,
                         format_args!(
-                            "{header} item {item:?} names {identity}, which the cell already names"
+                            "{header} item {item:?} names {}, which the cell already names",
+                            reference.identity
                         ),
                     );
                 }
-                Ok(identity) => resolved.push(identity),
+                Ok(reference) => {
+                    if let Some(target_span) = reference.source_span {
+                        self.out.resolved_references.push(ResolvedReference {
+                            identity: reference.identity.clone(),
+                            reference_span: self.span(line),
+                            target_span,
+                        });
+                    }
+                    resolved.push(reference.identity);
+                }
                 Err(ReferenceRefusal::UnknownName) => {
                     failed = true;
                     self.reference_error(
@@ -1661,10 +1673,22 @@ impl<'a> TableRead<'a> {
                         format_args!("{header} item {item:?} names no declaration of the bundle"),
                     );
                 }
-                Err(ReferenceRefusal::KindMismatch) => {
+                Err(ReferenceRefusal::UnknownId) => {
                     failed = true;
                     self.reference_error(
+                        "semantic.unknown-reference",
+                        Some("unknown-id"),
+                        line,
+                        format_args!(
+                            "{header} item {item:?} names no id in the selected imported bundle"
+                        ),
+                    );
+                }
+                Err(ReferenceRefusal::KindMismatch(target_span)) => {
+                    failed = true;
+                    let mut diagnostic = self.reference_diagnostic(
                         "semantic.reference-kind-mismatch",
+                        SemanticSeverity::Error,
                         None,
                         line,
                         format_args!(
@@ -1673,6 +1697,8 @@ impl<'a> TableRead<'a> {
                             column.verb()
                         ),
                     );
+                    diagnostic.target_span = target_span;
+                    self.out.diagnostics.push(diagnostic);
                 }
                 Err(ReferenceRefusal::Ambiguous(ids)) => {
                     failed = true;
@@ -1727,6 +1753,32 @@ impl<'a> TableRead<'a> {
 
     pub(super) fn error(&mut self, code: &str, line: usize, message: impl Into<String>) {
         self.out.diagnostics.push(err(code, line, message));
+    }
+
+    pub(super) fn error_with_target(
+        &mut self,
+        code: &str,
+        line: usize,
+        message: impl Into<String>,
+        target_span: SourceLocus,
+    ) {
+        let mut diagnostic = err(code, line, message);
+        diagnostic.source_span = Some(self.span(line));
+        diagnostic.target_span = Some(target_span);
+        self.out.diagnostics.push(diagnostic);
+    }
+
+    pub(super) fn error_with_reason(
+        &mut self,
+        code: &str,
+        line: usize,
+        message: impl Into<String>,
+        reason: &str,
+    ) {
+        let mut diagnostic = err(code, line, message);
+        diagnostic.reason = Some(reason.to_string());
+        diagnostic.source_span = Some(self.span(line));
+        self.out.diagnostics.push(diagnostic);
     }
 
     fn identifier(&mut self, text: &str, what: &str, line: usize) -> bool {

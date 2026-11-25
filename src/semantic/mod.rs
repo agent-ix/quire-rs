@@ -30,16 +30,16 @@ pub(crate) mod target;
 pub(crate) mod units;
 
 pub use clauses::{
-    extract_clauses, extract_operations, ClauseRef, ClausesOutcome, OperationDecl, OperationSource,
-    OperationsOutcome, SourceLocus,
+    ClauseRef, ClausesOutcome, OperationDecl, OperationSource, OperationsOutcome, SourceLocus,
+    extract_clauses, extract_operations,
 };
 pub use context::{
     BundleArtifact, BundleEntry, BundleIndex, ConstructReferences, ImportedArtifact,
     SemanticContext,
 };
 pub use contract::{
-    read_semantic_block, reference_form, DataSchemaRef, SemanticFailure, SemanticModule,
-    SemanticSeverity,
+    DataSchemaRef, SemanticFailure, SemanticModule, SemanticSeverity, read_semantic_block,
+    reference_form,
 };
 pub use decl::{
     Constraint, ConstraintKeyword, DecimalPolicy, EnumConstraintValue, FieldDecl, Multiplicity,
@@ -51,17 +51,17 @@ pub use model::{
     PopulationMemberDecl, Presence, StepDecl, StepKind, SupertypeDecl, TermDecl, TransitionDecl,
     UnknownFeatureKind, UnknownStepKind,
 };
-pub use properties::{extract_fields, FieldsForm, FieldsOutcome};
-pub use record::{record_key_owners, KeyOwner, RecordSource, RECORD_SECTIONS_TOKEN};
+pub use properties::{FieldsForm, FieldsOutcome, extract_fields};
+pub use record::{KeyOwner, RECORD_SECTIONS_TOKEN, RecordSource, record_key_owners};
 pub use relations::{
-    EdgeVerb, RelationDecl, RelationSource, RelationVocabulary, RELATIONSHIPS_TOKEN,
+    EdgeVerb, RELATIONSHIPS_TOKEN, RelationDecl, RelationSource, RelationVocabulary,
 };
 pub use resolver::{
-    compile_documents, compile_module_schema, module_schema_documents, ResolvedSchema, SchemaSource,
+    ResolvedSchema, SchemaSource, compile_documents, compile_module_schema, module_schema_documents,
 };
 pub use surface::{
-    extract_semantic, Availability, DeclarationError, DeclarationRecord, RequiredSections,
-    SemanticExtraction, SystemsRecord, SEMANTIC_FORMAT_VERSION, SEMANTIC_V1_SCHEMA,
+    Availability, DeclarationError, DeclarationRecord, RequiredSections, SEMANTIC_FORMAT_VERSION,
+    SEMANTIC_V1_SCHEMA, SemanticExtraction, SystemsRecord, extract_semantic,
 };
 pub use systems::{
     AllocationRecord, ConnectionDirection, ConnectionEnd, ConnectionRecord, PartRecord,
@@ -143,6 +143,13 @@ pub struct SemanticDiagnostic {
         skip_serializing_if = "Option::is_none"
     )]
     pub source_span: Option<clauses::SourceLocus>,
+    /// The resolved target's declaration locus for a typed reference refusal.
+    #[serde(
+        rename = "targetSpan",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub target_span: Option<clauses::SourceLocus>,
     /// The section holding the declaration, on FR-075 refusals:
     /// `frontmatter`, `preamble`, a `##` heading, or `Operations / <name>`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -164,6 +171,7 @@ impl SemanticDiagnostic {
             column: Some(1),
             reason: None,
             source_span: None,
+            target_span: None,
             section: None,
         }
     }
@@ -174,4 +182,14 @@ impl SemanticDiagnostic {
     pub fn is_error(&self) -> bool {
         self.severity == SemanticSeverity::Error
     }
+}
+
+/// One successfully resolved cross-module reference, with the source row
+/// that authored it and the declaration that supplied its target identity.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ResolvedReference {
+    pub identity: String,
+    pub reference_span: clauses::SourceLocus,
+    pub target_span: clauses::SourceLocus,
 }
