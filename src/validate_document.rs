@@ -505,7 +505,7 @@ fn semantic_findings(
 
 /// The extraction context and required sections of `arch` for the registry
 /// surface. It has no document path: spans and refusals name `<document>`.
-#[implements("FR-081-AC-22")]
+#[implements("FR-081-AC-22", "FR-071-AC-7")]
 fn semantic_context(
     registry: &crate::Registry,
     arch: &CompiledArchetype,

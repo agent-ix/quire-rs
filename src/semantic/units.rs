@@ -6,6 +6,8 @@
 //! package. A match never crosses an owner; the identity names the package
 //! that owns the artifact.
 
+use ix_trace_rs::implements;
+
 use super::context::SemanticContext;
 use super::decl::is_identifier;
 
@@ -132,6 +134,7 @@ fn own_candidates<'a>(ctx: &'a SemanticContext, object: &str) -> Vec<Candidate<'
 }
 
 /// The imported artifacts of `object`, optionally of one `package`.
+#[implements("FR-070-AC-14")]
 fn imported_candidates<'a>(
     ctx: &'a SemanticContext,
     object: &str,
