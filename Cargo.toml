@@ -60,6 +60,7 @@ ix-trace-rs = { git = "https://github.com/agent-ix/ix-trace-rs", branch = "main"
 # YAML Organization package exactly; YAML behavior is identity-bearing.
 serde_yaml = { package = "yaml_serde", version = "=0.10.7" }
 indexmap = { version = "^2", features = ["serde"] }
+num-bigint = "^0.4"
 thiserror = "^2"
 # Regex driver for the Query API (FR-010). Patterns are author-side
 # (section numbers, bullet shapes, fence info strings) so this is on

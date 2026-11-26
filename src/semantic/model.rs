@@ -9,6 +9,7 @@
 //! availability of the feature set as a whole.
 
 use ix_trace_rs::implements;
+use num_bigint::BigInt;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -1007,6 +1008,9 @@ pub(crate) struct ModelOutcome {
     /// with no error.
     pub(crate) unresolved: Option<&'static str>,
     pub(crate) diagnostics: Vec<SemanticDiagnostic>,
+    /// Diagnostic indexes for cross-kind Dimension/Unit duplicates, which
+    /// report the later declaration while preserving the earlier model.
+    preserved_physical_conflicts: Vec<usize>,
     pub(crate) resolved_references: Vec<ResolvedReference>,
     pending_stage_outcomes: Vec<PendingStageOutcome>,
 }
@@ -1273,7 +1277,13 @@ impl ModelOutcome {
     pub(crate) fn source(&self) -> ModelSource<'_> {
         ModelSource {
             declared: self.declared,
-            failed: self.diagnostics.iter().any(SemanticDiagnostic::is_error),
+            failed: self
+                .diagnostics
+                .iter()
+                .enumerate()
+                .any(|(index, diagnostic)| {
+                    diagnostic.is_error() && !self.preserved_physical_conflicts.contains(&index)
+                }),
             lossy: self.lossy,
             unresolved: self.unresolved,
             diagnostics: &self.diagnostics,
@@ -1576,15 +1586,16 @@ fn table_features(
                         && *feature != owner.feature
                 })
             {
-                out.diagnostics.push(err(
+                let diagnostic = err(
                     "semantic.duplicate-section",
                     table.line,
                     format!(
                         "a {} table beside a dimension or unit table; one physical type table per artifact",
                         owner.feature.name()
                     ),
-                ));
-                failed.push(owner.feature);
+                );
+                out.preserved_physical_conflicts.push(out.diagnostics.len());
+                out.diagnostics.push(diagnostic);
                 continue;
             }
             read.push(owner.feature);
@@ -2007,11 +2018,13 @@ fn read_dimension(r: &mut TableRead<'_>) {
                 "a dimension table requires one Base row",
             );
         } else {
-            r.error(
-                "semantic.duplicate-model-entry",
-                table.rows[1].0,
-                "dimension Base is declared more than once",
-            );
+            for (line, _) in table.rows.iter().skip(1) {
+                r.error(
+                    "semantic.duplicate-model-entry",
+                    *line,
+                    "dimension Base is declared more than once",
+                );
+            }
         }
         return;
     }
@@ -2041,13 +2054,13 @@ fn read_terms(r: &mut TableRead<'_>) {
     for (line, cells) in &r.table.rows {
         let token = r.cell(cells, "Dimension");
         let exponent = r.cell(cells, "Exponent");
-        if !r.fresh(token, *line) {
-            continue;
-        }
         let Some(dimension) = resolve_dimension_or_unit(r, token, TokenKind::Dimension, *line)
         else {
             continue;
         };
+        if !r.fresh(dimension.target.as_str(), *line) {
+            continue;
+        }
         let Some(exponent) = canonical_integer(exponent) else {
             r.error(
                 "semantic.invalid-model-cell",
@@ -2076,11 +2089,13 @@ fn read_unit(r: &mut TableRead<'_>) {
                 "a unit table requires one declaration row",
             );
         } else {
-            r.error(
-                "semantic.duplicate-model-entry",
-                table.rows[1].0,
-                "a unit declaration appears more than once",
-            );
+            for (line, _) in table.rows.iter().skip(1) {
+                r.error(
+                    "semantic.duplicate-model-entry",
+                    *line,
+                    "a unit declaration appears more than once",
+                );
+            }
         }
         return;
     }
@@ -2227,7 +2242,7 @@ fn canonical_integer(text: &str) -> Option<i64> {
 
 #[implements("FR-075-AC-18")]
 fn canonical_rational(text: &str) -> bool {
-    if canonical_integer(text).is_some() {
+    if canonical_integer_syntax(text) {
         return true;
     }
     let Some((numerator, denominator)) = text.split_once('/') else {
@@ -2236,21 +2251,40 @@ fn canonical_rational(text: &str) -> bool {
     if denominator.contains('/') {
         return false;
     }
-    let Some(numerator) = canonical_integer(numerator) else {
-        return false;
-    };
-    let Some(denominator) = canonical_integer(denominator).filter(|d| *d > 0) else {
-        return false;
-    };
-    if denominator == 1 || numerator == 0 {
+    if !canonical_integer_syntax(numerator) {
         return false;
     }
-    gcd(numerator.unsigned_abs(), denominator as u64) == 1
+    if !canonical_integer_syntax(denominator) {
+        return false;
+    }
+    let numerator_abs = numerator.strip_prefix('-').unwrap_or(numerator);
+    let Ok(numerator) = numerator_abs.parse::<BigInt>() else {
+        return false;
+    };
+    let Ok(denominator) = denominator.parse::<BigInt>() else {
+        return false;
+    };
+    if denominator < BigInt::from(2) || numerator == BigInt::from(0) {
+        return false;
+    }
+    gcd_bigint(numerator, denominator) == BigInt::from(1)
 }
 
-fn gcd(mut a: u64, mut b: u64) -> u64 {
-    while b != 0 {
-        (a, b) = (b, a % b);
+#[implements("FR-075-AC-18")]
+fn canonical_integer_syntax(text: &str) -> bool {
+    let digits = text.strip_prefix('-').unwrap_or(text);
+    !digits.is_empty()
+        && digits.bytes().all(|byte| byte.is_ascii_digit())
+        && (digits == "0" || !digits.starts_with('0'))
+        && text != "-0"
+}
+
+#[implements("FR-075-AC-18")]
+fn gcd_bigint(mut a: BigInt, mut b: BigInt) -> BigInt {
+    while b != BigInt::from(0) {
+        let remainder = &a % &b;
+        a = b;
+        b = remainder;
     }
     a
 }

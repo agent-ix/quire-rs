@@ -2162,6 +2162,25 @@ fn dimension_terms_resolve_tokens_validate_exponents_and_report_ambiguity() {
     let second = serde_json::to_vec(&extract_request(&request)).unwrap();
     assert_eq!(first, second, "repeated extraction is byte-identical");
 
+    let aliases_md = physical_doc(&[(
+        "Powers",
+        "| Dimension | Exponent |\n|---|---:|\n| Length | 1 |\n| D1 | 2 |\n",
+    )]);
+    let aliases = physical_request(
+        &aliases_md,
+        physical_tables("", "Powers", ""),
+        &[("D1", "dimension", &["Length"])],
+    );
+    let aliases = extract_request(&aliases);
+    assert_model_unavailable(&aliases);
+    assert!(
+        aliases["diagnostics"].as_array().unwrap().iter().any(|d| {
+            d["code"] == "semantic.duplicate-model-entry"
+                && d["line"] == line_of(&aliases_md, "| D1 | 2 |")
+        }),
+        "{aliases:#}"
+    );
+
     let unit_named_speed = physical_request(
         &physical_doc(&[(
             "Powers",
@@ -2265,7 +2284,12 @@ fn unit_rows_resolve_dimensions_and_targets_with_canonical_rationals() {
     assert_eq!(record["model"]["unit"]["offset"], "0");
     assert_span(&record["model"]["unit"], &md, line_of(&md, "| Time | s |"));
 
-    for value in ["-3/2", "-3", "0"] {
+    for value in [
+        "-3/2",
+        "-3",
+        "0",
+        "100000000000000000000000000000000000001/3",
+    ] {
         let table = format!(
             "| Dimension | Scale | Offset |\n|---|---:|---:|\n| Time | {value} | {value} |\n"
         );
@@ -2466,7 +2490,9 @@ fn dimension_terms_and_unit_sections_are_unique_but_independent() {
         "semantic.duplicate-section",
         line_of(&base_and_unit, "| Dimension | Scale | Offset |"),
     ));
-    assert_model_unavailable(&record);
+    assert_eq!(record["availability"]["model"]["state"], "available");
+    assert_eq!(record["model"]["dimension"]["base"], true);
+    assert!(record["model"].get("unit").is_none());
 
     let unit_then_base = physical_doc(&[("Scale", unit), ("Basis", base)]);
     let record = extract_request(&physical_request(
@@ -2479,7 +2505,9 @@ fn dimension_terms_and_unit_sections_are_unique_but_independent() {
         "semantic.duplicate-section",
         line_of(&unit_then_base, "| Base |"),
     ));
-    assert_model_unavailable(&record);
+    assert_eq!(record["availability"]["model"]["state"], "available");
+    assert!(record["model"].get("dimension").is_none());
+    assert_eq!(record["model"]["unit"]["scale"], "1");
 
     let dimension_and_terms = physical_doc(&[("Basis", base), ("Powers", terms)]);
     let record = extract_request(&physical_request(
@@ -2489,6 +2517,42 @@ fn dimension_terms_and_unit_sections_are_unique_but_independent() {
     ));
     assert!(record["model"].get("dimension").is_some(), "{record:#}");
     assert!(record["model"].get("terms").is_some(), "{record:#}");
+}
+
+#[trace("FR-075-AC-16", "FR-075-AC-18")]
+#[test]
+fn physical_tables_report_every_extra_row() {
+    let dimension_table = "| Base |\n|---|\n| true |\n| false |\n| true |\n| false |\n";
+    let md = physical_doc(&[("Basis", dimension_table)]);
+    let record = extract_request(&physical_request(
+        &md,
+        physical_tables("Basis", "", ""),
+        &[],
+    ));
+    for (row, occurrence) in [("| false |", 0), ("| true |", 1), ("| false |", 1)] {
+        assert!(
+            has(
+                &record,
+                "semantic.duplicate-model-entry",
+                line_of_nth(&md, row, occurrence)
+            ),
+            "{record:#}"
+        );
+    }
+
+    let unit_table = "| Dimension | Scale | Offset |\n|---|---:|---:|\n| Length | 1 | 0 |\n| Length | 2 | 0 |\n| Length | 3 | 0 |\n| Length | 4 | 0 |\n";
+    let md = physical_doc(&[("Scale", unit_table)]);
+    let record = extract_request(&physical_request(
+        &md,
+        physical_tables("", "", "Scale"),
+        &[("Length", "dimension", &["Length"])],
+    ));
+    for row in ["| Length | 2 |", "| Length | 3 |", "| Length | 4 |"] {
+        assert!(
+            has(&record, "semantic.duplicate-model-entry", line_of(&md, row)),
+            "{record:#}"
+        );
+    }
 }
 
 #[trace("FR-075-AC-20")]
