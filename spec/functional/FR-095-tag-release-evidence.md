@@ -16,14 +16,19 @@ relationships:
 ## Description
 
 FR-095 governs the tag-attestation workflow handoff; it does not change
-Quire-rs product, library, CLI, or engine runtime behavior. Terra runs
-`SUITE-001` once at the exact release tag commit and packages the committed
-suite registry, committed and generated binding registries, and fresh run
-record as `release-evidence.tar.gz`. That archive is attached to the matching
+Quire-rs product, library, CLI, or engine runtime behavior. The release
+process calls for Terra to run `SUITE-001` once at the exact release tag
+commit and package the committed suite registry, committed and generated
+binding registries, and fresh run record as `release-evidence.tar.gz`. That
+archive is attached to the matching
 GitHub Release. The tag workflow does not execute the suite; it validates the
 attached bundle against the tag and source commit, retains it as a same-run
 `release-evidence` Actions artifact, and transfers that artifact to the shared
-release-attestation workflow. The shared consumer uses this store under
+release-attestation workflow. The attached bundle is unsigned: the workflow
+validates its contents and tag/commit binding, but does not authenticate that
+Terra produced it. Under the owner ruling recorded in SWM-347 comment
+`ce4d1055`, producer provenance authentication is out of scope for this change.
+The shared consumer uses this store under
 [Engineering Assurance FR-069](ix://agent-ix/engineering-assurance/FR-069)
 and writes no Test Result when evidence is absent or unusable.
 
@@ -37,7 +42,9 @@ and writes no Test Result when evidence is absent or unusable.
   schema-version-1 Quoin evidence-store shape defined by
   [Quoin FR-030](ix://agent-ix/quoin/FR-030).
 - A `release-evidence.tar.gz` asset attached to the matching GitHub Release,
-  produced by one successful `make evidence` run on Terra at the tag commit.
+  intended to contain the result of one successful `make evidence` run on
+  Terra at the tag commit. The workflow does not authenticate that producer
+  claim.
 
 ## Outputs
 
@@ -94,6 +101,12 @@ and writes no Test Result when evidence is absent or unusable.
 > refuse dirty tracked, untracked, or recursive submodule state before tests
 > execute. The tag workflow now streams a bounded archive and refuses excess
 > member count or compressed/decompressed bytes before extraction.
+>
+> **CR-428 note (2026-11-26, PLAT-1934, FND-002):** Per the owner ruling in
+> [SWM-347 comment `ce4d1055`](https://linear.app/agent-ix/issue/SWM-347),
+> authenticated Terra producer provenance is out of scope for this change.
+> The attached evidence is unsigned; the tag workflow validates contents and
+> tag/commit consistency but does not prove Terra produced the bundle.
 
 ## Acceptance Criteria
 

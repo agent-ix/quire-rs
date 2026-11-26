@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate and safely unpack a Terra-produced release evidence asset."""
+"""Validate and safely unpack an unsigned release evidence asset."""
 # implements: FR-095-AC-2, FR-095-AC-6
 
 import argparse
