@@ -248,6 +248,7 @@ fn tc852_catalog_changes_no_finding() {
 }
 
 #[trace("FR-054-AC-10")]
+#[trace("FR-054-CON-4")]
 // the derived vocabularies are never read from a
 // separate declaration (CON-4).
 #[test]
