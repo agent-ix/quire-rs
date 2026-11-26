@@ -174,7 +174,7 @@ evidence:
 	    --adapter junit --tool 'ix-trace-run 0.1.0+3cd3285' \
 	    --results "$(EVIDENCE_TARGET)/junit.xml"; \
 	  if [ "$$status" -ne 0 ]; then exit "$$status"; fi; \
-	  short_commit=$${commit:0:12}; \
+	  short_commit=$$(printf '%.12s' "$$commit"); \
 	  run_path="runs/SUITE-001/$$short_commit.json"; \
 	  python3 scripts/package_release_evidence.py \
 	    --source-root . --committed-bindings "$$backup" \
