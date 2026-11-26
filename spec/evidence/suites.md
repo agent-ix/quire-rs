@@ -14,10 +14,11 @@ top-level `schemaVersion` and `bindings` array; its binding entries identify
 the obligation, suite, and supporting test symbols, and only passing test
 results bind. For the release Test Result, `SUITE-001` SHALL bind each
 acceptance criterion in Quire-rs FR-095 (AC-1 through AC-6). The tag-attestation
-workflow runs this suite at the signed tag and uploads its fresh run record
-with the committed suite and binding registries. The per-tag run record is
-workflow output retained only in the `release-evidence` artifact and is not
-committed.
+Terra runs this suite once at the exact signed tag commit with `make evidence`
+and attaches `target/release-evidence/release-evidence.tar.gz` to the matching
+GitHub Release. The tag-attestation workflow validates that asset against the
+tag SHA and retains it as the same-run `release-evidence` artifact; it does not
+run the suite again. Generated run records are never committed.
 
 ## Suites
 
