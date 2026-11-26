@@ -33,7 +33,7 @@ You need a module that declares `traceability.required_relations`, a corpus with
    ```rust
    use quire_rs::coverage::compute;
    use quire_rs::corpus::{relation_report, RelationReportMember, Spec};
-   use quire_rs::symbols::{extract_tree, trace};
+   use quire_rs::symbols::{extract_tree_scoped, trace};
    use quire_rs::Registry;
    use std::path::Path;
 
@@ -41,7 +41,7 @@ You need a module that declares `traceability.required_relations`, a corpus with
        let registry = Registry::load_module(module).map_err(|error| error.to_string())?;
        let spec = Spec::from_path(&repo.join("spec"));
        let model = registry.traceability().cloned().unwrap_or_default();
-       let extracted = extract_tree(&repo.join("src"));
+       let extracted = extract_tree_scoped(repo, &[Path::new("spec")], &model.source_exclude);
        let graph = trace::bind(&extracted, &model);
        let coverage = compute(&spec, &registry, &graph, repo)
            .map_err(|error| error.to_string())?;

@@ -691,6 +691,14 @@ fn relation_report_adds_flow_after_unchanged_relations_only_when_declared() {
         .as_ref()
         .expect("declared flow rules are reported");
     assert_eq!(flow.schema, "quire.flow-report/v1");
+    assert_eq!(
+        flow.rules
+            .iter()
+            .map(|rule| rule.name.as_str())
+            .collect::<Vec<_>>(),
+        ["approval-rule"],
+        "flow contains only its declared flow rule, not the required relation"
+    );
     assert_eq!(flow.denials.len(), 1);
     assert_eq!(flow.denials[0].check, "approval-missing");
     let serialized = serde_json::to_string(&combined).unwrap();
