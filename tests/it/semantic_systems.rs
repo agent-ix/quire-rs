@@ -188,7 +188,7 @@ fn systems_tables_lower_to_record_keys_and_refuse_bad_rows() {
     assert_eq!(part["owner"], format!("{pkg}/search_service"), "{record:#}");
     assert_eq!(
         part["declaredType"],
-        json!({ "target": { "kind": "SemanticId", "value": format!("{pkg}/type/QuantCodec") } })
+        json!({ "target": { "kind": "SemanticId", "value": format!("{pkg}/type/quant_codec") } })
     );
     assert_eq!(
         part["multiplicity"],
@@ -206,7 +206,7 @@ fn systems_tables_lower_to_record_keys_and_refuse_bad_rows() {
     assert_eq!(port["direction"], "inout");
     assert_eq!(
         port["interfaceType"],
-        json!({ "target": { "kind": "SemanticId", "value": format!("{pkg}/type/QuantCodec") } })
+        json!({ "target": { "kind": "SemanticId", "value": format!("{pkg}/type/quant_codec") } })
     );
     assert_eq!(
         port["multiplicity"],

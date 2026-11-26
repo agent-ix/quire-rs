@@ -4,6 +4,7 @@
 //! FR-071 mapping; a row error makes the whole kind `unavailable`
 //! (`row-errors`) so a consumer never receives a partial type.
 
+use ix_trace_rs::implements;
 use jsonschema::Validator;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -596,6 +597,7 @@ pub fn map_row(
 }
 
 /// Type cell → `TypeRef` (without multiplicity). Precedence per FR-070.
+#[implements("FR-070-AC-4")]
 pub(crate) fn map_type(
     cell: &str,
     row: &RowInput,
@@ -777,7 +779,7 @@ pub(crate) fn map_type(
     if by_name.len() == 1 {
         return (
             Some(TypeRef {
-                target: TypeRefTarget::SemanticId(type_identity(&token)),
+                target: TypeRefTarget::SemanticId(type_identity(by_name[0])),
                 multiplicity: None,
                 unit: None,
                 decimal: None,
@@ -786,14 +788,14 @@ pub(crate) fn map_type(
         );
     }
     // 4. enumeration by id or name
-    if bundle
+    if let Some(enumeration) = bundle
         .enumerations
         .iter()
-        .any(|e| e.id == token || e.names.iter().any(|n| n == &token))
+        .find(|e| e.id == token || e.names.iter().any(|n| n == &token))
     {
         return (
             Some(TypeRef {
-                target: TypeRefTarget::SemanticId(type_identity(&token)),
+                target: TypeRefTarget::SemanticId(type_identity(&enumeration.id)),
                 multiplicity: None,
                 unit: None,
                 decimal: None,

@@ -221,7 +221,7 @@
           },
           "target": {
             "kind": "SemanticId",
-            "value": "ix://agent-ix/config-service/type/ConfigVersion"
+            "value": "ix://agent-ix/config-service/type/FR-006"
           }
         }
       },
@@ -464,7 +464,7 @@
           },
           "target": {
             "kind": "SemanticId",
-            "value": "ix://agent-ix/config-service/type/ConfigVersion"
+            "value": "ix://agent-ix/config-service/type/FR-006"
           }
         }
       }
@@ -832,7 +832,7 @@
           },
           "target": {
             "kind": "SemanticId",
-            "value": "ix://agent-ix/config-service/type/ConfigVersion"
+            "value": "ix://agent-ix/config-service/type/FR-006"
           }
         }
       },
@@ -1073,7 +1073,7 @@
           },
           "target": {
             "kind": "SemanticId",
-            "value": "ix://agent-ix/config-service/type/ConfigVersion"
+            "value": "ix://agent-ix/config-service/type/FR-006"
           }
         }
       },
@@ -1374,7 +1374,7 @@
           },
           "target": {
             "kind": "SemanticId",
-            "value": "ix://agent-ix/config-service/type/ConfigVersion"
+            "value": "ix://agent-ix/config-service/type/FR-006"
           }
         }
       }

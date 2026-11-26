@@ -1,0 +1,29 @@
+{
+  "name": "same-repository-semantic-type-index",
+  "issue_ref": "PLAT-1916",
+  "tags": [
+    "FR-070-AC-1",
+    "TC-1916",
+    "validation"
+  ],
+  "input": {
+    "package": "agent-ix/config-service",
+    "documents": {
+      "source": "---\nid: FR-006\ntitle: ConfigVersion\ntype: entity\nobject: entity\n---\n# ConfigVersion\n\n## Properties\n\n| Field | Type | Multiplicity | Constraints |\n|-------|------|--------------|-------------|\n| parent | ConfigOverlay | 0..1 | |\n",
+      "sibling": "---\nid: FR-005\ntitle: ConfigOverlay\ntype: entity\nobject: entity\n---\n# ConfigOverlay\n",
+      "missing_type_source": "---\nid: FR-006\ntitle: ConfigVersion\ntype: entity\nobject: entity\n---\n# ConfigVersion\n\n## Properties\n\n| Field | Type | Multiplicity | Constraints |\n|-------|------|--------------|-------------|\n| parent | MissingSiblingType | 0..1 | |\n",
+      "wrong_kind_source": "---\nid: FR-006\ntitle: ConfigVersion\ntype: entity\nobject: entity\n---\n# ConfigVersion\n\n## Properties\n\n| Field | Type | Multiplicity | Constraints |\n|-------|------|--------------|-------------|\n| parent | Quantity<ConfigOverlay> | 0..1 | |\n"
+    }
+  },
+  "expect": {
+    "resolved_target": "ix://agent-ix/config-service/type/FR-005",
+    "refusal_reason": "semantic.unresolved-type",
+    "absent_diagnostic_reasons": [
+      "semantic.unresolved-type",
+      "semantic.ambiguous-type"
+    ],
+    "control": "same-repository-sibling-type-resolves",
+    "single_document_unresolved": "semantic.unresolved-type",
+    "healthy_control": "same-repository-sibling-type-resolves"
+  }
+}

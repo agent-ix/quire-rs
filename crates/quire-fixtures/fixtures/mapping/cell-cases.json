@@ -59,7 +59,7 @@
       "expected": {
         "target": {
           "kind": "SemanticId",
-          "value": "ix://agent-ix/config-service/type/ConfigOverlay"
+          "value": "ix://agent-ix/config-service/type/FR-005"
         }
       }
     },

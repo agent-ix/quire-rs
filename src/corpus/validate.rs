@@ -33,6 +33,7 @@ use crate::corpus::walk::LoadedDocument;
 use crate::grammar::{GrammarSeverity, GrammarSeverityLevel, GrammarSeverityMap};
 use crate::query::section;
 use crate::registry::Registry;
+use ix_trace_rs::implements;
 
 /// Bundle-structure files that an `index.md` is not expected to list among its
 /// own siblings: the index cannot be a sibling of itself.
@@ -372,6 +373,7 @@ fn validate_view(
     report
 }
 
+#[implements("FR-070-AC-4")]
 fn validate_view_findings(
     spec: &Spec,
     registry: &Registry,
@@ -428,6 +430,13 @@ fn validate_view_findings(
     // consumes for every document in the bundle.
     let project_terms = crate::corpus::glossary_terms(spec);
     let lexicon = registry.lexicon_with(&project_terms);
+    let semantic_index = crate::semantic::BundleIndex::from_documents(
+        spec.bundle_package().unwrap_or_default(),
+        spec.documents()
+            .iter()
+            .filter_map(|doc| Some((doc.frontmatter()?, doc.raw()))),
+        registry.semantic_modules().map(|(_, module)| module),
+    );
 
     for doc in spec.documents() {
         validate_concept(
@@ -436,6 +445,7 @@ fn validate_view_findings(
             posture,
             &lexicon,
             spec.view_identity(),
+            &semantic_index,
             &mut report,
         );
     }
@@ -660,6 +670,7 @@ fn validate_concept(
     posture: BundlePosture,
     lexicon: &crate::grammar::GrammarLexicon,
     bundle_package: Option<&str>,
+    semantic_index: &crate::semantic::BundleIndex,
     report: &mut BundleReport,
 ) {
     let fm = doc.frontmatter().cloned().unwrap_or_default();
@@ -701,12 +712,13 @@ fn validate_concept(
                     // merge into bundle errors; an unknown `object:`
                     // degrades to a bundle warning.
                     let result = match bundle_package {
-                        Some(package) => crate::validate_document_in_bundle(
+                        Some(package) => crate::validate_document_in_indexed_bundle(
                             registry,
                             archetype,
                             doc.raw(),
                             package,
                             Some(lexicon),
+                            semantic_index,
                         ),
                         None => crate::validate_document_in_registry_with_lexicon(
                             registry,
