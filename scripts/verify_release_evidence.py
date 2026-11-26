@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Validate and safely unpack a Terra-produced release evidence asset."""
+# implements: FR-095-AC-2, FR-095-AC-6
 
 import argparse
+import gzip
 import json
 import re
 import tarfile
@@ -30,22 +32,83 @@ expected_paths = {
     "bindings.json",
     run_path,
 }
+MAX_ARCHIVE_BYTES = 20_000_000
+MAX_DECOMPRESSED_BYTES = 50_000_000
+MAX_ARCHIVE_MEMBERS = len(expected_paths)
+
+
+class DecompressedArchiveLimitExceeded(Exception):
+    """Raised when the complete gzip stream exceeds its byte limit."""
+
+
+class BoundedGzipReader:
+    """Count all decompressed bytes, including tar headers and padding."""
+
+    def __init__(self, stream: gzip.GzipFile, limit: int) -> None:
+        self.stream = stream
+        self.limit = limit
+        self.total = 0
+
+    # implements: FR-095-AC-6
+    def read(self, size: int = -1) -> bytes:
+        remaining = self.limit - self.total
+        requested = remaining + 1 if size < 0 else min(size, remaining + 1)
+        content = self.stream.read(requested)
+        self.total += len(content)
+        if self.total > self.limit:
+            raise DecompressedArchiveLimitExceeded
+        return content
+
+    def close(self) -> None:
+        self.stream.close()
+
+
+try:
+    archive_size = args.archive.stat().st_size
+except OSError as error:
+    parser.error(f"release evidence archive is unavailable: {error}")
+if archive_size > MAX_ARCHIVE_BYTES:
+    parser.error("release evidence archive exceeds the compressed byte limit")
+
 members = {}
-with tarfile.open(args.archive, "r:gz") as archive:
-    for member in archive.getmembers():
-        path = PurePosixPath(member.name)
-        if (
-            path.is_absolute()
-            or ".." in path.parts
-            or not member.isfile()
-            or member.name in members
-            or member.size > 50_000_000
-        ):
-            parser.error("release evidence archive contains an unsafe or duplicate entry")
-        extracted = archive.extractfile(member)
-        if extracted is None:
-            parser.error("release evidence archive contains an unreadable entry")
-        members[member.name] = extracted.read()
+decompressed_bytes = 0
+try:
+    with args.archive.open("rb") as compressed:
+        with gzip.GzipFile(fileobj=compressed, mode="rb") as gzip_stream:
+            bounded_stream = BoundedGzipReader(gzip_stream, MAX_DECOMPRESSED_BYTES)
+            with tarfile.open(fileobj=bounded_stream, mode="r|") as archive:
+                for member in archive:
+                    if len(members) >= MAX_ARCHIVE_MEMBERS:
+                        parser.error("release evidence archive exceeds the member count limit")
+                    path = PurePosixPath(member.name)
+                    if (
+                        path.is_absolute()
+                        or ".." in path.parts
+                        or not member.isfile()
+                        or member.name in members
+                        or member.size < 0
+                        or decompressed_bytes + member.size > MAX_DECOMPRESSED_BYTES
+                    ):
+                        parser.error("release evidence archive contains an unsafe, duplicate, or oversized entry")
+                    extracted = archive.extractfile(member)
+                    if extracted is None:
+                        parser.error("release evidence archive contains an unreadable entry")
+                    content = bytearray()
+                    while True:
+                        chunk = extracted.read(64 * 1024)
+                        if not chunk:
+                            break
+                        decompressed_bytes += len(chunk)
+                        if decompressed_bytes > MAX_DECOMPRESSED_BYTES:
+                            parser.error("release evidence archive exceeds the decompressed byte limit")
+                        content.extend(chunk)
+                    if len(content) != member.size:
+                        parser.error("release evidence archive entry size does not match its header")
+                    members[member.name] = bytes(content)
+except DecompressedArchiveLimitExceeded:
+    parser.error("release evidence archive exceeds the decompressed byte limit")
+except (OSError, EOFError, tarfile.TarError) as error:
+    parser.error(f"release evidence archive is malformed: {error}")
 
 if set(members) != expected_paths:
     parser.error("release evidence archive is missing or contains unexpected files")

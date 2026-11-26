@@ -15,7 +15,7 @@ use ix_trace_rs::trace;
 use serde_yaml::{Mapping, Value};
 use std::fs;
 use std::path::PathBuf;
-use std::process::Command;
+use std::process::{Command, Stdio};
 
 fn workflow(name: &str) -> Value {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -212,6 +212,7 @@ fn tc_2234_make_evidence_records_fresh_suite_run_for_retention() {
         .and_then(|body| body.split("\n\n").next())
         .expect("Makefile defines evidence target");
     assert!(target.contains("ix-trace-run"));
+    assert!(target.contains("scripts/check_release_evidence_checkout.py --repo-root ."));
     assert!(target.contains("git describe --tags --exact-match HEAD"));
     assert!(target.contains("git rev-parse \"$$tag^{commit}\""));
     assert!(target.contains("git for-each-ref --format='%(taggerdate:unix)'"));
@@ -301,6 +302,10 @@ fn terra_bundle_fixture(
         serde_json::to_vec_pretty(&run).expect("serialize run"),
     )
     .expect("write run record");
+    let source_run = source_evidence.join(&run_path);
+    fs::create_dir_all(source_run.parent().expect("run path has a parent"))
+        .expect("create source run directory");
+    fs::copy(bundle_root.join(&run_path), source_run).expect("copy run into source evidence");
 
     let archive_path = root.join("release-evidence.tar.gz");
     let archive = Command::new("tar")
@@ -326,16 +331,34 @@ fn terra_bundle_fixture(
 fn tc_2235_valid_terra_bundle_is_verified_and_extracted_for_the_tag_sha() {
     let root = tempfile::tempdir().expect("create fixture root");
     let commit = "a".repeat(40);
-    let (source_root, archive, _) = terra_bundle_fixture(root.path(), &commit, "pass");
+    let (source_root, archive, bundle_root) = terra_bundle_fixture(root.path(), &commit, "pass");
+    let evidence_root = source_root.join("spec/evidence");
+    let package =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("scripts/package_release_evidence.py");
+    let packaged = Command::new("python3")
+        .arg(package)
+        .args(["--source-root"])
+        .arg(&source_root)
+        .args(["--committed-bindings"])
+        .arg(bundle_root.join("bindings.committed.json"))
+        .args(["--run-record"])
+        .arg(evidence_root.join(format!("runs/SUITE-001/{}.json", &commit[..12])))
+        .args(["--expected-tag", "v0.63.3", "--expected-commit", &commit])
+        .args(["--tag-created-at", "1795564800"])
+        .arg("--archive")
+        .arg(&archive)
+        .status()
+        .expect("run release evidence packager");
+    assert!(packaged.success(), "matching Terra run is packaged");
     let output = root.path().join("verified");
     let verifier =
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("scripts/verify_release_evidence.py");
     let result = Command::new("python3")
         .arg(verifier)
         .args(["--archive"])
-        .arg(archive)
+        .arg(&archive)
         .args(["--source-root"])
-        .arg(source_root)
+        .arg(&source_root)
         .args(["--expected-tag", "v0.63.3", "--expected-commit", &commit])
         .args(["--tag-created-at", "1795564800"])
         .arg("--output-dir")
@@ -458,6 +481,126 @@ fn tc_2239_stale_run_record_refuses_terra_bundle() {
     assert!(!output.exists(), "refused evidence is not extracted");
 }
 
+#[trace("FR-095-AC-1")]
+#[test]
+fn tc_2241_make_evidence_refuses_a_dirty_checkout_before_running_tests() {
+    let root = tempfile::tempdir().expect("create checkout fixture");
+    let checkout = root.path();
+    let git_init = Command::new("git")
+        .args(["init", "--quiet"])
+        .current_dir(checkout)
+        .status()
+        .expect("initialize synthetic checkout");
+    assert!(git_init.success(), "synthetic checkout initialized");
+    fs::create_dir(checkout.join("scripts")).expect("create scripts directory");
+    let repository = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    fs::copy(repository.join("Makefile"), checkout.join("Makefile"))
+        .expect("copy actual evidence target");
+    fs::copy(
+        repository.join("scripts/check_release_evidence_checkout.py"),
+        checkout.join("scripts/check_release_evidence_checkout.py"),
+    )
+    .expect("copy actual checkout preflight");
+    fs::write(
+        checkout.join(".git/info/exclude"),
+        "\n/Makefile\n/scripts/check_release_evidence_checkout.py\n",
+    )
+    .expect("exclude only the copied implementation files");
+    fs::write(checkout.join("src-dirty.rs"), "uncommitted source\n")
+        .expect("create dirty untracked source");
+
+    let result = Command::new("make")
+        .args(["--no-print-directory", "evidence"])
+        .current_dir(checkout)
+        .output()
+        .expect("run actual make evidence target");
+    assert!(!result.status.success(), "dirty checkout is refused");
+    let stderr = String::from_utf8_lossy(&result.stderr);
+    assert!(
+        stderr.contains("release_evidence_dirty_checkout"),
+        "dirty checkout diagnostic is stable: {stderr}"
+    );
+    assert!(
+        !checkout.join("target/release-evidence").exists(),
+        "refusal happens before evidence or test output is created"
+    );
+
+    let clone = root.path().join("uninitialized-submodule-checkout");
+    let cloned = Command::new("git")
+        .args(["clone", "--quiet", "--shared", "--no-recurse-submodules"])
+        .arg(repository)
+        .arg(&clone)
+        .status()
+        .expect("clone checkout with submodule left uninitialized");
+    assert!(
+        cloned.success(),
+        "synthetic checkout cloned without submodules"
+    );
+    let preflight = Command::new("python3")
+        .arg(repository.join("scripts/check_release_evidence_checkout.py"))
+        .args(["--repo-root"])
+        .arg(&clone)
+        .output()
+        .expect("check uninitialized submodule checkout");
+    assert!(
+        !preflight.status.success(),
+        "uninitialized recursive submodule is refused"
+    );
+    assert!(
+        String::from_utf8_lossy(&preflight.stderr).contains("release_evidence_dirty_checkout"),
+        "submodule refusal diagnostic is stable"
+    );
+}
+
+#[trace("FR-095-AC-2")]
+#[test]
+fn tc_2242_streaming_archive_reader_enforces_member_and_byte_bounds() {
+    let root = tempfile::tempdir().expect("create archive fixture root");
+    let commit = "9".repeat(40);
+    let (source_root, _, bundle_root) = terra_bundle_fixture(root.path(), &commit, "pass");
+    let verifier =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("scripts/verify_release_evidence.py");
+    let many_archive = root.path().join("many-members.tar.gz");
+    let oversized_archive = root.path().join("oversized-member.tar.gz");
+    let compressed_archive = root.path().join("oversized-compressed.tar.gz");
+    let fixtures = Command::new("python3")
+        .arg("-c")
+        .arg(
+            "import io,os,sys,tarfile; from pathlib import Path; root=Path(sys.argv[1]); many=Path(sys.argv[2]); oversized=Path(sys.argv[3]); compressed=Path(sys.argv[4]); files=[p for p in root.rglob('*') if p.is_file()]; t=tarfile.open(many,'w:gz'); [t.add(p,arcname=p.relative_to(root).as_posix()) for p in files]; [(lambda info,data:t.addfile(info,io.BytesIO(data)))(tarfile.TarInfo('extra-'+str(i)),b'x') for i in range(10)]; t.close(); t=tarfile.open(oversized,'w:gz'); data=b'\0'*(50_000_001); info=tarfile.TarInfo('oversized'); info.size=len(data); t.addfile(info,io.BytesIO(data)); t.close(); t=tarfile.open(compressed,'w:gz'); data=os.urandom(20_000_001); info=tarfile.TarInfo('random'); info.size=len(data); t.addfile(info,io.BytesIO(data)); t.close()",
+        )
+        .arg(&bundle_root)
+        .arg(&many_archive)
+        .arg(&oversized_archive)
+        .arg(&compressed_archive)
+        .status()
+        .expect("create adversarial archives");
+    assert!(fixtures.success(), "adversarial archives created");
+
+    for (label, archive) in [
+        ("many", many_archive),
+        ("decompressed", oversized_archive),
+        ("compressed", compressed_archive),
+    ] {
+        let output = root.path().join(format!("{label}-output"));
+        let result = Command::new("python3")
+            .arg(&verifier)
+            .args(["--archive"])
+            .arg(archive)
+            .args(["--source-root"])
+            .arg(&source_root)
+            .args(["--expected-tag", "v0.63.3", "--expected-commit", &commit])
+            .args(["--tag-created-at", "1795564800"])
+            .arg("--output-dir")
+            .arg(&output)
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()
+            .expect("run streaming archive verifier");
+        assert!(!result.success(), "{label} archive is refused");
+        assert!(!output.exists(), "{label} archive is not extracted");
+    }
+}
+
 #[trace("FR-095-AC-6")]
 #[test]
 fn tc_2240_unsafe_archive_path_and_missing_run_are_refused() {
@@ -470,7 +613,7 @@ fn tc_2240_unsafe_archive_path_and_missing_run_are_refused() {
     let create_unsafe_archive = Command::new("python3")
         .arg("-c")
         .arg(
-            "import io,sys,tarfile; from pathlib import Path; root=Path(sys.argv[2]); archive=tarfile.open(sys.argv[1], 'w:gz'); [archive.add(path, arcname=path.relative_to(root).as_posix()) for path in root.rglob('*') if path.is_file()]; info=tarfile.TarInfo('../escape'); info.size=1; archive.addfile(info, io.BytesIO(b'x')); archive.close()",
+            "import io,sys,tarfile; from pathlib import Path; root=Path(sys.argv[2]); run_path='runs/SUITE-001/'+'f'*12+'.json'; archive=tarfile.open(sys.argv[1], 'w:gz'); [archive.add(path, arcname=path.relative_to(root).as_posix()) for path in root.rglob('*') if path.is_file() and path.relative_to(root).as_posix()!=run_path]; info=tarfile.TarInfo('../escape'); info.size=1; archive.addfile(info, io.BytesIO(b'x')); archive.close()",
         )
         .arg(&unsafe_archive)
         .arg(&bundle_root)

@@ -14,7 +14,8 @@ top-level `schemaVersion` and `bindings` array; its binding entries identify
 the obligation, suite, and supporting test symbols, and only passing test
 results bind. For the release Test Result, `SUITE-001` SHALL bind each
 acceptance criterion in Quire-rs FR-095 (AC-1 through AC-6). The tag-attestation
-Terra runs this suite once at the exact signed tag commit with `make evidence`
+Terra run first refuses dirty tracked, untracked, or recursive submodule state,
+then runs this suite once at the exact signed tag commit with `make evidence`
 and attaches `target/release-evidence/release-evidence.tar.gz` to the matching
 GitHub Release. The tag-attestation workflow validates that asset against the
 tag SHA and retains it as the same-run `release-evidence` artifact; it does not
