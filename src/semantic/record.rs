@@ -11,6 +11,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
+use ix_trace_rs::implements;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Number, Value};
 
@@ -21,7 +22,7 @@ use super::embedded::{semantic_core_bundle, SEMANTIC_CORE_BASE};
 use super::model::{entry_errors, line_span, MemberDecl, ModelDeclarations, ModelFeature};
 use super::properties::{map_multiplicity, map_type, strip_ticks, RowInput};
 use super::relations::bundle_package;
-use super::relations::RelationDecl;
+use super::relations::{RelationDecl, RelationSource};
 use super::scan::{blocks_in, level2_headings, lines, Block, Fence, Table};
 use super::target::{
     is_id_segment, resolve_reference, resolve_target, Admission, Declarations, OwnArtifact,
@@ -406,6 +407,7 @@ pub(crate) struct RecordOutcome {
     pub(crate) availability: BTreeMap<String, KindAvailability>,
     pub(crate) diagnostics: Vec<SemanticDiagnostic>,
     pub(crate) resolved_references: Vec<ResolvedReference>,
+    pub(crate) record_relations: Vec<RelationSource>,
 }
 
 /// One `##` section: its heading text, heading line and exclusive end line.
@@ -423,6 +425,7 @@ struct Read {
     advisories: Vec<SemanticDiagnostic>,
     no_package: bool,
     span: SourceLocus,
+    record_relations: Vec<RelationSource>,
 }
 
 /// Where a heading's content goes.
@@ -612,6 +615,11 @@ pub(crate) fn extract_record(raw: &str, ctx: &SemanticContext) -> Option<RecordO
         if !failed {
             diagnostics.extend(read.advisories);
         }
+        // Relations point into the emitted record value. Do not retain any
+        // relation when validation makes that value unavailable.
+        if !failed && !read.no_package {
+            outcome.record_relations.extend(read.record_relations);
+        }
         for (key, value) in read.values {
             if !schema.has(&key) {
                 continue;
@@ -658,6 +666,7 @@ struct State {
     diagnostics: Vec<SemanticDiagnostic>,
     advisories: Vec<SemanticDiagnostic>,
     no_package: bool,
+    record_relations: Vec<RelationSource>,
 }
 
 impl Reader<'_> {
@@ -704,6 +713,7 @@ impl Reader<'_> {
             advisories: state.advisories,
             no_package: state.no_package,
             span: self.span(sec),
+            record_relations: state.record_relations,
         }
     }
 
@@ -882,6 +892,7 @@ impl Reader<'_> {
         (!failed).then_some(matched)
     }
 
+    #[implements("FR-081-AC-22")]
     fn read_tables(
         &self,
         sec: Sec<'_>,
@@ -938,10 +949,10 @@ impl Reader<'_> {
             &table.rows[..]
         };
         let mut elements = Vec::new();
-        for (line, cells) in rows {
-            elements.push(Value::Object(
-                self.read_row(sec, name, *line, cells, targets, &matched, &mut state),
-            ));
+        for (row_index, (line, cells)) in rows.iter().enumerate() {
+            elements.push(Value::Object(self.read_row(
+                sec, name, *line, row_index, !object, cells, targets, &matched, &mut state,
+            )));
         }
         let value = if object {
             elements.into_iter().next()
@@ -952,11 +963,14 @@ impl Reader<'_> {
     }
 
     #[allow(clippy::too_many_arguments)]
+    #[implements("FR-081-AC-22")]
     fn read_row(
         &self,
         sec: Sec<'_>,
         name: &str,
         line: usize,
+        row_index: usize,
+        object_array: bool,
         cells: &[String],
         targets: &[HeaderTarget],
         matched: &[usize],
@@ -984,6 +998,33 @@ impl Reader<'_> {
                     ));
                     continue;
                 }
+                Kind::Scalar(Scalar::SemanticId)
+                    if object_array
+                        && self
+                            .ctx
+                            .relation_vocabulary
+                            .as_ref()
+                            .is_some_and(|v| v.allowed_targets(&target.path[0]).is_some()) =>
+                {
+                    let verb = &target.path[0];
+                    match self.resolve_row_reference(cell, verb, sec, line, state) {
+                        Some(identity) => {
+                            state.record_relations.push(RelationSource {
+                                name: verb.clone(),
+                                source_span: line_span(self.ctx, self.lines, line),
+                                verb: Some(verb.clone()),
+                                target: Some(identity.clone()),
+                                multiplicity: None,
+                                validation_path: Some(format!(
+                                    "/record/{name}/{row_index}/{}",
+                                    target.path[0]
+                                )),
+                            });
+                            Value::String(identity)
+                        }
+                        None => continue,
+                    }
+                }
                 Kind::Scalar(scalar) => match self.type_scalar(scalar, cell, sec, line, state) {
                     Some(value) => value,
                     None => continue,
@@ -1009,6 +1050,65 @@ impl Reader<'_> {
             self.row_rules(sec, name, line, &row, clean, state);
         }
         row
+    }
+
+    #[implements("FR-081-AC-22")]
+    fn resolve_row_reference(
+        &self,
+        text: &str,
+        verb: &str,
+        sec: Sec<'_>,
+        line: usize,
+        state: &mut State,
+    ) -> Option<String> {
+        let Some(package) = self.package else {
+            state.no_package = true;
+            return self
+                .resolve_id(text, sec, line, state)
+                .and_then(|v| v.as_str().map(str::to_owned));
+        };
+        let own = OwnArtifact {
+            id: self.own_id.as_deref(),
+            object: self.own_object.as_deref(),
+            operations: &[],
+        };
+        let target = match resolve_target(self.ctx, package, &own, text, is_id_segment) {
+            Ok(target) => target,
+            Err(_) => {
+                state.diagnostics.push(self.finding(
+                    "semantic.invalid-model-cell",
+                    "target-not-id",
+                    sec,
+                    line,
+                    format!("target `{text}` is not a resolvable artifact identity"),
+                ));
+                return None;
+            }
+        };
+        let object = match &target {
+            Target::Bundle { object, .. }
+            | Target::Imported {
+                object,
+                indexed: true,
+                ..
+            } => *object,
+            Target::Imported { indexed: false, .. } | Target::Unchecked { .. } => None,
+        };
+        let permitted = self.ctx.relation_vocabulary.as_ref().is_some_and(|v| {
+            v.allowed_targets(verb)
+                .is_some_and(|tokens| tokens.iter().any(|token| v.satisfies(token, object)))
+        });
+        if !permitted {
+            state.diagnostics.push(self.finding(
+                "semantic.reference-kind-mismatch",
+                "wrong-kind",
+                sec,
+                line,
+                format!("target `{text}` is not an allowed target kind for `{verb}`"),
+            ));
+            return None;
+        }
+        Some(target.identity().to_string())
     }
 
     /// The reader rules of quoin FR-122 over one row.
