@@ -5,7 +5,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use ix_trace_rs::trace;
-use quire_rs::coverage::{compute, CoverageMatrixStatus, CoverageReport};
+use quire_rs::coverage::{compute, CoverageMatrixStatus, CoverageReport, EvidenceCoverageMode};
 use quire_rs::symbols::{extract_tree, trace as sym_trace};
 use quire_rs::{Registry, Spec};
 
@@ -762,9 +762,15 @@ fn retained_backing_components_reconcile_named_source_free_boundaries() {
             claims: &[],
             results: &absent,
         };
-        let report =
-            quire_rs::coverage::compute_with_evidence(&spec, &registry, &graph, &root, &empty)
-                .unwrap();
+        let report = quire_rs::coverage::compute_with_evidence(
+            &spec,
+            &registry,
+            &graph,
+            &root,
+            &empty,
+            EvidenceCoverageMode::Strict,
+        )
+        .unwrap();
         assert_eq!(report.unbacked_rows, baseline.unbacked_rows);
         assert_eq!(
             report.coverage_matrix[0].criteria[0].record_binders,
@@ -791,9 +797,15 @@ fn retained_backing_components_reconcile_named_source_free_boundaries() {
             claims: &claims,
             results: &[],
         };
-        let report =
-            quire_rs::coverage::compute_with_evidence(&spec, &registry, &graph, &root, &backing)
-                .unwrap();
+        let report = quire_rs::coverage::compute_with_evidence(
+            &spec,
+            &registry,
+            &graph,
+            &root,
+            &backing,
+            EvidenceCoverageMode::Strict,
+        )
+        .unwrap();
         let schema_value: serde_json::Value =
             serde_json::from_str(include_str!("../../schemas/output/coverage-v1.schema.json"))
                 .unwrap();
@@ -850,9 +862,15 @@ fn retained_backing_components_reconcile_named_source_free_boundaries() {
             claims: &claims,
             results: &failed,
         };
-        let report =
-            quire_rs::coverage::compute_with_evidence(&spec, &registry, &graph, &root, &rejected)
-                .unwrap();
+        let report = quire_rs::coverage::compute_with_evidence(
+            &spec,
+            &registry,
+            &graph,
+            &root,
+            &rejected,
+            EvidenceCoverageMode::Strict,
+        )
+        .unwrap();
         assert_eq!(report.unbacked_rows, baseline.unbacked_rows);
         assert!(report.coverage_matrix[0].criteria[0]
             .record_binders
@@ -964,9 +982,15 @@ fn retained_gate_targets_do_not_discharge_inspection_siblings() {
         claims: &claims,
         results: &[],
     };
-    let report =
-        quire_rs::coverage::compute_with_evidence(&spec, &registry, &graph, &root, &backing)
-            .unwrap();
+    let report = quire_rs::coverage::compute_with_evidence(
+        &spec,
+        &registry,
+        &graph,
+        &root,
+        &backing,
+        EvidenceCoverageMode::Strict,
+    )
+    .unwrap();
     assert_eq!(report.totals.backed, baseline.totals.backed + 2);
     assert_eq!(report.coverage_matrix.len(), 1);
     assert_eq!(report.coverage_matrix[0].criteria.len(), 2);
@@ -1086,6 +1110,7 @@ fn retained_backing_uses_native_snapshot_and_preserves_partial_population() {
             &graph,
             coverage_root,
             &backing,
+            quire_rs::coverage::EvidenceCoverageMode::Strict,
         )
         .unwrap();
         assert_eq!(
@@ -1124,7 +1149,12 @@ fn retained_backing_uses_native_snapshot_and_preserves_partial_population() {
                 results: &[],
             };
             let report = quire_rs::coverage::compute_with_evidence(
-                &spec, &registry, &graph, &root, &backing,
+                &spec,
+                &registry,
+                &graph,
+                &root,
+                &backing,
+                quire_rs::coverage::EvidenceCoverageMode::Strict,
             )
             .unwrap();
             assert_eq!(report.coverage_matrix[0].criteria.len(), 1);
@@ -1192,9 +1222,15 @@ fn retained_results_preserve_source_claims_all_causes_and_record_order() {
         claims: &[],
         results: &results,
     };
-    let report =
-        quire_rs::coverage::compute_with_evidence(&spec, &registry, &graph, &root, &backing)
-            .unwrap();
+    let report = quire_rs::coverage::compute_with_evidence(
+        &spec,
+        &registry,
+        &graph,
+        &root,
+        &backing,
+        EvidenceCoverageMode::Strict,
+    )
+    .unwrap();
     assert_eq!(
         report.coverage_matrix[0].criteria[0].binders,
         baseline.coverage_matrix[0].criteria[0].binders
@@ -1221,9 +1257,16 @@ fn retained_results_preserve_source_claims_all_causes_and_record_order() {
     };
     assert_eq!(
         report.to_json(),
-        quire_rs::coverage::compute_with_evidence(&spec, &registry, &graph, &root, &reordered)
-            .unwrap()
-            .to_json()
+        quire_rs::coverage::compute_with_evidence(
+            &spec,
+            &registry,
+            &graph,
+            &root,
+            &reordered,
+            EvidenceCoverageMode::Strict
+        )
+        .unwrap()
+        .to_json()
     );
 
     let claim = RecordClaim {
@@ -1243,9 +1286,15 @@ fn retained_results_preserve_source_claims_all_causes_and_record_order() {
         claims: &duplicate,
         results: &[],
     };
-    let report =
-        quire_rs::coverage::compute_with_evidence(&spec, &registry, &graph, &root, &backing)
-            .unwrap();
+    let report = quire_rs::coverage::compute_with_evidence(
+        &spec,
+        &registry,
+        &graph,
+        &root,
+        &backing,
+        EvidenceCoverageMode::Strict,
+    )
+    .unwrap();
     assert_eq!(report.record_binders.as_ref().unwrap().len(), 1);
     let conflict = [
         claim,
@@ -1259,9 +1308,15 @@ fn retained_results_preserve_source_claims_all_causes_and_record_order() {
         claims: &conflict,
         results: &[],
     };
-    let report =
-        quire_rs::coverage::compute_with_evidence(&spec, &registry, &graph, &root, &backing)
-            .unwrap();
+    let report = quire_rs::coverage::compute_with_evidence(
+        &spec,
+        &registry,
+        &graph,
+        &root,
+        &backing,
+        EvidenceCoverageMode::Strict,
+    )
+    .unwrap();
     assert!(report.record_binders.as_ref().unwrap().is_empty());
     assert!(report
         .evidence_results
@@ -1277,9 +1332,16 @@ fn retained_results_preserve_source_claims_all_causes_and_record_order() {
     };
     assert_eq!(
         report.to_json(),
-        quire_rs::coverage::compute_with_evidence(&spec, &registry, &graph, &root, &backing)
-            .unwrap()
-            .to_json()
+        quire_rs::coverage::compute_with_evidence(
+            &spec,
+            &registry,
+            &graph,
+            &root,
+            &backing,
+            EvidenceCoverageMode::Strict
+        )
+        .unwrap()
+        .to_json()
     );
     fs::remove_dir_all(root).unwrap();
 }
@@ -1374,9 +1436,15 @@ fn evidence_population_uses_only_native_selected_observations() {
         claims: &[],
         results: &[],
     };
-    let report =
-        quire_rs::coverage::compute_with_evidence(&spec, &registry, &graph, &root, &backing)
-            .unwrap();
+    let report = quire_rs::coverage::compute_with_evidence(
+        &spec,
+        &registry,
+        &graph,
+        &root,
+        &backing,
+        EvidenceCoverageMode::Strict,
+    )
+    .unwrap();
     assert_eq!(report.obligations.len(), 2);
     assert!(
         !report
@@ -1399,9 +1467,15 @@ fn evidence_population_uses_only_native_selected_observations() {
         claims: &[],
         results: &[],
     };
-    let report =
-        quire_rs::coverage::compute_with_evidence(&spec, &registry, &graph, &root, &backing)
-            .unwrap();
+    let report = quire_rs::coverage::compute_with_evidence(
+        &spec,
+        &registry,
+        &graph,
+        &root,
+        &backing,
+        EvidenceCoverageMode::Strict,
+    )
+    .unwrap();
     assert!(report.obligations.is_empty());
     assert!(
         report
@@ -1475,9 +1549,15 @@ fn criterion_claims_execute_native_lookup_refusals_and_exact_record_queries() {
         claims: &claims,
         results: &[],
     };
-    let report =
-        quire_rs::coverage::compute_with_evidence(&spec, &registry, &graph, &root, &backing)
-            .unwrap();
+    let report = quire_rs::coverage::compute_with_evidence(
+        &spec,
+        &registry,
+        &graph,
+        &root,
+        &backing,
+        EvidenceCoverageMode::Strict,
+    )
+    .unwrap();
     assert_eq!(report.record_binders.as_ref().unwrap().len(), 2);
     for requirement in &report.coverage_matrix {
         for criterion in &requirement.criteria {
@@ -1534,9 +1614,15 @@ fn criterion_claims_execute_native_lookup_refusals_and_exact_record_queries() {
         claims: &claims[1..],
         results: &[],
     };
-    let report =
-        quire_rs::coverage::compute_with_evidence(&spec, &registry, &graph, &root, &backing)
-            .unwrap();
+    let report = quire_rs::coverage::compute_with_evidence(
+        &spec,
+        &registry,
+        &graph,
+        &root,
+        &backing,
+        EvidenceCoverageMode::Strict,
+    )
+    .unwrap();
     assert!(report.record_binders.as_ref().unwrap().is_empty());
     assert!(report
         .evidence_results
@@ -1563,9 +1649,15 @@ fn criterion_claims_execute_native_lookup_refusals_and_exact_record_queries() {
         claims: &foreign_claims,
         results: &[],
     };
-    let report =
-        quire_rs::coverage::compute_with_evidence(&spec, &registry, &graph, &root, &backing)
-            .unwrap();
+    let report = quire_rs::coverage::compute_with_evidence(
+        &spec,
+        &registry,
+        &graph,
+        &root,
+        &backing,
+        EvidenceCoverageMode::Strict,
+    )
+    .unwrap();
     assert!(report.record_binders.as_ref().unwrap().is_empty());
     assert!(report
         .evidence_results
@@ -1591,9 +1683,15 @@ fn criterion_claims_execute_native_lookup_refusals_and_exact_record_queries() {
         claims: &duplicate_claims,
         results: &[],
     };
-    let report =
-        quire_rs::coverage::compute_with_evidence(&spec, &registry, &graph, &root, &backing)
-            .unwrap();
+    let report = quire_rs::coverage::compute_with_evidence(
+        &spec,
+        &registry,
+        &graph,
+        &root,
+        &backing,
+        EvidenceCoverageMode::Strict,
+    )
+    .unwrap();
     assert!(report.record_binders.as_ref().unwrap().is_empty());
     assert!(report
         .evidence_results
@@ -1685,9 +1783,15 @@ fn retained_native_origins_preserve_unmapped_rows_and_refuse_rendered_reordering
         claims: &claims,
         results: &[],
     };
-    let report =
-        quire_rs::coverage::compute_with_evidence(&spec, &registry, &graph, &root, &backing)
-            .unwrap();
+    let report = quire_rs::coverage::compute_with_evidence(
+        &spec,
+        &registry,
+        &graph,
+        &root,
+        &backing,
+        EvidenceCoverageMode::Strict,
+    )
+    .unwrap();
     let criteria = &report.coverage_matrix[0].criteria;
     assert_eq!(criteria.len(), 3);
     assert_eq!(
@@ -1719,9 +1823,15 @@ fn retained_native_origins_preserve_unmapped_rows_and_refuse_rendered_reordering
         claims: &combinatorial_claims,
         results: &[],
     };
-    let report =
-        quire_rs::coverage::compute_with_evidence(&spec, &registry, &graph, &root, &backing)
-            .unwrap();
+    let report = quire_rs::coverage::compute_with_evidence(
+        &spec,
+        &registry,
+        &graph,
+        &root,
+        &backing,
+        EvidenceCoverageMode::Strict,
+    )
+    .unwrap();
     let result = report
         .evidence_results
         .as_ref()
@@ -1759,9 +1869,15 @@ fn retained_native_origins_preserve_unmapped_rows_and_refuse_rendered_reordering
         claims: &claims,
         results: &[],
     };
-    let report =
-        quire_rs::coverage::compute_with_evidence(&spec, &registry, &graph, &root, &backing)
-            .unwrap();
+    let report = quire_rs::coverage::compute_with_evidence(
+        &spec,
+        &registry,
+        &graph,
+        &root,
+        &backing,
+        EvidenceCoverageMode::Strict,
+    )
+    .unwrap();
     assert!(report.record_binders.as_ref().unwrap().is_empty());
     assert!(report
         .evidence_results
@@ -1779,9 +1895,15 @@ fn retained_native_origins_preserve_unmapped_rows_and_refuse_rendered_reordering
         claims: &fresh_claims,
         results: &[],
     };
-    let report =
-        quire_rs::coverage::compute_with_evidence(&spec, &registry, &graph, &root, &backing)
-            .unwrap();
+    let report = quire_rs::coverage::compute_with_evidence(
+        &spec,
+        &registry,
+        &graph,
+        &root,
+        &backing,
+        EvidenceCoverageMode::Strict,
+    )
+    .unwrap();
     assert_eq!(
         report.coverage_matrix[0].criteria[0]
             .record_binders
@@ -2052,8 +2174,15 @@ fn fr082_the_evidence_path_carries_criticality_too() {
         claims: &[],
         results: &[],
     };
-    let report =
-        quire_rs::coverage::compute_with_evidence(&spec, &registry, &graph, &root, &input).unwrap();
+    let report = quire_rs::coverage::compute_with_evidence(
+        &spec,
+        &registry,
+        &graph,
+        &root,
+        &input,
+        EvidenceCoverageMode::Strict,
+    )
+    .unwrap();
     assert_eq!(entry(&report, "spec/FR-001.md")["criticality"], "high");
     assert!(entry(&report, "spec/FR-002.md")
         .as_object()

@@ -962,6 +962,67 @@ fn dropped_record_key_relation_is_reported_with_its_valid_sibling() {
     }
     let spec_root = root.path().join("spec");
     let spec = Spec::from_path(&spec_root);
+    let model = registry.traceability().expect("model with valid siblings");
+    let inventory = quire_rs::obligation::inventory::inventory(
+        root.path(),
+        model,
+        &["requirement-criterion"],
+        quire_rs::obligation::inventory::InventoryOptions {
+            model_policy: quire_rs::obligation::inventory::InventoryModelPolicy::DesignMatrix,
+            ..Default::default()
+        },
+    );
+    assert_eq!(
+        inventory.entries().count(),
+        1,
+        "one selected criterion enters evidence"
+    );
+    assert_eq!(
+        inventory.terminal(),
+        quire_rs::obligation::inventory::InventoryTerminal::Complete
+    );
+    let backing = quire_rs::evidence::BackingInput {
+        inventory: &inventory,
+        claims: &[],
+        results: &[],
+    };
+    let strict_coverage = quire_rs::coverage::compute_with_evidence(
+        &spec,
+        &registry,
+        &quire_rs::symbols::trace::SymbolGraph::default(),
+        root.path(),
+        &backing,
+        quire_rs::coverage::EvidenceCoverageMode::Strict,
+    );
+    assert!(matches!(
+        strict_coverage,
+        Err(quire_rs::CoverageError::DeclarationsDropped(_))
+    ));
+    let evidence_coverage = quire_rs::coverage::compute_with_evidence(
+        &spec,
+        &registry,
+        &quire_rs::symbols::trace::SymbolGraph::default(),
+        root.path(),
+        &backing,
+        quire_rs::coverage::EvidenceCoverageMode::DesignMatrix,
+    )
+    .expect("evidence-backed coverage retains valid siblings of a dropped relation");
+    assert_eq!(evidence_coverage.coverage_matrix.len(), 1);
+    let evidence_matrix = design_matrix(
+        &spec,
+        &registry,
+        &[RelationReportMember {
+            root: root.path(),
+            matrix: &evidence_coverage.coverage_matrix,
+        }],
+    )
+    .expect("evidence-backed design matrix retains dropped-relation errors");
+    assert_eq!(evidence_matrix.entries.len(), 1);
+    assert_eq!(evidence_matrix.errors.len(), 1);
+    assert_eq!(
+        evidence_matrix.errors[0].item,
+        "connection-carries-classification"
+    );
     assert!(compute(
         &spec,
         &registry,
@@ -997,6 +1058,36 @@ fn dropped_record_key_relation_is_reported_with_its_valid_sibling() {
         root.path(),
     )
     .is_err());
+    let incomplete_model = incomplete_registry.traceability().expect("partial model");
+    let incomplete_inventory = quire_rs::obligation::inventory::inventory(
+        root.path(),
+        incomplete_model,
+        &["requirement-criterion"],
+        quire_rs::obligation::inventory::InventoryOptions {
+            model_policy: quire_rs::obligation::inventory::InventoryModelPolicy::DesignMatrix,
+            ..Default::default()
+        },
+    );
+    assert_eq!(
+        incomplete_inventory.terminal(),
+        quire_rs::obligation::inventory::InventoryTerminal::Incomplete
+    );
+    let incomplete_backing = quire_rs::evidence::BackingInput {
+        inventory: &incomplete_inventory,
+        claims: &[],
+        results: &[],
+    };
+    assert!(matches!(
+        quire_rs::coverage::compute_with_evidence(
+            &spec,
+            &incomplete_registry,
+            &quire_rs::symbols::trace::SymbolGraph::default(),
+            root.path(),
+            &incomplete_backing,
+            quire_rs::coverage::EvidenceCoverageMode::DesignMatrix,
+        ),
+        Err(quire_rs::CoverageError::DeclarationsDropped(_))
+    ));
     assert_eq!(partial_coverage.coverage_matrix.len(), 1);
     let computed_matrix = design_matrix(
         &spec,

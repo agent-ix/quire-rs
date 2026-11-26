@@ -67,6 +67,17 @@ pub enum CoverageError {
     ExtractionUnavailable(#[from] crate::symbols::ExtractionUnavailable),
 }
 
+/// Whether an evidence-backed coverage projection is being used to build a
+/// design matrix that reports dropped required relations per relation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EvidenceCoverageMode {
+    /// Require every traceability declaration to have loaded.
+    Strict,
+    /// Permit only dropped required relations, so the design matrix can report
+    /// those relations while retaining rows from valid declarations.
+    DesignMatrix,
+}
+
 /// A declared reference row whose trace target has no backing `verifies`
 /// relation from any source symbol (FR-050-AC-3).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -933,14 +944,26 @@ pub fn compute_coverage_for_design_matrix(
 ///
 /// This low-level projection is not a qualification certificate. Consumers use
 /// the Quoin bridge's private qualified view after its actual audit/qualification.
+/// [`EvidenceCoverageMode::DesignMatrix`] permits only dropped required
+/// relations, which the design matrix reports individually; the strict mode
+/// refuses every dropped declaration.
+#[implements("FR-092-AC-20")]
 pub fn compute_with_evidence(
     spec: &Spec,
     registry: &Registry,
     graph: &SymbolGraph,
     root: &Path,
     backing: &crate::evidence::BackingInput<'_>,
+    mode: EvidenceCoverageMode,
 ) -> Result<CoverageReport, CoverageError> {
-    compute_inner(spec, registry, graph, root, Some(backing), false)
+    compute_inner(
+        spec,
+        registry,
+        graph,
+        root,
+        Some(backing),
+        mode == EvidenceCoverageMode::DesignMatrix,
+    )
 }
 
 #[implements("FR-092-AC-20")]
