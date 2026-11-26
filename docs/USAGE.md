@@ -501,6 +501,8 @@ let updated = quire::update_section(&quire::parse_document(&md), "Description", 
 
 ### Python (`quire` wheel, `--features python`)
 
+For manifest and bundle examples, see [Extract a unit model from Markdown](how-to-extract-a-unit-model.md).
+
 Module-level functions: `parse_document(text)`, `load_repo(root)`,
 `validate(archetype_name, module_root, data)`,
 `validate_document(archetype_name, module_root, text)`,
