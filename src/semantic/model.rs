@@ -8,6 +8,7 @@
 //! one refusal every extractor emits for an undeclared feature, and the
 //! availability of the feature set as a whole.
 
+use ix_trace_rs::implements;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -18,6 +19,8 @@ use super::decl::{is_identifier, Multiplicity, TypeRef};
 use super::properties::{
     feature_columns, is_typed_prefix, map_multiplicity, map_type, strip_ticks, RowInput,
 };
+use super::record::RecordSchema;
+use super::relations::RelationVocabulary;
 use super::scan::{blocks_in, level2_headings, lines, split_row_spans, Block, Table};
 use super::systems::{
     self, AllocationRecord, ConnectionRecord, PartRecord, PortRecord, SystemsDecl,
@@ -379,7 +382,12 @@ impl DeclaredTables {
     /// `under_section` is set, and its `assert.columns` name the table's key
     /// first, only columns that table reads, and none of its required
     /// columns in `optional_columns`.
-    pub(crate) fn from_dsl(dsl: &ExtractionDsl) -> Self {
+    #[implements("FR-081-AC-22")]
+    pub(crate) fn from_dsl(
+        dsl: &ExtractionDsl,
+        record_schema: Option<&RecordSchema>,
+        relation_vocabulary: Option<&RelationVocabulary>,
+    ) -> Self {
         let locators = dsl
             .yield_pattern
             .r#match
@@ -408,7 +416,27 @@ impl DeclaredTables {
                 continue;
             };
             let optional = assert.optional_columns.clone().unwrap_or_default();
-            if !spec.reads(columns) {
+            let base_columns: Vec<&String> = columns
+                .iter()
+                .filter(|column| spec.columns.contains(&strip_ticks(column)))
+                .collect();
+            let relation_columns: Vec<&String> = columns
+                .iter()
+                .filter(|column| !spec.columns.contains(&strip_ticks(column)))
+                .collect();
+            let extended = !relation_columns.is_empty()
+                && base_columns.len() + relation_columns.len() == columns.len()
+                && spec.reads(&base_columns)
+                && relation_columns.iter().all(|column| {
+                    record_schema.is_some_and(|schema| {
+                        schema.is_row_relation_field(
+                            spec.feature.name(),
+                            column,
+                            relation_vocabulary,
+                        )
+                    })
+                });
+            if !spec.reads(columns) && !extended {
                 continue;
             }
             if spec

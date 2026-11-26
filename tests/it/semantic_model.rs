@@ -714,6 +714,90 @@ fn object_type_sections() {
     assert_model_unavailable(&record);
 }
 
+#[trace("FR-081-AC-22")]
+#[test]
+fn declared_process_step_table_extracts_typed_row_receiver() {
+    let md = "---\nid: WF-1\ntitle: Workflow\nobject: process\n---\n# WF-1\n\n## Steps\n\n| Step | Kind | Consumes | Emits | Description | Receiver |\n|---|---|---|---|---|---|\n| pick | command | | | Pick lines | PR-1 |\n| pack | command | | | Pack lines | PR-2 |\n";
+    let mut dsl = tables();
+    let steps = &mut dsl["yield_pattern"]["match"]["steps"];
+    steps["assert"]["columns"] = json!([
+        "Step",
+        "Kind",
+        "Consumes",
+        "Emits",
+        "Description",
+        "Receiver"
+    ]);
+    steps["assert"]["optional_columns"] = json!(["Consumes", "Emits", "Description", "Receiver"]);
+    let mut request = shop_request(&md, dsl);
+    request["module"]["package"] = json!("acme/work");
+    request["module"]["exports"] = json!(["process"]);
+    request["module"]["mappings"] = json!(["record-sections"]);
+    request["bundle"] = json!({ "package": "acme/work", "artifacts": [
+        { "id": "WF-1", "object": "process", "operations": [] },
+        { "id": "PR-1", "object": "Principal", "operations": [] },
+        { "id": "PR-2", "object": "Principal", "operations": [] }
+    ] });
+    request["sourceIdentity"] = json!("ix://acme/work/WF-1");
+    request["dataSchema"] = json!({ "$id":"https://example.test/Workflow.json", "type":"object", "properties": {
+        "steps": { "type":"array", "items": { "type":"object", "properties": {
+            "receiver":{"$ref":"https://schemas.agent-ix.org/semantic-core/0.1.0/SemanticId.json"}
+        }}}
+    }});
+    request["schemaDocuments"] = json!({});
+    request["objectType"] = json!("Workflow");
+    request["relationVocabulary"] = json!({ "objectType":"Workflow", "edgeTypes":{}, "roles":{}, "allowedLinks":{"Workflow":{"receiver":["Principal"]}} });
+    let record = extract_request(&request);
+    assert_eq!(record["recordRelations"].as_array().unwrap().len(), 2);
+    assert_eq!(
+        record["recordRelations"][0]["target"], "ix://acme/work/PR-1",
+        "{record:#}"
+    );
+    assert_eq!(
+        record["recordRelations"][0]["validationPath"],
+        "/record/steps/0/receiver"
+    );
+    assert_eq!(
+        record["record"]["steps"][0]["receiver"],
+        "ix://acme/work/PR-1"
+    );
+    assert_eq!(
+        record["record"]["steps"][1]["receiver"],
+        "ix://acme/work/PR-2"
+    );
+
+    let mut empty = request.clone();
+    empty["markdown"] = json!(md.replace(
+        "| pick | command | | | Pick lines | PR-1 |",
+        "| pick | command | | | Pick lines | |"
+    ));
+    let empty = extract_request(&empty);
+    assert_eq!(empty["recordRelations"].as_array().unwrap().len(), 1);
+    assert!(empty["record"]["steps"][0].get("receiver").is_none());
+
+    for (target, code, reason) in [
+        ("WF-1", "semantic.reference-kind-mismatch", "wrong-kind"),
+        ("MISSING", "semantic.invalid-model-cell", "target-not-id"),
+    ] {
+        let mut invalid = request.clone();
+        invalid["markdown"] = json!(md.replace(
+            "| pick | command | | | Pick lines | PR-1 |",
+            &format!("| pick | command | | | Pick lines | {target} |")
+        ));
+        let invalid = extract_request(&invalid);
+        assert!(
+            invalid["diagnostics"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|d| { d["code"] == code && d["reason"] == reason }),
+            "{invalid:#}"
+        );
+        assert!(invalid["record"].get("steps").is_none(), "{invalid:#}");
+        assert!(invalid.get("recordRelations").is_none(), "{invalid:#}");
+    }
+}
+
 /// Provenance: agent-ix/quire-rs#569
 #[trace("FR-075-AC-5")]
 #[test]

@@ -22,7 +22,7 @@ use super::embedded::{semantic_core_bundle, SEMANTIC_CORE_BASE};
 use super::model::{entry_errors, line_span, MemberDecl, ModelDeclarations, ModelFeature};
 use super::properties::{map_multiplicity, map_type, strip_ticks, RowInput};
 use super::relations::bundle_package;
-use super::relations::{RelationDecl, RelationSource};
+use super::relations::{RelationDecl, RelationSource, RelationVocabulary};
 use super::scan::{blocks_in, level2_headings, lines, Block, Fence, Table};
 use super::target::{
     is_id_segment, resolve_reference, resolve_target, Admission, Declarations, OwnArtifact,
@@ -363,6 +363,44 @@ impl RecordSchema {
         readable.then_some(KeyOwner::RecordSections)
     }
 
+    #[implements("FR-081-AC-22")]
+    pub(crate) fn row_relation_fields(
+        &self,
+        key: &str,
+        vocabulary: Option<&RelationVocabulary>,
+    ) -> Vec<String> {
+        let Some(vocabulary) = vocabulary else {
+            return Vec::new();
+        };
+        self.properties
+            .iter()
+            .find(|property| property.name == key)
+            .and_then(|property| match &property.node {
+                Node::ObjectArray(columns) => Some(columns.as_slice()),
+                _ => None,
+            })
+            .into_iter()
+            .flatten()
+            .filter(|column| {
+                column.scalar == Some(Scalar::SemanticId)
+                    && vocabulary.allowed_targets(&column.name).is_some()
+            })
+            .map(|column| column.name.clone())
+            .collect()
+    }
+
+    #[implements("FR-081-AC-22")]
+    pub(crate) fn is_row_relation_field(
+        &self,
+        key: &str,
+        field: &str,
+        vocabulary: Option<&RelationVocabulary>,
+    ) -> bool {
+        self.row_relation_fields(key, vocabulary)
+            .iter()
+            .any(|name| normalize(name) == normalize(field))
+    }
+
     pub(crate) fn has(&self, name: &str) -> bool {
         self.properties.iter().any(|p| p.name == name)
     }
@@ -462,6 +500,7 @@ struct Reader<'a> {
 
 /// Read the record-key sections of `raw` (FR-081); `None` when the module
 /// does not name the token or no record schema is supplied.
+#[implements("FR-081-AC-22")]
 pub(crate) fn extract_record(raw: &str, ctx: &SemanticContext) -> Option<RecordOutcome> {
     if !ctx
         .module
@@ -553,8 +592,13 @@ pub(crate) fn extract_record(raw: &str, ctx: &SemanticContext) -> Option<RecordO
                 .iter()
                 .copied()
                 .filter(|p| {
+                    let owner = schema.owner(ctx, p);
                     !(architecture && FENCE_KEYS.contains(&p.name.as_str()))
-                        && schema.owner(ctx, p) == Some(KeyOwner::RecordSections)
+                        && (owner == Some(KeyOwner::RecordSections)
+                            || (owner == Some(KeyOwner::ModelTable)
+                                && !schema
+                                    .row_relation_fields(&p.name, ctx.relation_vocabulary.as_ref())
+                                    .is_empty()))
                 })
                 .collect();
             if group.len() > 1 && !readable.is_empty() {
@@ -671,6 +715,7 @@ struct State {
     advisories: Vec<SemanticDiagnostic>,
     no_package: bool,
     record_relations: Vec<RelationSource>,
+    ignore_unmatched_columns: bool,
 }
 
 impl Reader<'_> {
@@ -753,10 +798,17 @@ impl Reader<'_> {
         ));
     }
 
+    #[implements("FR-081-AC-22")]
     fn read_key(&self, property: &RecordProperty, sec: Sec<'_>) -> Read {
         let name = property.name.as_str();
         let keys = [name];
         let mut state = State::default();
+        state.ignore_unmatched_columns = self.ctx.record_schema.as_ref().is_some_and(|schema| {
+            schema.owner(self.ctx, property) == Some(KeyOwner::ModelTable)
+                && !schema
+                    .row_relation_fields(name, self.ctx.relation_vocabulary.as_ref())
+                    .is_empty()
+        });
         let blocks = blocks_in(self.lines, sec.heading + 1, sec.end);
         let line_of = |block: &Block| match block {
             Block::Table(table) => table.line,
@@ -858,6 +910,7 @@ impl Reader<'_> {
     }
 
     /// The target index of each header cell; `None` after a header error.
+    #[implements("FR-081-AC-22")]
     fn match_headers(
         &self,
         sec: Sec<'_>,
@@ -871,6 +924,10 @@ impl Reader<'_> {
             let norm = normalize(strip_ticks(header));
             match targets.iter().position(|t| t.norm == norm) {
                 None => {
+                    if state.ignore_unmatched_columns {
+                        matched.push(usize::MAX);
+                        continue;
+                    }
                     failed = true;
                     state.diagnostics.push(self.finding(
                         "semantic.invalid-model-cell",
@@ -983,6 +1040,9 @@ impl Reader<'_> {
         let mut row = Map::new();
         let before = state.diagnostics.len();
         for (position, index) in matched.iter().enumerate() {
+            if *index == usize::MAX {
+                continue;
+            }
             let target = &targets[*index];
             let cell = strip_ticks(cells.get(position).map_or("", String::as_str));
             if cell.is_empty() {
@@ -1747,6 +1807,7 @@ fn copy_members(raw: &str, ctx: &SemanticContext, members: &[MemberDecl]) -> Cop
 /// where the record schema declares the key and a table locator fills it
 /// (quoin FR-123). Each key's span is its whole section; `recordSources`
 /// stays in document order.
+#[implements("FR-081-AC-22")]
 pub(crate) fn copy_model_keys(
     raw: &str,
     outcome: &mut RecordOutcome,
@@ -1764,6 +1825,13 @@ pub(crate) fn copy_model_keys(
         if schema.owner(ctx, property) != Some(KeyOwner::ModelTable) {
             continue;
         }
+        if outcome
+            .availability
+            .get(name)
+            .is_some_and(|state| state.state == AvailabilityState::Unavailable)
+        {
+            continue;
+        }
         let state = match model.and_then(|m| model_elements(raw, ctx, m, name)) {
             Some(copied) if copied.unresolved.is_some() => {
                 KindAvailability::unavailable(copied.unresolved.unwrap_or_default())
@@ -1773,7 +1841,26 @@ pub(crate) fn copy_model_keys(
                 outcome.diagnostics.extend(copied.diagnostics);
                 state
             }
-            Some(copied) => {
+            Some(mut copied) => {
+                let relation_fields =
+                    schema.row_relation_fields(name, ctx.relation_vocabulary.as_ref());
+                if !relation_fields.is_empty() {
+                    if let Some(record_rows) = outcome.record.get(name).and_then(Value::as_array) {
+                        for (index, model_row) in copied.elements.iter_mut().enumerate() {
+                            let (Some(model_row), Some(record_row)) = (
+                                model_row.as_object_mut(),
+                                record_rows.get(index).and_then(Value::as_object),
+                            ) else {
+                                continue;
+                            };
+                            for field in &relation_fields {
+                                if let Some(value) = record_row.get(field) {
+                                    model_row.insert(field.clone(), value.clone());
+                                }
+                            }
+                        }
+                    }
+                }
                 let section = ctx.declared_tables.section_of(name).and_then(|heading| {
                     headings
                         .iter()
