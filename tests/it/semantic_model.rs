@@ -729,7 +729,7 @@ fn declared_process_step_table_extracts_typed_row_receiver() {
         "Receiver"
     ]);
     steps["assert"]["optional_columns"] = json!(["Consumes", "Emits", "Description", "Receiver"]);
-    let mut request = shop_request(&md, dsl);
+    let mut request = shop_request(md, dsl);
     request["module"]["package"] = json!("acme/work");
     request["module"]["exports"] = json!(["process"]);
     request["module"]["mappings"] = json!(["record-sections"]);

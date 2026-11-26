@@ -802,13 +802,15 @@ impl Reader<'_> {
     fn read_key(&self, property: &RecordProperty, sec: Sec<'_>) -> Read {
         let name = property.name.as_str();
         let keys = [name];
-        let mut state = State::default();
-        state.ignore_unmatched_columns = self.ctx.record_schema.as_ref().is_some_and(|schema| {
-            schema.owner(self.ctx, property) == Some(KeyOwner::ModelTable)
-                && !schema
-                    .row_relation_fields(name, self.ctx.relation_vocabulary.as_ref())
-                    .is_empty()
-        });
+        let mut state = State {
+            ignore_unmatched_columns: self.ctx.record_schema.as_ref().is_some_and(|schema| {
+                schema.owner(self.ctx, property) == Some(KeyOwner::ModelTable)
+                    && !schema
+                        .row_relation_fields(name, self.ctx.relation_vocabulary.as_ref())
+                        .is_empty()
+            }),
+            ..State::default()
+        };
         let blocks = blocks_in(self.lines, sec.heading + 1, sec.end);
         let line_of = |block: &Block| match block {
             Block::Table(table) => table.line,
