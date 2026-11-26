@@ -12,12 +12,72 @@
 //! - `parseDelegations` / `findDiagramByTag` are not yet exposed by
 //!   `quire-rs`. These tests are skipped; see divergences.md.
 
+use ix_trace_rs::trace;
 use quire_rs::{
     extract_diagrams, parse_bullet_list, parse_document, parse_table, parse_tables, section,
     sections, table_from_section, ListPattern,
 };
 
 // ─── section() / sections() ───────────────────────────────────────────────
+
+#[trace("FR-010-AC-1")]
+#[test]
+fn public_query_module_exports_expected_signatures_and_behavior() {
+    use quire_rs::query;
+
+    let _: for<'d> fn(&'d quire_rs::QuireDocument, &str) -> Option<&'d quire_rs::QuireSection> =
+        query::section;
+    let _: for<'d> fn(&'d quire_rs::QuireDocument, Option<u8>) -> Vec<&'d quire_rs::QuireSection> =
+        query::sections;
+    let _: fn(&str) -> Option<quire_rs::TableResult> = query::parse_table;
+    let _: fn(&str) -> Vec<quire_rs::TableResult> = query::parse_tables;
+    let _: fn(&quire_rs::QuireDocument, &str) -> Option<quire_rs::TableResult> =
+        query::table_from_section;
+    let _: fn(&str, Option<quire_rs::ListPattern>) -> Vec<quire_rs::ListItem> =
+        query::parse_bullet_list;
+    let _: for<'d> fn(&'d quire_rs::QuireDocument, Option<&str>) -> Vec<quire_rs::DiagramBlock> =
+        query::extract_diagrams;
+    let _: for<'d> fn(&'d quire_rs::QuireDocument, &str) -> Vec<quire_rs::SearchResult<'d>> =
+        query::search;
+
+    let markdown = [
+        "## Purpose",
+        "find details",
+        "## API",
+        "| Name | Path |",
+        "|---|---|",
+        "| query | /query |",
+        "## Tasks",
+        "- **Build**: cargo test",
+        "## Diagram",
+        "```mermaid",
+        "graph TD",
+        "A --> B",
+        "```",
+    ]
+    .join("\n");
+    let doc = parse_document(&markdown);
+
+    assert_eq!(query::section(&doc, "API").unwrap().heading, "API");
+    assert_eq!(query::sections(&doc, Some(2)).len(), 4);
+    let table = query::parse_table("| Name | Path |\n|---|---|\n| query | /query |").unwrap();
+    assert_eq!(table.headers, vec!["Name", "Path"]);
+    assert_eq!(query::parse_tables("| A |\n|---|\n| value |").len(), 1);
+    assert_eq!(
+        query::table_from_section(&doc, "API").unwrap().rows[0],
+        vec!["query", "/query"]
+    );
+    let items = query::parse_bullet_list(
+        "- **Build**: cargo test",
+        Some(query::ListPattern::BoldColon),
+    );
+    assert_eq!(items[0].title, "Build");
+    assert_eq!(items[0].description, "cargo test");
+    assert_eq!(query::extract_diagrams(&doc, Some("mermaid")).len(), 1);
+    let matches = query::search(&doc, "details");
+    assert_eq!(matches.len(), 1);
+    assert_eq!(matches[0].matches[0].text, "find details");
+}
 
 fn sample_doc() -> quire_rs::QuireDocument {
     let md = [
@@ -32,6 +92,7 @@ fn sample_doc() -> quire_rs::QuireDocument {
     parse_document(&md)
 }
 
+#[trace("FR-010-AC-2")]
 #[test]
 fn fr_002_ac_1_matches_by_heading_text() {
     let doc = sample_doc();
@@ -40,6 +101,7 @@ fn fr_002_ac_1_matches_by_heading_text() {
     assert_eq!(s.content, "purpose content\n");
 }
 
+#[trace("FR-010-AC-2")]
 #[test]
 fn fr_002_ac_1_matches_numbered_headings_stripped_of_number() {
     let doc = sample_doc();
@@ -47,18 +109,21 @@ fn fr_002_ac_1_matches_numbered_headings_stripped_of_number() {
     assert_eq!(s.content, "scope content\n");
 }
 
+#[trace("FR-010-AC-2")]
 #[test]
 fn fr_002_ac_2_case_insensitive_match() {
     let doc = sample_doc();
     assert!(section(&doc, "in scope").is_some());
 }
 
+#[trace("FR-010-AC-2")]
 #[test]
 fn fr_002_ac_3_returns_none_for_non_existent_heading() {
     let doc = sample_doc();
     assert!(section(&doc, "NonExistent").is_none());
 }
 
+#[trace("FR-010-AC-2")]
 #[test]
 fn fr_002_ac_5_exact_match_after_number_stripping() {
     // 'Scope' does NOT match '2.1 In Scope'.
@@ -66,6 +131,7 @@ fn fr_002_ac_5_exact_match_after_number_stripping() {
     assert!(section(&doc, "Scope").is_none());
 }
 
+#[trace("FR-010-AC-2")]
 #[test]
 fn fr_002_ac_4_returns_only_sections_at_specified_level() {
     let md = "# H1\nh1\n## H2a\nh2a\n### H3\nh3\n## H2b\nh2b";
@@ -76,6 +142,7 @@ fn fr_002_ac_4_returns_only_sections_at_specified_level() {
     assert_eq!(level2[1].heading, "H2b");
 }
 
+#[trace("FR-010-AC-2")]
 #[test]
 fn fr_002_returns_all_sections_when_no_filter() {
     let md = "# H1\nh1\n## H2a\nh2a\n### H3\nh3\n## H2b\nh2b";
@@ -86,6 +153,7 @@ fn fr_002_returns_all_sections_when_no_filter() {
 
 // ─── parse_table / parse_tables / table_from_section ─────────────────────
 
+#[trace("FR-010-AC-2")]
 #[test]
 fn fr_003_ac_1_extracts_headers_and_rows() {
     let content = "| A | B |\n|---|---|\n| 1 | 2 |\n| 3 | 4 |";
@@ -94,12 +162,14 @@ fn fr_003_ac_1_extracts_headers_and_rows() {
     assert_eq!(r.rows, vec![vec!["1", "2"], vec!["3", "4"]]);
 }
 
+#[trace("FR-010-AC-2")]
 #[test]
 fn fr_003_ac_2_excludes_separator_rows() {
     let r = parse_table("| H |\n|---|\n| d |").expect("table");
     assert_eq!(r.rows.len(), 1);
 }
 
+#[trace("FR-010-AC-2")]
 #[test]
 fn fr_003_ac_3_strips_leading_trailing_pipes() {
     let r = parse_table("| A |\n|---|\n| val |").expect("table");
@@ -107,18 +177,21 @@ fn fr_003_ac_3_strips_leading_trailing_pipes() {
     assert_eq!(r.rows[0], vec!["val"]);
 }
 
+#[trace("FR-010-AC-2")]
 #[test]
 fn fr_003_ac_4_trims_cell_whitespace() {
     let r = parse_table("|  A  |  B  |\n|---|---|\n|  1  |  2  |").expect("table");
     assert_eq!(r.rows[0], vec!["1", "2"]);
 }
 
+#[trace("FR-010-AC-2")]
 #[test]
 fn fr_003_ac_5_no_table_returns_none() {
     // Divergence: TS returns empty result; Rust returns Option::None.
     assert!(parse_table("just some text\nno table here").is_none());
 }
 
+#[trace("FR-010-AC-2")]
 #[test]
 fn fr_003_ac_7_pads_short_rows_and_truncates_long_rows() {
     let content = "| A | B | C |\n|---|---|---|\n| 1 |\n| 1 | 2 | 3 | 4 |";
@@ -127,6 +200,7 @@ fn fr_003_ac_7_pads_short_rows_and_truncates_long_rows() {
     assert_eq!(r.rows[1], vec!["1", "2", "3"]);
 }
 
+#[trace("FR-010-AC-2")]
 #[test]
 fn fr_003_ac_6_parse_tables_returns_all_tables() {
     let content = [
@@ -147,6 +221,7 @@ fn fr_003_ac_6_parse_tables_returns_all_tables() {
     assert_eq!(results[1].headers, vec!["X", "Y"]);
 }
 
+#[trace("FR-010-AC-2")]
 #[test]
 fn table_from_section_extracts_named() {
     let md = "## API\n| Method | Path |\n|---|---|\n| GET | /api |";
@@ -156,6 +231,7 @@ fn table_from_section_extracts_named() {
     assert_eq!(r.rows[0], vec!["GET", "/api"]);
 }
 
+#[trace("FR-010-AC-2")]
 #[test]
 fn table_from_section_returns_none_for_missing() {
     // Divergence: TS returns empty; Rust returns None.
@@ -165,6 +241,7 @@ fn table_from_section_returns_none_for_missing() {
 
 // ─── parse_bullet_list ───────────────────────────────────────────────────
 
+#[trace("FR-010-AC-2")]
 #[test]
 fn fr_004_ac_1_bold_description_pattern() {
     let content = "- **Auth** — Token-based authentication\n- **Cache** — Redis-backed caching";
@@ -174,6 +251,7 @@ fn fr_004_ac_1_bold_description_pattern() {
     assert_eq!(items[0].description, "Token-based authentication");
 }
 
+#[trace("FR-010-AC-2")]
 #[test]
 fn fr_004_ac_2_bold_colon_pattern() {
     let items = parse_bullet_list("- **Auth**: Token-based", Some(ListPattern::BoldColon));
@@ -181,6 +259,7 @@ fn fr_004_ac_2_bold_colon_pattern() {
     assert_eq!(items[0].description, "Token-based");
 }
 
+#[trace("FR-010-AC-2")]
 #[test]
 fn fr_004_ac_3_plain_items_have_full_text_as_title() {
     let items = parse_bullet_list("- Simple item\n- Another item", Some(ListPattern::Plain));
@@ -188,12 +267,14 @@ fn fr_004_ac_3_plain_items_have_full_text_as_title() {
     assert_eq!(items[0].description, "");
 }
 
+#[trace("FR-010-AC-2")]
 #[test]
 fn fr_004_ac_4_excludes_non_bullet_lines() {
     let items = parse_bullet_list("Normal text\n- Bullet\nMore text", None);
     assert_eq!(items.len(), 1);
 }
 
+#[trace("FR-010-AC-2")]
 #[test]
 fn handles_asterisk_bullets() {
     let items = parse_bullet_list("* Item one\n* Item two", Some(ListPattern::Plain));
@@ -202,6 +283,7 @@ fn handles_asterisk_bullets() {
 
 // ─── extract_diagrams ────────────────────────────────────────────────────
 
+#[trace("FR-010-AC-2")]
 #[test]
 fn fr_006_ac_1_extracts_mermaid_blocks() {
     let md = "## Arch\n```mermaid\ngraph TD\n  A --> B\n```";
@@ -212,6 +294,7 @@ fn fr_006_ac_1_extracts_mermaid_blocks() {
     assert!(diagrams[0].source.contains("A --> B"));
 }
 
+#[trace("FR-010-AC-2")]
 #[test]
 fn fr_006_ac_2_parses_type_annotation_into_tag_field() {
     let md = [
@@ -234,6 +317,7 @@ fn fr_006_ac_2_parses_type_annotation_into_tag_field() {
     assert_eq!(diagrams[1].tag.as_deref(), Some("deployment"));
 }
 
+#[trace("FR-010-AC-2")]
 #[test]
 fn fr_006_ac_3_tag_is_none_when_no_annotation_present() {
     let md = "## A\n```mermaid\ngraph TD\n  A --> B\n```";
@@ -242,6 +326,7 @@ fn fr_006_ac_3_tag_is_none_when_no_annotation_present() {
     assert!(diagrams[0].tag.is_none());
 }
 
+#[trace("FR-010-AC-2")]
 #[test]
 fn fr_006_ac_4_tracks_section_association() {
     let md = "## Architecture\n```mermaid\ngraph TD\n  A\n```";
@@ -250,6 +335,7 @@ fn fr_006_ac_4_tracks_section_association() {
     assert_eq!(diagrams[0].section.as_deref(), Some("Architecture"));
 }
 
+#[trace("FR-010-AC-2")]
 #[test]
 fn extract_diagrams_filters_by_language() {
     let md = "```mermaid\nA\n```\n```plantuml\nB\n```";
@@ -259,6 +345,7 @@ fn extract_diagrams_filters_by_language() {
     assert_eq!(mermaid[0].language, "mermaid");
 }
 
+#[trace("FR-010-AC-2")]
 #[test]
 fn extract_diagrams_assigns_sequential_indices() {
     let md = "```mermaid\nA\n```\n```mermaid\nB\n```";
@@ -293,6 +380,7 @@ fn search_doc() -> quire_rs::QuireDocument {
     parse_document("## Auth\ntoken authentication here\n## Cache\nredis caching layer")
 }
 
+#[trace("FR-010-AC-2")]
 #[test]
 fn fr_007_ac_1_search_finds_sections_containing_query() {
     let doc = search_doc();
@@ -301,6 +389,7 @@ fn fr_007_ac_1_search_finds_sections_containing_query() {
     assert_eq!(r[0].section.heading, "Auth");
 }
 
+#[trace("FR-010-AC-2")]
 #[test]
 fn fr_007_ac_2_search_case_insensitive() {
     let doc = search_doc();
@@ -308,6 +397,7 @@ fn fr_007_ac_2_search_case_insensitive() {
     assert_eq!(r.len(), 1);
 }
 
+#[trace("FR-010-AC-2")]
 #[test]
 fn fr_007_ac_3_search_includes_line_numbers_and_text() {
     let doc = search_doc();
