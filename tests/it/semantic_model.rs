@@ -2120,7 +2120,7 @@ fn dimension_base_rows_are_boolean_typed_and_span_located() {
     }
 
     let table = "| Base |\n|---|\n| true |\n";
-    let md = physical_doc(&[("Basis", table), ("Other Basis", table)]);
+    let md = physical_doc(&[("Basis", &format!("{table}\n{table}"))]);
     let record = extract_request(&physical_request(
         &md,
         physical_tables("Basis", "", ""),
@@ -2129,7 +2129,7 @@ fn dimension_base_rows_are_boolean_typed_and_span_located() {
     assert!(has(
         &record,
         "semantic.duplicate-section",
-        line_of(&md, "| Base |\n"),
+        line_of_nth(&md, "| Base |", 1),
     ));
 }
 
@@ -2210,14 +2210,24 @@ fn dimension_terms_resolve_tokens_validate_exponents_and_report_ambiguity() {
         ("Length", "1", "semantic.duplicate-model-entry"),
         ("not a token", "1", "semantic.invalid-type-token"),
     ] {
+        let row_token = if expected == "semantic.duplicate-model-entry" {
+            "Length"
+        } else if token == "Length" {
+            "Time"
+        } else {
+            token
+        };
         let table = format!(
-            "| Dimension | Exponent |\n|---|---:|\n| Length | 1 |\n| {token} | {exponent} |\n"
+            "| Dimension | Exponent |\n|---|---:|\n| Length | 1 |\n| {row_token} | {exponent} |\n"
         );
         let md = physical_doc(&[("Powers", &table)]);
         let record = extract_request(&physical_request(
             &md,
             physical_tables("", "Powers", ""),
-            &[("Length", "dimension", &["Length"])],
+            &[
+                ("Length", "dimension", &["Length"]),
+                ("Time", "dimension", &["Time"]),
+            ],
         ));
         assert!(
             record["diagnostics"]
