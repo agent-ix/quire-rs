@@ -391,6 +391,10 @@ fn normalize(text: &str) -> String {
         .collect()
 }
 
+fn json_pointer_segment(text: &str) -> String {
+    text.replace('~', "~0").replace('/', "~1")
+}
+
 /// The span of one extracted key's section (FR-081 Outputs).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -1016,8 +1020,9 @@ impl Reader<'_> {
                                 target: Some(identity.clone()),
                                 multiplicity: None,
                                 validation_path: Some(format!(
-                                    "/record/{name}/{row_index}/{}",
-                                    target.path[0]
+                                    "/record/{}/{row_index}/{}",
+                                    json_pointer_segment(name),
+                                    json_pointer_segment(&target.path[0])
                                 )),
                             });
                             Value::String(identity)

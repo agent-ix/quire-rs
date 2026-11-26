@@ -434,12 +434,12 @@ fn object_array_semantic_id_columns_become_typed_record_relations() {
     let schema = json!({
         "$id": "https://example.test/Workflow.json",
         "type": "object",
-        "properties": { "Steps": { "type": "array", "items": { "type": "object", "properties": {
+        "properties": { "Steps/Items": { "type": "array", "items": { "type": "object", "properties": {
             "name": { "type": "string" },
-            "receiver": { "$ref": "https://schemas.agent-ix.org/semantic-core/0.1.0/SemanticId.json" }
+            "receiver~primary": { "$ref": "https://schemas.agent-ix.org/semantic-core/0.1.0/SemanticId.json" }
         } } } }
     });
-    let markdown = "---\nid: WF-1\nobject: Workflow\n---\n\n## Steps\n| Name | Receiver |\n| --- | --- |\n| first | PR-1 |\n| second | PR-2 |\n";
+    let markdown = "---\nid: WF-1\nobject: Workflow\n---\n\n## Steps/Items\n| Name | Receiver~Primary |\n| --- | --- |\n| first | PR-1 |\n| second | PR-2 |\n";
     let req = json!({
         "markdown": markdown,
         "module": { "contractVersion": "1.0.0", "package": "acme/work", "exports": [], "mappings": ["record-sections"] },
@@ -452,29 +452,31 @@ fn object_array_semantic_id_columns_become_typed_record_relations() {
             { "id": "PR-1", "object": "Principal", "operations": [] },
             { "id": "PR-2", "object": "Principal", "operations": [] }
         ] },
-        "relationVocabulary": { "objectType": "Workflow", "edgeTypes": {}, "roles": {}, "allowedLinks": { "Workflow": { "receiver": ["Principal"] } } },
+        "relationVocabulary": { "objectType": "Workflow", "edgeTypes": {}, "roles": {}, "allowedLinks": { "Workflow": { "receiver~primary": ["Principal"] } } },
         "objectType": "Workflow"
     });
     let extracted = serde_json::to_value(extract_semantic_json(&req).unwrap()).unwrap();
     assert_eq!(
-        extracted["record"]["Steps"][0]["receiver"],
+        extracted["record"]["Steps/Items"][0]["receiver~primary"],
         "ix://acme/work/PR-1"
     );
     assert_eq!(
-        extracted["record"]["Steps"][1]["receiver"],
+        extracted["record"]["Steps/Items"][1]["receiver~primary"],
         "ix://acme/work/PR-2"
     );
     assert_eq!(extracted["recordRelations"].as_array().unwrap().len(), 2);
     assert_eq!(
         extracted["recordRelations"][0]["validationPath"],
-        "/record/Steps/0/receiver"
+        "/record/Steps~1Items/0/receiver~0primary"
     );
 
     let mut empty = req.clone();
     empty["markdown"] = json!(markdown.replace("| first | PR-1 |", "| first |  |"));
     let empty = serde_json::to_value(extract_semantic_json(&empty).unwrap()).unwrap();
     assert_eq!(empty["recordRelations"].as_array().unwrap().len(), 1);
-    assert!(empty["record"]["Steps"][0].get("receiver").is_none());
+    assert!(empty["record"]["Steps/Items"][0]
+        .get("receiver~primary")
+        .is_none());
 
     for (target, expected) in [
         ("WF-1", "semantic.reference-kind-mismatch"),
