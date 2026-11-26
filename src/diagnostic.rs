@@ -537,6 +537,7 @@ impl Diagnostic {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ix_trace_rs::trace;
 
     #[test]
     fn display_strings_carry_variant_name_and_identifier() {
@@ -655,6 +656,7 @@ mod tests {
     /// channel rather than a per-consumer parallel enum. Both the
     /// human (Display) and JSON renderings MUST carry the variant
     /// name, argument, path, and reason discriminator.
+    #[trace("FR-013-AC-14")]
     #[test]
     fn path_traversal_variant_renders_human_and_json() {
         let d = Diagnostic::PathTraversal {
