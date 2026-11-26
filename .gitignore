@@ -36,3 +36,6 @@ __pycache__/
 target/
 *-target/
 target-*/
+
+# Per-tag Quoin run records are retained only in the attached release bundle.
+spec/evidence/runs/
