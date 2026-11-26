@@ -1483,10 +1483,39 @@ fn shadows_local_binding(call: Node, name: &str, source: &str) -> bool {
             }
         }
 
+        let conditional_pattern = match parent.kind() {
+            "if_expression" | "while_expression" => parent
+                .child_by_field_name("condition")
+                .is_some_and(|condition| condition_binds_name(condition, name, source)),
+            "match_arm" => parent
+                .child_by_field_name("pattern")
+                .is_some_and(|pattern| pattern_binds_name(pattern, name, source)),
+            _ => false,
+        };
+        if conditional_pattern {
+            return true;
+        }
+
         child = parent;
         ancestor = parent.parent();
     }
     false
+}
+
+#[implements("FR-099-AC-9")]
+fn condition_binds_name(condition: Node, name: &str, source: &str) -> bool {
+    if condition.kind() == "let_condition"
+        && condition
+            .child_by_field_name("pattern")
+            .is_some_and(|pattern| pattern_binds_name(pattern, name, source))
+    {
+        return true;
+    }
+    let mut cursor = condition.walk();
+    let binds_name = condition
+        .named_children(&mut cursor)
+        .any(|child| condition_binds_name(child, name, source));
+    binds_name
 }
 
 #[implements("FR-099-AC-9")]
@@ -2290,6 +2319,56 @@ mod tests {
     fn local_closure_shadowing_is_unresolved_and_does_not_select_unrelated_test() {
         let report = run_with_callers(
             "fn changed() {}\n#[implements(\"FR-099-AC-9\")]\nfn caller() { let changed = || {}; changed(); }\n#[test]\n#[trace(\"FR-099-AC-9\")]\nfn caller_test() { caller(); }\n",
+            LineRange { start: 1, end: 1 },
+            2,
+        );
+        let search = report
+            .caller_searches
+            .iter()
+            .find(|search| search.changed_symbol == "changed")
+            .unwrap();
+        assert!(search.linked_callers.is_empty());
+        assert!(search.unresolved_calls.iter().any(|call| {
+            call.caller == "caller"
+                && call.callee == "changed"
+                && call.reason == "local-binding-shadows-symbol"
+        }));
+        assert!(!report
+            .selected_tests
+            .iter()
+            .any(|test| test.name == "caller_test"));
+    }
+
+    #[trace("FR-099-AC-9")]
+    #[test]
+    fn if_let_binding_shadowing_is_unresolved_and_does_not_select_unrelated_test() {
+        let report = run_with_callers(
+            "fn changed() {}\n#[implements(\"FR-099-AC-9\")]\nfn caller(value: Option<fn()>) { if let Some(changed) = value { changed(); } }\n#[test]\n#[trace(\"FR-099-AC-9\")]\nfn caller_test() { caller(None); }\n",
+            LineRange { start: 1, end: 1 },
+            2,
+        );
+        let search = report
+            .caller_searches
+            .iter()
+            .find(|search| search.changed_symbol == "changed")
+            .unwrap();
+        assert!(search.linked_callers.is_empty());
+        assert!(search.unresolved_calls.iter().any(|call| {
+            call.caller == "caller"
+                && call.callee == "changed"
+                && call.reason == "local-binding-shadows-symbol"
+        }));
+        assert!(!report
+            .selected_tests
+            .iter()
+            .any(|test| test.name == "caller_test"));
+    }
+
+    #[trace("FR-099-AC-9")]
+    #[test]
+    fn match_arm_binding_shadowing_is_unresolved_and_does_not_select_unrelated_test() {
+        let report = run_with_callers(
+            "fn changed() {}\n#[implements(\"FR-099-AC-9\")]\nfn caller(value: Option<fn()>) { match value { Some(changed) => changed(), None => {} } }\n#[test]\n#[trace(\"FR-099-AC-9\")]\nfn caller_test() { caller(None); }\n",
             LineRange { start: 1, end: 1 },
             2,
         );

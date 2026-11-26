@@ -30,3 +30,15 @@ Reviewed the frozen PR #748 head and its Rust implementation, tests, changed dep
 - The changed code uses tree-sitter parsing, bounded depth, a visited set, and deterministic output ordering. The focused tests exercise direct and multi-step callers, nearest linked callers, depth truncation, cycles, traits, dynamic methods, imported aliases, and duplicate extracted paths.
 - `Cargo.toml` retains the existing exact `ix-trace-rs` v0.1.2 pin; the duplicate declaration and import cleanup are minimal compile fixes.
 - No applicable AssuranceProfile was found for this impact-selection behavior. No workflow file changed.
+
+## New findings (disposition pass 1)
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-002 | medium | `shadows_local_binding` recognizes prior `let` statements, function and closure parameters, and `for` patterns, but it does not inspect bindings in `if let` conditions or `match` arms. For example, with a top-level `fn changed() {}`, `if let Some(changed) = value { changed(); }` calls the local binding, not the top-level function. `collect_calls` therefore leaves the bare path eligible for `resolve_callee`, creating a false caller edge and potentially selecting unrelated tests as complete. Treat those pattern bindings as unresolved and add an FR-099-AC-9 regression test. | src/impact.rs:1435-1484 |
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | At head `0a9e114f12022bc83c27ecec1ca3a7f2d08c7652`, `collect_calls` calls `shadows_local_binding` for bare identifiers and emits `local-binding-shadows-symbol` when matched. The new `local_closure_shadowing_is_unresolved_and_does_not_select_unrelated_test` is tagged FR-099-AC-9 and passed in a focused run. |
