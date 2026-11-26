@@ -943,6 +943,7 @@ pub fn compute_with_evidence(
     compute_inner(spec, registry, graph, root, Some(backing), false)
 }
 
+#[implements("FR-092-AC-20")]
 fn compute_inner(
     spec: &Spec,
     registry: &Registry,
