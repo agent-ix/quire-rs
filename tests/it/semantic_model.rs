@@ -2341,7 +2341,7 @@ fn unit_rows_resolve_dimensions_and_targets_with_canonical_rationals() {
     }
 
     let mut imported = physical_request(&md, physical_tables("", "", "Scale"), &[]);
-    imported["module"]["imports"] = json!({ "acme/time-units": ["Time", "s"] });
+    imported["module"]["imports"] = json!({ "acme/time-units": "1.0.0" });
     imported["bundle"]["imports"] = json!({ "acme/time-units": ["Time", "s"] });
     imported["bundle"]["importedArtifacts"] = json!([
         { "package": "acme/time-units", "id": "Time", "names": ["Time"], "object": "dimension", "sourceSpan": {
