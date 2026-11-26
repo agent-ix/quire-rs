@@ -890,7 +890,13 @@ fn retained_backing_components_reconcile_named_source_free_boundaries() {
     }
 }
 
-#[trace("FR-078-AC-9", "FR-078-AC-13", "FR-078-AC-14", "FR-078-AC-15")]
+#[trace(
+    "FR-078-AC-5",
+    "FR-078-AC-9",
+    "FR-078-AC-13",
+    "FR-078-AC-14",
+    "FR-078-AC-15"
+)]
 #[test]
 fn retained_gate_targets_do_not_discharge_inspection_siblings() {
     use quire_rs::evidence::{
@@ -1170,7 +1176,7 @@ fn retained_backing_uses_native_snapshot_and_preserves_partial_population() {
     }
 }
 
-#[trace("FR-078-AC-6", "FR-078-AC-10", "FR-078-AC-12")]
+#[trace("FR-078-AC-6", "FR-078-AC-10", "FR-078-AC-12", "FR-078-CON-4")]
 #[test]
 fn retained_results_preserve_source_claims_all_causes_and_record_order() {
     use quire_rs::evidence::{ActResult, BackingInput, CauseCode, RecordClaim, RecordLocator};
