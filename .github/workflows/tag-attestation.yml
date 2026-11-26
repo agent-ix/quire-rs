@@ -36,8 +36,10 @@ jobs:
           path: dist/*.whl
           if-no-files-found: error
 
+  # SWM-347 FND-002 disposition: this validates content and tag binding only;
+  # it does not authenticate that Terra produced the attached unsigned bundle.
   release-evidence:
-    name: validate and retain Terra release evidence
+    name: validate and retain attached release evidence
     runs-on: ubuntu-24.04
     timeout-minutes: 75
     permissions:
@@ -99,7 +101,7 @@ jobs:
             exit 1
           fi
 
-      - name: Verify the Terra bundle against this tag and commit
+      - name: Verify attached evidence contents against this tag and commit
         env:
           RELEASE_TAG: ${{ github.ref_name }}
           RELEASE_SHA: ${{ github.sha }}

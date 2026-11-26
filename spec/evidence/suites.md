@@ -17,9 +17,11 @@ acceptance criterion in Quire-rs FR-095 (AC-1 through AC-6). The tag-attestation
 Terra run first refuses dirty tracked, untracked, or recursive submodule state,
 then runs this suite once at the exact signed tag commit with `make evidence`
 and attaches `target/release-evidence/release-evidence.tar.gz` to the matching
-GitHub Release. The tag-attestation workflow validates that asset against the
-tag SHA and retains it as the same-run `release-evidence` artifact; it does not
-run the suite again. Generated run records are never committed.
+GitHub Release. The tag-attestation workflow validates the asset contents
+against the tag SHA and retains it as the same-run `release-evidence` artifact;
+it does not run the suite again or authenticate the claimed Terra producer.
+Under the SWM-347 owner ruling, producer provenance is out of scope here, so the
+attached evidence is unsigned. Generated run records are never committed.
 
 ## Suites
 
