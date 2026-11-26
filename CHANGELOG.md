@@ -15,6 +15,7 @@ bumps; once 1.0 ships, semver is strict.
   relations.
 - Value streams extract ordered, typed stages with stage-owned outcomes and
   capability and process bindings resolved to semantic identities.
+- QSL source extraction recognizes `.qsl` files alongside `.native` files.
 
 ### Fixed
 
