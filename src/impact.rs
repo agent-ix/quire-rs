@@ -1083,7 +1083,7 @@ pub fn analyze(input: ImpactInput<'_>) -> Result<ImpactReport, ImpactError> {
             let search = search_callers(
                 symbol,
                 depth_limit,
-                &head_extraction,
+                &caller_data.symbols_by_file,
                 &head_graph,
                 &caller_data,
             );
@@ -1264,14 +1264,32 @@ struct UnresolvedCall {
 }
 
 #[derive(Debug, Default)]
-struct CallerCallGraph {
+struct CallerCallGraph<'a> {
     callers_by_callee: BTreeMap<SymbolKey, Vec<CallerEdge>>,
     unresolved: Vec<UnresolvedCall>,
+    symbols_by_file: BTreeMap<String, Vec<&'a Symbol>>,
 }
 
 #[implements("FR-099-AC-9")]
-fn caller_call_graph(extraction: &SymbolExtraction) -> CallerCallGraph {
+fn caller_call_graph<'a>(extraction: &'a SymbolExtraction) -> CallerCallGraph<'a> {
     let mut graph = CallerCallGraph::default();
+    let mut functions_by_path: BTreeMap<String, Vec<&Symbol>> = BTreeMap::new();
+    for symbol in &extraction.symbols {
+        graph
+            .symbols_by_file
+            .entry(symbol.path.clone())
+            .or_default()
+            .push(symbol);
+        if matches!(
+            symbol.kind,
+            SymbolKind::Function | SymbolKind::TestFunction | SymbolKind::Benchmark
+        ) {
+            functions_by_path
+                .entry(symbol.qualified_name.clone())
+                .or_default()
+                .push(symbol);
+        }
+    }
     for file in &extraction.files {
         if file.language != SourceLanguage::Rust {
             continue;
@@ -1282,17 +1300,17 @@ fn caller_call_graph(extraction: &SymbolExtraction) -> CallerCallGraph {
         if parsed.diagnostic().is_some() {
             continue;
         }
-        let file_symbols: Vec<&Symbol> = extraction
-            .symbols
-            .iter()
-            .filter(|symbol| symbol.path == file.path)
-            .collect();
+        let file_symbols = graph
+            .symbols_by_file
+            .get(&file.path)
+            .map(Vec::as_slice)
+            .unwrap_or_default();
         let aliases = import_aliases(parsed.root_node(), &file.source);
         let mut calls = Vec::new();
         collect_calls(
             parsed.root_node(),
             &file.source,
-            &file_symbols,
+            file_symbols,
             None,
             &mut calls,
         );
@@ -1317,7 +1335,7 @@ fn caller_call_graph(extraction: &SymbolExtraction) -> CallerCallGraph {
                 });
                 continue;
             }
-            match resolve_callee(callee_path, &call.caller, &extraction.symbols) {
+            match resolve_callee(callee_path, &call.caller, &functions_by_path) {
                 Ok(callee) => graph
                     .callers_by_callee
                     .entry(callee)
@@ -1585,7 +1603,7 @@ fn normalize_call_path(text: &str) -> String {
 fn resolve_callee(
     callee_path: &str,
     caller: &SymbolKey,
-    symbols: &[Symbol],
+    functions_by_path: &BTreeMap<String, Vec<&Symbol>>,
 ) -> Result<SymbolKey, &'static str> {
     let mut candidate_paths = Vec::new();
     let mut prefix = Some(caller.name.as_str());
@@ -1596,20 +1614,11 @@ fn resolve_callee(
     candidate_paths.push(callee_path.to_string());
 
     for candidate in candidate_paths {
-        let matches: Vec<&Symbol> = symbols
-            .iter()
-            .filter(|symbol| {
-                symbol.qualified_name == candidate
-                    && matches!(
-                        symbol.kind,
-                        SymbolKind::Function | SymbolKind::TestFunction | SymbolKind::Benchmark
-                    )
-            })
-            .collect();
-        match matches.as_slice() {
-            [symbol] => return Ok(SymbolKey::from_symbol(symbol)),
-            [] => {}
-            _ => return Err("ambiguous-symbol-path"),
+        match functions_by_path.get(&candidate).map(Vec::as_slice) {
+            Some([symbol]) => return Ok(SymbolKey::from_symbol(symbol)),
+            None => {}
+            Some([]) => {}
+            Some(_) => return Err("ambiguous-symbol-path"),
         }
     }
     Err("no-exact-symbol-path")
@@ -1619,7 +1628,7 @@ fn resolve_callee(
 fn search_callers(
     changed: &Symbol,
     depth_limit: usize,
-    extraction: &SymbolExtraction,
+    symbols_by_file: &BTreeMap<String, Vec<&Symbol>>,
     graph: &crate::symbols::trace::SymbolGraph,
     calls: &CallerCallGraph,
 ) -> CallerSearch {
@@ -1690,9 +1699,12 @@ fn search_callers(
                 if !visited.insert(edge.caller.clone()) {
                     continue;
                 }
-                let Some(caller_symbol) = extraction.symbols.iter().find(|symbol| {
-                    symbol.path == edge.caller.path && symbol.qualified_name == edge.caller.name
-                }) else {
+                let Some(caller_symbol) = symbols_by_file
+                    .get(&edge.caller.path)
+                    .into_iter()
+                    .flatten()
+                    .find(|symbol| symbol.qualified_name == edge.caller.name)
+                else {
                     continue;
                 };
                 let linked_ids: BTreeSet<String> = graph
