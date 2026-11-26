@@ -614,11 +614,7 @@ fn indexed_multirepo_record_relations_use_the_source_package() {
                 .expect("frontmatter")
         })
         .collect();
-    let documents: Vec<_> = frontmatter
-        .iter()
-        .zip(texts)
-        .map(|(frontmatter, text)| (frontmatter, text))
-        .collect();
+    let documents: Vec<_> = frontmatter.iter().zip(texts).collect();
     let mut bundle = quire_rs::semantic::BundleIndex::from_documents(
         input["empty_index_package"]
             .as_str()

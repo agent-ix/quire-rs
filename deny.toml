@@ -39,6 +39,8 @@ exceptions = [
     # Resolves the published @agent-ix/spec-objects-architecture npm package
     # at build time (PLAT-901); part of this repo, same license, dev-dependency only.
     { allow = ["AGPL-3.0-or-later"], crate = "spec-objects-architecture-fixture" },
+    # Local safety-schema dev fixture, not shipped in the engine.
+    { allow = ["AGPL-3.0-or-later"], crate = "spec-objects-safety-fixture" },
     # Shared `npm pack` fetch-and-unpack helper (PLAT-901), workspace member,
     # `[build-dependencies]`-only consumer is spec-objects-architecture-fixture.
     # Same license as the rest of this repo. Added by PR #486 without this

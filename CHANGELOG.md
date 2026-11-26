@@ -7,6 +7,23 @@ bumps; once 1.0 ships, semver is strict.
 
 ## [Unreleased]
 
+## [0.63.3] — 2026-11-26
+
+### Added
+
+- Design-matrix coverage can retain valid rows while reporting dropped required
+  relations.
+- Value streams extract ordered, typed stages with stage-owned outcomes and
+  capability and process bindings resolved to semantic identities.
+- QSL source extraction recognizes `.qsl` files alongside `.native` files.
+- Python property classification records include the `obligation` field,
+  matching Rust classifier results.
+
+### Fixed
+
+- Multi-repository validation resolves typed record-table relationships under
+  the source member's package identity.
+
 ## [0.63.2] — 2026-11-26
 
 ### Added
