@@ -13,6 +13,7 @@ use std::collections::BTreeMap;
 use std::path::Path;
 use std::sync::Arc;
 
+use ix_trace_rs::implements;
 use pyo3::exceptions::{PyException, PyTypeError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::{PyBool, PyDict, PyList};
@@ -257,7 +258,8 @@ fn check_grammar<'py>(
 /// `grammar_ref`. Returns the same records the in-process Rust
 /// `classify_document_properties` produces, each a dict `{row_id, statement,
 /// line, shape, property, extractable, extraction, domain, precondition, oracle,
-/// signals}`; a span is `{start, end, text}` or `None`.
+/// signals, obligation}`; a span is `{start, end, text}` or `None`, and an
+/// absent obligation is `None`.
 ///
 /// This surface carries **no severity and no check id** and never folds into a
 /// validation result: the classification is metadata a generator consumes, not
@@ -266,6 +268,7 @@ fn check_grammar<'py>(
 /// should read.
 #[pyfunction]
 #[pyo3(signature = (grammar_ref, archetype, document_text, module_root=None))]
+#[implements("FR-052-AC-11")]
 fn classify_properties<'py>(
     py: Python<'py>,
     grammar_ref: &str,
@@ -360,6 +363,10 @@ fn classify_properties<'py>(
         d.set_item("precondition", span_dict(r.precondition.as_ref())?)?;
         d.set_item("oracle", span_dict(r.oracle.as_ref())?)?;
         d.set_item("signals", r.signals)?;
+        let obligation = serde_json::to_value(&r.obligation).map_err(|error| {
+            PyValueError::new_err(format!("obligation serialization failed: {error}"))
+        })?;
+        d.set_item("obligation", json_to_py(py, &obligation)?)?;
         out.append(d)?;
     }
     Ok(out)
@@ -1170,4 +1177,77 @@ fn json_to_py<'py>(py: Python<'py>, v: &Value) -> PyResult<Bound<'py, PyAny>> {
         }
     };
     Ok(obj)
+}
+
+#[cfg(test)]
+mod tests {
+    use ix_trace_rs::trace;
+    use pyo3::Python;
+    use serde_json::{json, Value};
+
+    use super::{classify_properties, py_to_json};
+    use crate::grammar::property::{AcClassification, Span};
+
+    fn span_json(span: Option<&Span>) -> Value {
+        span.map_or(Value::Null, |span| {
+            json!({
+                "start": span.start,
+                "end": span.end,
+                "text": span.text,
+            })
+        })
+    }
+
+    fn rust_records_json(records: &[AcClassification]) -> Value {
+        Value::Array(
+            records
+                .iter()
+                .map(|record| {
+                    json!({
+                        "row_id": record.row_id,
+                        "statement": record.statement,
+                        "line": record.line,
+                        "shape": record.shape.as_str(),
+                        "property": record.property.as_str(),
+                        "extractable": record.extractable,
+                        "extraction": record.extraction.as_str(),
+                        "domain": span_json(record.domain.as_ref()),
+                        "precondition": span_json(record.precondition.as_ref()),
+                        "oracle": span_json(record.oracle.as_ref()),
+                        "signals": record.signals,
+                        "obligation": record.obligation,
+                    })
+                })
+                .collect(),
+        )
+    }
+
+    #[trace("FR-052-AC-11")]
+    #[test]
+    fn tc982_classify_properties_binding_matches_rust_records() {
+        let markdown = concat!(
+            "---\nid: FR-001\ntype: FR\n---\n",
+            "## Acceptance Criteria\n\n",
+            "| ID | Criteria | Verification |\n",
+            "|----|----------|--------------|\n",
+            "| FR-001-AC-1 | A finding whose key is absent from the merged map defaults to warning | Test |\n",
+            "| FR-001-AC-2 | The loader emits a `Duplicate` diagnostic for the second declaration. | Test |\n",
+        );
+
+        Python::attach(|py| {
+            let binding = classify_properties(py, "iso-spec-core", "FR", markdown, None)
+                .expect("PyO3 classifier");
+            let actual = py_to_json(binding.as_any()).expect("Python records convert to JSON");
+
+            let document = crate::parse_document(markdown);
+            let rust = crate::grammar::classify_document_properties(
+                "iso-spec-core",
+                "FR",
+                &document,
+                crate::validate_document::body_line_offset(markdown),
+                crate::grammar::GrammarVocabularies::defaults(),
+            );
+            assert_eq!(actual, rust_records_json(&rust));
+        });
+    }
 }

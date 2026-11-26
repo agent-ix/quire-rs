@@ -1961,6 +1961,7 @@ mod tests {
         }
 
         #[trace("FR-052-AC-12")]
+        #[trace("FR-052-CON-4")]
         // `extractable` is identical with (FR-052-CON-4)
         // the idiom registry present and absent — only the `property` label may
         // differ — so a missed idiom degrades a label and never coverage.
