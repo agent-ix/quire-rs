@@ -157,7 +157,7 @@ if (
 ):
     parser.error("release run record is stale, empty, or contains a non-passing result")
 try:
-    run_time = datetime.fromisoformat(run["timestamp"].replace("Z", "+00:00"))
+    run_time = datetime.fromisoformat(re.sub(r"(\.\d{6})\d+", r"\1", run["timestamp"]).replace("Z", "+00:00"))
 except (TypeError, ValueError):
     parser.error("release run record timestamp is not RFC3339")
 tag_created_at = datetime.fromtimestamp(args.tag_created_at, timezone.utc)

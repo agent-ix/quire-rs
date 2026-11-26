@@ -243,7 +243,7 @@ fn tc_2234_make_evidence_records_fresh_suite_run_for_retention() {
         .any(|step| step["run"].as_str() == Some("make evidence")));
 }
 
-const TERRA_RUN_PATH: &str = "runs/SUITE-001/2026-11-26T00~3A00~3A00Z.json";
+const TERRA_RUN_PATH: &str = "runs/SUITE-001/2026-11-26T00~3A00~3A00~2E123456789Z.json";
 
 fn terra_bundle_fixture(
     root: &std::path::Path,
@@ -277,7 +277,7 @@ fn terra_bundle_fixture(
         "suite": "SUITE-001",
         "tool": "ix-trace-run 0.1.0+3cd3285",
         "evidenceKind": "Unit",
-        "timestamp": "2026-11-26T00:00:00Z",
+        "timestamp": "2026-11-26T00:00:00.123456789Z",
         "entries": [{"symbol":"tests::tc_2229", "outcome":outcome}]
     });
     let manifest = serde_json::json!({

@@ -48,7 +48,7 @@ if (
 ):
     parser.error("run record does not match the declared release suite and tag")
 try:
-    run_time = datetime.fromisoformat(run_record["timestamp"].replace("Z", "+00:00"))
+    run_time = datetime.fromisoformat(re.sub(r"(\.\d{6})\d+", r"\1", run_record["timestamp"]).replace("Z", "+00:00"))
 except (TypeError, ValueError):
     parser.error("run record timestamp is not RFC3339")
 tag_created_at = datetime.fromtimestamp(args.tag_created_at, timezone.utc)
