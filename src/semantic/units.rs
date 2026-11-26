@@ -141,6 +141,7 @@ fn imported_candidates<'a>(
         .imported_artifacts
         .iter()
         .filter(|a| a.object.as_deref() == Some(object))
+        .filter(|a| ctx.module.imports.contains_key(&a.package))
         .filter(|a| package.is_none_or(|p| a.package == p))
         .map(|a| Candidate {
             package: &a.package,

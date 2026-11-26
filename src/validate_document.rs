@@ -532,6 +532,13 @@ fn semantic_context(
     let mut ctx = SemanticContext::new(module.clone(), "<document>", bundle)
         .with_relation_vocabulary(RelationVocabulary::from_registry(registry, arch))
         .with_object_type(arch.name.clone());
+    if let Some(package) = bundle_package {
+        let identity = format!("ix://{package}/spec");
+        if crate::ix_ref::IxRef::parse(&identity).is_some_and(|parsed| parsed.package() == package)
+        {
+            ctx = ctx.with_source_identity(identity);
+        }
+    }
     if let Some(references) = arch
         .construct()
         .and_then(ConstructReferences::from_construct)
