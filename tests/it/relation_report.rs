@@ -13,7 +13,8 @@ use quire_rs::corpus::{
     RowState, Spec, Verification,
 };
 use quire_rs::coverage::{
-    compute, CoverageMatrixCriterion, CoverageMatrixRequirement, CoverageMatrixStatus,
+    compute, compute_coverage_for_design_matrix, CoverageMatrixCriterion,
+    CoverageMatrixRequirement, CoverageMatrixStatus,
 };
 use quire_rs::symbols::{extract_tree, trace as sym_trace};
 use quire_rs::{BundlePosture, Registry};
@@ -927,16 +928,22 @@ fn rows_carry_the_member_identity_and_link_across_members() {
 
 #[trace("FR-058-AC-48")]
 #[trace("FR-092-AC-19")]
+#[trace("FR-092-AC-20")]
 #[test]
 fn dropped_record_key_relation_is_reported_with_its_valid_sibling() {
-    let case: serde_json::Value =
+    let mut case: serde_json::Value =
         serde_json::from_str(include_str!("../fixtures/corpus_cases/plat-1856.json"))
             .expect("PLAT-1856 fixture parses");
     assert_eq!(case["issue_ref"], "PLAT-1856");
 
     let manifest = case["input"]["module_manifest"]
         .as_str()
-        .expect("fixture module manifest");
+        .expect("fixture module manifest")
+        .replace(
+            "traceability:\n",
+            "traceability:\n  trace_targets:\n  - name: requirement-criterion\n    archetype: Requirement\n    section: Acceptance Criteria\n    id_column: ID\n  obligations:\n  - name: requirement-criterion\n    target: requirement-criterion\n    statement_column: Criteria\n    method_column: Verification\n",
+        );
+    case["input"]["documents"]["FR-001.md"] = "---\nid: FR-001\ntype: Requirement\ntitle: Requirement\n---\n\n# Requirement\n\n## Acceptance Criteria\n\n| ID | Criteria | Verification |\n|---|---|---|\n| FR-001-AC-1 | The system shall retain this relation. | Test |\n".into();
     let registry =
         Registry::from_inline_parts(manifest.as_bytes(), &std::collections::BTreeMap::new())
             .expect("module loads with one dropped relation");
@@ -955,6 +962,59 @@ fn dropped_record_key_relation_is_reported_with_its_valid_sibling() {
     }
     let spec_root = root.path().join("spec");
     let spec = Spec::from_path(&spec_root);
+    assert!(compute(
+        &spec,
+        &registry,
+        &quire_rs::symbols::trace::SymbolGraph::default(),
+        root.path(),
+    )
+    .is_err());
+    let partial_coverage = compute_coverage_for_design_matrix(
+        &spec,
+        &registry,
+        &quire_rs::symbols::trace::SymbolGraph::default(),
+        root.path(),
+    )
+    .expect("matrix coverage retains declarations beside the dropped relation");
+    let non_relation_drop = manifest.replace(
+        "    method_column: Verification\n",
+        "    method_column: Verification\n  - name: dropped-obligation\n    target: missing-target\n    statement_column: Criteria\n",
+    );
+    let incomplete_registry = Registry::from_inline_parts(
+        non_relation_drop.as_bytes(),
+        &std::collections::BTreeMap::new(),
+    )
+    .expect("an unloadable obligation source is retained as a drop");
+    assert!(incomplete_registry
+        .dropped_declarations()
+        .any(|(_, declaration)| {
+            declaration.kind == quire_rs::traceability::DeclarationKind::Obligation
+        }));
+    assert!(compute_coverage_for_design_matrix(
+        &spec,
+        &incomplete_registry,
+        &quire_rs::symbols::trace::SymbolGraph::default(),
+        root.path(),
+    )
+    .is_err());
+    assert_eq!(partial_coverage.coverage_matrix.len(), 1);
+    let computed_matrix = design_matrix(
+        &spec,
+        &registry,
+        &[RelationReportMember {
+            root: root.path(),
+            matrix: &partial_coverage.coverage_matrix,
+        }],
+    )
+    .expect("computed matrix retains the valid relation");
+    assert_eq!(computed_matrix.entries.len(), 1);
+    assert_eq!(computed_matrix.entries[0].document, "spec/FR-001.md");
+    assert_eq!(computed_matrix.errors.len(), 1);
+    assert_eq!(
+        computed_matrix.errors[0].item,
+        "connection-carries-classification"
+    );
+
     let report = relation_report(
         &spec,
         &registry,
