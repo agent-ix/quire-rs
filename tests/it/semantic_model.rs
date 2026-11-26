@@ -2452,3 +2452,27 @@ fn dimension_terms_and_unit_sections_are_unique_but_independent() {
     assert!(record["model"].get("dimension").is_some(), "{record:#}");
     assert!(record["model"].get("terms").is_some(), "{record:#}");
 }
+
+#[trace("FR-075-AC-20")]
+#[test]
+fn physical_model_unit_record_is_deterministic_and_schema_valid() {
+    let request: Value = serde_json::from_str(include_str!(
+        "../fixtures/semantic/physical-model-unit.input.json"
+    ))
+    .unwrap();
+    let first = serde_json::to_value(extract_semantic_json(&request).unwrap()).unwrap();
+    let second = serde_json::to_value(extract_semantic_json(&request).unwrap()).unwrap();
+    let errors: Vec<String> = schema()
+        .iter_errors(&first)
+        .map(|e| format!("{} at {}", e, e.instance_path()))
+        .collect();
+    assert!(errors.is_empty(), "{errors:?}\n{first:#}");
+    assert_eq!(
+        serde_json::to_vec(&first).unwrap(),
+        serde_json::to_vec(&second).unwrap()
+    );
+    println!(
+        "PHYSICAL_MODEL_UNIT_RECORD={} ",
+        serde_json::to_string_pretty(&first).unwrap()
+    );
+}

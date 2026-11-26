@@ -1,0 +1,36 @@
+{
+  "markdown": "---\nid: U-001\ntitle: Millisecond\nobject: unit\n---\n# U-001: Millisecond\n\n## Scale\n\n| Dimension | Target | Scale | Offset |\n|---|---|---:|---:|\n| Time | ms | 1/1000 | 0 |\n",
+  "module": {
+    "contractVersion": "1.0.0",
+    "package": "agent-ix/spec-objects-fixture",
+    "exports": ["unit"],
+    "imports": {}
+  },
+  "path": "spec/units/Millisecond.md",
+  "sourceIdentity": "ix://agent-ix/shop/spec",
+  "bundle": {
+    "package": "agent-ix/shop",
+    "objects": [
+      { "id": "Time", "names": ["Time"] },
+      { "id": "ms", "names": ["ms"] }
+    ],
+    "artifacts": [
+      { "id": "Time", "object": "dimension", "operations": [] },
+      { "id": "ms", "object": "unit", "operations": [] }
+    ]
+  },
+  "bodyExtraction": {
+    "yield_pattern": {
+      "match": {
+        "unit": {
+          "from": "table_row",
+          "under_section": "Scale",
+          "assert": {
+            "columns": ["Dimension", "Target", "Scale", "Offset"],
+            "optional_columns": ["Target"]
+          }
+        }
+      }
+    }
+  }
+}
