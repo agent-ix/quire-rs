@@ -24,7 +24,8 @@ mod execution;
 mod grading;
 mod loading;
 
-pub use execution::run;
+pub use execution::{run, validate_report};
+pub(crate) use grading::find_diagnostic;
 pub use grading::{grade, grade_against, grade_with, ValidateSource};
 pub use loading::{corpus_root, ecosystem_registry, load_cases};
 

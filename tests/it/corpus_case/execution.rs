@@ -54,7 +54,7 @@ pub fn run(case: &Case) -> quire_rs::CoverageReport {
 /// A second command, because a structural defect is not a coverage one — and
 /// running only `coverage` is how a fixture came to assert exactly what the
 /// healthy control asserts.
-pub(super) fn validate_report(case: &Case) -> String {
+pub fn validate_report(case: &Case) -> String {
     let input = case.input();
     let module = corpus_root().join("modules").join(&case.meta.module);
     let registry = if case.meta.module == "ecosystem" {

@@ -8,7 +8,7 @@ use super::{
 /// Find a diagnostic by `reason`, or by `declaration/reason` when the fixture
 /// needs to disambiguate two declarations emitting the same token (FR-065;
 /// history in #270 and #331).
-fn find_diagnostic<'a>(
+pub(crate) fn find_diagnostic<'a>(
     report: &'a quire_rs::CoverageReport,
     key: &str,
 ) -> Option<&'a quire_rs::coverage::CoverageDiagnostic> {
