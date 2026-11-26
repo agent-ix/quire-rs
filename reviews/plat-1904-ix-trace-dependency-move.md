@@ -102,4 +102,6 @@ Repository search for `#[trace]`, `#[implements]`, and `#[string_edge]` found us
 - `cargo test --locked --test corpus_concurrency` — 4 passed.
 - `cargo test --locked --lib` — 813 passed, including the `implements` macro consumer in `impact` tests.
 - `cargo deny --locked --workspace --all-features check bans` — bans ok; existing wildcard warnings for Git/path dependencies remain.
+- `cargo check --manifest-path tools/quire-bench/Cargo.toml --tests --locked` — passed, compiling benchmark dev-dependency marker consumers.
+- `cargo check --manifest-path fuzz/Cargo.toml` — passed, compiling the fuzz-target trace consumer. The standalone fuzz manifest has no lockfile, so Cargo generated its ignored local lockfile for this check.
 - `cargo metadata --locked --offline --no-deps --format-version 1` and `git diff --check` passed.
