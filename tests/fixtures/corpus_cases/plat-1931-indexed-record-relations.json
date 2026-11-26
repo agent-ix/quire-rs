@@ -1,0 +1,62 @@
+{
+  "name": "indexed-multirepo-record-relations-retain-source-package",
+  "issue_ref": "PLAT-1931",
+  "tags": [
+    "FR-081-AC-22",
+    "TC-1931",
+    "validation"
+  ],
+  "input": {
+    "module_manifest": "manifest_version: 1.0.0\nname: multi-repo-record-relations\nversion: 0.1.0\nobject_types:\n- name: workflow\n  allowed_links:\n    receiver: [event]\n  data_schema:\n    schema: schemas/Workflow.json\n  body_extraction:\n    yield_pattern:\n      match:\n        entries:\n          from: table_row\n          under_section: Entries\n          required: false\n          assert:\n            columns: [Name, Receiver]\nsemantic:\n  contract_version: 1.0.0\n  package: acme/workflows\n  imports:\n    acme/events: 0.1.0\n  import_types:\n    acme/events: [event]\n  exports: [workflow]\n  mappings: [record-sections]\n  targets: [json-schema, markdown]\n",
+    "schema_path": "schemas/Workflow.json",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "$id": "https://schemas.agent-ix.org/acme/workflows/0.1.0/Workflow.json",
+      "type": "object",
+      "properties": {
+        "entries": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "receiver": {
+                "$ref": "https://schemas.agent-ix.org/semantic-core/0.1.0/SemanticId.json"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "name"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+    "source_package": "acme/workflows",
+    "source": "---\nid: WF-001\ntitle: Workflow\ntype: workflow\nobject: workflow\n---\n# Workflow\n\n## Entries\n\n| Name | Receiver |\n|---|---|\n| Local | EVENT-001 |\n| CrossRepo | ix://acme/events/EVENT-002 |\n",
+    "local_event": "---\nid: EVENT-001\ntitle: Local event\ntype: event\nobject: event\n---\n# Local event\n",
+    "remote_event": "---\nid: EVENT-002\ntitle: Remote event\ntype: event\nobject: event\n---\n# Remote event\n",
+    "empty_index_package": "",
+    "wrong_kind_local": "---\nid: PRINCIPAL-001\ntitle: Local principal\ntype: principal\nobject: principal\n---\n# Local principal\n",
+    "imported_artifact": {
+      "package": "acme/events",
+      "id": "EVENT-002",
+      "names": [
+        "EVENT-002",
+        "Remote event"
+      ],
+      "object": "event"
+    }
+  },
+  "expect": {
+    "valid_diagnostics_absent": [
+      "relationships-no-bundle-package",
+      "reference-kind-mismatch",
+      "dangling-reference"
+    ],
+    "wrong_kind_diagnostic": "semantic.reference-kind-mismatch"
+  }
+}

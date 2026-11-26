@@ -574,6 +574,122 @@ fn object_array_semantic_id_columns_become_typed_record_relations() {
     }
 }
 
+/// An indexed multi-repository validation keeps the source member's package
+/// for typed record relations even though the shared semantic index has no
+/// single package of its own.
+#[trace("FR-081-AC-22")]
+#[test]
+fn indexed_multirepo_record_relations_use_the_source_package() {
+    let case: Value = serde_json::from_slice(include_bytes!(
+        "../fixtures/corpus_cases/plat-1931-indexed-record-relations.json"
+    ))
+    .expect("PLAT-1931 regression fixture parses");
+    assert_eq!(case["issue_ref"], "PLAT-1931");
+
+    let input = &case["input"];
+    let manifest = input["module_manifest"]
+        .as_str()
+        .expect("fixture module manifest");
+    let schema_path = input["schema_path"].as_str().expect("fixture schema path");
+    let schemas = BTreeMap::from([(schema_path.to_string(), input["schema"].to_string())]);
+    let registry = quire_rs::Registry::from_inline_parts(manifest.as_bytes(), &schemas)
+        .expect("fixture module loads");
+    assert!(registry.failures().is_empty(), "{:?}", registry.failures());
+    let workflow = registry
+        .archetype("workflow")
+        .expect("workflow archetype loads");
+
+    let source = input["source"].as_str().expect("source document");
+    let local_event = input["local_event"].as_str().expect("same-member event");
+    let wrong_kind_local = input["wrong_kind_local"]
+        .as_str()
+        .expect("same-member wrong-kind target");
+    let remote_event = input["remote_event"].as_str().expect("cross-member event");
+    let texts = [source, local_event, wrong_kind_local, remote_event];
+    let frontmatter: Vec<_> = texts
+        .iter()
+        .map(|text| {
+            quire_rs::parse_document(text)
+                .frontmatter
+                .expect("frontmatter")
+        })
+        .collect();
+    let documents: Vec<_> = frontmatter
+        .iter()
+        .zip(texts)
+        .map(|(frontmatter, text)| (frontmatter, text))
+        .collect();
+    let mut bundle = quire_rs::semantic::BundleIndex::from_documents(
+        input["empty_index_package"]
+            .as_str()
+            .expect("multi-repository index has no one package"),
+        documents.into_iter(),
+        registry.semantic_modules().map(|(_, module)| module),
+    );
+    bundle.imported_artifacts.push(
+        serde_json::from_value(input["imported_artifact"].clone())
+            .expect("cross-repository event is indexed under its package"),
+    );
+    let source_package = input["source_package"]
+        .as_str()
+        .expect("source member package");
+
+    let valid = quire_rs::validate_document_in_indexed_bundle(
+        &registry,
+        workflow,
+        source,
+        source_package,
+        None,
+        &bundle,
+    );
+    assert!(valid.is_valid, "{:?}", valid.errors);
+    for reason in case["expect"]["valid_diagnostics_absent"]
+        .as_array()
+        .expect("valid diagnostics absent")
+    {
+        let reason = reason.as_str().expect("diagnostic reason");
+        assert!(
+            !valid
+                .errors
+                .iter()
+                .any(|finding| finding.message.contains(reason))
+                && !valid
+                    .warnings
+                    .iter()
+                .any(|finding| finding.message.contains(reason)),
+            "valid cross-repository record relation unexpectedly emitted {reason}: errors={:?}, warnings={:?}",
+            valid.errors,
+            valid.warnings
+        );
+    }
+
+    let wrong_source = source.replace("| Local | EVENT-001 |", "| Local | PRINCIPAL-001 |");
+    let wrong_kind = quire_rs::validate_document_in_indexed_bundle(
+        &registry,
+        workflow,
+        &wrong_source,
+        source_package,
+        None,
+        &bundle,
+    );
+    let wrong_kind_diagnostic = case["expect"]["wrong_kind_diagnostic"]
+        .as_str()
+        .expect("wrong-kind diagnostic");
+    assert!(
+        wrong_kind
+            .errors
+            .iter()
+            .any(|finding| finding.message.contains(wrong_kind_diagnostic))
+            || wrong_kind
+                .warnings
+                .iter()
+                .any(|finding| finding.message.contains(wrong_kind_diagnostic)),
+        "restoring package context must retain target-kind validation: errors={:?}, warnings={:?}",
+        wrong_kind.errors,
+        wrong_kind.warnings
+    );
+}
+
 #[trace("FR-081-AC-17")]
 #[test]
 fn unreadable_schema_shapes_are_refused_not_prose() {

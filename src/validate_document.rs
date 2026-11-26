@@ -505,6 +505,7 @@ fn semantic_findings(
 
 /// The extraction context and required sections of `arch` for the registry
 /// surface. It has no document path: spans and refusals name `<document>`.
+#[implements("FR-081-AC-22")]
 fn semantic_context(
     registry: &crate::Registry,
     arch: &CompiledArchetype,
@@ -522,6 +523,9 @@ fn semantic_context(
         package: bundle_package.unwrap_or_default().to_string(),
         ..BundleIndex::default()
     });
+    if let Some(package) = bundle_package {
+        bundle.package = package.to_string();
+    }
     for (_, m) in registry.semantic_modules() {
         bundle.imports.insert(m.package.clone(), m.exports.clone());
     }
