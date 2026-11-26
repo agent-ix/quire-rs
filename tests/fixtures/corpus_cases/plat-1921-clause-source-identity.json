@@ -1,0 +1,35 @@
+{
+  "name": "explicit-bundle-identity-is-carried-to-clause-spans",
+  "issue_ref": "PLAT-1921",
+  "tags": [
+    "FR-071-AC-7",
+    "FR-071-AC-8"
+  ],
+  "input": {
+    "module_manifest": "name: clause-source\nversion: 0.1.0\nartifact_types:\n- name: doc\nobject_types:\n- name: objective\n  data_schema:\n    schema: schemas/Objective.json\n  body_extraction:\n    yield_pattern:\n      match:\n        invariants:\n          from: section_body\n          after_heading: Invariants\n          required: true\nsemantic:\n  contract_version: 1.0.0\n  package: acme/objectives\n  exports: [objective]\n  imports: {}\n  targets: [json-schema, markdown]\n  mappings: [typed-table, ocl-clause]\n",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "fields": {
+          "type": "array"
+        },
+        "clauses": {
+          "type": "array",
+          "minItems": 1
+        }
+      },
+      "required": [
+        "fields",
+        "clauses"
+      ],
+      "additionalProperties": true
+    },
+    "document": "---\nid: OBJECTIVE-001\ntitle: Synthetic delivery objective\ntype: doc\nobject: objective\n---\n# Synthetic delivery objective\n\n## Properties\n\n| Field | Type | Multiplicity | Constraints |\n|---|---|---|---|\n| objective_id | UUID | 1..1 | identity |\n| horizon | Timestamp | 1..1 | |\n| baseline_hours | Integer [h] | 1..1 | min: 0 |\n| target_hours | Integer [h] | 1..1 | min: 0 |\n\n## Invariants\n\n### ImprovesBaseline\n\n```quire\nself.target_hours < self.baseline_hours\n```\n",
+    "bundle_package": "acme/objectives"
+  },
+  "expect": {
+    "source_identity": "ix://acme/objectives/spec",
+    "default_diagnostic": "semantic.source-identity-defaulted",
+    "ocl_diagnostic": "semantic.clause-language-unchecked"
+  }
+}

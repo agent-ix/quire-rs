@@ -2308,4 +2308,61 @@ edge_types:
         assert_eq!(record_key_line(&record, doc, "clauses"), FRONTMATTER_LINE);
         assert_eq!(record_key_line(&record, doc, "<root>"), FRONTMATTER_LINE);
     }
+
+    #[trace("FR-071-AC-7", "FR-071-AC-8")]
+    #[test]
+    fn explicit_bundle_identity_reaches_clause_spans_without_defaulting() {
+        let case: Value = serde_json::from_str(include_str!(
+            "../tests/fixtures/corpus_cases/plat-1921-clause-source-identity.json"
+        ))
+        .expect("attributed clause identity fixture");
+        let input = &case["input"];
+        let registry = crate::Registry::from_inline_parts(
+            input["module_manifest"].as_str().unwrap().as_bytes(),
+            &BTreeMap::from([(
+                "schemas/Objective.json".to_string(),
+                input["schema"].to_string(),
+            )]),
+        )
+        .unwrap();
+        assert!(registry.failures().is_empty(), "{:?}", registry.failures());
+        let artifact = registry.archetype("doc").unwrap();
+        let objective = registry.archetype("objective").unwrap();
+        let module = registry.semantic_module(&objective.module).unwrap();
+        let text = input["document"].as_str().unwrap();
+        let package = input["bundle_package"].as_str().unwrap();
+        let (context, required) =
+            semantic_context(&registry, objective, module, Some(package), None);
+        let extracted = crate::semantic::extract_semantic(text, &context, &required);
+        assert!(
+            extracted.diagnostics.is_empty(),
+            "{:?}",
+            extracted.diagnostics
+        );
+        let extracted = serde_json::to_value(extracted).unwrap();
+        assert_eq!(
+            extracted["clauses"][0]["sourceSpan"]["sourceIdentity"],
+            case["expect"]["source_identity"]
+        );
+        let explicit = validate_document_in_bundle(&registry, artifact, text, package, None);
+        assert!(explicit.is_valid, "{:?}", explicit.errors);
+        assert!(explicit.warnings.is_empty(), "{:?}", explicit.warnings);
+        let no_context = validate_document_in_registry(&registry, artifact, text);
+        assert!(no_context.is_valid, "{:?}", no_context.errors);
+        assert!(no_context.warnings.iter().any(|warning| warning
+            .message
+            .contains(case["expect"]["default_diagnostic"].as_str().unwrap())));
+        let carried = validate_document_in_bundle(
+            &registry,
+            artifact,
+            &text.replace("```quire", "```ocl"),
+            package,
+            None,
+        );
+        assert!(carried.is_valid, "{:?}", carried.errors);
+        assert_eq!(carried.warnings.len(), 1, "{:?}", carried.warnings);
+        assert!(carried.warnings[0]
+            .message
+            .contains(case["expect"]["ocl_diagnostic"].as_str().unwrap()));
+    }
 }
