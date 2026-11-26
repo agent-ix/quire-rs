@@ -2407,7 +2407,7 @@ fn unit_rows_resolve_dimensions_and_targets_with_canonical_rationals() {
     let mut self_target = physical_request(
         &physical_doc(&[(
             "Scale",
-            "| Dimension | Target | Scale | Offset |\n|---|---|---:|---:|\n| Time | U-001 | 0 | 0 |\n",
+            "| Dimension | Target | Scale | Offset |\n|---|---|---:|---:|\n| Time | Millisecond | 0 | 0 |\n",
         )]),
         physical_tables("", "", "Scale"),
         &[("Time", "dimension", &["Time"]), ("U-001", "unit", &["Millisecond"])],
