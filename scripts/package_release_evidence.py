@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Package the single Terra SUITE-001 run for its signed release tag."""
+# implements: FR-095-AC-4
 
 import argparse
 import json

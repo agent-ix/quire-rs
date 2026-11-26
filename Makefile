@@ -140,6 +140,7 @@ check-tools:
 # validates and retains this bundle; it never runs the suite a second time.
 evidence:
 	@set -eu; \
+	  python3 scripts/check_release_evidence_checkout.py --repo-root .; \
 	  tag=$$(git describe --tags --exact-match HEAD); \
 	  printf '%s\n' "$$tag" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$$' || { echo "evidence: HEAD must be an exact vMAJOR.MINOR.PATCH tag" >&2; exit 1; }; \
 	  commit=$$(git rev-parse HEAD); \

@@ -52,13 +52,17 @@ and writes no Test Result when evidence is absent or unusable.
 - For each pushed `v*` tag, the Quire-rs tag-attestation workflow SHALL wait
   for `release-evidence.tar.gz` to be attached to the matching GitHub Release;
   it SHALL fail closed if the asset is absent after a 60-minute bounded wait.
-- `make evidence` SHALL run `SUITE-001` only when `HEAD` is exactly the
-  requested `vMAJOR.MINOR.PATCH` tag's commit. It SHALL write the fresh Quoin
+- `make evidence` SHALL refuse tracked or untracked changes in the repository
+  checkout or any initialized recursive submodule before running the suite.
+  It SHALL run `SUITE-001` only when `HEAD` is exactly the requested
+  `vMAJOR.MINOR.PATCH` tag's commit. It SHALL write the fresh Quoin
   run record, restore the committed binding registry in the source worktree,
   and package the committed suite and binding registries with the generated
   bindings and run record as `target/release-evidence/release-evidence.tar.gz`.
-- The tag-attestation workflow SHALL validate the archive's safe file set,
-  manifest tag, full commit SHA, suite and run record; compare the suite and
+- The tag-attestation workflow SHALL stream-validate the archive with a
+  maximum of five regular files, 20,000,000 compressed bytes, and 50,000,000
+  aggregate decompressed bytes. It SHALL validate the safe file set, manifest
+  tag, full commit SHA, suite and run record; compare the suite and
   committed binding registries byte-for-byte with the tagged source; and
   reject stale, empty, failed, or wrong-commit evidence before uploading it as
   the same-run `release-evidence` artifact.
@@ -86,16 +90,21 @@ and writes no Test Result when evidence is absent or unusable.
 > the tag's full commit SHA, and republishes only the verified evidence store
 > as a same-run Actions artifact for the existing fail-closed EA consumer.
 
+> **CR-427 note (2026-11-26, PLAT-1934):** Review requires the Terra run to
+> refuse dirty tracked, untracked, or recursive submodule state before tests
+> execute. The tag workflow now streams a bounded archive and refuses excess
+> member count or compressed/decompressed bytes before extraction.
+
 ## Acceptance Criteria
 
 | ID | Criteria | Verification |
 |----|----------|--------------|
-| FR-095-AC-1 | A workflow test confirms that `make evidence` requires the exact `v*` tag commit and creates a bundle from one successful `SUITE-001` run, while the tag-attestation workflow waits for the attached release asset and does not rerun the suite. | Test |
-| FR-095-AC-2 | A workflow test confirms that the tag-attestation job rejects a missing, malformed, failed, or wrong-commit asset; uploads verified evidence as `release-evidence`; and the shared Engineering Assurance call waits for that upload. | Test |
+| FR-095-AC-1 | A workflow test confirms that `make evidence` refuses dirty tracked, untracked, or recursive submodule state, requires the exact `v*` tag commit, and creates a bundle from one successful `SUITE-001` run, while the tag-attestation workflow waits for the attached release asset and does not rerun the suite. | Test |
+| FR-095-AC-2 | A workflow test confirms that the tag-attestation job rejects a missing, malformed, failed, wrong-commit, or over-limit asset; uploads verified evidence as `release-evidence`; and the shared Engineering Assurance call waits for that upload. | Test |
 | FR-095-AC-3 | A workflow test confirms that the OIDC-enabled job consumes the artifact and has no checkout or repository-code execution step, while the wheel workflow still receives `publish: false`. | Test |
 | FR-095-AC-4 | After a tag-attestation run, the uploaded artifact contains the committed suite and binding registries, the generated binding registry, and the fresh `SUITE-001` run record from the exact tag commit; the source worktree does not commit generated records. | Test |
 | FR-095-AC-5 | When the shared consumer receives no `release-evidence` artifact or the artifact has no evidence root, it writes no Test Result and no release attestation, and reports an absent-evidence failure. | Test |
-| FR-095-AC-6 | When the shared consumer receives an unusable evidence root, including an invalid binding registry or run record, a missing required binding, a failing suite result, or a stale run, it writes no Test Result and no release attestation, and reports the applicable failure. | Test |
+| FR-095-AC-6 | When the shared consumer receives an unusable evidence root, including an invalid binding registry or run record, a missing required binding, a failing suite result, or a stale run, it writes no Test Result and no release attestation, and reports the applicable failure. The tag workflow also refuses excess archive entries or byte totals before extraction. | Test |
 
 ## Verification Plan
 
@@ -111,6 +120,8 @@ and writes no Test Result when evidence is absent or unusable.
 | TC-2238 | Refuse a Terra bundle containing a failed SUITE-001 run record. |
 | TC-2239 | Refuse a Terra bundle whose run timestamp does not postdate the annotated tag creation time. |
 | TC-2240 | Refuse an archive with an unsafe member path or without the exact SUITE-001 run record. |
+| TC-2241 | Refuse `make evidence` before test execution when tracked, untracked, or recursive submodule state is dirty. |
+| TC-2242 | Stream an archive with more than five entries, more than 20,000,000 compressed bytes, or more than 50,000,000 decompressed bytes; refuse each before extraction. |
 
 ## Dependencies
 
