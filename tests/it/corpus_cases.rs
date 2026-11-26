@@ -2453,49 +2453,92 @@ fn assert_partner_findings_absent(
     control: &corpus_case::Case,
     healthy: &quire_rs::CoverageReport,
 ) -> usize {
-    let mut checked = 0;
+    let validation = (!partner.expect.validate_contains.is_empty())
+        .then(|| corpus_case::validate_report(control));
+    let expected_channels = partner_finding_channel_count(&partner.expect);
+    let present = partner_findings_present(&partner.expect, healthy, validation.as_deref());
+    assert!(
+        present.is_empty(),
+        "{}: healthy control {} still emits partner findings: {present:?}",
+        partner.meta.id,
+        control.meta.id,
+    );
+    expected_channels
+}
 
-    for reason in &partner.expect.diagnostic_reasons {
-        assert!(
-            !healthy
-                .diagnostics
-                .iter()
-                .any(|finding| finding.reason == *reason),
-            "{}: healthy control {} still emits partner diagnostic reason {reason:?}",
-            partner.meta.id,
-            control.meta.id,
-        );
-        checked += 1;
-    }
+fn partner_finding_channel_count(expect: &corpus_case::CaseExpect) -> usize {
+    let diagnostic_keys: BTreeSet<_> = expect
+        .diagnostic_reasons
+        .iter()
+        .chain(expect.diagnostic_paths.keys())
+        .chain(expect.diagnostic_lines.keys())
+        .chain(expect.diagnostic_message_contains.keys())
+        .collect();
+    diagnostic_keys.len() + expect.suspicions.len() + expect.validate_contains.len()
+}
 
-    for suspicion in &partner.expect.suspicions {
-        assert!(
-            !healthy
-                .suspicions
-                .iter()
-                .any(|actual| actual.kind == suspicion.kind),
-            "{}: healthy control {} still emits partner suspicion {:?}",
-            partner.meta.id,
-            control.meta.id,
-            suspicion.kind,
-        );
-        checked += 1;
-    }
-
-    if !partner.expect.validate_contains.is_empty() {
-        let validation = corpus_case::validate_report(control);
-        for finding in &partner.expect.validate_contains {
-            assert!(
-                !validation.contains(finding),
-                "{}: healthy control {} still emits partner validation finding {finding:?}:\n{validation}",
-                partner.meta.id,
-                control.meta.id,
-            );
-            checked += 1;
+fn partner_findings_present(
+    expect: &corpus_case::CaseExpect,
+    healthy: &quire_rs::CoverageReport,
+    validation: Option<&str>,
+) -> Vec<String> {
+    let mut present = Vec::new();
+    let diagnostic_keys: BTreeSet<_> = expect
+        .diagnostic_reasons
+        .iter()
+        .chain(expect.diagnostic_paths.keys())
+        .chain(expect.diagnostic_lines.keys())
+        .chain(expect.diagnostic_message_contains.keys())
+        .collect();
+    for key in diagnostic_keys {
+        if corpus_case::find_diagnostic(healthy, key).is_some() {
+            present.push(format!("diagnostic `{key}`"));
         }
     }
+    for suspicion in &expect.suspicions {
+        if healthy
+            .suspicions
+            .iter()
+            .any(|actual| actual.kind == suspicion.kind)
+        {
+            present.push(format!("suspicion `{}`", suspicion.kind));
+        }
+    }
+    if let Some(validation) = validation {
+        for finding in &expect.validate_contains {
+            if validation.contains(finding) {
+                present.push(format!("validation finding `{finding}`"));
+            }
+        }
+    }
+    present
+}
 
-    checked
+#[trace("FR-065-AC-14")]
+#[test]
+fn qualified_partner_diagnostic_is_detected_by_control_silence_check() {
+    let expect = corpus_case::CaseExpect {
+        diagnostic_reasons: vec!["test-case/section-holds-no-table".to_string()],
+        ..Default::default()
+    };
+    let healthy = quire_rs::CoverageReport {
+        diagnostics: vec![quire_rs::coverage::CoverageDiagnostic {
+            declaration: "test-case".to_string(),
+            reason: "section-holds-no-table".to_string(),
+            message: "the healthy report emitted this qualified finding".to_string(),
+            path: None,
+            line: None,
+            value: None,
+            guidance: None,
+        }],
+        ..Default::default()
+    };
+
+    assert_eq!(
+        partner_findings_present(&expect, &healthy, None),
+        vec!["diagnostic `test-case/section-holds-no-table`"],
+        "the silence check must match the declaration and unqualified reason separately",
+    );
 }
 
 /// A `regression` case: no control, not findable, pinning a LANDED ticket.
