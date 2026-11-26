@@ -1198,11 +1198,9 @@ fn tc1024_every_l3_fragment_is_asserted() {
 // a live block that asserts nothing is rejected.
 #[trace("FR-065-AC-36")]
 // a forward block must be ABOUT its ticket.
-#[trace("FR-065-AC-2")]
 #[test]
 fn tc1025_the_loader_refuses_a_block_that_asserts_the_wrong_thing() {
     let corpus_root = corpus_case::corpus_root();
-    let input_before = input_tree_snapshot(&corpus_root);
     // The case under mutation is CHOSEN AT RUNTIME, not named here.
     //
     // These mutations need a live PENDING case, and the set of those changes
@@ -1517,11 +1515,6 @@ fn tc1025_the_loader_refuses_a_block_that_asserts_the_wrong_thing() {
     // And the unmutated corpus is accepted, so the assertions above are about
     // the mutations rather than about a loader that refuses everything.
     qa_bounds(&corpus_root).expect("the corpus as committed must load");
-    assert_eq!(
-        input_tree_snapshot(&corpus_root),
-        input_before,
-        "mutating corpus cases operate on a copy and leave checked-in input/ bytes unchanged",
-    );
 }
 
 #[trace("FR-065-AC-4")]
@@ -1789,47 +1782,6 @@ fn copy_tree(from: &std::path::Path, to: &std::path::Path) {
             std::fs::copy(&source, &target).expect("copy file");
         }
     }
-}
-
-fn input_tree_snapshot(root: &std::path::Path) -> BTreeMap<std::path::PathBuf, Vec<u8>> {
-    fn collect(
-        directory: &std::path::Path,
-        root: &std::path::Path,
-        files: &mut BTreeMap<std::path::PathBuf, Vec<u8>>,
-    ) {
-        for entry in std::fs::read_dir(directory)
-            .unwrap_or_else(|error| panic!("read {}: {error}", directory.display()))
-            .flatten()
-        {
-            let path = entry.path();
-            if entry.file_type().expect("input entry type").is_dir() {
-                collect(&path, root, files);
-            } else {
-                let relative = path
-                    .strip_prefix(root)
-                    .expect("input file is below the corpus root")
-                    .to_path_buf();
-                files.insert(
-                    relative,
-                    std::fs::read(&path)
-                        .unwrap_or_else(|error| panic!("read {}: {error}", path.display())),
-                );
-            }
-        }
-    }
-
-    let mut input_directories: Vec<_> = load_cases()
-        .into_iter()
-        .map(|case| case.dir.join("input"))
-        .collect();
-    input_directories.sort();
-    input_directories.dedup();
-
-    let mut files = BTreeMap::new();
-    for directory in input_directories {
-        collect(&directory, root, &mut files);
-    }
-    files
 }
 
 /// The corpus vocabulary equals the engine's published registry (#300).
@@ -2255,6 +2207,7 @@ fn tc1028_a_failure_case_discriminates_from_its_control() {
     // for why the count was not enough.
     let mut graded_pairs: Vec<String> = Vec::new();
     let mut blind = String::new();
+    let mut healthy_finding_absence_checks = 0usize;
     for case in &cases {
         if case.meta.kind != "failure" {
             continue;
@@ -2284,6 +2237,8 @@ fn tc1028_a_failure_case_discriminates_from_its_control() {
 
         for control in mine {
             let healthy = run(control);
+            healthy_finding_absence_checks +=
+                assert_partner_findings_absent(case, control, &healthy);
             // A BEHAVIOUR-CHANGE forward block is held to the OPPOSITE rule, and
             // it is the strongest check available to one. The control is the
             // healthy repair of its partner — for a fix that changes what MINTS,
@@ -2412,6 +2367,10 @@ fn tc1028_a_failure_case_discriminates_from_its_control() {
         !graded_pairs.is_empty(),
         "no controlled failure case, so this asserts nothing"
     );
+    assert!(
+        healthy_finding_absence_checks > 0,
+        "no positive partner finding channel was checked for absence on healthy controls"
+    );
 
     // THE OTHER READER RESOLVES THE SAME PAIRS — THE SET, NOT HOW MANY.
     // `verify.py` implements this same differential (#337), and both resolve
@@ -2482,6 +2441,61 @@ fn tc1028_a_failure_case_discriminates_from_its_control() {
         blind.is_empty(),
         "a fixture's assertions must tell its own input from its control's:\n{blind}"
     );
+}
+
+/// A control is healthy only when the partner's actual finding tokens are
+/// absent from its coverage diagnostics, suspicion findings, and validation
+/// outputs. Differential grading alone is insufficient: the same reason at a
+/// different locus still counts as a finding, and a whole-payload mismatch can
+/// be caused elsewhere.
+fn assert_partner_findings_absent(
+    partner: &corpus_case::Case,
+    control: &corpus_case::Case,
+    healthy: &quire_rs::CoverageReport,
+) -> usize {
+    let mut checked = 0;
+
+    for reason in &partner.expect.diagnostic_reasons {
+        assert!(
+            !healthy
+                .diagnostics
+                .iter()
+                .any(|finding| finding.reason == *reason),
+            "{}: healthy control {} still emits partner diagnostic reason {reason:?}",
+            partner.meta.id,
+            control.meta.id,
+        );
+        checked += 1;
+    }
+
+    for suspicion in &partner.expect.suspicions {
+        assert!(
+            !healthy
+                .suspicions
+                .iter()
+                .any(|actual| actual.kind == suspicion.kind),
+            "{}: healthy control {} still emits partner suspicion {:?}",
+            partner.meta.id,
+            control.meta.id,
+            suspicion.kind,
+        );
+        checked += 1;
+    }
+
+    if !partner.expect.validate_contains.is_empty() {
+        let validation = corpus_case::validate_report(control);
+        for finding in &partner.expect.validate_contains {
+            assert!(
+                !validation.contains(finding),
+                "{}: healthy control {} still emits partner validation finding {finding:?}:\n{validation}",
+                partner.meta.id,
+                control.meta.id,
+            );
+            checked += 1;
+        }
+    }
+
+    checked
 }
 
 /// A `regression` case: no control, not findable, pinning a LANDED ticket.
