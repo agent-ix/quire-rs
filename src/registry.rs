@@ -12,6 +12,8 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use ix_trace_rs::implements;
+
 use crate::diagnostic::Diagnostic;
 use crate::error::{ArchetypeLoadFailure, QuireError};
 use crate::loader::compile::CompiledArchetype;
@@ -398,8 +400,22 @@ impl Registry {
         self.archetype(name)
     }
 
+    #[implements("FR-013-AC-2")]
     pub fn archetype(&self, name: &str) -> Option<&CompiledArchetype> {
-        self.inner.archetypes.get(name).map(|a| a.as_ref())
+        let exact = self.inner.archetypes.get(name);
+        let archetype = exact.or_else(|| {
+            let mut matches = self
+                .inner
+                .archetypes
+                .iter()
+                .filter(|(candidate, _)| candidate.eq_ignore_ascii_case(name));
+            let (_, value) = matches.next()?;
+            if matches.next().is_some() {
+                return None;
+            }
+            Some(value)
+        });
+        archetype.map(|a| a.as_ref())
     }
 
     /// Return the JSON Schema document loaded for `name` (FR-003).
@@ -861,6 +877,23 @@ mod tests {
         .unwrap();
     }
 
+    fn write_named_module(root: &Path, module: &str, archetype: &str) {
+        fs::create_dir_all(root.join("schemas")).unwrap();
+        fs::write(
+            root.join("manifest.yaml"),
+            format!(
+                "name: {module}\nartifact_types:\n- name: {archetype}\n  frontmatter_schema_ref: schemas/{archetype}.schema.json\n"
+            ),
+        )
+        .unwrap();
+        fs::write(
+            root.join("schemas")
+                .join(format!("{archetype}.schema.json")),
+            r#"{"type":"object"}"#,
+        )
+        .unwrap();
+    }
+
     #[test]
     fn load_from_loads_a_minimal_module() {
         let parent = tmpdir("ok");
@@ -917,6 +950,7 @@ object_types:
         );
     }
 
+    #[trace("FR-013-AC-9")]
     #[test]
     fn registry_is_send_sync_and_cheap_to_clone() {
         fn assert_send_sync<T: Send + Sync>() {}
@@ -926,6 +960,25 @@ object_types:
         let r = Registry::load_from(&[&parent]).expect("ok");
         let r2 = r.clone();
         assert!(r2.archetype("foo").is_some());
+    }
+
+    #[test]
+    fn case_folded_lookup_does_not_choose_between_ambiguous_names() {
+        let fixture_root =
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/loader-home/foo");
+        let fixture = Registry::load_from(&[&fixture_root]).expect("valid schema fixture");
+        assert!(fixture.archetype("FR").is_some());
+        assert!(fixture.archetype("fr").is_some());
+        assert!(fixture.schema_for("FR").is_ok());
+
+        let parent = tmpdir("case-folded-ambiguous");
+        write_named_module(&parent.join("upper"), "upper", "FR");
+        write_named_module(&parent.join("lower"), "lower", "fr");
+        let registry = Registry::load_from(&[&parent]).expect("both distinct names load");
+
+        assert!(registry.archetype("FR").is_some());
+        assert!(registry.archetype("fr").is_some());
+        assert!(registry.archetype("Fr").is_none());
     }
 
     #[test]

@@ -1,0 +1,4 @@
+name: loader-fixture
+artifact_types:
+- name: FR
+  frontmatter_schema_ref: schemas/FR.schema.json

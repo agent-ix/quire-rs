@@ -30,6 +30,9 @@ use std::sync::Arc;
 use ix_trace_rs::implements;
 use serde_json::Value;
 
+#[cfg(test)]
+pub(crate) static HOME_ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 use crate::diagnostic::Diagnostic;
 use crate::error::{ArchetypeLoadFailure, QuireError};
 use crate::loader::compile::{compile_schema, failure, read_schema, CompiledArchetype};
@@ -2381,7 +2384,54 @@ fn find_cycles(graph: &[Vec<usize>]) -> Vec<Vec<usize>> {
 mod tests {
     use super::*;
     use ix_trace_rs::trace;
+    use std::ffi::OsString;
     use std::fs;
+    struct SearchEnvRestore([(&'static str, Option<OsString>); 4]);
+
+    impl Drop for SearchEnvRestore {
+        fn drop(&mut self) {
+            for (name, value) in &self.0 {
+                if let Some(value) = value {
+                    std::env::set_var(name, value);
+                } else {
+                    std::env::remove_var(name);
+                }
+            }
+        }
+    }
+
+    fn with_search_env<T>(
+        home: &Path,
+        module_path: Option<OsString>,
+        schema_path: Option<OsString>,
+        f: impl FnOnce() -> T,
+    ) -> T {
+        let _lock = super::HOME_ENV_LOCK.lock().expect("home env lock");
+        let restore = SearchEnvRestore([
+            ("HOME", std::env::var_os("HOME")),
+            ("IX_HOME", std::env::var_os("IX_HOME")),
+            (
+                "IX_FILAMENT_MODULES_PATH",
+                std::env::var_os("IX_FILAMENT_MODULES_PATH"),
+            ),
+            ("IX_SCHEMA_PATH", std::env::var_os("IX_SCHEMA_PATH")),
+        ]);
+        std::env::set_var("HOME", home);
+        std::env::set_var("IX_HOME", home);
+        if let Some(path) = module_path {
+            std::env::set_var("IX_FILAMENT_MODULES_PATH", path);
+        } else {
+            std::env::remove_var("IX_FILAMENT_MODULES_PATH");
+        }
+        if let Some(path) = schema_path {
+            std::env::set_var("IX_SCHEMA_PATH", path);
+        } else {
+            std::env::remove_var("IX_SCHEMA_PATH");
+        }
+        let result = f();
+        drop(restore);
+        result
+    }
 
     fn tmpdir(suffix: &str) -> PathBuf {
         let mut p = std::env::temp_dir();
@@ -2408,6 +2458,63 @@ mod tests {
             r#"{"type":"object","required":["id"],"properties":{"id":{"type":"string"}}}"#,
         )
         .unwrap();
+    }
+
+    #[trace("FR-013-AC-1")]
+    #[test]
+    fn from_env_without_search_roots_returns_an_empty_registry() {
+        let home = tmpdir("empty-env-home");
+        let empty = with_search_env(&home, None, None, || {
+            crate::Registry::from_env().expect("an empty module search is valid")
+        });
+        assert_eq!(empty.archetype_names().count(), 0);
+        assert!(empty.failures().is_empty());
+    }
+
+    #[trace("FR-013-AC-8")]
+    #[test]
+    fn duplicate_tilde_search_roots_load_the_module_once() {
+        let home = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/loader-home");
+        let roots = std::env::join_paths([OsString::from("~/foo"), OsString::from("~/foo")])
+            .expect("join duplicate tilde roots");
+        let registry = with_search_env(&home, None, Some(roots), || {
+            crate::Registry::from_env().expect("duplicate tilde roots load")
+        });
+
+        assert!(registry.failures().is_empty(), "{:?}", registry.failures());
+        assert_eq!(registry.module_names().count(), 1);
+        assert_eq!(
+            registry
+                .module_names()
+                .filter(|name| *name == "loader-fixture")
+                .count(),
+            1
+        );
+        assert_eq!(registry.archetype_names().count(), 1);
+        assert!(registry.archetype("fr").is_some());
+        assert!(registry.schema_for("FR").is_ok());
+    }
+
+    #[trace("FR-013-AC-10")]
+    #[test]
+    fn file_search_root_warns_and_other_roots_still_load() {
+        let parent = tmpdir("file-root-does-not-stop-later-roots");
+        let file = parent.join("not-a-directory");
+        fs::write(&file, b"not a directory").expect("write file root");
+        let module_root = parent.join("modules");
+        write_minimal_module(&module_root.join("real-module"), "real-module");
+
+        let outcome = load_modules(&[&file, &module_root]);
+
+        assert_eq!(outcome.modules.len(), 1, "valid roots still load");
+        assert_eq!(outcome.modules[0].name, "real-module");
+        assert!(matches!(
+            outcome.path_diagnostics.first(),
+            Some(PathDiagnostic::NotADirectory(path)) if path == &file
+        ));
+        assert!(outcome.diagnostics.iter().any(
+            |diagnostic| matches!(diagnostic, Diagnostic::SearchPathNotADirectory { path } if path == &file)
+        ));
     }
 
     /// `write_minimal_module` with the archetype name chosen by the caller.

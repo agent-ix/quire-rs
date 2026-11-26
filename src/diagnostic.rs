@@ -537,6 +537,7 @@ impl Diagnostic {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ix_trace_rs::trace;
 
     #[test]
     fn display_strings_carry_variant_name_and_identifier() {
@@ -655,37 +656,48 @@ mod tests {
     /// channel rather than a per-consumer parallel enum. Both the
     /// human (Display) and JSON renderings MUST carry the variant
     /// name, argument, path, and reason discriminator.
+    #[trace("FR-013-AC-14")]
     #[test]
     fn path_traversal_variant_renders_human_and_json() {
-        let d = Diagnostic::PathTraversal {
-            argument: "--module".into(),
-            path: PathBuf::from("/tmp/evil/../etc"),
-            reason: PathTraversalReason::DotDotSegment,
-        };
-        let s = d.to_string();
-        assert!(s.contains("PathTraversal"), "{s}");
-        assert!(s.contains("--module"), "{s}");
-        assert!(s.contains("/tmp/evil/../etc"), "{s}");
-        assert!(s.contains("contains .. segment"), "{s}");
+        let cases = [
+            (
+                PathTraversalReason::DotDotSegment,
+                PathBuf::from("/tmp/evil/../etc"),
+                "DotDotSegment",
+                "contains .. segment",
+            ),
+            (
+                PathTraversalReason::SymlinkEscape,
+                PathBuf::from("/tmp/linked/outside"),
+                "SymlinkEscape",
+                "symlink escapes allowed root",
+            ),
+            (
+                PathTraversalReason::EscapesModuleRoot,
+                PathBuf::from("/modules/other"),
+                "EscapesModuleRoot",
+                "escapes declared module root",
+            ),
+        ];
 
-        let v = d.to_json();
-        assert_eq!(v["kind"], "PathTraversal");
-        assert_eq!(v["argument"], "--module");
-        assert_eq!(v["path"], "/tmp/evil/../etc");
-        assert_eq!(v["reason"], "DotDotSegment");
+        for (reason, path, discriminator, human_reason) in cases {
+            let diagnostic = Diagnostic::PathTraversal {
+                argument: "--module".into(),
+                path: path.clone(),
+                reason,
+            };
 
-        // All reason discriminators round-trip stably.
-        let escape = Diagnostic::PathTraversal {
-            argument: "module".into(),
-            path: PathBuf::from("/a"),
-            reason: PathTraversalReason::SymlinkEscape,
-        };
-        assert_eq!(escape.to_json()["reason"], "SymlinkEscape");
-        let escapes_root = Diagnostic::PathTraversal {
-            argument: "module".into(),
-            path: PathBuf::from("/b"),
-            reason: PathTraversalReason::EscapesModuleRoot,
-        };
-        assert_eq!(escapes_root.to_json()["reason"], "EscapesModuleRoot");
+            let display = diagnostic.to_string();
+            assert!(display.contains("PathTraversal"), "{display}");
+            assert!(display.contains("--module"), "{display}");
+            assert!(display.contains(&path.display().to_string()), "{display}");
+            assert!(display.contains(human_reason), "{display}");
+
+            let json = diagnostic.to_json();
+            assert_eq!(json["kind"], "PathTraversal");
+            assert_eq!(json["argument"], "--module");
+            assert_eq!(json["path"], path.display().to_string());
+            assert_eq!(json["reason"], discriminator);
+        }
     }
 }
