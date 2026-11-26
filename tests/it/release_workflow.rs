@@ -217,6 +217,7 @@ fn tc_2234_make_evidence_records_fresh_suite_run_for_retention() {
         .collect::<Vec<_>>()
         .join("\n");
     assert!(target.contains("ix-trace-run"));
+    assert!(target.contains("--rev 8a0ec153a097036e257cdc8e0ba391bf4dea93d1"));
     assert!(target.contains("scripts/check_release_evidence_checkout.py --repo-root ."));
     assert!(target.contains("git describe --tags --exact-match HEAD"));
     assert!(target.contains("git rev-parse \"$$tag^{commit}\""));
@@ -233,7 +234,7 @@ fn tc_2234_make_evidence_records_fresh_suite_run_for_retention() {
     assert!(target.contains("scripts/package_release_evidence.py"));
     assert!(target.contains("@agent-ix/quoin@0.30.1"));
     assert!(target.contains("$(RELEASE_QUOIN)"));
-    assert!(target.contains("--tool 'ix-trace-run 0.1.0+3cd3285'"));
+    assert!(target.contains("--tool 'ix-trace-run 0.1.0+8a0ec153'"));
 
     let workflow = workflow("tag-attestation.yml");
     assert!(!workflow["jobs"]["release-evidence"]["steps"]
@@ -275,7 +276,7 @@ fn terra_bundle_fixture(
     let run = serde_json::json!({
         "schemaVersion": 1,
         "suite": "SUITE-001",
-        "tool": "ix-trace-run 0.1.0+3cd3285",
+        "tool": "ix-trace-run 0.1.0+8a0ec153",
         "evidenceKind": "Unit",
         "timestamp": "2026-11-26T00:00:00.123456789Z",
         "entries": [{"symbol":"tests::tc_2229", "outcome":outcome}]
@@ -287,7 +288,7 @@ fn terra_bundle_fixture(
         "tagCreatedAt": 1795564800,
         "suite": "SUITE-001",
         "runPath": run_path,
-        "tool": "ix-trace-run 0.1.0+3cd3285"
+        "tool": "ix-trace-run 0.1.0+8a0ec153"
     });
     fs::write(bundle_root.join("suites.md"), suite_registry).expect("write bundle suite registry");
     fs::write(
