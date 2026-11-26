@@ -115,10 +115,6 @@ quire-code-extraction = { path = "crates/quire-code-extraction", optional = true
 # filament-core-data is public, so this needs no registry auth, no npm, no
 # node, anywhere in this crate's build.
 agent-ix-semantic-schema = { git = "https://github.com/agent-ix/filament-core-data", tag = "semantic-schema-v0.6.0" }
-# The canonical Rust trace marker (FR-062). Zero runtime dependencies and a
-# pass-through expansion; pinned to an exact (v0.1.2; one cargo source), which
-# satisfies NFR-009-AC-3 more strictly than a caret range.
-ix-trace-rs = { git = "https://github.com/agent-ix/ix-trace-rs", tag = "v0.1.2" }
 
 [dev-dependencies]
 # The authoritative QA corpus runner, pinned by the existing corpus submodule.
