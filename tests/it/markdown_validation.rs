@@ -593,3 +593,45 @@ fn tc774_column_choices_still_applies_when_the_optional_column_is_present() {
         result.errors
     );
 }
+
+/// Both admitted process table forms validate against the locator that supplied
+/// their rows; a missing required table and malformed fallback still fail.
+#[trace("FR-032-AC-10", "FR-016-AC-1", "FR-016-AC-2")]
+#[test]
+fn fallback_table_validation_uses_selected_locator_assertions() {
+    let case: serde_json::Value = serde_json::from_slice(include_bytes!(
+        "../fixtures/corpus_cases/plat-1930-fallback-table-assert.json"
+    ))
+    .expect("attributed fallback regression fixture");
+    let registry = Registry::from_inline_parts(
+        case["input"]["module_manifest"]
+            .as_str()
+            .unwrap()
+            .as_bytes(),
+        &BTreeMap::new(),
+    )
+    .expect("fallback module");
+    assert!(registry.failures().is_empty(), "{:?}", registry.failures());
+    let process = registry.archetype("process").unwrap();
+    for name in case["expect"]["valid"].as_array().unwrap() {
+        let text = case["input"]["documents"][name.as_str().unwrap()]
+            .as_str()
+            .unwrap();
+        let result = quire_rs::validate_document(process, text);
+        assert!(result.is_valid, "{name}: {:?}", result.errors);
+        assert!(result.errors.is_empty(), "{name}: {:?}", result.errors);
+    }
+    for (name, reason) in case["expect"]["invalid"].as_object().unwrap() {
+        let text = case["input"]["documents"][name].as_str().unwrap();
+        let result = quire_rs::validate_document(process, text);
+        assert!(!result.is_valid, "{name}");
+        assert!(
+            result
+                .errors
+                .iter()
+                .any(|error| error.reason.as_str() == reason.as_str().unwrap()),
+            "{name}: {:?}",
+            result.errors
+        );
+    }
+}

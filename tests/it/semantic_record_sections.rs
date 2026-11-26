@@ -741,3 +741,84 @@ fn architecture_record_keys_are_all_owned() {
     assert!(audited > 0, "no object type of the module was audited");
     assert!(unowned.is_empty(), "keys no mapping owns: {unowned:?}");
 }
+
+/// Artifact kind admission uses `type` when an artifact has no `object`;
+/// object/enumeration declarations and malformed explicit kinds stay distinct.
+#[trace("FR-081-AC-22")]
+#[test]
+fn indexed_record_receivers_resolve_type_only_artifact_kinds() {
+    let case: Value = serde_json::from_slice(include_bytes!(
+        "../fixtures/corpus_cases/plat-1930-type-only-receiver.json"
+    ))
+    .expect("attributed type-only receiver fixture");
+    let input = &case["input"];
+    let schemas = BTreeMap::from([(
+        input["schema_path"].as_str().unwrap().to_string(),
+        input["schema"].to_string(),
+    )]);
+    let registry = quire_rs::Registry::from_inline_parts(
+        input["module_manifest"].as_str().unwrap().as_bytes(),
+        &schemas,
+    )
+    .expect("receiver module");
+    assert!(registry.failures().is_empty(), "{:?}", registry.failures());
+    let workflow = registry.archetype("workflow").unwrap();
+    let texts: Vec<_> = [
+        "source",
+        "local_event",
+        "wrong_kind_local",
+        "remote_event",
+        "type_only_enumeration",
+        "malformed_object",
+    ]
+    .iter()
+    .map(|key| input[key].as_str().unwrap())
+    .collect();
+    let frontmatter: Vec<_> = texts
+        .iter()
+        .map(|text| quire_rs::parse_document(text).frontmatter.unwrap())
+        .collect();
+    let bundle = quire_rs::semantic::BundleIndex::from_documents(
+        "",
+        frontmatter.iter().zip(texts.iter().copied()),
+        registry.semantic_modules().map(|(_, module)| module),
+    );
+    let objects: Vec<_> = bundle
+        .objects
+        .iter()
+        .map(|entry| entry.id.as_str())
+        .collect();
+    assert_eq!(objects, vec!["WF-001", "PRINCIPAL-001"]);
+    assert!(bundle.enumerations.is_empty());
+    let source = input["source"].as_str().unwrap();
+    let valid = quire_rs::validate_document_in_indexed_bundle(
+        &registry,
+        workflow,
+        source,
+        "acme/workflows",
+        None,
+        &bundle,
+    );
+    assert!(valid.is_valid, "{:?}", valid.errors);
+    assert!(valid.warnings.is_empty(), "{:?}", valid.warnings);
+    for replacement in ["PRINCIPAL-001", "MALFORMED"] {
+        let wrong = source.replace("ROLE-001", replacement);
+        let result = quire_rs::validate_document_in_indexed_bundle(
+            &registry,
+            workflow,
+            &wrong,
+            "acme/workflows",
+            None,
+            &bundle,
+        );
+        assert!(!result.is_valid, "{replacement}");
+        assert!(
+            result
+                .errors
+                .iter()
+                .any(|error| { error.message.contains("semantic.reference-kind-mismatch") }),
+            "{replacement}: {:?}",
+            result.errors
+        );
+    }
+}
