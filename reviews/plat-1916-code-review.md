@@ -50,3 +50,12 @@ FND-001 follows from the specified stable identity change: outputs formerly used
 FND-002 is directly reproducible with the repository's strict Clippy gate. The first diagnostic is `parse_document(&source)` at line 553; Clippy reports the same lint for four further `&` borrows of `&str` values in this new test.
 
 FND-003: computed `quoin matrix --repo . --json` binds `indexed_validation_resolves_same_repo_types_and_preserves_single_document_mode` to FR-070-AC-1 and FR-070-AC-11. The AC-11 binding matches the Clock precedence assertion, but AC-1 is the config-version golden output requirement; the new same-repository resolution assertion is covered by FR-070-AC-4's Type resolution obligation and should carry that tag.
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | still-open | The fix updated the ConfigVersion/ConfigOverlay fixtures, but two affected assertions still expect title identities: `semantic_model::population_members_with_one_extent` expects `Order` while output is `FR-100`, and `semantic_systems::systems_tables_lower_to_record_keys_and_refuse_bad_rows` expects `QuantCodec` while output is `quant_codec`. Both exact tests still fail on the stable-ID change. |
+| FND-002 | fixed | after_excerpt: `let source_fm = quire_rs::parse_document(source).frontmatter.unwrap();` Strict all-target/all-feature Clippy passes. |
+| FND-003 | fixed | after_excerpt: `#[trace("FR-070-AC-4", "FR-070-AC-11")]` |
+| FND-001 | fixed | after_excerpt: `json!({ "kind": "SemanticId", "value": "ix://agent-ix/shop/type/FR-100" })` and `json!({ "target": { "kind": "SemanticId", "value": format!("{pkg}/type/quant_codec") } })`; both formerly stale expected identities are updated. |
