@@ -1,7 +1,7 @@
 //! QSL declaration-head adapter (FR-094).
 //!
-//! Reads a `.native` file line by line and mints one `declaration` symbol for
-//! every declaration head. It is deliberately not a second QSL grammar
+//! Reads a `.native` or `.qsl` file line by line and mints one `declaration`
+//! symbol for every declaration head. It is deliberately not a second QSL grammar
 //! (FR-094-CON-1): a head is a column-0 line at brace depth 0 whose first two
 //! tokens are a lowercase keyword and an identifier, and the only keywords it
 //! knows are the three file-header ones it must skip. QSL owns the rest.
@@ -20,7 +20,7 @@ use super::{RawSymbol, SymbolKind};
 /// Keywords that open a file header rather than a declaration.
 const HEADER_KEYWORDS: [&str; 3] = ["language", "profile", "model"];
 
-/// What one pass over a `.native` file found.
+/// What one pass over a `.native` or `.qsl` file found.
 #[derive(Debug, Default)]
 pub(crate) struct QslScan {
     /// Declaration heads, in source order. Empty when braces are unbalanced.
