@@ -1169,6 +1169,7 @@ mod tests {
 
     #[trace("FR-064-AC-6")]
     #[trace("FR-064-CON-5")]
+    #[trace("FR-064-CON-4")]
     #[test]
     fn tc1061_explicit_oracle_bindings_join_to_production_expressions() {
         let cases = [
@@ -1435,10 +1436,13 @@ assert_eq!(normalize(value), expected);"#;
     }
 
     #[trace("FR-064-AC-3")]
+    #[trace("FR-064-CON-4")]
     // similarity is over tokens, so reordering does not (CR-100)
     // disguise a copy and reformatting does not manufacture one.
     #[test]
     fn tc1000_similarity_reads_tokens_not_layout() {
+        assert_eq!(ORACLE_SIMILARITY_FLOOR, 0.75);
+
         let a = "normalized.components().all(|c| c != Component::ParentDir)";
         let reformatted = "normalized\n    .components()\n    .all(|c| c != Component::ParentDir)";
         assert!(
