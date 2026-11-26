@@ -21,11 +21,11 @@ pub mod paths;
 mod record_validation;
 pub(crate) mod vocabulary_refs;
 
-use std::collections::{BTreeMap, BTreeSet};
-use std::path::{Path, PathBuf};
-
-use ix_trace_rs::implements;
-use std::sync::Arc;
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 use ix_trace_rs::implements;
 use serde_json::Value;
