@@ -39,12 +39,21 @@ fn qa_bounds(root: &std::path::Path) -> Result<serde_json::Value, qa_corpus::cor
 // `implements` was never asked, not answered none.
 #[trace("FR-050-AC-29")]
 // the catch-all-only properties headline.
-#[trace("FR-065-AC-1")]
+#[trace("FR-065-AC-1", "FR-065-CON-1")]
 // read in place: no case is materialised.
 #[test]
 fn corpus_cases_hold() {
     let cases = load_cases();
     assert!(!cases.is_empty(), "the corpus is not empty");
+    let corpus_root = corpus_case::corpus_root();
+    for case in &cases {
+        assert!(
+            case.dir.starts_with(corpus_root.join("cases")) && case.dir.join("input").is_dir(),
+            "{}: case data must be read from its checked-in corpus input directory, got {}",
+            case.meta.id,
+            case.dir.display(),
+        );
+    }
 
     let mut failures = String::new();
     let mut pending_now_passing = String::new();
@@ -365,7 +374,13 @@ fn tc1058_corpus_execution_grading_and_rendering_are_stable() {
 /// a declaration that reordered it would mean something different.
 #[trace("FR-065-AC-19")]
 // the bounds enum comes from corpus.yaml.
-#[trace("FR-065-AC-20")]
+#[trace(
+    "FR-065-AC-20",
+    "FR-065-AC-6",
+    "FR-065-AC-9",
+    "FR-065-AC-10",
+    "FR-065-CON-2"
+)]
 // the compiled ladder and the declared ladder agree,
 // in name and in order.
 #[trace("FR-065-AC-21")]
@@ -426,6 +441,38 @@ fn tc1021_the_vocabularies_come_from_the_corpus_not_from_this_file() {
     let root = corpus_case::corpus_root();
     let report = qa_bounds(&root).expect("declared bounds derive");
     let bounds = &report["bounds"];
+    let matrix = bounds["matrix"]
+        .as_array()
+        .expect("bounds matrix is an array");
+    for row in matrix {
+        let case = row["case"].as_str().expect("case name");
+        for (language, cell) in row["cells"].as_object().expect("language cells") {
+            let state = cell["state"].as_str().expect("cell state");
+            assert!(
+                matches!(state, "covered" | "out-of-scope" | "GAP"),
+                "{case}/{language}: unexpected bounds state {state:?}",
+            );
+        }
+    }
+    let declared_cell_count = declared["inventory"]
+        .as_sequence()
+        .expect("inventory is a list")
+        .iter()
+        .map(|row| {
+            row["languages"]
+                .as_sequence()
+                .expect("inventory languages are a list")
+                .len()
+        })
+        .sum::<usize>();
+    let derived_cell_count = matrix
+        .iter()
+        .map(|row| row["cells"].as_object().expect("language cells").len())
+        .sum::<usize>();
+    assert_eq!(
+        derived_cell_count, declared_cell_count,
+        "every declared inventory cell has exactly one derived state"
+    );
     let graded = ["covered_count", "out_of_scope_count", "gap_count"]
         .into_iter()
         .map(|key| bounds[key].as_u64().expect("numeric state count"))
@@ -436,6 +483,10 @@ fn tc1021_the_vocabularies_come_from_the_corpus_not_from_this_file() {
             .as_u64()
             .expect("numeric inventory count"),
         "the declared states must account for every inventory cell"
+    );
+    assert!(
+        bounds["gap_count"].as_u64().is_some(),
+        "bounds.gap_count is an absolute integer count, not a ratio or percentage"
     );
 
     let scratch = scratch_dir("tc1021-bounds-states", 0);
@@ -1147,8 +1198,11 @@ fn tc1024_every_l3_fragment_is_asserted() {
 // a live block that asserts nothing is rejected.
 #[trace("FR-065-AC-36")]
 // a forward block must be ABOUT its ticket.
+#[trace("FR-065-AC-2")]
 #[test]
 fn tc1025_the_loader_refuses_a_block_that_asserts_the_wrong_thing() {
+    let corpus_root = corpus_case::corpus_root();
+    let input_before = input_tree_snapshot(&corpus_root);
     // The case under mutation is CHOSEN AT RUNTIME, not named here.
     //
     // These mutations need a live PENDING case, and the set of those changes
@@ -1462,7 +1516,263 @@ fn tc1025_the_loader_refuses_a_block_that_asserts_the_wrong_thing() {
 
     // And the unmutated corpus is accepted, so the assertions above are about
     // the mutations rather than about a loader that refuses everything.
-    qa_bounds(&corpus_case::corpus_root()).expect("the corpus as committed must load");
+    qa_bounds(&corpus_root).expect("the corpus as committed must load");
+    assert_eq!(
+        input_tree_snapshot(&corpus_root),
+        input_before,
+        "mutating corpus cases operate on a copy and leave checked-in input/ bytes unchanged",
+    );
+}
+
+#[trace("FR-065-AC-4")]
+#[test]
+fn a_control_without_control_for_is_rejected() {
+    let root = corpus_case::corpus_root();
+    let (case_id, relative_case_dir) = standalone_control_case();
+    let scratch = scratch_dir("missing-control-for", 0);
+    copy_tree(&root, &scratch);
+
+    let metadata_path = scratch.join(relative_case_dir).join("case.yaml");
+    let mut metadata: serde_yaml::Value = serde_yaml::from_str(
+        &std::fs::read_to_string(&metadata_path).expect("read copied control declaration"),
+    )
+    .expect("control declaration parses");
+    metadata
+        .as_mapping_mut()
+        .expect("control metadata is a mapping")
+        .remove(serde_yaml::Value::String("control_for".to_string()));
+    std::fs::write(
+        &metadata_path,
+        serde_yaml::to_string(&metadata).expect("serialize mutated control"),
+    )
+    .expect("write control without control_for");
+
+    let error = qa_corpus::corpus::discover(&scratch)
+        .expect_err("a control without control_for is refused")
+        .to_string();
+    assert!(error.contains(&case_id), "{error}");
+    assert!(error.contains("control_for"), "{error}");
+}
+
+#[trace("FR-065-AC-5")]
+#[test]
+fn an_omitted_expectation_field_is_not_defaulted() {
+    let case = load_cases()
+        .into_iter()
+        .find(|case| case.expect.backed.is_some() && case.expect.total.is_some())
+        .expect("a case asserts backed and total");
+    let report = run(&case);
+    assert!(
+        report.totals.backed > 0,
+        "the selected case has a backed row"
+    );
+
+    let mut partial_expectation = case.expect.clone();
+    partial_expectation.backed = None;
+    let outcome = grade_with(&case, &report, &partial_expectation);
+    assert!(
+        outcome.passed(),
+        "omitting `backed` makes no assertion about it; remaining fields still hold: {}",
+        outcome.report()
+    );
+}
+
+#[trace("FR-065-AC-7")]
+#[test]
+fn an_out_of_scope_cell_with_an_empty_reason_is_rejected() {
+    let root = corpus_case::corpus_root();
+    let scratch = scratch_dir("empty-out-of-scope-reason", 0);
+    copy_tree(&root, &scratch);
+
+    let declaration_path = scratch.join("corpus.yaml");
+    let mut declaration: serde_yaml::Value = serde_yaml::from_str(
+        &std::fs::read_to_string(&declaration_path).expect("read corpus.yaml"),
+    )
+    .expect("corpus.yaml parses");
+    let inventory = declaration["inventory"]
+        .as_sequence_mut()
+        .expect("inventory is a list");
+    let (case_name, language) = inventory
+        .iter_mut()
+        .find_map(|row| {
+            let case_name = row.get("case")?.as_str()?.to_string();
+            let scoped = row.get_mut("out_of_scope")?.as_mapping_mut()?;
+            let (language, reason) = scoped.iter_mut().next()?;
+            let language = language.as_str()?.to_string();
+            *reason = serde_yaml::Value::String(" \t".to_string());
+            Some((case_name, language))
+        })
+        .expect("inventory has an out-of-scope cell");
+    std::fs::write(
+        declaration_path,
+        serde_yaml::to_string(&declaration).expect("serialize corpus.yaml"),
+    )
+    .expect("write empty out-of-scope reason");
+
+    let error = qa_bounds(&scratch)
+        .expect_err("an out-of-scope cell without a reason is rejected")
+        .to_string();
+    assert!(
+        error.contains(&format!(
+            "{case_name}/{language}: out-of-scope with no reason"
+        )),
+        "diagnostic must identify the case and language: {error}"
+    );
+}
+
+#[trace("FR-065-AC-8")]
+#[test]
+fn a_cell_state_missing_from_the_declared_bounds_states_is_rejected() {
+    let root = corpus_case::corpus_root();
+    let baseline = qa_bounds(&root).expect("the corpus derives before mutation");
+    let unlisted_cell = baseline["bounds"]["matrix"]
+        .as_array()
+        .expect("bounds matrix is an array")
+        .iter()
+        .find_map(|row| {
+            let cells = row["cells"].as_object()?;
+            let (language, _) = cells.iter().find(|(_, cell)| cell["state"] == "covered")?;
+            Some((row["case"].as_str()?.to_string(), language.clone()))
+        })
+        .expect("the corpus has a declared covered cell");
+    let scratch = scratch_dir("undeclared-bounds-state", 0);
+    copy_tree(&root, &scratch);
+
+    let declaration_path = scratch.join("corpus.yaml");
+    let mut declaration: serde_yaml::Value = serde_yaml::from_str(
+        &std::fs::read_to_string(&declaration_path).expect("read corpus.yaml"),
+    )
+    .expect("corpus.yaml parses");
+    declaration["bounds_states"]
+        .as_sequence_mut()
+        .expect("bounds_states is a list")
+        .retain(|state| state.as_str() != Some("covered"));
+    std::fs::write(
+        declaration_path,
+        serde_yaml::to_string(&declaration).expect("serialize corpus.yaml"),
+    )
+    .expect("write missing covered state");
+
+    let error = qa_bounds(&scratch)
+        .expect_err("a derived cell outside the declared states is rejected")
+        .to_string();
+    assert!(
+        error.contains(&format!(
+            "{}/{}: graded `covered`",
+            unlisted_cell.0, unlisted_cell.1
+        )),
+        "diagnostic must identify the case and language: {error}"
+    );
+}
+
+#[trace("FR-065-AC-16")]
+#[test]
+fn an_ecosystem_bound_case_loads_without_a_variant_ticket() {
+    let root = corpus_case::corpus_root();
+    let cases = qa_corpus::corpus::discover(&root).expect("the QA corpus loads");
+    let case = cases
+        .iter()
+        .find(|case| case.effective["module"] == "ecosystem")
+        .expect("an ecosystem-bound case is present");
+    assert!(
+        case.effective.get("relaxation_ticket").is_none()
+            && case.effective.get("declaration_under_test").is_none(),
+        "{}: ecosystem-bound case has variant metadata",
+        case.effective["id"]
+    );
+    let report = qa_bounds(&root).expect("ecosystem-bound case derives without a ticket");
+    let loaded = report["cases"]
+        .as_array()
+        .expect("cases are an array")
+        .iter()
+        .find(|loaded| loaded["id"] == case.effective["id"])
+        .expect("ecosystem case appears in the derived report");
+    assert_eq!(loaded["module"], "ecosystem");
+    assert!(loaded.get("relaxation_ticket").is_none());
+}
+
+#[trace("FR-065-AC-24")]
+#[test]
+fn a_control_partner_must_be_a_failure_in_the_same_language() {
+    let root = corpus_case::corpus_root();
+    let control = load_cases()
+        .into_iter()
+        .find(|case| case.meta.id == "tag-names-unminted-tc-control-python")
+        .expect("the multilingual control case exists");
+    let case_id = control.meta.id.clone();
+    let language = control.meta.language.clone();
+    let mut declaration_dir = control.dir.as_path();
+    let declaration_path = loop {
+        let candidate = declaration_dir.join("case.yaml");
+        if candidate.is_file() {
+            let value: serde_yaml::Value = serde_yaml::from_str(
+                &std::fs::read_to_string(&candidate).expect("read control declaration"),
+            )
+            .expect("control declaration parses");
+            if value.get("control_for").is_some() {
+                break candidate;
+            }
+        }
+        declaration_dir = declaration_dir
+            .parent()
+            .expect("control declaration is below corpus root");
+    };
+    let relative_declaration = declaration_path
+        .strip_prefix(&root)
+        .expect("control declaration is below corpus root")
+        .to_path_buf();
+    let scratch = scratch_dir("missing-control-partner", 0);
+    copy_tree(&root, &scratch);
+
+    let metadata_path = scratch.join(relative_declaration);
+    let mut metadata: serde_yaml::Value = serde_yaml::from_str(
+        &std::fs::read_to_string(&metadata_path).expect("read copied control declaration"),
+    )
+    .expect("control declaration parses");
+    let mut partners = metadata["control_for"]
+        .as_sequence()
+        .expect("the control has its original partner")
+        .clone();
+    partners.push(serde_yaml::Value::String(
+        "tag-names-unminted-tc-rust".to_string(),
+    ));
+    metadata["control_for"] = serde_yaml::Value::Sequence(partners);
+    std::fs::write(
+        &metadata_path,
+        serde_yaml::to_string(&metadata).expect("serialize mutated control"),
+    )
+    .expect("write control with absent partner");
+
+    let error = qa_corpus::corpus::discover(&scratch)
+        .expect_err("a control cannot resolve a failure partner from another language")
+        .to_string();
+    assert!(error.contains(&case_id), "{error}");
+    assert!(error.contains("tag-names-unminted-tc-rust"), "{error}");
+    assert!(
+        error.contains(&format!("no failure case in {language}")),
+        "{error}"
+    );
+}
+
+fn standalone_control_case() -> (String, std::path::PathBuf) {
+    let root = corpus_case::corpus_root();
+    let case = load_cases()
+        .into_iter()
+        .find(|case| {
+            case.meta.kind == "control"
+                && case.dir.join("case.yaml").is_file()
+                && !case
+                    .dir
+                    .parent()
+                    .is_some_and(|parent| parent.join("case.yaml").is_file())
+        })
+        .expect("a standalone control case exists");
+    let relative = case
+        .dir
+        .strip_prefix(root)
+        .expect("control is under corpus root")
+        .to_path_buf();
+    (case.meta.id, relative)
 }
 
 /// Copy a directory tree, skipping `.git`.
@@ -1479,6 +1789,47 @@ fn copy_tree(from: &std::path::Path, to: &std::path::Path) {
             std::fs::copy(&source, &target).expect("copy file");
         }
     }
+}
+
+fn input_tree_snapshot(root: &std::path::Path) -> BTreeMap<std::path::PathBuf, Vec<u8>> {
+    fn collect(
+        directory: &std::path::Path,
+        root: &std::path::Path,
+        files: &mut BTreeMap<std::path::PathBuf, Vec<u8>>,
+    ) {
+        for entry in std::fs::read_dir(directory)
+            .unwrap_or_else(|error| panic!("read {}: {error}", directory.display()))
+            .flatten()
+        {
+            let path = entry.path();
+            if entry.file_type().expect("input entry type").is_dir() {
+                collect(&path, root, files);
+            } else {
+                let relative = path
+                    .strip_prefix(root)
+                    .expect("input file is below the corpus root")
+                    .to_path_buf();
+                files.insert(
+                    relative,
+                    std::fs::read(&path)
+                        .unwrap_or_else(|error| panic!("read {}: {error}", path.display())),
+                );
+            }
+        }
+    }
+
+    let mut input_directories: Vec<_> = load_cases()
+        .into_iter()
+        .map(|case| case.dir.join("input"))
+        .collect();
+    input_directories.sort();
+    input_directories.dedup();
+
+    let mut files = BTreeMap::new();
+    for directory in input_directories {
+        collect(&directory, root, &mut files);
+    }
+    files
 }
 
 /// The corpus vocabulary equals the engine's published registry (#300).
@@ -1782,7 +2133,7 @@ fn scratch_dir(test: &str, index: usize) -> Scratch {
 /// check exists to close. It is implemented in both readers as of #337, and the
 /// two resolutions of "which control is this case's" are now one rule, asserted
 /// against each other at the end of this test rather than assumed to agree.
-#[trace("FR-065-AC-42", "FR-065-AC-46", "FR-065-AC-47")]
+#[trace("FR-065-AC-42", "FR-065-AC-14", "FR-065-AC-46", "FR-065-AC-47")]
 // a failure case separates itself from its control, THROUGH its mode's witness
 // channel. CR-130 added AC-46 and AC-47 and pointed both at this TC in the
 // spec/tests.md index, but left the marker naming AC-42 alone — so the two new
