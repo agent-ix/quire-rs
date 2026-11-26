@@ -110,6 +110,9 @@ pub struct SemanticExtraction {
     /// The section span of each `record` key, in document order.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub record_sources: Option<Vec<RecordSource>>,
+    /// Typed links extracted from SemanticId columns in record tables.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub record_relations: Option<Vec<RelationSource>>,
     pub availability: Availability,
     pub diagnostics: Vec<SemanticDiagnostic>,
 }
@@ -374,6 +377,7 @@ pub fn extract_semantic(
         typed_relations: relation_record.typed,
         record: (!record.record.is_empty()).then_some(record.record),
         record_sources: (!record.sources.is_empty()).then_some(record.sources),
+        record_relations: (!record.record_relations.is_empty()).then_some(record.record_relations),
         availability,
         diagnostics,
     };

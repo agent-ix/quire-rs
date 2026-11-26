@@ -104,6 +104,10 @@ label is refused in favour of its forward verb
   `0.2.0` carrier: when `agent-ix/filament-core-data#155` adds `name` and
   `sourceSpan` to `RelationDecl`, they move onto each element and
   `relationSources` is removed.
+- The shared `RelationSource` carrier also admits optional `validationPath`.
+  FR-081 uses that field only in its separate `recordRelations` output to
+  identify the nested record occurrence; ordinary `relationSources` entries
+  omit it and retain the behavior above.
 - Each typed relation key of the object type (for example `emits` or
   `persists`): a `SemanticId[]` in row order, present when
   `availability.relations` is `available`. A row whose verb is a typed key

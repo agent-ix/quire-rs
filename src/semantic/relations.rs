@@ -309,6 +309,8 @@ pub struct RelationSource {
     pub target: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub multiplicity: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub validation_path: Option<String>,
 }
 
 /// One extracted row: the declaration with its name, span, and the
@@ -339,6 +341,7 @@ impl ExtractedRelation {
             verb: None,
             target: None,
             multiplicity: None,
+            validation_path: None,
         }
     }
 
@@ -371,6 +374,7 @@ impl ExtractedRelation {
                     verb: Some(row.decl.verb.clone()),
                     target: Some(row.target_cell.clone()),
                     multiplicity: Some(row.multiplicity_cell.clone()),
+                    validation_path: None,
                     ..row.source()
                 })
                 .collect();

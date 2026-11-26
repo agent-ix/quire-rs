@@ -428,6 +428,74 @@ fn members_vocabulary_and_unmapped_keys() {
     run_cases("FR-081-AC-16");
 }
 
+#[trace("FR-081-AC-22")]
+#[test]
+fn object_array_semantic_id_columns_become_typed_record_relations() {
+    let schema = json!({
+        "$id": "https://example.test/Workflow.json",
+        "type": "object",
+        "properties": { "Steps/Items": { "type": "array", "items": { "type": "object", "properties": {
+            "name": { "type": "string" },
+            "receiver~primary": { "$ref": "https://schemas.agent-ix.org/semantic-core/0.1.0/SemanticId.json" }
+        } } } }
+    });
+    let markdown = "---\nid: WF-1\nobject: Workflow\n---\n\n## Steps/Items\n| Name | Receiver~Primary |\n| --- | --- |\n| first | PR-1 |\n| second | PR-2 |\n";
+    let req = json!({
+        "markdown": markdown,
+        "module": { "contractVersion": "1.0.0", "package": "acme/work", "exports": [], "mappings": ["record-sections"] },
+        "path": "workflow.md",
+        "sourceIdentity": "ix://acme/work/WF-1",
+        "dataSchema": schema,
+        "schemaDocuments": {},
+        "bundle": { "package": "acme/work", "artifacts": [
+            { "id": "WF-1", "object": "Workflow", "operations": [] },
+            { "id": "PR-1", "object": "Principal", "operations": [] },
+            { "id": "PR-2", "object": "Principal", "operations": [] }
+        ] },
+        "relationVocabulary": { "objectType": "Workflow", "edgeTypes": {}, "roles": {}, "allowedLinks": { "Workflow": { "receiver~primary": ["Principal"] } } },
+        "objectType": "Workflow"
+    });
+    let extracted = serde_json::to_value(extract_semantic_json(&req).unwrap()).unwrap();
+    assert_eq!(
+        extracted["record"]["Steps/Items"][0]["receiver~primary"],
+        "ix://acme/work/PR-1"
+    );
+    assert_eq!(
+        extracted["record"]["Steps/Items"][1]["receiver~primary"],
+        "ix://acme/work/PR-2"
+    );
+    assert_eq!(extracted["recordRelations"].as_array().unwrap().len(), 2);
+    assert_eq!(
+        extracted["recordRelations"][0]["validationPath"],
+        "/record/Steps~1Items/0/receiver~0primary"
+    );
+
+    let mut empty = req.clone();
+    empty["markdown"] = json!(markdown.replace("| first | PR-1 |", "| first |  |"));
+    let empty = serde_json::to_value(extract_semantic_json(&empty).unwrap()).unwrap();
+    assert_eq!(empty["recordRelations"].as_array().unwrap().len(), 1);
+    assert!(empty["record"]["Steps/Items"][0]
+        .get("receiver~primary")
+        .is_none());
+
+    for (target, expected) in [
+        ("WF-1", "semantic.reference-kind-mismatch"),
+        ("MISSING", "semantic.invalid-model-cell"),
+    ] {
+        let mut invalid = req.clone();
+        invalid["markdown"] =
+            json!(markdown.replace("| first | PR-1 |", &format!("| first | {target} |")));
+        let invalid = serde_json::to_value(extract_semantic_json(&invalid).unwrap()).unwrap();
+        assert!(invalid["diagnostics"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|d| d["code"] == expected));
+        assert!(invalid.get("record").is_none());
+        assert!(invalid.get("recordRelations").is_none());
+    }
+}
+
 #[trace("FR-081-AC-17")]
 #[test]
 fn unreadable_schema_shapes_are_refused_not_prose() {
