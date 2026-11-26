@@ -124,6 +124,7 @@ fn fr_002_ac_3_returns_none_for_non_existent_heading() {
 }
 
 #[trace("FR-010-AC-2")]
+#[trace("FR-002-AC-5")]
 #[test]
 fn fr_002_ac_5_exact_match_after_number_stripping() {
     // 'Scope' does NOT match '2.1 In Scope'.
@@ -170,6 +171,7 @@ fn fr_003_ac_2_excludes_separator_rows() {
 }
 
 #[trace("FR-010-AC-2")]
+#[trace("FR-003-AC-3")]
 #[test]
 fn fr_003_ac_3_strips_leading_trailing_pipes() {
     let r = parse_table("| A |\n|---|\n| val |").expect("table");
@@ -242,6 +244,7 @@ fn table_from_section_returns_none_for_missing() {
 // ─── parse_bullet_list ───────────────────────────────────────────────────
 
 #[trace("FR-010-AC-2")]
+#[trace("FR-004-AC-1")]
 #[test]
 fn fr_004_ac_1_bold_description_pattern() {
     let content = "- **Auth** — Token-based authentication\n- **Cache** — Redis-backed caching";
@@ -252,6 +255,7 @@ fn fr_004_ac_1_bold_description_pattern() {
 }
 
 #[trace("FR-010-AC-2")]
+#[trace("FR-004-AC-2")]
 #[test]
 fn fr_004_ac_2_bold_colon_pattern() {
     let items = parse_bullet_list("- **Auth**: Token-based", Some(ListPattern::BoldColon));
@@ -260,6 +264,7 @@ fn fr_004_ac_2_bold_colon_pattern() {
 }
 
 #[trace("FR-010-AC-2")]
+#[trace("FR-004-AC-3")]
 #[test]
 fn fr_004_ac_3_plain_items_have_full_text_as_title() {
     let items = parse_bullet_list("- Simple item\n- Another item", Some(ListPattern::Plain));
@@ -268,6 +273,7 @@ fn fr_004_ac_3_plain_items_have_full_text_as_title() {
 }
 
 #[trace("FR-010-AC-2")]
+#[trace("FR-004-AC-4")]
 #[test]
 fn fr_004_ac_4_excludes_non_bullet_lines() {
     let items = parse_bullet_list("Normal text\n- Bullet\nMore text", None);
