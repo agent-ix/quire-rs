@@ -626,6 +626,8 @@ If, say, the `Specification` section were missing, you'd get one
 
 ## 12. References
 
+- [Reuse Quoin release receipts](how-to-adopt-quoin-release-evidence.md) — call the
+  tag-attestation workflow from another repository.
 - `spec/spec.md` — the normative requirements (FR/NFR), including §19 hardening posture.
 - `spec/assets/adr/` — ADR 0001 (validator crate), 0002 (three-layer pipeline), 0003
   (unified archetype shape), 0007 (internal relative-path links).
