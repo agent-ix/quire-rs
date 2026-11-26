@@ -119,7 +119,8 @@ impl BundleIndex {
     }
 
     /// Build the corpus-mode index from loaded documents (FR-070 Inputs):
-    /// every document with an `id` is an artifact with its `object` type
+    /// every document with an `id` is an artifact with its `object` type,
+    /// falling back to `type` only when `object` is absent,
     /// and the operation names its `raw` text declares under
     /// `## Operations` (FR-075 Inputs), via `clauses::declared_operation_names`
     /// — every `### <name>` heading, regardless of whether that operation's
@@ -144,7 +145,11 @@ impl BundleIndex {
             let object = fm.get("object").and_then(|v| v.as_str());
             index.artifacts.push(BundleArtifact {
                 id: id.to_string(),
-                object: object.map(str::to_string),
+                object: fm
+                    .get("object")
+                    .or_else(|| fm.get("type"))
+                    .and_then(serde_json::Value::as_str)
+                    .map(str::to_string),
                 operations: super::clauses::declared_operation_names(raw),
                 source_span: None,
             });

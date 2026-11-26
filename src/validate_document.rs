@@ -1017,16 +1017,19 @@ fn validate_required_locator(
     line_offset: usize,
     errors: &mut Vec<ValidationError>,
 ) {
-    let canonical = locator.canonical();
     let frontmatter = doc.frontmatter.as_ref();
 
-    let (values, _pos) = crate::extract::locator::eval_locator(doc, locator);
+    let (values, position) = crate::extract::locator::eval_locator(doc, locator);
+    let primitive = match locator {
+        Locator::Primitive(primitive) => primitive,
+        Locator::Fallback(chain) => chain.get(position).unwrap_or_else(|| locator.canonical()),
+    };
     // FR-032-AC-9: a `table_row`/`list_item` locator that resolves to a
     // present-but-empty substrate (header-only table, item-less list)
     // is `empty`, not `missing`; a substrate that does not resolve at
     // all is `missing`. The generic `content_status` cannot tell these
     // apart (both yield zero values), so refine for these two kinds.
-    let status = match table_or_list_status(doc, canonical, &values) {
+    let status = match table_or_list_status(doc, primitive, &values) {
         Some(s) => s,
         None => content_status(&values),
     };
@@ -1042,14 +1045,14 @@ fn validate_required_locator(
     // A present value that the locator's `regex` rejects is neither missing
     // nor empty: name the value and the pattern instead.
     if locator.required() && matches!(status, ContentStatus::Missing | ContentStatus::Empty) {
-        if let Some((found, pattern)) = crate::extract::locator::regex_mismatch(doc, canonical) {
+        if let Some((found, pattern)) = crate::extract::locator::regex_mismatch(doc, primitive) {
             errors.push(ValidationError {
                 message: format!(
                     "[{}] required '{key}' ({}) value {found:?} does not match pattern /{pattern}/",
                     archetype.name,
-                    canonical.describe()
+                    primitive.describe()
                 ),
-                line: locator_line(doc, canonical, line_offset),
+                line: locator_line(doc, primitive, line_offset),
                 reason: ValidationReason::Regex,
             });
             return;
@@ -1063,9 +1066,9 @@ fn validate_required_locator(
                     message: format!(
                         "[{}] required '{key}' ({}) is missing",
                         archetype.name,
-                        canonical.describe()
+                        primitive.describe()
                     ),
-                    line: locator_line(doc, canonical, line_offset),
+                    line: locator_line(doc, primitive, line_offset),
                     reason: ValidationReason::Missing,
                 });
                 // No content to assert against; stop here for this key.
@@ -1076,9 +1079,9 @@ fn validate_required_locator(
                     message: format!(
                         "[{}] required '{key}' ({}) is empty",
                         archetype.name,
-                        canonical.describe()
+                        primitive.describe()
                     ),
-                    line: locator_line(doc, canonical, line_offset),
+                    line: locator_line(doc, primitive, line_offset),
                     reason: ValidationReason::Empty,
                 });
             }
@@ -1087,9 +1090,9 @@ fn validate_required_locator(
                     message: format!(
                         "[{}] required '{key}' ({}) contains only placeholder content",
                         archetype.name,
-                        canonical.describe()
+                        primitive.describe()
                     ),
-                    line: locator_line(doc, canonical, line_offset),
+                    line: locator_line(doc, primitive, line_offset),
                     reason: ValidationReason::Placeholder,
                 });
             }
@@ -1099,8 +1102,8 @@ fn validate_required_locator(
 
     // Assert facet (FR-033/FR-034) — evaluated for required and optional
     // locators alike (an assert is a structural promise either way).
-    if let Some(assert) = canonical.assert() {
-        for failure in evaluate_assert(doc, canonical, assert, frontmatter) {
+    if let Some(assert) = primitive.assert() {
+        for failure in evaluate_assert(doc, primitive, assert, frontmatter) {
             let reason = match failure.reason {
                 AssertReason::Assert => ValidationReason::Assert,
                 AssertReason::UnresolvedField => ValidationReason::UnresolvedField,
@@ -1121,7 +1124,7 @@ fn validate_required_locator(
                 line: failure
                     .doc_line
                     .or_else(|| failure.line.map(|l| to_doc_line(line_offset, l)))
-                    .or_else(|| locator_line(doc, canonical, line_offset)),
+                    .or_else(|| locator_line(doc, primitive, line_offset)),
                 reason,
             });
         }

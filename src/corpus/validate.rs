@@ -430,13 +430,52 @@ fn validate_view_findings(
     // consumes for every document in the bundle.
     let project_terms = crate::corpus::glossary_terms(spec);
     let lexicon = registry.lexicon_with(&project_terms);
-    let semantic_index = crate::semantic::BundleIndex::from_documents(
+    let mut semantic_index = crate::semantic::BundleIndex::from_documents(
         spec.bundle_package().unwrap_or_default(),
         spec.documents()
             .iter()
             .filter_map(|doc| Some((doc.frontmatter()?, doc.raw()))),
         registry.semantic_modules().map(|(_, module)| module),
     );
+    // Each member keeps its own object/type namespace. Foreign artifact
+    // identities still need an explicit inventory for typed reference checks.
+    for member in 0..spec.member_count() {
+        let Some(package) = spec.member_identity(member) else {
+            continue;
+        };
+        if Some(package) == spec.view_identity() {
+            continue;
+        }
+        for doc in spec.member_view(member).documents() {
+            let Some(frontmatter) = doc.frontmatter() else {
+                continue;
+            };
+            let Some(id) = frontmatter.get("id").and_then(serde_json::Value::as_str) else {
+                continue;
+            };
+            semantic_index
+                .imported_artifacts
+                .push(crate::semantic::ImportedArtifact {
+                    package: package.to_string(),
+                    id: id.to_string(),
+                    names: ["id", "title", "name"]
+                        .into_iter()
+                        .filter_map(|key| {
+                            frontmatter
+                                .get(key)
+                                .and_then(serde_json::Value::as_str)
+                                .map(str::to_string)
+                        })
+                        .collect(),
+                    object: frontmatter
+                        .get("object")
+                        .or_else(|| frontmatter.get("type"))
+                        .and_then(serde_json::Value::as_str)
+                        .map(str::to_string),
+                    source_span: None,
+                });
+        }
+    }
 
     for doc in spec.documents() {
         validate_concept(
