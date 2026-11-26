@@ -619,12 +619,16 @@ fn indexed_multirepo_record_relations_use_the_source_package() {
         .zip(texts)
         .map(|(frontmatter, text)| (frontmatter, text))
         .collect();
-    let bundle = quire_rs::semantic::BundleIndex::from_documents(
+    let mut bundle = quire_rs::semantic::BundleIndex::from_documents(
         input["empty_index_package"]
             .as_str()
             .expect("multi-repository index has no one package"),
         documents.into_iter(),
         registry.semantic_modules().map(|(_, module)| module),
+    );
+    bundle.imported_artifacts.push(
+        serde_json::from_value(input["imported_artifact"].clone())
+            .expect("cross-repository event is indexed under its package"),
     );
     let source_package = input["source_package"]
         .as_str()
