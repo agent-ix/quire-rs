@@ -976,6 +976,27 @@ fn dropped_record_key_relation_is_reported_with_its_valid_sibling() {
         root.path(),
     )
     .expect("matrix coverage retains declarations beside the dropped relation");
+    let non_relation_drop = manifest.replace(
+        "    method_column: Verification\n",
+        "    method_column: Verification\n  - name: dropped-obligation\n    target: missing-target\n    statement_column: Criteria\n",
+    );
+    let incomplete_registry = Registry::from_inline_parts(
+        non_relation_drop.as_bytes(),
+        &std::collections::BTreeMap::new(),
+    )
+    .expect("an unloadable obligation source is retained as a drop");
+    assert!(incomplete_registry
+        .dropped_declarations()
+        .any(|(_, declaration)| {
+            declaration.kind == quire_rs::traceability::DeclarationKind::Obligation
+        }));
+    assert!(compute_coverage_for_design_matrix(
+        &spec,
+        &incomplete_registry,
+        &quire_rs::symbols::trace::SymbolGraph::default(),
+        root.path(),
+    )
+    .is_err());
     assert_eq!(partial_coverage.coverage_matrix.len(), 1);
     let computed_matrix = design_matrix(
         &spec,
