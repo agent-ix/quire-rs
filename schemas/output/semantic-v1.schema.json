@@ -166,6 +166,41 @@
         "sourceSpan": { "$ref": "#/$defs/sourceLocus" }
       }
     },
+    "valueStageOutcomeDecl": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "doc", "sourceSpan"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "doc": { "type": "string", "minLength": 1 },
+        "sourceSpan": { "$ref": "#/$defs/sourceLocus" }
+      }
+    },
+    "valueStageDecl": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "order", "value", "sourceSpan"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "order": { "type": "integer", "minimum": 1 },
+        "value": { "type": "string", "minLength": 1 },
+        "outcomes": { "type": "array", "items": { "$ref": "#/$defs/valueStageOutcomeDecl" } },
+        "sourceSpan": { "$ref": "#/$defs/sourceLocus" }
+      }
+    },
+    "stageCapabilityBindingDecl": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stageId", "capability", "process", "sourceSpan"],
+      "properties": {
+        "stageId": { "type": "string", "minLength": 1 },
+        "capability": { "$ref": "#/$defs/semanticId" },
+        "process": { "$ref": "#/$defs/semanticId" },
+        "sourceSpan": { "$ref": "#/$defs/sourceLocus" }
+      }
+    },
     "enumValueDecl": {
       "type": "object",
       "additionalProperties": false,
@@ -367,6 +402,11 @@
               "sourceSpan": { "$ref": "#/$defs/sourceLocus" }
             }
           }
+        },
+        "stages": { "type": "array", "items": { "$ref": "#/$defs/valueStageDecl" } },
+        "stageCapabilityBindings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/stageCapabilityBindingDecl" }
         }
       }
     },
