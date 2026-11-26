@@ -8,6 +8,8 @@
   "input": {
     "module_manifest": "name: clause-source\nversion: 0.1.0\nartifact_types:\n- name: doc\nobject_types:\n- name: objective\n  data_schema:\n    schema: schemas/Objective.json\n  body_extraction:\n    yield_pattern:\n      match:\n        invariants:\n          from: section_body\n          after_heading: Invariants\n          required: true\nsemantic:\n  contract_version: 1.0.0\n  package: acme/objectives\n  exports: [objective]\n  imports: {}\n  targets: [json-schema, markdown]\n  mappings: [typed-table, ocl-clause]\n",
     "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "$id": "https://schemas.agent-ix.org/acme/objectives/Objective.json",
       "type": "object",
       "properties": {
         "fields": {
