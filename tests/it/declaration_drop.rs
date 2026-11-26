@@ -8,7 +8,7 @@ use quire_rs::corpus::{validate_bundle, validate_corpus, CorpusMember, Spec};
 use quire_rs::coverage::{compute, CoverageError};
 use quire_rs::grammar::{merge_severity_overrides, GrammarSeverityLevel, SeverityOverrideError};
 use quire_rs::symbols::{extract_tree, trace};
-use quire_rs::traceability::TraceabilityModel;
+use quire_rs::traceability::{RequiredRelationDropCause, TraceabilityModel};
 use quire_rs::{BundlePosture, Registry};
 use tempfile::TempDir;
 
@@ -335,6 +335,14 @@ fn conflicting_modules_all_drop_each_naming_every_other_and_identical_ones_merge
                     f.module == module && f.declaration.as_ref().is_some_and(|d| d.item == item)
                 })
                 .unwrap_or_else(|| panic!("{module} {item}: {failures:?}"));
+            assert_eq!(
+                failure
+                    .declaration
+                    .as_deref()
+                    .and_then(|declaration| declaration.required_relation_cause),
+                Some(RequiredRelationDropCause::ConflictingDeclaration),
+                "{module} {item} has the typed conflict cause"
+            );
             for other in others {
                 assert!(failure.reason.contains(other), "{}", failure.reason);
             }
@@ -837,6 +845,7 @@ fn every_consumer_of_the_model_refuses_when_declarations_were_dropped() {
         module: "decl-two".into(),
         kind: DeclarationKind::FlowRule,
         item: "bad".into(),
+        required_relation_cause: None,
     }]);
     assert_eq!(registry.require_complete_model(), Err(expected.clone()));
     let text = expected.to_string();

@@ -10,6 +10,7 @@ use std::path::{Path, PathBuf};
 
 use ix_trace_rs::trace;
 use quire_rs::corpus::{relation_report, RelationReportMember, Spec};
+use quire_rs::traceability::RequiredRelationDropCause;
 use quire_rs::{validate_bundle_at, BundlePosture, Registry};
 use serde_json::{json, Value};
 use tempfile::TempDir;
@@ -429,6 +430,41 @@ fn tc_record_keys_are_refused_at_load_unless_an_endpoint_declares_them() {
     );
     // ... and the same key is accepted once `from` declares it.
     assert_eq!(refusal("[cats]", "Classification", "[]"), "");
+}
+
+#[trace("FR-058-AC-36", "FR-058-AC-48")]
+#[test]
+fn tc_dropped_relation_cause_distinguishes_invalid_keys_from_unavailable_keys() {
+    let schema = fs::read_to_string(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures/traceability/record-keys/schemas/Classification.json"),
+    )
+    .expect("schema");
+    let schemas = BTreeMap::from([("schemas/Classification.json".to_string(), schema)]);
+
+    let cause = |record_keys: &str| {
+        let registry = Registry::from_inline_parts(
+            manifest(Some(record_keys), "Connection", "[Classification]").as_bytes(),
+            &schemas,
+        )
+        .expect("a bad relation is reported without dropping the whole module");
+        let (failure, declaration) = registry
+            .dropped_declarations()
+            .find(|(_, declaration)| declaration.kind.as_str() == "required_relation")
+            .expect("required relation drop is retained");
+        assert_eq!(declaration.item, "r1");
+        assert!(failure.reason.contains("r1"), "{}", failure.reason);
+        declaration.required_relation_cause
+    };
+
+    assert_eq!(
+        cause("null"),
+        Some(RequiredRelationDropCause::InvalidDeclaration)
+    );
+    assert_eq!(
+        cause("[notDeclared]"),
+        Some(RequiredRelationDropCause::UndeclaredRecordKey)
+    );
 }
 
 /// A data-classification record under names the engine does not know

@@ -69,6 +69,21 @@ pub enum DeclarationKind {
     Archetype,
 }
 
+/// Why a required relation was dropped during module loading.
+///
+/// Consumers that preserve partial models may keep relations dropped only
+/// because their selected `record_keys` are undeclared. Invalid or conflicting
+/// relation declarations remain hard failures.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum RequiredRelationDropCause {
+    /// The relation could not be read or failed declaration validation.
+    InvalidDeclaration,
+    /// Modules declared the same relation name with different bodies.
+    ConflictingDeclaration,
+    /// No selected endpoint schema declares one or more selected record keys.
+    UndeclaredRecordKey,
+}
+
 impl DeclarationKind {
     /// The stable machine-readable spelling.
     pub fn as_str(self) -> &'static str {
@@ -138,6 +153,8 @@ pub struct DeclarationFailure {
     pub item: String,
     /// Why it cannot be executed.
     pub reason: String,
+    /// The typed cause when this failure dropped a required relation.
+    pub required_relation_cause: Option<RequiredRelationDropCause>,
 }
 
 /// A declaration dropped at load, located by module.
@@ -149,6 +166,8 @@ pub struct DroppedDeclarationRef {
     pub kind: DeclarationKind,
     /// The declaration's name, value or position.
     pub item: String,
+    /// The typed cause when this reference names a dropped required relation.
+    pub required_relation_cause: Option<RequiredRelationDropCause>,
 }
 
 /// The declarations dropped at load. A consumer that computes over the merged
@@ -201,8 +220,24 @@ struct Pruned {
 
 impl Pruned {
     fn drop(&mut self, kind: DeclarationKind, item: String, reason: String) {
-        self.failures
-            .push(DeclarationFailure { kind, item, reason });
+        let required_relation_cause = (kind == DeclarationKind::RequiredRelation)
+            .then_some(RequiredRelationDropCause::InvalidDeclaration);
+        self.drop_with_cause(kind, item, reason, required_relation_cause);
+    }
+
+    fn drop_with_cause(
+        &mut self,
+        kind: DeclarationKind,
+        item: String,
+        reason: String,
+        required_relation_cause: Option<RequiredRelationDropCause>,
+    ) {
+        self.failures.push(DeclarationFailure {
+            kind,
+            item,
+            reason,
+            required_relation_cause,
+        });
     }
 
     fn dropped_names(&self, kind: DeclarationKind) -> BTreeSet<String> {
@@ -258,7 +293,14 @@ fn screen<T: Clone + PartialEq>(
                 }
                 let differs = twins.iter().any(|twin| *twin != entry);
                 if differs || matches!(duplicates, Duplicates::Reject) {
-                    out.drop(
+                    let required_relation_cause = (kind == DeclarationKind::RequiredRelation
+                        && differs)
+                        .then_some(RequiredRelationDropCause::ConflictingDeclaration)
+                        .or_else(|| {
+                            (kind == DeclarationKind::RequiredRelation)
+                                .then_some(RequiredRelationDropCause::InvalidDeclaration)
+                        });
+                    out.drop_with_cause(
                         kind,
                         label.to_string(),
                         format!(
@@ -266,6 +308,7 @@ fn screen<T: Clone + PartialEq>(
                              identifies one declaration",
                             kind.section()
                         ),
+                        required_relation_cause,
                     );
                     continue;
                 }
