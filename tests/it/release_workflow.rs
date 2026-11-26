@@ -528,7 +528,7 @@ fn tc_2241_make_evidence_refuses_a_dirty_checkout_before_running_tests() {
     let clone = root.path().join("uninitialized-submodule-checkout");
     let cloned = Command::new("git")
         .args(["clone", "--quiet", "--shared", "--no-recurse-submodules"])
-        .arg(repository)
+        .arg(&repository)
         .arg(&clone)
         .status()
         .expect("clone checkout with submodule left uninitialized");
@@ -606,7 +606,8 @@ fn tc_2242_streaming_archive_reader_enforces_member_and_byte_bounds() {
 fn tc_2240_unsafe_archive_path_and_missing_run_are_refused() {
     let root = tempfile::tempdir().expect("create fixture root");
     let commit = "f".repeat(40);
-    let (source_root, _, bundle_root) = terra_bundle_fixture(root.path(), &commit, "pass");
+    let (source_root, valid_archive, bundle_root) =
+        terra_bundle_fixture(root.path(), &commit, "pass");
     let verifier =
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("scripts/verify_release_evidence.py");
     let unsafe_archive = root.path().join("unsafe.tar.gz");
@@ -685,7 +686,7 @@ fn tc_2240_unsafe_archive_path_and_missing_run_are_refused() {
     let occupied_result = Command::new("python3")
         .arg(&verifier)
         .args(["--archive"])
-        .arg(&archive)
+        .arg(&valid_archive)
         .args(["--source-root"])
         .arg(&source_root)
         .args(["--expected-tag", "v0.63.3", "--expected-commit", &commit])
@@ -699,8 +700,8 @@ fn tc_2240_unsafe_archive_path_and_missing_run_are_refused() {
         "existing extraction destination is refused"
     );
     assert_eq!(
-        fs::read_to_string(occupied_output.join("keep.txt")).as_deref(),
-        Ok("preserve"),
+        fs::read_to_string(occupied_output.join("keep.txt")).expect("read preserved sentinel"),
+        "preserve",
         "refusal preserves the caller's existing destination"
     );
 }
