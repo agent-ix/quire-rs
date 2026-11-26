@@ -1622,13 +1622,6 @@ fn search_callers(
                     .filter(|relation| relation.symbol_id == caller_symbol.id)
                     .map(|relation| relation.trace_id.clone())
                     .collect();
-                linked_ids.extend(
-                    graph
-                        .verifies
-                        .iter()
-                        .filter(|relation| relation.symbol_id == caller_symbol.id)
-                        .map(|relation| relation.trace_id.clone()),
-                );
                 if !linked_ids.is_empty() {
                     let mut call_path: Vec<String> = path.iter().map(SymbolKey::display).collect();
                     call_path.push(edge.caller.display());
@@ -2072,6 +2065,18 @@ mod tests {
                 if call_path == &["src/lib.rs::caller", "src/lib.rs::changed"]
                     && trace_id == "FR-099-AC-9"
         )));
+    }
+
+    #[trace("FR-099-AC-9")]
+    #[test]
+    fn verifying_relation_does_not_make_a_caller_an_implementation() {
+        let report = run_with_callers(
+            "fn changed() {}\n#[verifies(\"FR-099-AC-9\")]\nfn caller() { changed(); }\n",
+            LineRange { start: 1, end: 1 },
+            2,
+        );
+        let search = report.caller_searches.first().unwrap();
+        assert!(search.linked_callers.is_empty());
     }
 
     #[trace("FR-099-AC-9")]
