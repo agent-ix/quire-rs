@@ -221,10 +221,13 @@ module-root order:
   `semantic.import-unresolved` naming the package and the loaded versions;
   the module loads and its tokens from that import resolve as
   `unresolved` with reason `import-unresolved` ([FR-070](./FR-070-typed-properties-extraction.md)).
-- If a package declared in `semantic.imports` is referenced by no `$ref` of
-  the module's own data schemas (a reference is a declared-import `$ref`, the
-  same scan that yields the type-level edges below), then the loader SHALL emit
-  the warning `semantic.unused-import` naming the package; the module loads.
+- If a package declared in `semantic.imports` is used by neither a `$ref` in
+  the module's own data schemas nor an `allowed_links` target token matching a
+  type listed for that package in `semantic.import_types`, then the loader
+  SHALL emit the warning `semantic.unused-import` naming the package; the
+  module loads. A matching target token counts as use even though it does not
+  create a schema dependency or a type-level graph edge. Wildcard and role
+  tokens do not count as imported type use.
 - If the import graph has a cycle, then the loader SHALL refuse every module
   on the cycle with `semantic.import-cycle` naming the cycle. The type-level
   graph has nodes `<org>/<repo>#<Type>`, where a module's own `<Type>` is a
@@ -462,7 +465,7 @@ stricter of the two.
 | FR-069-AC-15 | Two loaded modules with different `semantic.package` values that both list one type in `semantic.exports` fail every archetype of the later sorted root with a reason starting `semantic.duplicate-export` naming the type and both modules, and the earlier module loads; type names are compared exactly; a refused module's other exports do not count, so a third module exporting one of them loads; the same modules with disjoint exports all load. | Test |
 | FR-069-AC-16 | A manifest whose `semantic.imports` is `{ pkg: "1.0.0" }` with no `import_types` loads exactly as before; one adding `import_types: { pkg: ["T"] }` loads and records the list on its `SemanticModule`; each of a key absent from `imports`, an empty list, a duplicate type name, an empty type name, a non-array value and a non-string entry is refused with `semantic.invalid-value` at `semantic.import_types.<org>/<repo>` (unescaped package key, no index; or `semantic.import_types` for a non-object), in the AC-14 reason form. | Test |
 | FR-069-AC-17 | With the provider loaded (a module loaded without refusal, package equal to the import key, at the declared version), an `import_types` entry naming a type absent from the provider's `exports` fails the module with a reason starting `semantic.unknown-import-type` naming the package and the type at `semantic.import_types.<package>`; every listed type exported by the provider loads; with the provider not loaded, loaded at another version, or refused, the entry is unchecked and the warning `semantic.import-unresolved` is emitted where no provider matches. | Test |
-| FR-069-AC-18 | A module declaring an import that none of its own data schemas references by a `$ref` under the package's schema base loads with the warning `semantic.unused-import` naming the package; the same module with one such `$ref` emits no `semantic.unused-import`. | Test |
+| FR-069-AC-18 | A module declaring an import that has neither a `$ref` under that package's schema base in its own data schemas nor a target token in `allowed_links` matching a type listed for that package in `semantic.import_types` loads with the warning `semantic.unused-import` naming the package; a module with either form of use emits no such warning. `*` and role tokens do not count as imported type use, and `allowed_links` use does not create a type-level graph edge. | Test |
 | FR-069-AC-19 | A `$ref` under the schema base of a declared import is admitted without being followed or fetched, and a value that would violate the provider's schema validates against the module's own compiled validator (the `$ref` accepts any value); with the provider loaded, one whose type name (file stem without `.json` and `.schema`, `#fragment` ignored) the provider does not export fails `semantic.unknown-import-type` at `<section>[<type>].data_schema.schema`; a `$ref` under the schema base of a package not in `semantic.imports` still fails `semantic.schema-ref-unshipped` naming the `$ref`. | Test |
 | FR-069-AC-20 | Two modules whose `$ref`s give a type-level cycle (`<org>/<repo>#<Type>` nodes) fail with `semantic.import-cycle` naming the types that form the cycle; two modules whose packages import each other with no type-level edges fail naming the packages; a cycle where one module has no `$ref`s into it is still refused and named over packages; a package cycle refused although the `$ref` edges form no type-level cycle is named over packages. | Test |
 | FR-069-AC-21 | A module with a `semantic` block whose archetype declares `record_validation: { schema: schemas/AnomalyFields.json, locate_absence_at: status }` over a `yield_pattern.match` key `status` loads and records the declaration and its resolved schema on the compiled archetype; `data_schema` validates the composed declaration record, including projected frontmatter fields, while `record_validation` validates the yield record; the same manifest without `record_validation` loads and validates exactly as before. | Test |

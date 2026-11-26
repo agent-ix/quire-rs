@@ -46,6 +46,11 @@ it. Validation is **advisory** in this revision (warnings, never blocking
 extraction or [FR-032](./FR-032-validate-document.md) structural validation); a
 later CR flips it to errors once the corpus is migrated.
 
+Cross-module declarations of one edge name merge silently when their category,
+inverse, composition, and symmetric behavior match, even if descriptions
+differ; the first description is retained. A behavior mismatch still produces
+`DuplicateEdgeType` as specified below.
+
 ### API
 
 ```rust
@@ -100,7 +105,14 @@ modules into one registry, in the **same manner as archetypes**
 ([FR-014](./FR-014-module-activation.md)): cross-module name collisions are
 **first-wins** and emit a non-fatal `Diagnostic` (`DuplicateEdgeType` /
 `DuplicateRole`), mirroring `DuplicateArchetype`. Redeclaring a name with an
-identical body is silently idempotent (no diagnostic). A verb used as an
+identical body is silently idempotent (no diagnostic). For `edge_types`,
+declarations are compatible when their category, inverse, composition marker,
+and symmetric marker are equal; descriptions are explanatory metadata and may
+differ. Compatible declarations merge silently, retaining the description from
+the first module in deterministic registry order. A difference in any of those
+four behavior fields is a conflict: the first declaration remains effective
+and `DuplicateEdgeType` is emitted. `roles` retain exact-body compatibility.
+A verb used as an
 `allowed_links` key, or a role used in an object type's `roles:` list or as a
 target token, that is **absent** from the merged registry emits a non-fatal
 `Diagnostic` (`UnknownEdgeType` / `UnknownRole`) — advisory, consistent with this
@@ -113,6 +125,15 @@ policy than any other manifest section uses.
 Each `UnknownEdgeType` and `UnknownRole` diagnostic identifies the module and
 archetype that authored the unregistered use, so a module missing an import
 can be located directly.
+
+### CR-003 — PLAT-1924 compatible edge declarations
+
+`edge_types` previously treated a description-only difference as a duplicate,
+although descriptions do not change the meaning or validation of a relationship.
+Compatible declarations now share one registry entry as defined above; the
+first declaration's description remains the deterministic display value.
+Behavior-field conflicts continue to produce the existing duplicate diagnostic
+and first-wins behavior. This amendment is implemented by the quire-rs registry.
 
 ### allowed_links normalization
 
@@ -255,8 +276,8 @@ vocabulary; with no object, it lists the artifact vocabulary alone.
 
 | ID | Criteria | Verification |
 |----|----------|--------------|
-| FR-040-AC-1 | A manifest declaring `edge_types` (verb → category, description, optional inverse and composition marker) and `roles` (name → description) loads; omitted composition markers default to false; the merged `Registry` exposes both, and re-declaring a name with an identical body across two modules is silently idempotent (no diagnostic). | Test |
-| FR-040-AC-2 | Re-declaring an `edge_types`/`roles` name with a differing body across modules is **first-wins** and emits a non-fatal `DuplicateEdgeType`/`DuplicateRole` diagnostic (mirroring `DuplicateArchetype`, [FR-014](./FR-014-module-activation.md)); the default load still succeeds. | Test |
+| FR-040-AC-1 | A manifest declaring `edge_types` (verb → category, description, optional inverse and composition marker) and `roles` (name → description) loads; omitted composition markers default to false; the merged `Registry` exposes both. Re-declaring an identical body is silently idempotent; edge declarations whose category, inverse, composition and symmetric fields match are also silently compatible when descriptions differ, retaining the first description in deterministic module order. | Test |
+| FR-040-AC-2 | Re-declaring an edge type with a difference in category, inverse, composition or symmetric behavior, or a role with a different body, is **first-wins** and emits a non-fatal `DuplicateEdgeType`/`DuplicateRole` diagnostic (mirroring `DuplicateArchetype`, [FR-014](./FR-014-module-activation.md)); the default load still succeeds and strict loading refuses on the diagnostic. | Test |
 | FR-040-AC-3 | An `allowed_links` key absent from `edge_types`, or a `roles:` entry / target token absent from `roles`, emits a non-fatal `UnknownEdgeType`/`UnknownRole` diagnostic (advisory, default load succeeds); the opt-in `load_strict` path ([FR-014-AC-3](./FR-014-module-activation.md)) escalates AC-2 and AC-3 diagnostics to errors. | Test |
 | FR-040-AC-4 | `allowed_links` in array form `[calls, publishes]` normalizes to `{calls: ["*"], publishes: ["*"]}`, and map form `{contains: [value_object]}` round-trips through `Registry::load_module` as an `AllowedLinks` map (superseding the FR-031 array-only parse per CR-001). | Test |
 | FR-040-AC-5 | An object type's `roles: [..]` list is parsed onto its `CompiledArchetype` and readable via a `roles()` accessor; an archetype declaring no roles reads as empty. | Test |
