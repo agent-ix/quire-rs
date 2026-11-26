@@ -1122,6 +1122,15 @@ impl ReferenceColumn {
         }
     }
 
+    fn single_description(self) -> &'static str {
+        match self {
+            Self::TransitionEmits => "a transition emits at most one",
+            Self::StageCapability => "a stage capability binding names one capability",
+            Self::StageProcess => "a stage capability binding names one process",
+            Self::StepConsumes | Self::StepEmits => "this cell accepts multiple references",
+        }
+    }
+
     /// The first admission source the module declares for the cell: the
     /// construct `references` entry, then the `allowed_links` entry, then
     /// none. Both are read through the relation vocabulary, which holds the
@@ -1706,6 +1715,7 @@ impl<'a> TableRead<'a> {
     }
 
     /// Read one reference cell (FR-075 Declaration references).
+    #[implements("FR-075-AC-31")]
     fn references(
         &mut self,
         cells: &[String],
@@ -1733,8 +1743,9 @@ impl<'a> TableRead<'a> {
                 Some("too-many-references"),
                 line,
                 format_args!(
-                    "the {header} cell {raw:?} names {} declarations; a transition emits at most one",
-                    items.len()
+                    "the {header} cell {raw:?} names {} declarations; {}",
+                    items.len(),
+                    column.single_description()
                 ),
             );
             return ReferenceCell::Failed;
