@@ -162,7 +162,7 @@ evidence:
 	  CARGO_TARGET_DIR="$(EVIDENCE_TARGET)/cargo" CARGO_BUILD_JOBS=4 cargo install --locked \
 	    --git https://github.com/agent-ix/ix-trace-rs \
 	    --rev 3cd3285055e32e4c08fb124d76e489b9dd412b6b \
-	    --root "$(EVIDENCE_TARGET)/tools" --package ix-trace-run; \
+	    --root "$(EVIDENCE_TARGET)/tools" ix-trace-run; \
 	  status=0; \
 	  CARGO_TARGET_DIR="$(EVIDENCE_TARGET)/cargo" CARGO_BUILD_JOBS=4 \
 	    "$(EVIDENCE_TARGET)/tools/bin/ix-trace-run" --locked --workspace --jobs=4 \
