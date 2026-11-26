@@ -1069,7 +1069,9 @@ pub fn analyze(input: ImpactInput<'_>) -> Result<ImpactReport, ImpactError> {
     if let Some(depth_limit) = input.caller_search_depth {
         let caller_data = caller_call_graph(&head_extraction);
         for changed in report.changed_symbols.iter().filter(|changed| {
-            changed.side == RevisionSide::Head && changed.implemented_ids.is_empty()
+            changed.side == RevisionSide::Head
+                && changed.kind == SymbolKind::Function.as_str()
+                && changed.implemented_ids.is_empty()
         }) {
             let Some(symbol) = head_extraction.symbols.iter().find(|symbol| {
                 symbol.path == changed.path
