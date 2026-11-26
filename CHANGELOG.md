@@ -11,7 +11,7 @@ bumps; once 1.0 ships, semver is strict.
 
 ### Added
 
-- **Typed references in record table rows (PLAT-1931, FR-081-AC-22).** Object-array
+- **Typed references in record table rows (FR-081-AC-22).** Object-array
   record tables now emit typed row relations from module-declared `SemanticId`
   columns admitted by `allowed_links`, with validation paths to the source cells.
 
