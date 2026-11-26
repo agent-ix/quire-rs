@@ -2141,6 +2141,14 @@ fn read_stages(r: &mut TableRead<'_>) {
         let name_ok = r.non_empty(name, "stage name", *line);
         let value_ok = r.non_empty(value, "stage value", *line);
         let order = match r.cell(cells, "Order").parse::<u64>() {
+            Ok(0) => {
+                r.error(
+                    "semantic.invalid-model-cell",
+                    *line,
+                    "stage order must be a positive integer",
+                );
+                None
+            }
             Ok(order) => Some(order),
             Err(_) => {
                 r.error(
