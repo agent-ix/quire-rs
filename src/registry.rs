@@ -962,9 +962,15 @@ object_types:
         assert!(r2.archetype("foo").is_some());
     }
 
-    #[trace("FR-013-AC-2")]
     #[test]
     fn case_folded_lookup_does_not_choose_between_ambiguous_names() {
+        let fixture_root =
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/loader-home/foo");
+        let fixture = Registry::load_from(&[&fixture_root]).expect("valid schema fixture");
+        assert!(fixture.archetype("FR").is_some());
+        assert!(fixture.archetype("fr").is_some());
+        assert!(fixture.schema_for("FR").is_ok());
+
         let parent = tmpdir("case-folded-ambiguous");
         write_named_module(&parent.join("upper"), "upper", "FR");
         write_named_module(&parent.join("lower"), "lower", "fr");

@@ -331,20 +331,6 @@ mod tests {
         assert_eq!(hits, 1);
     }
 
-    #[trace("FR-013-AC-8")]
-    #[test]
-    fn duplicate_tilde_paths_dedupe_after_expansion() {
-        let home = home_dir().expect("HOME set");
-        let env_value = OsString::from("~/.:~/.");
-        let paths = resolve_search_paths(&[], Some(env_value));
-        let canonical = std::fs::canonicalize(&home).expect("existing home directory");
-        let hits = paths
-            .iter()
-            .filter(|entry| matches!(entry, PathDiagnostic::Ok(path) if *path == canonical))
-            .count();
-        assert_eq!(hits, 1, "tilde-expanded roots are deduplicated: {paths:?}");
-    }
-
     #[test]
     fn file_not_directory_is_diagnosed_not_fatal() {
         let mut path = env::temp_dir();

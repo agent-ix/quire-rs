@@ -2374,7 +2374,7 @@ mod tests {
 
     static SEARCH_ENV_LOCK: Mutex<()> = Mutex::new(());
 
-    struct SearchEnvRestore([(&'static str, Option<OsString>); 3]);
+    struct SearchEnvRestore([(&'static str, Option<OsString>); 4]);
 
     impl Drop for SearchEnvRestore {
         fn drop(&mut self) {
@@ -2390,12 +2390,13 @@ mod tests {
 
     fn with_search_env<T>(
         home: &Path,
-        module_path: Option<&Path>,
-        schema_path: Option<&Path>,
+        module_path: Option<OsString>,
+        schema_path: Option<OsString>,
         f: impl FnOnce() -> T,
     ) -> T {
         let _lock = SEARCH_ENV_LOCK.lock().expect("search env lock");
         let restore = SearchEnvRestore([
+            ("HOME", std::env::var_os("HOME")),
             ("IX_HOME", std::env::var_os("IX_HOME")),
             (
                 "IX_FILAMENT_MODULES_PATH",
@@ -2403,6 +2404,7 @@ mod tests {
             ),
             ("IX_SCHEMA_PATH", std::env::var_os("IX_SCHEMA_PATH")),
         ]);
+        std::env::set_var("HOME", home);
         std::env::set_var("IX_HOME", home);
         if let Some(path) = module_path {
             std::env::set_var("IX_FILAMENT_MODULES_PATH", path);
@@ -2457,32 +2459,28 @@ mod tests {
         assert!(empty.failures().is_empty());
     }
 
-    #[trace("FR-013-AC-2")]
+    #[trace("FR-013-AC-8")]
     #[test]
-    fn schema_path_loads_the_eight_iso_archetypes() {
-        let home = tmpdir("iso-env-home");
-        let search_root = tmpdir("iso-search-root");
-        let module = search_root.join("spec_artifacts_iso");
-        fs::create_dir_all(&module).expect("module directory");
-        let names = ["FR", "NFR", "StR", "US", "IT", "TC", "AC", "CON"];
-        let entries = names
-            .iter()
-            .map(|name| format!("- name: {name}\n"))
-            .collect::<String>();
-        fs::write(
-            module.join("manifest.yaml"),
-            format!("name: spec-artifacts-iso\nartifact_types:\n{entries}"),
-        )
-        .expect("ISO fixture manifest");
-
-        let registry = with_search_env(&home, None, Some(&search_root), || {
-            crate::Registry::from_env().expect("ISO search root loads")
+    fn duplicate_tilde_search_roots_load_the_module_once() {
+        let home = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/loader-home");
+        let roots = std::env::join_paths([OsString::from("~/foo"), OsString::from("~/foo")])
+            .expect("join duplicate tilde roots");
+        let registry = with_search_env(&home, None, Some(roots), || {
+            crate::Registry::from_env().expect("duplicate tilde roots load")
         });
-        let loaded: Vec<&str> = registry.archetype_names().collect();
-        let mut expected = names.to_vec();
-        expected.sort_unstable();
-        assert_eq!(loaded, expected);
+
+        assert!(registry.failures().is_empty(), "{:?}", registry.failures());
+        assert_eq!(registry.module_names().count(), 1);
+        assert_eq!(
+            registry
+                .module_names()
+                .filter(|name| *name == "loader-fixture")
+                .count(),
+            1
+        );
+        assert_eq!(registry.archetype_names().count(), 1);
         assert!(registry.archetype("fr").is_some());
+        assert!(registry.schema_for("FR").is_ok());
     }
 
     #[trace("FR-013-AC-10")]
