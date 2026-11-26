@@ -2383,6 +2383,44 @@ fn unit_rows_resolve_dimensions_and_targets_with_canonical_rationals() {
         own["model"]["unit"]["dimension"]["target"]["value"],
         "ix://agent-ix/shop/type/Time"
     );
+
+    let wrong_target = physical_request(
+        &physical_doc(&[(
+            "Scale",
+            "| Dimension | Target | Scale | Offset |\n|---|---|---:|---:|\n| Time | Time | 1 | 0 |\n",
+        )]),
+        physical_tables("", "", "Scale"),
+        &[("Time", "dimension", &["Time"])],
+    );
+    let wrong_target = extract_request(&wrong_target);
+    assert_eq!(
+        wrong_target["model"]["unit"]["target"]["target"]["value"],
+        "ix://agent-ix/shop/unresolved/Time"
+    );
+    assert_eq!(
+        wrong_target["diagnostics"][0]["code"],
+        "semantic.unresolved-type"
+    );
+    assert_eq!(wrong_target["diagnostics"][0]["reason"], "unknown-token");
+    assert_eq!(wrong_target["availability"]["model"]["lossy"], true);
+
+    let mut self_target = physical_request(
+        &physical_doc(&[(
+            "Scale",
+            "| Dimension | Target | Scale | Offset |\n|---|---|---:|---:|\n| Time | U-001 | 0 | 0 |\n",
+        )]),
+        physical_tables("", "", "Scale"),
+        &[("Time", "dimension", &["Time"]), ("U-001", "unit", &["Millisecond"])],
+    );
+    self_target["module"]["exports"] = json!(["unit"]);
+    let self_target = extract_request(&self_target);
+    assert_eq!(self_target["availability"]["model"]["state"], "available");
+    assert_eq!(
+        self_target["model"]["unit"]["target"]["target"]["value"],
+        "ix://agent-ix/shop/type/U-001"
+    );
+    assert_eq!(self_target["model"]["unit"]["scale"], "0");
+    assert!(self_target["diagnostics"].as_array().unwrap().is_empty());
 }
 
 #[trace("FR-075-AC-21")]
