@@ -197,6 +197,507 @@ pub struct ImpactReport {
     pub findings: Vec<ImpactFinding>,
 }
 
+/// Inputs for comparing one dependency's two local and upstream revisions.
+pub struct DependencyMoveInput<'a> {
+    /// Cargo package name as it appears in Cargo.lock.
+    pub dependency: &'a str,
+    /// Local repository before the dependency move.
+    pub base: &'a SourceSnapshot,
+    /// Local repository after the dependency move.
+    pub head: &'a SourceSnapshot,
+    /// Upstream source before the move, when available.
+    pub upstream_base: Option<&'a SourceSnapshot>,
+    /// Upstream source after the move, when available.
+    pub upstream_head: Option<&'a SourceSnapshot>,
+    /// Existing declared marker grammar.
+    pub traceability: &'a TraceabilityModel,
+}
+
+/// One changed file and the requirement/test items found in its changed contents.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+pub struct UpstreamChange {
+    /// Upstream repository-relative path.
+    pub path: String,
+    /// Stable item identifiers mentioned by the changed file.
+    pub items: Vec<String>,
+}
+
+/// A local source symbol referring to an upstream file or item.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+pub struct DependencyLocalReference {
+    /// Upstream changed file this reference connects to.
+    pub upstream_path: String,
+    /// Local source path.
+    pub path: String,
+    /// Local extracted symbol.
+    pub symbol: String,
+    /// Upstream file or item that this symbol references.
+    pub upstream_reference: String,
+}
+
+/// A dependency-move reason chain from upstream source to a local test.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+pub struct DependencyTestReason {
+    /// Upstream file path.
+    pub upstream_path: String,
+    /// Upstream item changed in that file.
+    pub upstream_item: String,
+    /// Local source path containing the reference.
+    pub local_path: String,
+    /// Local symbol containing the reference.
+    pub local_symbol: String,
+    /// Selected test path.
+    pub test_path: String,
+    /// Selected test symbol.
+    pub test_symbol: String,
+    /// Local call path from the test to the upstream reference symbol.
+    pub call_path: Vec<String>,
+}
+
+/// Deterministic dependency revision impact report.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct DependencyMoveReport {
+    /// Cargo package name.
+    pub dependency: String,
+    /// Resolved package revision before the move, when read from Cargo.lock.
+    pub old_revision: Option<String>,
+    /// Resolved package revision after the move, when read from Cargo.lock.
+    pub new_revision: Option<String>,
+    /// Which upstream snapshot side was not supplied.
+    pub unavailable_upstream: Vec<String>,
+    /// Changed upstream files and extracted item identifiers.
+    pub upstream_changes: Vec<UpstreamChange>,
+    /// Local symbols that refer to changed upstream files or items.
+    pub local_references: Vec<DependencyLocalReference>,
+    /// Tests selected through an upstream-to-local-to-test chain.
+    pub selected_tests: Vec<DependencyTestReason>,
+    /// Changed upstream files/items for which no local reference was found.
+    pub uncovered: Vec<UpstreamChange>,
+    /// True when either upstream snapshot was unavailable or the local source
+    /// extraction was incomplete.
+    pub unresolved: bool,
+}
+
+/// Analyze a dependency revision move using Cargo.lock, upstream snapshots,
+/// extracted local symbols, and the existing exact trace index.
+#[implements("FR-099-AC-10")]
+pub fn analyze_dependency_move(input: DependencyMoveInput<'_>) -> DependencyMoveReport {
+    let old_revision = dependency_revision(input.base, input.dependency);
+    let new_revision = dependency_revision(input.head, input.dependency);
+    let Some((upstream_base, upstream_head)) = input.upstream_base.zip(input.upstream_head) else {
+        let unavailable_upstream = unavailable_move_inputs(
+            input.upstream_base.is_none(),
+            input.upstream_head.is_none(),
+            old_revision.is_none(),
+            new_revision.is_none(),
+        );
+        return DependencyMoveReport {
+            dependency: input.dependency.to_owned(),
+            old_revision,
+            new_revision,
+            unavailable_upstream,
+            upstream_changes: Vec::new(),
+            local_references: Vec::new(),
+            selected_tests: Vec::new(),
+            uncovered: Vec::new(),
+            unresolved: true,
+        };
+    };
+
+    let changed_paths: BTreeSet<&str> = upstream_base
+        .files
+        .keys()
+        .chain(upstream_head.files.keys())
+        .filter(|path| upstream_base.files.get(*path) != upstream_head.files.get(*path))
+        .map(String::as_str)
+        .collect();
+    let mut upstream_changes = Vec::new();
+    for path in changed_paths {
+        let before = upstream_base
+            .files
+            .get(path)
+            .map(String::as_str)
+            .unwrap_or("");
+        let after = upstream_head
+            .files
+            .get(path)
+            .map(String::as_str)
+            .unwrap_or("");
+        let mut items = upstream_items(path, before, after);
+        items.sort();
+        items.dedup();
+        upstream_changes.push(UpstreamChange {
+            path: path.to_owned(),
+            items,
+        });
+    }
+
+    let local_extraction = extract_snapshot(input.head);
+    let mut references = BTreeSet::new();
+    let mut reasons = BTreeSet::new();
+    let extraction_available = local_extraction.require_available().is_ok();
+    let mut unresolved = !extraction_available
+        || !local_extraction.diagnostics.is_empty()
+        || old_revision.is_none()
+        || new_revision.is_none();
+    if extraction_available {
+        let graph = trace::bind(&local_extraction, input.traceability);
+        let symbol_sources: Vec<(&Symbol, String)> = local_extraction
+            .symbols
+            .iter()
+            .map(|symbol| {
+                let source = local_extraction
+                    .source_of(&symbol.path)
+                    .map(|source| symbol.attached_source(source))
+                    .unwrap_or_default();
+                (symbol, source)
+            })
+            .collect();
+        let test_sources: Vec<(&Symbol, String)> = symbol_sources
+            .iter()
+            .filter(|(symbol, _)| matches!(symbol.kind, SymbolKind::TestFunction))
+            .map(|(symbol, source)| (*symbol, source.clone()))
+            .collect();
+        for changed in &upstream_changes {
+            for item in &changed.items {
+                let local_item = qualified_upstream_item(item);
+                let mut matching_symbols = Vec::new();
+                for (symbol, source) in &symbol_sources {
+                    let by_item = source.contains(item) || source.contains(&local_item);
+                    let by_path = source.contains(&changed.path);
+                    if by_item || by_path {
+                        let reference = if by_item {
+                            item.as_str()
+                        } else {
+                            changed.path.as_str()
+                        };
+                        references.insert(DependencyLocalReference {
+                            upstream_path: changed.path.clone(),
+                            path: symbol.path.clone(),
+                            symbol: symbol.qualified_name.clone(),
+                            upstream_reference: reference.to_owned(),
+                        });
+                        matching_symbols.push((*symbol, by_item, by_path));
+                        if matches!(symbol.kind, SymbolKind::TestFunction) {
+                            reasons.insert(DependencyTestReason {
+                                upstream_path: changed.path.clone(),
+                                upstream_item: item.clone(),
+                                local_path: symbol.path.clone(),
+                                local_symbol: symbol.qualified_name.clone(),
+                                test_path: symbol.path.clone(),
+                                test_symbol: symbol.qualified_name.clone(),
+                                call_path: vec![symbol.qualified_name.clone()],
+                            });
+                        }
+                    }
+                }
+                for (symbol, by_item, by_path) in &matching_symbols {
+                    let reference_name = symbol.bare_name();
+                    for (test, test_source) in &test_sources {
+                        let calls_reference = invokes_with_item(test_source, reference_name, item);
+                        let calls_item_bearing_reference =
+                            *by_item && test_source.contains(&format!("{reference_name}("));
+                        if (*by_path && calls_reference) || calls_item_bearing_reference {
+                            reasons.insert(DependencyTestReason {
+                                upstream_path: changed.path.clone(),
+                                upstream_item: item.clone(),
+                                local_path: symbol.path.clone(),
+                                local_symbol: symbol.qualified_name.clone(),
+                                test_path: test.path.clone(),
+                                test_symbol: test.qualified_name.clone(),
+                                call_path: vec![
+                                    test.qualified_name.clone(),
+                                    symbol.qualified_name.clone(),
+                                ],
+                            });
+                        }
+                    }
+                }
+                if !matching_symbols.is_empty() {
+                    if let Ok(matches) = trace_search::search(
+                        &graph,
+                        &local_extraction,
+                        &trace_search::Query::Id(local_item),
+                    ) {
+                        for test in matches.verifies {
+                            if let Some((symbol, _, _)) = matching_symbols.first() {
+                                reasons.insert(DependencyTestReason {
+                                    upstream_path: changed.path.clone(),
+                                    upstream_item: item.clone(),
+                                    local_path: symbol.path.clone(),
+                                    local_symbol: symbol.qualified_name.clone(),
+                                    test_path: test.path,
+                                    test_symbol: test.symbol.clone(),
+                                    call_path: vec![test.symbol, symbol.qualified_name.clone()],
+                                });
+                            }
+                        }
+                    } else {
+                        unresolved = true;
+                    }
+                }
+            }
+        }
+    }
+    let uncovered = upstream_changes
+        .iter()
+        .filter_map(|change| {
+            let file_referenced = references.iter().any(|reference| {
+                reference.upstream_path == change.path
+                    && reference.upstream_reference == change.path
+            });
+            let unmatched_items: Vec<String> = change
+                .items
+                .iter()
+                .filter(|item| {
+                    !file_referenced
+                        && !references.iter().any(|reference| {
+                            reference.upstream_path == change.path
+                                && (reference.upstream_reference == item.as_str()
+                                    || reference.upstream_reference
+                                        == qualified_upstream_item(item))
+                        })
+                })
+                .cloned()
+                .collect();
+            (!file_referenced && change.items.is_empty() || !unmatched_items.is_empty()).then(
+                || UpstreamChange {
+                    path: change.path.clone(),
+                    items: unmatched_items,
+                },
+            )
+        })
+        .collect();
+    let unavailable_upstream =
+        unavailable_move_inputs(false, false, old_revision.is_none(), new_revision.is_none());
+    DependencyMoveReport {
+        dependency: input.dependency.to_owned(),
+        old_revision,
+        new_revision,
+        unavailable_upstream,
+        upstream_changes,
+        local_references: references.into_iter().collect(),
+        selected_tests: reasons.into_iter().collect(),
+        uncovered,
+        unresolved,
+    }
+}
+
+#[implements("FR-099-AC-10")]
+fn locked_revision(lock: &str, package: &str) -> Option<String> {
+    lock.split("[[package]]").skip(1).find_map(|block| {
+        let name = block
+            .lines()
+            .find_map(|line| line.trim().strip_prefix("name = \"")?.strip_suffix('"'))?;
+        if name != package {
+            return None;
+        }
+        let source = block
+            .lines()
+            .find_map(|line| line.trim().strip_prefix("source = \"")?.strip_suffix('"'))?;
+        source
+            .rsplit_once('#')
+            .map(|(_, revision)| revision.to_owned())
+    })
+}
+
+#[implements("FR-099-AC-10")]
+fn dependency_revision(snapshot: &SourceSnapshot, package: &str) -> Option<String> {
+    snapshot
+        .files
+        .get("Cargo.lock")
+        .and_then(|lock| locked_revision(lock, package))
+        .or_else(|| {
+            snapshot
+                .files
+                .get("Cargo.toml")
+                .and_then(|manifest| declared_revision(manifest, package))
+        })
+}
+
+#[implements("FR-099-AC-10")]
+fn declared_revision(manifest: &str, package: &str) -> Option<String> {
+    let mut declaration = String::new();
+    let mut in_dependency = false;
+    for line in manifest.lines() {
+        let trimmed = line.trim();
+        if trimmed.starts_with('[') {
+            in_dependency = trimmed == "[dependencies]" || trimmed == "[workspace.dependencies]";
+        }
+        if in_dependency
+            && (trimmed.starts_with(&format!("{package} ="))
+                || trimmed.contains(&format!("package = \"{package}\"")))
+        {
+            declaration.clear();
+            declaration.push_str(trimmed);
+            if trimmed.contains('}') {
+                break;
+            }
+            continue;
+        }
+        if !declaration.is_empty() {
+            declaration.push_str(trimmed);
+            if trimmed.contains('}') {
+                break;
+            }
+        }
+    }
+    declaration.lines().find_map(|line| {
+        let value = line
+            .split_once("rev = \"")
+            .map(|(_, rest)| rest)
+            .or_else(|| line.split_once("tag = \"").map(|(_, rest)| rest))?;
+        value
+            .split_once('"')
+            .map(|(revision, _)| revision.to_owned())
+    })
+}
+
+#[implements("FR-099-AC-10")]
+fn upstream_items(path: &str, before: &str, after: &str) -> Vec<String> {
+    if path.ends_with(".json") {
+        if let (Ok(before), Ok(after)) = (
+            serde_json::from_str::<serde_json::Value>(before),
+            serde_json::from_str::<serde_json::Value>(after),
+        ) {
+            let mut items = BTreeSet::new();
+            changed_json_items(None, Some(&before), Some(&after), false, &mut items);
+            if !items.is_empty() {
+                return items.into_iter().collect();
+            }
+        }
+    }
+    if path.ends_with(".rs") {
+        let before_items = rust_items(path, before);
+        let after_items = rust_items(path, after);
+        let mut items = BTreeSet::new();
+        for name in before_items.keys().chain(after_items.keys()) {
+            if before_items.get(name) != after_items.get(name) {
+                items.insert(name.clone());
+            }
+        }
+        if !items.is_empty() {
+            return items.into_iter().collect();
+        }
+    }
+    if let Some(item) = artifact_path_item(path) {
+        return vec![item];
+    }
+    Vec::new()
+}
+
+#[implements("FR-099-AC-10")]
+fn artifact_path_item(path: &str) -> Option<String> {
+    let file = path.rsplit('/').next()?;
+    let stem = file.split_once('.')?.0;
+    let mut parts = stem.split('-');
+    let prefix = parts.next()?;
+    let number = parts.next()?;
+    if matches!(prefix, "FR" | "TC") && number.chars().all(|c| c.is_ascii_digit()) {
+        Some(format!("{prefix}-{number}"))
+    } else {
+        None
+    }
+}
+
+#[implements("FR-099-AC-10")]
+fn qualified_upstream_item(item: &str) -> String {
+    if item.starts_with("FSpec-") || !(item.starts_with("FR-") || item.starts_with("TC-")) {
+        item.to_owned()
+    } else {
+        format!("FSpec-{item}")
+    }
+}
+
+#[implements("FR-099-AC-10")]
+fn changed_json_items(
+    key: Option<&str>,
+    before: Option<&serde_json::Value>,
+    after: Option<&serde_json::Value>,
+    in_definitions: bool,
+    items: &mut BTreeSet<String>,
+) {
+    if before == after {
+        return;
+    }
+    if in_definitions {
+        if let (Some(serde_json::Value::Object(before)), Some(serde_json::Value::Object(after))) =
+            (before, after)
+        {
+            for definition in before.keys().chain(after.keys()).collect::<BTreeSet<_>>() {
+                if before.get(definition) != after.get(definition) {
+                    items.insert(definition.to_owned());
+                }
+            }
+        } else if let Some(key) = key {
+            items.insert(key.to_owned());
+        }
+        return;
+    }
+    match (before, after) {
+        (Some(serde_json::Value::Object(before)), Some(serde_json::Value::Object(after))) => {
+            for key in before.keys().chain(after.keys()).collect::<BTreeSet<_>>() {
+                changed_json_items(
+                    Some(key),
+                    before.get(key),
+                    after.get(key),
+                    key == "$defs" || key == "definitions",
+                    items,
+                );
+            }
+        }
+        _ => {
+            if let Some(key) = key {
+                items.insert(key.to_owned());
+            }
+        }
+    }
+}
+
+#[implements("FR-099-AC-10")]
+fn rust_items(path: &str, source: &str) -> BTreeMap<String, String> {
+    let extraction = extract_file(path, SourceLanguage::Rust, source);
+    extraction
+        .symbols
+        .iter()
+        .map(|symbol| {
+            (
+                symbol.qualified_name.clone(),
+                symbol.attached_source(source),
+            )
+        })
+        .collect()
+}
+
+#[implements("FR-099-AC-10")]
+fn invokes_with_item(source: &str, function: &str, item: &str) -> bool {
+    let needle = format!("{function}(");
+    source.match_indices(&needle).any(|(start, _)| {
+        let arguments_start = start + needle.len();
+        source[arguments_start..]
+            .find(')')
+            .is_some_and(|end| source[arguments_start..arguments_start + end].contains(item))
+    })
+}
+
+#[implements("FR-099-AC-10")]
+fn unavailable_move_inputs(
+    missing_base: bool,
+    missing_head: bool,
+    missing_base_revision: bool,
+    missing_head_revision: bool,
+) -> Vec<String> {
+    [
+        missing_base.then(|| "base upstream snapshot".to_owned()),
+        missing_head.then(|| "head upstream snapshot".to_owned()),
+        missing_base_revision.then(|| "base dependency revision".to_owned()),
+        missing_head_revision.then(|| "head dependency revision".to_owned()),
+    ]
+    .into_iter()
+    .flatten()
+    .collect()
+}
+
 /// Invalid revision or diff input.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum ImpactError {
@@ -554,6 +1055,7 @@ fn uncovered_ranges(changed: LineRange, symbols: &[&Symbol]) -> Vec<LineRange> {
 
 #[implements("FR-099-AC-1")]
 #[implements("FR-099-AC-8")]
+#[implements("FR-099-AC-10")]
 fn extract_snapshot(snapshot: &SourceSnapshot) -> SymbolExtraction {
     let mut all = SymbolExtraction::default();
     for (path, source) in &snapshot.files {
@@ -1059,5 +1561,136 @@ mod tests {
             serde_json::to_vec(&a).unwrap(),
             serde_json::to_vec(&b).unwrap()
         );
+    }
+
+    #[trace("FR-099-AC-10")]
+    #[test]
+    fn dependency_move_links_upstream_items_to_local_tests_and_reports_unmatched_items() {
+        let root = tempfile::tempdir().unwrap();
+        let registry = model_with_implements_form(root.path());
+        let model = registry.traceability().unwrap();
+        let lock = |revision: &str| {
+            format!(
+                "[[package]]\nname = \"filament-specification-qualification\"\nversion = \"0.1.1\"\nsource = \"git+https://example.invalid/spec?rev={revision}#{revision}\"\n"
+            )
+        };
+        let local_before = SourceSnapshot {
+            revision: "local-base".into(),
+            files: BTreeMap::from([("Cargo.lock".into(), lock("old-rev"))]),
+        };
+        let local_after = SourceSnapshot {
+            revision: "local-head".into(),
+            files: BTreeMap::from([
+                ("Cargo.lock".into(), lock("new-rev")),
+                (
+                    "tests/probability.rs".into(),
+                    "fn provider_definition(name: &str) { let _ = \"proposals/backend-provider-v1/schema.json\"; let _ = name; }\n#[test]\n#[trace(\"FSpec-TC-374\")]\nfn probability_from_source() { provider_definition(\"CertificateIdentity\"); let _ = \"TC-374\"; }\n".into(),
+                ),
+            ]),
+        };
+        let upstream_before = SourceSnapshot {
+            revision: "old-rev".into(),
+            files: BTreeMap::from([
+                (
+                    "spec/test-cases/TC-374-probability.md".into(),
+                    "TC-374 legacy semantics".into(),
+                ),
+                ("src/logic.rs".into(), "fn old_logic() {}".into()),
+                (
+                    "proposals/backend-provider-v1/schema.json".into(),
+                    r#"{"$defs":{"CertificateIdentity":{"type":"string"}}}"#.into(),
+                ),
+            ]),
+        };
+        let upstream_after = SourceSnapshot {
+            revision: "new-rev".into(),
+            files: BTreeMap::from([
+                (
+                    "spec/test-cases/TC-374-probability.md".into(),
+                    "TC-374 updated semantics".into(),
+                ),
+                (
+                    "src/logic.rs".into(),
+                    "fn old_logic() { let _ = 1; }".into(),
+                ),
+                (
+                    "proposals/backend-provider-v1/schema.json".into(),
+                    r#"{"$defs":{"CertificateIdentity":{"type":"object"}}}"#.into(),
+                ),
+            ]),
+        };
+        let report = analyze_dependency_move(DependencyMoveInput {
+            dependency: "filament-specification-qualification",
+            base: &local_before,
+            head: &local_after,
+            upstream_base: Some(&upstream_before),
+            upstream_head: Some(&upstream_after),
+            traceability: model,
+        });
+        assert_eq!(report.old_revision.as_deref(), Some("old-rev"));
+        assert_eq!(report.new_revision.as_deref(), Some("new-rev"));
+        assert_eq!(report.upstream_changes.len(), 3);
+        assert!(report.upstream_changes.iter().any(|change| {
+            change.path == "spec/test-cases/TC-374-probability.md"
+                && change.items.contains(&"TC-374".to_owned())
+        }));
+        assert!(report.selected_tests.iter().any(|reason| {
+            reason.test_symbol == "probability_from_source"
+                && reason.upstream_item == "TC-374"
+                && reason.local_symbol == "probability_from_source"
+                && reason.call_path == ["probability_from_source"]
+        }));
+        assert!(report.upstream_changes.iter().any(|change| {
+            change.path == "proposals/backend-provider-v1/schema.json"
+                && change.items == ["CertificateIdentity"]
+        }));
+        assert!(report.selected_tests.iter().any(|reason| {
+            reason.test_symbol == "probability_from_source"
+                && reason.upstream_item == "CertificateIdentity"
+                && reason.local_symbol == "provider_definition"
+                && reason.call_path == ["probability_from_source", "provider_definition"]
+        }));
+        assert!(report
+            .uncovered
+            .iter()
+            .any(|change| { change.path == "src/logic.rs" && change.items == ["old_logic"] }));
+        assert!(!report.unresolved);
+        assert_eq!(
+            serde_json::to_vec(&report).unwrap(),
+            serde_json::to_vec(&analyze_dependency_move(DependencyMoveInput {
+                dependency: "filament-specification-qualification",
+                base: &local_before,
+                head: &local_after,
+                upstream_base: Some(&upstream_before),
+                upstream_head: Some(&upstream_after),
+                traceability: model,
+            }))
+            .unwrap()
+        );
+    }
+
+    #[trace("FR-099-AC-10")]
+    #[test]
+    fn unavailable_upstream_tree_remains_explicit_and_unresolved() {
+        let local = snapshot("local", "");
+        let report = analyze_dependency_move(DependencyMoveInput {
+            dependency: "unknown-package",
+            base: &local,
+            head: &local,
+            upstream_base: None,
+            upstream_head: None,
+            traceability: &TraceabilityModel::default(),
+        });
+        assert!(report.unresolved);
+        assert_eq!(
+            report.unavailable_upstream,
+            [
+                "base upstream snapshot",
+                "head upstream snapshot",
+                "base dependency revision",
+                "head dependency revision"
+            ]
+        );
+        assert!(report.upstream_changes.is_empty());
     }
 }
