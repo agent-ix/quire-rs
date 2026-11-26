@@ -61,19 +61,44 @@ fn fetch_spec_objects_safety(version: &str, out_dir: &Path) -> Result<(), String
             .unwrap_or_else(|e| panic!("remove stale {}: {e}", dest.display()));
     }
     let schemas = package_dir.join("schemas");
-    fs::create_dir_all(dest.join("schemas"))
-        .unwrap_or_else(|e| panic!("create {}: {e}", dest.join("schemas").display()));
-    for name in [
-        "HazardAssessment.json",
-        "FailureAnalysis.json",
-        "Hazard.json",
-    ] {
-        fs::copy(schemas.join(name), dest.join("schemas").join(name))
-            .unwrap_or_else(|e| panic!("copy authentic safety schema {name}: {e}"));
-    }
+    copy_schema_documents(&schemas, &dest.join("schemas"));
 
     let _ = fs::remove_dir_all(out_dir.join("npm-packages"));
     fs::write(&marker, identity)
         .unwrap_or_else(|e| panic!("write marker {}: {e}", marker.display()));
     Ok(())
+}
+
+/// Keep the full sibling document set: the three record roots reference other
+/// schemas in the same published module, and offline validators need those
+/// authentic documents to resolve every `$ref`.
+fn copy_schema_documents(source: &Path, destination: &Path) {
+    fs::create_dir_all(destination)
+        .unwrap_or_else(|e| panic!("create {}: {e}", destination.display()));
+    let mut entries: Vec<_> = fs::read_dir(source)
+        .unwrap_or_else(|e| panic!("read {}: {e}", source.display()))
+        .map(|entry| entry.unwrap_or_else(|e| panic!("read schema entry: {e}")))
+        .collect();
+    entries.sort_by_key(std::fs::DirEntry::file_name);
+    let mut copied = 0;
+    for entry in entries {
+        let path = entry.path();
+        if path
+            .extension()
+            .is_some_and(|extension| extension == "json")
+            && entry
+                .file_type()
+                .unwrap_or_else(|e| panic!("inspect {}: {e}", path.display()))
+                .is_file()
+        {
+            let name = entry.file_name();
+            fs::copy(&path, destination.join(&name))
+                .unwrap_or_else(|e| panic!("copy authentic safety schema {}: {e}", path.display()));
+            copied += 1;
+        }
+    }
+    assert!(
+        copied >= 3,
+        "published safety package has fewer than three schemas"
+    );
 }

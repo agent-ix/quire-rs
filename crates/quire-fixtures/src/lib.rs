@@ -70,8 +70,8 @@ pub fn record_sections_json(name: &str) -> Value {
         .unwrap_or_else(|e| panic!("record-sections fixture {name}: invalid JSON: {e}"))
 }
 
-/// Directory containing the authentic fetched safety schemas. Check
-/// [`safety_module_available`] first.
+/// Directory containing every authentic fetched safety schema document,
+/// including referenced siblings. Check [`safety_module_available`] first.
 pub fn safety_schemas_dir() -> PathBuf {
     spec_objects_safety_fixture::schemas_dir()
 }

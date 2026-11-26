@@ -77,6 +77,83 @@ fn semantic_v1() -> Validator {
     .unwrap()
 }
 
+#[test]
+fn authentic_safety_schema_bundle_resolves_and_validates_records() {
+    if !quire_fixtures::safety_module_available() {
+        eprintln!(
+            "SKIPPED: published safety module unavailable: {}",
+            quire_fixtures::safety_module_unavailable_reason().unwrap_or("unknown fetch failure")
+        );
+        return;
+    }
+
+    let schemas = Schemas {
+        dir: quire_fixtures::safety_schemas_dir(),
+    };
+    let mut names: Vec<String> = std::fs::read_dir(&schemas.dir)
+        .unwrap_or_else(|e| panic!("read safety schema directory: {e}"))
+        .map(|entry| entry.unwrap_or_else(|e| panic!("read safety schema entry: {e}")))
+        .filter_map(|entry| {
+            entry
+                .path()
+                .extension()
+                .is_some_and(|extension| extension == "json")
+                .then(|| entry.file_name().to_string_lossy().into_owned())
+        })
+        .collect();
+    names.sort();
+    assert!(
+        names.len() > 3,
+        "safety fixture must include referenced schemas"
+    );
+
+    let mut validators = BTreeMap::new();
+    for name in &names {
+        let root = schemas.root(name.trim_end_matches(".json"));
+        let docs = schemas.documents(&root);
+        let validator = compile_documents(&root, &docs)
+            .unwrap_or_else(|e| panic!("authentic safety schema {name} must compile: {e:?}"));
+        validators.insert(name.as_str(), validator);
+    }
+
+    let assessment = json!({
+        "severity": "catastrophic",
+        "likelihood": "probable",
+        "rationale": "The hazard is severe and likely enough to require control."
+    });
+    let failure_analysis = json!({
+        "effect": "The system enters an unsafe state.",
+        "cause": "The interlock fails to engage.",
+        "detection": "direct"
+    });
+    let hazard = json!({
+        "fields": [{
+            "name": "hazard_id",
+            "type": {"target": {"kind": "KernelScalar", "value": "String"}},
+            "identity": true
+        }],
+        "assessment": assessment,
+        "status": "accepted",
+        "provenance": {
+            "assertedBy": "Safety owner",
+            "assertedAt": "2026-11-26T00:00:00Z"
+        }
+    });
+
+    assert!(validators["HazardAssessment.json"].is_valid(&hazard["assessment"]));
+    assert!(validators["FailureAnalysis.json"].is_valid(&failure_analysis));
+    assert!(validators["Hazard.json"].is_valid(&hazard));
+    let mut unproven_hazard = hazard;
+    unproven_hazard
+        .as_object_mut()
+        .expect("hazard is an object")
+        .remove("provenance");
+    assert!(
+        !validators["Hazard.json"].is_valid(&unproven_hazard),
+        "accepted hazards require provenance"
+    );
+}
+
 /// The 1-based line of the first line containing `at`; `<text>@2` selects the
 /// second such line.
 fn line_of(markdown: &str, at: &str) -> usize {

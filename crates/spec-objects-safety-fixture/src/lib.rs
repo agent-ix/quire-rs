@@ -1,7 +1,8 @@
 //! The published `@agent-ix/spec-objects-safety` schemas used by downstream
 //! integration tests. `build.rs` fetches the package at a pinned version and
-//! places the unmodified files under `OUT_DIR/module/schemas`; no schema bytes
-//! are authored or copied into this repository.
+//! places the complete unmodified schema document set under
+//! `OUT_DIR/module/schemas`; no schema bytes are authored or copied into this
+//! repository.
 
 use std::path::Path;
 
@@ -13,7 +14,8 @@ fn module_dir() -> &'static Path {
     Path::new(concat!(env!("OUT_DIR"), "/module"))
 }
 
-/// Directory containing the authentic fetched safety schemas.
+/// Directory containing every authentic schema document from the fetched
+/// safety module, including the sibling documents referenced by its roots.
 pub fn schemas_dir() -> std::path::PathBuf {
     module_dir().join("schemas")
 }
