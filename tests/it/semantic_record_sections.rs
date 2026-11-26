@@ -577,7 +577,7 @@ fn object_array_semantic_id_columns_become_typed_record_relations() {
 /// An indexed multi-repository validation keeps the source member's package
 /// for typed record relations even though the shared semantic index has no
 /// single package of its own.
-#[trace("FR-081-AC-22", "FR-085-AC-16")]
+#[trace("FR-081-AC-22")]
 #[test]
 fn indexed_multirepo_record_relations_use_the_source_package() {
     let case: Value = serde_json::from_slice(include_bytes!(
