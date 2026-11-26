@@ -1,6 +1,5 @@
-//! The Markdown -> semantic-core mapping fixture set: table/fence property
-//! forms, legacy forms, operations/clauses, and relationships, all built on
-//! one `config-service` example module (`ConfigVersion`, `ConfigOverlay`).
+//! Shared integration fixtures: Markdown-to-semantic-core mapping cases and
+//! authentic published module schemas for downstream tests.
 //!
 //! **Ownership, not authorship.** quire-rs is the parser that defines the
 //! forms these fixtures exercise (FR-070/FR-071/FR-072/FR-074/FR-076); quoin
@@ -18,10 +17,10 @@
 //! quoin can resolve it as a dependency at the same rev that already governs
 //! its quire-rs engine version, instead of holding a copy that drifts.
 //!
-//! This crate carries no logic — only paths and file reads over the
-//! `fixtures/` directory shipped beside `Cargo.toml`. Both `quire-rs`'s own
-//! tests and (once it repoints, PLAT-901 step 2) quoin's `quoin-semantic`
-//! and `quoin-cli` test suites read fixtures through the same functions.
+//! This crate carries only path/read helpers over its local `fixtures/`
+//! directory and the authentic safety module fetched by its companion
+//! fixture crate. Both `quire-rs`'s own tests and downstream quoin tests can
+//! read the same inputs without maintaining a second schema copy.
 
 use std::path::{Path, PathBuf};
 
@@ -71,6 +70,22 @@ pub fn record_sections_json(name: &str) -> Value {
         .unwrap_or_else(|e| panic!("record-sections fixture {name}: invalid JSON: {e}"))
 }
 
+/// Directory containing the authentic fetched safety schemas. Check
+/// [`safety_module_available`] first.
+pub fn safety_schemas_dir() -> PathBuf {
+    spec_objects_safety_fixture::schemas_dir()
+}
+
+/// Whether the published safety module was fetched by its fixture crate.
+pub fn safety_module_available() -> bool {
+    spec_objects_safety_fixture::is_available()
+}
+
+/// Why the safety module fixture is unavailable, if its npm fetch failed.
+pub fn safety_module_unavailable_reason() -> Option<&'static str> {
+    spec_objects_safety_fixture::unavailable_reason()
+}
+
 /// One fixture file's text, from `fixtures/mapping`.
 pub fn mapping_fixture(name: &str) -> String {
     std::fs::read_to_string(mapping_dir().join(name))
@@ -106,5 +121,35 @@ mod tests {
     fn mapping_json_parses_a_known_fixture() {
         let value = mapping_json("relationships.expected.json");
         assert!(value.is_object());
+    }
+
+    #[test]
+    fn safety_fixture_exposes_authentic_record_schemas() {
+        if !safety_module_available() {
+            eprintln!(
+                "SKIPPED: published @agent-ix/spec-objects-safety@{} unavailable: {}",
+                spec_objects_safety_fixture::VERSION,
+                safety_module_unavailable_reason().unwrap_or("unknown fetch failure")
+            );
+            return;
+        }
+
+        let schemas = safety_schemas_dir();
+        for name in [
+            "HazardAssessment.json",
+            "FailureAnalysis.json",
+            "Hazard.json",
+        ] {
+            let path = schemas.join(name);
+            let contents = std::fs::read_to_string(&path)
+                .unwrap_or_else(|e| panic!("authentic safety schema {}: {e}", path.display()));
+            let schema: Value = serde_json::from_str(&contents)
+                .unwrap_or_else(|e| panic!("invalid safety schema {}: {e}", path.display()));
+            assert!(
+                schema.is_object(),
+                "{} must be a JSON object schema",
+                path.display()
+            );
+        }
     }
 }

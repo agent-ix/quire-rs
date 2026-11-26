@@ -10,6 +10,7 @@ members = [
     "crates/quire-code-extraction",
     "crates/quire-fixtures",
     "crates/spec-objects-architecture-fixture",
+    "crates/spec-objects-safety-fixture",
     "crates/build-npm-fetch",
     "tools/quire-bench",
 ]
