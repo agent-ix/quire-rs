@@ -2460,6 +2460,10 @@ fn physical_model_unit_record_is_deterministic_and_schema_valid() {
         "../fixtures/semantic/physical-model-unit.input.json"
     ))
     .unwrap();
+    let expected: Value = serde_json::from_str(include_str!(
+        "../fixtures/semantic/physical-model-unit.expected.json"
+    ))
+    .unwrap();
     let first = serde_json::to_value(extract_semantic_json(&request).unwrap()).unwrap();
     let second = serde_json::to_value(extract_semantic_json(&request).unwrap()).unwrap();
     let errors: Vec<String> = schema()
@@ -2471,8 +2475,5 @@ fn physical_model_unit_record_is_deterministic_and_schema_valid() {
         serde_json::to_vec(&first).unwrap(),
         serde_json::to_vec(&second).unwrap()
     );
-    println!(
-        "PHYSICAL_MODEL_UNIT_RECORD={} ",
-        serde_json::to_string_pretty(&first).unwrap()
-    );
+    assert_eq!(first, expected);
 }

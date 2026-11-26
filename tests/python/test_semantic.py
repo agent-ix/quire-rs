@@ -49,6 +49,17 @@ def test_extract_semantic_is_deterministic():
         assert [d["code"] for d in first["diagnostics"]] == [d["code"] for d in second["diagnostics"]]
 
 
+@pytest.mark.trace("FR-075-AC-20")
+def test_physical_model_unit_matches_rust_golden():
+    """The Python binding matches the Rust record for dimension and unit output."""
+    request = json.loads((FIXTURES / "physical-model-unit.input.json").read_text())
+    expected = json.loads((FIXTURES / "physical-model-unit.expected.json").read_text())
+    first = quire.extract_semantic(request)
+    second = quire.extract_semantic(request)
+    assert first == expected
+    assert second == expected
+
+
 @pytest.mark.trace("FR-072-AC-6")
 def test_extract_filament_core_carries_the_semantic_record():
     """the Filament API payload is additive and equals the record."""

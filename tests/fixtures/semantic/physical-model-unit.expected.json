@@ -1,0 +1,60 @@
+{
+  "availability": {
+    "clauses": { "lossy": false, "state": "not_applicable" },
+    "fields": { "lossy": false, "state": "not_applicable" },
+    "model": { "lossy": false, "state": "available" },
+    "operations": { "lossy": false, "state": "not_applicable" }
+  },
+  "contractVersion": "1.0.0",
+  "diagnostics": [],
+  "formatVersion": 1,
+  "model": {
+    "displayName": {
+      "sourceSpan": {
+        "endColumn": 19,
+        "endLine": 3,
+        "path": "spec/units/Millisecond.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "startColumn": 1,
+        "startLine": 3
+      },
+      "value": "Millisecond"
+    },
+    "identity": {
+      "sourceSpan": {
+        "endColumn": 10,
+        "endLine": 2,
+        "path": "spec/units/Millisecond.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "startColumn": 1,
+        "startLine": 2
+      },
+      "value": "U-001"
+    },
+    "unit": {
+      "dimension": {
+        "target": {
+          "kind": "SemanticId",
+          "value": "ix://agent-ix/shop/type/Time"
+        }
+      },
+      "offset": "0",
+      "scale": "1/1000",
+      "sourceSpan": {
+        "endColumn": 27,
+        "endLine": 12,
+        "path": "spec/units/Millisecond.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "startColumn": 1,
+        "startLine": 12
+      },
+      "target": {
+        "target": {
+          "kind": "SemanticId",
+          "value": "ix://agent-ix/shop/type/ms"
+        }
+      }
+    }
+  },
+  "package": "agent-ix/spec-objects-fixture"
+}
