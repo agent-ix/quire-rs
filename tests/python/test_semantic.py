@@ -61,6 +61,28 @@ def test_physical_model_unit_matches_rust_golden():
     assert second == expected
 
 
+@pytest.mark.trace(
+    "FR-075-AC-16",
+    "FR-075-AC-17",
+    "FR-075-AC-18",
+    "FR-075-AC-19",
+    "FR-075-AC-20",
+)
+def test_physical_model_cases_match_complete_rust_records():
+    """The Python binding matches the full Rust records for every physical-model case."""
+    cases = json.loads(
+        (FIXTURES / "physical-model-cases.input.json").read_text()
+    )["cases"]
+    expected = json.loads(
+        (FIXTURES / "physical-model-cases.expected.json").read_text()
+    )
+    assert len(cases) == len(expected)
+    for case in cases:
+        name = case["name"]
+        record = quire.extract_semantic(case["request"])
+        assert record == expected[name], name
+
+
 def _physical_request(section, columns, rows, objects=(), artifacts=()):
     request = copy.deepcopy(
         json.loads((FIXTURES / "physical-model-unit.input.json").read_text())

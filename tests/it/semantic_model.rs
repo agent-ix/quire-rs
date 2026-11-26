@@ -2579,3 +2579,42 @@ fn physical_model_unit_record_is_deterministic_and_schema_valid() {
     );
     assert_eq!(first, expected);
 }
+
+#[trace(
+    "FR-075-AC-16",
+    "FR-075-AC-17",
+    "FR-075-AC-18",
+    "FR-075-AC-19",
+    "FR-075-AC-20"
+)]
+#[test]
+fn physical_model_cases_match_schema_valid_rust_goldens_deterministically() {
+    let cases: Value = serde_json::from_str(include_str!(
+        "../fixtures/semantic/physical-model-cases.input.json"
+    ))
+    .unwrap();
+    let expected: Value = serde_json::from_str(include_str!(
+        "../fixtures/semantic/physical-model-cases.expected.json"
+    ))
+    .unwrap();
+    let cases = cases["cases"].as_array().unwrap();
+    assert_eq!(cases.len(), expected.as_object().unwrap().len());
+
+    for case in cases {
+        let name = case["name"].as_str().unwrap();
+        let request = &case["request"];
+        let first = serde_json::to_value(extract_semantic_json(request).unwrap()).unwrap();
+        let second = serde_json::to_value(extract_semantic_json(request).unwrap()).unwrap();
+        let errors: Vec<String> = schema()
+            .iter_errors(&first)
+            .map(|e| format!("{} at {}", e, e.instance_path()))
+            .collect();
+        assert!(errors.is_empty(), "{name}: {errors:?}\n{first:#}");
+        assert_eq!(
+            serde_json::to_vec(&first).unwrap(),
+            serde_json::to_vec(&second).unwrap(),
+            "{name}: extraction is not deterministic"
+        );
+        assert_eq!(first, expected[name], "{name}");
+    }
+}
