@@ -21,7 +21,7 @@ GitHub Release. The tag-attestation workflow validates the asset contents
 against the tag SHA and retains it as the same-run `release-evidence` artifact;
 it does not run the suite again or authenticate the claimed Terra producer.
 Under the SWM-347 owner ruling, producer provenance is out of scope here, so the
-attached evidence is unsigned. Generated run records are never committed.
+attached evidence is unsigned. The producer uses published Quoin 0.30.1 with explicit Process v0.31.0 provider commit `28c8d2ccf03a477ac07c9955de59c7c2a873238a` to derive the six FR-095 bindings, independently of user-installed modules. The original timestamped run, generated bindings and raw JUnit bytes are hashed in the tag-bound manifest. Generated run records are never committed.
 
 ## Suites
 

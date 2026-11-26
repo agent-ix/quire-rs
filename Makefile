@@ -149,7 +149,7 @@ evidence:
 	  test -n "$$tag_created_at" || { echo "evidence: release tag must be annotated" >&2; exit 1; }; \
 	  mkdir -p "$(EVIDENCE_TARGET)"; \
 	  python3 -c 'import shutil, sys; from pathlib import Path; [shutil.rmtree(Path(p), ignore_errors=True) for p in sys.argv[1:]]' \
-	    "$(EVIDENCE_TARGET)/bundle" "$(EVIDENCE_TARGET)/release-evidence-bundle" "$(EVIDENCE_TARGET)/verified"; \
+	    "$(EVIDENCE_TARGET)/bundle" "$(EVIDENCE_TARGET)/release-evidence-bundle" "$(EVIDENCE_TARGET)/verified" "$(EVIDENCE_TARGET)/process-provider"; \
 	  python3 -c 'import sys; from pathlib import Path; Path(sys.argv[1]).unlink(missing_ok=True)' "$(EVIDENCE_TARGET)/release-evidence.tar.gz"; \
 	  python3 -c 'import sys; from pathlib import Path; Path(sys.argv[1]).unlink(missing_ok=True)' "$(EVIDENCE_TARGET)/junit.xml"; \
 	  backup="$(EVIDENCE_TARGET)/bindings.committed.json"; \
@@ -159,6 +159,8 @@ evidence:
 	  npm install --prefix "$(EVIDENCE_TARGET)/quoin" --userconfig /dev/null \
 	    --ignore-scripts --no-audit --no-fund --registry=https://registry.npmjs.org \
 	    @agent-ix/quoin@0.30.1; \
+	  git clone --quiet --depth 1 --branch v0.31.0 https://github.com/agent-ix/spec-artifacts-process "$(EVIDENCE_TARGET)/process-provider"; \
+	  test "$$(git -C "$(EVIDENCE_TARGET)/process-provider" rev-parse HEAD)" = "28c8d2ccf03a477ac07c9955de59c7c2a873238a"; \
 	  CARGO_TARGET_DIR="$(EVIDENCE_TARGET)/cargo" CARGO_BUILD_JOBS=4 cargo install --locked \
 	    --git https://github.com/agent-ix/ix-trace-rs \
 	    --rev 3cd3285055e32e4c08fb124d76e489b9dd412b6b \
@@ -170,15 +172,15 @@ evidence:
 	    -- --test-threads=4 || status=$$?; \
 	  test -s "$(EVIDENCE_TARGET)/junit.xml" || { echo "evidence: ix-trace-run wrote no JUnit report" >&2; exit 1; }; \
 	  "$(RELEASE_QUOIN)" evidence record --repo . --suite SUITE-001 --kind Unit \
-	    --commit "$$commit" \
+	    --config-root "$(EVIDENCE_TARGET)/config" --no-project-config \
+	    --module "$(EVIDENCE_TARGET)/process-provider/spec_artifacts_process" \
 	    --adapter junit --tool 'ix-trace-run 0.1.0+3cd3285' \
-	    --results "$(EVIDENCE_TARGET)/junit.xml"; \
+	    --results "$(EVIDENCE_TARGET)/junit.xml" --json > "$(EVIDENCE_TARGET)/record-result.json"; \
 	  if [ "$$status" -ne 0 ]; then exit "$$status"; fi; \
-	  short_commit=$$(printf '%.12s' "$$commit"); \
-	  run_path="runs/SUITE-001/$$short_commit.json"; \
+	  run_path=$$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["run_path"])' "$(EVIDENCE_TARGET)/record-result.json"); \
 	  python3 scripts/package_release_evidence.py \
 	    --source-root . --committed-bindings "$$backup" \
-	    --run-record "spec/evidence/$$run_path" \
+	    --run-record "$$run_path" --junit-results "$(EVIDENCE_TARGET)/junit.xml" \
 	    --expected-tag "$$tag" --expected-commit "$$commit" \
 	    --tag-created-at "$$tag_created_at" \
 	    --archive "$(EVIDENCE_TARGET)/release-evidence.tar.gz"; \

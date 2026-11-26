@@ -4,6 +4,7 @@
 
 import argparse
 import gzip
+import hashlib
 import json
 import re
 import tarfile
@@ -24,17 +25,9 @@ if not re.fullmatch(r"v[0-9]+\.[0-9]+\.[0-9]+", args.expected_tag):
 if not re.fullmatch(r"[0-9a-f]{40}", args.expected_commit):
     parser.error("expected commit must be a full lowercase git SHA")
 
-run_path = f"runs/SUITE-001/{args.expected_commit[:12]}.json"
-expected_paths = {
-    "release-evidence.json",
-    "suites.md",
-    "bindings.committed.json",
-    "bindings.json",
-    run_path,
-}
 MAX_ARCHIVE_BYTES = 20_000_000
 MAX_DECOMPRESSED_BYTES = 50_000_000
-MAX_ARCHIVE_MEMBERS = len(expected_paths)
+MAX_ARCHIVE_MEMBERS = 6
 
 
 class DecompressedArchiveLimitExceeded(Exception):
@@ -110,10 +103,22 @@ except DecompressedArchiveLimitExceeded:
 except (OSError, EOFError, tarfile.TarError) as error:
     parser.error(f"release evidence archive is malformed: {error}")
 
+if "release-evidence.json" not in members:
+    parser.error("release evidence archive has no manifest")
+manifest = json.loads(members["release-evidence.json"])
+run_path = manifest.get("runPath", "")
+if not isinstance(run_path, str) or not re.fullmatch(r"runs/SUITE-001/[A-Za-z0-9~_.-]+\.json", run_path):
+    parser.error("release evidence manifest has an unsafe run path")
+expected_paths = {
+    "release-evidence.json", "suites.md", "bindings.committed.json",
+    "bindings.json", "junit.xml", run_path,
+}
 if set(members) != expected_paths:
     parser.error("release evidence archive is missing or contains unexpected files")
-
-manifest = json.loads(members["release-evidence.json"])
+expected_hashes = {
+    name: hashlib.sha256(content).hexdigest()
+    for name, content in members.items() if name != "release-evidence.json"
+}
 if manifest != {
     "schemaVersion": 1,
     "tag": args.expected_tag,
@@ -122,8 +127,9 @@ if manifest != {
     "suite": "SUITE-001",
     "runPath": run_path,
     "tool": "ix-trace-run 0.1.0+3cd3285",
+    "sha256": expected_hashes,
 }:
-    parser.error("release evidence manifest does not match the triggering tag SHA")
+    parser.error("release evidence manifest or payload hashes do not match the triggering tag SHA")
 
 source_evidence = args.source_root / "spec" / "evidence"
 if members["suites.md"] != (source_evidence / "suites.md").read_bytes():
@@ -143,7 +149,6 @@ run = json.loads(members[run_path])
 if (
     run.get("schemaVersion") != 1
     or run.get("suite") != "SUITE-001"
-    or run.get("commit") != args.expected_commit
     or run.get("tool") != manifest["tool"]
     or run.get("evidenceKind") != "Unit"
     or not run.get("timestamp")
