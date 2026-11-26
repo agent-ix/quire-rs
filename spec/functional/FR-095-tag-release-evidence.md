@@ -31,6 +31,8 @@ Terra produced it. Under the owner ruling recorded in SWM-347 comment
 The shared consumer uses this store under
 [Engineering Assurance FR-069](ix://agent-ix/engineering-assurance/FR-069)
 and writes no Test Result when evidence is absent or unusable.
+The tag-attestation workflow is also reusable by another repository's
+tag-release workflow through `workflow_call`, with a documented example.
 
 ## Inputs
 
@@ -53,6 +55,8 @@ and writes no Test Result when evidence is absent or unusable.
 - A workflow artifact named `release-evidence` carrying that store.
 - A shared Engineering Assurance workflow call with
   `evidence_artifact` equal to `release-evidence`.
+- A reusable `workflow_call` interface and a short example for calling the
+  tag-attestation workflow by repository reference.
 
 ## Behavior
 
@@ -87,6 +91,10 @@ and writes no Test Result when evidence is absent or unusable.
 - If the suite fails, no run record is available, or the evidence artifact
   cannot be uploaded, the workflow SHALL fail before the reusable attestation
   call.
+- The tag-attestation workflow SHALL expose typed `workflow_call` inputs for
+  the wheel-build choice and release artifact names. Evidence validation and
+  attestation SHALL run only for `v*` tag refs. A reusable caller SHALL build
+  wheels only when explicitly requested.
 - The tag-attestation workflow SHALL NOT modify the committed suite or binding
   registries and SHALL NOT commit generated run records.
 
@@ -120,6 +128,8 @@ and writes no Test Result when evidence is absent or unusable.
 | FR-095-AC-4 | After a tag-attestation run, the uploaded artifact contains the committed suite and binding registries, the generated binding registry, and the fresh `SUITE-001` run record from the exact tag commit; the source worktree does not commit generated records. | Test |
 | FR-095-AC-5 | When the shared consumer receives no `release-evidence` artifact or the artifact has no evidence root, it writes no Test Result and no release attestation, and reports an absent-evidence failure. | Test |
 | FR-095-AC-6 | When the shared consumer receives an unusable evidence root, including an invalid binding registry or run record, a missing required binding, a failing suite result, or a stale run, it writes no Test Result and no release attestation, and reports the applicable failure. The tag workflow also refuses excess archive entries or byte totals before extraction. | Test |
+| FR-095-AC-7 | A workflow test confirms that the tag-attestation workflow exposes typed `workflow_call` inputs for the wheel-build choice and release artifact names, runs evidence validation and attestation only for `v*` tag refs, and builds wheels from a reusable call only when explicitly requested. | Test |
+| FR-095-AC-8 | A documentation test confirms that the adoption how-to calls the reusable workflow by repository reference from a tag-only caller and provides the release artifact inputs without vendoring the workflow. | Test |
 
 ## Verification Plan
 
@@ -137,6 +147,8 @@ and writes no Test Result when evidence is absent or unusable.
 | TC-2240 | Refuse an archive with an unsafe member path or without the exact SUITE-001 run record. |
 | TC-2241 | Refuse `make evidence` before test execution when tracked, untracked, or recursive submodule state is dirty. |
 | TC-2242 | Stream an archive with more than six entries, more than 20,000,000 compressed bytes, or more than 50,000,000 decompressed bytes; refuse each before extraction. |
+| TC-2243 | Parse the reusable workflow declaration and confirm typed inputs and release-tag guards; verify a push-triggered caller with wheel building disabled skips the wheel build and upload. Covers FR-095-AC-7. |
+| TC-2244 | Read the adoption how-to and confirm it calls the reusable workflow by reference from a tag-only caller without vendoring the workflow. Covers FR-095-AC-8. |
 
 ## Dependencies
 
