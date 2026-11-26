@@ -28,6 +28,9 @@ use std::sync::Arc;
 use ix_trace_rs::implements;
 use serde_json::Value;
 
+#[cfg(test)]
+pub(crate) static HOME_ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 use crate::diagnostic::Diagnostic;
 use crate::error::{ArchetypeLoadFailure, QuireError};
 use crate::loader::compile::{compile_schema, failure, read_schema, CompiledArchetype};
@@ -2370,10 +2373,6 @@ mod tests {
     use ix_trace_rs::trace;
     use std::ffi::OsString;
     use std::fs;
-    use std::sync::Mutex;
-
-    static SEARCH_ENV_LOCK: Mutex<()> = Mutex::new(());
-
     struct SearchEnvRestore([(&'static str, Option<OsString>); 4]);
 
     impl Drop for SearchEnvRestore {
@@ -2394,7 +2393,7 @@ mod tests {
         schema_path: Option<OsString>,
         f: impl FnOnce() -> T,
     ) -> T {
-        let _lock = SEARCH_ENV_LOCK.lock().expect("search env lock");
+        let _lock = super::HOME_ENV_LOCK.lock().expect("home env lock");
         let restore = SearchEnvRestore([
             ("HOME", std::env::var_os("HOME")),
             ("IX_HOME", std::env::var_os("IX_HOME")),

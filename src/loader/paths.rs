@@ -191,12 +191,14 @@ mod tests {
 
     #[test]
     fn expand_tilde_root() {
+        let _home_env_lock = crate::loader::HOME_ENV_LOCK.lock().expect("home env lock");
         let h = home_dir().expect("HOME set");
         assert_eq!(expand_tilde("~"), h);
     }
 
     #[test]
     fn expand_tilde_subpath() {
+        let _home_env_lock = crate::loader::HOME_ENV_LOCK.lock().expect("home env lock");
         let h = home_dir().expect("HOME set");
         assert_eq!(expand_tilde("~/foo/bar"), h.join("foo/bar"));
     }
@@ -213,6 +215,7 @@ mod tests {
 
     #[test]
     fn default_module_root_points_at_filament_modules() {
+        let _home_env_lock = crate::loader::HOME_ENV_LOCK.lock().expect("home env lock");
         if std::env::var_os("IX_HOME").is_some_and(|v| !v.is_empty()) {
             return;
         }
@@ -267,6 +270,7 @@ mod tests {
     // PLAT-106: env roots extend the default install root, as quire-cli does.
     #[test]
     fn env_roots_keep_default_root() {
+        let _home_env_lock = crate::loader::HOME_ENV_LOCK.lock().expect("home env lock");
         let a = env::temp_dir().join(format!("quire-rs-roots-a-{}", std::process::id()));
         let b = env::temp_dir().join(format!("quire-rs-roots-b-{}", std::process::id()));
         std::fs::create_dir_all(&a).unwrap();
@@ -306,6 +310,7 @@ mod tests {
 
     #[test]
     fn resolve_with_explicit_wins_over_env() {
+        let _home_env_lock = crate::loader::HOME_ENV_LOCK.lock().expect("home env lock");
         let tmp = env::temp_dir();
         let diags = resolve_search_paths(&[&tmp], Some(OsString::from("/nonexistent")));
         assert_eq!(diags.len(), 1);
@@ -314,12 +319,14 @@ mod tests {
 
     #[test]
     fn missing_path_classified_as_missing_not_error() {
+        let _home_env_lock = crate::loader::HOME_ENV_LOCK.lock().expect("home env lock");
         let diags = resolve_search_paths(&[Path::new("/definitely/does/not/exist/quire-rs")], None);
         assert!(matches!(diags[0], PathDiagnostic::Missing(_)));
     }
 
     #[test]
     fn duplicate_canonical_paths_dedupe() {
+        let _home_env_lock = crate::loader::HOME_ENV_LOCK.lock().expect("home env lock");
         let tmp = env::temp_dir();
         let s = format!("{}:{}", tmp.display(), tmp.display());
         let diags = resolve_search_paths(&[], Some(OsString::from(s)));
@@ -333,6 +340,7 @@ mod tests {
 
     #[test]
     fn file_not_directory_is_diagnosed_not_fatal() {
+        let _home_env_lock = crate::loader::HOME_ENV_LOCK.lock().expect("home env lock");
         let mut path = env::temp_dir();
         path.push(format!("quire-rs-test-file-{}.tmp", std::process::id()));
         std::fs::write(&path, b"hi").expect("write");
