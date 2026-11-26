@@ -259,8 +259,8 @@ fn tc868_ears_and_ac_findings_are_unchanged() {
                | FR-001-AC-1 | The system shall support pagination. | Test |\n";
     let result = quire_rs::validate_document_in_registry(&registry, archetype, doc);
 
-    // Silencing the whole quality pack must leave the other two streams
-    // byte-for-byte identical — the only honest way to assert CON-4.
+    // Pin the EARS/AC baseline as well as comparing both quality severity
+    // settings; a finding lost in both runs must not pass silently.
     let silenced = registry.with_grammar_severity(
         [
             (
@@ -281,7 +281,6 @@ fn tc868_ears_and_ac_findings_are_unchanged() {
         .collect(),
     );
     let baseline = quire_rs::validate_document_in_registry(&silenced, archetype, doc);
-
     let non_quality = |r: &quire_rs::ValidationResult| -> Vec<String> {
         r.warnings
             .iter()
@@ -289,10 +288,22 @@ fn tc868_ears_and_ac_findings_are_unchanged() {
             .map(|w| format!("{}@{:?}", w.message, w.line))
             .collect()
     };
+    let expected = vec![
+        "[ears:unclassifiable] statement does not match any EARS pattern (ubiquitous / event / state / unwanted / optional / complex)@Some(9)",
+        "[ears:missing-subject] statement names no system/actor subject before `shall`@Some(9)",
+        "[ears:vague-response] vague response verb `process`; name a concrete, verifiable response@Some(9)",
+        "[ac:non-canonical-shape] criterion is obligation-shaped; an acceptance criterion is a verification statement, so the canonical shape is a direct assertion of the outcome@Some(15)",
+        "[ac:vague-response] vague outcome verb `support`; name a concrete, verifiable outcome@Some(15)",
+    ];
     assert_eq!(
         non_quality(&result),
+        expected,
+        "quality checks changed the EARS/AC baseline"
+    );
+    assert_eq!(
         non_quality(&baseline),
-        "the quality pack moved an `ears` or `ac` finding",
+        expected,
+        "silencing quality checks changed the EARS/AC baseline",
     );
     assert!(
         !non_quality(&result).is_empty(),
