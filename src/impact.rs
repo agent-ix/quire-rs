@@ -3,7 +3,9 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use ix_trace_rs::implements;
+#[cfg(feature = "rust-symbols")]
 use quire_code_extraction::tree_sitter::Node;
+#[cfg(feature = "rust-symbols")]
 use quire_code_extraction::{parse_file, Language as CodeLanguage};
 use serde::Serialize;
 
@@ -1067,7 +1069,10 @@ pub fn analyze(input: ImpactInput<'_>) -> Result<ImpactReport, ImpactError> {
         }
     }
     if let Some(depth_limit) = input.caller_search_depth {
+        #[cfg(feature = "rust-symbols")]
         let caller_data = caller_call_graph(&head_extraction);
+        #[cfg(not(feature = "rust-symbols"))]
+        let caller_data = caller_call_graph_unavailable(&head_extraction);
         for changed in report.changed_symbols.iter().filter(|changed| {
             changed.side == RevisionSide::Head
                 && changed.kind == SymbolKind::Function.as_str()
@@ -1240,6 +1245,7 @@ impl SymbolKey {
 }
 
 #[derive(Debug, Clone)]
+#[cfg(feature = "rust-symbols")]
 struct ParsedCall {
     caller: SymbolKey,
     written: String,
@@ -1271,6 +1277,7 @@ struct CallerCallGraph<'a> {
 }
 
 #[implements("FR-099-AC-9")]
+#[cfg(feature = "rust-symbols")]
 fn caller_call_graph<'a>(extraction: &'a SymbolExtraction) -> CallerCallGraph<'a> {
     let mut graph = CallerCallGraph::default();
     let mut functions_by_path: BTreeMap<String, Vec<&Symbol>> = BTreeMap::new();
@@ -1375,6 +1382,16 @@ fn caller_call_graph<'a>(extraction: &'a SymbolExtraction) -> CallerCallGraph<'a
 }
 
 #[implements("FR-099-AC-9")]
+#[cfg(not(feature = "rust-symbols"))]
+fn caller_call_graph_unavailable(_extraction: &SymbolExtraction) -> CallerCallGraph<'_> {
+    // Rust extraction records its language as unavailable in this build. An
+    // empty graph avoids guessing callers; `analyze` retains that incomplete
+    // status through the extraction finding.
+    CallerCallGraph::default()
+}
+
+#[cfg(feature = "rust-symbols")]
+#[implements("FR-099-AC-9")]
 fn collect_calls(
     node: Node,
     source: &str,
@@ -1432,6 +1449,7 @@ fn collect_calls(
     }
 }
 
+#[cfg(feature = "rust-symbols")]
 #[implements("FR-099-AC-9")]
 fn shadows_local_binding(call: Node, name: &str, source: &str) -> bool {
     let mut child = call;
@@ -1524,6 +1542,7 @@ fn shadows_local_binding(call: Node, name: &str, source: &str) -> bool {
     false
 }
 
+#[cfg(feature = "rust-symbols")]
 #[implements("FR-099-AC-9")]
 fn condition_binds_name(condition: Node, name: &str, source: &str) -> bool {
     if condition.kind() == "let_condition"
@@ -1540,6 +1559,7 @@ fn condition_binds_name(condition: Node, name: &str, source: &str) -> bool {
     binds_name
 }
 
+#[cfg(feature = "rust-symbols")]
 #[implements("FR-099-AC-9")]
 fn pattern_binds_name(pattern: Node, name: &str, source: &str) -> bool {
     if pattern.kind() == "identifier"
@@ -1556,6 +1576,7 @@ fn pattern_binds_name(pattern: Node, name: &str, source: &str) -> bool {
     binds_name
 }
 
+#[cfg(feature = "rust-symbols")]
 #[implements("FR-099-AC-9")]
 fn import_aliases(node: Node, source: &str) -> BTreeMap<String, String> {
     let mut aliases = BTreeMap::new();
@@ -1597,6 +1618,7 @@ fn import_aliases(node: Node, source: &str) -> BTreeMap<String, String> {
     aliases
 }
 
+#[cfg(feature = "rust-symbols")]
 #[implements("FR-099-AC-9")]
 fn call_path(node: Node, source: &str) -> (Option<String>, Option<String>, Option<&'static str>) {
     match node.kind() {
@@ -1623,6 +1645,7 @@ fn call_path(node: Node, source: &str) -> (Option<String>, Option<String>, Optio
     }
 }
 
+#[cfg(feature = "rust-symbols")]
 #[implements("FR-099-AC-9")]
 fn normalize_call_path(text: &str) -> String {
     let chars: Vec<char> = text.chars().collect();
@@ -1650,6 +1673,7 @@ fn normalize_call_path(text: &str) -> String {
     normalized
 }
 
+#[cfg(feature = "rust-symbols")]
 #[implements("FR-099-AC-9")]
 fn resolve_callee(
     callee_path: &str,
@@ -1910,6 +1934,26 @@ mod tests {
         )
         .unwrap();
         crate::Registry::load_module(&module).unwrap()
+    }
+
+    #[cfg(not(feature = "rust-symbols"))]
+    #[trace("FR-099-AC-9")]
+    #[test]
+    fn disabled_rust_symbols_keeps_caller_selection_incomplete() {
+        let report = run_with_callers(
+            "fn changed() {}\n#[implements(\"FR-099-AC-9\")]\nfn caller() { changed(); }\n",
+            LineRange { start: 1, end: 1 },
+            3,
+        );
+
+        assert!(!report.selection_complete);
+        assert!(report.selected_tests.is_empty());
+        assert!(report.caller_searches.is_empty());
+        assert!(report.findings.iter().any(|finding| matches!(
+            finding,
+            ImpactFinding::LanguagesUnavailable { languages, .. }
+                if languages == &["rust".to_string()]
+        )));
     }
 
     #[trace("FR-099-AC-1")]
