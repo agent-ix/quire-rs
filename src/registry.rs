@@ -1478,6 +1478,47 @@ roles:
         assert!(!r.lexicon_matcher().contains_term("unrelated text"));
     }
 
+    #[trace("FR-043-CON-1")]
+    #[test]
+    fn malformed_lexicon_entry_fails_module_load() {
+        let parent = tmpdir("lexicon-malformed");
+        let module_root = parent.join("module");
+        write_vocab_module(&module_root, "module", "lexicon:\n  pagination: {}\n");
+
+        let err = Registry::load_module(&module_root).expect_err("malformed entry must fail load");
+        assert!(matches!(
+            err,
+            QuireError::ManifestError { path, message }
+                if path == module_root.join("manifest.yaml")
+                    && message.contains("definition")
+        ));
+
+        let err =
+            Registry::load_from(&[&parent]).expect_err("malformed entry must fail search load");
+        assert!(matches!(
+            err,
+            QuireError::ManifestError { path, message }
+                if path == module_root.join("manifest.yaml")
+                    && message.contains("definition")
+        ));
+    }
+
+    #[trace("FR-043-CON-2")]
+    #[test]
+    fn absent_or_empty_lexicon_loads_empty_registry() {
+        for (name, body) in [("absent", ""), ("empty", "lexicon: {}\n")] {
+            let parent = tmpdir(&format!("lexicon-{name}"));
+            let module_root = parent.join("module");
+            write_vocab_module(&module_root, "module", body);
+
+            let registry = Registry::load_module(&module_root).expect("module should load");
+            assert!(
+                registry.lexicon().is_empty(),
+                "{name} lexicon should be empty"
+            );
+        }
+    }
+
     #[trace("FR-043-AC-2")]
     // a term re-declared with a differing body across
     // modules is first-wins + emits one `DuplicateLexiconTerm`.
