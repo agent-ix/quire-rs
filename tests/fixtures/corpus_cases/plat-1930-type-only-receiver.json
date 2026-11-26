@@ -40,7 +40,8 @@
     "empty_index_package": "",
     "wrong_kind_local": "---\nid: PRINCIPAL-001\ntitle: Local principal\ntype: principal\nobject: principal\n---\n# Local principal\n",
     "type_only_enumeration": "---\nid: ENUM-ONLY\ntype: enumeration\n---\n# Not an object declaration\n",
-    "malformed_object": "---\nid: MALFORMED\ntype: RoleSpec\nobject: 42\n---\n# Malformed explicit object kind\n"
+    "malformed_object": "---\nid: MALFORMED\ntype: RoleSpec\nobject: 42\n---\n# Malformed explicit object kind\n",
+    "remote_wrong_kind": "---\nid: ROLE-002\ntitle: Remote role\ntype: principal\n---\n# Remote role\n"
   },
   "expect": {
     "valid_diagnostics_absent": [

@@ -790,7 +790,9 @@ fn indexed_record_receivers_resolve_type_only_artifact_kinds() {
         .collect();
     assert_eq!(objects, vec!["WF-001", "PRINCIPAL-001"]);
     assert!(bundle.enumerations.is_empty());
-    let source = input["source"].as_str().unwrap();
+    let full_source = input["source"].as_str().unwrap();
+    let local_source = full_source.replace("| CrossRepo | ix://acme/events/ROLE-002 |\n", "");
+    let source = local_source.as_str();
     let valid = quire_rs::validate_document_in_indexed_bundle(
         &registry,
         workflow,
@@ -820,5 +822,77 @@ fn indexed_record_receivers_resolve_type_only_artifact_kinds() {
             "{replacement}: {:?}",
             result.errors
         );
+    }
+    let own = tempfile::tempdir().unwrap();
+    let foreign = tempfile::tempdir().unwrap();
+    let own_spec = own.path().join("spec");
+    let foreign_spec = foreign.path().join("spec");
+    std::fs::create_dir(&own_spec).unwrap();
+    std::fs::create_dir(&foreign_spec).unwrap();
+    for (filename, key) in [
+        ("role.md", "local_event"),
+        ("principal.md", "wrong_kind_local"),
+    ] {
+        std::fs::write(own_spec.join(filename), input[key].as_str().unwrap()).unwrap();
+    }
+    std::fs::write(
+        foreign_spec.join("role.md"),
+        input["remote_event"].as_str().unwrap(),
+    )
+    .unwrap();
+    for (target, remote_document, expected_error) in [
+        ("ROLE-002", "remote_event", None),
+        (
+            "ROLE-002",
+            "remote_wrong_kind",
+            Some("semantic.reference-kind-mismatch"),
+        ),
+        (
+            "MISSING",
+            "remote_event",
+            Some("semantic.invalid-model-cell"),
+        ),
+    ] {
+        std::fs::write(
+            foreign_spec.join("role.md"),
+            input[remote_document].as_str().unwrap(),
+        )
+        .unwrap();
+        let document =
+            full_source.replace("acme/events/ROLE-002", &format!("acme/events/{target}"));
+        std::fs::write(own_spec.join("workflow.md"), document).unwrap();
+        let corpus = quire_rs::Spec::from_members(vec![
+            quire_rs::CorpusMember {
+                identity: Some("acme/workflows".to_string()),
+                load: quire_rs::corpus::walk::load_repo(&own_spec),
+            },
+            quire_rs::CorpusMember {
+                identity: Some("acme/events".to_string()),
+                load: quire_rs::corpus::walk::load_repo(&foreign_spec),
+            },
+        ])
+        .unwrap();
+        let report = quire_rs::corpus::validate_corpus(
+            &corpus,
+            &registry,
+            quire_rs::BundlePosture::Strict,
+            &[(&own_spec, own.path()), (&foreign_spec, foreign.path())],
+        )
+        .unwrap();
+        let findings: Vec<_> = report
+            .errors
+            .iter()
+            .chain(&report.warnings)
+            .filter(|finding| finding.message.contains("semantic."))
+            .collect();
+        match expected_error {
+            None => assert!(findings.is_empty(), "{findings:?}"),
+            Some(code) => assert!(
+                findings
+                    .iter()
+                    .any(|finding| finding.message.contains(code)),
+                "{findings:?}"
+            ),
+        }
     }
 }
