@@ -287,6 +287,11 @@ fn enterprise_value_stream_stages_bindings_and_outcomes_are_typed() {
         record["model"]["stages"][1]["outcomes"][0]["id"],
         "delivered"
     );
+    assert_span(
+        &record["model"]["stages"][1]["outcomes"][0],
+        md,
+        line_of(md, "| fulfilment | delivered |"),
+    );
     assert_eq!(
         record["model"]["stageCapabilityBindings"][0]["capability"],
         "ix://agent-ix/shop/CAP-001"
@@ -298,6 +303,11 @@ fn enterprise_value_stream_stages_bindings_and_outcomes_are_typed() {
     assert_eq!(
         record["model"]["stageCapabilityBindings"][0]["process"],
         "ix://agent-ix/shop/PROC-001"
+    );
+    assert_span(
+        &record["model"]["stageCapabilityBindings"][0],
+        md,
+        line_of(md, "| fulfilment | Order fulfilment |"),
     );
     assert_span(&record["model"]["stages"][0], md, line_of(md, "| intake |"));
 
