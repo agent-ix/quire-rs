@@ -1457,6 +1457,7 @@ fn block_line(block: &Block) -> usize {
 }
 
 #[implements("FR-075-AC-31")]
+#[implements("FR-075-AC-21")]
 fn table_features(
     lines: &[&str],
     body_start: usize,
@@ -1564,6 +1565,23 @@ fn table_features(
                         "a {} table beside the {} table; one systems-model table per artifact",
                         owner.feature.name(),
                         other.name()
+                    ),
+                ));
+                failed.push(owner.feature);
+                continue;
+            }
+            if matches!(owner.feature, ModelFeature::Dimension | ModelFeature::Unit)
+                && read.iter().any(|feature| {
+                    matches!(feature, ModelFeature::Dimension | ModelFeature::Unit)
+                        && *feature != owner.feature
+                })
+            {
+                out.diagnostics.push(err(
+                    "semantic.duplicate-section",
+                    table.line,
+                    format!(
+                        "a {} table beside a dimension or unit table; one physical type table per artifact",
+                        owner.feature.name()
                     ),
                 ));
                 failed.push(owner.feature);

@@ -2280,6 +2280,26 @@ fn unit_rows_resolve_dimensions_and_targets_with_canonical_rationals() {
     }
 
     for value in ["2/4", "1/1", "-0", "0/5", "01/3", "1.5", "1/0", ""] {
+        let table =
+            format!("| Dimension | Scale | Offset |\n|---|---:|---:|\n| Time | 1 | {value} |\n");
+        let md = physical_doc(&[("Scale", &table)]);
+        let record = extract_request(&physical_request(
+            &md,
+            physical_tables("", "", "Scale"),
+            &[("Time", "dimension", &["Time"])],
+        ));
+        assert!(
+            has(
+                &record,
+                "semantic.invalid-model-cell",
+                line_of(&md, "| Time |")
+            ),
+            "offset {value}: {record:#}"
+        );
+        assert_model_unavailable(&record);
+    }
+
+    for value in ["2/4", "1/1", "-0", "0/5", "01/3", "1.5", "1/0", ""] {
         let table = format!("| Dimension | Target | Scale | Offset |\n|---|---|---|---|\n| Time | | {value} | 0 |\n");
         let md = physical_doc(&[("Scale", &table)]);
         let record = extract_request(&physical_request(
@@ -2297,6 +2317,72 @@ fn unit_rows_resolve_dimensions_and_targets_with_canonical_rationals() {
         );
         assert_model_unavailable(&record);
     }
+
+    for table in [
+        "| Dimension | Scale | Offset |\n|---|---:|---:|\n",
+        "| Dimension | Scale | Offset |\n|---|---:|---:|\n| Time | 1 | 0 |\n| Time | 1 | 0 |\n",
+    ] {
+        let md = physical_doc(&[("Scale", table)]);
+        let record = extract_request(&physical_request(
+            &md,
+            physical_tables("", "", "Scale"),
+            &[("Time", "dimension", &["Time"])],
+        ));
+        assert!(
+            record["diagnostics"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|d| d["code"] == "semantic.invalid-model-cell"
+                    || d["code"] == "semantic.duplicate-model-entry"),
+            "{record:#}"
+        );
+        assert_model_unavailable(&record);
+    }
+
+    let mut imported = physical_request(&md, physical_tables("", "", "Scale"), &[]);
+    imported["module"]["imports"] = json!({ "acme/time-units": ["Time", "s"] });
+    imported["bundle"]["imports"] = json!({ "acme/time-units": ["Time", "s"] });
+    imported["bundle"]["importedArtifacts"] = json!([
+        { "package": "acme/time-units", "id": "Time", "names": ["Time"], "object": "dimension", "sourceSpan": {
+            "sourceIdentity": "ix://acme/time-units/spec", "path": "spec/Time.md", "startLine": 1, "startColumn": 1, "endLine": 1, "endColumn": 1
+        }},
+        { "package": "acme/time-units", "id": "s", "names": ["s"], "object": "unit" }
+    ]);
+    imported["markdown"] = json!(md.replace(
+        "| Time | s |",
+        "| acme/time-units::Time | acme/time-units::s |"
+    ));
+    let qualified = extract_request(&imported);
+    assert_eq!(
+        qualified["model"]["unit"]["dimension"]["target"]["value"],
+        "ix://acme/time-units/type/Time"
+    );
+    assert_eq!(
+        qualified["model"]["unit"]["target"]["target"]["value"],
+        "ix://acme/time-units/type/s"
+    );
+    assert_eq!(qualified["resolvedReferences"].as_array().unwrap().len(), 1);
+    assert_eq!(
+        qualified["resolvedReferences"][0]["targetSpan"]["path"],
+        "spec/Time.md"
+    );
+
+    let mut own_and_imported = imported.clone();
+    own_and_imported["markdown"] = json!(md.replace("| Time | s |", "| Time | s |"));
+    own_and_imported["bundle"]["artifacts"] = json!([
+        { "id": "Time", "object": "dimension", "operations": [] },
+        { "id": "s", "object": "unit", "operations": [] }
+    ]);
+    own_and_imported["bundle"]["objects"] = json!([
+        { "id": "Time", "names": ["Time"] },
+        { "id": "s", "names": ["s"] }
+    ]);
+    let own = extract_request(&own_and_imported);
+    assert_eq!(
+        own["model"]["unit"]["dimension"]["target"]["value"],
+        "ix://agent-ix/shop/type/Time"
+    );
 }
 
 #[trace("FR-075-AC-21")]
@@ -2337,6 +2423,32 @@ fn dimension_terms_and_unit_sections_are_unique_but_independent() {
         physical_tables("Basis", "", "Scale"),
         &[("Length", "dimension", &["Length"])],
     ));
+    assert!(has(
+        &record,
+        "semantic.duplicate-section",
+        line_of(&base_and_unit, "| Dimension | Scale | Offset |"),
+    ));
+    assert_model_unavailable(&record);
+
+    let unit_then_base = physical_doc(&[("Scale", unit), ("Basis", base)]);
+    let record = extract_request(&physical_request(
+        &unit_then_base,
+        physical_tables("Basis", "", "Scale"),
+        &[("Length", "dimension", &["Length"])],
+    ));
+    assert!(has(
+        &record,
+        "semantic.duplicate-section",
+        line_of(&unit_then_base, "| Base |"),
+    ));
+    assert_model_unavailable(&record);
+
+    let dimension_and_terms = physical_doc(&[("Basis", base), ("Powers", terms)]);
+    let record = extract_request(&physical_request(
+        &dimension_and_terms,
+        physical_tables("Basis", "Powers", ""),
+        &[("Length", "dimension", &["Length"])],
+    ));
     assert!(record["model"].get("dimension").is_some(), "{record:#}");
-    assert!(record["model"].get("unit").is_some(), "{record:#}");
+    assert!(record["model"].get("terms").is_some(), "{record:#}");
 }
