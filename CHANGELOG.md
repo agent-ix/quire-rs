@@ -16,6 +16,11 @@ bumps; once 1.0 ships, semver is strict.
 - Value streams extract ordered, typed stages with stage-owned outcomes and
   capability and process bindings resolved to semantic identities.
 
+### Fixed
+
+- Multi-repository validation resolves typed record-table relationships under
+  the source member's package identity.
+
 ## [0.63.2] — 2026-11-26
 
 ### Added
