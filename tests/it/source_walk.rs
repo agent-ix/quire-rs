@@ -150,7 +150,7 @@ fn extraction_is_independent_of_home_and_xdg_config_home() {
     if let Ok(root) = std::env::var("QUIRE_WALK_PROBE_ROOT") {
         let out = extract_tree(Path::new(&root));
         println!(
-            "PROBE:{:?}:{}",
+            "PROBE:{:?}:{}:END",
             sorted_symbol_files(&out),
             out.ignored_source_files
         );
@@ -184,11 +184,12 @@ fn extraction_is_independent_of_home_and_xdg_config_home() {
             "{}",
             String::from_utf8_lossy(&out.stderr)
         );
-        String::from_utf8_lossy(&out.stdout)
-            .lines()
-            .find(|l| l.starts_with("PROBE:"))
-            .expect("probe line")
-            .to_string()
+        let stdout = String::from_utf8_lossy(&out.stdout);
+        stdout
+            .split_once("PROBE:")
+            .and_then(|(_, output)| output.split_once(":END"))
+            .map(|(probe, _)| probe.to_string())
+            .unwrap_or_else(|| panic!("probe output missing from child stdout:\n{stdout}"))
     };
     let empty = tempfile::tempdir().expect("empty home");
     let hostile = probe(home.path());
