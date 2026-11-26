@@ -4,6 +4,8 @@
 
 CARGO ?= cargo
 QUOIN ?= quoin
+EVIDENCE_TARGET ?= target/release-evidence
+RELEASE_QUOIN ?= $(EVIDENCE_TARGET)/quoin/node_modules/.bin/quoin
 ifndef MUTANTS_RUN_ID
 MUTANTS_RUN_ID := $(shell date -u +%Y%m%dT%H%M%S%N)-$(shell od -An -N8 -tx1 /dev/urandom | tr -d ' \n')
 endif
@@ -26,6 +28,7 @@ help:
 	@echo "Available targets:"
 	@echo "  make fmt              - Format with rustfmt"
 	@echo "  make fmt-check        - Verify formatting (CI gate)"
+	@echo "  make evidence         - Run SUITE-001 at a release tag and package Quoin evidence"
 	@echo "  make lint             - Clippy with -D warnings"
 	@echo "  make test             - cargo test"
 	@echo "  make build            - Release build"
@@ -130,6 +133,62 @@ check-shell-symbols:
 .PHONY: check-tools
 check-tools:
 	$(CARGO) test --locked -p quire-bench
+
+.PHONY: evidence
+# FR-095: run SUITE-001 once at the exact tagged commit on Terra, then package
+# its evidence for attachment to that tag's GitHub Release. The tag workflow
+# validates and retains this bundle; it never runs the suite a second time.
+evidence:
+	@set -eu; \
+	  python3 scripts/check_release_evidence_checkout.py --repo-root .; \
+	  tag=$$(git describe --tags --exact-match HEAD); \
+	  printf '%s\n' "$$tag" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$$' || { echo "evidence: HEAD must be an exact vMAJOR.MINOR.PATCH tag" >&2; exit 1; }; \
+	  commit=$$(git rev-parse HEAD); \
+	  test "$$(git rev-parse "$$tag^{commit}")" = "$$commit" || { echo "evidence: tag does not resolve to HEAD" >&2; exit 1; }; \
+	  tag_created_at=$$(git for-each-ref --format='%(taggerdate:unix)' "refs/tags/$$tag"); \
+	  test -n "$$tag_created_at" || { echo "evidence: release tag must be annotated" >&2; exit 1; }; \
+	  mkdir -p "$(EVIDENCE_TARGET)"; \
+	  python3 -c 'import shutil, sys; from pathlib import Path; [shutil.rmtree(Path(p), ignore_errors=True) for p in sys.argv[1:]]' \
+	    "$(EVIDENCE_TARGET)/bundle" "$(EVIDENCE_TARGET)/release-evidence-bundle" "$(EVIDENCE_TARGET)/verified"; \
+	  python3 -c 'import sys; from pathlib import Path; Path(sys.argv[1]).unlink(missing_ok=True)' "$(EVIDENCE_TARGET)/release-evidence.tar.gz"; \
+	  python3 -c 'import sys; from pathlib import Path; Path(sys.argv[1]).unlink(missing_ok=True)' "$(EVIDENCE_TARGET)/junit.xml"; \
+	  backup="$(EVIDENCE_TARGET)/bindings.committed.json"; \
+	  cp spec/evidence/bindings.json "$$backup"; \
+	  restore_bindings() { cp "$$backup" spec/evidence/bindings.json; }; \
+	  trap restore_bindings EXIT; \
+	  npm install --prefix "$(EVIDENCE_TARGET)/quoin" --userconfig /dev/null \
+	    --ignore-scripts --no-audit --no-fund --registry=https://registry.npmjs.org \
+	    @agent-ix/quoin@0.30.1; \
+	  CARGO_TARGET_DIR="$(EVIDENCE_TARGET)/cargo" CARGO_BUILD_JOBS=4 cargo install --locked \
+	    --git https://github.com/agent-ix/ix-trace-rs \
+	    --rev 3cd3285055e32e4c08fb124d76e489b9dd412b6b \
+	    --root "$(EVIDENCE_TARGET)/tools" --package ix-trace-run; \
+	  status=0; \
+	  CARGO_TARGET_DIR="$(EVIDENCE_TARGET)/cargo" CARGO_BUILD_JOBS=4 \
+	    "$(EVIDENCE_TARGET)/tools/bin/ix-trace-run" --locked --workspace --jobs=4 \
+	    --features ix-trace-rs/emit --output "$(EVIDENCE_TARGET)/junit.xml" \
+	    -- --test-threads=4 || status=$$?; \
+	  test -s "$(EVIDENCE_TARGET)/junit.xml" || { echo "evidence: ix-trace-run wrote no JUnit report" >&2; exit 1; }; \
+	  "$(RELEASE_QUOIN)" evidence record --repo . --suite SUITE-001 --kind Unit \
+	    --commit "$$commit" \
+	    --adapter junit --tool 'ix-trace-run 0.1.0+3cd3285' \
+	    --results "$(EVIDENCE_TARGET)/junit.xml"; \
+	  if [ "$$status" -ne 0 ]; then exit "$$status"; fi; \
+	  short_commit=$$(printf '%.12s' "$$commit"); \
+	  run_path="runs/SUITE-001/$$short_commit.json"; \
+	  python3 scripts/package_release_evidence.py \
+	    --source-root . --committed-bindings "$$backup" \
+	    --run-record "spec/evidence/$$run_path" \
+	    --expected-tag "$$tag" --expected-commit "$$commit" \
+	    --tag-created-at "$$tag_created_at" \
+	    --archive "$(EVIDENCE_TARGET)/release-evidence.tar.gz"; \
+	  restore_bindings; \
+	  trap - EXIT; \
+	  python3 scripts/verify_release_evidence.py \
+	    --archive "$(EVIDENCE_TARGET)/release-evidence.tar.gz" --source-root . \
+	    --expected-tag "$$tag" --expected-commit "$$commit" \
+	    --tag-created-at "$$tag_created_at" \
+	    --output-dir "$(EVIDENCE_TARGET)/verified"
 
 .PHONY: test
 test:

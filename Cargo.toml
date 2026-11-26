@@ -118,6 +118,9 @@ quire-code-extraction = { path = "crates/quire-code-extraction", optional = true
 agent-ix-semantic-schema = { git = "https://github.com/agent-ix/filament-core-data", tag = "semantic-schema-v0.6.0" }
 
 [dev-dependencies]
+# FR-095: embed trace identities in test binaries so ix-trace-run can emit
+# evidence-bearing JUnit without deriving tags from test names.
+ix-trace-rs = { git = "https://github.com/agent-ix/ix-trace-rs", branch = "main", features = ["emit"] }
 # The authoritative QA corpus runner, pinned by the existing corpus submodule.
 qa-corpus = { path = "corpus" }
 # The Markdown -> semantic-core mapping fixture set quire-rs's own semantic

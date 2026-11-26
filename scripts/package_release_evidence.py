@@ -1,0 +1,96 @@
+#!/usr/bin/env python3
+"""Package the single Terra SUITE-001 run for its signed release tag."""
+# implements: FR-095-AC-4
+
+import argparse
+import json
+import re
+import tarfile
+from datetime import datetime, timezone
+from pathlib import Path
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--source-root", type=Path, required=True)
+parser.add_argument("--committed-bindings", type=Path, required=True)
+parser.add_argument("--run-record", type=Path, required=True)
+parser.add_argument("--expected-tag", required=True)
+parser.add_argument("--expected-commit", required=True)
+parser.add_argument("--tag-created-at", type=int, required=True)
+parser.add_argument("--archive", type=Path, required=True)
+args = parser.parse_args()
+
+if not re.fullmatch(r"v[0-9]+\.[0-9]+\.[0-9]+", args.expected_tag):
+    parser.error("expected tag must be vMAJOR.MINOR.PATCH")
+if not re.fullmatch(r"[0-9a-f]{40}", args.expected_commit):
+    parser.error("expected commit must be a full lowercase git SHA")
+
+source = args.source_root.resolve()
+evidence = source / "spec" / "evidence"
+committed_bindings = args.committed_bindings.read_bytes()
+run_record = json.loads(args.run_record.read_text(encoding="utf-8"))
+generated_bindings = (evidence / "bindings.json").read_bytes()
+suite_registry = (evidence / "suites.md").read_bytes()
+
+if args.run_record.resolve() != (
+    evidence / "runs" / "SUITE-001" / f"{args.expected_commit[:12]}.json"
+).resolve():
+    parser.error("run record path does not identify the exact tagged commit")
+if (
+    run_record.get("schemaVersion") != 1
+    or run_record.get("suite") != "SUITE-001"
+    or run_record.get("commit") != args.expected_commit
+    or run_record.get("tool") != "ix-trace-run 0.1.0+3cd3285"
+    or run_record.get("evidenceKind") != "Unit"
+    or not run_record.get("timestamp")
+):
+    parser.error("run record does not match the declared release suite and tag")
+try:
+    run_time = datetime.fromisoformat(run_record["timestamp"].replace("Z", "+00:00"))
+except (TypeError, ValueError):
+    parser.error("run record timestamp is not RFC3339")
+tag_created_at = datetime.fromtimestamp(args.tag_created_at, timezone.utc)
+if run_time.tzinfo is None or run_time <= tag_created_at:
+    parser.error("run record is not newer than the exact annotated release tag")
+if not run_record.get("entries") or any(
+    entry.get("outcome") != "pass" for entry in run_record["entries"]
+):
+    parser.error("release suite run is empty or contains a non-passing result")
+
+base_store = json.loads(committed_bindings)
+run_store = json.loads(generated_bindings)
+for name, store in (("committed", base_store), ("generated", run_store)):
+    if store.get("schemaVersion") != 1 or not isinstance(store.get("bindings"), list):
+        parser.error(f"{name} bindings registry is not a schema-version-1 Quoin store")
+
+bundle = args.archive.parent / "release-evidence-bundle"
+bundle.mkdir(parents=True, exist_ok=True)
+files = {
+    "suites.md": suite_registry,
+    "bindings.committed.json": committed_bindings,
+    "bindings.json": generated_bindings,
+    f"runs/SUITE-001/{args.expected_commit[:12]}.json": args.run_record.read_bytes(),
+}
+for relative, content in files.items():
+    destination = bundle / relative
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_bytes(content)
+
+run_path = f"runs/SUITE-001/{args.expected_commit[:12]}.json"
+manifest = {
+    "schemaVersion": 1,
+    "tag": args.expected_tag,
+    "commit": args.expected_commit,
+    "tagCreatedAt": args.tag_created_at,
+    "suite": "SUITE-001",
+    "runPath": run_path,
+    "tool": "ix-trace-run 0.1.0+3cd3285",
+}
+(bundle / "release-evidence.json").write_text(
+    json.dumps(manifest, sort_keys=True, indent=2) + "\n", encoding="utf-8"
+)
+
+with tarfile.open(args.archive, "w:gz") as archive:
+    for relative in ("release-evidence.json", *files):
+        archive.add(bundle / relative, arcname=relative, recursive=False)
+
+print(f"release evidence bundle: {args.archive}")
