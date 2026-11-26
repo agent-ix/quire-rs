@@ -471,7 +471,7 @@ fn fence_lines() {
     );
     assert_eq!(
         f[1]["type"]["target"],
-        json!({ "kind": "SemanticId", "value": "ix://agent-ix/config-service/type/ConfigOverlay" })
+        json!({ "kind": "SemanticId", "value": "ix://agent-ix/config-service/type/FR-005" })
     );
     // Arbitrary UTF-8 brace text is the Constraints cell: the cell grammar
     // judges it, never a brace parser.

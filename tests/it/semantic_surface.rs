@@ -535,7 +535,7 @@ fn validate_document_surface() {
     );
 }
 
-#[trace("FR-070-AC-1", "FR-070-AC-11")]
+#[trace("FR-070-AC-4", "FR-070-AC-11")]
 #[test]
 fn indexed_validation_resolves_same_repo_types_and_preserves_single_document_mode() {
     use quire_rs::semantic::BundleIndex;
@@ -550,7 +550,7 @@ fn indexed_validation_resolves_same_repo_types_and_preserves_single_document_mod
     let source = fixture["input"]["documents"]["source"].as_str().unwrap();
     let sibling = fixture["input"]["documents"]["sibling"].as_str().unwrap();
     let sibling_fm = quire_rs::parse_document(sibling).frontmatter.unwrap();
-    let source_fm = quire_rs::parse_document(&source).frontmatter.unwrap();
+    let source_fm = quire_rs::parse_document(source).frontmatter.unwrap();
     let docs = [(&source_fm, source), (&sibling_fm, sibling)];
     let index = BundleIndex::from_documents(
         "agent-ix/config-service",
@@ -580,7 +580,7 @@ fn indexed_validation_resolves_same_repo_types_and_preserves_single_document_mod
     let indexed = quire_rs::validate_document_in_indexed_bundle(
         &registry,
         entity,
-        &source,
+        source,
         "agent-ix/config-service",
         None,
         &index,
@@ -611,7 +611,7 @@ fn indexed_validation_resolves_same_repo_types_and_preserves_single_document_mod
     let missing_result = quire_rs::validate_document_in_indexed_bundle(
         &registry,
         entity,
-        &missing,
+        missing,
         "agent-ix/config-service",
         None,
         &index,
@@ -630,7 +630,7 @@ fn indexed_validation_resolves_same_repo_types_and_preserves_single_document_mod
     let wrong_kind_result = quire_rs::validate_document_in_indexed_bundle(
         &registry,
         entity,
-        &wrong_kind,
+        wrong_kind,
         "agent-ix/config-service",
         None,
         &index,
@@ -642,7 +642,7 @@ fn indexed_validation_resolves_same_repo_types_and_preserves_single_document_mod
     let single = quire_rs::validate_document_in_bundle(
         &registry,
         entity,
-        &source,
+        source,
         "agent-ix/config-service",
         None,
     );
