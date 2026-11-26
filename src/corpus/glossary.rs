@@ -296,10 +296,13 @@ mod tests {
         );
     }
 
-    /// Build a bundle report for a repo whose `Glossary` defines `widget` and
-    /// whose `FR-001` says "shall provide a widget", validated Strict (so the
-    /// EARS grammar runs). Shared fixture for TC-678 and TC-679.
-    fn glossary_bundle_report(_tag: &str) -> crate::corpus::BundleReport {
+    /// Build a strict bundle report, returning the harvested project terms
+    /// alongside the report so both the harvesting and validation effects can
+    /// be asserted.
+    fn glossary_bundle_report(
+        glossary: Option<&str>,
+        statements: &[&str],
+    ) -> (crate::corpus::BundleReport, Vec<String>) {
         let base_guard = tempfile::TempDir::new().unwrap();
         let base = base_guard.path().to_path_buf();
         let m = base.join("mod");
@@ -313,24 +316,29 @@ mod tests {
         let registry = crate::Registry::load_module(&m).expect("module loads");
         let docs = base.join("spec");
         std::fs::create_dir_all(&docs).unwrap();
-        std::fs::write(
-            docs.join("GLO-001.md"),
-            "---\nid: GLO-001\ntype: Glossary\n---\n# G\n\n## Terms\n\n| Term | Definition |\n|------|------------|\n| widget | a UI thing |\n",
-        )
-        .unwrap();
-        std::fs::write(
-            docs.join("FR-001.md"),
-            "---\nid: FR-001\ntype: FR\n---\n# FR\n\n## Description\n\nThe system shall provide a widget.\n",
-        )
-        .unwrap();
+        if let Some(glossary) = glossary {
+            std::fs::write(docs.join("GLO-001.md"), glossary).unwrap();
+        }
+        for (index, statement) in statements.iter().enumerate() {
+            let id = index + 1;
+            std::fs::write(
+                docs.join(format!("FR-{id:03}.md")),
+                format!(
+                    "---\nid: FR-{id:03}\ntype: FR\n---\n# FR\n\n## Description\n\n{statement}\n"
+                ),
+            )
+            .unwrap();
+        }
         let spec = Spec::from_path(&docs);
-        crate::corpus::validate_bundle(
+        let terms = glossary_terms(&spec);
+        let report = crate::corpus::validate_bundle(
             &spec,
             &registry,
             crate::corpus::BundlePosture::Strict,
             &docs,
             &docs,
-        )
+        );
+        (report, terms)
     }
 
     #[trace("FR-044-AC-5")]
@@ -338,52 +346,74 @@ mod tests {
     // and applies the combined lexicon — the FR's `widget` is suppressed.
     #[test]
     fn tc678_validate_bundle_harvests_and_applies() {
-        let report = glossary_bundle_report("678");
+        let report = glossary_bundle_report(
+            Some("---\nid: GLO-001\ntype: Glossary\n---\n# G\n\n## Terms\n\n| Term | Definition |\n|------|------------|\n| widget | a UI thing |\n"),
+            &["The system shall provide a widget."],
+        )
+        .0;
         assert!(!report
             .warnings
             .iter()
             .any(|w| w.message.contains("[ears:vague-response]")));
     }
 
-    #[trace("FR-044-AC-6")]
-    // the project-glossary suppression is advisory —
-    // grammar findings never become bundle errors.
+    #[trace("FR-044-AC-6", "FR-044-CON-1")]
+    // A project term suppresses the EARS vague-response finding only. A
+    // separate EARS finding remains visible, and warnings do not block the
+    // strict bundle validation result.
     #[test]
     fn tc679_validate_bundle_grammar_is_advisory() {
-        let report = glossary_bundle_report("679");
-        assert!(!report.errors.iter().any(|e| e.reason == "grammar"));
+        let glossary = Some(
+            "---\nid: GLO-001\ntype: Glossary\n---\n# G\n\n## Terms\n\n| Term | Definition |\n|------|------------|\n| widget | a UI thing |\n",
+        );
+        let statements = [
+            "The system shall provide a widget.",
+            "Upon receiving a request, the system shall provide a widget.",
+        ];
+        let (without_glossary, without_terms) = glossary_bundle_report(None, &statements);
+        let (with_glossary, with_terms) = glossary_bundle_report(glossary, &statements);
+
+        assert!(without_terms.is_empty());
+        assert_eq!(with_terms, ["widget"]);
+        assert!(without_glossary
+            .warnings
+            .iter()
+            .any(|w| w.message.contains("[ears:vague-response]")));
+        assert!(without_glossary
+            .warnings
+            .iter()
+            .any(|w| w.message.contains("[ears:non-canonical-trigger]")));
+        assert!(!with_glossary
+            .warnings
+            .iter()
+            .any(|w| w.message.contains("[ears:vague-response]")));
+        assert!(with_glossary
+            .warnings
+            .iter()
+            .any(|w| w.message.contains("[ears:non-canonical-trigger]")));
+        assert!(with_glossary.is_valid());
     }
 
-    #[trace("FR-044-AC-7")]
-    // a repo with no glossary harvests nothing.
+    #[trace("FR-044-AC-7", "FR-044-CON-2")]
+    // A repo with no glossary harvests nothing and still validates.
     #[test]
     fn tc680_no_glossary_empty() {
-        let tmp_guard = tempfile::TempDir::new().unwrap();
-        let tmp = tmp_guard.path().to_path_buf();
-        std::fs::create_dir_all(&tmp).unwrap();
-        std::fs::write(
-            tmp.join("FR-001.md"),
-            "---\nid: FR-001\ntype: FR\n---\n# FR\n\n## Description\n\nThe system shall do a thing.\n",
-        )
-        .unwrap();
-        let spec = Spec::from_path(&tmp);
-        assert!(glossary_terms(&spec).is_empty());
+        let (report, terms) = glossary_bundle_report(None, &["The system shall provide a widget."]);
+        assert!(terms.is_empty());
+        assert!(report.is_valid());
     }
 
-    // CON-2 (malformed half): a `## Terms` heading with no table harvests zero
-    // terms and never panics (FR-044-AC-7's sibling constraint).
+    #[trace("FR-044-CON-2")]
+    // A malformed glossary with a `## Terms` heading but no table harvests
+    // zero terms and does not fail bundle validation.
     #[test]
-    fn malformed_glossary_harvests_nothing() {
-        let tmp_guard = tempfile::TempDir::new().unwrap();
-        let tmp = tmp_guard.path().to_path_buf();
-        std::fs::create_dir_all(&tmp).unwrap();
-        std::fs::write(
-            tmp.join("GLO-001.md"),
-            "---\nid: GLO-001\ntype: Glossary\n---\n# [GLO-001] G\n\n## Terms\n\nNo table here, just prose.\n",
-        )
-        .unwrap();
-        let spec = Spec::from_path(&tmp);
-        assert!(glossary_terms(&spec).is_empty());
+    fn malformed_glossary_harvests_nothing_without_failing_validation() {
+        let glossary =
+            "---\nid: GLO-001\ntype: Glossary\n---\n# [GLO-001] G\n\n## Terms\n\nNo table here, just prose.\n";
+        let (report, terms) =
+            glossary_bundle_report(Some(glossary), &["The system shall do a thing."]);
+        assert!(terms.is_empty());
+        assert!(report.is_valid());
     }
 
     #[trace("FR-044-AC-8")]
