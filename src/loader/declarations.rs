@@ -8,10 +8,12 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
+use ix_trace_rs::implements;
+
 use crate::error::{ArchetypeLoadFailure, DroppedDeclaration};
 use crate::loader::compile::CompiledArchetype;
 use crate::loader::{flow_rules, merge_traceability, LoadOutcome, LoadedModule};
-use crate::traceability::{DeclarationKind, DroppedDeclarationRef};
+use crate::traceability::{DeclarationKind, DroppedDeclarationRef, RequiredRelationDropCause};
 use crate::vocab::EdgeTypeDef;
 
 /// One declaration to drop from one module.
@@ -20,6 +22,7 @@ pub(super) struct Drop {
     kind: DeclarationKind,
     item: String,
     reason: String,
+    required_relation_cause: Option<RequiredRelationDropCause>,
 }
 
 impl Drop {
@@ -34,7 +37,14 @@ impl Drop {
             kind,
             item: item.to_string(),
             reason: reason.into(),
+            required_relation_cause: (kind == DeclarationKind::RequiredRelation)
+                .then_some(RequiredRelationDropCause::InvalidDeclaration),
         }
+    }
+
+    fn with_required_relation_cause(mut self, cause: RequiredRelationDropCause) -> Self {
+        self.required_relation_cause = Some(cause);
+        self
     }
 }
 
@@ -47,6 +57,19 @@ pub(super) fn declaration_failure(
     item: &str,
     reason: String,
 ) -> ArchetypeLoadFailure {
+    let required_relation_cause = (kind == DeclarationKind::RequiredRelation)
+        .then_some(RequiredRelationDropCause::InvalidDeclaration);
+    declaration_failure_with_cause(module, path, kind, item, reason, required_relation_cause)
+}
+
+fn declaration_failure_with_cause(
+    module: &str,
+    path: std::path::PathBuf,
+    kind: DeclarationKind,
+    item: &str,
+    reason: String,
+    required_relation_cause: Option<RequiredRelationDropCause>,
+) -> ArchetypeLoadFailure {
     ArchetypeLoadFailure {
         module: module.to_string(),
         archetype: "<manifest>".to_string(),
@@ -55,6 +78,7 @@ pub(super) fn declaration_failure(
         declaration: Some(Box::new(DroppedDeclaration {
             kind,
             item: item.to_string(),
+            required_relation_cause,
         })),
     }
 }
@@ -65,12 +89,13 @@ fn apply(outcome: &mut LoadOutcome, drops: Vec<Drop>) {
         module
             .traceability
             .remove_declaration(drop.kind, &drop.item);
-        outcome.failures.push(declaration_failure(
+        outcome.failures.push(declaration_failure_with_cause(
             &module.name,
             module.root.join("manifest.yaml"),
             drop.kind,
             &drop.item,
             drop.reason,
+            drop.required_relation_cause,
         ));
     }
 }
@@ -145,7 +170,12 @@ fn conflict(
         } else {
             format!("merged selected traceability model: {what}; also declared by modules {other}")
         };
-        drops.push(Drop::new(*index, kind, item, reason));
+        let drop = Drop::new(*index, kind, item, reason);
+        drops.push(if kind == DeclarationKind::RequiredRelation {
+            drop.with_required_relation_cause(RequiredRelationDropCause::ConflictingDeclaration)
+        } else {
+            drop
+        });
     }
 }
 
@@ -335,6 +365,7 @@ fn retirement_conflicts(modules: &[LoadedModule], drops: &mut Vec<Drop>) {
 
 /// Resolve the declarations of `outcome.modules` against the merged registry,
 /// dropping each one that cannot load.
+#[implements("FR-058-AC-48")]
 pub(super) fn resolve(
     outcome: &mut LoadOutcome,
     archetypes: &BTreeMap<String, Arc<CompiledArchetype>>,
@@ -400,12 +431,15 @@ pub(super) fn resolve(
                 .iter()
                 .any(|declared| declared.name == relation.name)
             {
-                drops.push(Drop::new(
-                    index,
-                    DeclarationKind::RequiredRelation,
-                    &relation.name,
-                    format!("merged selected traceability model: {reason}"),
-                ));
+                drops.push(
+                    Drop::new(
+                        index,
+                        DeclarationKind::RequiredRelation,
+                        &relation.name,
+                        format!("merged selected traceability model: {reason}"),
+                    )
+                    .with_required_relation_cause(RequiredRelationDropCause::UndeclaredRecordKey),
+                );
             }
         }
     }
@@ -467,6 +501,7 @@ pub(super) fn dropped_refs(failures: &[ArchetypeLoadFailure]) -> Vec<DroppedDecl
                     module: failure.module.clone(),
                     kind: d.kind,
                     item: d.item.clone(),
+                    required_relation_cause: d.required_relation_cause,
                 })
         })
         .collect()

@@ -680,6 +680,7 @@ fn deserialize_manifest(
                 kind: DeclarationKind::TraceabilitySection,
                 item: "traceability".to_string(),
                 reason: format!("traceability: the section cannot be read: {section_error}"),
+                required_relation_cause: None,
             }];
             TraceabilityModel::default()
         }
@@ -841,6 +842,9 @@ fn retain_readable(
                     .filter(|name| !name.trim().is_empty())
                     .map_or_else(|| format!("#{}", index + 1), str::to_string),
                 reason: format!("traceability: {key} entry cannot be read: {reason}"),
+                required_relation_cause: (kind
+                    == crate::traceability::DeclarationKind::RequiredRelation)
+                    .then_some(crate::traceability::RequiredRelationDropCause::InvalidDeclaration),
             }),
         }
     }

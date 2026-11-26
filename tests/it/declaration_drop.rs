@@ -837,6 +837,7 @@ fn every_consumer_of_the_model_refuses_when_declarations_were_dropped() {
         module: "decl-two".into(),
         kind: DeclarationKind::FlowRule,
         item: "bad".into(),
+        required_relation_cause: None,
     }]);
     assert_eq!(registry.require_complete_model(), Err(expected.clone()));
     let text = expected.to_string();

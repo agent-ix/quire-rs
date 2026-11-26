@@ -141,6 +141,8 @@ pub struct ArchetypeLoadFailure {
 pub struct DroppedDeclaration {
     pub kind: crate::traceability::DeclarationKind,
     pub item: String,
+    /// The typed cause when this failure dropped a required relation.
+    pub required_relation_cause: Option<crate::traceability::RequiredRelationDropCause>,
 }
 
 /// Render a [`QuireError::SchemaViolation`] into the canonical

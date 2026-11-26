@@ -31,7 +31,10 @@ pub use flow_rules::{
     FlowAddRemediation, FlowCondition, FlowConditionTest, FlowRemediation, FlowRemoveRemediation,
     FlowRule, FlowSetRemediation, FlowStep,
 };
-pub use prune::{DeclarationFailure, DeclarationKind, DroppedDeclarationRef, DroppedDeclarations};
+pub use prune::{
+    DeclarationFailure, DeclarationKind, DroppedDeclarationRef, DroppedDeclarations,
+    RequiredRelationDropCause,
+};
 
 /// A source language an adapter and a trace-marker form can bind to (FR-051).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
