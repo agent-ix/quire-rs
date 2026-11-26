@@ -19,6 +19,7 @@
 use std::collections::BTreeMap;
 use std::path::Path;
 
+use ix_trace_rs::implements;
 use serde::{Deserialize, Serialize};
 
 use crate::corpus::declared_tables;
@@ -910,7 +911,22 @@ pub fn compute(
     graph: &SymbolGraph,
     root: &Path,
 ) -> Result<CoverageReport, CoverageError> {
-    compute_inner(spec, registry, graph, root, None)
+    compute_inner(spec, registry, graph, root, None, false)
+}
+
+/// Compute the retained coverage declarations needed to build a design matrix.
+///
+/// A design matrix can report dropped required relations alongside valid
+/// declarations. All other dropped declaration kinds remain fatal, and the
+/// ordinary [`compute`] entry point remains strict.
+#[implements("FR-092-AC-20")]
+pub fn compute_coverage_for_design_matrix(
+    spec: &Spec,
+    registry: &Registry,
+    graph: &SymbolGraph,
+    root: &Path,
+) -> Result<CoverageReport, CoverageError> {
+    compute_inner(spec, registry, graph, root, None, true)
 }
 
 /// Reconcile explicit owner-neutral retained backing alongside source claims.
@@ -924,7 +940,7 @@ pub fn compute_with_evidence(
     root: &Path,
     backing: &crate::evidence::BackingInput<'_>,
 ) -> Result<CoverageReport, CoverageError> {
-    compute_inner(spec, registry, graph, root, Some(backing))
+    compute_inner(spec, registry, graph, root, Some(backing), false)
 }
 
 fn compute_inner(
@@ -933,6 +949,7 @@ fn compute_inner(
     graph: &SymbolGraph,
     root: &Path,
     backing: Option<&crate::evidence::BackingInput<'_>>,
+    allow_dropped_required_relations: bool,
 ) -> Result<CoverageReport, CoverageError> {
     if !graph.unavailable_languages.is_empty() {
         return Err(crate::symbols::ExtractionUnavailable {
@@ -940,7 +957,13 @@ fn compute_inner(
         }
         .into());
     }
-    registry.require_complete_model()?;
+    if !allow_dropped_required_relations
+        || registry.dropped_declarations().any(|(_, declaration)| {
+            declaration.kind != crate::traceability::DeclarationKind::RequiredRelation
+        })
+    {
+        registry.require_complete_model()?;
+    }
     let model = registry
         .traceability()
         .ok_or(CoverageError::ModelUndeclared)?;

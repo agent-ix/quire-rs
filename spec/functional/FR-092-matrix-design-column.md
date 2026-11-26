@@ -132,6 +132,7 @@ module, `design_matrix` SHALL return the error alongside entries produced by its
 | FR-092-AC-17 | Under a relation with `to: []`, a requirement whose only edge is to an absent target has a `covered` block with `elements: []` and the reference in `dangling`; no element without `id` and `path` appears. | Test |
 | FR-092-AC-18 | A corpus whose `obligations:` source yields no criterion but whose design relation obliges a document still yields the entry array. | Test |
 | FR-092-AC-19 | When one required relation is dropped and a valid sibling relation remains, `design_matrix` returns the valid sibling's entries and reports the dropped relation in `errors`. | Test |
+| FR-092-AC-20 | `compute_coverage_for_design_matrix` returns coverage from retained declarations when only required relations were dropped, so `design_matrix` can retain valid siblings and report each dropped relation; other dropped declaration kinds and ordinary coverage remain strict. | Test |
 
 ## Constraints
 
