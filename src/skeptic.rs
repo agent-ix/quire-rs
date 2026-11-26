@@ -1307,6 +1307,7 @@ assert_eq!(normalize(value), expected);"#;
     }
 
     #[trace("FR-064-AC-7")]
+    #[trace("FR-064-CON-6")]
     #[test]
     fn tc1080_the_pinned_helper_oracle_copy_is_detected_without_guessing() {
         const IMPLEMENTATION: &str =
@@ -1409,6 +1410,53 @@ assert_eq!(normalize(value), expected);"#;
             oracle_copies_in(&ambiguous),
             vec![],
             "similarity does not authorize guessing between two subjects"
+        );
+
+        // The helper path is deliberately limited to Rust tests whose helper
+        // lives in a different file from the production functions.
+        let same_file = r#"fn normalize(value: &str) -> bool { value.starts_with("ok") }
+fn copied_normalize(value: &str) -> bool { value.starts_with("ok") }
+#[test]
+fn helper_oracle_stays_local() {
+    let value = "okay";
+    assert_eq!(normalize(value), !copied_normalize(value));
+}
+"#;
+        assert!(helper_oracle_candidate(same_file).is_some());
+        assert_eq!(
+            oracle_copies_in(&extract_file(
+                "src/same_file.rs",
+                SourceLanguage::Rust,
+                same_file,
+            )),
+            vec![],
+            "a helper in the production file is not compared"
+        );
+
+        const PYTHON_HELPER_ORACLE: &str = r#"def copied_normalize(value):
+    return value.startswith("ok")
+
+def test_helper_oracle():
+    value = "okay"
+    assert normalize(value) == (not copied_normalize(value))
+"#;
+        assert!(helper_oracle_candidate(PYTHON_HELPER_ORACLE).is_none());
+        let python = merge(
+            extract_file(
+                "src/normalize.py",
+                SourceLanguage::Python,
+                "def normalize(value):\n    return value.startswith(\"ok\")\n",
+            ),
+            extract_file(
+                "tests/test_normalize.py",
+                SourceLanguage::Python,
+                PYTHON_HELPER_ORACLE,
+            ),
+        );
+        assert_eq!(
+            oracle_copies_in(&python),
+            vec![],
+            "helper-oracle comparison is not measured for Python"
         );
     }
 
