@@ -433,7 +433,7 @@ fn population_members_with_one_extent() {
     assert_eq!(members.len(), 2);
     assert_eq!(
         members[0]["type"]["target"],
-        json!({ "kind": "SemanticId", "value": "ix://agent-ix/shop/type/Order" }),
+        json!({ "kind": "SemanticId", "value": "ix://agent-ix/shop/type/FR-100" }),
         "{record:#}"
     );
     assert!(members[0].get("extent").is_none(), "{record:#}");
