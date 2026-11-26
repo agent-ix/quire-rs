@@ -1414,7 +1414,7 @@ assert_eq!(normalize(value), expected);"#;
 
         // The helper path is deliberately limited to Rust tests whose helper
         // lives in a different file from the production functions.
-        let same_file = r#"fn normalize(value: &str) -> bool { value.starts_with("ok") }
+        let same_file = r#"fn normalize(value: &str) -> bool { value.len() > 3 }
 fn copied_normalize(value: &str) -> bool { value.starts_with("ok") }
 #[test]
 fn helper_oracle_stays_local() {
