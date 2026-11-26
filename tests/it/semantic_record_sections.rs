@@ -886,7 +886,10 @@ fn indexed_record_receivers_resolve_type_only_artifact_kinds() {
             .filter(|finding| finding.message.contains("semantic."))
             .collect();
         match expected_error {
-            None => assert!(findings.is_empty(), "{findings:?}"),
+            None => {
+                assert!(report.errors.is_empty(), "{:?}", report.errors);
+                assert!(report.warnings.is_empty(), "{:?}", report.warnings);
+            }
             Some(code) => assert!(
                 findings
                     .iter()

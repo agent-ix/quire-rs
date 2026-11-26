@@ -23,7 +23,8 @@ pub struct BundleEntry {
     pub names: Vec<String>,
 }
 
-/// One artifact of the bundle with its frontmatter `object` type, if any,
+/// One artifact of the bundle with its frontmatter `object` kind, or its
+/// `type` when no `object` field is present,
 /// and the operation names it declares under `## Operations`: what a
 /// relationship `Target` (FR-076 Inputs) and an allocation `<id>/<member>`
 /// source (FR-075 Inputs) resolve against.

@@ -5,7 +5,7 @@
     "FR-081-AC-22"
   ],
   "input": {
-    "module_manifest": "manifest_version: 1.0.0\nname: multi-repo-record-relations\nversion: 0.1.0\nobject_types:\n- name: workflow\n  allowed_links:\n    receiver: [RoleSpec]\n  data_schema:\n    schema: schemas/Workflow.json\n  body_extraction:\n    yield_pattern:\n      match:\n        entries:\n          from: table_row\n          under_section: Entries\n          required: false\n          assert:\n            columns: [Name, Receiver]\nsemantic:\n  contract_version: 1.0.0\n  package: acme/workflows\n  imports:\n    acme/events: 0.1.0\n  import_types:\n    acme/events: [RoleSpec]\n  exports: [workflow]\n  mappings: [record-sections]\n  targets: [json-schema, markdown]\n",
+    "module_manifest": "manifest_version: 1.0.0\nname: multi-repo-record-relations\nversion: 0.1.0\nartifact_types:\n- name: RoleSpec\n- name: principal\nobject_types:\n- name: workflow\n  allowed_links:\n    receiver: [RoleSpec]\n  data_schema:\n    schema: schemas/Workflow.json\n  body_extraction:\n    yield_pattern:\n      match:\n        entries:\n          from: table_row\n          under_section: Entries\n          required: false\n          assert:\n            columns: [Name, Receiver]\nsemantic:\n  contract_version: 1.0.0\n  package: acme/workflows\n  imports:\n    acme/events: 0.1.0\n  import_types:\n    acme/events: [RoleSpec]\n  exports: [workflow]\n  mappings: [record-sections]\n  targets: [json-schema, markdown]\n",
     "schema_path": "schemas/Workflow.json",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
