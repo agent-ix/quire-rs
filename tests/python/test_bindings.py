@@ -142,12 +142,8 @@ def test_check_grammar_ac_findings_cross_boundary(tmp_path):
     assert "unclassifiable" not in scoped_checks
 
 
-@pytest.mark.trace("FR-052-AC-8")
 def test_classify_properties_cross_boundary(tmp_path):
-    """FR-052-AC-11: the property classifier is exposed through PyO3
-    and returns the same records, field for field, as the in-process Rust call
-    over the same fixture (the values asserted here are the ones TC-779 /
-    TC-783 / TC-787 assert in Rust).
+    """The property classifier exposes its records through PyO3.
 
     Every assertion below must name a field and a label that still exist —
     asserting the absence of a retired one passes unconditionally and proves
@@ -173,6 +169,7 @@ def test_classify_properties_cross_boundary(tmp_path):
     assert universal["extractable"] is True
     assert universal["extraction"] == "extractable"
     assert universal["line"] is not None
+    assert universal["obligation"] is None
     # The statement is untruncated and the span offsets index it.
     assert universal["statement"].startswith("A finding whose key")
     for key, text in (
