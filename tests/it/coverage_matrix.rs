@@ -1255,18 +1255,20 @@ fn retained_results_preserve_source_claims_all_causes_and_record_order() {
         claims: &[],
         results: &reversed,
     };
+    let reordered_report = quire_rs::coverage::compute_with_evidence(
+        &spec,
+        &registry,
+        &graph,
+        &root,
+        &reordered,
+        EvidenceCoverageMode::Strict,
+    )
+    .unwrap();
+    assert_eq!(report.to_json(), reordered_report.to_json());
     assert_eq!(
-        report.to_json(),
-        quire_rs::coverage::compute_with_evidence(
-            &spec,
-            &registry,
-            &graph,
-            &root,
-            &reordered,
-            EvidenceCoverageMode::Strict
-        )
-        .unwrap()
-        .to_json()
+        quire_rs::evidence::strict_decision(&report, &[]),
+        quire_rs::evidence::strict_decision(&reordered_report, &[]),
+        "strict rejection reasons retain the same order"
     );
 
     let claim = RecordClaim {
@@ -1330,18 +1332,20 @@ fn retained_results_preserve_source_claims_all_causes_and_record_order() {
         claims: &reversed,
         results: &[],
     };
+    let reversed_conflict_report = quire_rs::coverage::compute_with_evidence(
+        &spec,
+        &registry,
+        &graph,
+        &root,
+        &backing,
+        EvidenceCoverageMode::Strict,
+    )
+    .unwrap();
+    assert_eq!(report.to_json(), reversed_conflict_report.to_json());
     assert_eq!(
-        report.to_json(),
-        quire_rs::coverage::compute_with_evidence(
-            &spec,
-            &registry,
-            &graph,
-            &root,
-            &backing,
-            EvidenceCoverageMode::Strict
-        )
-        .unwrap()
-        .to_json()
+        quire_rs::evidence::strict_decision(&report, &[]),
+        quire_rs::evidence::strict_decision(&reversed_conflict_report, &[]),
+        "conflict rejection reasons retain the same order"
     );
     fs::remove_dir_all(root).unwrap();
 }
