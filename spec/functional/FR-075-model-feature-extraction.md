@@ -159,7 +159,7 @@ only the reference locus.
 | `dimension` | table `Base` (required), one row | `{ base, sourceSpan }`, `base` a boolean |
 | `terms` | table `Dimension \| Exponent` (both required) | `{ dimension, exponent, sourceSpan }`, `dimension` a `TypeRef` `{ target }` resolved as a dimension token, `exponent` an integer, in row order |
 | `unit` | table `Dimension \| Target \| Scale \| Offset` (`Dimension`, `Scale`, `Offset` required, `Target` optional), one row | `{ dimension, target?, scale, offset, sourceSpan }`, `dimension` and `target` each a `TypeRef` `{ target }` (`dimension` resolved as a dimension token, `target` as a unit token), `scale` and `offset` canonical rational strings |
-| `stages` | table `Stage ID \| Order \| Name \| Value` (`Stage ID`, `Order`, `Name`, and `Value` required) | `{ id, name, order, value, sourceSpan }` in authored row order; `id` is authored, stable, and never derived; `order` is a nonnegative integer; `value` is preserved as authored |
+| `stages` | table `Stage ID \| Order \| Name \| Value` (`Stage ID`, `Order`, `Name`, and `Value` required) | `{ id, name, order, value, sourceSpan }` in authored row order; `id` is authored, stable, and never derived; `order` is a positive integer contiguous from 1 in row order; `value` is preserved as authored |
 | `stage_capability_bindings` | table `Stage ID \| Capability \| Process` (all required) | `{ stageId, capability, process, sourceSpan }`; `stageId` resolves to a stage in this artifact; `capability` and `process` resolve through the supplied indexed bundle |
 | `stage_outcomes` | table `Stage ID \| Outcome ID \| Name \| Description` (`Stage ID`, `Outcome ID`, and `Name` required; `Description` optional) | Outcomes are attached to their stage by authored `Stage ID`; each is `{ id, name, doc?, sourceSpan }` and preserves authored order |
 
@@ -193,7 +193,8 @@ body before the first `##` heading), the `##` heading text, or
 ### CR-001 — PLAT-1919 enterprise value-stream declarations
 
 The enterprise value-stream module needs typed stages, capability bindings,
-and stage-owned outcomes. This amendment assigns those declarations to FR-075
+and stage-owned outcomes. Stage orders are unique and contiguous from 1 in
+table row order. This amendment assigns those declarations to FR-075
 and fixes the Markdown representation: one table under each of `Stages`,
 `Stage Capability Bindings`, and `Stage Outcomes`, with the headers and
 required columns listed above. Stage IDs and outcome IDs are authored
@@ -631,7 +632,7 @@ General:
 | FR-075-AC-28 | A `Transitions` row whose `Guard` cell is `status != "captured"` yields `guardExpression` `{ kind: "expression", text, sourceSpan }` with the text byte-for-byte, no `guard`, the advisory `semantic.expression-unchecked`, `availability.model` `available` and lossy, and no `semantic.dangling-clause-ref`; a `Guard` cell that is an expression containing a comma is not split; a cell with an escaped pipe, `a \| b`, yields a `text` holding `a`, the pipe, and `b` (pipe unescaped) with a span over the source bytes (so the span is one byte longer than the text); an empty `Guard` cell yields neither key. | Test |
 | FR-075-AC-29 | A `Guard` cell `captured` declared by no invariant yields `semantic.dangling-clause-ref` and no `guardExpression`; the same cell naming a declared clause yields `guard` and no expression; with no bundle index, a row with an expression `Guard` and a valid `Emits` yields the AC-26 outcome for `Emits` unchanged. | Test |
 | FR-075-AC-30 | Under `mappings: [effect-frames]`, an operation with `Pre: x > 1 and y(a, b)` and a `Modifies:` line yields an `operationFrames` entry whose `pre` is empty (the expression is not comma-split into ids), while the same operation with `Pre: a, b` over declared clauses yields `pre` `[a, b]`. | Test |
-| FR-075-AC-31 | With declared table locators for `Stages`, `Stage Capability Bindings`, and `Stage Outcomes`, ordered stages retain their authored IDs, order, values, and source spans; outcomes attach to the stage named by `Stage ID`; capability and process references resolve to indexed SemanticIds; missing local stages, unknown targets, and wrong-kind targets produce stable diagnostics and make model unavailable. | Test |
+| FR-075-AC-31 | With declared table locators for `Stages`, `Stage Capability Bindings`, and `Stage Outcomes`, stages retain their authored IDs, values, and source spans; their `order` values are unique and contiguous from 1 in row order; outcomes attach to the stage named by `Stage ID`; capability and process references resolve to indexed SemanticIds; zero, malformed and gapped orders, missing local stages, unknown targets, and wrong-kind targets produce stable diagnostics and make model unavailable. | Test |
 
 ## Dependencies
 

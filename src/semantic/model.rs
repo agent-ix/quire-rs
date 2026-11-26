@@ -2146,7 +2146,7 @@ fn read_stages(r: &mut TableRead<'_>) {
                 r.error(
                     "semantic.invalid-model-cell",
                     *line,
-                    "stage order must be a nonnegative integer",
+                    "stage order must be a positive integer",
                 );
                 None
             }
@@ -2162,15 +2162,16 @@ fn read_stages(r: &mut TableRead<'_>) {
             });
         }
     }
-    if entries
-        .windows(2)
-        .any(|pair| pair[0].order >= pair[1].order)
-    {
-        r.error(
-            "semantic.invalid-model-cell",
-            r.table.line,
-            "stage order values must increase strictly in table row order",
-        );
+    for (index, stage) in entries.iter().enumerate() {
+        let expected = index as u64 + 1;
+        if stage.order != expected {
+            r.error(
+                "semantic.invalid-model-cell",
+                stage.source_span.start_line,
+                format!("stage order must be contiguous from 1 in table row order; expected {expected}, found {}", stage.order),
+            );
+            break;
+        }
     }
     r.out.model.stages = Some(entries);
 }

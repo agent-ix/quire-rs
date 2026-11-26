@@ -347,6 +347,36 @@ fn enterprise_value_stream_stages_bindings_and_outcomes_are_typed() {
         .iter()
         .any(|diagnostic| { diagnostic["code"] == "semantic.invalid-model-cell" }));
 
+    let zero_order = md.replace("| intake | 1 |", "| intake | 0 |");
+    let record = extract_request(&with(request.clone(), "markdown", json!(zero_order)));
+    assert_model_unavailable(&record);
+    assert!(record["diagnostics"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|diagnostic| {
+            diagnostic["code"] == "semantic.invalid-model-cell"
+                && diagnostic["message"]
+                    .as_str()
+                    .unwrap()
+                    .contains("positive integer")
+        }));
+
+    let order_gap = md.replace("| fulfilment | 2 |", "| fulfilment | 3 |");
+    let record = extract_request(&with(request.clone(), "markdown", json!(order_gap)));
+    assert_model_unavailable(&record);
+    assert!(record["diagnostics"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|diagnostic| {
+            diagnostic["code"] == "semantic.invalid-model-cell"
+                && diagnostic["message"]
+                    .as_str()
+                    .unwrap()
+                    .contains("contiguous from 1")
+        }));
+
     let missing_required = md.replace(
         "| fulfilment | Order fulfilment | Fulfil Orders |",
         "| fulfilment | Order fulfilment | |",
