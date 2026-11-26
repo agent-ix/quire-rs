@@ -243,6 +243,7 @@ fn tc867_advisory_and_individually_addressable() {
 }
 
 #[trace("FR-056-AC-8")]
+#[trace("FR-056-CON-4")]
 // the pack adds a grammar, it does not reinterpret the
 // two that exist (CON-4).
 #[test]
@@ -382,6 +383,7 @@ fn tc877_must_only_statement_is_judged() {
 }
 
 #[trace("FR-056-AC-12")]
+#[trace("FR-056-CON-5")]
 // `by <deadline>` and `by <sort key>` do not count as
 // an agent.
 //
