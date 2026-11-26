@@ -51,6 +51,8 @@ pub mod typescript;
 
 use std::path::Path;
 
+use ix_trace_rs::implements;
+
 use crate::traceability::{SourceLanguage, TraceMarkerSyntax};
 
 /// What a symbol is. `kind` is part of the identity: a `Container` named `Foo`
@@ -363,8 +365,9 @@ pub(crate) struct RawSymbol {
 }
 
 /// The language an extension binds to, or `None` for a file the extractor
-/// ignores. TypeScript covers `.ts`/`.tsx`; plain JavaScript is out of scope
-/// (FR-051 names Rust, Python, and TypeScript).
+/// ignores. QSL covers `.native` and `.qsl`; TypeScript covers `.ts`/`.tsx`;
+/// plain JavaScript is out of scope (FR-051 names Rust, Python, and TypeScript).
+#[implements("FR-051-AC-52")]
 pub fn language_of(path: &Path) -> Option<SourceLanguage> {
     match path.extension().and_then(|e| e.to_str()) {
         Some("rs") => Some(SourceLanguage::Rust),
@@ -373,7 +376,7 @@ pub fn language_of(path: &Path) -> Option<SourceLanguage> {
         // Only `.sh` (FR-051-AC-34): not `.bash`, and not an extension-less
         // file with a `#!` line.
         Some("sh") => Some(SourceLanguage::Shell),
-        Some("native") => Some(SourceLanguage::Qsl),
+        Some("native" | "qsl") => Some(SourceLanguage::Qsl),
         _ => None,
     }
 }

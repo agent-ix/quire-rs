@@ -46,7 +46,8 @@ pub enum SourceLanguage {
     Typescript,
     /// A `.sh` script (FR-051 shell adapter, PLAT-362).
     Shell,
-    /// A QSL `.native` source (FR-094): declaration heads read line by line.
+    /// A QSL `.native` or `.qsl` source (FR-094): declaration heads read line
+    /// by line.
     Qsl,
 }
 

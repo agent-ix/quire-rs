@@ -91,7 +91,7 @@ pub struct SymbolRecord {
     pub implements: Vec<String>,
     /// Requirement ids this QSL declaration formalizes (FR-094). Never
     /// evidence and never scope. Omitted when empty, so a table with no
-    /// `.native` declaration is byte-identical to one from an engine without
+    /// QSL declaration is byte-identical to one from an engine without
     /// the relation.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub formalizes: Vec<String>,
