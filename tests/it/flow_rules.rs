@@ -643,6 +643,66 @@ fn a_corpus_without_flow_rules_keeps_the_relation_report_shape_unchanged() {
 }
 
 #[test]
+#[trace("FR-084-AC-31")]
+fn relation_report_adds_flow_after_unchanged_relations_only_when_declared() {
+    let without_flow = registry_with("    []\n", "[]", "[]");
+    let with_flow = registry_with(
+        "  - name: approval-rule\n    subject: [alpha]\n    match: [{path: [], field: approval, any_of: [missing]}]\n    check: approval-missing\n    rationale: Record the missing approval.\n",
+        "[]",
+        "[]",
+    );
+    let (root, spec) = docs(&[
+        (
+            "alpha.md",
+            &document("A-1", "alpha", "approval: missing\n", &[]),
+        ),
+        (
+            "sink.md",
+            &document("S-1", "sink", "kind: prompt\n", &[("delivers_to", "A-1")]),
+        ),
+    ]);
+
+    let relation_only = report(root.path(), &spec, &without_flow);
+    let combined = report(root.path(), &spec, &with_flow);
+    assert_eq!(
+        serde_json::to_vec(&relation_only.relations).unwrap(),
+        serde_json::to_vec(&combined.relations).unwrap(),
+        "flow declarations must not change the relations payload"
+    );
+    let relation_only_json = serde_json::to_string(&relation_only).unwrap();
+    #[derive(serde::Serialize)]
+    struct RelationReportWithoutFlow<'a> {
+        relations: &'a [quire_rs::corpus::RelationSection],
+        #[serde(skip_serializing_if = "Vec::is_empty")]
+        errors: &'a Vec<quire_rs::corpus::DroppedRelation>,
+    }
+    assert_eq!(
+        relation_only_json,
+        serde_json::to_string(&RelationReportWithoutFlow {
+            relations: &relation_only.relations,
+            errors: &relation_only.errors,
+        })
+        .unwrap(),
+        "a report without flow rules keeps the relations-only wire shape"
+    );
+
+    let flow = combined
+        .flow
+        .as_ref()
+        .expect("declared flow rules are reported");
+    assert_eq!(flow.schema, "quire.flow-report/v1");
+    assert_eq!(flow.denials.len(), 1);
+    assert_eq!(flow.denials[0].check, "approval-missing");
+    let serialized = serde_json::to_string(&combined).unwrap();
+    let relations_json = serde_json::to_string(&combined.relations).unwrap();
+    assert!(serialized.starts_with(&format!(
+        "{{\"relations\":{relations_json},\"flow\":{{\"schema\":\"quire.flow-report/v1\""
+    )));
+    let flow_json = serde_json::to_value(flow).unwrap();
+    assert!(flow_json.get("required_relations").is_none());
+}
+
+#[test]
 #[trace(
     "FR-096-AC-5",
     "FR-096-AC-6",

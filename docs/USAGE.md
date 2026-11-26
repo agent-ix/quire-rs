@@ -491,6 +491,8 @@ Key entry points: `Registry::from_env` / `load_from` / `load_module`, `parse_doc
 `validate_document` / `validate_document_in_registry`, `validate` / `apply_patch`,
 `extract`, `update_section` / `update_block`, `input_contract_for`, `load_repo` / `Spec`.
 
+For a corpus report that combines declared relations with criterion coverage, see [Build a relation coverage report](how-to-build-a-relation-report.md).
+
 ```rust
 let registry = quire::Registry::from_env()?;
 let fr = registry.archetype("FR").expect("FR loaded");
