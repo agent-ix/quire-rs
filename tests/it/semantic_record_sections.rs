@@ -648,7 +648,10 @@ fn indexed_multirepo_record_relations_use_the_source_package() {
             !valid
                 .errors
                 .iter()
-                .chain(&valid.warnings)
+                .any(|finding| finding.message.contains(reason))
+                && !valid
+                    .warnings
+                    .iter()
                 .any(|finding| finding.message.contains(reason)),
             "valid cross-repository record relation unexpectedly emitted {reason}: errors={:?}, warnings={:?}",
             valid.errors,
@@ -672,8 +675,11 @@ fn indexed_multirepo_record_relations_use_the_source_package() {
         wrong_kind
             .errors
             .iter()
-            .chain(&wrong_kind.warnings)
-            .any(|finding| finding.message.contains(wrong_kind_diagnostic)),
+            .any(|finding| finding.message.contains(wrong_kind_diagnostic))
+            || wrong_kind
+                .warnings
+                .iter()
+                .any(|finding| finding.message.contains(wrong_kind_diagnostic)),
         "restoring package context must retain target-kind validation: errors={:?}, warnings={:?}",
         wrong_kind.errors,
         wrong_kind.warnings
