@@ -23,6 +23,8 @@ pub(crate) mod vocabulary_refs;
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
+
+use ix_trace_rs::implements;
 use std::sync::Arc;
 
 use ix_trace_rs::implements;
@@ -1288,6 +1290,17 @@ fn empty_schema_and_validator() -> (Arc<Value>, Arc<jsonschema::Validator>) {
 /// `BTreeMap<name, Arc<CompiledArchetype>>` keyed by archetype name,
 /// surfacing collisions as a fatal `ArchetypeCollision` error
 /// (FR-014).
+#[implements(
+    "FR-013-AC-15",
+    "FR-013-AC-20",
+    "FR-013-AC-21",
+    "FR-040-AC-1",
+    "FR-040-AC-2",
+    "FR-043-AC-1",
+    "FR-043-AC-2",
+    "FR-048-AC-1",
+    "FR-048-AC-2"
+)]
 pub fn flatten_into_registry(mut outcome: LoadOutcome) -> RegistryShape {
     declarations::drop_unresolvable_archetypes(&mut outcome);
     semantic_cross_module_checks(&mut outcome);

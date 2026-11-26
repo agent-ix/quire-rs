@@ -14,6 +14,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::OnceLock;
 
+use ix_trace_rs::implements;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
@@ -703,6 +704,20 @@ impl CompiledTracePatterns {
 /// first. Tagging harder never helps. A shell script's evidence symbol is its
 /// `entry_point`, and it binds only under a declared `entry_paths` glob
 /// ([`super::shell_trace`]).
+#[implements(
+    "FR-051-AC-4",
+    "FR-051-AC-5",
+    "FR-051-AC-6",
+    "FR-051-AC-11",
+    "FR-051-AC-16",
+    "FR-051-AC-28",
+    "FR-062-AC-1",
+    "FR-062-AC-2",
+    "FR-062-AC-3",
+    "FR-062-AC-5",
+    "FR-062-AC-17",
+    "FR-077-AC-2"
+)]
 pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolGraph {
     let patterns = CompiledTracePatterns::new(model);
     let mut graph = SymbolGraph {

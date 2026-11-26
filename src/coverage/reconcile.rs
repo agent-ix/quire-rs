@@ -3,6 +3,8 @@
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::path::Path;
 
+use ix_trace_rs::implements;
+
 use crate::corpus::declared_tables;
 use crate::corpus::spec::Spec;
 use crate::registry::Registry;
@@ -118,6 +120,19 @@ pub(super) fn resolve_formalizes(
     });
 }
 
+#[implements(
+    "FR-050-AC-3",
+    "FR-050-AC-6",
+    "FR-050-AC-7",
+    "FR-050-AC-23",
+    "FR-050-AC-39",
+    "FR-050-AC-47",
+    "FR-050-AC-48",
+    "FR-050-AC-49",
+    "FR-050-AC-50",
+    "FR-050-AC-51",
+    "FR-050-AC-64"
+)]
 pub(super) fn reconcile(
     spec: &Spec,
     model: &TraceabilityModel,
