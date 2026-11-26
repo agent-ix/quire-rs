@@ -54,3 +54,21 @@ Reviewed the frozen PR #748 head and its Rust implementation, tests, changed dep
 | FND | outcome | reason |
 | --- | --- | --- |
 | FND-002 | fixed | At head `966318b69dc5f2c9788469b40925ecddf6a4f2ba`, `shadows_local_binding` inspects `if_expression` and `while_expression` conditions plus `match_arm` patterns. The new `if_let_binding_shadowing_is_unresolved_and_does_not_select_unrelated_test` and `match_arm_binding_shadowing_is_unresolved_and_does_not_select_unrelated_test` tests are each tagged FR-099-AC-9 and passed in focused runs. |
+
+### Dispositions — round 3
+
+Checked at `f9326fb6d47a6459aabda59b01fb9ce47c75ae5c`. FND-003 is fixed: conditional binding detection is limited to the `if` consequence or `while` body, and match-arm binding applies only after the pattern. The `if_let_initializer_resolves_before_binding_then_body_is_unresolved` regression verifies the initializer call still forms the caller edge while the body call remains unresolved. The existing if-let and match-arm shadowing regressions also pass individually. The current matrix reports FR-099-AC-9 as tagged with 13 tests. The PR body still says nine focused tests; it should be updated to describe the current 13. The ticket's required 24-change replay remains unrun, so overall PR readiness is still blocked by that acceptance item even though no code-review finding remains open.
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-003 | fixed | The implementation checks whether a call is in the `if` consequence or `while` body before applying condition bindings, and requires a match-arm pattern to precede the call. The new initializer regression confirms the initializer call resolves, the bound body call is unresolved, and the caller's verified test remains selected. |
+
+### Review note update — round 4
+
+At unchanged head `f9326fb6d47a6459aabda59b01fb9ce47c75ae5c`, the PR description now reports 13 FR-099-AC-9 test binders and describes the current dependency state accurately: the v0.1.2 dependency appears once on current main and this PR only removes the duplicate loader import. This closes the stale-description note from round 3. No source review or gate was run for this documentation correction. The required 24-change replay remains outstanding.
+
+### Replay evidence — round 5
+
+The 24-pair caller-following selection-only replay is complete at frozen implementation head `f9326fb6d47a6459aabda59b01fb9ce47c75ae5c`, using `spec-artifacts-process@0.3.0` and caller depth 3. Per-PR results and replay methodology are recorded in [plat-1892-replay-summary.tsv](plat-1892-replay-summary.tsv); full JSON selection reports remain in `/private/tmp/plat1892-selection-output/`. The 24 selections were saved before opening the canonical `broken/<PR>.txt` files; no historical selector results, `why`, or EVIDENCE inputs were used, and no FSL builds or tests were run.
+
+The replay selected 2,080 tests. Twenty-eight selected tests carried caller-following reasons, but all also had direct-change or implemented-ID reasons, leaving zero caller-only additions and zero of 82 broken rows caught by newly added tests. All 24 reports have `selection_complete=false`. There were 6,984 unresolved roots among 7,991 caller roots (87.4% root-level share) and 5,763,910 unresolved-call records. The report API does not expose a total call-site denominator, so no call-site percentage is claimed.

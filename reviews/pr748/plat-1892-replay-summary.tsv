@@ -1,0 +1,32 @@
+# PLAT-1892 selection-only caller-following replay
+# Frozen implementation head: f9326fb6d47a6459aabda59b01fb9ce47c75ae5c
+# Model: spec-artifacts-process@0.3.0; caller depth: 3; replay rows: 24
+# Selection reports: /private/tmp/plat1892-selection-output/pr-<PR>.json
+# Broken rows: /Users/peter/dev/_lead-bin/research/defect-prevention-2026-11-25/parts/scripts/broken/<PR>.txt
+# Caller-attributed tests may also have another selection reason; caller_only_added requires only caller-following reasons.
+# All 24 selection reports are incomplete. Unresolved roots are roots with >=1 unresolved call site; unresolved sites are counts from report data.
+pr	selected_total	caller_attributed_tests	caller_only_added	broken_rows	caught_rows	unresolved_roots/total_roots	unresolved_sites	truncated_roots
+3070	14	0	0	1	0	25/28	10264	0
+3277	23	0	0	6	0	120/156	59101	75
+3303	86	0	0	3	0	743/847	721049	221
+3495	27	26	0	1	0	349/380	261468	111
+3582	11	0	0	1	0	283/292	288618	5
+3632	253	0	0	1	0	1189/1318	663593	133
+3639	480	0	0	1	0	1323/1516	1233096	144
+3657	66	0	0	1	0	94/150	31005	3
+3703	195	0	0	7	0	105/138	123775	0
+3708	225	0	0	12	0	335/445	214304	42
+3712	58	0	0	4	0	315/347	386539	43
+3724	13	0	0	15	0	41/42	23214	14
+3725	4	2	0	3	0	25/26	13439	11
+3740	8	0	0	1	0	13/14	2577	1
+3745	40	0	0	2	0	226/249	192896	9
+3771	294	0	0	2	0	501/621	362909	10
+3775	39	0	0	3	0	320/358	360496	32
+3781	204	0	0	6	0	551/608	502139	0
+3816	7	0	0	3	0	349/357	263239	22
+3828	4	0	0	1	0	3/3	589	0
+3845	11	0	0	3	0	50/57	40601	5
+3855	0	0	0	2	0	23/33	8979	19
+3866	12	0	0	1	0	0/0	0	0
+3888	6	0	0	2	0	1/6	20	0
