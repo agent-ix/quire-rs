@@ -363,7 +363,8 @@ pub fn analyze_dependency_move(input: DependencyMoveInput<'_>) -> DependencyMove
                 let local_item = qualified_upstream_item(item);
                 let mut matching_symbols = Vec::new();
                 for (symbol, source) in &symbol_sources {
-                    let by_item = source.contains(item) || source.contains(&local_item);
+                    let by_item = contains_upstream_item(source, item)
+                        || contains_upstream_item(source, &local_item);
                     let by_path = source.contains(&changed.path);
                     if by_item || by_path {
                         let reference = if by_item {
@@ -674,9 +675,21 @@ fn invokes_with_item(source: &str, function: &str, item: &str) -> bool {
     let needle = format!("{function}(");
     source.match_indices(&needle).any(|(start, _)| {
         let arguments_start = start + needle.len();
-        source[arguments_start..]
-            .find(')')
-            .is_some_and(|end| source[arguments_start..arguments_start + end].contains(item))
+        source[arguments_start..].find(')').is_some_and(|end| {
+            contains_upstream_item(&source[arguments_start..arguments_start + end], item)
+        })
+    })
+}
+
+#[implements("FR-099-AC-10")]
+fn contains_upstream_item(source: &str, item: &str) -> bool {
+    source.match_indices(item).any(|(start, _)| {
+        let before = source[..start].chars().next_back();
+        let after = source[start + item.len()..].chars().next();
+        let is_identifier_character =
+            |character: char| character.is_ascii_alphanumeric() || matches!(character, '_' | '-');
+        before.is_none_or(|character| !is_identifier_character(character))
+            && after.is_none_or(|character| !is_identifier_character(character))
     })
 }
 
@@ -1667,6 +1680,65 @@ mod tests {
             }))
             .unwrap()
         );
+    }
+
+    #[trace("FR-099-AC-10")]
+    #[test]
+    fn dependency_move_does_not_match_a_short_item_id_prefix() {
+        let lock = |revision: &str| {
+            format!(
+                "[[package]]\nname = \"example-dependency\"\nversion = \"0.1.0\"\nsource = \"git+https://example.invalid/dependency?rev={revision}#{revision}\"\n"
+            )
+        };
+        let base = SourceSnapshot {
+            revision: "local-base".into(),
+            files: BTreeMap::from([("Cargo.lock".into(), lock("old-rev"))]),
+        };
+        let head = SourceSnapshot {
+            revision: "local-head".into(),
+            files: BTreeMap::from([
+                ("Cargo.lock".into(), lock("new-rev")),
+                (
+                    "tests/unrelated.rs".into(),
+                    "#[test]\n#[trace(\"FSpec-TC-374\")]\nfn unrelated_test() {}\n".into(),
+                ),
+            ]),
+        };
+        let upstream_base = SourceSnapshot {
+            revision: "old-rev".into(),
+            files: BTreeMap::from([(
+                "spec/test-cases/TC-37-short-id.md".into(),
+                "TC-37 old description".into(),
+            )]),
+        };
+        let upstream_head = SourceSnapshot {
+            revision: "new-rev".into(),
+            files: BTreeMap::from([(
+                "spec/test-cases/TC-37-short-id.md".into(),
+                "TC-37 changed description".into(),
+            )]),
+        };
+
+        let report = analyze_dependency_move(DependencyMoveInput {
+            dependency: "example-dependency",
+            base: &base,
+            head: &head,
+            upstream_base: Some(&upstream_base),
+            upstream_head: Some(&upstream_head),
+            traceability: &TraceabilityModel::default(),
+        });
+
+        assert!(!report
+            .selected_tests
+            .iter()
+            .any(|selected| selected.test_symbol == "unrelated_test"));
+        assert!(!report.local_references.iter().any(|reference| {
+            reference.upstream_path == "spec/test-cases/TC-37-short-id.md"
+                && reference.upstream_reference == "TC-37"
+        }));
+        assert!(report.uncovered.iter().any(|change| {
+            change.path == "spec/test-cases/TC-37-short-id.md" && change.items == ["TC-37"]
+        }));
     }
 
     #[trace("FR-099-AC-10")]
