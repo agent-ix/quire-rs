@@ -1,0 +1,24 @@
+{
+  "name": "qsl-source-extension",
+  "issue_ref": "PLAT-1914",
+  "language_exclusions": {
+    "rust": "The case tests QSL extension dispatch; Rust is only the no-QSL control.",
+    "python": "No Python source extension is under test.",
+    "typescript": "No TypeScript source extension is under test."
+  },
+  "input": {
+    "with_qsl": {
+      "rules.native": "// formalizes: FR-001\npre P1 using v on M::Server::request { }\n",
+      "rules.qsl": "// formalizes: FR-001\npre P1 using v on M::Server::request { }\n",
+      "lib.rs": "fn f() {}\n"
+    },
+    "without_qsl": {
+      "lib.rs": "fn f() {}\n"
+    }
+  },
+  "expect": {
+    "qsl_paths": ["rules.native", "rules.qsl"],
+    "qualified_name": "P1",
+    "no_qsl_language": true
+  }
+}

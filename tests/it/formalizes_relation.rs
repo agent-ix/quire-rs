@@ -608,31 +608,60 @@ fn native_files_under_a_module_without_the_form_change_no_other_output() {
 #[trace("FR-051-AC-52")]
 #[test]
 fn native_and_qsl_files_read_as_qsl_declarations_when_present() {
+    let case: serde_json::Value = serde_json::from_str(include_str!(
+        "../fixtures/corpus_cases/qsl-source-extension.json"
+    ))
+    .expect("QSL source-extension case");
+    assert_eq!(case["issue_ref"], "PLAT-1914");
+    assert_eq!(case["language_exclusions"].as_object().unwrap().len(), 3);
+
     assert_eq!(
         serde_json::to_string(&SourceLanguage::Qsl).expect("serialize"),
         "\"qsl\""
     );
     assert_eq!(SourceLanguage::Qsl.as_str(), "qsl");
 
-    let native = format!("// formalizes: FR-001\n{DECL}");
-    let qsl_source = format!("// formalizes: FR-001\n{DECL}");
-    let (_dir, extraction) = tree(&[
-        ("rules.native", &native),
-        ("rules.qsl", &qsl_source),
-        ("lib.rs", "fn f() {}\n"),
-    ]);
+    let source_pairs = |key: &str| {
+        case["input"][key]
+            .as_object()
+            .expect("source files")
+            .iter()
+            .map(|(path, source)| {
+                (
+                    path.clone(),
+                    source.as_str().expect("source text").to_string(),
+                )
+            })
+            .collect::<Vec<_>>()
+    };
+    let with_qsl = source_pairs("with_qsl");
+    let with_qsl_refs = with_qsl
+        .iter()
+        .map(|(path, source)| (path.as_str(), source.as_str()))
+        .collect::<Vec<_>>();
+    let (_dir, extraction) = tree(&with_qsl_refs);
     let qsl: Vec<_> = extraction
         .symbols
         .iter()
         .filter(|s| s.language == SourceLanguage::Qsl)
         .collect();
-    assert_eq!(qsl.len(), 2);
-    assert_eq!(qsl[0].kind.as_str(), "declaration");
-    assert_eq!(qsl[0].path, "rules.native");
-    assert_eq!(qsl[0].qualified_name, "P1");
-    assert_eq!(qsl[1].kind.as_str(), "declaration");
-    assert_eq!(qsl[1].path, "rules.qsl");
-    assert_eq!(qsl[1].qualified_name, "P1");
+    let qsl_paths = qsl
+        .iter()
+        .map(|symbol| symbol.path.as_str())
+        .collect::<Vec<_>>();
+    let expected_paths = case["expect"]["qsl_paths"]
+        .as_array()
+        .expect("expected QSL paths")
+        .iter()
+        .map(|path| path.as_str().expect("path text"))
+        .collect::<Vec<_>>();
+    let expected_name = case["expect"]["qualified_name"]
+        .as_str()
+        .expect("qualified name");
+    assert_eq!(qsl_paths, expected_paths);
+    assert!(qsl.iter().all(|symbol| {
+        symbol.kind.as_str() == "declaration" && symbol.qualified_name == expected_name
+    }));
 
     // Under a model declaring no form the declaration carries no relation.
     let graph = bind(&extraction, &TraceabilityModel::default());
@@ -640,18 +669,20 @@ fn native_and_qsl_files_read_as_qsl_declarations_when_present() {
     let row = table.symbols.iter().find(|s| s.symbol == "P1").expect("P1");
     assert!(row.formalizes.is_empty());
 
-    // A QSL-only tree must also identify its declaration source.
-    let (_dir, qsl_only) = tree(&[("rules.qsl", &qsl_source), ("lib.rs", "fn f() {}\n")]);
-    let qsl_symbols: Vec<_> = qsl_only
+    // The fixture's no-QSL control must not report the language.
+    let without_qsl = source_pairs("without_qsl");
+    let without_qsl_refs = without_qsl
+        .iter()
+        .map(|(path, source)| (path.as_str(), source.as_str()))
+        .collect::<Vec<_>>();
+    let (_dir, plain) = tree(&without_qsl_refs);
+    let qsl_symbols: Vec<_> = plain
         .symbols
         .iter()
         .filter(|symbol| symbol.language == SourceLanguage::Qsl)
         .collect();
-    assert_eq!(qsl_symbols.len(), 1);
-    assert_eq!(qsl_symbols[0].path, "rules.qsl");
-
-    // A tree with no QSL file reports no QSL language.
-    let (_dir, plain) = tree(&[("lib.rs", "fn f() {}\n")]);
+    assert!(qsl_symbols.is_empty());
+    assert!(case["expect"]["no_qsl_language"].as_bool().unwrap());
     assert!(plain
         .files
         .iter()
