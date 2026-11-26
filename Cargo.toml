@@ -54,7 +54,7 @@ workspace = true
 serde = { version = "^1", features = ["derive"] }
 serde_json = "^1"
 # Requirement links on the impact engine are read by quire's existing trace binder.
-ix-trace-rs = { git = "https://github.com/agent-ix/ix-trace-rs", tag = "v0.1.2" }
+ix-trace-rs = { git = "https://github.com/agent-ix/ix-trace-rs", branch = "main" }
 # ADR-0012: keep the established import name while pinning the maintained
 # YAML Organization package exactly; YAML behavior is identity-bearing.
 serde_yaml = { package = "yaml_serde", version = "=0.10.7" }

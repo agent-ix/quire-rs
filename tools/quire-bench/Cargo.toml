@@ -17,4 +17,4 @@ time = { version = "^0.3", features = ["formatting"] }
 serde_yaml = { package = "yaml_serde", version = "=0.10.7" }
 
 [dev-dependencies]
-ix-trace-rs = { git = "https://github.com/agent-ix/ix-trace-rs", tag = "v0.1.2" }
+ix-trace-rs = { git = "https://github.com/agent-ix/ix-trace-rs", branch = "main" }
