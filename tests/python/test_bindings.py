@@ -142,6 +142,7 @@ def test_check_grammar_ac_findings_cross_boundary(tmp_path):
     assert "unclassifiable" not in scoped_checks
 
 
+@pytest.mark.trace("FR-052-CON-4")
 def test_classify_properties_cross_boundary(tmp_path):
     """The property classifier exposes its records through PyO3.
 
