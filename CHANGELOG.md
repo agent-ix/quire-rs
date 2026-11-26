@@ -7,6 +7,14 @@ bumps; once 1.0 ships, semver is strict.
 
 ## [Unreleased]
 
+## [0.63.2] — 2026-11-26
+
+### Added
+
+- **Typed references in record table rows (PLAT-1931, FR-081-AC-22).** Object-array
+  record tables now emit typed row relations from module-declared `SemanticId`
+  columns admitted by `allowed_links`, with validation paths to the source cells.
+
 ### Changed
 
 - **Breaking, PLAT-1449 (FR-050-AC-70):** `TraceTargetSource::FrontmatterId` and the
