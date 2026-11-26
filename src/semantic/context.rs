@@ -3,6 +3,7 @@
 
 use std::collections::BTreeMap;
 
+use ix_trace_rs::implements;
 use serde::{Deserialize, Serialize};
 
 use super::clauses::SourceLocus;
@@ -233,6 +234,7 @@ pub struct SemanticContext {
     pub bundle: BundleIndex,
     /// The object type's `table_row` locators (FR-075 table gating).
     pub(crate) declared_tables: DeclaredTables,
+    pub(crate) body_extraction: Option<ExtractionDsl>,
     /// The object type's raw `section_body` locators.
     pub(crate) declared_sections: DeclaredSections,
     /// The object type's `frontmatter_field` locators, which own their keys
@@ -265,6 +267,7 @@ impl SemanticContext {
             scope: None,
             bundle,
             declared_tables: DeclaredTables::default(),
+            body_extraction: None,
             declared_sections: DeclaredSections::default(),
             frontmatter_owned: FrontmatterOwned::default(),
             relation_vocabulary: None,
@@ -291,12 +294,14 @@ impl SemanticContext {
     /// Read record-key sections (FR-081) against the object type's resolved
     /// `data_schema` `root`, following its `$ref`s through `documents` and the
     /// embedded semantic-core bundle.
+    #[implements("FR-081-AC-22")]
     pub fn with_record_schema(
         mut self,
         root: &serde_json::Value,
         documents: &BTreeMap<String, serde_json::Value>,
     ) -> Self {
         self.record_schema = Some(RecordSchema::new(root, documents));
+        self.refresh_declared_tables();
         self
     }
 
@@ -316,19 +321,34 @@ impl SemanticContext {
     }
 
     /// Check relationship rows against `vocabulary` (FR-076).
+    #[implements("FR-081-AC-22")]
     pub fn with_relation_vocabulary(mut self, vocabulary: RelationVocabulary) -> Self {
         self.relation_vocabulary = Some(vocabulary);
+        self.refresh_declared_tables();
         self
     }
 
     /// Gate FR-075 model tables on the object type's typed `body_extraction`:
     /// each `table_row` locator it declares admits one model table
     /// (FR-075 Inputs). Without it no model table is extracted.
+    #[implements("FR-081-AC-22")]
     pub fn with_body_extraction(mut self, dsl: &ExtractionDsl) -> Self {
-        self.declared_tables = DeclaredTables::from_dsl(dsl);
+        self.body_extraction = Some(dsl.clone());
+        self.refresh_declared_tables();
         self.declared_sections = DeclaredSections::from_dsl(dsl);
         self.frontmatter_owned = FrontmatterOwned::from_dsl(dsl);
         self
+    }
+
+    #[implements("FR-081-AC-22")]
+    fn refresh_declared_tables(&mut self) {
+        if let Some(dsl) = self.body_extraction.as_ref() {
+            self.declared_tables = DeclaredTables::from_dsl(
+                dsl,
+                self.record_schema.as_ref(),
+                self.relation_vocabulary.as_ref(),
+            );
+        }
     }
 
     pub fn with_scope(mut self, scope: impl Into<String>) -> Self {
