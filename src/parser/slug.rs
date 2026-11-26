@@ -54,33 +54,33 @@ mod tests {
     use super::*;
     use ix_trace_rs::trace;
 
-    #[trace("FR-009-AC-1")]
+    #[trace("FR-009-AC-1", "FR-009-AC-5")]
     #[test]
     fn lowercase_alphanum_dash_basic() {
         assert_eq!(slug_line_id("Hello, World!", 0), "hello-world-L0");
     }
 
-    #[trace("FR-009-AC-2")]
+    #[trace("FR-009-AC-2", "FR-009-AC-5")]
     #[test]
     fn numeric_and_punctuation_collapse_to_dashes() {
         assert_eq!(slug_line_id("2.1 In Scope", 6), "2-1-in-scope-L6");
     }
 
-    #[trace("FR-009-AC-3")]
+    #[trace("FR-009-AC-3", "FR-009-AC-5")]
     #[test]
     fn leading_and_trailing_whitespace_stripped() {
         assert_eq!(slug_line_id("   leading spaces   ", 3), "leading-spaces-L3");
     }
 
     // non-ASCII collapses to '-' (matches TS/Py).
-    #[trace("FR-009-AC-6")]
+    #[trace("FR-009-AC-6", "FR-009-AC-5")]
     #[test]
     fn non_ascii_collapses_to_dash() {
         assert_eq!(slug_line_id("Café Menu", 4), "caf-menu-L4");
     }
 
     // degenerate heading yields "-L<line>".
-    #[trace("FR-009-AC-7")]
+    #[trace("FR-009-AC-7", "FR-009-AC-5")]
     #[test]
     fn degenerate_heading_keeps_line_index() {
         assert_eq!(slug_line_id("!!!", 7), "-L7");
