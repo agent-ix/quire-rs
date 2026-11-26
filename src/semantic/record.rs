@@ -57,13 +57,15 @@ const SYSTEMS_MEMBERS: [&str; 10] = [
 ];
 
 /// The record keys a declared FR-075 table locator fills.
-const MODEL_TABLE_KEYS: [ModelFeature; 6] = [
+const MODEL_TABLE_KEYS: [ModelFeature; 8] = [
     ModelFeature::Values,
     ModelFeature::States,
     ModelFeature::Transitions,
     ModelFeature::Steps,
     ModelFeature::Members,
     ModelFeature::Vocabulary,
+    ModelFeature::Stages,
+    ModelFeature::StageCapabilityBindings,
 ];
 
 /// Deepest `$ref` chain followed when typing a property.
@@ -313,6 +315,7 @@ impl RecordSchema {
         Self { properties }
     }
 
+    #[implements("FR-075-AC-31")]
     fn owner(&self, ctx: &SemanticContext, property: &RecordProperty) -> Option<KeyOwner> {
         let name = property.name.as_str();
         let package = ctx.module.package.as_str();
@@ -1610,6 +1613,7 @@ impl Copied {
 }
 
 /// The copy of model key `key`, when the model holds it.
+#[implements("FR-075-AC-31")]
 fn model_elements(
     raw: &str,
     ctx: &SemanticContext,
@@ -1658,6 +1662,25 @@ fn model_elements(
             },
         )),
         "members" => Some(copy_members(raw, ctx, model.members.as_deref()?)),
+        "stages" => Some(Copied::of(
+            model.stages.as_deref()?,
+            |e| e.source_span.clone(),
+            &[],
+            |v, _| v,
+        )),
+        "stage_capability_bindings" => Some(Copied::of(
+            model.stage_capability_bindings.as_deref()?,
+            |e| e.source_span.clone(),
+            &[],
+            |mut value, _| {
+                if let Value::Object(map) = &mut value {
+                    if let Some(stage_id) = map.remove("stageId") {
+                        map.insert("stage_id".to_string(), stage_id);
+                    }
+                }
+                value
+            },
+        )),
         _ => None,
     }
 }

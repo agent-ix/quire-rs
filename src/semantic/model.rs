@@ -55,11 +55,15 @@ pub(crate) enum ModelFeature {
     Dimension,
     Terms,
     Unit,
+    Stages,
+    StageCapabilityBindings,
+    StageOutcomes,
 }
 
 impl ModelFeature {
     /// The feature name used as a diagnostic `reason`; for a mapping
     /// feature it is also the `semantic.mappings` token that declares it.
+    #[implements("FR-075-AC-31")]
     pub(crate) fn name(self) -> &'static str {
         match self {
             Self::Generalization => "generalization",
@@ -83,11 +87,15 @@ impl ModelFeature {
             Self::Dimension => "dimension",
             Self::Terms => "terms",
             Self::Unit => "unit",
+            Self::Stages => "stages",
+            Self::StageCapabilityBindings => "stage_capability_bindings",
+            Self::StageOutcomes => "stage_outcomes",
         }
     }
 
     /// Is this mapping feature named by the module's `semantic.mappings`?
     /// A table feature is declared by a locator instead, never by a token.
+    #[implements("FR-075-AC-31")]
     pub(crate) fn declared_by_mappings(self, ctx: &SemanticContext) -> bool {
         let is_mapping = match self {
             Self::Generalization
@@ -110,12 +118,16 @@ impl ModelFeature {
             | Self::Features
             | Self::Dimension
             | Self::Terms
-            | Self::Unit => false,
+            | Self::Unit
+            | Self::Stages
+            | Self::StageCapabilityBindings
+            | Self::StageOutcomes => false,
         };
         is_mapping && ctx.module.mappings.iter().any(|m| m == self.name())
     }
     /// Is this one of the systems-model tables, of which an artifact
     /// declares at most one?
+    #[implements("FR-075-AC-31")]
     pub(crate) fn is_systems(self) -> bool {
         match self {
             Self::Part | Self::Port | Self::Connection | Self::Allocation => true,
@@ -135,7 +147,10 @@ impl ModelFeature {
             | Self::Features
             | Self::Dimension
             | Self::Terms
-            | Self::Unit => false,
+            | Self::Unit
+            | Self::Stages
+            | Self::StageCapabilityBindings
+            | Self::StageOutcomes => false,
         }
     }
 }
@@ -152,7 +167,7 @@ struct TableSpec {
 }
 
 /// The single source of truth for the model tables (FR-075 Outputs).
-const TABLE_SPECS: [TableSpec; 15] = [
+const TABLE_SPECS: [TableSpec; 18] = [
     TableSpec {
         feature: ModelFeature::Population,
         columns: &["Type"],
@@ -248,6 +263,24 @@ const TABLE_SPECS: [TableSpec; 15] = [
         columns: &["Dimension", "Target", "Scale", "Offset"],
         required: &["Dimension", "Scale", "Offset"],
         read: None,
+    },
+    TableSpec {
+        feature: ModelFeature::Stages,
+        columns: &["Stage ID", "Order", "Name", "Value"],
+        required: &["Stage ID", "Order", "Name", "Value"],
+        read: Some(read_stages),
+    },
+    TableSpec {
+        feature: ModelFeature::StageCapabilityBindings,
+        columns: &["Stage ID", "Capability", "Process"],
+        required: &["Stage ID", "Capability", "Process"],
+        read: Some(read_stage_capability_bindings),
+    },
+    TableSpec {
+        feature: ModelFeature::StageOutcomes,
+        columns: &["Stage ID", "Outcome ID", "Name", "Description"],
+        required: &["Stage ID", "Outcome ID", "Name"],
+        read: Some(read_stage_outcomes),
     },
 ];
 
@@ -830,6 +863,46 @@ pub struct TermDecl {
     pub source_span: SourceLocus,
 }
 
+/// One authored enterprise value-stream stage.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ValueStageDecl {
+    pub id: String,
+    pub name: String,
+    pub order: u64,
+    pub value: String,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub outcomes: Vec<ValueStageOutcomeDecl>,
+    pub source_span: SourceLocus,
+}
+
+/// One outcome authored under a value-stream stage.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ValueStageOutcomeDecl {
+    pub id: String,
+    pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub doc: Option<String>,
+    pub source_span: SourceLocus,
+}
+
+/// One binding from a local stage to indexed capability and process declarations.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StageCapabilityBindingDecl {
+    pub stage_id: String,
+    pub capability: String,
+    pub process: String,
+    pub source_span: SourceLocus,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct PendingStageOutcome {
+    stage_id: String,
+    outcome: ValueStageOutcomeDecl,
+}
+
 /// The FR-075 `model` record: every member is absent unless declared.
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -872,6 +945,10 @@ pub struct ModelDeclarations {
     /// sequence, in row order.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub feature_order: Option<Vec<FeatureOrderDecl>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stages: Option<Vec<ValueStageDecl>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stage_capability_bindings: Option<Vec<StageCapabilityBindingDecl>>,
 }
 
 /// What the frontmatter and table extraction of one artifact produced.
@@ -896,6 +973,7 @@ pub(crate) struct ModelOutcome {
     pub(crate) unresolved: Option<&'static str>,
     pub(crate) diagnostics: Vec<SemanticDiagnostic>,
     pub(crate) resolved_references: Vec<ResolvedReference>,
+    pending_stage_outcomes: Vec<PendingStageOutcome>,
 }
 
 /// Names transitions and the `Features` table are checked against; `None`
@@ -1003,6 +1081,8 @@ enum ReferenceColumn {
     TransitionEmits,
     StepConsumes,
     StepEmits,
+    StageCapability,
+    StageProcess,
 }
 
 impl ReferenceColumn {
@@ -1010,6 +1090,8 @@ impl ReferenceColumn {
         match self {
             Self::TransitionEmits | Self::StepEmits => "Emits",
             Self::StepConsumes => "Consumes",
+            Self::StageCapability => "Capability",
+            Self::StageProcess => "Process",
         }
     }
 
@@ -1018,6 +1100,7 @@ impl ReferenceColumn {
         match self {
             Self::TransitionEmits => "transitions",
             Self::StepConsumes | Self::StepEmits => "steps",
+            Self::StageCapability | Self::StageProcess => "stage_capability_bindings",
         }
     }
 
@@ -1026,13 +1109,15 @@ impl ReferenceColumn {
         match self {
             Self::TransitionEmits | Self::StepEmits => "emits",
             Self::StepConsumes => "consumes",
+            Self::StageCapability => "capability",
+            Self::StageProcess => "process",
         }
     }
 
     /// A transition's `Emits` holds at most one reference.
     fn single(self) -> bool {
         match self {
-            Self::TransitionEmits => true,
+            Self::TransitionEmits | Self::StageCapability | Self::StageProcess => true,
             Self::StepConsumes | Self::StepEmits => false,
         }
     }
@@ -1327,6 +1412,7 @@ fn block_line(block: &Block) -> usize {
     }
 }
 
+#[implements("FR-075-AC-31")]
 fn table_features(
     lines: &[&str],
     body_start: usize,
@@ -1487,6 +1573,7 @@ fn table_features(
             ));
         }
     }
+    settle_stage_children(out, ctx);
     check_transitions(refs, failed.contains(&ModelFeature::States), out);
     if !failed.contains(&ModelFeature::Features) {
         check_features(refs, out);
@@ -2028,6 +2115,188 @@ fn read_features(r: &mut TableRead<'_>) {
     }
     r.out.features_line = Some(table.line);
     r.out.model.feature_order = Some(entries);
+}
+
+#[implements("FR-075-AC-31")]
+fn read_stages(r: &mut TableRead<'_>) {
+    let mut entries = Vec::new();
+    for (line, cells) in &r.table.rows {
+        let (id, name, value) = (
+            r.cell(cells, "Stage ID"),
+            r.cell(cells, "Name"),
+            r.cell(cells, "Value"),
+        );
+        let id_ok = r.non_empty(id, "stage id", *line) && r.fresh(id, *line);
+        let name_ok = r.non_empty(name, "stage name", *line);
+        let value_ok = r.non_empty(value, "stage value", *line);
+        let order = match r.cell(cells, "Order").parse::<u64>() {
+            Ok(order) => Some(order),
+            Err(_) => {
+                r.error(
+                    "semantic.invalid-model-cell",
+                    *line,
+                    "stage order must be a nonnegative integer",
+                );
+                None
+            }
+        };
+        if let (true, true, true, Some(order)) = (id_ok, name_ok, value_ok, order) {
+            entries.push(ValueStageDecl {
+                id: id.to_string(),
+                name: name.to_string(),
+                order,
+                value: value.to_string(),
+                outcomes: Vec::new(),
+                source_span: r.span(*line),
+            });
+        }
+    }
+    if entries
+        .windows(2)
+        .any(|pair| pair[0].order >= pair[1].order)
+    {
+        r.error(
+            "semantic.invalid-model-cell",
+            r.table.line,
+            "stage order values must increase strictly in table row order",
+        );
+    }
+    r.out.model.stages = Some(entries);
+}
+
+#[implements("FR-075-AC-31")]
+fn read_stage_capability_bindings(r: &mut TableRead<'_>) {
+    let mut entries = Vec::new();
+    for (line, cells) in &r.table.rows {
+        let stage_id = r.cell(cells, "Stage ID");
+        let stage_ok = r.non_empty(stage_id, "stage id", *line);
+        let capability_ok = r.non_empty(r.cell(cells, "Capability"), "capability", *line);
+        let process_ok = r.non_empty(r.cell(cells, "Process"), "process", *line);
+        let capability = r.references(cells, ReferenceColumn::StageCapability, *line);
+        let process = r.references(cells, ReferenceColumn::StageProcess, *line);
+        if !r.settle_references(*line, &[&capability, &process])
+            || !stage_ok
+            || !capability_ok
+            || !process_ok
+        {
+            continue;
+        }
+        if let (Some(capability), Some(process)) = (
+            capability
+                .into_ids()
+                .and_then(|mut ids| ids.drain(..).next()),
+            process.into_ids().and_then(|mut ids| ids.drain(..).next()),
+        ) {
+            entries.push(StageCapabilityBindingDecl {
+                stage_id: stage_id.to_string(),
+                capability,
+                process,
+                source_span: r.span(*line),
+            });
+        }
+    }
+    r.out.model.stage_capability_bindings = Some(entries);
+}
+
+#[implements("FR-075-AC-31")]
+fn read_stage_outcomes(r: &mut TableRead<'_>) {
+    for (line, cells) in &r.table.rows {
+        let (stage_id, id, name) = (
+            r.cell(cells, "Stage ID"),
+            r.cell(cells, "Outcome ID"),
+            r.cell(cells, "Name"),
+        );
+        let ok = r.non_empty(stage_id, "stage id", *line)
+            & r.non_empty(id, "outcome id", *line)
+            & r.non_empty(name, "outcome name", *line)
+            & r.fresh(id, *line);
+        if ok {
+            r.out.pending_stage_outcomes.push(PendingStageOutcome {
+                stage_id: stage_id.to_string(),
+                outcome: ValueStageOutcomeDecl {
+                    id: id.to_string(),
+                    name: name.to_string(),
+                    doc: optional(r.cell(cells, "Description")),
+                    source_span: r.span(*line),
+                },
+            });
+        }
+    }
+}
+
+#[implements("FR-075-AC-31")]
+fn settle_stage_children(out: &mut ModelOutcome, ctx: &SemanticContext) {
+    let stage_ids: Vec<String> = out
+        .model
+        .stages
+        .as_ref()
+        .into_iter()
+        .flatten()
+        .map(|stage| stage.id.clone())
+        .collect();
+    for pending in out.pending_stage_outcomes.drain(..) {
+        if stage_ids.contains(&pending.stage_id) {
+            if let Some(stage) = out
+                .model
+                .stages
+                .as_mut()
+                .and_then(|stages| stages.iter_mut().find(|stage| stage.id == pending.stage_id))
+            {
+                stage.outcomes.push(pending.outcome);
+            }
+        } else {
+            let mut diagnostic = SemanticDiagnostic::new(
+                "semantic.unknown-reference",
+                SemanticSeverity::Error,
+                pending.outcome.source_span.start_line,
+                format!(
+                    "artifact {} stage outcome references unknown stage id {:?}",
+                    ctx.path, pending.stage_id
+                ),
+            );
+            diagnostic.reason = Some(
+                if stage_ids.is_empty() {
+                    "missing-stage-id"
+                } else {
+                    "unknown-stage-id"
+                }
+                .to_string(),
+            );
+            diagnostic.source_span = Some(pending.outcome.source_span);
+            diagnostic.section = Some("Stage Outcomes".to_string());
+            out.diagnostics.push(diagnostic);
+        }
+    }
+    if let Some(bindings) = out.model.stage_capability_bindings.take() {
+        let mut valid = Vec::with_capacity(bindings.len());
+        for binding in bindings {
+            if stage_ids.contains(&binding.stage_id) {
+                valid.push(binding);
+            } else {
+                let mut diagnostic = SemanticDiagnostic::new(
+                    "semantic.unknown-reference",
+                    SemanticSeverity::Error,
+                    binding.source_span.start_line,
+                    format!(
+                        "artifact {} stage capability binding references unknown stage id {:?}",
+                        ctx.path, binding.stage_id
+                    ),
+                );
+                diagnostic.reason = Some(
+                    if stage_ids.is_empty() {
+                        "missing-stage-id"
+                    } else {
+                        "unknown-stage-id"
+                    }
+                    .to_string(),
+                );
+                diagnostic.source_span = Some(binding.source_span);
+                diagnostic.section = Some("Stage Capability Bindings".to_string());
+                out.diagnostics.push(diagnostic);
+            }
+        }
+        out.model.stage_capability_bindings = Some(valid);
+    }
 }
 
 fn read_population(r: &mut TableRead<'_>) {

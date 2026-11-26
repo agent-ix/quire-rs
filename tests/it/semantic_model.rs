@@ -156,6 +156,14 @@ fn tables() -> Value {
     }))
 }
 
+fn value_stream_tables() -> Value {
+    dsl(json!({
+        "stages": row("Stages", &["Stage ID", "Order", "Name", "Value"], &[]),
+        "stage_capability_bindings": row("Stage Capability Bindings", &["Stage ID", "Capability", "Process"], &[]),
+        "stage_outcomes": row("Stage Outcomes", &["Stage ID", "Outcome ID", "Name", "Description"], &["Description"]),
+    }))
+}
+
 const FRONTMATTER: &str = "---\nid: FR-102\ntitle: PriorityOrder\nobject: entity\nabstract: true\nrelationships:\n  - target: \"ix://agent-ix/shop/spec/functional/FR-100\"\n    type: \"specializes\"\n  - target: \"ix://agent-ix/shop/spec/functional/FR-101\"\n    type: \"traces_to\"\n  - target: \"ix://agent-ix/shop/spec/functional/FR-103\"\n    type: \"specializes\"\n---\n# FR-102: PriorityOrder\n";
 
 const PROPERTIES: &str = "---\nid: FR-102\ntitle: PriorityOrder\nobject: entity\n---\n# FR-102: PriorityOrder\n\n## Properties\n\n| Field | Type | Multiplicity | Constraints | Presence | Subsets | Redefines |\n|---|---|---|---|---|---|---|\n| id | UUID | 1 | identity | required | | |\n| lines | String | 0..* | | | parts, items | |\n| parts | String | 0..* | | | | |\n| label | String | 0..1 | | optional | | name |\n";
@@ -248,6 +256,136 @@ fn generalization_and_abstract_from_frontmatter() {
     let refusal = diagnostic(&record, "semantic.feature-not-extractable", "effect-frames");
     assert_eq!(refusal["line"], line_of(&mixed, "Modifies:"));
     assert_model_unavailable(&record);
+}
+
+#[trace("FR-075-AC-31")]
+#[test]
+fn enterprise_value_stream_stages_bindings_and_outcomes_are_typed() {
+    let md = "---\nid: VS-001\ntitle: Order Value Stream\nobject: value_stream\n---\n# VS-001\n\n## Stages\n\n| Stage ID | Order | Name | Value |\n|---|---:|---|---|\n| intake | 1 | Intake | Capture the request |\n| fulfilment | 2 | Fulfilment | Deliver the order |\n\n## Stage Capability Bindings\n\n| Stage ID | Capability | Process |\n|---|---|---|\n| fulfilment | Order fulfilment | Fulfil Orders |\n\n## Stage Outcomes\n\n| Stage ID | Outcome ID | Name | Description |\n|---|---|---|---|\n| fulfilment | delivered | Delivered | Order reaches the customer |\n";
+    let mut request = shop_request(md, value_stream_tables());
+    request["module"]["exports"] = json!(["value_stream"]);
+    request["bundle"] = bundle_of(&[
+        ("CAP-001", Some("capability"), &["Order fulfilment"]),
+        ("PROC-001", Some("process"), &["Fulfil Orders"]),
+    ]);
+    request["relationVocabulary"] = json!({
+        "objectType": "value_stream",
+        "roles": {},
+        "allowedLinks": { "value_stream": {
+            "capability": ["capability"],
+            "process": ["process"]
+        }}
+    });
+    let record = extract_request(&request);
+    assert_eq!(
+        record["availability"]["model"]["state"], "available",
+        "{record:#}"
+    );
+    assert_eq!(record["model"]["stages"][0]["id"], "intake");
+    assert_eq!(record["model"]["stages"][1]["order"], 2);
+    assert_eq!(
+        record["model"]["stages"][1]["outcomes"][0]["id"],
+        "delivered"
+    );
+    assert_eq!(
+        record["model"]["stageCapabilityBindings"][0]["capability"],
+        "ix://agent-ix/shop/CAP-001"
+    );
+    assert_eq!(
+        record["model"]["stageCapabilityBindings"][0]["stageId"],
+        "fulfilment"
+    );
+    assert_eq!(
+        record["model"]["stageCapabilityBindings"][0]["process"],
+        "ix://agent-ix/shop/PROC-001"
+    );
+    assert_span(&record["model"]["stages"][0], md, line_of(md, "| intake |"));
+
+    let bad = md.replace("| fulfilment | delivered |", "| missing | delivered |");
+    let record = extract_request(&with(request.clone(), "markdown", json!(bad)));
+    assert_model_unavailable(&record);
+    assert!(record["diagnostics"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|diagnostic| {
+            diagnostic["code"] == "semantic.unknown-reference"
+                && diagnostic["reason"] == "unknown-stage-id"
+        }));
+
+    let bad_binding = md.replace(
+        "| fulfilment | Order fulfilment |",
+        "| missing | Order fulfilment |",
+    );
+    let record = extract_request(&with(request.clone(), "markdown", json!(bad_binding)));
+    assert_model_unavailable(&record);
+    assert!(record["diagnostics"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|diagnostic| {
+            diagnostic["code"] == "semantic.unknown-reference"
+                && diagnostic["reason"] == "unknown-stage-id"
+        }));
+
+    let malformed = md.replace("| intake | 1 |", "| intake | first |");
+    let record = extract_request(&with(request.clone(), "markdown", json!(malformed)));
+    assert_model_unavailable(&record);
+    assert!(record["diagnostics"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|diagnostic| { diagnostic["code"] == "semantic.invalid-model-cell" }));
+
+    let missing_required = md.replace(
+        "| fulfilment | Order fulfilment | Fulfil Orders |",
+        "| fulfilment | Order fulfilment | |",
+    );
+    let record = extract_request(&with(request.clone(), "markdown", json!(missing_required)));
+    assert_model_unavailable(&record);
+    assert!(record["diagnostics"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|diagnostic| { diagnostic["code"] == "semantic.invalid-model-cell" }));
+
+    let unknown_target = md.replace(
+        "| fulfilment | Order fulfilment |",
+        "| fulfilment | Missing capability |",
+    );
+    let record = extract_request(&with(request.clone(), "markdown", json!(unknown_target)));
+    assert_model_unavailable(&record);
+    assert!(record["diagnostics"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|diagnostic| { diagnostic["code"] == "semantic.unknown-reference" }));
+
+    let mut wrong_kind = request.clone();
+    wrong_kind["bundle"] = bundle_of(&[
+        ("CAP-001", Some("entity"), &["Order fulfilment"]),
+        ("PROC-001", Some("process"), &["Fulfil Orders"]),
+    ]);
+    let record = extract_request(&wrong_kind);
+    assert_model_unavailable(&record);
+    assert!(record["diagnostics"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|diagnostic| { diagnostic["code"] == "semantic.reference-kind-mismatch" }));
+
+    let mut wrong_process = request;
+    wrong_process["bundle"] = bundle_of(&[
+        ("CAP-001", Some("capability"), &["Order fulfilment"]),
+        ("PROC-001", Some("capability"), &["Fulfil Orders"]),
+    ]);
+    let record = extract_request(&wrong_process);
+    assert_model_unavailable(&record);
+    assert!(record["diagnostics"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|diagnostic| { diagnostic["code"] == "semantic.reference-kind-mismatch" }));
 }
 
 #[trace("FR-075-AC-2")]
