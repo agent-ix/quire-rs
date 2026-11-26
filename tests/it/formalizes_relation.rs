@@ -607,15 +607,18 @@ fn native_files_under_a_module_without_the_form_change_no_other_output() {
 
 #[trace("FR-051-AC-52")]
 #[test]
-fn native_files_read_as_qsl_declarations_and_only_when_present() {
+fn native_and_qsl_files_read_as_qsl_declarations_when_present() {
     assert_eq!(
         serde_json::to_string(&SourceLanguage::Qsl).expect("serialize"),
         "\"qsl\""
     );
     assert_eq!(SourceLanguage::Qsl.as_str(), "qsl");
 
+    let native = format!("// formalizes: FR-001\n{DECL}");
+    let qsl_source = format!("// formalizes: FR-001\n{DECL}");
     let (_dir, extraction) = tree(&[
-        ("rules.native", &format!("// formalizes: FR-001\n{DECL}")),
+        ("rules.native", &native),
+        ("rules.qsl", &qsl_source),
         ("lib.rs", "fn f() {}\n"),
     ]);
     let qsl: Vec<_> = extraction
@@ -623,10 +626,13 @@ fn native_files_read_as_qsl_declarations_and_only_when_present() {
         .iter()
         .filter(|s| s.language == SourceLanguage::Qsl)
         .collect();
-    assert_eq!(qsl.len(), 1);
+    assert_eq!(qsl.len(), 2);
     assert_eq!(qsl[0].kind.as_str(), "declaration");
     assert_eq!(qsl[0].path, "rules.native");
     assert_eq!(qsl[0].qualified_name, "P1");
+    assert_eq!(qsl[1].kind.as_str(), "declaration");
+    assert_eq!(qsl[1].path, "rules.qsl");
+    assert_eq!(qsl[1].qualified_name, "P1");
 
     // Under a model declaring no form the declaration carries no relation.
     let graph = bind(&extraction, &TraceabilityModel::default());
@@ -634,7 +640,17 @@ fn native_files_read_as_qsl_declarations_and_only_when_present() {
     let row = table.symbols.iter().find(|s| s.symbol == "P1").expect("P1");
     assert!(row.formalizes.is_empty());
 
-    // No `.native` file, no `qsl` language anywhere.
+    // A QSL-only tree must also identify its declaration source.
+    let (_dir, qsl_only) = tree(&[("rules.qsl", &qsl_source), ("lib.rs", "fn f() {}\n")]);
+    let qsl_symbols: Vec<_> = qsl_only
+        .symbols
+        .iter()
+        .filter(|symbol| symbol.language == SourceLanguage::Qsl)
+        .collect();
+    assert_eq!(qsl_symbols.len(), 1);
+    assert_eq!(qsl_symbols[0].path, "rules.qsl");
+
+    // A tree with no QSL file reports no QSL language.
     let (_dir, plain) = tree(&[("lib.rs", "fn f() {}\n")]);
     assert!(plain
         .files
