@@ -4,6 +4,7 @@
 
 CARGO ?= cargo
 QUOIN ?= quoin
+EVIDENCE_TARGET ?= target/release-evidence
 ifndef MUTANTS_RUN_ID
 MUTANTS_RUN_ID := $(shell date -u +%Y%m%dT%H%M%S%N)-$(shell od -An -N8 -tx1 /dev/urandom | tr -d ' \n')
 endif
@@ -26,6 +27,7 @@ help:
 	@echo "Available targets:"
 	@echo "  make fmt              - Format with rustfmt"
 	@echo "  make fmt-check        - Verify formatting (CI gate)"
+	@echo "  make evidence         - Run SUITE-001 and record trace-tagged Quoin evidence"
 	@echo "  make lint             - Clippy with -D warnings"
 	@echo "  make test             - cargo test"
 	@echo "  make build            - Release build"
@@ -130,6 +132,31 @@ check-shell-symbols:
 .PHONY: check-tools
 check-tools:
 	$(CARGO) test --locked -p quire-bench
+
+.PHONY: evidence
+# FR-095: write the run record under spec/evidence/ so the tag workflow can
+# retain it with the committed suite and binding registries. The recorder does
+# not decide the test outcome; preserve the runner's exit status after writing
+# its JUnit report and transcribing the run.
+evidence:
+	@set -eu; \
+	  command -v "$(QUOIN)" >/dev/null || { echo "evidence: Quoin CLI not found: $(QUOIN)" >&2; exit 1; }; \
+	  mkdir -p "$(EVIDENCE_TARGET)"; \
+	  CARGO_TARGET_DIR="$(EVIDENCE_TARGET)/cargo" cargo install --locked \
+	    --git https://github.com/agent-ix/ix-trace-rs \
+	    --rev 3cd3285055e32e4c08fb124d76e489b9dd412b6b \
+	    --root "$(EVIDENCE_TARGET)/tools" --package ix-trace-run; \
+	  status=0; \
+	  CARGO_TARGET_DIR="$(EVIDENCE_TARGET)/cargo" \
+	    "$(EVIDENCE_TARGET)/tools/bin/ix-trace-run" --locked --workspace \
+	    --features ix-trace-rs/emit --output "$(EVIDENCE_TARGET)/junit.xml" \
+	    -- --test-threads=4 || status=$$?; \
+	  test -s "$(EVIDENCE_TARGET)/junit.xml" || { echo "evidence: ix-trace-run wrote no JUnit report" >&2; exit 1; }; \
+	  "$(QUOIN)" evidence record --repo . --suite SUITE-001 --kind Unit \
+	    --commit "$$(git rev-parse HEAD)" \
+	    --adapter junit --tool 'ix-trace-run 0.1.0+3cd3285' \
+	    --results "$(EVIDENCE_TARGET)/junit.xml"; \
+	  exit "$$status"
 
 .PHONY: test
 test:

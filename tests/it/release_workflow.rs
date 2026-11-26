@@ -105,3 +105,101 @@ fn tc_2263_tag_attestation_calls_shared_release_workflow() {
         .expect("tag workflow calls the shared attestation workflow")
         .starts_with("agent-ix/engineering-assurance/.github/workflows/release-attestation.yml@"));
 }
+
+#[trace("FR-095-AC-1")]
+#[test]
+fn tc_2229_tag_workflow_runs_and_uploads_the_declared_release_suite() {
+    let tag_attestation = workflow("tag-attestation.yml");
+    let suite_registry = fs::read_to_string(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("spec/evidence/suites.md"),
+    )
+    .expect("read suite registry");
+    assert!(suite_registry.contains("| SUITE-001 |"));
+    assert!(suite_registry.contains("`make evidence`"));
+
+    let evidence_steps = tag_attestation["jobs"]["release-evidence"]["steps"]
+        .as_sequence()
+        .expect("release evidence job has steps");
+    let run_index = evidence_steps
+        .iter()
+        .position(|step| step["run"].as_str() == Some("make evidence"))
+        .expect("release evidence job runs make evidence");
+    let upload_index = evidence_steps
+        .iter()
+        .position(|step| step["with"]["name"].as_str() == Some("release-evidence"))
+        .expect("release evidence job uploads the named artifact");
+    assert!(
+        run_index < upload_index,
+        "upload follows successful suite run"
+    );
+    assert_eq!(
+        evidence_steps[upload_index]["with"]["path"].as_str(),
+        Some("spec/evidence/")
+    );
+}
+
+#[trace("FR-095-AC-2")]
+#[test]
+fn tc_2232_attestation_waits_for_the_retained_evidence_job() {
+    let tag_attestation = workflow("tag-attestation.yml");
+    let needs = tag_attestation["jobs"]["attest"]["needs"]
+        .as_sequence()
+        .expect("attestation job declares prerequisites");
+    assert!(needs
+        .iter()
+        .any(|job| job.as_str() == Some("release-evidence")));
+    assert!(needs
+        .iter()
+        .any(|job| job.as_str() == Some("release-artifacts")));
+    let steps = tag_attestation["jobs"]["release-evidence"]["steps"]
+        .as_sequence()
+        .expect("release evidence job has steps");
+    assert!(steps
+        .iter()
+        .any(|step| step["uses"].as_str() == Some("actions/upload-artifact@v7")));
+}
+
+#[trace("FR-095-AC-3")]
+#[test]
+fn tc_2233_oidc_attestation_consumes_artifact_without_running_checkout_code() {
+    let tag_attestation = workflow("tag-attestation.yml");
+    let attest = &tag_attestation["jobs"]["attest"];
+    assert_eq!(
+        attest["with"]["evidence_artifact"].as_str(),
+        Some("release-evidence")
+    );
+    assert_eq!(attest["permissions"]["id-token"].as_str(), Some("write"));
+    assert!(
+        attest["steps"].is_null(),
+        "reusable job has no local run steps"
+    );
+    assert_eq!(
+        tag_attestation["jobs"]["build"]["with"]["publish"].as_bool(),
+        Some(false)
+    );
+}
+
+#[trace("FR-095-AC-4")]
+#[test]
+fn tc_2234_make_evidence_records_fresh_suite_run_for_retention() {
+    let makefile = fs::read_to_string(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("Makefile"))
+        .expect("read Makefile");
+    let target = makefile
+        .split("evidence:")
+        .nth(1)
+        .and_then(|body| body.split("\n\n").next())
+        .expect("Makefile defines evidence target");
+    assert!(target.contains("ix-trace-run"));
+    assert!(target.contains("evidence record --repo . --suite SUITE-001"));
+    assert!(target.contains("--commit \"$$(git rev-parse HEAD)\""));
+    assert!(target.contains("--results \"$(EVIDENCE_TARGET)/junit.xml\""));
+    assert!(target.contains("--tool 'ix-trace-run 0.1.0+3cd3285'"));
+
+    let workflow = workflow("tag-attestation.yml");
+    let evidence_steps = workflow["jobs"]["release-evidence"]["steps"]
+        .as_sequence()
+        .expect("release evidence job has steps");
+    assert!(evidence_steps
+        .iter()
+        .any(|step| step["with"]["path"].as_str() == Some("spec/evidence/")));
+}
