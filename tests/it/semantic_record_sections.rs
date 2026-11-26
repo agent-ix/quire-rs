@@ -659,7 +659,7 @@ fn indexed_multirepo_record_relations_use_the_source_package() {
         );
     }
 
-    let wrong_source = source.replace("| local | EVENT-001 |", "| local | PRINCIPAL-001 |");
+    let wrong_source = source.replace("| Local | EVENT-001 |", "| Local | PRINCIPAL-001 |");
     let wrong_kind = quire_rs::validate_document_in_indexed_bundle(
         &registry,
         workflow,
