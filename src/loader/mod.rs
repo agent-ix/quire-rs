@@ -1561,7 +1561,7 @@ type VocabConflicts = Vec<(String, Vec<String>)>;
 #[implements("FR-040-AC-2")]
 fn merge_edge_types(modules: &[LoadedModule]) -> (BTreeMap<String, EdgeTypeDef>, VocabConflicts) {
     merge_vocab_by(
-        &modules,
+        modules,
         |module| &module.edge_types,
         |left, right| {
             left.category == right.category
