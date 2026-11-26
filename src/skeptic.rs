@@ -1168,6 +1168,7 @@ mod tests {
     }
 
     #[trace("FR-064-AC-6")]
+    #[trace("FR-064-CON-5")]
     #[test]
     fn tc1061_explicit_oracle_bindings_join_to_production_expressions() {
         let cases = [
