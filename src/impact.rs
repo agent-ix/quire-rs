@@ -1389,7 +1389,13 @@ fn collect_calls(
         {
             if let Some(written) = source.get(function.start_byte()..function.end_byte()) {
                 let written = written.trim().to_string();
-                let (callee_path, hint, unresolved_reason) = call_path(function, source);
+                let (mut callee_path, hint, mut unresolved_reason) = call_path(function, source);
+                if callee_path.as_deref().is_some_and(|path| {
+                    !path.contains("::") && shadows_local_binding(node, path, source)
+                }) {
+                    callee_path = None;
+                    unresolved_reason = Some("local-binding-shadows-symbol");
+                }
                 calls.push(ParsedCall {
                     caller,
                     written,
@@ -1406,6 +1412,79 @@ fn collect_calls(
     for child in node.named_children(&mut cursor) {
         collect_calls(child, source, symbols, owner.clone(), calls);
     }
+}
+
+#[implements("FR-099-AC-9")]
+fn shadows_local_binding(call: Node, name: &str, source: &str) -> bool {
+    let mut child = call;
+    let mut ancestor = call.parent();
+    while let Some(parent) = ancestor {
+        if parent.kind() == "block" {
+            let mut sibling = parent.named_child(0);
+            while let Some(statement) = sibling {
+                if statement.end_byte() <= call.start_byte()
+                    && statement.kind() == "let_declaration"
+                    && statement
+                        .child_by_field_name("pattern")
+                        .is_some_and(|pattern| pattern_binds_name(pattern, name, source))
+                {
+                    return true;
+                }
+                if statement.id() == child.id() {
+                    break;
+                }
+                sibling = statement.next_named_sibling();
+            }
+        }
+
+        let binding_pattern = match parent.kind() {
+            "function_item" => parent
+                .child_by_field_name("parameters")
+                .map(|parameters| (parameters, parent.child_by_field_name("body"))),
+            "closure_expression" => parent
+                .child_by_field_name("parameters")
+                .or_else(|| {
+                    let mut cursor = parent.walk();
+                    let closure_parameters = parent
+                        .named_children(&mut cursor)
+                        .find(|node| node.kind() == "closure_parameters");
+                    closure_parameters
+                })
+                .map(|parameters| (parameters, parent.child_by_field_name("body"))),
+            "for_expression" => parent
+                .child_by_field_name("pattern")
+                .map(|pattern| (pattern, parent.child_by_field_name("body"))),
+            _ => None,
+        };
+        if let Some((pattern, body)) = binding_pattern {
+            let in_body = body.is_some_and(|body| {
+                body.start_byte() <= call.start_byte() && call.end_byte() <= body.end_byte()
+            });
+            if in_body && pattern_binds_name(pattern, name, source) {
+                return true;
+            }
+        }
+
+        child = parent;
+        ancestor = parent.parent();
+    }
+    false
+}
+
+#[implements("FR-099-AC-9")]
+fn pattern_binds_name(pattern: Node, name: &str, source: &str) -> bool {
+    if pattern.kind() == "identifier"
+        && source
+            .get(pattern.start_byte()..pattern.end_byte())
+            .is_some_and(|identifier| identifier == name)
+    {
+        return true;
+    }
+    let mut cursor = pattern.walk();
+    let binds_name = pattern
+        .named_children(&mut cursor)
+        .any(|child| pattern_binds_name(child, name, source));
+    binds_name
 }
 
 #[implements("FR-099-AC-9")]
@@ -2192,6 +2271,31 @@ mod tests {
                 && call.reason == "import-alias-call"
         }));
         assert!(!report.selection_complete);
+    }
+
+    #[trace("FR-099-AC-9")]
+    #[test]
+    fn local_closure_shadowing_is_unresolved_and_does_not_select_unrelated_test() {
+        let report = run_with_callers(
+            "fn changed() {}\n#[implements(\"FR-099-AC-9\")]\nfn caller() { let changed = || {}; changed(); }\n#[test]\n#[trace(\"FR-099-AC-9\")]\nfn caller_test() { caller(); }\n",
+            LineRange { start: 1, end: 1 },
+            2,
+        );
+        let search = report
+            .caller_searches
+            .iter()
+            .find(|search| search.changed_symbol == "changed")
+            .unwrap();
+        assert!(search.linked_callers.is_empty());
+        assert!(search.unresolved_calls.iter().any(|call| {
+            call.caller == "caller"
+                && call.callee == "changed"
+                && call.reason == "local-binding-shadows-symbol"
+        }));
+        assert!(!report
+            .selected_tests
+            .iter()
+            .any(|test| test.name == "caller_test"));
     }
 
     #[trace("FR-099-AC-9")]
