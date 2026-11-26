@@ -20,7 +20,7 @@ relationships:
     type: "requires"
     cardinality: "1:1"
   - target: "ix://agent-ix/quire-rs/spec/functional/FR-076"
-    type: "requires"
+    type: "extends"
     cardinality: "1:1"
 ---
 # FR-081: Record-sections extraction to a module's own record keys
@@ -78,9 +78,13 @@ the declaration arrays and does not change them.
   `allowed_links`. `target` is the canonical identity resolved by FR-076;
   `sourceSpan` is the authored table row's `SourceLocus`; and `validationPath`
   is the RFC 6901 JSON Pointer from the extraction object to the nested field
-  (for example, `/record/steps/0/receiver`). Entries follow document, row, then column
-  order. This sidecar is separate from FR-076 `relations` and
-  `relationSources`, which describe the `relationships` mapping token.
+  (for example, `/record/steps/0/receiver`). Each entry uses the FR-076
+  `RelationSource` carrier: `name` is the referenced SemanticId property name,
+  `verb`, `target`, and `sourceSpan` have the meanings above, and
+  `validationPath` identifies the occurrence. Entries follow document, row,
+  then column order. Ordinary FR-076 `relationSources` keeps its existing
+  meaning and omits `validationPath`; `recordRelations` is separate from the
+  authored `relationships` mapping output.
 - `availability.recordKeys`: per key, `{ state, reason?, lossy }`. Present
   when the artifact names the token and a section names, or fails to name, a
   key that is not frontmatter-owned.
@@ -317,7 +321,7 @@ Model-table keys (quoin FR-123):
 | FR-081-AC-19 | Under the token, a document with both the `## K` section and the frontmatter value yields `semantic.feature-not-extractable` `frontmatter-owned` as a warning, validation passes, `record` holds only the frontmatter value, there is no `recordSources` entry for `K`, no `availability.recordKeys` entry for `K`, and no `semantic.duplicate-record-key` is emitted. The controls: a document with the frontmatter value and no section yields no diagnostic (AC-20), and the same section under a key that is not frontmatter-owned is read as in AC-1. | Test |
 | FR-081-AC-20 | Under the token, for an archetype declaring a frontmatter-owned key `K`, a document with the frontmatter value and no `## K` section yields no diagnostic, `record` holds the frontmatter value for `K`, and the output has no `recordSources` entry and no `availability.recordKeys` entry for `K` (not `not_applicable`). The control: a key that is not frontmatter-owned with no section is `not_applicable`, as in AC-1. | Test |
 | FR-081-AC-21 | Without the token, an archetype declaring a frontmatter-owned key `K` and a document with a `## K` section yield no `frontmatter-owned` diagnostic and no `record`. | Test |
-| FR-081-AC-22 | Under `record-sections`, a module `data_schema` declares an object-array record key with a `receiver` property of type `SemanticId`, and `allowed_links.receiver` admits `event`; a section headed by that record key has the declared table columns `Step \| Kind \| Receiver \| Description`, with optional `Receiver`. Two rows yield distinct nested objects with canonical event identities and two ordered `recordRelations` entries pairing verb `receiver`, each identity, its row `sourceSpan` and exact RFC 6901 `validationPath`; the row objects remain the validation payload. A target of the wrong object kind yields `semantic.reference-kind-mismatch` with reason `wrong-kind` at that row, makes the key unavailable and suppresses that row's relation; a missing target yields the FR-076 target refusal at that row and likewise suppresses that relation. An empty optional `Receiver` omits the property and yields no edge; a `SemanticId` row property not named by `allowed_links` retains the existing unchecked-kind behavior and yields no edge. The current five-column Process Steps output and another table-based declaration remain byte-identical to their existing fixtures. | Test |
+| FR-081-AC-22 | Under `record-sections`, a module `data_schema` declares an object-array record key with a `receiver` property of type `SemanticId`, and `allowed_links.receiver` admits `event`; a section headed by that record key has the declared table columns `Step \| Kind \| Receiver \| Description`, with optional `Receiver`. Two rows yield distinct nested objects with canonical event identities and two ordered `recordRelations` entries using FR-076 `RelationSource`: `name` is `receiver`, `verb` is `receiver`, `target` is each identity, `sourceSpan` is its row, and `validationPath` is its exact RFC 6901 pointer; the row objects remain the validation payload. A target of the wrong object kind yields `semantic.reference-kind-mismatch` with reason `wrong-kind` at that row, makes the key unavailable and suppresses that row relation; a missing target yields the FR-076 target refusal at that row and likewise suppresses that relation. An empty optional `Receiver` omits the property and yields no edge; a `SemanticId` row property not named by `allowed_links` retains the existing unchecked-kind behavior and yields no edge. The current five-column Process Steps output and another table-based declaration remain byte-identical to their existing fixtures. | Test |
 
 ## Dependencies
 
