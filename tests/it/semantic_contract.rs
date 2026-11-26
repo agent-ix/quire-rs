@@ -1947,7 +1947,8 @@ fn import_types_checked_against_the_loaded_provider() {
 }
 
 #[trace("FR-069-AC-18")]
-// a declared import no data schema references warns; one `$ref` silences it.
+// a declared import with no schema or typed allowed_links use warns; either
+// kind of actual use silences it.
 #[test]
 fn unused_import_warns() {
     let imports = "{ 'agent-ix/prov': '0.1.0' }";
@@ -1970,6 +1971,61 @@ fn unused_import_warns() {
     let registry = load(&root);
     assert!(registry.failures().is_empty(), "{:?}", reasons(&registry));
     assert!(!has_diagnostic(&registry, "semantic.unused-import", ""));
+
+    // A target that matches a declared imported type is a real use even when
+    // there is no schema `$ref` to the provider.
+    let tmp = tempfile::tempdir().unwrap();
+    module(&tmp, "provider", |m, _| {
+        retarget(m, "agent-ix/prov");
+        semantic(m).insert(
+            "exports".into(),
+            serde_yaml::from_str("[capability]").unwrap(),
+        );
+        m["object_types"][0]["name"] = "capability".into();
+    });
+    let root = importer(
+        &tmp,
+        "use",
+        "agent-ix/use",
+        imports,
+        Some("{ 'agent-ix/prov': [capability] }"),
+    );
+    let manifest_path = root.join("manifest.yaml");
+    let mut manifest: serde_yaml::Value =
+        serde_yaml::from_slice(&fs::read(&manifest_path).unwrap()).unwrap();
+    manifest["object_types"][0]["allowed_links"] =
+        serde_yaml::from_str("{ supports: [capability] }").unwrap();
+    fs::write(&manifest_path, serde_yaml::to_string(&manifest).unwrap()).unwrap();
+    let registry = Registry::load_from(&[tmp.path()]).unwrap();
+    assert!(registry.failures().is_empty(), "{:?}", reasons(&registry));
+    assert!(!has_diagnostic(
+        &registry,
+        "semantic.unused-import",
+        "agent-ix/prov"
+    ));
+
+    // A wildcard does not identify an imported type and remains unused.
+    let tmp = tempfile::tempdir().unwrap();
+    provider(&tmp, "provider", "agent-ix/prov");
+    let root = importer(
+        &tmp,
+        "use",
+        "agent-ix/use",
+        imports,
+        Some("{ 'agent-ix/prov': [entity] }"),
+    );
+    let manifest_path = root.join("manifest.yaml");
+    let mut manifest: serde_yaml::Value =
+        serde_yaml::from_slice(&fs::read(&manifest_path).unwrap()).unwrap();
+    manifest["object_types"][0]["allowed_links"] =
+        serde_yaml::from_str("{ supports: ['*'] }").unwrap();
+    fs::write(&manifest_path, serde_yaml::to_string(&manifest).unwrap()).unwrap();
+    let registry = Registry::load_from(&[tmp.path()]).unwrap();
+    assert!(has_diagnostic(
+        &registry,
+        "semantic.unused-import",
+        "agent-ix/prov"
+    ));
 }
 
 #[trace("FR-069-AC-19")]

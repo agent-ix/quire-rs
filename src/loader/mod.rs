@@ -25,6 +25,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use ix_trace_rs::implements;
 use serde_json::Value;
 
 use crate::diagnostic::Diagnostic;
@@ -1382,7 +1383,7 @@ pub fn flatten_into_registry(mut outcome: LoadOutcome) -> RegistryShape {
     // mirroring archetype merge). A name re-declared with a *differing*
     // body emits a Duplicate{EdgeType,Role} diagnostic; identical
     // re-declaration is silently idempotent. ──
-    let (edge_types, mut edge_type_dups) = merge_vocab(&outcome.modules, |m| &m.edge_types);
+    let (edge_types, mut edge_type_dups) = merge_edge_types(&outcome.modules);
     for (name, modules) in edge_type_dups.drain(..) {
         outcome
             .diagnostics
@@ -1553,6 +1554,24 @@ pub fn flatten_into_registry(mut outcome: LoadOutcome) -> RegistryShape {
 /// re-declaration, used to build a `Duplicate{EdgeType,Role}` diagnostic.
 type VocabConflicts = Vec<(String, Vec<String>)>;
 
+/// Merge edge declarations that agree on relationship behavior. Descriptions
+/// are display metadata, so the first declaration supplies the deterministic
+/// description when multiple modules share the same edge semantics.
+#[implements("FR-040-AC-1")]
+#[implements("FR-040-AC-2")]
+fn merge_edge_types(modules: &[LoadedModule]) -> (BTreeMap<String, EdgeTypeDef>, VocabConflicts) {
+    merge_vocab_by(
+        &modules,
+        |module| &module.edge_types,
+        |left, right| {
+            left.category == right.category
+                && left.inverse == right.inverse
+                && left.composite == right.composite
+                && left.symmetric == right.symmetric
+        },
+    )
+}
+
 /// Merge a per-module vocabulary map (edge_types or roles) across modules
 /// first-wins. Returns the merged map plus, for each name re-declared
 /// with a *differing* body, the contributing module names (the original
@@ -1561,6 +1580,14 @@ type VocabConflicts = Vec<(String, Vec<String>)>;
 fn merge_vocab<V: Clone + PartialEq>(
     modules: &[LoadedModule],
     pick: impl Fn(&LoadedModule) -> &BTreeMap<String, V>,
+) -> (BTreeMap<String, V>, VocabConflicts) {
+    merge_vocab_by(modules, pick, |left, right| left == right)
+}
+
+fn merge_vocab_by<V: Clone>(
+    modules: &[LoadedModule],
+    pick: impl Fn(&LoadedModule) -> &BTreeMap<String, V>,
+    compatible: impl Fn(&V, &V) -> bool,
 ) -> (BTreeMap<String, V>, VocabConflicts) {
     let mut merged: BTreeMap<String, V> = BTreeMap::new();
     let mut origin: BTreeMap<String, String> = BTreeMap::new();
@@ -1572,7 +1599,7 @@ fn merge_vocab<V: Clone + PartialEq>(
                     merged.insert(name.clone(), def.clone());
                     origin.insert(name.clone(), module.name.clone());
                 }
-                Some(existing) if existing == def => {} // idempotent
+                Some(existing) if compatible(existing, def) => {} // idempotent or compatible
                 Some(_) => {
                     let entry = conflicts
                         .entry(name.clone())
@@ -2020,6 +2047,7 @@ pub struct RegistryShape {
 /// later module, an unprovided import warns, an import cycle refuses every
 /// module on it. A refused module keeps its vocabulary and loses its
 /// archetypes, each recorded as a failure.
+#[implements("FR-069-AC-18")]
 fn semantic_cross_module_checks(outcome: &mut LoadOutcome) {
     use crate::semantic::SemanticFailure;
     let mut order: Vec<usize> = (0..outcome.modules.len())
@@ -2113,17 +2141,27 @@ fn semantic_cross_module_checks(outcome: &mut LoadOutcome) {
         let sem = m.semantic.as_ref().unwrap();
         let mut own_refusals = Vec::new();
         for (package, version) in &sem.imports {
-            if !m
+            let schema_uses_import = m
                 .import_refs
                 .iter()
-                .any(|r| &r.reference.package == package)
-            {
+                .any(|r| &r.reference.package == package);
+            let allowed_link_uses_import =
+                sem.import_types.get(package).is_some_and(|imported_types| {
+                    m.archetypes.iter().any(|archetype| {
+                        archetype
+                            .allowed_links()
+                            .values()
+                            .flatten()
+                            .any(|target| imported_types.contains(target))
+                    })
+                });
+            if !schema_uses_import && !allowed_link_uses_import {
                 outcome.diagnostics.push(Diagnostic::Semantic {
                     module: m.name.clone(),
                     path: format!("semantic.imports.{package}"),
                     code: "semantic.unused-import".to_string(),
                     message: format!(
-                        "import {package} is referenced by no $ref of the module's data schemas"
+                        "import {package} is referenced by neither a $ref of the module's data schemas nor an allowed_links target"
                     ),
                 });
             }

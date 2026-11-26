@@ -1356,6 +1356,35 @@ roles:
             .diagnostics()
             .iter()
             .any(|d| matches!(d, Diagnostic::DuplicateEdgeType { name, .. } if name == "calls")));
+        assert!(Registry::load_strict(&[&p]).is_err());
+    }
+
+    #[trace("FR-040-AC-1")]
+    // differing descriptions are compatible metadata; first module's value
+    // remains the deterministic display description and no conflict is raised.
+    #[test]
+    fn tc2490_compatible_edge_declarations_keep_first_description() {
+        let p = tmpdir("vocab-2490-compatible");
+        write_vocab_module(
+            &p.join("m1"),
+            "m1",
+            "edge_types:\n  distinguished_from:\n    description: governance wording\n    category: traceability\n",
+        );
+        write_vocab_module(
+            &p.join("m2"),
+            "m2",
+            "edge_types:\n  distinguished_from:\n    description: product wording\n    category: traceability\n",
+        );
+        let r = Registry::load_from(&[&p]).expect("tolerant load");
+        assert_eq!(
+            r.edge_types()["distinguished_from"].description,
+            "governance wording"
+        );
+        assert!(!r
+            .diagnostics()
+            .iter()
+            .any(|d| matches!(d, Diagnostic::DuplicateEdgeType { name, .. } if name == "distinguished_from")));
+        Registry::load_strict(&[&p]).expect("compatible declarations pass strict load");
     }
 
     #[trace("FR-043-AC-1")]
