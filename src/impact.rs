@@ -1080,7 +1080,6 @@ pub fn analyze(input: ImpactInput<'_>) -> Result<ImpactReport, ImpactError> {
             };
             let search = search_callers(
                 symbol,
-                changed.lines,
                 depth_limit,
                 &head_extraction,
                 &head_graph,
@@ -1538,7 +1537,6 @@ fn resolve_callee(
 #[implements("FR-099-AC-9")]
 fn search_callers(
     changed: &Symbol,
-    changed_lines: LineRange,
     depth_limit: usize,
     extraction: &SymbolExtraction,
     graph: &crate::symbols::trace::SymbolGraph,
