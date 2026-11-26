@@ -206,11 +206,16 @@ fn tc_2233_oidc_attestation_consumes_artifact_without_running_checkout_code() {
 fn tc_2234_make_evidence_records_fresh_suite_run_for_retention() {
     let makefile = fs::read_to_string(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("Makefile"))
         .expect("read Makefile");
-    let target = makefile
-        .split("evidence:")
-        .nth(1)
-        .and_then(|body| body.split("\n\n").next())
+    let evidence_target_start = makefile
+        .lines()
+        .position(|line| line == "evidence:")
         .expect("Makefile defines evidence target");
+    let target = makefile
+        .lines()
+        .skip(evidence_target_start)
+        .take_while(|line| !line.is_empty())
+        .collect::<Vec<_>>()
+        .join("\n");
     assert!(target.contains("ix-trace-run"));
     assert!(target.contains("scripts/check_release_evidence_checkout.py --repo-root ."));
     assert!(target.contains("git describe --tags --exact-match HEAD"));
@@ -566,7 +571,7 @@ fn tc_2242_streaming_archive_reader_enforces_member_and_byte_bounds() {
     let fixtures = Command::new("python3")
         .arg("-c")
         .arg(
-            "import io,os,sys,tarfile; from pathlib import Path; root=Path(sys.argv[1]); many=Path(sys.argv[2]); oversized=Path(sys.argv[3]); compressed=Path(sys.argv[4]); files=[p for p in root.rglob('*') if p.is_file()]; t=tarfile.open(many,'w:gz'); [t.add(p,arcname=p.relative_to(root).as_posix()) for p in files]; [(lambda info,data:t.addfile(info,io.BytesIO(data)))(tarfile.TarInfo('extra-'+str(i)),b'x') for i in range(10)]; t.close(); t=tarfile.open(oversized,'w:gz'); data=b'\0'*30_000_000; [(lambda info:(setattr(info,'size',len(data)),t.addfile(info,io.BytesIO(data))))(tarfile.TarInfo('part-'+str(i))) for i in range(2)]; t.close(); t=tarfile.open(compressed,'w:gz'); data=os.urandom(20_000_001); info=tarfile.TarInfo('random'); info.size=len(data); t.addfile(info,io.BytesIO(data)); t.close()",
+            "import io,os,sys,tarfile; from pathlib import Path; root=Path(sys.argv[1]); many=Path(sys.argv[2]); oversized=Path(sys.argv[3]); compressed=Path(sys.argv[4]); files=[p for p in root.rglob('*') if p.is_file()]; t=tarfile.open(many,'w:gz'); [t.add(p,arcname=p.relative_to(root).as_posix()) for p in files]; [(lambda info,data:t.addfile(info,io.BytesIO(data)))(tarfile.TarInfo('extra-'+str(i)),b'x') for i in range(10)]; t.close(); t=tarfile.open(oversized,'w:gz'); data=b'x'*30_000_000; [(lambda info:(setattr(info,'size',len(data)),t.addfile(info,io.BytesIO(data))))(tarfile.TarInfo('part-'+str(i))) for i in range(2)]; t.close(); t=tarfile.open(compressed,'w:gz'); data=os.urandom(20_000_001); info=tarfile.TarInfo('random'); info.size=len(data); t.addfile(info,io.BytesIO(data)); t.close()",
         )
         .arg(&bundle_root)
         .arg(&many_archive)
