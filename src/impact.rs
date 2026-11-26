@@ -1616,7 +1616,7 @@ fn search_callers(
                 }) else {
                     continue;
                 };
-                let mut linked_ids: BTreeSet<String> = graph
+                let linked_ids: BTreeSet<String> = graph
                     .implements
                     .iter()
                     .filter(|relation| relation.symbol_id == caller_symbol.id)
