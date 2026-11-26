@@ -2102,6 +2102,27 @@ mod tests {
 
     #[trace("FR-099-AC-9")]
     #[test]
+    fn depth_limit_reports_truncation_without_selecting_farther_callers() {
+        let report = run_with_callers(
+            "fn changed() {}\nfn middle() { changed(); }\n#[implements(\"FR-099-AC-9\")]\nfn linked() { middle(); }\n#[test]\n#[trace(\"FR-099-AC-9\")]\nfn linked_test() { linked(); }\n",
+            LineRange { start: 1, end: 1 },
+            1,
+        );
+        let search = report.caller_searches.first().unwrap();
+        assert!(search.linked_callers.is_empty());
+        assert!(search.truncated);
+        assert!(report.findings.iter().any(|finding| matches!(
+            finding,
+            ImpactFinding::CallerSearchIncomplete { symbol, .. } if symbol == "changed"
+        )));
+        assert!(!report
+            .selected_tests
+            .iter()
+            .any(|test| test.name == "linked_test"));
+    }
+
+    #[trace("FR-099-AC-9")]
+    #[test]
     fn caller_cycle_is_visited_once_without_false_truncation() {
         let report = run_with_callers(
             "fn changed() { helper(); }\nfn helper() { changed(); }\n",
@@ -2165,6 +2186,56 @@ mod tests {
                 && call.callee == "renamed"
                 && call.reason == "import-alias-call"
         }));
+        assert!(!report.selection_complete);
+    }
+
+    #[trace("FR-099-AC-9")]
+    #[test]
+    fn duplicate_extracted_paths_make_the_caller_ambiguous() {
+        let root = tempfile::tempdir().unwrap();
+        let registry = model_with_implements_form(root.path());
+        let model = registry.traceability().unwrap();
+        let base = SourceSnapshot {
+            revision: "base".into(),
+            files: BTreeMap::from([
+                ("src/a.rs".into(), "fn changed() {}\n".into()),
+                ("src/b.rs".into(), "fn changed() {}\n".into()),
+                (
+                    "src/lib.rs".into(),
+                    "#[implements(\"FR-099-AC-9\")]\nfn caller() { changed(); }\n".into(),
+                ),
+            ]),
+        };
+        let head = SourceSnapshot {
+            revision: "head".into(),
+            files: BTreeMap::from([
+                ("src/a.rs".into(), "fn changed() { let _ = 1; }\n".into()),
+                ("src/b.rs".into(), "fn changed() {}\n".into()),
+                (
+                    "src/lib.rs".into(),
+                    "#[implements(\"FR-099-AC-9\")]\nfn caller() { changed(); }\n".into(),
+                ),
+            ]),
+        };
+        let report = analyze(ImpactInput {
+            base: Some(&base),
+            head: Some(&head),
+            changes: &[FileChange {
+                path: "src/a.rs".into(),
+                base: Some(LineRange { start: 1, end: 1 }),
+                head: Some(LineRange { start: 1, end: 1 }),
+            }],
+            traceability: model,
+            available_spec_ids: &BTreeSet::from(["FR-099-AC-9".to_string()]),
+            unavailable_spec_ids: &BTreeSet::new(),
+            caller_search_depth: Some(2),
+        })
+        .unwrap();
+        let search = report.caller_searches.first().unwrap();
+        assert!(search
+            .unresolved_calls
+            .iter()
+            .any(|call| { call.caller == "caller" && call.reason == "ambiguous-symbol-path" }));
         assert!(!report.selection_complete);
     }
 
