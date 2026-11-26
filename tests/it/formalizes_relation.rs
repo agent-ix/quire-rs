@@ -730,7 +730,15 @@ fn obligation_run(id: &str, retained: bool, resolve_first: bool) -> (SymbolGraph
         if resolve_first {
             resolve_formalizes_with_evidence(&mut graph, &spec, &registry, dir.path(), &backing);
         }
-        compute_with_evidence(&spec, &registry, &graph, dir.path(), &backing).expect("report")
+        compute_with_evidence(
+            &spec,
+            &registry,
+            &graph,
+            dir.path(),
+            &backing,
+            quire_rs::coverage::EvidenceCoverageMode::Strict,
+        )
+        .expect("report")
     } else {
         if resolve_first {
             resolve_formalizes(&mut graph, &spec, &registry, dir.path());

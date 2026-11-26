@@ -8,10 +8,14 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 use std::path::{Path, PathBuf};
 
+use ix_trace_rs::implements;
+
 use crate::corpus::declared_tables::{self, ExcludeSet, ScannedRow, ScannedTable};
 use crate::corpus::walk::{self, LoadedDocument, Outcome, WalkOptions};
 use crate::diagnostic::Diagnostic;
-use crate::traceability::{ObligationSource, TraceTarget, TraceabilityModel};
+use crate::traceability::{
+    DeclarationKind, DroppedDeclarations, ObligationSource, TraceTarget, TraceabilityModel,
+};
 
 use super::{collect_combinatorial, resolve, row_obligation, Obligation, Resolved};
 
@@ -745,12 +749,25 @@ pub type InventoryInterrupt<'control> = dyn Fn(usize) -> Option<InventoryInterru
 /// each emitted entry. Its input is the current emitted-entry count. Returning
 /// a cause stops enumeration without a completion witness and retains that
 /// original error in the resulting cause chain. It never changes selection.
+/// How an inventory treats traceability declarations dropped by the loader.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum InventoryModelPolicy {
+    /// Refuse when any selected traceability declaration was dropped.
+    #[default]
+    Strict,
+    /// Permit dropped required relations, which a design matrix reports per
+    /// relation; every other dropped declaration remains fatal.
+    DesignMatrix,
+}
+
 #[derive(Default)]
 pub struct InventoryOptions<'control> {
     /// Stop immediately at this emitted-entry count, before observing an end.
     pub stop_limit: Option<usize>,
     /// Optional caller cancellation, independent of the emitted-entry limit.
     pub interrupt: Option<&'control InventoryInterrupt<'control>>,
+    /// Completeness rule for traceability declarations.
+    pub model_policy: InventoryModelPolicy,
 }
 
 /// Enumerate selected obligation sources through the owner's real loader.
@@ -769,6 +786,7 @@ pub struct InventoryOptions<'control> {
 /// let forged = inventory(&caller_spec, &TraceabilityModel::default(),
 ///     &["acceptance-criterion"], InventoryOptions::default());
 /// ```
+#[implements("FR-092-AC-20")]
 pub fn inventory(
     root: &Path,
     model: &TraceabilityModel,
@@ -793,7 +811,19 @@ pub fn inventory(
         advisories: Vec::new(),
         terminal: InventoryTerminal::Incomplete,
     };
-    if let Err(dropped) = model.require_complete() {
+    let dropped = match options.model_policy {
+        InventoryModelPolicy::Strict => model.require_complete().err(),
+        InventoryModelPolicy::DesignMatrix => {
+            let dropped = model
+                .dropped
+                .iter()
+                .filter(|declaration| declaration.kind != DeclarationKind::RequiredRelation)
+                .cloned()
+                .collect::<Vec<_>>();
+            (!dropped.is_empty()).then_some(DroppedDeclarations(dropped))
+        }
+    };
+    if let Some(dropped) = dropped {
         result.cause(
             InventoryCauseCode::InvalidModel,
             None,

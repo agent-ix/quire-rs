@@ -4184,6 +4184,7 @@ fn tc2222_the_non_exempt_count_and_strict_verdict_exclude_exempt_rows() {
         &graph,
         &all_exempt.scope,
         &backing,
+        quire_rs::coverage::EvidenceCoverageMode::Strict,
     )
     .expect("evidence path");
     assert_eq!(
@@ -4337,6 +4338,7 @@ fn tc2222_strict_decision_passes_exempt_only_rows_and_keeps_every_other_premise(
             &trace::SymbolGraph::default(),
             &bundle.scope,
             &backing,
+            quire_rs::coverage::EvidenceCoverageMode::Strict,
         )
         .expect("evidence path")
     };
