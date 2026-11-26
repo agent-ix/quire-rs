@@ -831,6 +831,84 @@ yield_pattern:
 
     // ── Task 018: fallback Locator chain ─────────────────────────────
 
+    #[trace("FR-016-AC-1")]
+    #[test]
+    fn section_body_fallback_resolves_legacy_heading_and_reports_position() {
+        let d = parse_document("## Entity List\nCustomer-owned terms.\n");
+        let dsl = dsl_from(
+            r#"
+yield_pattern:
+  match:
+    entities:
+    - from: section_body
+      after_heading: Entities
+    - from: section_body
+      after_heading: Entity List
+"#,
+        );
+
+        let result = extract(&d, &dsl).expect("legacy section resolves");
+
+        assert_eq!(result.records[0]["entities"], "Customer-owned terms.");
+        assert!(result.diagnostics.iter().any(|diagnostic| matches!(
+            diagnostic,
+            Diagnostic::FallbackLocatorUsed {
+                key,
+                position: 1,
+                ..
+            } if key == "entities"
+        )));
+    }
+
+    #[trace("FR-016-AC-2")]
+    #[test]
+    fn section_body_fallback_prefers_canonical_heading_without_diagnostic() {
+        let d = parse_document("## Entities\nCanonical terms.\n## Entity List\nLegacy terms.\n");
+        let dsl = dsl_from(
+            r#"
+yield_pattern:
+  match:
+    entities:
+    - from: section_body
+      after_heading: Entities
+    - from: section_body
+      after_heading: Entity List
+"#,
+        );
+
+        let result = extract(&d, &dsl).expect("canonical section resolves");
+
+        assert_eq!(result.records[0]["entities"], "Canonical terms.");
+        assert!(!result
+            .diagnostics
+            .iter()
+            .any(|diagnostic| matches!(diagnostic, Diagnostic::FallbackLocatorUsed { .. })));
+    }
+
+    #[trace("FR-016-AC-3")]
+    #[test]
+    fn optional_section_body_fallback_omits_missing_key() {
+        let d = parse_document("## Purpose\nAn unrelated section.\n");
+        let dsl = dsl_from(
+            r#"
+yield_pattern:
+  match:
+    entities:
+    - from: section_body
+      after_heading: Entities
+      required: false
+    - from: section_body
+      after_heading: Entity List
+      required: false
+"#,
+        );
+
+        let result = extract(&d, &dsl).expect("optional absent sections are accepted");
+
+        assert!(result.records.is_empty());
+        assert!(result.diagnostics.is_empty());
+    }
+
     #[test]
     fn fallback_canonical_position_does_not_emit_diagnostic() {
         let d = doc();
