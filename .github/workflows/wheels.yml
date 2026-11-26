@@ -111,6 +111,7 @@ jobs:
             schemas
             tools
             selftest
+            spec/anomalies
             .cargo
 
       - name: Build abi3 wheel
