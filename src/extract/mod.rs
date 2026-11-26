@@ -831,6 +831,7 @@ yield_pattern:
 
     // ── Task 018: fallback Locator chain ─────────────────────────────
 
+    #[trace("FR-016-AC-1")]
     #[test]
     fn section_body_fallback_resolves_legacy_heading_and_reports_position() {
         let d = parse_document("## Entity List\nCustomer-owned terms.\n");
@@ -859,6 +860,7 @@ yield_pattern:
         )));
     }
 
+    #[trace("FR-016-AC-2")]
     #[test]
     fn section_body_fallback_prefers_canonical_heading_without_diagnostic() {
         let d = parse_document("## Entities\nCanonical terms.\n## Entity List\nLegacy terms.\n");
@@ -883,6 +885,7 @@ yield_pattern:
             .any(|diagnostic| matches!(diagnostic, Diagnostic::FallbackLocatorUsed { .. })));
     }
 
+    #[trace("FR-016-AC-3")]
     #[test]
     fn optional_section_body_fallback_omits_missing_key() {
         let d = parse_document("## Purpose\nAn unrelated section.\n");
