@@ -3,6 +3,8 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use ix_trace_rs::implements;
+use quire_code_extraction::tree_sitter::Node;
+use quire_code_extraction::{parse_file, Language as CodeLanguage};
 use serde::Serialize;
 
 use crate::symbols::{extract_file, trace, trace_search, Symbol, SymbolExtraction, SymbolKind};
@@ -51,6 +53,10 @@ pub struct ImpactInput<'a> {
     pub available_spec_ids: &'a BTreeSet<String>,
     /// IDs whose specification could not be loaded.
     pub unavailable_spec_ids: &'a BTreeSet<String>,
+    /// Optional finite reverse-call search depth for unlinked changed symbols.
+    /// `None` disables caller following; `Some(0)` reports truncation if any
+    /// callers exist without traversing them.
+    pub caller_search_depth: Option<usize>,
 }
 
 /// Revision side containing a changed symbol.
@@ -109,6 +115,14 @@ pub enum ImpactReason {
         changed_lines: LineRange,
         implementation_path: String,
         implementation: String,
+        trace_id: String,
+    },
+    /// Linked caller reached from an unlinked changed symbol.
+    CallerFollowing {
+        changed_path: String,
+        changed_lines: LineRange,
+        changed_symbol: String,
+        call_path: Vec<String>,
         trace_id: String,
     },
 }
@@ -174,6 +188,8 @@ pub enum ImpactFinding {
     UnsupportedSource { path: String },
     /// Existing trace search could not prove a complete result.
     TraceSearchUnavailable { trace_id: String, reason: String },
+    /// Caller following encountered a truncated call graph or unresolved call.
+    CallerSearchIncomplete { path: String, symbol: String },
 }
 
 /// Deterministically ordered impact report.
@@ -191,10 +207,59 @@ pub struct ImpactReport {
     pub selected_tests: Vec<SelectedTest>,
     /// Other implementers of changed ids.
     pub related_implementations: Vec<RelatedImplementation>,
+    /// Optional bounded caller searches for unlinked changed symbols.
+    pub caller_searches: Vec<CallerSearch>,
     /// False when any changed scope could not be completely interpreted.
     pub selection_complete: bool,
     /// Unlinked and incomplete areas.
     pub findings: Vec<ImpactFinding>,
+}
+
+/// Caller-search result for one unlinked changed symbol.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct CallerSearch {
+    /// Changed source path.
+    pub changed_path: String,
+    /// Qualified changed symbol.
+    pub changed_symbol: String,
+    /// Requested maximum caller depth.
+    pub depth_limit: usize,
+    /// Nearest linked callers and their test evidence.
+    pub linked_callers: Vec<LinkedCaller>,
+    /// Unresolved call sites whose callee name could refer to this symbol.
+    pub unresolved_calls: Vec<UnresolvedCallSite>,
+    /// Whether additional caller edges remained beyond `depth_limit`.
+    pub truncated: bool,
+}
+
+/// A linked caller reached during caller following.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+pub struct LinkedCaller {
+    /// Source path containing the caller.
+    pub path: String,
+    /// Qualified caller symbol.
+    pub symbol: String,
+    /// Caller distance from the changed symbol.
+    pub depth: usize,
+    /// Requirement ids linked to the caller.
+    pub linked_ids: Vec<String>,
+    /// Full path from the changed symbol through callers to this symbol.
+    pub call_path: Vec<String>,
+}
+
+/// A call site that cannot be assigned to one extracted Rust symbol path.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+pub struct UnresolvedCallSite {
+    /// Source path containing the call.
+    pub path: String,
+    /// Qualified caller symbol.
+    pub caller: String,
+    /// One-based line of the call expression.
+    pub line: usize,
+    /// Written callee expression.
+    pub callee: String,
+    /// Why the call could not be resolved syntactically.
+    pub reason: String,
 }
 
 /// Inputs for comparing one dependency's two local and upstream revisions.
@@ -745,6 +810,7 @@ pub enum ImpactError {
 #[implements("FR-099-AC-6")]
 #[implements("FR-099-AC-7")]
 #[implements("FR-099-AC-8")]
+#[implements("FR-099-AC-9")]
 #[implements("FR-099-AC-11")]
 #[implements("FR-099-CON-4")]
 pub fn analyze(input: ImpactInput<'_>) -> Result<ImpactReport, ImpactError> {
@@ -796,6 +862,7 @@ pub fn analyze(input: ImpactInput<'_>) -> Result<ImpactReport, ImpactError> {
         unmapped_changes: Vec::new(),
         selected_tests: Vec::new(),
         related_implementations: Vec::new(),
+        caller_searches: Vec::new(),
         selection_complete: true,
         findings: Vec::new(),
     };
@@ -999,6 +1066,88 @@ pub fn analyze(input: ImpactInput<'_>) -> Result<ImpactReport, ImpactError> {
             }
         }
     }
+    if let Some(depth_limit) = input.caller_search_depth {
+        let caller_data = caller_call_graph(&head_extraction);
+        for changed in report.changed_symbols.iter().filter(|changed| {
+            changed.side == RevisionSide::Head && changed.implemented_ids.is_empty()
+        }) {
+            let Some(symbol) = head_extraction.symbols.iter().find(|symbol| {
+                symbol.path == changed.path
+                    && symbol.qualified_name == changed.name
+                    && symbol.kind.carries_implements()
+            }) else {
+                continue;
+            };
+            let search = search_callers(
+                symbol,
+                changed.lines,
+                depth_limit,
+                &head_extraction,
+                &head_graph,
+                &caller_data,
+            );
+            if search.truncated || !search.unresolved_calls.is_empty() {
+                report.findings.push(ImpactFinding::CallerSearchIncomplete {
+                    path: changed.path.clone(),
+                    symbol: changed.name.clone(),
+                });
+            }
+            for caller in &search.linked_callers {
+                for trace_id in &caller.linked_ids {
+                    if let Ok(matches) = trace_search::search(
+                        &head_graph,
+                        &head_extraction,
+                        &trace_search::Query::Id(trace_id.clone()),
+                    ) {
+                        for test in matches.verifies {
+                            selected
+                                .entry((test.path, test.symbol))
+                                .or_default()
+                                .insert(ImpactReason::CallerFollowing {
+                                    changed_path: changed.path.clone(),
+                                    changed_lines: changed.lines,
+                                    changed_symbol: changed.name.clone(),
+                                    call_path: caller.call_path.clone(),
+                                    trace_id: trace_id.clone(),
+                                });
+                        }
+                    } else {
+                        report.findings.push(ImpactFinding::TraceSearchUnavailable {
+                            trace_id: trace_id.clone(),
+                            reason: "caller-following trace lookup failed".to_string(),
+                        });
+                    }
+                }
+                if let Some(test_symbol) = head_extraction.symbols.iter().find(|candidate| {
+                    candidate.path == caller.path
+                        && candidate.qualified_name == caller.symbol
+                        && candidate.kind == SymbolKind::TestFunction
+                }) {
+                    let verifies: BTreeSet<&str> = head_graph
+                        .verifies
+                        .iter()
+                        .filter(|edge| edge.symbol_id == test_symbol.id)
+                        .map(|edge| edge.trace_id.as_str())
+                        .collect();
+                    if !verifies.is_empty() {
+                        let reasons = selected
+                            .entry((caller.path.clone(), caller.symbol.clone()))
+                            .or_default();
+                        for trace_id in verifies {
+                            reasons.insert(ImpactReason::CallerFollowing {
+                                changed_path: changed.path.clone(),
+                                changed_lines: changed.lines,
+                                changed_symbol: changed.name.clone(),
+                                call_path: caller.call_path.clone(),
+                                trace_id: trace_id.to_string(),
+                            });
+                        }
+                    }
+                }
+            }
+            report.caller_searches.push(search);
+        }
+    }
     report.selected_tests = selected
         .into_iter()
         .map(|((path, name), reasons)| SelectedTest {
@@ -1027,6 +1176,10 @@ pub fn analyze(input: ImpactInput<'_>) -> Result<ImpactReport, ImpactError> {
     report
         .findings
         .sort_by_key(|item| serde_json::to_string(item).unwrap_or_default());
+    report.caller_searches.sort_by(|left, right| {
+        (&left.changed_path, &left.changed_symbol)
+            .cmp(&(&right.changed_path, &right.changed_symbol))
+    });
     Ok(report)
 }
 
@@ -1064,6 +1217,464 @@ fn uncovered_ranges(changed: LineRange, symbols: &[&Symbol]) -> Vec<LineRange> {
         });
     }
     result
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+struct SymbolKey {
+    path: String,
+    name: String,
+}
+
+impl SymbolKey {
+    fn from_symbol(symbol: &Symbol) -> Self {
+        Self {
+            path: symbol.path.clone(),
+            name: symbol.qualified_name.clone(),
+        }
+    }
+
+    fn display(&self) -> String {
+        format!("{}::{}", self.path, self.name)
+    }
+}
+
+#[derive(Debug, Clone)]
+struct ParsedCall {
+    caller: SymbolKey,
+    written: String,
+    callee_path: Option<String>,
+    callee_hint: Option<String>,
+    line: usize,
+    unresolved_reason: Option<&'static str>,
+}
+
+#[derive(Debug, Clone)]
+struct CallerEdge {
+    caller: SymbolKey,
+}
+
+#[derive(Debug, Clone)]
+struct UnresolvedCall {
+    caller: SymbolKey,
+    written: String,
+    hint: Option<String>,
+    line: usize,
+    reason: &'static str,
+}
+
+#[derive(Debug, Default)]
+struct CallerCallGraph {
+    callers_by_callee: BTreeMap<SymbolKey, Vec<CallerEdge>>,
+    unresolved: Vec<UnresolvedCall>,
+}
+
+#[implements("FR-099-AC-9")]
+fn caller_call_graph(extraction: &SymbolExtraction) -> CallerCallGraph {
+    let mut graph = CallerCallGraph::default();
+    for file in &extraction.files {
+        if file.language != SourceLanguage::Rust {
+            continue;
+        }
+        let Ok(parsed) = parse_file(CodeLanguage::Rust, &file.path, &file.source) else {
+            continue;
+        };
+        if parsed.diagnostic().is_some() {
+            continue;
+        }
+        let file_symbols: Vec<&Symbol> = extraction
+            .symbols
+            .iter()
+            .filter(|symbol| symbol.path == file.path)
+            .collect();
+        let aliases = import_aliases(parsed.root_node(), &file.source);
+        let mut calls = Vec::new();
+        collect_calls(
+            parsed.root_node(),
+            &file.source,
+            &file_symbols,
+            None,
+            &mut calls,
+        );
+        for call in calls {
+            let Some(callee_path) = call.callee_path.as_deref() else {
+                graph.unresolved.push(UnresolvedCall {
+                    caller: call.caller,
+                    written: call.written,
+                    hint: call.callee_hint,
+                    line: call.line,
+                    reason: call.unresolved_reason.unwrap_or("dynamic-callee"),
+                });
+                continue;
+            };
+            if let Some(target) = aliases.get(callee_path) {
+                graph.unresolved.push(UnresolvedCall {
+                    caller: call.caller,
+                    written: call.written,
+                    hint: target.rsplit("::").next().map(str::to_string),
+                    line: call.line,
+                    reason: "import-alias-call",
+                });
+                continue;
+            }
+            match resolve_callee(callee_path, &call.caller, &extraction.symbols) {
+                Ok(callee) => graph
+                    .callers_by_callee
+                    .entry(callee)
+                    .or_default()
+                    .push(CallerEdge {
+                        caller: call.caller,
+                    }),
+                Err(reason) => graph.unresolved.push(UnresolvedCall {
+                    caller: call.caller,
+                    written: call.written,
+                    hint: call.callee_hint,
+                    line: call.line,
+                    reason,
+                }),
+            }
+        }
+    }
+    for callers in graph.callers_by_callee.values_mut() {
+        callers.sort_by(|left, right| left.caller.cmp(&right.caller));
+        callers.dedup_by(|left, right| left.caller == right.caller);
+    }
+    graph.unresolved.sort_by(|left, right| {
+        (&left.caller, left.line, &left.written, left.reason).cmp(&(
+            &right.caller,
+            right.line,
+            &right.written,
+            right.reason,
+        ))
+    });
+    graph.unresolved.dedup_by(|left, right| {
+        left.caller == right.caller
+            && left.line == right.line
+            && left.written == right.written
+            && left.reason == right.reason
+    });
+    graph
+}
+
+#[implements("FR-099-AC-9")]
+fn collect_calls(
+    node: Node,
+    source: &str,
+    symbols: &[&Symbol],
+    owner: Option<SymbolKey>,
+    calls: &mut Vec<ParsedCall>,
+) {
+    let owner = if node.kind() == "function_item" {
+        let line = node.start_position().row + 1;
+        let column = node.start_position().column + 1;
+        symbols
+            .iter()
+            .find(|symbol| {
+                symbol.line == line
+                    && symbol.column == column
+                    && matches!(
+                        symbol.kind,
+                        SymbolKind::Function | SymbolKind::TestFunction | SymbolKind::Benchmark
+                    )
+            })
+            .map(|symbol| SymbolKey::from_symbol(symbol))
+            .or(owner)
+    } else {
+        owner
+    };
+
+    if node.kind() == "call_expression" {
+        if let (Some(caller), Some(function)) =
+            (owner.clone(), node.child_by_field_name("function"))
+        {
+            if let Some(written) = source.get(function.start_byte()..function.end_byte()) {
+                let written = written.trim().to_string();
+                let (callee_path, hint, unresolved_reason) = call_path(function, source);
+                calls.push(ParsedCall {
+                    caller,
+                    written,
+                    callee_path,
+                    callee_hint: hint,
+                    line: node.start_position().row + 1,
+                    unresolved_reason,
+                });
+            }
+        }
+    }
+
+    let mut cursor = node.walk();
+    for child in node.named_children(&mut cursor) {
+        collect_calls(child, source, symbols, owner.clone(), calls);
+    }
+}
+
+#[implements("FR-099-AC-9")]
+fn import_aliases(node: Node, source: &str) -> BTreeMap<String, String> {
+    let mut aliases = BTreeMap::new();
+    if node.kind() == "use_declaration" {
+        if let Some(text) = source.get(node.start_byte()..node.end_byte()) {
+            let declaration = text
+                .trim()
+                .strip_prefix("use ")
+                .unwrap_or(text.trim())
+                .trim_end_matches(';')
+                .trim();
+            if !declaration.contains('{') && !declaration.contains('*') {
+                let (target, alias) = match declaration.split_once(" as ") {
+                    Some((target, alias)) => (target.trim(), alias.trim()),
+                    None => (
+                        declaration,
+                        declaration
+                            .rsplit("::")
+                            .next()
+                            .unwrap_or(declaration)
+                            .trim(),
+                    ),
+                };
+                let target = normalize_call_path(target);
+                let alias: String = alias
+                    .chars()
+                    .filter(|character| !character.is_whitespace())
+                    .collect();
+                if !target.is_empty() && !alias.is_empty() {
+                    aliases.insert(alias, target);
+                }
+            }
+        }
+    }
+    let mut cursor = node.walk();
+    for child in node.named_children(&mut cursor) {
+        aliases.extend(import_aliases(child, source));
+    }
+    aliases
+}
+
+#[implements("FR-099-AC-9")]
+fn call_path(node: Node, source: &str) -> (Option<String>, Option<String>, Option<&'static str>) {
+    match node.kind() {
+        "identifier" | "scoped_identifier" | "scoped_type_identifier" => {
+            let Some(text) = source.get(node.start_byte()..node.end_byte()) else {
+                return (None, None, Some("invalid-callee-span"));
+            };
+            let path = normalize_call_path(text);
+            let hint = path.rsplit("::").next().map(str::to_string);
+            (Some(path), hint, None)
+        }
+        "generic_function" => match node.child_by_field_name("function") {
+            Some(function) => call_path(function, source),
+            None => (None, None, Some("unreadable-generic-callee")),
+        },
+        "field_expression" => {
+            let hint = node
+                .child_by_field_name("field")
+                .and_then(|field| source.get(field.start_byte()..field.end_byte()))
+                .map(str::to_string);
+            (None, hint, Some("method-call-needs-type-resolution"))
+        }
+        _ => (None, None, Some("dynamic-or-unsupported-callee")),
+    }
+}
+
+#[implements("FR-099-AC-9")]
+fn normalize_call_path(text: &str) -> String {
+    let chars: Vec<char> = text.chars().collect();
+    let mut normalized = String::with_capacity(text.len());
+    for (index, character) in chars.iter().enumerate() {
+        if !character.is_whitespace() {
+            normalized.push(*character);
+            continue;
+        }
+        let previous = chars[..index]
+            .iter()
+            .rev()
+            .find(|next| !next.is_whitespace());
+        let next = chars[index + 1..].iter().find(|next| !next.is_whitespace());
+        if previous.is_some_and(|value| *value == ':') || next.is_some_and(|value| *value == ':') {
+            continue;
+        }
+        if previous.is_some_and(|value| value.is_alphanumeric() || *value == '_')
+            && next.is_some_and(|value| value.is_alphanumeric() || *value == '_')
+            && !normalized.ends_with(' ')
+        {
+            normalized.push(' ');
+        }
+    }
+    normalized
+}
+
+#[implements("FR-099-AC-9")]
+fn resolve_callee(
+    callee_path: &str,
+    caller: &SymbolKey,
+    symbols: &[Symbol],
+) -> Result<SymbolKey, &'static str> {
+    let mut candidate_paths = Vec::new();
+    let mut prefix = Some(caller.name.as_str());
+    while let Some(scope) = prefix {
+        candidate_paths.push(format!("{scope}::{callee_path}"));
+        prefix = scope.rsplit_once("::").map(|(parent, _)| parent);
+    }
+    candidate_paths.push(callee_path.to_string());
+
+    for candidate in candidate_paths {
+        let matches: Vec<&Symbol> = symbols
+            .iter()
+            .filter(|symbol| {
+                symbol.qualified_name == candidate
+                    && matches!(
+                        symbol.kind,
+                        SymbolKind::Function | SymbolKind::TestFunction | SymbolKind::Benchmark
+                    )
+            })
+            .collect();
+        match matches.as_slice() {
+            [symbol] => return Ok(SymbolKey::from_symbol(symbol)),
+            [] => {}
+            _ => return Err("ambiguous-symbol-path"),
+        }
+    }
+    Err("no-exact-symbol-path")
+}
+
+#[implements("FR-099-AC-9")]
+fn search_callers(
+    changed: &Symbol,
+    changed_lines: LineRange,
+    depth_limit: usize,
+    extraction: &SymbolExtraction,
+    graph: &crate::symbols::trace::SymbolGraph,
+    calls: &CallerCallGraph,
+) -> CallerSearch {
+    let start = SymbolKey::from_symbol(changed);
+    let mut frontier = vec![(start.clone(), vec![start.clone()])];
+    let mut visited = BTreeSet::from([start.clone()]);
+    let mut reached = Vec::new();
+    let mut unresolved = BTreeSet::new();
+    let mut truncated = false;
+
+    if depth_limit == 0 {
+        let target_name = start
+            .name
+            .rsplit("::")
+            .next()
+            .unwrap_or(start.name.as_str());
+        for call in calls
+            .unresolved
+            .iter()
+            .filter(|call| call.hint.as_deref() == Some(target_name))
+        {
+            unresolved.insert(UnresolvedCallSite {
+                path: call.caller.path.clone(),
+                caller: call.caller.name.clone(),
+                line: call.line,
+                callee: call.written.clone(),
+                reason: call.reason.to_string(),
+            });
+        }
+        truncated = calls
+            .callers_by_callee
+            .get(&start)
+            .is_some_and(|callers| !callers.is_empty())
+            || !unresolved.is_empty();
+        return CallerSearch {
+            changed_path: changed.path.clone(),
+            changed_symbol: changed.qualified_name.clone(),
+            depth_limit,
+            linked_callers: reached,
+            unresolved_calls: unresolved.into_iter().collect(),
+            truncated,
+        };
+    }
+
+    for depth in 1..=depth_limit {
+        let mut next_frontier = Vec::new();
+        let mut linked_at_depth = Vec::new();
+        for (target, path) in frontier {
+            let target_name = target
+                .name
+                .rsplit("::")
+                .next()
+                .unwrap_or(target.name.as_str());
+            for call in calls
+                .unresolved
+                .iter()
+                .filter(|call| call.hint.as_deref() == Some(target_name))
+            {
+                unresolved.insert(UnresolvedCallSite {
+                    path: call.caller.path.clone(),
+                    caller: call.caller.name.clone(),
+                    line: call.line,
+                    callee: call.written.clone(),
+                    reason: call.reason.to_string(),
+                });
+            }
+            for edge in calls.callers_by_callee.get(&target).into_iter().flatten() {
+                if !visited.insert(edge.caller.clone()) {
+                    continue;
+                }
+                let Some(caller_symbol) = extraction.symbols.iter().find(|symbol| {
+                    symbol.path == edge.caller.path && symbol.qualified_name == edge.caller.name
+                }) else {
+                    continue;
+                };
+                let mut linked_ids: BTreeSet<String> = graph
+                    .implements
+                    .iter()
+                    .filter(|relation| relation.symbol_id == caller_symbol.id)
+                    .map(|relation| relation.trace_id.clone())
+                    .collect();
+                linked_ids.extend(
+                    graph
+                        .verifies
+                        .iter()
+                        .filter(|relation| relation.symbol_id == caller_symbol.id)
+                        .map(|relation| relation.trace_id.clone()),
+                );
+                if !linked_ids.is_empty() {
+                    let mut call_path: Vec<String> = path.iter().map(SymbolKey::display).collect();
+                    call_path.push(edge.caller.display());
+                    call_path.reverse();
+                    linked_at_depth.push(LinkedCaller {
+                        path: caller_symbol.path.clone(),
+                        symbol: caller_symbol.qualified_name.clone(),
+                        depth,
+                        linked_ids: linked_ids.into_iter().collect(),
+                        call_path,
+                    });
+                } else {
+                    let mut next_path = path.clone();
+                    next_path.push(edge.caller.clone());
+                    next_frontier.push((edge.caller.clone(), next_path));
+                }
+            }
+        }
+        if !linked_at_depth.is_empty() {
+            reached = linked_at_depth;
+            break;
+        }
+        if depth == depth_limit {
+            truncated = next_frontier.iter().any(|(symbol, _)| {
+                calls
+                    .callers_by_callee
+                    .get(symbol)
+                    .is_some_and(|callers| !callers.is_empty())
+            });
+            break;
+        }
+        frontier = next_frontier;
+        if frontier.is_empty() {
+            break;
+        }
+    }
+
+    reached.sort();
+    CallerSearch {
+        changed_path: changed.path.clone(),
+        changed_symbol: changed.qualified_name.clone(),
+        depth_limit,
+        linked_callers: reached,
+        unresolved_calls: unresolved.into_iter().collect(),
+        truncated,
+    }
 }
 
 #[implements("FR-099-AC-1")]
@@ -1113,7 +1724,31 @@ mod tests {
             traceability: &TraceabilityModel::default(),
             available_spec_ids: &BTreeSet::new(),
             unavailable_spec_ids: &BTreeSet::new(),
+            caller_search_depth: None,
         })
+    }
+
+    fn run_with_callers(source: &str, changed_lines: LineRange, depth: usize) -> ImpactReport {
+        let root = tempfile::tempdir().unwrap();
+        let registry = model_with_implements_form(root.path());
+        let model = registry.traceability().unwrap();
+        let base = snapshot("base", "");
+        let head = snapshot("head", source);
+        let available = BTreeSet::from(["FR-099-AC-9".to_string()]);
+        analyze(ImpactInput {
+            base: Some(&base),
+            head: Some(&head),
+            changes: &[FileChange {
+                path: "src/lib.rs".into(),
+                base: None,
+                head: Some(changed_lines),
+            }],
+            traceability: model,
+            available_spec_ids: &available,
+            unavailable_spec_ids: &BTreeSet::new(),
+            caller_search_depth: Some(depth),
+        })
+        .unwrap()
     }
 
     fn model_with_implements_form(root: &std::path::Path) -> crate::Registry {
@@ -1214,6 +1849,7 @@ mod tests {
             traceability: &TraceabilityModel::default(),
             available_spec_ids: &empty,
             unavailable_spec_ids: &empty,
+            caller_search_depth: None,
         });
         assert_eq!(
             result,
@@ -1286,6 +1922,7 @@ mod tests {
             traceability: model,
             available_spec_ids: &available,
             unavailable_spec_ids: &unavailable,
+            caller_search_depth: None,
         })
         .unwrap();
         assert!(!report
@@ -1318,6 +1955,7 @@ mod tests {
             traceability: model,
             available_spec_ids: &available,
             unavailable_spec_ids: &unavailable,
+            caller_search_depth: None,
         })
         .unwrap();
         assert!(report
@@ -1361,6 +1999,7 @@ mod tests {
                 traceability: model,
                 available_spec_ids: &available,
                 unavailable_spec_ids: &unavailable,
+                caller_search_depth: None,
             })
             .unwrap()
         };
@@ -1407,6 +2046,128 @@ mod tests {
         assert!(!report.selection_complete);
     }
 
+    #[trace("FR-099-AC-9")]
+    #[test]
+    fn direct_linked_caller_selects_its_verifying_test_with_path() {
+        let report = run_with_callers(
+            "fn changed() {}\n#[implements(\"FR-099-AC-9\")]\nfn caller() { changed(); }\n#[test]\n#[trace(\"FR-099-AC-9\")]\nfn caller_test() { caller(); }\n",
+            LineRange { start: 1, end: 1 },
+            3,
+        );
+        let search = report.caller_searches.first().unwrap();
+        assert_eq!(search.linked_callers.len(), 1);
+        assert_eq!(search.linked_callers[0].symbol, "caller");
+        assert_eq!(
+            search.linked_callers[0].call_path,
+            ["src/lib.rs::caller", "src/lib.rs::changed"]
+        );
+        let selected = report
+            .selected_tests
+            .iter()
+            .find(|test| test.name == "caller_test")
+            .unwrap();
+        assert!(selected.reasons.iter().any(|reason| matches!(
+            reason,
+            ImpactReason::CallerFollowing { call_path, trace_id, .. }
+                if call_path == &["src/lib.rs::caller", "src/lib.rs::changed"]
+                    && trace_id == "FR-099-AC-9"
+        )));
+    }
+
+    #[trace("FR-099-AC-9")]
+    #[test]
+    fn multi_step_search_returns_nearest_linked_caller() {
+        let report = run_with_callers(
+            "fn changed() {}\nfn middle() { changed(); }\n#[implements(\"FR-099-AC-9\")]\nfn linked() { middle(); }\n#[test]\n#[trace(\"FR-099-AC-9\")]\nfn linked_test() { linked(); }\n",
+            LineRange { start: 1, end: 1 },
+            3,
+        );
+        let search = report.caller_searches.first().unwrap();
+        assert_eq!(search.linked_callers.len(), 1);
+        assert_eq!(search.linked_callers[0].symbol, "linked");
+        assert_eq!(search.linked_callers[0].depth, 2);
+        assert_eq!(
+            search.linked_callers[0].call_path,
+            [
+                "src/lib.rs::linked",
+                "src/lib.rs::middle",
+                "src/lib.rs::changed"
+            ]
+        );
+        assert!(report
+            .selected_tests
+            .iter()
+            .any(|test| test.name == "linked_test"));
+    }
+
+    #[trace("FR-099-AC-9")]
+    #[test]
+    fn caller_cycle_is_visited_once_without_false_truncation() {
+        let report = run_with_callers(
+            "fn changed() { helper(); }\nfn helper() { changed(); }\n",
+            LineRange { start: 1, end: 1 },
+            4,
+        );
+        let search = report.caller_searches.first().unwrap();
+        assert!(search.linked_callers.is_empty());
+        assert!(!search.truncated);
+    }
+
+    #[trace("FR-099-AC-9")]
+    #[test]
+    fn trait_qualified_caller_path_matches_one_extracted_symbol() {
+        let report = run_with_callers(
+            "trait Operations { fn changed() {} }\n#[implements(\"FR-099-AC-9\")]\nfn caller() { Operations::changed(); }\n#[test]\n#[trace(\"FR-099-AC-9\")]\nfn caller_test() { caller(); }\n",
+            LineRange { start: 1, end: 1 },
+            2,
+        );
+        let search = report.caller_searches.first().unwrap();
+        assert_eq!(search.linked_callers.len(), 1);
+        assert_eq!(search.linked_callers[0].symbol, "caller");
+        assert!(report
+            .selected_tests
+            .iter()
+            .any(|test| test.name == "caller_test"));
+    }
+
+    #[trace("FR-099-AC-9")]
+    #[test]
+    fn dynamic_method_call_is_unresolved_and_keeps_search_incomplete() {
+        let report = run_with_callers(
+            "fn changed() {}\n#[implements(\"FR-099-AC-9\")]\nfn caller(receiver: impl std::fmt::Debug) { receiver.changed(); }\n",
+            LineRange { start: 1, end: 1 },
+            2,
+        );
+        let search = report.caller_searches.first().unwrap();
+        assert_eq!(search.unresolved_calls.len(), 1);
+        assert_eq!(
+            search.unresolved_calls[0].reason,
+            "method-call-needs-type-resolution"
+        );
+        assert!(!report.selection_complete);
+    }
+
+    #[trace("FR-099-AC-9")]
+    #[test]
+    fn imported_alias_call_is_reported_unresolved_for_original_target() {
+        let report = run_with_callers(
+            "mod remote { pub fn changed() {} }\nuse remote::changed as renamed;\n#[implements(\"FR-099-AC-9\")]\nfn caller() { renamed(); }\n",
+            LineRange { start: 1, end: 1 },
+            2,
+        );
+        let search = report
+            .caller_searches
+            .iter()
+            .find(|search| search.changed_symbol == "remote::changed")
+            .unwrap();
+        assert!(search.unresolved_calls.iter().any(|call| {
+            call.caller == "caller"
+                && call.callee == "renamed"
+                && call.reason == "import-alias-call"
+        }));
+        assert!(!report.selection_complete);
+    }
+
     #[trace("FR-099-AC-7")]
     #[trace("FR-099-CON-4")]
     #[test]
@@ -1429,6 +2190,7 @@ mod tests {
             traceability: model,
             available_spec_ids: &BTreeSet::new(),
             unavailable_spec_ids: &unavailable,
+            caller_search_depth: None,
         })
         .unwrap();
         assert!(report.findings.iter().any(|item| matches!(item, ImpactFinding::UnavailableSpecification { trace_id, .. } if trace_id == "FR-099-AC-4")));
@@ -1446,6 +2208,7 @@ mod tests {
             traceability: model,
             available_spec_ids: &known,
             unavailable_spec_ids: &BTreeSet::new(),
+            caller_search_depth: None,
         })
         .unwrap();
         assert!(report.findings.iter().any(|item| matches!(item, ImpactFinding::NonBindingMarker { trace_id, .. } if trace_id == "FR-099-AC-4")));
@@ -1461,6 +2224,7 @@ mod tests {
             traceability: model,
             available_spec_ids: &BTreeSet::new(),
             unavailable_spec_ids: &BTreeSet::new(),
+            caller_search_depth: None,
         })
         .unwrap();
         assert!(report.findings.iter().any(|item| matches!(item, ImpactFinding::UnresolvedId { trace_id, .. } if trace_id == "FR-099-AC-4")));
@@ -1488,6 +2252,7 @@ mod tests {
             traceability: &TraceabilityModel::default(),
             available_spec_ids: &BTreeSet::new(),
             unavailable_spec_ids: &BTreeSet::new(),
+            caller_search_depth: None,
         })
         .unwrap();
         assert!(report.findings.iter().any(
@@ -1547,6 +2312,7 @@ mod tests {
             traceability: &TraceabilityModel::default(),
             available_spec_ids: &BTreeSet::new(),
             unavailable_spec_ids: &BTreeSet::new(),
+            caller_search_depth: None,
         })
         .unwrap();
         assert!(report.findings.iter().any(
