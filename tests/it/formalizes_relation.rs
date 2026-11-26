@@ -666,8 +666,13 @@ fn native_and_qsl_files_read_as_qsl_declarations_when_present() {
     // Under a model declaring no form the declaration carries no relation.
     let graph = bind(&extraction, &TraceabilityModel::default());
     let table = symbol_table::build(&extraction, Some(&graph));
-    let row = table.symbols.iter().find(|s| s.symbol == "P1").expect("P1");
-    assert!(row.formalizes.is_empty());
+    let qsl_rows = table
+        .symbols
+        .iter()
+        .filter(|row| expected_paths.contains(&row.path.as_str()))
+        .collect::<Vec<_>>();
+    assert_eq!(qsl_rows.len(), expected_paths.len());
+    assert!(qsl_rows.iter().all(|row| row.formalizes.is_empty()));
 
     // The fixture's no-QSL control must not report the language.
     let without_qsl = source_pairs("without_qsl");
