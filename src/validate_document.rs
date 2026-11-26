@@ -1009,6 +1009,7 @@ fn validate_body(
     flagged
 }
 
+#[implements("FR-032-AC-10")]
 fn validate_required_locator(
     archetype: &CompiledArchetype,
     doc: &QuireDocument,

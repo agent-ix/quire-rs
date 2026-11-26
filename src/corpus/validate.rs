@@ -373,7 +373,7 @@ fn validate_view(
     report
 }
 
-#[implements("FR-070-AC-4")]
+#[implements("FR-070-AC-4", "FR-081-AC-22")]
 fn validate_view_findings(
     spec: &Spec,
     registry: &Registry,

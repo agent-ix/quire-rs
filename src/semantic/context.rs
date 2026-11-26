@@ -129,6 +129,7 @@ impl BundleIndex {
     /// are its `id`, `title`, and `name` when present; documents whose
     /// `object` is `enumeration` are also enumerations. `imports` come from
     /// the loaded modules' `exports`, keyed by package.
+    #[implements("FR-081-AC-22")]
     pub fn from_documents<'a>(
         package: &str,
         documents: impl Iterator<Item = (&'a serde_json::Map<String, serde_json::Value>, &'a str)>,
