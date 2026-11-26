@@ -2,9 +2,7 @@
   "name": "fallback-table-assertions-follow-selected-locator",
   "issue_ref": "PLAT-1930",
   "tags": [
-    "FR-032-AC-10",
-    "FR-016-AC-1",
-    "FR-016-AC-2"
+    "FR-032-AC-10"
   ],
   "input": {
     "module_manifest": "name: process-fallback\nartifact_types:\n- name: process\n  body_extraction:\n    yield_pattern:\n      match:\n        steps:\n        - from: table_row\n          under_section: Workflow\n          required: true\n          assert:\n            columns: [Step, Kind, Consumes, Emits, Description]\n            optional_columns: [Consumes, Emits, Description]\n            min_rows: 1\n        - from: table_row\n          under_section: Steps\n          required: false\n          assert:\n            columns: [Step, Kind, Consumes, Emits, Receiver, Description]\n            optional_columns: [Consumes, Emits, Receiver, Description]\n            min_rows: 1\n",

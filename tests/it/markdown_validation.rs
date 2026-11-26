@@ -596,7 +596,7 @@ fn tc774_column_choices_still_applies_when_the_optional_column_is_present() {
 
 /// Both admitted process table forms validate against the locator that supplied
 /// their rows; a missing required table and malformed fallback still fail.
-#[trace("FR-032-AC-10", "FR-016-AC-1", "FR-016-AC-2")]
+#[trace("FR-032-AC-10")]
 #[test]
 fn fallback_table_validation_uses_selected_locator_assertions() {
     let case: serde_json::Value = serde_json::from_slice(include_bytes!(

@@ -326,6 +326,34 @@ mod tests {
 
     #[trace("FR-070-AC-14")]
     #[test]
+    fn bare_tokens_ignore_loaded_but_unimported_packages() {
+        let case: serde_json::Value = serde_json::from_str(include_str!(
+            "../../tests/fixtures/corpus_cases/plat-1930-unimported-units.json"
+        ))
+        .expect("attributed unimported-unit fixture");
+        let mut ctx = context(case["input"]["bundle"].clone());
+        ctx.module
+            .imports
+            .remove(case["input"]["remove_first"].as_str().unwrap());
+        assert_eq!(
+            resolve(&ctx, TokenKind::Unit, "ms"),
+            resolved(case["expect"]["healthy_resolved"].as_str().unwrap())
+        );
+        ctx.module
+            .imports
+            .remove(case["input"]["remove_second"].as_str().unwrap());
+        assert_eq!(
+            resolve(&ctx, TokenKind::Unit, "ms"),
+            unresolved(UnresolvedReason::UnknownToken)
+        );
+        assert_eq!(
+            resolve(&ctx, TokenKind::Dimension, "Time"),
+            unresolved(UnresolvedReason::UnknownToken)
+        );
+    }
+
+    #[trace("FR-070-AC-14")]
+    #[test]
     fn qualified_tokens_consult_only_their_package() {
         let ctx = context(imported_bundle());
         assert_eq!(
