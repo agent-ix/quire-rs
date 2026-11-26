@@ -77,6 +77,7 @@ fn semantic_v1() -> Validator {
     .unwrap()
 }
 
+#[trace("FR-069-AC-5")]
 #[test]
 fn authentic_safety_schema_bundle_resolves_and_validates_records() {
     if !quire_fixtures::safety_module_available() {
