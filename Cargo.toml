@@ -53,6 +53,8 @@ workspace = true
 # caret-pinned for ecosystem-standard helpers.
 serde = { version = "^1", features = ["derive"] }
 serde_json = "^1"
+# Requirement links on the impact engine are read by quire's existing trace binder.
+ix-trace-rs = { git = "https://github.com/agent-ix/ix-trace-rs", tag = "v0.1.2" }
 # ADR-0012: keep the established import name while pinning the maintained
 # YAML Organization package exactly; YAML behavior is identity-bearing.
 serde_yaml = { package = "yaml_serde", version = "=0.10.7" }
@@ -117,12 +119,6 @@ agent-ix-semantic-schema = { git = "https://github.com/agent-ix/filament-core-da
 [dev-dependencies]
 # The authoritative QA corpus runner, pinned by the existing corpus submodule.
 qa-corpus = { path = "corpus" }
-# The canonical Rust trace marker (FR-051). Zero runtime dependencies and a
-# pass-through expansion, so it adds one crate to the dev graph and nothing
-# to a consumer's: dev-dependencies are not transitive. Pinned to an exact
-# (v0.1.2; one cargo source), which satisfies NFR-009-AC-3
-# more strictly than a caret range.
-ix-trace-rs = { git = "https://github.com/agent-ix/ix-trace-rs", tag = "v0.1.2" }
 # The Markdown -> semantic-core mapping fixture set quire-rs's own semantic
 # tests exercise (PLAT-901). A workspace path dependency here; quoin (its
 # other consumer, step 2 of PLAT-901) resolves the same crate as a git
