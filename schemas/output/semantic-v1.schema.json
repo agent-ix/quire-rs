@@ -169,7 +169,7 @@
     "valueStageOutcomeDecl": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "name", "sourceSpan"],
+      "required": ["id", "name", "doc", "sourceSpan"],
       "properties": {
         "id": { "type": "string", "minLength": 1 },
         "name": { "type": "string", "minLength": 1 },

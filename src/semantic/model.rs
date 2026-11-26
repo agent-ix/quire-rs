@@ -279,7 +279,7 @@ const TABLE_SPECS: [TableSpec; 18] = [
     TableSpec {
         feature: ModelFeature::StageOutcomes,
         columns: &["Stage ID", "Outcome ID", "Name", "Description"],
-        required: &["Stage ID", "Outcome ID", "Name"],
+        required: &["Stage ID", "Outcome ID", "Name", "Description"],
         read: Some(read_stage_outcomes),
     },
 ];
@@ -882,8 +882,7 @@ pub struct ValueStageDecl {
 pub struct ValueStageOutcomeDecl {
     pub id: String,
     pub name: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub doc: Option<String>,
+    pub doc: String,
     pub source_span: SourceLocus,
 }
 
@@ -2220,23 +2219,36 @@ fn read_stage_capability_bindings(r: &mut TableRead<'_>) {
 
 #[implements("FR-075-AC-31")]
 fn read_stage_outcomes(r: &mut TableRead<'_>) {
+    let mut seen = Vec::<(String, String)>::new();
     for (line, cells) in &r.table.rows {
         let (stage_id, id, name) = (
             r.cell(cells, "Stage ID"),
             r.cell(cells, "Outcome ID"),
             r.cell(cells, "Name"),
         );
+        let doc = r.cell(cells, "Description");
         let ok = r.non_empty(stage_id, "stage id", *line)
             & r.non_empty(id, "outcome id", *line)
             & r.non_empty(name, "outcome name", *line)
-            & r.fresh(id, *line);
+            & r.non_empty(doc, "outcome description", *line);
         if ok {
+            let key = (stage_id.to_string(), id.to_string());
+            if seen.contains(&key) {
+                r.error_with_reason(
+                    "semantic.duplicate-model-entry",
+                    *line,
+                    format!("stage {} outcome {} is declared twice", key.0, key.1),
+                    "duplicate-stage-outcome-id",
+                );
+                continue;
+            }
+            seen.push(key);
             r.out.pending_stage_outcomes.push(PendingStageOutcome {
                 stage_id: stage_id.to_string(),
                 outcome: ValueStageOutcomeDecl {
                     id: id.to_string(),
                     name: name.to_string(),
-                    doc: optional(r.cell(cells, "Description")),
+                    doc: doc.to_string(),
                     source_span: r.span(*line),
                 },
             });

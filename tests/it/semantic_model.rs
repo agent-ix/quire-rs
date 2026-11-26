@@ -160,7 +160,7 @@ fn value_stream_tables() -> Value {
     dsl(json!({
         "stages": row("Stages", &["Stage ID", "Order", "Name", "Value"], &[]),
         "stage_capability_bindings": row("Stage Capability Bindings", &["Stage ID", "Capability", "Process"], &[]),
-        "stage_outcomes": row("Stage Outcomes", &["Stage ID", "Outcome ID", "Name", "Description"], &["Description"]),
+        "stage_outcomes": row("Stage Outcomes", &["Stage ID", "Outcome ID", "Name", "Description"], &[]),
     }))
 }
 
@@ -261,7 +261,7 @@ fn generalization_and_abstract_from_frontmatter() {
 #[trace("FR-075-AC-31")]
 #[test]
 fn enterprise_value_stream_stages_bindings_and_outcomes_are_typed() {
-    let md = "---\nid: VS-001\ntitle: Order Value Stream\nobject: value_stream\n---\n# VS-001\n\n## Stages\n\n| Stage ID | Order | Name | Value |\n|---|---:|---|---|\n| intake | 1 | Intake | Capture the request |\n| fulfilment | 2 | Fulfilment | Deliver the order |\n\n## Stage Capability Bindings\n\n| Stage ID | Capability | Process |\n|---|---|---|\n| fulfilment | Order fulfilment | Fulfil Orders |\n\n## Stage Outcomes\n\n| Stage ID | Outcome ID | Name | Description |\n|---|---|---|---|\n| fulfilment | delivered | Delivered | Order reaches the customer |\n";
+    let md = "---\nid: VS-001\ntitle: Order Value Stream\nobject: value_stream\n---\n# VS-001\n\n## Stages\n\n| Stage ID | Order | Name | Value |\n|---|---:|---|---|\n| intake | 1 | Intake | Capture the request |\n| fulfilment | 2 | Fulfilment | Deliver the order |\n\n## Stage Capability Bindings\n\n| Stage ID | Capability | Process |\n|---|---|---|\n| fulfilment | Order fulfilment | Fulfil Orders |\n\n## Stage Outcomes\n\n| Stage ID | Outcome ID | Name | Description |\n|---|---|---|---|\n| intake | delivered | Delivered | Intake is accepted |\n| fulfilment | delivered | Delivered | Order reaches the customer |\n";
     let mut request = shop_request(md, value_stream_tables());
     request["module"]["exports"] = json!(["value_stream"]);
     request["bundle"] = bundle_of(&[
@@ -284,8 +284,20 @@ fn enterprise_value_stream_stages_bindings_and_outcomes_are_typed() {
     assert_eq!(record["model"]["stages"][0]["id"], "intake");
     assert_eq!(record["model"]["stages"][1]["order"], 2);
     assert_eq!(
+        record["model"]["stages"][0]["outcomes"][0]["id"],
+        "delivered"
+    );
+    assert_eq!(
+        record["model"]["stages"][0]["outcomes"][0]["doc"],
+        "Intake is accepted"
+    );
+    assert_eq!(
         record["model"]["stages"][1]["outcomes"][0]["id"],
         "delivered"
+    );
+    assert_eq!(
+        record["model"]["stages"][1]["outcomes"][0]["doc"],
+        "Order reaches the customer"
     );
     assert_span(
         &record["model"]["stages"][1]["outcomes"][0],
@@ -310,6 +322,43 @@ fn enterprise_value_stream_stages_bindings_and_outcomes_are_typed() {
         line_of(md, "| fulfilment | Order fulfilment |"),
     );
     assert_span(&record["model"]["stages"][0], md, line_of(md, "| intake |"));
+
+    let missing_description = md.replace(
+        "| fulfilment | delivered | Delivered | Order reaches the customer |",
+        "| fulfilment | delivered | Delivered | |",
+    );
+    let record = extract_request(&with(
+        request.clone(),
+        "markdown",
+        json!(missing_description),
+    ));
+    assert_model_unavailable(&record);
+    assert!(record["diagnostics"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|diagnostic| {
+            diagnostic["code"] == "semantic.invalid-model-cell"
+                && diagnostic["message"]
+                    .as_str()
+                    .unwrap()
+                    .contains("outcome description")
+        }));
+
+    let duplicate_outcome = md.replace(
+        "| fulfilment | delivered | Delivered | Order reaches the customer |",
+        "| fulfilment | delivered | Delivered | Order reaches the customer |\n| fulfilment | delivered | Duplicate | Duplicate outcome |",
+    );
+    let record = extract_request(&with(request.clone(), "markdown", json!(duplicate_outcome)));
+    assert_model_unavailable(&record);
+    assert!(record["diagnostics"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|diagnostic| {
+            diagnostic["code"] == "semantic.duplicate-model-entry"
+                && diagnostic["reason"] == "duplicate-stage-outcome-id"
+        }));
 
     let bad = md.replace("| fulfilment | delivered |", "| missing | delivered |");
     let record = extract_request(&with(request.clone(), "markdown", json!(bad)));
