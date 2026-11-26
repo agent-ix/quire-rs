@@ -91,8 +91,9 @@ pub use validate::{apply_patch, validate, validate_all, validate_block};
 // Markdown-default validation (FR-032 + FR-035).
 pub use validate_document::{
     validate_context, validate_document, validate_document_in_bundle,
-    validate_document_in_registry, validate_document_in_registry_with_lexicon, ValidationError,
-    ValidationReason, ValidationResult, ValidationWarning,
+    validate_document_in_indexed_bundle, validate_document_in_registry,
+    validate_document_in_registry_with_lexicon, ValidationError, ValidationReason,
+    ValidationResult, ValidationWarning,
 };
 // Base concept frontmatter contract (OKF: required `type` + optional
 // `description`/`tags`), validated before archetype routing.

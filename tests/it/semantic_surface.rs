@@ -535,6 +535,231 @@ fn validate_document_surface() {
     );
 }
 
+#[trace("FR-070-AC-1", "FR-070-AC-11")]
+#[test]
+fn indexed_validation_resolves_same_repo_types_and_preserves_single_document_mode() {
+    use quire_rs::semantic::BundleIndex;
+
+    let fixture: Value = serde_json::from_slice(include_bytes!(
+        "../fixtures/corpus_cases/plat-1916-semantic-type-index.json"
+    ))
+    .unwrap();
+    assert_eq!(fixture["issue_ref"], "PLAT-1916");
+    let registry = Registry::load_module(&quire_fixtures::module_ok_dir()).unwrap();
+    let entity = registry.archetype("entity").unwrap();
+    let source = fixture["input"]["documents"]["source"].as_str().unwrap();
+    let sibling = fixture["input"]["documents"]["sibling"].as_str().unwrap();
+    let sibling_fm = quire_rs::parse_document(sibling).frontmatter.unwrap();
+    let source_fm = quire_rs::parse_document(&source).frontmatter.unwrap();
+    let docs = [(&source_fm, source), (&sibling_fm, sibling)];
+    let index = BundleIndex::from_documents(
+        "agent-ix/config-service",
+        docs.into_iter(),
+        registry.semantic_modules().map(|(_, module)| module),
+    );
+    let mut extraction_input = cases()
+        .into_iter()
+        .find(|case| case["name"] == "golden-table-available")
+        .expect("baseline semantic request")["input"]
+        .clone();
+    extraction_input["markdown"] = source.into();
+    extraction_input["bundle"] = serde_json::to_value(&index).unwrap();
+    let extracted = extract_semantic_json(&extraction_input).unwrap();
+    let extracted = serde_json::to_value(extracted).unwrap();
+    let parent = extracted["fields"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|field| field["name"] == "parent")
+        .unwrap();
+    assert_eq!(
+        parent["type"]["target"]["value"],
+        fixture["expect"]["resolved_target"]
+    );
+
+    let indexed = quire_rs::validate_document_in_indexed_bundle(
+        &registry,
+        entity,
+        &source,
+        "agent-ix/config-service",
+        None,
+        &index,
+    );
+    assert!(
+        !indexed
+            .warnings
+            .iter()
+            .any(|w| w.message.contains("semantic.unresolved-type")),
+        "indexed same-repo type should resolve: {:?}",
+        indexed.warnings
+    );
+    for reason in fixture["expect"]["absent_diagnostic_reasons"]
+        .as_array()
+        .unwrap()
+    {
+        let reason = reason.as_str().unwrap();
+        assert!(
+            !indexed.warnings.iter().any(|w| w.message.contains(reason)),
+            "healthy control unexpectedly emitted {reason}: {:?}",
+            indexed.warnings
+        );
+    }
+
+    let missing = fixture["input"]["documents"]["missing_type_source"]
+        .as_str()
+        .unwrap();
+    let missing_result = quire_rs::validate_document_in_indexed_bundle(
+        &registry,
+        entity,
+        &missing,
+        "agent-ix/config-service",
+        None,
+        &index,
+    );
+    assert!(missing_result.warnings.iter().any(|w| w
+        .message
+        .contains(fixture["expect"]["refusal_reason"].as_str().unwrap())));
+    assert!(!indexed
+        .warnings
+        .iter()
+        .any(|w| w.message.contains("semantic.ambiguous-type")));
+
+    let wrong_kind = fixture["input"]["documents"]["wrong_kind_source"]
+        .as_str()
+        .unwrap();
+    let wrong_kind_result = quire_rs::validate_document_in_indexed_bundle(
+        &registry,
+        entity,
+        &wrong_kind,
+        "agent-ix/config-service",
+        None,
+        &index,
+    );
+    assert!(wrong_kind_result.warnings.iter().any(|w| w
+        .message
+        .contains(fixture["expect"]["refusal_reason"].as_str().unwrap())));
+
+    let single = quire_rs::validate_document_in_bundle(
+        &registry,
+        entity,
+        &source,
+        "agent-ix/config-service",
+        None,
+    );
+    assert!(
+        single.warnings.iter().any(|w| w.message.contains(
+            fixture["expect"]["single_document_unresolved"]
+                .as_str()
+                .unwrap()
+        )),
+        "single-document API must not resolve a sibling by itself: {:?}",
+        single.warnings
+    );
+
+    // Native Clock takes precedence over a same-named sibling declaration.
+    let clock = source.replace("ConfigVersion", "Clock");
+    let clock_result = quire_rs::validate_document_in_indexed_bundle(
+        &registry,
+        entity,
+        &clock,
+        "agent-ix/config-service",
+        None,
+        &index,
+    );
+    assert!(!clock_result
+        .errors
+        .iter()
+        .any(|e| e.message.contains("semantic.unresolved-type")));
+
+    // The public corpus validator builds that index from its loaded siblings.
+    let root = tempfile::tempdir().unwrap();
+    std::fs::create_dir_all(root.path().join("spec")).unwrap();
+    std::fs::write(root.path().join("spec/FR-006.md"), source).unwrap();
+    std::fs::write(root.path().join("spec/FR-005.md"), sibling).unwrap();
+    let other = tempfile::tempdir().unwrap();
+    std::fs::create_dir_all(other.path().join("spec")).unwrap();
+    std::fs::write(
+        other.path().join("spec/FR-900.md"),
+        sibling.replace("FR-005", "FR-900"),
+    )
+    .unwrap();
+    let spec = quire_rs::Spec::from_members(vec![
+        quire_rs::CorpusMember {
+            identity: Some("agent-ix/config-service".to_string()),
+            load: quire_rs::corpus::walk::load_repo(&root.path().join("spec")),
+        },
+        quire_rs::CorpusMember {
+            identity: Some("agent-ix/other-service".to_string()),
+            load: quire_rs::corpus::walk::load_repo(&other.path().join("spec")),
+        },
+    ])
+    .unwrap();
+    let corpus = quire_rs::corpus::validate_corpus(
+        &spec,
+        &registry,
+        quire_rs::BundlePosture::Strict,
+        &[
+            (&root.path().join("spec"), root.path()),
+            (&other.path().join("spec"), other.path()),
+        ],
+    )
+    .unwrap();
+    assert!(
+        !corpus
+            .errors
+            .iter()
+            .chain(&corpus.warnings)
+            .any(|f| f.message.contains("semantic.unresolved-type")),
+        "corpus sibling type should resolve: {:?} {:?}",
+        corpus.errors,
+        corpus.warnings
+    );
+    assert!(
+        !corpus
+            .errors
+            .iter()
+            .chain(&corpus.warnings)
+            .any(|f| f.message.contains("semantic.ambiguous-type")),
+        "another member's same-name declaration must not enter this member's index: {:?} {:?}",
+        corpus.errors,
+        corpus.warnings
+    );
+    for bad in [missing, wrong_kind] {
+        std::fs::write(root.path().join("spec/FR-006.md"), bad).unwrap();
+        let bad_spec = quire_rs::Spec::from_members(vec![
+            quire_rs::CorpusMember {
+                identity: Some("agent-ix/config-service".to_string()),
+                load: quire_rs::corpus::walk::load_repo(&root.path().join("spec")),
+            },
+            quire_rs::CorpusMember {
+                identity: Some("agent-ix/other-service".to_string()),
+                load: quire_rs::corpus::walk::load_repo(&other.path().join("spec")),
+            },
+        ])
+        .unwrap();
+        let bad_report = quire_rs::corpus::validate_corpus(
+            &bad_spec,
+            &registry,
+            quire_rs::BundlePosture::Strict,
+            &[
+                (&root.path().join("spec"), root.path()),
+                (&other.path().join("spec"), other.path()),
+            ],
+        )
+        .unwrap();
+        assert!(
+            bad_report
+                .errors
+                .iter()
+                .chain(&bad_report.warnings)
+                .any(|f| f.message.contains("semantic.unresolved-type")),
+            "bad source produced no stable unresolved-type finding: {:?} {:?}",
+            bad_report.errors,
+            bad_report.warnings
+        );
+    }
+}
+
 #[trace("FR-072-AC-7")]
 #[trace("NFR-021-AC-4")]
 // byte-identical repeated runs; an unrelated edit changes nothing.

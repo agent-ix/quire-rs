@@ -19,6 +19,7 @@
 
 #![deny(clippy::disallowed_types)]
 
+use ix_trace_rs::implements;
 use std::collections::{BTreeMap, BTreeSet};
 
 use jsonschema::error::ValidationErrorKind;
@@ -339,6 +340,7 @@ pub fn validate_document_in_registry(
         doc_text,
         registry.lexicon_matcher(),
         None,
+        None,
     )
 }
 
@@ -353,7 +355,7 @@ pub fn validate_document_in_registry_with_lexicon(
     doc_text: &str,
     lexicon: &crate::grammar::GrammarLexicon,
 ) -> ValidationResult {
-    validate_in_registry_core(registry, archetype, doc_text, lexicon, None)
+    validate_in_registry_core(registry, archetype, doc_text, lexicon, None, None)
 }
 
 /// As [`validate_document_in_registry`] (or, with `lexicon`,
@@ -376,6 +378,28 @@ pub fn validate_document_in_bundle(
         doc_text,
         lexicon.unwrap_or_else(|| registry.lexicon_matcher()),
         Some(bundle_package),
+        None,
+    )
+}
+
+/// Bundle validation with the caller's explicit semantic sibling index.
+/// Single-document entry points intentionally keep an empty index.
+#[implements("FR-070-AC-4")]
+pub fn validate_document_in_indexed_bundle(
+    registry: &crate::Registry,
+    archetype: &CompiledArchetype,
+    doc_text: &str,
+    bundle_package: &str,
+    lexicon: Option<&crate::grammar::GrammarLexicon>,
+    bundle: &crate::semantic::BundleIndex,
+) -> ValidationResult {
+    validate_in_registry_core(
+        registry,
+        archetype,
+        doc_text,
+        lexicon.unwrap_or_else(|| registry.lexicon_matcher()),
+        Some(bundle_package),
+        Some(bundle),
     )
 }
 
@@ -394,11 +418,12 @@ fn semantic_findings(
     module: &crate::semantic::SemanticModule,
     doc_text: &str,
     bundle_package: Option<&str>,
+    bundle_index: Option<&crate::semantic::BundleIndex>,
     errors: &mut Vec<ValidationError>,
     warnings: &mut Vec<ValidationWarning>,
 ) {
     use crate::semantic::SemanticSeverity;
-    let (ctx, required) = semantic_context(registry, arch, module, bundle_package);
+    let (ctx, required) = semantic_context(registry, arch, module, bundle_package, bundle_index);
     let record = crate::semantic::extract_semantic(doc_text, &ctx, &required);
     for d in &record.diagnostics {
         let message = format!("{}: {}", d.code, d.message);
@@ -485,6 +510,7 @@ fn semantic_context(
     arch: &CompiledArchetype,
     module: &crate::semantic::SemanticModule,
     bundle_package: Option<&str>,
+    bundle_index: Option<&crate::semantic::BundleIndex>,
 ) -> (
     crate::semantic::SemanticContext,
     crate::semantic::RequiredSections,
@@ -492,10 +518,10 @@ fn semantic_context(
     use crate::semantic::{
         BundleIndex, ConstructReferences, RelationVocabulary, RequiredSections, SemanticContext,
     };
-    let mut bundle = BundleIndex {
+    let mut bundle = bundle_index.cloned().unwrap_or_else(|| BundleIndex {
         package: bundle_package.unwrap_or_default().to_string(),
         ..BundleIndex::default()
-    };
+    });
     for (_, m) in registry.semantic_modules() {
         bundle.imports.insert(m.package.clone(), m.exports.clone());
     }
@@ -576,7 +602,7 @@ pub(crate) fn document_record(
     let arch = registry.archetype(crate::query::concept_type(&doc)?)?;
     let validator = arch.data_validator()?;
     let module = registry.semantic_module(&arch.module)?;
-    let (ctx, required) = semantic_context(registry, arch, module, bundle_package);
+    let (ctx, required) = semantic_context(registry, arch, module, bundle_package, None);
     let extraction = crate::semantic::extract_semantic(doc_text, &ctx, &required);
     if !extraction.duplicate_record_keys().is_empty() {
         return None;
@@ -688,6 +714,7 @@ fn validate_in_registry_core(
     doc_text: &str,
     lexicon: &crate::grammar::GrammarLexicon,
     bundle_package: Option<&str>,
+    bundle_index: Option<&crate::semantic::BundleIndex>,
 ) -> ValidationResult {
     let doc = crate::parse_document(doc_text);
     let line_offset = body_line_offset(doc_text);
@@ -766,6 +793,7 @@ fn validate_in_registry_core(
                 module,
                 doc_text,
                 bundle_package,
+                bundle_index,
                 &mut errors,
                 &mut warnings,
             );
