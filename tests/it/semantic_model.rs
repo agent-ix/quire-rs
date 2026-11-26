@@ -2237,7 +2237,10 @@ fn unit_rows_resolve_dimensions_and_targets_with_canonical_rationals() {
     let table =
         "| Dimension | Target | Scale | Offset |\n|---|---|---:|---:|\n| Time | s | 1/1000 | 0 |\n";
     let md = physical_doc(&[("Scale", table)]);
-    let artifacts = &[("Time", "dimension", &["Time"]), ("s", "unit", &["s"])];
+    let artifacts = &[
+        ("Time", "dimension", &["Time"][..]),
+        ("s", "unit", &["s"][..]),
+    ];
     let request = physical_request(&md, physical_tables("", "", "Scale"), artifacts);
     let record = extract_request(&request);
     assert_eq!(
