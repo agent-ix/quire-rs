@@ -46,6 +46,11 @@ it. Validation is **advisory** in this revision (warnings, never blocking
 extraction or [FR-032](./FR-032-validate-document.md) structural validation); a
 later CR flips it to errors once the corpus is migrated.
 
+Cross-module declarations of one edge name merge silently when their category,
+inverse, composition, and symmetric behavior match, even if descriptions
+differ; the first description is retained. A behavior mismatch still produces
+`DuplicateEdgeType` as specified below.
+
 ### API
 
 ```rust

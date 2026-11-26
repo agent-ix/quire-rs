@@ -1342,20 +1342,38 @@ roles:
         write_vocab_module(
             &p.join("m1"),
             "m1",
-            "edge_types:\n  calls:\n    description: sync\n    category: behavioral\n",
+            "edge_types:\n  calls_category:\n    description: category\n    category: behavioral\n  calls_inverse:\n    description: inverse\n    category: behavioral\n    inverse: called_by\n  calls_composite:\n    description: composite\n    category: behavioral\n  calls_symmetric:\n    description: symmetric\n    category: behavioral\n",
         );
         write_vocab_module(
             &p.join("m2"),
             "m2",
-            "edge_types:\n  calls:\n    description: DIFFERENT\n    category: dataflow\n",
+            "edge_types:\n  calls_category:\n    description: category\n    category: dataflow\n  calls_inverse:\n    description: inverse\n    category: behavioral\n    inverse: invoked_by\n  calls_composite:\n    description: composite\n    category: behavioral\n    composite: true\n  calls_symmetric:\n    description: symmetric\n    category: behavioral\n    symmetric: true\n",
         );
         let r = Registry::load_from(&[&p]).expect("tolerant ok");
         // First-wins keeps the earliest body.
-        assert_eq!(r.edge_types()["calls"].category, EdgeCategory::Behavioral);
-        assert!(r
+        assert_eq!(
+            r.edge_types()["calls_category"].category,
+            EdgeCategory::Behavioral
+        );
+        let duplicate_names: std::collections::BTreeSet<&str> = r
             .diagnostics()
             .iter()
-            .any(|d| matches!(d, Diagnostic::DuplicateEdgeType { name, .. } if name == "calls")));
+            .filter_map(|d| match d {
+                Diagnostic::DuplicateEdgeType { name, .. } => Some(name.as_str()),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(
+            duplicate_names,
+            [
+                "calls_category",
+                "calls_composite",
+                "calls_inverse",
+                "calls_symmetric"
+            ]
+            .into_iter()
+            .collect()
+        );
         assert!(Registry::load_strict(&[&p]).is_err());
     }
 

@@ -1584,6 +1584,8 @@ fn merge_vocab<V: Clone + PartialEq>(
     merge_vocab_by(modules, pick, |left, right| left == right)
 }
 
+#[implements("FR-040-AC-1")]
+#[implements("FR-040-AC-2")]
 fn merge_vocab_by<V: Clone>(
     modules: &[LoadedModule],
     pick: impl Fn(&LoadedModule) -> &BTreeMap<String, V>,
