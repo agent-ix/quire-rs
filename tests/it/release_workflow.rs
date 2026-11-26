@@ -225,7 +225,10 @@ fn tc_2234_make_evidence_records_fresh_suite_run_for_retention() {
     assert!(target.contains("CARGO_BUILD_JOBS=4"));
     assert!(target.contains("--workspace --jobs=4"));
     assert!(target.contains("evidence record --repo . --suite SUITE-001"));
-    assert!(target.contains("--commit \"$$commit\""));
+    assert!(!target.contains("--commit \"$$commit\""));
+    assert!(target.contains("record-result.json"));
+    assert!(target.contains("--junit-results"));
+    assert!(!target.contains("--package ix-trace-run"));
     assert!(target.contains("release-evidence.tar.gz"));
     assert!(target.contains("scripts/package_release_evidence.py"));
     assert!(target.contains("@agent-ix/quoin@0.30.1"));
@@ -240,6 +243,8 @@ fn tc_2234_make_evidence_records_fresh_suite_run_for_retention() {
         .any(|step| step["run"].as_str() == Some("make evidence")));
 }
 
+const TERRA_RUN_PATH: &str = "runs/SUITE-001/2026-11-26T00~3A00~3A00~2E123456789Z.json";
+
 fn terra_bundle_fixture(
     root: &std::path::Path,
     commit: &str,
@@ -248,7 +253,7 @@ fn terra_bundle_fixture(
     let source_root = root.join("source");
     let source_evidence = source_root.join("spec/evidence");
     let bundle_root = root.join("bundle");
-    let run_path = format!("runs/SUITE-001/{}.json", &commit[..12]);
+    let run_path = TERRA_RUN_PATH.to_owned();
     fs::create_dir_all(source_evidence.join("runs/SUITE-001")).expect("create source evidence");
     fs::create_dir_all(bundle_root.join("runs/SUITE-001")).expect("create bundle evidence");
 
@@ -264,17 +269,15 @@ fn terra_bundle_fixture(
             "obligation": "FR-095-AC-1",
             "statementHashAtBinding": "sha256:statement",
             "suite": "SUITE-001",
-            "commit": commit,
             "symbols": ["tests::tc_2229"]
         }]
     });
     let run = serde_json::json!({
         "schemaVersion": 1,
         "suite": "SUITE-001",
-        "commit": commit,
         "tool": "ix-trace-run 0.1.0+3cd3285",
         "evidenceKind": "Unit",
-        "timestamp": "2026-11-26T00:00:00Z",
+        "timestamp": "2026-11-26T00:00:00.123456789Z",
         "entries": [{"symbol":"tests::tc_2229", "outcome":outcome}]
     });
     let manifest = serde_json::json!({
@@ -307,6 +310,18 @@ fn terra_bundle_fixture(
         serde_json::to_vec_pretty(&run).expect("serialize run"),
     )
     .expect("write run record");
+    fs::write(
+        bundle_root.join("junit.xml"),
+        "<testsuite><testcase classname=\"tests\" name=\"tc_2229\"/></testsuite>",
+    )
+    .expect("write raw JUnit result");
+    let hashes = Command::new("python3")
+        .arg("-c")
+        .arg("import hashlib,json,sys; from pathlib import Path; root=Path(sys.argv[1]); p=root/'release-evidence.json'; m=json.loads(p.read_text()); m['sha256']={f.relative_to(root).as_posix():hashlib.sha256(f.read_bytes()).hexdigest() for f in root.rglob('*') if f.is_file() and f!=p}; p.write_text(json.dumps(m))")
+        .arg(&bundle_root)
+        .status()
+        .expect("hash exact raw fixture payloads");
+    assert!(hashes.success());
     let source_run = source_evidence.join(&run_path);
     fs::create_dir_all(source_run.parent().expect("run path has a parent"))
         .expect("create source run directory");
@@ -323,6 +338,7 @@ fn terra_bundle_fixture(
             "suites.md",
             "bindings.committed.json",
             "bindings.json",
+            "junit.xml",
         ])
         .arg(run_path)
         .status()
@@ -347,7 +363,9 @@ fn tc_2235_valid_terra_bundle_is_verified_and_extracted_for_the_tag_sha() {
         .args(["--committed-bindings"])
         .arg(bundle_root.join("bindings.committed.json"))
         .args(["--run-record"])
-        .arg(evidence_root.join(format!("runs/SUITE-001/{}.json", &commit[..12])))
+        .arg(evidence_root.join(TERRA_RUN_PATH))
+        .arg("--junit-results")
+        .arg(bundle_root.join("junit.xml"))
         .args(["--expected-tag", "v0.63.3", "--expected-commit", &commit])
         .args(["--tag-created-at", "1795564800"])
         .arg("--archive")
@@ -371,8 +389,19 @@ fn tc_2235_valid_terra_bundle_is_verified_and_extracted_for_the_tag_sha() {
         .status()
         .expect("run release evidence verifier");
     assert!(result.success(), "matching Terra evidence verifies");
-    assert!(output.join("runs/SUITE-001/aaaaaaaaaaaa.json").is_file());
+    assert!(output.join(TERRA_RUN_PATH).is_file());
     assert!(output.join("bindings.committed.json").is_file());
+    assert_eq!(
+        fs::read(output.join(TERRA_RUN_PATH)).unwrap(),
+        fs::read(evidence_root.join(TERRA_RUN_PATH)).unwrap(),
+        "raw Quoin record bytes are preserved"
+    );
+    let run: serde_json::Value =
+        serde_json::from_slice(&fs::read(output.join(TERRA_RUN_PATH)).unwrap()).unwrap();
+    assert!(
+        run.get("commit").is_none(),
+        "published Quoin records have no invented commit field"
+    );
 }
 
 #[trace("FR-095-AC-6")]
@@ -709,4 +738,51 @@ fn tc_2240_unsafe_archive_path_and_missing_run_are_refused() {
         "preserve",
         "refusal preserves the caller's existing destination"
     );
+}
+
+#[trace("FR-095-AC-6")]
+#[test]
+fn tc_2243_changed_raw_junit_payload_is_refused() {
+    let root = tempfile::tempdir().expect("create fixture root");
+    let commit = "a".repeat(40);
+    let (source, archive, bundle) = terra_bundle_fixture(root.path(), &commit, "pass");
+    fs::write(bundle.join("junit.xml"), "changed raw producer result").expect("tamper JUnit");
+    let tar = Command::new("tar")
+        .arg("-czf")
+        .arg(&archive)
+        .arg("-C")
+        .arg(&bundle)
+        .args([
+            "release-evidence.json",
+            "suites.md",
+            "bindings.committed.json",
+            "bindings.json",
+            "junit.xml",
+            TERRA_RUN_PATH,
+        ])
+        .status()
+        .expect("repack tampered payload");
+    assert!(tar.success());
+    let output = root.path().join("verified");
+    let result = Command::new("python3")
+        .arg(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("scripts/verify_release_evidence.py"))
+        .arg("--archive")
+        .arg(archive)
+        .arg("--source-root")
+        .arg(source)
+        .args([
+            "--expected-tag",
+            "v0.63.3",
+            "--expected-commit",
+            &commit,
+            "--tag-created-at",
+            "1795564800",
+        ])
+        .arg("--output-dir")
+        .arg(&output)
+        .output()
+        .expect("verify tampered payload");
+    assert!(!result.status.success());
+    assert!(String::from_utf8_lossy(&result.stderr).contains("payload hashes"));
+    assert!(!output.exists());
 }

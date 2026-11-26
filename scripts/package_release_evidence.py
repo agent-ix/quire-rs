@@ -3,6 +3,7 @@
 # implements: FR-095-AC-4
 
 import argparse
+import hashlib
 import json
 import re
 import tarfile
@@ -13,6 +14,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--source-root", type=Path, required=True)
 parser.add_argument("--committed-bindings", type=Path, required=True)
 parser.add_argument("--run-record", type=Path, required=True)
+parser.add_argument("--junit-results", type=Path, required=True)
 parser.add_argument("--expected-tag", required=True)
 parser.add_argument("--expected-commit", required=True)
 parser.add_argument("--tag-created-at", type=int, required=True)
@@ -31,21 +33,22 @@ run_record = json.loads(args.run_record.read_text(encoding="utf-8"))
 generated_bindings = (evidence / "bindings.json").read_bytes()
 suite_registry = (evidence / "suites.md").read_bytes()
 
-if args.run_record.resolve() != (
-    evidence / "runs" / "SUITE-001" / f"{args.expected_commit[:12]}.json"
-).resolve():
-    parser.error("run record path does not identify the exact tagged commit")
+try:
+    run_path = args.run_record.resolve().relative_to(evidence).as_posix()
+except ValueError:
+    parser.error("run record is outside the source evidence store")
+if not re.fullmatch(r"runs/SUITE-001/[A-Za-z0-9~_.-]+\.json", run_path):
+    parser.error("run record path does not identify the release suite")
 if (
     run_record.get("schemaVersion") != 1
     or run_record.get("suite") != "SUITE-001"
-    or run_record.get("commit") != args.expected_commit
     or run_record.get("tool") != "ix-trace-run 0.1.0+3cd3285"
     or run_record.get("evidenceKind") != "Unit"
     or not run_record.get("timestamp")
 ):
     parser.error("run record does not match the declared release suite and tag")
 try:
-    run_time = datetime.fromisoformat(run_record["timestamp"].replace("Z", "+00:00"))
+    run_time = datetime.fromisoformat(re.sub(r"(\.\d{6})\d+", r"\1", run_record["timestamp"]).replace("Z", "+00:00"))
 except (TypeError, ValueError):
     parser.error("run record timestamp is not RFC3339")
 tag_created_at = datetime.fromtimestamp(args.tag_created_at, timezone.utc)
@@ -68,14 +71,14 @@ files = {
     "suites.md": suite_registry,
     "bindings.committed.json": committed_bindings,
     "bindings.json": generated_bindings,
-    f"runs/SUITE-001/{args.expected_commit[:12]}.json": args.run_record.read_bytes(),
+    run_path: args.run_record.read_bytes(),
+    "junit.xml": args.junit_results.read_bytes(),
 }
 for relative, content in files.items():
     destination = bundle / relative
     destination.parent.mkdir(parents=True, exist_ok=True)
     destination.write_bytes(content)
 
-run_path = f"runs/SUITE-001/{args.expected_commit[:12]}.json"
 manifest = {
     "schemaVersion": 1,
     "tag": args.expected_tag,
@@ -83,6 +86,7 @@ manifest = {
     "tagCreatedAt": args.tag_created_at,
     "suite": "SUITE-001",
     "runPath": run_path,
+    "sha256": {name: hashlib.sha256(content).hexdigest() for name, content in files.items()},
     "tool": "ix-trace-run 0.1.0+3cd3285",
 }
 (bundle / "release-evidence.json").write_text(

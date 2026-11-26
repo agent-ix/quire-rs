@@ -19,7 +19,7 @@ FR-095 governs the tag-attestation workflow handoff; it does not change
 Quire-rs product, library, CLI, or engine runtime behavior. The release
 process calls for Terra to run `SUITE-001` once at the exact release tag
 commit and package the committed suite registry, committed and generated
-binding registries, and fresh run record as `release-evidence.tar.gz`. That
+binding registries, raw JUnit results, and fresh run record as `release-evidence.tar.gz`. That
 archive is attached to the matching
 GitHub Release. The tag workflow does not execute the suite; it validates the
 attached bundle against the tag and source commit, retains it as a same-run
@@ -67,9 +67,9 @@ and writes no Test Result when evidence is absent or unusable.
   and package the committed suite and binding registries with the generated
   bindings and run record as `target/release-evidence/release-evidence.tar.gz`.
 - The tag-attestation workflow SHALL stream-validate the archive with a
-  maximum of five regular files, 20,000,000 compressed bytes, and 50,000,000
+  maximum of six regular files, 20,000,000 compressed bytes, and 50,000,000
   aggregate decompressed bytes. It SHALL validate the safe file set, manifest
-  tag, full commit SHA, suite and run record; compare the suite and
+  tag, full commit SHA, suite and run record; verify manifest SHA-256 hashes of each payload file; compare the suite and
   committed binding registries byte-for-byte with the tagged source; and
   reject stale, empty, failed, or wrong-commit evidence before uploading it as
   the same-run `release-evidence` artifact.
@@ -108,6 +108,8 @@ and writes no Test Result when evidence is absent or unusable.
 > The attached evidence is unsigned; the tag workflow validates contents and
 > tag/commit consistency but does not prove Terra produced the bundle.
 
+> **CR-429 note (2026-11-26):** Published Quoin 0.30.1 records timestamped runs without a commit field. The producer selects the exact run path from the recorder JSON response and preserves those bytes. The release manifest binds the clean exact-tag source commit to SHA-256 hashes of the run, binding registries, suite registry and raw JUnit results. Producer authentication remains outside scope.
+
 ## Acceptance Criteria
 
 | ID | Criteria | Verification |
@@ -127,14 +129,14 @@ and writes no Test Result when evidence is absent or unusable.
 | TC-2230 | Invoke the shared consumer without the `release-evidence` artifact and with an artifact lacking the evidence root. Confirm each case reports absent evidence and writes neither a Test Result nor a release attestation. Covers FR-095-AC-5. |
 | TC-2231 | Invoke the shared consumer with an invalid binding registry, invalid or missing run record, missing required binding, failing suite result, and stale run. Confirm each case reports the applicable failure and writes neither a Test Result nor a release attestation. Covers FR-095-AC-6. |
 | TC-2232 | Verify a synthetic Terra bundle for the exact tag SHA and matching committed registries; refuse a wrong SHA, changed registry, failed or stale run before extraction. |
-| TC-2235 | Verify a valid synthetic Terra bundle and confirm the extracted run path uses the expected commit prefix. |
+| TC-2235 | Verify a valid synthetic Terra bundle and confirm the original timestamped run path and bytes are preserved. |
 | TC-2236 | Refuse a Terra bundle whose full commit SHA differs from the triggering tag SHA. |
 | TC-2237 | Refuse a Terra bundle whose committed suite registry differs from the tagged source. |
 | TC-2238 | Refuse a Terra bundle containing a failed SUITE-001 run record. |
 | TC-2239 | Refuse a Terra bundle whose run timestamp does not postdate the annotated tag creation time. |
 | TC-2240 | Refuse an archive with an unsafe member path or without the exact SUITE-001 run record. |
 | TC-2241 | Refuse `make evidence` before test execution when tracked, untracked, or recursive submodule state is dirty. |
-| TC-2242 | Stream an archive with more than five entries, more than 20,000,000 compressed bytes, or more than 50,000,000 decompressed bytes; refuse each before extraction. |
+| TC-2242 | Stream an archive with more than six entries, more than 20,000,000 compressed bytes, or more than 50,000,000 decompressed bytes; refuse each before extraction. |
 
 ## Dependencies
 
