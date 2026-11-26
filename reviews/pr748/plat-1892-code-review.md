@@ -42,3 +42,15 @@ Reviewed the frozen PR #748 head and its Rust implementation, tests, changed dep
 | FND | outcome | reason |
 | --- | --- | --- |
 | FND-001 | fixed | At head `0a9e114f12022bc83c27ecec1ca3a7f2d08c7652`, `collect_calls` calls `shadows_local_binding` for bare identifiers and emits `local-binding-shadows-symbol` when matched. The new `local_closure_shadowing_is_unresolved_and_does_not_select_unrelated_test` is tagged FR-099-AC-9 and passed in a focused run. |
+
+## New findings (disposition pass 2)
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-003 | medium | `condition_binds_name` scans the entire `if`/`while` condition for a matching let-condition pattern, then marks every same-named call anywhere in that condition as shadowed. In `if let Some(changed) = changed() { changed(); }`, the initializer call occurs before the pattern binding enters scope and resolves to the top-level function, but it is marked unresolved. The engine then misses this caller edge and its tests while reporting incomplete selection. Check binding scope relative to each call (or inspect only calls after the binding), and add an FR-099-AC-9 regression test. | src/impact.rs:1486-1518 |
+
+### Dispositions — round 2
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-002 | fixed | At head `966318b69dc5f2c9788469b40925ecddf6a4f2ba`, `shadows_local_binding` inspects `if_expression` and `while_expression` conditions plus `match_arm` patterns. The new `if_let_binding_shadowing_is_unresolved_and_does_not_select_unrelated_test` and `match_arm_binding_shadowing_is_unresolved_and_does_not_select_unrelated_test` tests are each tagged FR-099-AC-9 and passed in focused runs. |

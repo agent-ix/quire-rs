@@ -1484,12 +1484,34 @@ fn shadows_local_binding(call: Node, name: &str, source: &str) -> bool {
         }
 
         let conditional_pattern = match parent.kind() {
-            "if_expression" | "while_expression" => parent
-                .child_by_field_name("condition")
-                .is_some_and(|condition| condition_binds_name(condition, name, source)),
+            "if_expression" => {
+                let in_consequence =
+                    parent
+                        .child_by_field_name("consequence")
+                        .is_some_and(|body| {
+                            body.start_byte() <= call.start_byte()
+                                && call.end_byte() <= body.end_byte()
+                        });
+                in_consequence
+                    && parent
+                        .child_by_field_name("condition")
+                        .is_some_and(|condition| condition_binds_name(condition, name, source))
+            }
+            "while_expression" => {
+                let in_body = parent.child_by_field_name("body").is_some_and(|body| {
+                    body.start_byte() <= call.start_byte() && call.end_byte() <= body.end_byte()
+                });
+                in_body
+                    && parent
+                        .child_by_field_name("condition")
+                        .is_some_and(|condition| condition_binds_name(condition, name, source))
+            }
             "match_arm" => parent
                 .child_by_field_name("pattern")
-                .is_some_and(|pattern| pattern_binds_name(pattern, name, source)),
+                .is_some_and(|pattern| {
+                    pattern.end_byte() <= call.start_byte()
+                        && pattern_binds_name(pattern, name, source)
+                }),
             _ => false,
         };
         if conditional_pattern {
@@ -2359,6 +2381,33 @@ mod tests {
                 && call.reason == "local-binding-shadows-symbol"
         }));
         assert!(!report
+            .selected_tests
+            .iter()
+            .any(|test| test.name == "caller_test"));
+    }
+
+    #[trace("FR-099-AC-9")]
+    #[test]
+    fn if_let_initializer_resolves_before_binding_then_body_is_unresolved() {
+        let report = run_with_callers(
+            "fn changed() {}\n#[implements(\"FR-099-AC-9\")]\nfn caller() { if let Some(changed) = changed() { changed(); } }\n#[test]\n#[trace(\"FR-099-AC-9\")]\nfn caller_test() { caller(); }\n",
+            LineRange { start: 1, end: 1 },
+            2,
+        );
+        let search = report
+            .caller_searches
+            .iter()
+            .find(|search| search.changed_symbol == "changed")
+            .unwrap();
+        assert_eq!(search.linked_callers.len(), 1);
+        assert_eq!(search.linked_callers[0].symbol, "caller");
+        assert_eq!(search.unresolved_calls.len(), 1);
+        assert_eq!(search.unresolved_calls[0].callee, "changed");
+        assert_eq!(
+            search.unresolved_calls[0].reason,
+            "local-binding-shadows-symbol"
+        );
+        assert!(report
             .selected_tests
             .iter()
             .any(|test| test.name == "caller_test"));
