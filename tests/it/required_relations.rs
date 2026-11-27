@@ -69,6 +69,44 @@ fn findings<'r>(report: &'r BundleReport, reason: &str) -> Vec<&'r BundleFinding
         .collect()
 }
 
+#[trace("FR-058-AC-9")]
+#[test]
+fn tc911_upward_findings_are_ordered_by_document_then_id_and_repeat() {
+    let root = tmpdir("911_order");
+    // Reverse the ids relative to the document paths so this catches an
+    // id-first traversal as well as unstable discovery order.
+    write(&root, "a.md", &fr("FR-002", None));
+    write(&root, "z.md", &fr("FR-001", None));
+
+    let first = validate(&root, None);
+    let second = validate(&root, None);
+    let first_hits = findings(&first, "orphan-fr");
+    let second_hits = findings(&second, "orphan-fr");
+
+    assert_eq!(first_hits, second_hits, "findings changed across runs");
+    assert_eq!(first_hits.len(), 2, "both orphan requirements are reported");
+    assert_eq!(
+        first_hits
+            .iter()
+            .map(|finding| {
+                (
+                    finding.path.file_name().unwrap().to_string_lossy().to_string(),
+                    if finding.message.contains("'FR-002'") {
+                        "FR-002"
+                    } else if finding.message.contains("'FR-001'") {
+                        "FR-001"
+                    } else {
+                        "missing-id"
+                    },
+                )
+            })
+            .collect::<Vec<_>>(),
+        [("a.md".to_string(), "FR-002"), ("z.md".to_string(), "FR-001")],
+        "findings sort by document path before artifact id"
+    );
+    fs::remove_dir_all(&root).ok();
+}
+
 #[trace("FR-058-AC-1")]
 // an FR with no upstream edge to a declared kind is
 // reported; one that has the edge is not. This is the orphan-requirement case —
