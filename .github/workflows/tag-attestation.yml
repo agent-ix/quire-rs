@@ -89,6 +89,8 @@ jobs:
           submodules: recursive
           persist-credentials: false
       - name: Generate and verify release evidence
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
         run: make evidence
 
       - name: Retain verified evidence for the shared attestation workflow
