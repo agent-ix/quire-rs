@@ -28,7 +28,7 @@ The engine must be cheap to use in hot paths (Filament editor live-preview, bulk
 
 ## Change Records
 
-> **CR (2026-11-27):** Updated the `bench_registry_load` corpus reference to the current pinned 28-artifact snapshot documented in FR-013-AC-4. The broader historical v1 baseline statement in the target section includes 87 object archetypes and is not represented by this artifact-only benchmark; this criterion's explicitly named artifact corpus now has a reproducible source and count. The Ubuntu host run measured 93.217 ms median (89.657–96.789 ms interval), below this criterion's 100 ms target.
+> **CR (2026-11-27):** Updated the `bench_registry_load` corpus reference to the current pinned 28-artifact snapshot documented in FR-013-AC-4. The broader historical v1 baseline statement in the target section includes 87 object archetypes and is not represented by this artifact-only benchmark; this criterion's explicitly named artifact corpus now has a reproducible source and count. The Ubuntu host run estimates a median of 85.605 ms (95% confidence interval 81.128–102.588 ms); the point estimate is below this criterion's 100 ms target, while the interval crosses it.
 
 ## Acceptance Criteria
 

@@ -6,10 +6,10 @@
 use std::path::Path;
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use ix_trace_rs::implements;
+use ix_trace_rs::trace;
 use quire_rs::Registry;
 
-#[implements("FR-013-AC-4", "NFR-007-AC-1")]
+#[trace("FR-013-AC-4", "NFR-007-AC-1")]
 fn bench_registry_load(c: &mut Criterion) {
     let parent =
         Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/modules/baseline-artifacts");
