@@ -247,6 +247,10 @@ name = "load_repo"
 harness = false
 
 [[bench]]
+name = "query"
+harness = false
+
+[[bench]]
 name = "plain_language"
 harness = false
 
