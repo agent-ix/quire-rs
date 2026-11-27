@@ -102,10 +102,14 @@ fn tc_2262_tag_build_calls_wheels_without_publishing() {
 fn tc_2263_tag_attestation_calls_shared_release_workflow() {
     let tag_attestation = workflow("tag-attestation.yml");
     let attest = &tag_attestation["jobs"]["attest"];
-    assert!(attest["uses"]
-        .as_str()
-        .expect("tag workflow calls the shared attestation workflow")
-        .starts_with("agent-ix/engineering-assurance/.github/workflows/release-attestation.yml@"));
+    assert!(
+        attest["uses"]
+            .as_str()
+            .expect("tag workflow calls the shared attestation workflow")
+            .starts_with(
+                "agent-ix/engineering-assurance/.github/workflows/release-attestation.yml@"
+            )
+    );
 }
 
 #[trace("FR-095-AC-1")]
@@ -162,18 +166,24 @@ fn tc_2232_attestation_waits_for_the_retained_evidence_job() {
     let needs = tag_attestation["jobs"]["attest"]["needs"]
         .as_sequence()
         .expect("attestation job declares prerequisites");
-    assert!(needs
-        .iter()
-        .any(|job| job.as_str() == Some("release-evidence")));
-    assert!(needs
-        .iter()
-        .any(|job| job.as_str() == Some("release-artifacts")));
+    assert!(
+        needs
+            .iter()
+            .any(|job| job.as_str() == Some("release-evidence"))
+    );
+    assert!(
+        needs
+            .iter()
+            .any(|job| job.as_str() == Some("release-artifacts"))
+    );
     let steps = tag_attestation["jobs"]["release-evidence"]["steps"]
         .as_sequence()
         .expect("release evidence job has steps");
-    assert!(steps
-        .iter()
-        .any(|step| step["uses"].as_str() == Some("actions/upload-artifact@v7")));
+    assert!(
+        steps
+            .iter()
+            .any(|step| step["uses"].as_str() == Some("actions/upload-artifact@v7"))
+    );
     assert!(steps.iter().any(|step| {
         step["run"]
             .as_str()
@@ -1232,10 +1242,12 @@ fn tc_2230_attestation_requires_successful_evidence_generation_and_upload() {
         tag_attestation["jobs"]["attest"]["needs"],
         serde_yaml::from_str::<Value>("[release-artifacts, release-evidence]").unwrap()
     );
-    assert!(tag_attestation["jobs"]["attest"]["if"]
-        .as_str()
-        .expect("attestation fails closed")
-        .contains("needs.release-evidence.result == 'success'"));
+    assert!(
+        tag_attestation["jobs"]["attest"]["if"]
+            .as_str()
+            .expect("attestation fails closed")
+            .contains("needs.release-evidence.result == 'success'")
+    );
 }
 
 #[trace("FR-095-AC-7")]
@@ -1275,10 +1287,12 @@ fn tc_2246_reusable_release_workflow_has_tag_guards_and_typed_inputs() {
         assert!(guard.contains("startsWith(github.ref, 'refs/tags/v')"));
     }
     for job in ["release-evidence", "attest"] {
-        assert!(tag_attestation["jobs"][job]["if"]
-            .as_str()
-            .expect("release evidence jobs are tag-only")
-            .contains("startsWith(github.ref, 'refs/tags/v')"));
+        assert!(
+            tag_attestation["jobs"][job]["if"]
+                .as_str()
+                .expect("release evidence jobs are tag-only")
+                .contains("startsWith(github.ref, 'refs/tags/v')")
+        );
     }
     assert_eq!(
         tag_attestation["jobs"]["attest"]["with"]["evidence_artifact"],
@@ -1340,9 +1354,96 @@ fn tc_2360_gap_census_is_manual_or_scheduled_and_bounded_to_explicit_inputs() {
         .filter_map(|step| step["run"].as_str())
         .collect::<Vec<_>>()
         .join("\n");
-    assert!(run.contains("make census"), "workflow must invoke make census");
+    assert!(
+        run.contains("make census"),
+        "workflow must invoke make census"
+    );
     assert!(
         run.contains("CENSUS_ROOT") && run.contains("CENSUS_MODULE"),
         "workflow must provide explicit bounded root and module inputs"
+    );
+}
+
+#[trace("NFR-018-AC-1", "NFR-018-AC-3")]
+#[test]
+fn tc_2361_tsan_lane_runs_the_python_load_repo_harness() {
+    let sanitizer = workflow("sanitize.yml");
+    let sanitizer_events = events(&sanitizer);
+    assert!(
+        sanitizer_events.contains_key(Value::String("schedule".to_owned()))
+            && sanitizer_events.contains_key(Value::String("workflow_dispatch".to_owned()))
+            && sanitizer_events.contains_key(Value::String("push".to_owned())),
+        "sanitizer must run on schedule, manual dispatch, and release tags"
+    );
+    assert_eq!(
+        event(sanitizer_events, "push")["tags"][0].as_str(),
+        Some("v*")
+    );
+    assert!(
+        !sanitizer_events.contains_key(Value::String("pull_request".to_owned())),
+        "sanitizer lanes must not run as per-PR checks"
+    );
+    let makefile = fs::read_to_string(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("Makefile"))
+        .expect("read Makefile sanitizer reproduction");
+    assert!(makefile.contains("target/sanitize-tsan"));
+    assert!(makefile.contains("test_two_python_threads_stress_load_repo_under_tsan"));
+    assert!(makefile.contains("target/sanitize-asan"));
+    assert!(makefile.contains("-p lsan_before_exit"));
+
+    let job = &sanitizer["jobs"]["tsan-python"];
+    let steps = job["steps"].as_sequence().expect("TSAN Python steps");
+    let commands = steps
+        .iter()
+        .filter_map(|step| step["run"].as_str())
+        .collect::<Vec<_>>()
+        .join("\n");
+    let flags = job["env"]["CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS"]
+        .as_str()
+        .unwrap_or_default();
+    assert!(flags.contains("-Zsanitizer=thread"));
+    assert!(commands.contains("maturin develop"));
+    assert!(commands.contains("tests/python/test_fr023_gil.py"));
+    assert!(commands.contains("test_two_python_threads_stress_load_repo_under_tsan"));
+    assert!(commands.contains("TSAN_OPTIONS"));
+}
+
+#[trace("NFR-018-AC-2")]
+#[test]
+fn tc_2362_asan_lane_checks_leaks_before_python_shutdown() {
+    let sanitizer = workflow("sanitize.yml");
+    let sanitizer_events = events(&sanitizer);
+    assert!(
+        sanitizer_events.contains_key(Value::String("schedule".to_owned()))
+            && sanitizer_events.contains_key(Value::String("workflow_dispatch".to_owned()))
+            && sanitizer_events.contains_key(Value::String("push".to_owned()))
+    );
+    assert_eq!(
+        event(sanitizer_events, "push")["tags"][0].as_str(),
+        Some("v*")
+    );
+    assert!(!sanitizer_events.contains_key(Value::String("pull_request".to_owned())));
+
+    let job = &sanitizer["jobs"]["asan-python"];
+    let steps = job["steps"].as_sequence().expect("ASAN Python steps");
+    let commands = steps
+        .iter()
+        .filter_map(|step| step["run"].as_str())
+        .collect::<Vec<_>>()
+        .join("\n");
+    let flags = job["env"]["CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS"]
+        .as_str()
+        .unwrap_or_default();
+    assert!(flags.contains("-Zsanitizer=address"));
+    assert!(commands.contains("maturin develop"));
+    assert!(commands.contains("test_bindings.py"));
+    assert!(commands.contains("-p lsan_before_exit"));
+    assert!(!commands.contains("LSAN_OPTIONS=suppressions="));
+    let leak_check = fs::read_to_string(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/python/lsan_before_exit.py"),
+    )
+    .expect("pre-shutdown leak-check plugin");
+    assert!(
+        leak_check.contains("__lsan_do_leak_check"),
+        "LeakSanitizer checks while interpreter allocations are still reachable"
     );
 }
