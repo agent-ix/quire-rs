@@ -1663,6 +1663,15 @@ fn merge_traceability(modules: &[LoadedModule]) -> crate::traceability::Traceabi
                 merged.trace_targets.push(target.clone());
             }
         }
+        for assertion in &m.table_assertions {
+            if !merged
+                .table_assertions
+                .iter()
+                .any(|existing| existing.name() == assertion.name())
+            {
+                merged.table_assertions.push(assertion.clone());
+            }
+        }
         for reference in &m.document_references {
             if !merged
                 .document_references

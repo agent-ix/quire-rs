@@ -131,7 +131,10 @@ pub(super) fn resolve_formalizes(
     "FR-050-AC-49",
     "FR-050-AC-50",
     "FR-050-AC-51",
-    "FR-050-AC-64"
+    "FR-050-AC-64",
+    "FR-050-AC-71",
+    "FR-050-AC-72",
+    "FR-050-AC-74"
 )]
 pub(super) fn reconcile(
     spec: &Spec,
@@ -157,6 +160,7 @@ pub(super) fn reconcile(
     let mut ctx = declared_tables::ScanContext::default();
     let mut minted: Vec<MintedTargetRecord> = Vec::new();
     let mut minted_by_target: BTreeMap<&str, BTreeSet<String>> = BTreeMap::new();
+    let mut all_minted_by_target: BTreeMap<&str, Vec<declared_tables::MintedId>> = BTreeMap::new();
     // Reference integrity and source-evidence coverage deliberately have
     // different populations. Every declared target id resolves references,
     // while only source targets enter the coverage denominator (#363).
@@ -169,6 +173,10 @@ pub(super) fn reconcile(
             &mut ctx
         };
         for minted_id in declared_tables::mint(spec, root, target, &model_exclude, target_ctx) {
+            all_minted_by_target
+                .entry(target.name.as_str())
+                .or_default()
+                .push(minted_id.clone());
             declared_ids.insert(minted_id.id.clone());
             minted_by_target
                 .entry(target.name.as_str())
@@ -182,14 +190,20 @@ pub(super) fn reconcile(
                 id: minted_id.id,
                 target: target.name.clone(),
                 line: minted_id.line,
+                parent_id: minted_id.parent_id,
+                parent_target: target.parent_target.clone(),
                 backed: false,
                 retired: false,
             });
         }
     }
+    let (parented_target_groups, parent_group_diagnostics) =
+        parented_target_groups(root, model, &all_minted_by_target);
     // Cache reference rows once so criterion backing and row evidence share
     // the same parsed declarations without sharing their evidence rules.
     let reference_rows = scan_reference_rows(spec, root, model, &model_exclude, &mut ctx);
+    let required_reference_diagnostics =
+        required_reference_diagnostics(root, model, &all_minted_by_target, &reference_rows);
     let verifies: Vec<_> = graph.verifies.iter().collect();
     let row_bindings = super::row_binding::RowBindings::from_scanned_rows(
         model,
@@ -470,7 +484,6 @@ pub(super) fn reconcile(
             line: Some(relation.line),
         })
         .collect();
-
     let mut counts: BTreeMap<(String, String), (usize, usize, usize)> = BTreeMap::new();
     for entry in &mut minted {
         entry.retired = retired_at(&retired_loci, &entry.document, entry.line, &entry.id);
@@ -590,6 +603,8 @@ pub(super) fn reconcile(
             }
         })
         .collect();
+    diagnostics.extend(parent_group_diagnostics);
+    diagnostics.extend(required_reference_diagnostics);
 
     // A model declared without a single trace target mints nothing at all, so
     // every ratio it reports is over an empty denominator. `is_empty()` reads
@@ -819,6 +834,7 @@ pub(super) fn reconcile(
         shared_trace_ids,
         groups,
         minted_targets: minted,
+        parented_target_groups,
         // CR-028: filled by `compute`, which holds the `Registry` this
         // reconciliation deliberately does not take.
         criteria: Vec::new(),
@@ -927,6 +943,185 @@ fn scan_reference_rows(
             ))
         })
         .collect()
+}
+
+#[implements("FR-050-AC-71", "FR-050-AC-74")]
+fn parented_target_groups(
+    root: &Path,
+    model: &TraceabilityModel,
+    minted: &BTreeMap<&str, Vec<declared_tables::MintedId>>,
+) -> (Vec<super::ParentedTargetGroup>, Vec<CoverageDiagnostic>) {
+    let mut groups = Vec::new();
+    let mut diagnostics = Vec::new();
+    for child_target in &model.trace_targets {
+        let Some(parent_target_name) = child_target.parent_target.as_deref() else {
+            continue;
+        };
+        let parents = minted
+            .get(parent_target_name)
+            .map(Vec::as_slice)
+            .unwrap_or_default();
+        let children = minted
+            .get(child_target.name.as_str())
+            .map(Vec::as_slice)
+            .unwrap_or_default();
+        for parent in parents {
+            let mut child_ids: Vec<String> = children
+                .iter()
+                .filter(|child| {
+                    child.parent_id.as_deref() == Some(parent.id.as_str())
+                        && child.path == parent.path
+                })
+                .map(|child| child.id.clone())
+                .collect();
+            child_ids.sort();
+            groups.push(super::ParentedTargetGroup {
+                parent_target: parent_target_name.to_string(),
+                parent_id: parent.id.clone(),
+                parent_document: declared_tables::relative_path(root, &parent.path),
+                child_target: child_target.name.clone(),
+                child_ids: child_ids.clone(),
+            });
+            if child_ids.is_empty() {
+                diagnostics.push(CoverageDiagnostic {
+                    declaration: child_target.name.clone(),
+                    reason: "parent-target-has-no-children".to_string(),
+                    message: format!(
+                        "parent '{}' minted by target '{}' has no rows in child target '{}'",
+                        parent.id, parent_target_name, child_target.name
+                    ),
+                    path: Some(declared_tables::relative_path(root, &parent.path)),
+                    line: Some(parent.line),
+                    value: Some(parent.id.clone()),
+                    guidance: None,
+                });
+            } else if let Some(warning) = &child_target.all_children_value_warning {
+                let values: Vec<Option<&str>> = children
+                    .iter()
+                    .filter(|child| {
+                        child.parent_id.as_deref() == Some(parent.id.as_str())
+                            && child.path == parent.path
+                    })
+                    .map(|child| child.child_group_value.as_deref())
+                    .collect();
+                if values
+                    .iter()
+                    .all(|value| value.is_some_and(|value| value.trim() == warning.value.trim()))
+                {
+                    diagnostics.push(CoverageDiagnostic {
+                        declaration: child_target.name.clone(),
+                        reason: "parent-children-all-match".to_string(),
+                        message: format!(
+                            "parent '{}' has only child rows whose '{}' is '{}'",
+                            parent.id, warning.column, warning.value
+                        ),
+                        path: Some(declared_tables::relative_path(root, &parent.path)),
+                        line: Some(parent.line),
+                        value: Some(warning.value.clone()),
+                        guidance: None,
+                    });
+                }
+            }
+        }
+    }
+    groups.sort_by(|left, right| {
+        (
+            &left.parent_target,
+            &left.parent_document,
+            &left.parent_id,
+            &left.child_target,
+        )
+            .cmp(&(
+                &right.parent_target,
+                &right.parent_document,
+                &right.parent_id,
+                &right.child_target,
+            ))
+    });
+    diagnostics.sort_by(|left, right| {
+        (&left.path, &left.declaration, &left.value, &left.reason).cmp(&(
+            &right.path,
+            &right.declaration,
+            &right.value,
+            &right.reason,
+        ))
+    });
+    (groups, diagnostics)
+}
+
+#[implements("FR-050-AC-72")]
+fn required_reference_diagnostics(
+    root: &Path,
+    model: &TraceabilityModel,
+    minted: &BTreeMap<&str, Vec<declared_tables::MintedId>>,
+    reference_rows: &[Option<Vec<declared_tables::ScannedRow>>],
+) -> Vec<CoverageDiagnostic> {
+    let mut diagnostics = Vec::new();
+    for target in &model.trace_targets {
+        let Some(ids) = minted.get(target.name.as_str()) else {
+            continue;
+        };
+        for reference_name in &target.required_references {
+            let Some((index, reference)) = model
+                .document_references
+                .iter()
+                .enumerate()
+                .find(|(_, reference)| reference.name == *reference_name)
+            else {
+                continue;
+            };
+            if !reference.targets.iter().any(|name| name == &target.name) {
+                continue;
+            }
+            let Some(rows) = reference_rows.get(index).and_then(Option::as_ref) else {
+                continue;
+            };
+            let Ok(pattern) = regex::Regex::new(&reference.pattern) else {
+                continue;
+            };
+            let mut referenced = BTreeSet::new();
+            for row in rows {
+                let Some(raw) = row.cell(&reference.column) else {
+                    continue;
+                };
+                let normalized = declared_tables::normalize_reference_cell(
+                    raw,
+                    reference.strip_annotations,
+                    reference.expand_ranges,
+                );
+                for captures in pattern.captures_iter(&normalized) {
+                    if let Some(id) = captures.get(1).map(|value| value.as_str().trim()) {
+                        if !id.is_empty() {
+                            referenced.insert(id.to_string());
+                        }
+                    }
+                }
+            }
+            for id in ids.iter().filter(|id| !referenced.contains(&id.id)) {
+                diagnostics.push(CoverageDiagnostic {
+                    declaration: target.name.clone(),
+                    reason: "target-id-unreferenced".to_string(),
+                    message: format!(
+                        "id '{}' minted by target '{}' is not referenced by document reference '{}'",
+                        id.id, target.name, reference.name
+                    ),
+                    path: Some(declared_tables::relative_path(root, &id.path)),
+                    line: Some(id.line),
+                    value: Some(id.id.clone()),
+                    guidance: None,
+                });
+            }
+        }
+    }
+    diagnostics.sort_by(|left, right| {
+        (&left.path, &left.declaration, &left.value, &left.reason).cmp(&(
+            &right.path,
+            &right.declaration,
+            &right.value,
+            &right.reason,
+        ))
+    });
+    diagnostics
 }
 
 /// Build `coverage_matrix` (CR-187, FR-050-AC-47..49): the derived obligation

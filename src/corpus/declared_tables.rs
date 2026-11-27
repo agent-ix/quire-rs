@@ -12,6 +12,7 @@ use super::spec::Spec;
 use crate::ast::QuireDocument;
 use crate::parser::walk::{FenceTracker, LineKind};
 use crate::traceability::{IdColumns, SectionNames, TraceTarget, TraceTargetSource};
+use ix_trace_rs::implements;
 
 /// One scanned table row: the document it lives in, its cells keyed by the
 /// table's own column headers (trimmed, as authored), and the 1-based document
@@ -648,10 +649,15 @@ pub(crate) struct MintedId {
     /// 1-based document line of the row, list item or heading; document-level
     /// frontmatter identity uses line 1.
     pub line: usize,
+    /// Authored parent id for a row target declaring parent linkage.
+    pub parent_id: Option<String>,
+    /// Authored value used by a parent-group all-children warning.
+    pub child_group_value: Option<String>,
 }
 
 /// Every id `target` mints in corpus order by whichever source its `from:`
 /// selects (FR-050-AC-60, FR-050-AC-70).
+#[implements("FR-050-AC-71", "FR-050-AC-74")]
 pub(crate) fn mint(
     spec: &Spec,
     root: &Path,
@@ -691,6 +697,8 @@ pub(crate) fn mint(
                     // Frontmatter identity belongs to the document as a
                     // whole; there is no body row or heading location.
                     line: 1,
+                    parent_id: None,
+                    child_group_value: None,
                 });
             }
             if of_archetype == 0 && target.required {
@@ -721,6 +729,16 @@ pub(crate) fn mint(
                     id: id.to_string(),
                     path: row.path.clone(),
                     line: row.line,
+                    parent_id: target
+                        .parent_id_column
+                        .as_deref()
+                        .and_then(|column| row.cell(column))
+                        .map(str::to_string),
+                    child_group_value: target
+                        .all_children_value_warning
+                        .as_ref()
+                        .and_then(|warning| row.cell(&warning.column))
+                        .map(str::to_string),
                 })
                 .collect::<Vec<_>>()
         })
@@ -829,6 +847,8 @@ fn scan_text(
                                 path: doc.path.clone(),
                                 // Same arithmetic as a table row in `table_in`.
                                 line: line_offset + sec.start_line + rel + 2,
+                                parent_id: None,
+                                child_group_value: None,
                             });
                         }
                     }
@@ -847,6 +867,8 @@ fn scan_text(
                                 id,
                                 path: doc.path.clone(),
                                 line: line_offset + child.start_line + 1,
+                                parent_id: None,
+                                child_group_value: None,
                             });
                         }
                     }

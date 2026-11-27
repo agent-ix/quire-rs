@@ -261,6 +261,7 @@ pub fn validate_bundle_at(
 ///   repository scope (`document: spec/tests.md`), so a caller that walked
 ///   `<scope>/spec` passes `<scope>` here; conflating the two silently
 ///   un-mints every path-bound trace target.
+#[implements("FR-050-AC-73")]
 pub fn validate_bundle(
     spec: &Spec,
     registry: &Registry,
@@ -536,6 +537,13 @@ fn validate_view_findings(
     // check `ix://` edges get, driven entirely by the module's traceability
     // model. A no-op when no module declares one.
     crate::corpus::trace_refs::validate_trace_references(
+        spec,
+        registry,
+        posture,
+        reference_root,
+        &mut report,
+    );
+    crate::corpus::table_assertions::validate_table_assertions(
         spec,
         registry,
         posture,

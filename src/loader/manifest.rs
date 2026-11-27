@@ -725,12 +725,18 @@ fn drop_unreadable_entries(
             .map_err(|error| error.to_string())
     }
     type Reader = fn(&Value) -> Result<(), String>;
-    let lists: [(&str, t::DeclarationKind, &str, Reader); 12] = [
+    let lists: [(&str, t::DeclarationKind, &str, Reader); 13] = [
         (
             "trace_targets",
             t::DeclarationKind::TraceTarget,
             "name",
             readable::<t::TraceTarget>,
+        ),
+        (
+            "table_assertions",
+            t::DeclarationKind::TableAssertion,
+            "name",
+            readable::<t::TableAssertion>,
         ),
         (
             "document_references",
