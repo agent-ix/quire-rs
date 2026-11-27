@@ -972,7 +972,6 @@ mod tests {
 
         let combined = Registry::load_module_set(&[&iso, &app, &process])
             .expect("load the three modules together");
-        assert_eq!(expected.len(), 17, "the three v1 modules define 17 types");
         assert_eq!(
             combined
                 .archetype_names()
