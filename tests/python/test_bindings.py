@@ -856,6 +856,76 @@ def test_extract_filament_core_tier1_binding():
     assert data["title"] == "Pay vendors"
 
 
+@pytest.mark.trace("FR-045-CON-2")
+def test_extract_filament_core_uses_caller_object_type_snapshot():
+    """Only caller-supplied ObjectType snapshots make their object extractable."""
+    import json
+
+    schema = {
+        "type": "object",
+        "required": ["approval_code"],
+        "properties": {
+            "approval_code": {"type": "string"},
+            "title": {"type": "string"},
+        },
+        "additionalProperties": False,
+    }
+    request = _filament_input(
+        "---\nid: PO-17\ntitle: Purchase order\nobject: caller_purchase_order\n"
+        "approval_code: AP-8\n---\n# Purchase order\n"
+    )
+    request["objectTypes"] = [
+        {
+            "name": "caller_purchase_order",
+            "schema": schema,
+            "allowedLinks": {},
+            "bodyExtraction": None,
+            "hasPlugin": False,
+            "moduleId": "caller-snapshot",
+        }
+    ]
+
+    supplied = quire.extract_filament_core(request)
+    assert supplied["errors"] == []
+    assert [item["name"] for item in supplied["objectTypes"]] == ["caller_purchase_order"]
+    assert json.loads(supplied["objectTypes"][0]["schemaJson"]) == schema
+    assert supplied["nodes"][0]["objectType"] == "caller_purchase_order"
+    assert json.loads(supplied["nodes"][0]["dataJson"])["approval_code"] == "AP-8"
+
+    request_without_snapshot = {**request, "objectTypes": []}
+    absent = quire.extract_filament_core(request_without_snapshot)
+    assert all(node["objectType"] != "caller_purchase_order" for node in absent["nodes"])
+    assert any(item["code"] == "unknown_object_type" for item in absent["diagnostics"])
+
+
+@pytest.mark.trace("FR-045-CON-4")
+def test_extract_filament_core_qualifies_refs_with_required_caller_org():
+    """Caller org and repo qualify refs before stable node and edge ids are formed."""
+    request = _filament_input(
+        "---\nid: FR-001\ntitle: Pay vendors\nobject: capability\n"
+        "depends_on: FR-002\n---\n# Body\n"
+    )
+    request["org"] = "buyer-org"
+    request["repoName"] = "billing"
+
+    result = quire.extract_filament_core(request)
+    assert result["errors"] == []
+    assert result["nodes"][0]["ref"] == "ix://buyer-org/billing/FR-001"
+    assert result["nodes"][0]["id"] == '["project","graph-node","ix://buyer-org/billing/FR-001"]'
+    dependency = next(edge for edge in result["edges"] if edge["edgeType"] == "depends_on")
+    assert dependency["sourceRef"] == "ix://buyer-org/billing/FR-001"
+    assert dependency["targetRef"] == "ix://buyer-org/billing/FR-002"
+    assert dependency["id"] == (
+        '["project","graph-edge","ix://buyer-org/billing/FR-001",'
+        '"ix://buyer-org/billing/FR-002","depends_on"]'
+    )
+
+    request_without_org = dict(request)
+    request_without_org.pop("org")
+    with pytest.raises(TypeError, match="org"):
+        quire.extract_filament_core(request_without_org)
+
+
 @pytest.mark.trace("FR-046-AC-1", "NFR-020-AC-3")
 def test_extract_filament_core_malformed_frontmatter_reports_parse_failure():
     """a complete-but-unparsable frontmatter block surfaces a
