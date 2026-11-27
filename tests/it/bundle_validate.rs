@@ -182,8 +182,14 @@ fn bundle_findings_are_ordered_by_document_and_repeat_identically() {
     let first = validate_bundle_at(&root, &bundle_registry(), BundlePosture::Okf);
     let second = validate_bundle_at(&root, &bundle_registry(), BundlePosture::Okf);
 
-    assert_eq!(first.errors, second.errors, "error findings changed across runs");
-    assert_eq!(first.warnings, second.warnings, "warning findings changed across runs");
+    assert_eq!(
+        first.errors, second.errors,
+        "error findings changed across runs"
+    );
+    assert_eq!(
+        first.warnings, second.warnings,
+        "warning findings changed across runs"
+    );
     let paths: Vec<_> = first
         .warnings
         .iter()
