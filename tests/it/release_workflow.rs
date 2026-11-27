@@ -235,9 +235,7 @@ fn tc_2234_make_evidence_records_fresh_suite_run_for_retention() {
     assert!(target.contains("scripts/check_release_evidence_checkout.py --repo-root ."));
     assert!(target.contains("git describe --tags --exact-match HEAD"));
     assert!(target.contains("git rev-parse \"refs/tags/$$tag^{commit}\""));
-    assert!(target.contains(
-        "git for-each-ref --format='%(taggerdate:unix)' \"refs/tags/$$tag\""
-    ));
+    assert!(target.contains("git for-each-ref --format='%(taggerdate:unix)' \"refs/tags/$$tag\""));
     assert!(target.contains("--tag-created-at \"$$tag_created_at\""));
     assert!(target.contains("CARGO_BUILD_JOBS=4"));
     assert!(target.contains("--workspace --jobs=4"));
