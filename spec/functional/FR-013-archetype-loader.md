@@ -75,9 +75,10 @@ relationships:
 > **CR note (ISO AC/CON artifact removal — PLAT-1966, 2026-11-26):** The
 > `spec-artifacts-iso` provider removed standalone AC and CON archetypes on
 > 2026-06-16 because acceptance criteria and constraints are carried in FR
-> documents. FR-013-AC-2 therefore verifies the six currently shipped ISO
-> archetypes (FR, NFR, StR, US, IT, TC); the historical eight-type count is no
-> longer normative.
+> documents. Its current manifest registers six normative ISO artifact types
+> (FR, NFR, StR, US, IT, TC) and three module utility types (`master-requirements`,
+> `index`, `Glossary`). FR-013-AC-2 requires the six normative types and permits
+> the utility types; the historical eight-type list is no longer normative.
 
 ## Description
 
@@ -240,7 +241,7 @@ unreachable, and an unreachable target is one nobody acts on.
 | ID | Criteria | Verification |
 |----|----------|--------------|
 | FR-013-AC-1 | `Registry::from_env()` with `IX_FILAMENT_MODULES_PATH` and `IX_SCHEMA_PATH` unset and no `~/.ix/filament/modules/` returns a registry with zero archetypes and no error. | Test |
-| FR-013-AC-2 | Pointing `IX_SCHEMA_PATH` at a path containing `spec-artifacts-iso/spec_artifacts_iso/` produces a registry with the six current ISO archetypes (FR, NFR, StR, US, IT, TC) all loaded, exactly six archetypes total, and `archetype("fr")` returns Some. | Test |
+| FR-013-AC-2 | Pointing `IX_SCHEMA_PATH` at a path containing `spec-artifacts-iso/spec_artifacts_iso/` produces a registry with the six normative ISO artifact types (FR, NFR, StR, US, IT, TC) all loaded and `archetype("fr")` returns Some. Other module utility archetypes may also load. | Test |
 | FR-013-AC-3 | A manifest entry referencing a missing `schema_ref` path produces a `QuireError::ArchetypeLoadError` listing the bad path; other archetypes in the same module load successfully. | Test |
 | FR-013-AC-4 | A criterion bench measures `Registry::load_from(&[corpus_path])` for the full 17-archetype baseline corpus and reports a one-time cost (target: under 50 ms median on baseline hardware). | Test |
 | FR-013-AC-5 | After `Registry::load_from(...)`, calling `validate`/`validate_document`/`extract` against a loaded archetype does NOT read from disk (verified via a `tracing` or `strace`-style audit in CI). | Inspection |
