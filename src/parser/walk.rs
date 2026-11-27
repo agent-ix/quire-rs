@@ -660,7 +660,7 @@ mod tests {
         assert_eq!(hs[0].block_id.as_deref(), Some("blk-7af2"));
     }
 
-    #[trace("FR-019-AC-1")]
+    #[trace("FR-019-AC-1", "FR-019-CON-1")]
     // no attribute means no id, never a synthesized one.
     #[test]
     fn heading_without_attribute_has_no_block_id() {
