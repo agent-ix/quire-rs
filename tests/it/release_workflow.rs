@@ -501,7 +501,7 @@ fn tc_2235_valid_release_bundle_is_verified_and_extracted_for_the_tag_sha() {
     let package =
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("scripts/package_release_evidence.py");
     let packaged = Command::new("python3")
-        .arg(package)
+        .arg(&package)
         .args(["--source-root"])
         .arg(&source_root)
         .args(["--committed-bindings"])
@@ -517,6 +517,11 @@ fn tc_2235_valid_release_bundle_is_verified_and_extracted_for_the_tag_sha() {
         .status()
         .expect("run release evidence packager");
     assert!(packaged.success(), "matching Terra run is packaged");
+    fs::write(
+        evidence_root.join("bindings.json"),
+        fs::read(bundle_root.join("bindings.committed.json")).unwrap(),
+    )
+    .expect("restore tagged source bindings before verification");
     let output = root.path().join("verified");
     let verifier =
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("scripts/verify_release_evidence.py");
@@ -1070,7 +1075,7 @@ fn tc_2245_missing_required_release_binding_is_refused_by_package_and_verifier()
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("scripts/package_release_evidence.py");
     let rejected_archive = root.path().join("missing-ac5.tar.gz");
     let packaged = Command::new("python3")
-        .arg(package)
+        .arg(&package)
         .arg("--source-root")
         .arg(&source)
         .arg("--committed-bindings")
@@ -1100,6 +1105,11 @@ fn tc_2245_missing_required_release_binding_is_refused_by_package_and_verifier()
         "{:?}",
         packaged
     );
+    fs::write(
+        source.join("spec/evidence/bindings.json"),
+        fs::read(bundle.join("bindings.committed.json")).expect("read committed bindings"),
+    )
+    .expect("restore tagged source bindings before verification");
     assert!(
         !rejected_archive.exists(),
         "invalid binding is not packaged"
@@ -1109,7 +1119,7 @@ fn tc_2245_missing_required_release_binding_is_refused_by_package_and_verifier()
     let verifier =
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("scripts/verify_release_evidence.py");
     let verified = Command::new("python3")
-        .arg(verifier)
+        .arg(&verifier)
         .arg("--archive")
         .arg(&archive)
         .arg("--source-root")
@@ -1181,6 +1191,11 @@ fn tc_2245_missing_required_release_binding_is_refused_by_package_and_verifier()
     assert!(
         String::from_utf8_lossy(&package_without_support.stderr).contains("tests::never_executed")
     );
+    fs::write(
+        source.join("spec/evidence/bindings.json"),
+        fs::read(bundle.join("bindings.committed.json")).expect("read committed bindings"),
+    )
+    .expect("restore tagged source bindings before verification");
 
     let verify_without_support = Command::new("python3")
         .arg(&verifier)
@@ -1284,7 +1299,7 @@ fn tc_2246_reusable_release_workflow_has_tag_guards_and_typed_inputs() {
         "${{ inputs.evidence_artifact_name || 'release-evidence' }}"
     );
     let evidence_steps = tag_attestation["jobs"]["release-evidence"]["steps"]
-        .as_array()
+        .as_sequence()
         .expect("evidence retention steps");
     let retained = evidence_steps
         .iter()

@@ -197,21 +197,6 @@ evidence:
 test:
 	$(CARGO) test --locked
 
-# Record a passing Rust unit/integration suite as a Quoin run. ix-trace-run
-# reads the emit-section records and writes JUnit carrying each test's trace
-# ids. Quoin writes the fresh record under spec/evidence/runs/<SUITE_ID>/.
-SUITE_ID ?= SUITE-001
-EVIDENCE_RESULTS ?= target/evidence/$(SUITE_ID).junit.xml
-TRACE_RUN ?= ix-trace-run
-TRACE_RUN_REV ?= 16bd02ade6421057c1d3fb04c0ae95f35c6edd89
-
-.PHONY: evidence
-evidence:
-	@mkdir -p "$(dir $(EVIDENCE_RESULTS))"
-	$(TRACE_RUN) --output "$(EVIDENCE_RESULTS)" --locked --workspace --features ix-trace-rs/emit
-	$(QUOIN) evidence record --suite "$(SUITE_ID)" --tool "ix-trace-run 0.1.0 (git $(TRACE_RUN_REV))" \
-	  --results "$(EVIDENCE_RESULTS)" --adapter junit --kind Unit --repo .
-
 .PHONY: build
 build:
 	$(CARGO) build --locked --release
