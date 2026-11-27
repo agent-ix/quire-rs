@@ -142,6 +142,17 @@ def test_tc1062_four_populations_keep_their_units(tmp_path):
         "P3_authored_rows": 8,
         "P4_minted_rows": 5,
     }
+    assert result["population_units"] == {
+        "P1_evidence_symbols": "evidence symbol",
+        "P2_tagged_symbols": "tag-shaped token",
+        "P3_authored_rows": "deduplicated authored obligation row",
+        "P4_minted_rows": "engine-minted target row",
+    }
+    assert len(set(result["population_units"].values())) == 4
+    report_text = render_markdown(payload(tmp_path))
+    for population, unit in result["population_units"].items():
+        assert f"`{population}` | {unit} |" in report_text
+    assert "%" not in report_text
 
 
 @pytest.mark.trace("FR-066-AC-2")
@@ -165,6 +176,17 @@ def test_tc1063_authored_scan_is_independent_of_minting(tmp_path):
         "TC-005",
         "TC-006",
     }
+    deduplicated_authored, deduplicated_minted = scan_rows(
+        repo_fixture(tmp_path), [target(), target()]
+    )
+    assert len(deduplicated_authored) == len(authored)
+    assert len(deduplicated_minted) == len(minted)
+
+    engine_report = report()
+    engine_report["unbacked_rows"] = []
+    result = classify_repo(repo_fixture(tmp_path), engine_report, [target()])
+    assert result["populations"]["P4_minted_rows"] == 5
+    assert result["counts"]["backed"] == 1
 
 
 @pytest.mark.trace("FR-066-AC-2")
@@ -205,6 +227,23 @@ def test_tc1064_strict_precedence_reaches_all_six_dispositions(tmp_path):
         "method-exempt": 1,
         "authoring-absent": 1,
     }
+    by_id = {row["row_id"]: row for row in result["rows"]}
+    expected = {
+        "TC-001": ("backed", "nobody"),
+        "TC-003": ("instrument-unread", "engine"),
+        "TC-004": ("marker-form-mismatch", "module-declaration"),
+        "TC-005": ("method-exempt", "nobody"),
+        "TC-006": ("authoring-absent", "repository"),
+        "TC-002": ("declaration-unreached", "declaration-or-repository"),
+        "FR-001-CON-1": ("id-class-unminted", "module-declaration"),
+        "FR-002-AC-1": ("id-class-unminted", "module-declaration"),
+    }
+    for row_id, (outcome, owner) in expected.items():
+        row = by_id[row_id]
+        assert (row["outcome"], row["owner"]) == (outcome, owner)
+        assert row["reason"]
+        assert row["next_action"]
+    assert len(by_id) == result["populations"]["P3_authored_rows"]
 
 
 @pytest.mark.trace("FR-066-AC-4")
@@ -216,10 +255,15 @@ def test_tc1065_invariant_refuses_a_false_p4_population(tmp_path):
         classify_repo(repo_fixture(tmp_path), broken, [target()])
     result = classified_fixture(tmp_path)
     combined = aggregate([result])
+    assert sum(result["counts"].values()) == result["populations"]["P3_authored_rows"]
     assert (
         sum(combined["counts"].values()) == combined["populations"]["P3_authored_rows"]
     )
     assert "residual" not in combined["counts"]
+    incomplete = copy.deepcopy(result)
+    incomplete["rows"].pop()
+    with pytest.raises(CensusError, match="do not form the reported partition"):
+        aggregate([incomplete])
 
 
 @pytest.mark.trace("FR-066-AC-5")
@@ -229,6 +273,11 @@ def test_tc1066_status_lie_is_only_an_overlay(tmp_path):
     assert result["status_lie_overlay"] == 1
     assert result["counts"]["authoring-absent"] == 1
     assert "status-lie" not in result["counts"]
+    without_overlay = report()
+    without_overlay["status_lies"] = []
+    baseline = classify_repo(repo_fixture(tmp_path), without_overlay, [target()])
+    assert result["counts"] == baseline["counts"]
+    assert sum(result["counts"].values()) == sum(baseline["counts"].values())
 
 
 @pytest.mark.trace("FR-066-AC-6")
@@ -310,9 +359,22 @@ def test_tc1069_reports_are_provenanced_and_byte_stable(tmp_path):
     assert first_bytes == tuple(path.read_bytes() for path in second)
     loaded = json.loads(first[0].read_text())
     assert loaded["provenance"]["capabilities"]
+    assert loaded["provenance"]["repos_enumerated"] == 1
+    assert loaded["provenance"]["repos_scanned"] == 1
+    assert loaded["provenance"]["exclusions"] == []
+    assert len(set(loaded["aggregate"]["population_units"].values())) == 4
+    markdown = first[1].read_text()
+    for token in (
+        "Capabilities:",
+        "1 scanned / 1 enumerated",
+        "Exclusions: none",
+        "evidence symbol",
+        "deduplicated authored obligation row",
+    ):
+        assert token in markdown
 
 
-@pytest.mark.trace("FR-066-AC-10")
+@pytest.mark.trace("FR-066-AC-8")
 def test_tc1071_human_report_names_locus_owner_reason_and_action(tmp_path):
     """TC-1071"""
     rendered = render_markdown(payload(tmp_path))

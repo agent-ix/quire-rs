@@ -9,6 +9,7 @@ only (agent-ix/quire-rs#277).
 from __future__ import annotations
 
 import argparse
+from collections import Counter
 import fnmatch
 import json
 import pathlib
@@ -58,6 +59,12 @@ NEXT_ACTIONS = {
     "id-class-unminted": "decide and declare whether this id class is a trace target",
     "method-exempt": "none; the declared method does not mint a source symbol",
     "authoring-absent": "add an applicable trace tag and its controlled corpus case",
+}
+POPULATION_UNITS = {
+    "P1_evidence_symbols": "evidence symbol",
+    "P2_tagged_symbols": "tag-shaped token",
+    "P3_authored_rows": "deduplicated authored obligation row",
+    "P4_minted_rows": "engine-minted target row",
 }
 
 ID_TOKEN = re.compile(r"\b[A-Za-z][A-Za-z0-9]*(?:[-_][A-Za-z0-9]+){1,6}\b")
@@ -404,6 +411,9 @@ def classify_repo(repo: pathlib.Path, report: dict, targets: list[Target]) -> di
         raise CensusError(f"{repo.name}: partition sum does not equal authored rows")
     if set(counts) != {"backed", *DISPOSITIONS}:
         raise CensusError(f"{repo.name}: disposition vocabulary drifted")
+    classified_keys = [item.row.key for item in classified]
+    if len(classified_keys) != len(authored) or set(classified_keys) != set(authored):
+        raise CensusError(f"{repo.name}: a row is unclassified or classified more than once")
 
     census = report.get("binding_census", [])
     populations = {
@@ -428,9 +438,11 @@ def classify_repo(repo: pathlib.Path, report: dict, targets: list[Target]) -> di
     return {
         "repo": repo.name,
         "populations": populations,
+        "population_units": POPULATION_UNITS.copy(),
         "counts": counts,
         "status_lie_overlay": sum(item.status_lie for item in classified),
         "zero_tag_readable": zero_tag_readable,
+        "rows": [classified_json(item) for item in classified],
         "examples": [classified_json(item) for item in first_examples(classified)],
     }
 
@@ -497,6 +509,15 @@ def aggregate(repo_rows: list[dict]) -> dict:
     counts = {name: 0 for name in ("backed", *DISPOSITIONS)}
     examples = []
     for row in repo_rows:
+        rows = row.get("rows", [])
+        outcomes = Counter(item.get("outcome") for item in rows)
+        if (
+            len(rows) != row["populations"]["P3_authored_rows"]
+            or outcomes != Counter(row["counts"])
+        ):
+            raise CensusError(
+                f"{row['repo']}: row records do not form the reported partition"
+            )
         for name, value in row["populations"].items():
             populations[name] += value
         for name, value in row["counts"].items():
@@ -509,6 +530,7 @@ def aggregate(repo_rows: list[dict]) -> dict:
         chosen.setdefault(example["outcome"], example)
     return {
         "populations": populations,
+        "population_units": POPULATION_UNITS.copy(),
         "counts": counts,
         "status_lie_overlay": sum(row["status_lie_overlay"] for row in repo_rows),
         "zero_tag_repositories": sum(row["zero_tag_readable"] for row in repo_rows),
@@ -530,11 +552,12 @@ def render_markdown(payload: dict) -> str:
         "",
         "## Populations",
         "",
-        "| Population | Count |",
-        "|---|---:|",
+        "| Population | Unit | Count |",
+        "|---|---|---:|",
     ]
     for name, value in aggregate_row["populations"].items():
-        lines.append(f"| `{name}` | {value} |")
+        unit = aggregate_row["population_units"][name]
+        lines.append(f"| `{name}` | {unit} | {value} |")
     lines += ["", "## Partition", "", "| Outcome | Rows | Owner |", "|---|---:|---|"]
     for name, value in aggregate_row["counts"].items():
         lines.append(f"| `{name}` | {value} | {OWNERS[name]} |")
