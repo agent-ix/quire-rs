@@ -832,20 +832,23 @@ def test_new_module_functions_release_the_gil_under_concurrent_calls(tmp_path):
                 single_samples.append(time.perf_counter() - started)
             single_call = sorted(single_samples)[1]
 
-            start_time = [0.0]
-            barrier = threading.Barrier(
-                2, action=lambda: start_time.__setitem__(0, time.perf_counter())
-            )
+            parallel_samples = []
+            for _ in range(5):
+                start_time = [0.0]
+                barrier = threading.Barrier(
+                    2, action=lambda: start_time.__setitem__(0, time.perf_counter())
+                )
 
-            def run_concurrently():
-                barrier.wait()
-                return call()
+                def run_concurrently():
+                    barrier.wait()
+                    return call()
 
-            futures = [executor.submit(run_concurrently) for _ in range(2)]
-            concurrent_results = [future.result() for future in futures]
-            parallel_elapsed = time.perf_counter() - start_time[0]
+                futures = [executor.submit(run_concurrently) for _ in range(2)]
+                concurrent_results = [future.result() for future in futures]
+                parallel_samples.append(time.perf_counter() - start_time[0])
+                assert concurrent_results[0] == concurrent_results[1], name
 
-            assert concurrent_results[0] == concurrent_results[1], name
+            parallel_elapsed = sorted(parallel_samples)[len(parallel_samples) // 2]
             if parallel_elapsed >= single_call * 2:
                 failures.append(
                     f"{name} took {parallel_elapsed:.6f}s for two concurrent calls; "
