@@ -51,7 +51,7 @@ The Filament editor ([US-004](../usecase/US-004-filament-editor-rerender.md)) re
 |----|----------|--------------|
 | NFR-001-AC-1 | (RETIRED) A criterion benchmark `bench_render_fr` measures `render("fr", baseline_value)` and reports median below 1 ms. | Analysis |
 | NFR-001-AC-2 | (RETIRED) A criterion benchmark for each of the 10 archetypes reports median below 1 ms. | Analysis |
-| NFR-001-AC-3 | (RETIRED) A regression test compares the latest measurement against a stored baseline; a >10% slowdown fails CI. | Test |
+| NFR-001-AC-3 | RETIRED: A regression test compares the latest measurement against a stored baseline; a >10% slowdown fails CI. | None |
 
 ## Measurement and Evaluation
 
