@@ -39,6 +39,7 @@ jobs:
           repository: agent-ix/spec-artifacts-iso
           fetch-depth: 0
           path: .ci/spec-artifacts-iso
+
       - name: Install Rust toolchain
         shell: bash
         run: |
