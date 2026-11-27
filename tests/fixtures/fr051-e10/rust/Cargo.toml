@@ -1,0 +1,14 @@
+[package]
+name = "fr051-rust-fixture"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[workspace]
+
+[dependencies]
+ix-trace-rs = { git = "https://github.com/agent-ix/ix-trace-rs", rev = "8a0ec153a097036e257cdc8e0ba391bf4dea93d1" }
+rstest = "0.26.1"
+
+[features]
+emit = ["ix-trace-rs/emit"]
