@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-objects-enterprise/PrincipleVerb.json",
+  "type": "string",
+  "enum": [
+    "governs"
+  ],
+  "description": "Relation verbs a `principle` declaration may use."
+}

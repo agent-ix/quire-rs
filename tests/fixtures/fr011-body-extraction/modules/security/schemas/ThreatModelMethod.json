@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/ThreatModelMethod.json",
+  "type": "string",
+  "enum": [
+    "stride_per_element",
+    "stride_per_interaction"
+  ],
+  "description": "How a threat model was worked: STRIDE applied to each element, or to each\ninteraction between elements. There is no `unknown` or `none` member."
+}

@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/SoupSupportStatus.json",
+  "type": "string",
+  "enum": [
+    "supported",
+    "community_supported",
+    "unsupported",
+    "unknown"
+  ],
+  "description": "Whether the upstream maintainer still supports a component. `unknown`\nstates that nobody has assessed it; it is not owned by the ten graded\nvocabularies of FR-006."
+}

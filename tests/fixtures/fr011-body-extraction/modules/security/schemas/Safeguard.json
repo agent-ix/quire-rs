@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/Safeguard.json",
+  "type": "string",
+  "enum": [
+    "encrypt-in-transit",
+    "encrypt-at-rest",
+    "anonymize",
+    "pseudonymize",
+    "obtain-consent",
+    "restrict-region",
+    "validate-before-display"
+  ],
+  "description": "Safeguards a person may state for a control."
+}

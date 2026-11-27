@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-objects-operational/RollbackDecl.json",
+  "type": "object",
+  "properties": {
+    "strategy": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-operational/RollbackStrategy.json"
+    },
+    "clause": {
+      "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/ClauseRef.json"
+    },
+    "doc": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "strategy"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "A migration's declared undo intent. Never its execution state."
+}

@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-objects-enterprise/ObjectiveVerb.json",
+  "type": "string",
+  "enum": [
+    "supports",
+    "references"
+  ],
+  "description": "Relation verbs an `objective` declaration may use."
+}

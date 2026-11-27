@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-objects-enterprise/Principle.json",
+  "type": "object",
+  "properties": {
+    "clauses": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/ClauseRef.json"
+      },
+      "minItems": 1
+    },
+    "relations": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/RelationDecl.json"
+      }
+    },
+    "owner": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-enterprise/OwnershipDecl.json"
+    },
+    "lifecycle": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-enterprise/LifecycleDecl.json"
+    },
+    "provenance": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-enterprise/ProvenanceDecl.json"
+    },
+    "audience": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string"
+    },
+    "updated": {
+      "type": "string",
+      "format": "date"
+    }
+  },
+  "required": [
+    "clauses"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "A principle: a rule that governs. It declares no data and no behaviour, so\n`fields` and `operations` are both forbidden by the seal.",
+  "allOf": [
+    {
+      "properties": {
+        "relations": {
+          "items": {
+            "properties": {
+              "verb": {
+                "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-enterprise/PrincipleVerb.json"
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

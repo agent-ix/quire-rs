@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/CorsPolicy.json",
+  "type": "object",
+  "properties": {
+    "clauses": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/ClauseRef.json"
+      },
+      "minItems": 1
+    },
+    "fields": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/FieldDecl.json"
+      }
+    },
+    "allowed_origins": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "clauses"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "The cross-origin rules a surface enforces. `operations` and `relations` are forbidden by the seal.",
+  "allOf": [
+    {
+      "properties": {
+        "fields": {
+          "items": {
+            "not": {
+              "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/DefaultedField.json"
+            }
+          }
+        }
+      }
+    }
+  ]
+}

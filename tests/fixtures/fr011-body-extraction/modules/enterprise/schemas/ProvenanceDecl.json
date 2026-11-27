@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-objects-enterprise/ProvenanceDecl.json",
+  "type": "object",
+  "properties": {
+    "source": {
+      "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/SemanticId.json"
+    },
+    "method": {
+      "type": "string"
+    },
+    "recorded_in": {
+      "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/SemanticId.json"
+    }
+  },
+  "required": [
+    "source"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "Where a declaration came from."
+}

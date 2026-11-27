@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/Permission.json",
+  "type": "object",
+  "properties": {
+    "fields": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/FieldDecl.json"
+      },
+      "minItems": 1,
+      "contains": {
+        "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/IdentityField.json"
+      }
+    },
+    "clauses": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/ClauseRef.json"
+      }
+    },
+    "resource": {
+      "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/SemanticId.json"
+    },
+    "verb": {
+      "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/Identifier.json"
+    }
+  },
+  "required": [
+    "fields"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "One allowed action on one resource. `operations` and `relations` are forbidden by the seal.",
+  "allOf": [
+    {
+      "properties": {
+        "fields": {
+          "items": {
+            "not": {
+              "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/DefaultedField.json"
+            }
+          }
+        }
+      }
+    }
+  ]
+}

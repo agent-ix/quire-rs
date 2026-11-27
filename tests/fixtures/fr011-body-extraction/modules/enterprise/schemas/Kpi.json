@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-objects-enterprise/Kpi.json",
+  "type": "object",
+  "properties": {
+    "metric": {
+      "type": "string",
+      "description": "Note-level summary; the typed measure remains in fields and measure."
+    },
+    "target": {
+      "type": "string",
+      "description": "Note-level summary; goal limits are modeled by Objective.targets."
+    },
+    "threshold": {
+      "type": "string",
+      "description": "Note-level alert summary; typed thresholds use ThresholdDecl."
+    },
+    "fields": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/FieldDecl.json"
+      },
+      "minItems": 1,
+      "contains": {
+        "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-enterprise/IdentityField.json"
+      },
+      "minContains": 0,
+      "maxContains": 0
+    },
+    "relations": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/RelationDecl.json"
+      }
+    },
+    "clauses": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/ClauseRef.json"
+      }
+    },
+    "measure": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-enterprise/MeasureDecl.json"
+    },
+    "thresholds": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-enterprise/ThresholdDecl.json"
+      }
+    },
+    "owner": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-enterprise/OwnershipDecl.json"
+    },
+    "lifecycle": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-enterprise/LifecycleDecl.json"
+    },
+    "provenance": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-enterprise/ProvenanceDecl.json"
+    },
+    "audience": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string"
+    },
+    "updated": {
+      "type": "string",
+      "format": "date"
+    }
+  },
+  "required": [
+    "fields"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "A KPI: the definition of a measure, never a reading of one.\n\nThree item rules carry the ticket's headline criterion. At least one field\ncarries a unit (what is measured, and in what) — a dimensionless measure uses\nthe UCUM unity symbol `1`. No field is an identity field: a definition has no\nper-occurrence identity, an observation does. No field targets `Timestamp`:\na definition has no instant, an observation does. `targets` is absent by\nintent — the goal set against a measure belongs to the objective that sets\nit, not to the measure.",
+  "allOf": [
+    {
+      "properties": {
+        "fields": {
+          "contains": {
+            "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-enterprise/MeasuredField.json"
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "fields": {
+          "contains": {
+            "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-enterprise/TemporalField.json"
+          },
+          "minContains": 0,
+          "maxContains": 0
+        }
+      }
+    },
+    {
+      "properties": {
+        "relations": {
+          "items": {
+            "properties": {
+              "verb": {
+                "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-enterprise/KpiVerb.json"
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

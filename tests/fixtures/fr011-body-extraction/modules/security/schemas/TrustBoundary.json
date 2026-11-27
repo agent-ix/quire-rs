@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/TrustBoundary.json",
+  "type": "object",
+  "properties": {
+    "fields": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/FieldDecl.json"
+      },
+      "minItems": 1,
+      "contains": {
+        "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/IdentityField.json"
+      }
+    },
+    "clauses": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/ClauseRef.json"
+      },
+      "minItems": 1
+    },
+    "relations": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/RelationDecl.json"
+      }
+    },
+    "trust_level": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/TrustLevel.json"
+    }
+  },
+  "required": [
+    "fields",
+    "clauses"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "A zone edge. `clauses` is required: a boundary that admits every crossing is\nnot a boundary. `operations` is forbidden by the seal.",
+  "allOf": [
+    {
+      "properties": {
+        "fields": {
+          "contains": {
+            "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/TrustLevelField.json"
+          }
+        }
+      }
+    },
+    {
+      "properties": {
+        "fields": {
+          "items": {
+            "not": {
+              "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/DefaultedField.json"
+            }
+          }
+        }
+      }
+    }
+  ]
+}

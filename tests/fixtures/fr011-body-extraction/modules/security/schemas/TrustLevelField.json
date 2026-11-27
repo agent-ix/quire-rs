@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/TrustLevelField.json",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "const": "trust_level"
+    }
+  },
+  "required": [
+    "name"
+  ],
+  "description": "A `FieldDecl` named `trust_level`."
+}

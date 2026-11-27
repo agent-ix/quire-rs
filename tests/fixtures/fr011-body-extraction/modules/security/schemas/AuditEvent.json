@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/AuditEvent.json",
+  "type": "object",
+  "properties": {
+    "fields": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/FieldDecl.json"
+      },
+      "minItems": 1,
+      "contains": {
+        "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/OccurrenceField.json"
+      }
+    },
+    "clauses": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/ClauseRef.json"
+      }
+    },
+    "source": {
+      "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/SemanticId.json"
+    }
+  },
+  "required": [
+    "fields"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "An auditable event declaration.\n\nThe declared shape carries no identity field: occurrence identity belongs to\nthe runtime record, not the declaration. It must carry at least one\noccurrence field (a `Timestamp`), and no field carries a default — an audit\ndeclaration that pins a literal payload value is carrying the record rather\nthan declaring it. `operations` and `relations` are forbidden by the seal.",
+  "allOf": [
+    {
+      "properties": {
+        "fields": {
+          "items": {
+            "not": {
+              "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/IdentityField.json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "properties": {
+        "fields": {
+          "items": {
+            "not": {
+              "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/DefaultedField.json"
+            }
+          }
+        }
+      }
+    }
+  ]
+}

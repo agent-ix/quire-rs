@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/TrustLevel.json",
+  "type": "string",
+  "enum": [
+    "untrusted",
+    "semi_trusted",
+    "trusted",
+    "unknown"
+  ],
+  "description": "How far a zone is trusted. `untrusted` is the unassessed member, because the\nleast-granting reading of \"we never decided\" is \"we do not trust it\"."
+}

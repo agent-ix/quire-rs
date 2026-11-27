@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-objects-operational/RunbookStep.json",
+  "type": "object",
+  "properties": {
+    "name": {
+      "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/Identifier.json"
+    },
+    "order": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 2147483647
+    },
+    "doc": {
+      "type": "string"
+    },
+    "operation": {
+      "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/Identifier.json"
+    }
+  },
+  "required": [
+    "name",
+    "order",
+    "doc"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "One ordered step of a runbook.\n\nReader rule JSON Schema cannot express (FR-004): `operation` names an\n`operations[].name` of the same record."
+}

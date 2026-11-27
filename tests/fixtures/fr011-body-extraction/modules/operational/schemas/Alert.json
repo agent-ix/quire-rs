@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-objects-operational/Alert.json",
+  "type": "object",
+  "properties": {
+    "clauses": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/ClauseRef.json"
+      },
+      "minItems": 1
+    },
+    "conditions": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-operational/AlertCondition.json"
+      }
+    },
+    "escalatesTo": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/SemanticId.json"
+      }
+    },
+    "references": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/SemanticId.json"
+      }
+    },
+    "operations": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/OperationDecl.json"
+      }
+    }
+  },
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "An alert: a firing condition over an indicator.\n\n`fields` is forbidden by the seal — an alert declares a condition, not data.\n`clauses` is optional and carries the condition when present; `conditions` carries the\nsame condition in typed form once the extractor populates it."
+}

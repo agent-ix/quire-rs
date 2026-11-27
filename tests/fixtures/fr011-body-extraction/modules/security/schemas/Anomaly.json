@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/Anomaly.json",
+  "type": "object",
+  "properties": {
+    "statement": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source_ref": {
+      "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/SemanticId.json"
+    },
+    "origin": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/AnomalyOrigin.json"
+    }
+  },
+  "required": [
+    "statement"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "One reviewer-stated anomaly of a component."
+}

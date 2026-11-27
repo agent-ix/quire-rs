@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/EncryptionKey.json",
+  "type": "object",
+  "properties": {
+    "fields": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/FieldDecl.json"
+      },
+      "minItems": 1,
+      "contains": {
+        "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/IdentityField.json"
+      }
+    },
+    "clauses": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/ClauseRef.json"
+      }
+    },
+    "operations": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/OperationDecl.json"
+      }
+    },
+    "lifecycle": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/SecretLifecycle.json"
+    },
+    "material_ref": {
+      "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/SemanticId.json"
+    },
+    "custodian": {
+      "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/SemanticId.json"
+    },
+    "algorithm": {
+      "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/Identifier.json"
+    },
+    "rotation": {
+      "type": "string",
+      "pattern": "^P((\\d+Y(\\d+M)?(\\d+D)?|\\d+M(\\d+D)?|\\d+D|\\d+W)(T(\\d+H(\\d+M)?(\\d+S)?|\\d+M(\\d+S)?|\\d+S))?|T(\\d+H(\\d+M)?(\\d+S)?|\\d+M(\\d+S)?|\\d+S))$"
+    }
+  },
+  "required": [
+    "fields"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "A cryptographic key.",
+  "allOf": [
+    {
+      "properties": {
+        "fields": {
+          "items": {
+            "not": {
+              "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/DefaultedField.json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "properties": {
+        "operations": {
+          "items": {
+            "properties": {
+              "params": {
+                "items": {
+                  "not": {
+                    "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/DefaultedField.json"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-objects-operational/MaintenancePlan.json",
+  "type": "object",
+  "properties": {
+    "operations": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/OperationDecl.json"
+      },
+      "minItems": 1
+    },
+    "maintains": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/SemanticId.json"
+      }
+    },
+    "responsible": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/SemanticId.json"
+      }
+    },
+    "feedback_channels": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-operational/FeedbackChannel.json"
+      }
+    },
+    "clauses": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/ClauseRef.json"
+      }
+    }
+  },
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "A maintenance plan: how feedback on released software is received,\ndocumented and evaluated, and how a modification is made.\n\n`fields` is forbidden by the seal — a plan declares procedures, not data.\n`operations` is optional and has at least one item when present. The plan\nrecords who is accountable (`responsible`, `FeedbackChannel.owner`) and\nassigns no score, class or acceptability."
+}

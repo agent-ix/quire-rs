@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-objects-enterprise/ValueStageOutcome.json",
+  "type": "object",
+  "properties": {
+    "id": {
+      "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/Identifier.json"
+    },
+    "name": {
+      "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/Identifier.json"
+    },
+    "doc": {
+      "type": "string"
+    },
+    "contributes_to": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/SemanticId.json"
+      },
+      "minItems": 1
+    }
+  },
+  "required": [
+    "id",
+    "name",
+    "doc"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "One outcome produced by a value-stream stage."
+}

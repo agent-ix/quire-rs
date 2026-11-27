@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-objects-enterprise/DecisionVerb.json",
+  "type": "string",
+  "enum": [
+    "references",
+    "supersedes",
+    "constrains"
+  ],
+  "description": "Relation verbs a `decision` declaration may use."
+}

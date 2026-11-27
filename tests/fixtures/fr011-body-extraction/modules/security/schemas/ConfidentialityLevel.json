@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/ConfidentialityLevel.json",
+  "type": "string",
+  "enum": [
+    "public",
+    "internal",
+    "confidential",
+    "restricted",
+    "unknown"
+  ],
+  "description": "How sensitive data is. `unknown` states that it was not classified."
+}

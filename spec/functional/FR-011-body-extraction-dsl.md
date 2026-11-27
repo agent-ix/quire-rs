@@ -216,6 +216,10 @@ frontmatter/`ix://` harvest (`harvest_edges`, [FR-028-AC-6](./FR-028-expanded-py
 
 Single-yield DSLs return `records.len() <= 1`; multi-yield returns one record per iteration unit.
 
+## Change Records
+
+> **CR-2026-11-27:** The FR-011-AC-5 population statement was stale. At the recorded current `origin/main` commits, the five named `spec-objects-*` manifests declare 72 object types, each with a `body_extraction` DSL: architecture 15 (`5f9287d`), business 13 (`80af08c`), enterprise 7 (`9aa8624`), operational 9 (`68bee81`), and security 28 (`817ae0e`). The pinned input corpus is in `tests/fixtures/fr011-body-extraction/`; it preserves each source manifest and all module JSON schemas and Markdown test fixtures, with module-qualified per-type inventory, fixture mappings, source paths and SHA-256 hashes. It currently maps documents for 48 types and flags 24 without a matching fixture. Local/transitive schema files are included; 27 distinct external `semantic-core` schema IDs remain explicitly enumerated in the inventory. The corpus has no independent expected outputs and is not parity evidence. The independent Tier-2 evaluator remains external, so FR-011-AC-5 remains open.
+
 ## Acceptance Criteria
 
 | ID | Criteria | Verification |
@@ -223,7 +227,7 @@ Single-yield DSLs return `records.len() <= 1`; multi-yield returns one record pe
 | FR-011-AC-1 | Each of the 6 Locator primitives is exercised by at least one unit test against the shared small fixture document: `frontmatter_field` resolves `FR-001`, `section_body` resolves `the purpose`, `code_block` finds a Mermaid body containing `A-->B`, `table_row` resolves two rows with the first beginning `GET` then `/a`, `list_item` resolves two items with the first `**Auth** — token-based`, and `heading` resolves `Purpose` and `API`. | Test |
 | FR-011-AC-2 | A multi-yield DSL with `iterate_over: { section_path: [Algorithms], kind: heading, depth: 1 }` against a document with 3 sub-headings under "Algorithms" emits exactly 3 records. | Test |
 | FR-011-AC-4 | A DSL with `required: true` against a missing value returns `QuireError::MissingField` naming the DSL key. | Test |
-| FR-011-AC-5 | A parity sweep evaluates every `body_extraction` DSL from the six object-source repos (`spec-objects-{architecture,business,enterprise,operational,security}`, total 80+ object types) against fixture documents and asserts each `ExtractionResult.records` matches the filament-parser-lib Python reference for the same input. | Test |
+| FR-011-AC-5 | A parity sweep evaluates every `body_extraction` DSL in the five named `spec-objects-*` modules (72 object types at the pinned source revisions recorded in the corpus inventory) against at least one mapped fixture document per type, and asserts each `ExtractionResult.records` matches an independent Tier-2 reference implementation for the same input. Every type must have a fixture mapping; an explicit missing-fixture entry is an open gap, not coverage. | Test |
 | FR-011-AC-6 | A DSL with both `match` and `iterate_over` set under `yield_pattern` produces `QuireError::ArchetypeLoadError` at load time, NOT at evaluation time. | Test |
 | FR-011-AC-7 | A DSL with an unknown key (e.g. `from: section_bodyy` typo) produces `QuireError::ArchetypeLoadError` at load time. | Test |
 | FR-011-AC-8 | A DSL with `iterate_over.section_path: [Nonexistent]` against a document missing that section returns `ExtractionResult { records: [], diagnostics: [IterateRootMissing] }`. | Test |

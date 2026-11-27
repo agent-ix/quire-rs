@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/DefaultedField.json",
+  "type": "object",
+  "properties": {
+    "default": {
+      "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/DefaultDecl.json"
+    }
+  },
+  "required": [
+    "default"
+  ],
+  "description": "A `FieldDecl` carrying a literal default. Used only as a negative predicate:\na declaration of secret material never carries the material (FR-006)."
+}

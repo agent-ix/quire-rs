@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-objects-enterprise/StageDecl.json",
+  "type": "object",
+  "properties": {
+    "id": {
+      "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/Identifier.json"
+    },
+    "name": {
+      "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/Identifier.json"
+    },
+    "order": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 2147483647
+    },
+    "value": {
+      "type": "string"
+    },
+    "inputs": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/SemanticId.json"
+      }
+    },
+    "outputs": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/SemanticId.json"
+      }
+    },
+    "outcomes": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-enterprise/ValueStageOutcome.json"
+      }
+    },
+    "doc": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "name",
+    "order",
+    "value"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "One stage of a value stream.\n\nReader rules JSON Schema cannot express (FR-004): `order` is unique and\ncontiguous from 1 within one `stages` array, and `name` is unique within it."
+}

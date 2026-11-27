@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/StrideCategory.json",
+  "type": "string",
+  "enum": [
+    "spoofing",
+    "tampering",
+    "repudiation",
+    "information_disclosure",
+    "denial_of_service",
+    "elevation_of_privilege",
+    "unknown"
+  ],
+  "description": "The STRIDE class of a threat. `unknown` states that it was not classified."
+}

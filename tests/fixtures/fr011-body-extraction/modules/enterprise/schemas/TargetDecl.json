@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-objects-enterprise/TargetDecl.json",
+  "type": "object",
+  "properties": {
+    "measure": {
+      "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/SemanticId.json"
+    },
+    "comparator": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-enterprise/Comparator.json"
+    },
+    "bound": {
+      "type": "string"
+    },
+    "by": {
+      "type": "string"
+    },
+    "doc": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "measure",
+    "comparator",
+    "bound"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "A declared target against a named measure definition. `measure` is a\n`SemanticId` naming a `kpi` declaration, and `bound` is the limit the\nobjective commits to — never an observed reading."
+}

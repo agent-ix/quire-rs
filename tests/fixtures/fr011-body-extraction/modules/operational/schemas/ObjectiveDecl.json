@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-objects-operational/ObjectiveDecl.json",
+  "type": "object",
+  "properties": {
+    "sli": {
+      "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/SemanticId.json"
+    },
+    "target": {
+      "type": "number"
+    },
+    "unit": {
+      "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/UnitSymbol.json"
+    },
+    "window": {
+      "type": "string",
+      "pattern": "^P(?!$)(\\d+Y)?(\\d+M)?(\\d+W)?(\\d+D)?(T(?=\\d)(\\d+H)?(\\d+M)?(\\d+(\\.\\d+)?S)?)?$"
+    }
+  },
+  "required": [
+    "sli",
+    "target",
+    "window"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "A service-level objective: the SLI it reads, the target it promises, and the\nwindow it promises it over. It carries no consumed error budget and no\nmeasured sample; those are observations, and an observation is reached\nthrough an `Incident` and its `evidence`, never through a key here."
+}

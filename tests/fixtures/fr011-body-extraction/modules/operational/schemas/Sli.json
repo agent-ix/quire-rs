@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-objects-operational/Sli.json",
+  "type": "object",
+  "properties": {
+    "fields": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/FieldDecl.json"
+      },
+      "minItems": 1,
+      "contains": {
+        "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-operational/MeasuredField.json"
+      }
+    },
+    "measures": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/SemanticId.json"
+      }
+    },
+    "clauses": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/ClauseRef.json"
+      }
+    }
+  },
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "A service level indicator: what is measured, in what unit.\n\nAt least one field carries a `type.unit`, so the declaration references a\ntyped measurement rather than describing one in prose. `operations` is\nforbidden by the seal: an SLI declares a measurement, not behaviour. Every\naccumulated observation key is forbidden by the seal.",
+  "allOf": [
+    {
+      "properties": {
+        "fields": {
+          "contains": {
+            "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-operational/OccurrenceField.json"
+          },
+          "minContains": 0,
+          "maxContains": 0
+        }
+      }
+    }
+  ]
+}

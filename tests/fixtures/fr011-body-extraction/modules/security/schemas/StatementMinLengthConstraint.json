@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/StatementMinLengthConstraint.json",
+  "type": "object",
+  "properties": {
+    "kind": {
+      "type": "string",
+      "const": "MinLengthConstraint"
+    },
+    "value": {
+      "type": "object",
+      "properties": {
+        "keyword": {
+          "type": "string",
+          "const": "minLength"
+        },
+        "value": {
+          "type": "number",
+          "const": 1
+        }
+      },
+      "required": [
+        "keyword",
+        "value"
+      ]
+    }
+  },
+  "required": [
+    "kind",
+    "value"
+  ],
+  "description": "A `minLength: 1` constraint carried by the statement field."
+}

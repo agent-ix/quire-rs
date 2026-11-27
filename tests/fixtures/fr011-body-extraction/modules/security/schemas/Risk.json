@@ -1,0 +1,120 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/Risk.json",
+  "type": "object",
+  "properties": {
+    "fields": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/FieldDecl.json"
+      },
+      "minItems": 1,
+      "contains": {
+        "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/IdentityField.json"
+      }
+    },
+    "clauses": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/ClauseRef.json"
+      }
+    },
+    "relations": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/RelationDecl.json"
+      }
+    },
+    "likelihood": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/Likelihood.json"
+    },
+    "impact": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/Impact.json"
+    },
+    "arises_from": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/SemanticId.json"
+      }
+    },
+    "decision": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/RiskDecision.json"
+    },
+    "decided_by": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "required": [
+    "fields",
+    "decision"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "A scored exposure. Both axes are stated as rows, never inferred.",
+  "allOf": [
+    {
+      "properties": {
+        "fields": {
+          "contains": {
+            "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/LikelihoodField.json"
+          }
+        }
+      }
+    },
+    {
+      "properties": {
+        "fields": {
+          "contains": {
+            "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/ImpactField.json"
+          }
+        }
+      }
+    },
+    {
+      "properties": {
+        "fields": {
+          "items": {
+            "not": {
+              "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/DefaultedField.json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "decision": {
+            "enum": [
+              "accepted",
+              "not_accepted"
+            ]
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "decided_by"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "decision": {
+            "const": "undecided"
+          }
+        }
+      },
+      "then": {
+        "not": {
+          "required": [
+            "decided_by"
+          ]
+        }
+      }
+    }
+  ]
+}

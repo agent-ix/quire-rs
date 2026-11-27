@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-objects-enterprise/StageCapabilityBinding.json",
+  "type": "object",
+  "properties": {
+    "stage_id": {
+      "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/Identifier.json"
+    },
+    "capability": {
+      "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/SemanticId.json"
+    },
+    "process": {
+      "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/SemanticId.json"
+    }
+  },
+  "required": [
+    "stage_id",
+    "capability",
+    "process"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "One capability and process pair supporting a value-stream stage."
+}

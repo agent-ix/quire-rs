@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-objects-enterprise/MeasuredTypeRef.json",
+  "type": "object",
+  "properties": {
+    "unit": {
+      "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/UnitSymbol.json"
+    }
+  },
+  "required": [
+    "unit"
+  ],
+  "description": "Open marker: a `TypeRef` carrying a unit symbol."
+}

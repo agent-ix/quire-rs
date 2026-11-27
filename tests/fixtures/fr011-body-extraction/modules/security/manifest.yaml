@@ -1,0 +1,1480 @@
+manifest_version: 1.0.0
+name: spec-objects-security
+version: 0.2.0
+description: 'Filament Module: tier-2 security and identity ObjectTypes (threats, controls, auth flows, secrets, policies)'
+depends_on:
+- name: spec-artifacts-process
+  version_range: ^0.3.0
+- name: spec-objects-architecture
+  version_range: ^0.5.0
+- name: spec-artifacts-iso
+  version_range: ^0.3.0
+- name: spec-objects-safety
+  version_range: ^0.4.1
+grammar_severity:
+  trace:crossing-without-threat: error
+  trace:classified-sink-without-threat: error
+  trace:threat-without-treatment: error
+semantic:
+  contract_version: 1.0.0
+  package: agent-ix/spec-objects-security
+  exports:
+  - auth_flow
+  - permission
+  - scope
+  - role
+  - secret
+  - encryption_key
+  - session_config
+  - data_classification
+  - trust_boundary
+  - audit_event
+  - csrf_token
+  - cors_policy
+  - password_policy
+  - mfa_method
+  - jwt_claim
+  - threat
+  - control
+  - risk
+  - vulnerability
+  - anomaly
+  - asset
+  - attack_surface
+  - policy
+  - audit_finding
+  - soup_record
+  - scope_exclusion
+  - threat_model
+  - processing_activity
+  imports: {}
+  targets: [json-schema, markdown]
+  mappings: [typed-table, sysml-fence, ocl-clause, record-sections]
+  compatibility_posture: additive
+  legacy_forms: warning
+clause_sets:
+- clauses/nist-sp800-53-5.2.0.json
+- clauses/owasp-asvs-5.0.0.json
+roles:
+  trust_boundary: {description: A boundary between zones with different trust levels.}
+nav:
+  category:
+    slug: security
+    label: Security
+    icon: ShieldCheck
+    order: 54
+edge_types:
+  scopes: { description: "A security model or processing activity scopes a target element.", category: governance }
+  considers: { description: "Threat model considers the threat at the target.", category: governance }
+  soup_requirement_for: { description: "An FR or NFR states the requirements placed on the SOUP item that serves the target requirement.", category: traceability, inverse: has_soup_requirement }
+archetypes: []
+grammars:
+- name: security-artifacts
+  version: 0.1.0
+  description: Security process artifacts authored by product teams
+  doc_kinds:
+  - vulnerability_management_plan
+artifact_types:
+- name: vulnerability_management_plan
+  grammar_ref: security-artifacts
+  frontmatter_schema_ref: schemas/VulnerabilityManagementPlanFrontmatter.json
+  data_schema:
+    schema: schemas/VulnerabilityManagementPlan.json
+  allowed_links:
+  - references
+  body_extraction:
+    yield_pattern:
+      match:
+        id:
+          from: frontmatter_field
+          path: [id]
+          required: true
+        title:
+          from: frontmatter_field
+          path: [title]
+          required: true
+        type:
+          from: frontmatter_field
+          path: [type]
+          required: true
+        scope:
+          from: section_body
+          after_heading: Scope
+          required: true
+          assert:
+            level: 2
+        intake_and_acknowledgement:
+          from: section_body
+          after_heading: Intake and Acknowledgement
+          required: true
+          assert:
+            level: 2
+        assessment:
+          from: section_body
+          after_heading: Assessment
+          required: true
+          assert:
+            level: 2
+        coordination_and_disclosure:
+          from: section_body
+          after_heading: Coordination and Disclosure
+          required: true
+          assert:
+            level: 2
+        corrective_action_and_release:
+          from: section_body
+          after_heading: Corrective Action and Release
+          required: true
+          assert:
+            level: 2
+        communication:
+          from: section_body
+          after_heading: Communication
+          required: true
+          assert:
+            level: 2
+lint_rules: []
+object_types:
+- name: auth_flow
+  roles: [externally-exposed]
+  allowed_links:
+    requires: [mfa_method]
+    grants: [role]
+    protects: [externally-exposed]
+    references: [auth_flow]
+  data_schema:
+    schema: schemas/AuthFlow.json
+  body_extraction:
+    yield_pattern:
+      match:
+        id: &id001
+          from: frontmatter_field
+          path:
+          - id
+          required: true
+        title: &id002
+          from: frontmatter_field
+          path:
+          - title
+          required: true
+        type: &id003
+          from: frontmatter_field
+          path:
+          - type
+          required: true
+        flow:
+          from: code_block
+          after_heading: Flow
+          required: true
+          language: mermaid
+        # FR-005: the `## Operations` subsections.
+        operations:
+          from: section_body
+          after_heading: Operations
+          required: false
+- name: permission
+  allowed_links:
+    grants: [scope]
+    guards: [externally-exposed]
+    references: [role]
+  data_schema:
+    schema: schemas/Permission.json
+  body_extraction:
+    yield_pattern:
+      match:
+        id: *id001
+        title: *id002
+        type: *id003
+        resource:
+          from: frontmatter_field
+          path:
+          - resource
+          required: true
+        verb:
+          from: frontmatter_field
+          path:
+          - verb
+          required: true
+        # FR-005: the typed `## Properties` table the
+        # semantic layer reads. Optional, so existing artifacts stay valid.
+        properties:
+          from: section_body
+          after_heading: Properties
+          required: false
+- name: scope
+  allowed_links:
+    references: [permission]
+  data_schema:
+    schema: schemas/Scope.json
+  body_extraction:
+    yield_pattern:
+      match:
+        id: *id001
+        title: *id002
+        type: *id003
+        grants:
+          from: section_body
+          after_heading: Grants
+          required: true
+        # FR-005: the typed `## Properties` table the
+        # semantic layer reads. Optional, so existing artifacts stay valid.
+        properties:
+          from: section_body
+          after_heading: Properties
+          required: false
+- name: role
+  allowed_links:
+    grants: [permission]
+    references: [role]
+  data_schema:
+    schema: schemas/Role.json
+  body_extraction:
+    yield_pattern:
+      match:
+        id: *id001
+        title: *id002
+        type: *id003
+        permissions:
+          from: section_body
+          after_heading: Permissions
+          required: true
+        # FR-005: the typed `## Properties` table the
+        # semantic layer reads. Optional, so existing artifacts stay valid.
+        properties:
+          from: section_body
+          after_heading: Properties
+          required: false
+- name: secret
+  roles: [sensitive]
+  allowed_links:
+    references: [secret]
+  data_schema:
+    schema: schemas/Secret.json
+  body_extraction:
+    yield_pattern:
+      match:
+        id: *id001
+        title: *id002
+        type: *id003
+        rotation:
+          from: section_body
+          after_heading: Rotation
+          required: true
+        # FR-005: the typed `## Properties` table the
+        # semantic layer reads. Optional, so existing artifacts stay valid.
+        properties:
+          from: section_body
+          after_heading: Properties
+          required: false
+- name: encryption_key
+  roles: [sensitive]
+  allowed_links:
+    encrypts: [sensitive, data_classification]
+  data_schema:
+    schema: schemas/EncryptionKey.json
+  body_extraction:
+    yield_pattern:
+      match:
+        id: *id001
+        title: *id002
+        type: *id003
+        algorithm:
+          from: frontmatter_field
+          path:
+          - algorithm
+          required: true
+        rotation:
+          from: frontmatter_field
+          path:
+          - rotation
+          required: false
+        # FR-005: the typed `## Properties` table the
+        # semantic layer reads. Optional, so existing artifacts stay valid.
+        properties:
+          from: section_body
+          after_heading: Properties
+          required: false
+- name: session_config
+  allowed_links:
+    references: [auth_flow, jwt_claim]
+  data_schema:
+    schema: schemas/SessionConfig.json
+  body_extraction:
+    yield_pattern:
+      match:
+        id: *id001
+        title: *id002
+        type: *id003
+        settings:
+          from: section_body
+          after_heading: Settings
+          required: true
+        # FR-005: the `## Invariants` OCL clauses.
+        invariants:
+          from: section_body
+          after_heading: Invariants
+          required: false
+- name: data_classification
+  frontmatter_schema_ref: schemas/DataClassificationFrontmatter.json
+  allowed_links:
+    classifies: [persistable, externally-exposed, sensitive]
+    references: [data_classification]
+  data_schema:
+    schema: schemas/DataClassification.json
+  body_extraction:
+    yield_pattern:
+      match:
+        id: *id001
+        title: *id002
+        type: *id003
+        handling:
+          from: section_body
+          after_heading: Handling
+          required: true
+        # FR-005: the typed `## Properties` table the
+        # semantic layer reads. Optional, so existing artifacts stay valid.
+        properties:
+          from: section_body
+          after_heading: Properties
+          required: false
+        # FR-023: the regulated-data categories, authored only as a frontmatter
+        # list a person writes. Already a list, so no `multiple`; never defaulted.
+        regulatedCategories:
+          from: frontmatter_field
+          path: [regulated_categories]
+          required: false
+- name: trust_boundary
+  allowed_links:
+    contains: [asset, api_endpoint]
+    references: [trust_boundary]
+  frontmatter_schema_ref: schemas/TrustBoundaryFrontmatter.json
+  data_schema:
+    schema: schemas/TrustBoundary.json
+  body_extraction:
+    yield_pattern:
+      match:
+        id: *id001
+        title: *id002
+        type: *id003
+        trust_level:
+          from: frontmatter_field
+          path: [trust_level]
+          required: true
+        boundary:
+          from: code_block
+          after_heading: Boundary
+          required: true
+          language: mermaid
+        # FR-005: the typed `## Properties` table the
+        # semantic layer reads. Optional, so existing artifacts stay valid.
+        properties:
+          from: section_body
+          after_heading: Properties
+          required: false
+        # FR-005: the `## Invariants` OCL clauses.
+        invariants:
+          from: section_body
+          after_heading: Invariants
+          required: false
+- name: audit_event
+  roles: [event-like]
+  allowed_links:
+    references: [audit_event]
+  data_schema:
+    schema: schemas/AuditEvent.json
+  body_extraction:
+    yield_pattern:
+      match:
+        id: *id001
+        title: *id002
+        type: *id003
+        event_schema:
+          from: code_block
+          after_heading: Event Schema
+          required: true
+          language: json
+        # FR-005: the typed `## Properties` table the
+        # semantic layer reads. Optional, so existing artifacts stay valid.
+        properties:
+          from: section_body
+          after_heading: Properties
+          required: false
+- name: csrf_token
+  roles: [sensitive]
+  allowed_links:
+    references: [csrf_token]
+  data_schema:
+    schema: schemas/CsrfToken.json
+  body_extraction:
+    yield_pattern:
+      match:
+        id: *id001
+        title: *id002
+        type: *id003
+        rotation_window:
+          from: frontmatter_field
+          path:
+          - rotation_window
+          required: true
+        # FR-005: the typed `## Properties` table the
+        # semantic layer reads. Optional, so existing artifacts stay valid.
+        properties:
+          from: section_body
+          after_heading: Properties
+          required: false
+- name: cors_policy
+  allowed_links:
+    references: [cors_policy]
+  data_schema:
+    schema: schemas/CorsPolicy.json
+  body_extraction:
+    yield_pattern:
+      match:
+        id: *id001
+        title: *id002
+        type: *id003
+        origins:
+          from: section_body
+          after_heading: Origins
+          required: true
+        # FR-005: the `## Invariants` OCL clauses.
+        invariants:
+          from: section_body
+          after_heading: Invariants
+          required: false
+- name: password_policy
+  allowed_links:
+    references: [password_policy]
+  data_schema:
+    schema: schemas/PasswordPolicy.json
+  body_extraction:
+    yield_pattern:
+      match:
+        id: *id001
+        title: *id002
+        type: *id003
+        rules:
+          from: section_body
+          after_heading: Rules
+          required: true
+        # FR-005: the `## Invariants` OCL clauses.
+        invariants:
+          from: section_body
+          after_heading: Invariants
+          required: false
+- name: mfa_method
+  allowed_links:
+    references: [mfa_method]
+  data_schema:
+    schema: schemas/MfaMethod.json
+  body_extraction:
+    yield_pattern:
+      match:
+        id: *id001
+        title: *id002
+        type: *id003
+        kind:
+          from: frontmatter_field
+          path:
+          - kind
+          required: true
+        factor_kind:
+          from: frontmatter_field
+          path:
+          - factor
+          required: false
+        # FR-005: the typed `## Properties` table the
+        # semantic layer reads. Optional, so existing artifacts stay valid.
+        properties:
+          from: section_body
+          after_heading: Properties
+          required: false
+- name: jwt_claim
+  roles: [sensitive]
+  allowed_links:
+    references: [jwt_claim]
+  data_schema:
+    schema: schemas/JwtClaim.json
+  body_extraction:
+    yield_pattern:
+      match:
+        id: *id001
+        title: *id002
+        type: *id003
+        schema_json:
+          from: code_block
+          after_heading: Schema
+          required: true
+          language: json
+        # FR-005: the typed `## Properties` table the
+        # semantic layer reads. Optional, so existing artifacts stay valid.
+        properties:
+          from: section_body
+          after_heading: Properties
+          required: false
+- name: threat
+  allowed_links:
+    threatens: [asset, attack_surface, connection, data_sink, trust_boundary]
+    exploits: [vulnerability]
+  data_schema:
+    schema: schemas/Threat.json
+  body_extraction:
+    yield_pattern:
+      match:
+        id: &id004
+          from: frontmatter_field
+          path:
+          - id
+          required: true
+        title: &id005
+          from: frontmatter_field
+          path:
+          - title
+          required: true
+        type: &id006
+          from: frontmatter_field
+          path:
+          - type
+          required: true
+        stride_category:
+          from: frontmatter_field
+          path:
+          - stride_category
+          required: true
+        vector:
+          from: frontmatter_field
+          path:
+          - vector
+          required: true
+        # FR-005: the typed `## Properties` table the
+        # semantic layer reads. Optional, so existing artifacts stay valid.
+        properties:
+          from: section_body
+          after_heading: Properties
+          required: false
+- name: control
+  frontmatter_schema_ref: schemas/ControlFrontmatter.json
+  allowed_links:
+    mitigates: [threat, risk, vulnerability, hazard, failure_mode]
+    implements: [policy]
+    protects: [externally-exposed, asset, connection, data_sink]
+  data_schema:
+    schema: schemas/Control.json
+  body_extraction:
+    yield_pattern:
+      match:
+        id: *id004
+        title: *id005
+        type: *id006
+        mappings:
+          from: section_body
+          after_heading: Mappings
+          required: false
+        effectiveness:
+          from: section_body
+          after_heading: Effectiveness
+          required: false
+        safeguards:
+          from: frontmatter_field
+          path: [safeguards]
+          required: false
+        option_type:
+          from: frontmatter_field
+          path: [option_type]
+          required: false
+        # FR-005: the typed `## Properties` table the
+        # semantic layer reads. Optional, so existing artifacts stay valid.
+        properties:
+          from: section_body
+          after_heading: Properties
+          required: false
+        # FR-005: the `## Invariants` OCL clauses.
+        invariants:
+          from: section_body
+          after_heading: Invariants
+          required: false
+- name: risk
+  frontmatter_schema_ref: schemas/RiskFrontmatter.json
+  allowed_links:
+    arises_from: [threat, vulnerability]
+    references: [asset]
+  data_schema:
+    schema: schemas/Risk.json
+  body_extraction:
+    yield_pattern:
+      match:
+        id: *id004
+        title: *id005
+        type: *id006
+        likelihood:
+          from: frontmatter_field
+          path:
+          - likelihood
+          required: true
+        impact:
+          from: frontmatter_field
+          path:
+          - impact
+          required: true
+        decision:
+          from: frontmatter_field
+          path:
+          - decision
+          required: true
+        decided_by:
+          from: frontmatter_field
+          path:
+          - decided_by
+          required: false
+        # FR-005: the typed `## Properties` table the
+        # semantic layer reads. Optional, so existing artifacts stay valid.
+        properties:
+          from: section_body
+          after_heading: Properties
+          required: false
+- name: vulnerability
+  allowed_links:
+    affects: [asset, attack_surface, soup_record]
+    references: [vulnerability, anomaly]
+  data_schema:
+    schema: schemas/Vulnerability.json
+  body_extraction:
+    yield_pattern:
+      match:
+        id: *id004
+        title: *id005
+        type: *id006
+        cve_id:
+          from: frontmatter_field
+          path:
+          - cve_id
+          required: false
+        severity:
+          from: frontmatter_field
+          path:
+          - severity
+          required: true
+        # FR-005: the typed `## Properties` table the
+        # semantic layer reads. Optional, so existing artifacts stay valid.
+        properties:
+          from: section_body
+          after_heading: Properties
+          required: false
+- name: anomaly
+  data_schema:
+    schema: schemas/AnomalyRecord.json
+  body_extraction:
+    yield_pattern:
+      match:
+        id: *id004
+        title: *id005
+        type: *id006
+        properties:
+          from: section_body
+          after_heading: Properties
+          required: false
+- name: asset
+  allowed_links:
+    references: [data_classification, trust_boundary]
+  data_schema:
+    schema: schemas/Asset.json
+  body_extraction:
+    yield_pattern:
+      match:
+        id: *id004
+        title: *id005
+        type: *id006
+        description_body:
+          from: section_body
+          after_heading: Description
+          required: true
+        # FR-005: the typed `## Properties` table the
+        # semantic layer reads. Optional, so existing artifacts stay valid.
+        properties:
+          from: section_body
+          after_heading: Properties
+          required: false
+- name: attack_surface
+  roles: [externally-exposed]
+  allowed_links:
+    exposes: [asset, api_endpoint]
+  data_schema:
+    schema: schemas/AttackSurface.json
+  body_extraction:
+    yield_pattern:
+      match:
+        id: *id004
+        title: *id005
+        type: *id006
+        entry_points:
+          from: section_body
+          after_heading: Entry Points
+          required: true
+        # FR-005: the typed `## Properties` table the
+        # semantic layer reads. Optional, so existing artifacts stay valid.
+        properties:
+          from: section_body
+          after_heading: Properties
+          required: false
+- name: policy
+  allowed_links:
+    governs: [control, role, permission, data_classification]
+  data_schema:
+    schema: schemas/Policy.json
+  body_extraction:
+    yield_pattern:
+      match:
+        id: *id004
+        title: *id005
+        type: *id006
+        policy_body:
+          from: section_body
+          after_heading: Policy
+          required: true
+        # FR-005: the `## Invariants` OCL clauses.
+        invariants:
+          from: section_body
+          after_heading: Invariants
+          required: false
+- name: audit_finding
+  allowed_links:
+    traces_to: [risk]
+    references: [control, vulnerability, asset]
+  data_schema:
+    schema: schemas/AuditFinding.json
+  body_extraction:
+    yield_pattern:
+      match:
+        id: *id004
+        title: *id005
+        type: *id006
+        recommendation:
+          from: section_body
+          after_heading: Recommendation
+          required: true
+        # FR-005: the typed `## Properties` table the
+        # semantic layer reads. Optional, so existing artifacts stay valid.
+        properties:
+          from: section_body
+          after_heading: Properties
+          required: false
+- name: soup_record
+  data_schema:
+    schema: schemas/SoupRecord.json
+  body_extraction:
+    yield_pattern:
+      match:
+        id: *id004
+        title: *id005
+        type: *id006
+        purl:
+          from: frontmatter_field
+          path:
+          - purl
+          required: true
+        # The typed `## Properties` table the semantic layer reads.
+        properties:
+          from: section_body
+          after_heading: Properties
+          required: false
+- name: scope_exclusion
+  data_schema:
+    schema: schemas/ScopeExclusion.json
+  body_extraction:
+    yield_pattern:
+      match:
+        id: *id004
+        title: *id005
+        type: *id006
+        set:
+          from: section_body
+          after_heading: Set
+          required: true
+        clause:
+          from: section_body
+          after_heading: Clause
+          required: true
+        responsible:
+          from: section_body
+          after_heading: Responsible
+          required: true
+        rationale:
+          from: section_body
+          after_heading: Rationale
+          required: true
+        decision:
+          from: section_body
+          after_heading: Decision
+          required: true
+        decision_owner:
+          from: section_body
+          after_heading: Decision owner
+          required: true
+        approval_ref:
+          from: section_body
+          after_heading: Approval ref
+          required: true
+        expires_at:
+          from: section_body
+          after_heading: Expires at
+          required: false
+- name: threat_model
+  allowed_links:
+    scopes: [part, connection, data_sink, trust_boundary]
+    considers: [threat]
+  data_schema:
+    schema: schemas/ThreatModel.json
+  body_extraction:
+    yield_pattern:
+      match:
+        id: *id004
+        title: *id005
+        type: *id006
+        method:
+          from: frontmatter_field
+          path:
+          - method
+          required: true
+        reviewed_by:
+          from: frontmatter_field
+          path:
+          - reviewed_by
+          required: true
+        scope:
+          from: section_body
+          after_heading: Scope
+          required: true
+        assumptions:
+          from: section_body
+          after_heading: Assumptions
+          required: true
+        out_of_scope:
+          from: section_body
+          after_heading: Out of scope
+          required: true
+        properties:
+          from: section_body
+          after_heading: Properties
+          required: false
+- name: processing_activity
+  frontmatter_schema_ref: schemas/ProcessingActivityFrontmatter.json
+  allowed_links:
+    scopes: [connection, data_sink, part]
+  data_schema:
+    schema: schemas/ProcessingActivity.json
+  body_extraction:
+    yield_pattern:
+      match:
+        id: *id004
+        title: *id005
+        type: *id006
+        role:
+          from: frontmatter_field
+          path: [role]
+          required: true
+        controller:
+          from: frontmatter_field
+          path: [controller]
+          required: true
+        home_regions:
+          from: frontmatter_field
+          path: [home_regions]
+          required: true
+        processor:
+          from: frontmatter_field
+          path: [processor]
+          required: false
+        joint_controllers:
+          from: frontmatter_field
+          path: [joint_controllers]
+          required: false
+        representative:
+          from: frontmatter_field
+          path: [representative]
+          required: false
+        dpo_contact:
+          from: frontmatter_field
+          path: [dpo_contact]
+          required: false
+        purposes:
+          from: frontmatter_field
+          path: [purposes]
+          required: false
+        data_subject_categories:
+          from: frontmatter_field
+          path: [data_subject_categories]
+          required: false
+        retention:
+          from: frontmatter_field
+          path: [retention]
+          required: false
+
+# FR-043: concrete-term lexicon — security / identity / auth objects.
+# FR-058 (quire-rs): upward-trace completeness — the second half of
+# agent-ix/spec-objects-security#5. Declaration, not code: the engine holds no
+# archetype name, no verb and no direction.
+#
+# A threat nobody controls and a risk nobody treats are both perfectly
+# well-formed documents that pass every schema and grammar check, and both are
+# evidence of an unaddressed exposure. Nothing that reads a document on its own
+# can see it; only reading the edge set upward can.
+traceability:
+  flow_rules:
+  - name: health-across-untrusted-boundary
+    subject: [connection]
+    match:
+    - path:
+      - edge: carries
+        direction: outgoing
+        to: [data_classification]
+      field: regulated_categories
+      any_of: [health]
+    - path:
+      - edge: crosses
+        direction: outgoing
+        to: [trust_boundary]
+      field: trust_level
+      any_of: [untrusted, unknown]
+    unless_any:
+    - path:
+      - edge: protects
+        direction: incoming
+        to: [control]
+      field: safeguards
+      any_of: [encrypt-in-transit]
+    check: health-across-untrusted-boundary
+    rationale: Health data crossing an untrusted boundary needs an encrypt-in-transit safeguard.
+    remediations: [encrypt-in-transit]
+  - name: personal-across-untrusted-boundary
+    subject: [connection]
+    match:
+    - path:
+      - edge: carries
+        direction: outgoing
+        to: [data_classification]
+      field: regulated_categories
+      any_of: [personal]
+    - path:
+      - edge: crosses
+        direction: outgoing
+        to: [trust_boundary]
+      field: trust_level
+      any_of: [untrusted, unknown]
+    unless_any:
+    - path:
+      - edge: protects
+        direction: incoming
+        to: [control]
+      field: safeguards
+      any_of: [encrypt-in-transit]
+    check: personal-across-untrusted-boundary
+    rationale: Personal data crossing an untrusted boundary needs an encrypt-in-transit safeguard.
+    remediations: [encrypt-in-transit]
+  - name: regulated-data-to-uncovered-processor
+    subject: [data_sink]
+    match:
+    - any_path:
+      - - edge: delivers_to
+          direction: incoming
+          to: [connection]
+        - edge: carries
+          direction: outgoing
+          to: [data_classification]
+      - - edge: carries
+          direction: outgoing
+          to: [data_classification]
+      field: regulated_categories
+      any_of: [health, personal]
+    - path: []
+      field: processor_agreement
+      any_of: [not_covered, unknown]
+    unless_any:
+    - path:
+      - edge: protects
+        direction: incoming
+        to: [control]
+      field: safeguards
+      any_of: [anonymize]
+    - path: []
+      field: processor_agreement
+      any_of: [covered]
+    check: regulated-data-to-uncovered-processor
+    rationale: Health or personal data reaching a sink needs an agreement or anonymization safeguard.
+    remediations: [obtain-processor-agreement, anonymize]
+  - name: health-in-llm-prompt-or-tool-call
+    subject: [data_sink]
+    match:
+    - path: []
+      field: kind
+      any_of: [llm_prompt, tool_call]
+    - any_path:
+      - - edge: delivers_to
+          direction: incoming
+          to: [connection]
+        - edge: carries
+          direction: outgoing
+          to: [data_classification]
+      - - edge: carries
+          direction: outgoing
+          to: [data_classification]
+      field: regulated_categories
+      any_of: [health]
+    - path: []
+      field: processor_agreement
+      any_of: [not_covered, unknown]
+    unless_any:
+    - path:
+      - edge: protects
+        direction: incoming
+        to: [control]
+      field: safeguards
+      any_of: [anonymize, pseudonymize]
+    - path: []
+      field: processor_agreement
+      any_of: [covered]
+    check: health-in-llm-prompt-or-tool-call
+    rationale: Health data sent to a model prompt or tool call needs an agreement or privacy safeguard.
+    remediations: [obtain-processor-agreement, anonymize, pseudonymize]
+  - name: health-in-log
+    subject: [data_sink]
+    match:
+    - path: []
+      field: kind
+      any_of: [log]
+    - any_path:
+      - - edge: delivers_to
+          direction: incoming
+          to: [connection]
+        - edge: carries
+          direction: outgoing
+          to: [data_classification]
+      - - edge: carries
+          direction: outgoing
+          to: [data_classification]
+      field: regulated_categories
+      any_of: [health]
+    unless_any:
+    - path:
+      - edge: protects
+        direction: incoming
+        to: [control]
+      field: safeguards
+      any_of: [pseudonymize]
+    check: health-in-log
+    rationale: Health data reaching a log needs a pseudonymization safeguard.
+    remediations: [pseudonymize]
+  - name: health-display-unvalidated
+    subject: [data_sink]
+    match:
+    - path: []
+      field: kind
+      any_of: [ui_screen]
+    - any_path:
+      - - edge: delivers_to
+          direction: incoming
+          to: [connection]
+        - edge: carries
+          direction: outgoing
+          to: [data_classification]
+      - - edge: carries
+          direction: outgoing
+          to: [data_classification]
+      field: regulated_categories
+      any_of: [health]
+    unless_any:
+    - path:
+      - edge: protects
+        direction: incoming
+        to: [control]
+      field: safeguards
+      any_of: [validate-before-display]
+    check: health-display-unvalidated
+    rationale: Health data shown on a screen needs validation before display.
+    remediations: [validate-before-display]
+  - name: crossing-without-threat
+    subject: [connection]
+    match:
+    - path:
+      - edge: scopes
+        direction: incoming
+        to: [threat_model]
+      field: id
+      present: true
+    - path:
+      - edge: carries
+        direction: outgoing
+        to: [data_classification]
+      field: id
+      present: true
+    - path:
+      - edge: crosses
+        direction: outgoing
+        to: [trust_boundary]
+      field: id
+      present: true
+    unless_any:
+    - path:
+      - edge: threatens
+        direction: incoming
+        to: [threat]
+      field: id
+      present: true
+    check: crossing-without-threat
+    rationale: A scoped connection carrying classified data across a trust boundary needs a threat in its threat model.
+  - name: classified-sink-without-threat
+    subject: [data_sink]
+    match:
+    - path:
+      - edge: scopes
+        direction: incoming
+        to: [threat_model]
+      field: id
+      present: true
+    - any_path:
+      - - edge: delivers_to
+          direction: incoming
+          to: [connection]
+        - edge: carries
+          direction: outgoing
+          to: [data_classification]
+      - - edge: carries
+          direction: outgoing
+          to: [data_classification]
+      field: id
+      present: true
+    unless_any:
+    - path:
+      - edge: threatens
+        direction: incoming
+        to: [threat]
+      field: id
+      present: true
+    check: classified-sink-without-threat
+    rationale: A scoped sink receiving classified data needs a threat in its threat model.
+  - name: threat-without-treatment
+    subject: [threat]
+    match:
+    - path:
+      - edge: considers
+        direction: incoming
+        to: [threat_model]
+      field: id
+      present: true
+    unless_any:
+    - path:
+      - edge: mitigates
+        direction: incoming
+        to: [control]
+      field: id
+      present: true
+    - path:
+      - edge: arises_from
+        direction: incoming
+        to: [risk]
+      field: decision
+      any_of: [accepted]
+    check: threat-without-treatment
+    rationale: A threat considered in a threat model needs a mitigating control or an explicitly accepted risk.
+  # FR-207 consumes model facts only through quire.flow-report/v1. These
+  # no-finding selectors make the authored dossier fields and scope edges
+  # part of that report without assigning them a security judgement.
+  - name: dossier-processing-activity-scope-facts
+    subject: [processing_activity]
+    match:
+    - path:
+      - edge: scopes
+        direction: outgoing
+        to: [connection, data_sink, part]
+      field: id
+      present: true
+    unless_any:
+    - path: []
+      field: id
+      present: true
+    check: dossier-processing-activity-scope-facts
+    rationale: The records-of-processing dossier reads the activity's authored scope edges from the flow report.
+  - name: dossier-processing-activity-core-facts
+    subject: [processing_activity]
+    match:
+    - path: []
+      field: role
+      present: true
+    - path: []
+      field: controller
+      present: true
+    - path: []
+      field: home_regions
+      present: true
+    unless_any:
+    - path: []
+      field: id
+      present: true
+    check: dossier-processing-activity-core-facts
+    rationale: The records-of-processing dossier reports the activity's authored role, controller and home regions.
+  - name: dossier-processing-activity-processor-facts
+    subject: [processing_activity]
+    match:
+    - path: []
+      field: processor
+      present: true
+    unless_any:
+    - path: []
+      field: id
+      present: true
+    check: dossier-processing-activity-processor-facts
+    rationale: The records-of-processing dossier reports an authored processor contact when present.
+  - name: dossier-processing-activity-joint-controller-facts
+    subject: [processing_activity]
+    match:
+    - path: []
+      field: joint_controllers
+      present: true
+    unless_any:
+    - path: []
+      field: id
+      present: true
+    check: dossier-processing-activity-joint-controller-facts
+    rationale: The records-of-processing dossier reports authored joint controllers when present.
+  - name: dossier-processing-activity-representative-facts
+    subject: [processing_activity]
+    match:
+    - path: []
+      field: representative
+      present: true
+    unless_any:
+    - path: []
+      field: id
+      present: true
+    check: dossier-processing-activity-representative-facts
+    rationale: The records-of-processing dossier reports an authored representative when present.
+  - name: dossier-processing-activity-dpo-facts
+    subject: [processing_activity]
+    match:
+    - path: []
+      field: dpo_contact
+      present: true
+    unless_any:
+    - path: []
+      field: id
+      present: true
+    check: dossier-processing-activity-dpo-facts
+    rationale: The records-of-processing dossier reports an authored DPO contact when present.
+  - name: dossier-processing-activity-purpose-facts
+    subject: [processing_activity]
+    match:
+    - path: []
+      field: purposes
+      present: true
+    unless_any:
+    - path: []
+      field: id
+      present: true
+    check: dossier-processing-activity-purpose-facts
+    rationale: The records-of-processing dossier reports authored purposes when present.
+  - name: dossier-processing-activity-data-subject-facts
+    subject: [processing_activity]
+    match:
+    - path: []
+      field: data_subject_categories
+      present: true
+    unless_any:
+    - path: []
+      field: id
+      present: true
+    check: dossier-processing-activity-data-subject-facts
+    rationale: The records-of-processing dossier reports authored data-subject categories when present.
+  - name: dossier-processing-activity-retention-facts
+    subject: [processing_activity]
+    match:
+    - path: []
+      field: retention
+      present: true
+    unless_any:
+    - path: []
+      field: id
+      present: true
+    check: dossier-processing-activity-retention-facts
+    rationale: The records-of-processing dossier reports authored retention when present.
+  - name: dossier-data-sink-facts
+    subject: [data_sink]
+    match:
+    - path: []
+      field: processor
+      present: true
+    - path: []
+      field: audience_roles
+      present: true
+    - path: []
+      field: region
+      present: true
+    - path: []
+      field: purpose
+      present: true
+    unless_any:
+    - path: []
+      field: id
+      present: true
+    check: dossier-data-sink-facts
+    rationale: The records-of-processing dossier reports authored recipient and location context from the flow report.
+  - name: dossier-classification-title-facts
+    subject: [data_classification]
+    match:
+    - path: []
+      field: title
+      present: true
+    unless_any:
+    - path: []
+      field: id
+      present: true
+    check: dossier-classification-title-facts
+    rationale: The records-of-processing dossier names classifications by their authored title from the flow report.
+  - name: dossier-part-delivery-facts
+    subject: [part]
+    match:
+    - path:
+      - edge: delivers_to
+        direction: outgoing
+        to: [data_sink]
+      field: id
+      present: true
+    unless_any:
+    - path: []
+      field: id
+      present: true
+    check: dossier-part-delivery-facts
+    rationale: The records-of-processing dossier follows authored part delivery edges through the flow report.
+  required_relations:
+  # The same statement about the scored artefact rather than the mechanism: a
+  # risk with no treatment was assessed and then dropped.
+  - name: risk-has-treatment
+    from: risk
+    where: {field: decision, values: [undecided, not_accepted]}
+    edges: [mitigates]
+    to: []
+    direction: incoming
+    check: untreated-risk
+  - name: processing-activity-scopes-nothing
+    from: processing_activity
+    edges: [scopes]
+    to: [connection, data_sink, part]
+    direction: outgoing
+    check: processing-activity-scopes-nothing
+  # `direction: incoming` throughout, because the mitigation is authored from
+  # the control's or requirement's end — a control says what it mitigates. A
+  # threat listing its own controls would duplicate the fact and let the two
+  # drift.
+  #
+  # DELIBERATELY NOT DECLARED: `vulnerability`. #5 names "threat/hazard/risk"
+  # and a vulnerability is a property of an implementation rather than a thing
+  # the specification owes a response to. Adding it would widen the ticket.
+  #
+  # The reverse direction (PLAT-1477): a security-classified requirement owes
+  # an upstream exposure it answers, else it is unjustified scope. The
+  # classification is the `quality_attribute` frontmatter field spec-artifacts-iso
+  # already declares on `NFR`; `where` (quire-rs FR-058) narrows the obligation to
+  # NFRs holding `security`, so a performance NFR is never reported. The NFR
+  # authors the edge, so `direction: outgoing`. The threat or risk an NFR
+  # answers often lives in another repository; loading that repository into
+  # the corpus resolves the constrained `to` (FR-085).
+  - name: security-nfr-has-mitigation-target
+    from: NFR
+    where: {field: quality_attribute, values: [security]}
+    edges: [mitigates]
+    to: [threat, risk]
+    direction: outgoing
+    check: unjustified-security-nfr
+  # A component that serves no requirement is unjustified scope (PLAT-1598).
+  # The `serves` frontmatter list is the single authored source; the engine
+  # harvests each ix:// value in it as a `references` edge, which this rule reads
+  # (a manifest cannot bind a list field to a typed verb). Reviewer-authored;
+  # promotion never writes it. A cross-repository target satisfies the
+  # constrained `to` once the repositories are loaded together.
+  - name: soup-record-serves-requirement
+    from: soup_record
+    edges: [references]
+    to: [FR, NFR, StR]
+    direction: outgoing
+    check: soup-serves-no-requirement
+  # FR-030: a requirement a SOUP record references is asked for the requirements
+  # placed on that SOUP item. `from` is the requirement, not the record, so a
+  # class policy that reads design relations per requirement gets a row. The
+  # statement is authored by a person on an FR or NFR with `soup_requirement_for`
+  # toward the served requirement, or by the served requirement as the inverse.
+  # `when_any` (quire-rs FR-058) scopes the rows to requirements a resolved
+  # soup_record references; elsewhere the relation yields no row and no finding.
+  - name: fr-has-soup-requirements
+    from: FR
+    edges: [soup_requirement_for]
+    to: [FR, NFR]
+    direction: incoming
+    check: fr-without-soup-requirements
+    when_any:
+    - {verb: references, direction: incoming, other: [soup_record]}
+  - name: nfr-has-soup-requirements
+    from: NFR
+    edges: [soup_requirement_for]
+    to: [FR, NFR]
+    direction: incoming
+    check: nfr-without-soup-requirements
+    when_any:
+    - {verb: references, direction: incoming, other: [soup_record]}
+  - name: threat-model-scopes-something
+    from: threat_model
+    edges: [scopes]
+    to: []
+    direction: outgoing
+    check: threat-model-scopes-nothing
+  remediations:
+  - name: encrypt-in-transit
+    description: Add a control with this safeguard protecting the affected connection.
+    adds: {edge: protects, direction: incoming, from: control, field: safeguards, value: encrypt-in-transit}
+  - name: encrypt-at-rest
+    description: Add a control with this safeguard protecting the affected sink.
+    adds: {edge: protects, direction: incoming, from: control, field: safeguards, value: encrypt-at-rest}
+  - name: anonymize
+    description: Add a control with this safeguard protecting the affected connection or sink.
+    adds: {edge: protects, direction: incoming, from: control, field: safeguards, value: anonymize}
+  - name: pseudonymize
+    description: Add a control with this safeguard protecting the affected connection or sink.
+    adds: {edge: protects, direction: incoming, from: control, field: safeguards, value: pseudonymize}
+  - name: obtain-consent
+    description: Add a control with this safeguard protecting the affected connection or sink.
+    adds: {edge: protects, direction: incoming, from: control, field: safeguards, value: obtain-consent}
+  - name: restrict-region
+    description: Add a control with this safeguard protecting the affected connection or sink.
+    adds: {edge: protects, direction: incoming, from: control, field: safeguards, value: restrict-region}
+  - name: validate-before-display
+    description: Add a control with this safeguard protecting the affected connection or sink.
+    adds: {edge: protects, direction: incoming, from: control, field: safeguards, value: validate-before-display}
+  - name: obtain-processor-agreement
+    description: Set the affected sink's processor_agreement field to covered.
+    sets: {field: processor_agreement, value: covered}
+  - name: remove-from-sink
+    description: Remove the connection's delivers_to relationship to this sink when it is the first path step.
+    removes: {edge: delivers_to, direction: incoming}
+  # FR-030 names the two SOUP-requirement relations as design relations so the
+  # design join, `quire matrix --strict` and quoin's `soup-requirements` kind read
+  # them. FR-013's `soup-record-serves-requirement` is deliberately not listed.
+  design_relations: [fr-has-soup-requirements, nfr-has-soup-requirements]
+  #
+  # A risk that transitively arises from itself states nothing, and no
+  # per-document check can see it: the defect is a property of the graph.
+  acyclic_edges:
+  - arises_from
+
+lexicon:
+  token: {definition: a bearer credential representing identity or grant}
+  secret: {definition: "a confidential value (key, password) kept out of code"}
+  scope: {definition: a named permission boundary on a grant}
+  claim: {definition: an assertion carried in a token}
+  permission: {definition: an allowed action on a resource}
+  credential: {definition: data proving an identity}
+  certificate: {definition: a signed binding of identity to a public key}
+  signature: {definition: a cryptographic proof of integrity/origin}
+  principal: {definition: an authenticated identity (user/service)}
+  keypair: {definition: a public/private cryptographic key pair}
+  nonce: {definition: a single-use value preventing replay}
+  hash: {definition: a fixed-size digest of input}
+  cipher: {definition: an encryption/decryption algorithm}
+  audit: {definition: "a recorded, tamper-evident event trail"}
+  policy: {definition: a declarative rule governing access or behavior}

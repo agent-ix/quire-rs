@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-objects-operational/ScopeAssignment.json",
+  "type": "object",
+  "properties": {
+    "parameter": {
+      "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/Identifier.json"
+    },
+    "scope": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-operational/ConfigurationScope.json"
+    }
+  },
+  "required": [
+    "parameter",
+    "scope"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "One parameter's scope.\n\nReader rule JSON Schema cannot express (FR-004): `parameter` names a\n`fields[].name` of the same record. It is stated for the extractor that\nfirst populates `scopes` (agent-ix/quoin#335) and is not claimed as a\nschema refusal."
+}

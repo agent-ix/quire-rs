@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/ProcessingRole.json",
+  "type": "string",
+  "enum": [
+    "controller",
+    "processor"
+  ],
+  "description": "The role this activity plays for the processing it describes."
+}

@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-objects-enterprise/MeasureDecl.json",
+  "type": "object",
+  "properties": {
+    "name": {
+      "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/Identifier.json"
+    },
+    "unit": {
+      "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/UnitSymbol.json"
+    },
+    "aggregation": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-enterprise/AggregationKind.json"
+    },
+    "direction": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-enterprise/Direction.json"
+    },
+    "window": {
+      "type": "string"
+    },
+    "doc": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "name",
+    "unit",
+    "aggregation",
+    "direction"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "The definition of a measure: what is measured, in which unit, how it\naggregates, and which way is better. It carries no value and no instant —\nthose belong to an observation, which this module does not type."
+}

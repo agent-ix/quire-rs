@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/IdentityField.json",
+  "type": "object",
+  "properties": {
+    "identity": {
+      "type": "boolean",
+      "const": true
+    }
+  },
+  "required": [
+    "identity"
+  ],
+  "description": "A `FieldDecl` flagged as identity."
+}

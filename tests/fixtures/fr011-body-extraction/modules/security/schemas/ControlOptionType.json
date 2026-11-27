@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/ControlOptionType.json",
+  "type": "string",
+  "enum": [
+    "design",
+    "protective",
+    "information"
+  ],
+  "description": "Risk-control option a person states for a control, in priority order."
+}
