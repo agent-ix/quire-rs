@@ -945,3 +945,36 @@ def test_extract_core_data_is_alias_and_deterministic():
     a = quire.extract_core_data(inp)
     b = quire.extract_filament_core(inp)
     assert json.dumps(a, sort_keys=True) == json.dumps(b, sort_keys=True)
+
+
+@pytest.mark.trace("NFR-016-AC-4")
+def test_binding_returns_materialized_values_without_python_json_reparse(monkeypatch):
+    """Parsed and extraction results arrive as native Python values without json.loads."""
+    import json
+
+    def reject_python_json_reparse(*_args, **_kwargs):
+        pytest.fail("the binding must return materialized values, not JSON for Python to parse")
+
+    monkeypatch.setattr(json, "loads", reject_python_json_reparse)
+
+    document = quire.parse_document("---\nid: FR-001\ntype: FR\n---\n# Requirement\n")
+    assert type(document) is dict
+    assert type(document["frontmatter"]) is dict
+    assert type(document["sections"]) is list
+    assert type(document["sections"][0]) is dict
+
+    core = quire.extract_filament_core(
+        _filament_input(
+            "---\nid: FR-001\ntitle: Requirement\nobject: capability\n"
+            "depends_on: FR-002\n---\n# Requirement\n"
+        )
+    )
+    assert type(core) is dict
+    assert type(core["objectTypes"]) is list
+    assert type(core["objectTypes"][0]) is dict
+    assert type(core["nodes"]) is list
+    assert type(core["nodes"][0]) is dict
+    assert type(core["nodes"][0]["dataJson"]) is str
+    assert type(core["edges"]) is list
+    assert type(core["edges"][0]) is dict
+    assert type(core["edges"][0]["targetRef"]) is str
