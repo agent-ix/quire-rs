@@ -11,7 +11,10 @@ use std::path::{Path, PathBuf};
 
 use ix_trace_rs::trace;
 use quire_rs::grammar::{GrammarSeverityLevel, GrammarSeverityMap};
-use quire_rs::{validate_bundle_at, BundleFinding, BundlePosture, BundleReport, Registry};
+use quire_rs::{
+    parse_document, validate_bundle, validate_bundle_at, BundleFinding, BundlePosture, BundleReport,
+    CorpusMember, LoadedDocument, Registry, RepoLoad, Spec,
+};
 
 fn fixture_module(name: &str) -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -73,36 +76,59 @@ fn findings<'r>(report: &'r BundleReport, reason: &str) -> Vec<&'r BundleFinding
 #[test]
 fn tc911_upward_findings_are_ordered_by_document_then_id_and_repeat() {
     let root = tmpdir("911_order");
-    // Reverse the ids relative to the document paths so this catches an
-    // id-first traversal as well as unstable discovery order.
-    write(&root, "a.md", &fr("FR-002", None));
-    write(&root, "z.md", &fr("FR-001", None));
-
-    let first = validate(&root, None);
-    let second = validate(&root, None);
+    // Two loaded artifacts share the same document path, forcing the id
+    // tie-break to determine their order.
+    let shared_path = root.join("shared.md");
+    let documents = ["FR-002", "FR-001"]
+        .into_iter()
+        .map(|id| {
+            LoadedDocument::from_parsed(
+                shared_path.clone(),
+                id.to_string(),
+                None,
+                parse_document(&fr(id, None)),
+            )
+        })
+        .collect();
+    let spec = Spec::from_members(vec![CorpusMember {
+        identity: None,
+        load: RepoLoad {
+            documents,
+            diagnostics: Vec::new(),
+        },
+    }])
+    .expect("build one-member test corpus");
+    let registry = Registry::load_module(&fixture_module("required-relations"))
+        .expect("load required-relations fixture");
+    let first = validate_bundle(&spec, &registry, BundlePosture::Okf, &root, &root);
+    let second = validate_bundle(&spec, &registry, BundlePosture::Okf, &root, &root);
     let first_hits = findings(&first, "orphan-fr");
     let second_hits = findings(&second, "orphan-fr");
 
     assert_eq!(first_hits, second_hits, "findings changed across runs");
     assert_eq!(first_hits.len(), 2, "both orphan requirements are reported");
+    let ordered = first_hits
+        .iter()
+        .map(|finding| {
+            (
+                finding.path.clone(),
+                if finding.message.contains("'FR-002'") {
+                    "FR-002"
+                } else if finding.message.contains("'FR-001'") {
+                    "FR-001"
+                } else {
+                    "missing-id"
+                },
+            )
+        })
+        .collect::<Vec<_>>();
     assert_eq!(
-        first_hits
-            .iter()
-            .map(|finding| {
-                (
-                    finding.path.file_name().unwrap().to_string_lossy().to_string(),
-                    if finding.message.contains("'FR-002'") {
-                        "FR-002"
-                    } else if finding.message.contains("'FR-001'") {
-                        "FR-001"
-                    } else {
-                        "missing-id"
-                    },
-                )
-            })
-            .collect::<Vec<_>>(),
-        [("a.md".to_string(), "FR-002"), ("z.md".to_string(), "FR-001")],
-        "findings sort by document path before artifact id"
+        ordered,
+        [
+            (shared_path.clone(), "FR-001"),
+            (shared_path, "FR-002")
+        ],
+        "findings sharing a document sort by artifact id"
     );
     fs::remove_dir_all(&root).ok();
 }
