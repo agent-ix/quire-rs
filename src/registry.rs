@@ -835,7 +835,7 @@ mod tests {
         p
     }
 
-    #[trace("FR-020-AC-2")]
+    #[trace("FR-020-AC-2", "FR-020-CON-1")]
     // block type is an alias over the archetype registry.
     //
     // Written when FR-020 was authored (CR-042): the row had been ✅ since v0.2
