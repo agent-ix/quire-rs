@@ -245,7 +245,7 @@ fn subdir_index_does_not_require_okf_version() {
 
 /// A mistyped optional `description` is caught by the base concept contract
 /// under Strict.
-#[trace("FR-038-AC-7")]
+#[trace("FR-038-AC-8")]
 // the base-concept contract still applies to a known type.
 #[test]
 fn strict_rejects_mistyped_description() {
