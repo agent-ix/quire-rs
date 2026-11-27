@@ -138,9 +138,35 @@ jobs:
           path: dist/*.whl
           if-no-files-found: error
 
+  abi3-smoke:
+    name: abi3 import (Python ${{ matrix.python-version }})
+    needs: build
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12", "3.13"]
+    steps:
+      - name: Download the built Linux abi3 wheel
+        uses: actions/download-artifact@v4
+        with:
+          name: wheels-x86_64-unknown-linux-gnu
+          path: dist
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install the built wheel
+        run: python -m pip install --no-index --find-links dist quire
+
+      - name: Smoke-import quire
+        run: python -c "import quire; print('import ok:', quire.__name__)"
+
   publish:
     name: publish → internal AgentIX PyPI (GCP)
-    needs: build
+    needs: [build, abi3-smoke]
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish }}
     runs-on: ubuntu-24.04
     steps:
