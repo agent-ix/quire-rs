@@ -635,6 +635,13 @@ def write_reports(
 # implements: FR-066-AC-7, FR-066-AC-8
 def run(args: argparse.Namespace) -> dict:
     root = pathlib.Path(args.root).expanduser().resolve()
+    enumerated = repos(root)
+    if len(enumerated) != 1:
+        raise CensusError(
+            "bounded census root must enumerate exactly one repository; "
+            f"found {len(enumerated)}"
+        )
+
     module = pathlib.Path(args.module).expanduser().resolve()
     targets = read_targets(module)
     if not targets:
@@ -646,7 +653,6 @@ def run(args: argparse.Namespace) -> dict:
     except Drift as error:
         raise CensusError(str(error)) from error
 
-    enumerated = repos(root)
     exclusions = sorted(set(args.exclude))
     selected = [repo for repo in enumerated if repo.name not in exclusions]
     repo_rows = []

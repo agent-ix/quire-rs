@@ -125,9 +125,11 @@ compatibility change in its owning repository.
 | FR-066-AC-11 | The relationship to `structural-coverage.md` is recorded without changing the owning module's disposition enum. | Inspection |
 
 > **Bounded-scan clarification (2026-11-27):** A census invocation measures
-> repositories one at a time. Its worked examples are therefore selected from
-> the measured repository rows; aggregate reporting may combine already
-> measured per-repository reports without widening a scan's scope.
+> exactly one repository. The CLI SHALL reject an explicit root that
+> enumerates zero or multiple repositories before it builds the consumer or
+> reads coverage data. Its worked examples are therefore selected from the
+> measured repository rows; aggregate reporting may combine already measured
+> per-repository reports without widening a scan's scope.
 
 ## Dependencies
 

@@ -17,7 +17,9 @@ from gap_census import (  # noqa: E402
     aggregate,
     classify_repo,
     engine_capabilities,
+    parse_args,
     render_markdown,
+    run,
     scan_rows,
     write_reports,
 )
@@ -376,6 +378,38 @@ def test_tc1069_reports_are_provenanced_and_byte_stable(tmp_path):
         "deduplicated authored obligation row",
     ):
         assert token in markdown
+
+
+@pytest.mark.trace("FR-066-AC-8")
+def test_tc1069_rejects_multi_repository_scope_before_building_consumer(
+    tmp_path, monkeypatch
+):
+    """One invocation refuses multiple repositories before consumer work starts."""
+    root = tmp_path / "corpus"
+    for name in ("first", "second"):
+        (root / name / "spec").mkdir(parents=True)
+
+    module = tmp_path / "module"
+    module.mkdir()
+    (module / "manifest.yaml").write_text(
+        "traceability:\n"
+        "  trace_targets:\n"
+        "    - name: test-case\n"
+        "      archetype: TestMatrix\n"
+        "      section: Test Case Summary\n"
+        "      id_column: Test ID\n",
+        encoding="utf-8",
+    )
+
+    def engine_must_not_be_built(*_args, **_kwargs):
+        pytest.fail("consumer engine was built before scope validation")
+
+    monkeypatch.setattr("gap_census.build_engine", engine_must_not_be_built)
+    args = parse_args(
+        ["--root", str(root), "--module", str(module), "--consumer", str(tmp_path)]
+    )
+    with pytest.raises(CensusError, match="exactly one repository"):
+        run(args)
 
 
 @pytest.mark.trace("FR-066-AC-10")
