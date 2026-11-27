@@ -68,10 +68,16 @@ Every check SHALL run independently. Every finding SHALL carry
 
 ## Constraints
 
+> **CR-074 (verification boundary):** Plain-language thresholds are fields of a
+> named `PlainLanguageProfile`. `Registry` exposes named-profile lookup only,
+> and every check API requires an explicit profile. The absence of a global
+> threshold is therefore an API/data-flow boundary verified by inspecting
+> those types and signatures, rather than by a runtime result.
+
 | ID | Constraint | Type | Validation |
 |----|------------|------|------------|
 | FR-074-CON-1 | Plain-language checks SHALL NOT change structural validation, requirement grammar, extraction, coverage, or writeback results. | Architecture | Test |
-| FR-074-CON-2 | The engine SHALL carry no default profile and no global threshold. A missing profile means the caller has asked no plain-language question. | Architecture | Test |
+| FR-074-CON-2 | The engine SHALL carry no default profile and no global threshold. A missing profile means the caller has asked no plain-language question. | Architecture | Inspection |
 | FR-074-CON-4 | Findings SHALL remain advisory until a separately recorded corpus study establishes precision and a user approves promotion outside this engine surface. | Process | Inspection |
 | FR-074-CON-5 | Rule ids and public feature names SHALL use project-owned names that make no external-standard conformance claim. | Licensing | Inspection |
 
