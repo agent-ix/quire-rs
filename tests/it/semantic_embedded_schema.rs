@@ -11,7 +11,9 @@ use quire_rs::{apply_patch, QuireError, Registry};
 fn surfaced_schema_accepts_valid_tool_arguments_and_reports_retry_path() {
     let module = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/modules/demo");
     let registry = Registry::load_module(&module).expect("load the tool schema fixture");
-    let schema = registry.schema_for("demo-item").expect("schema is surfaced");
+    let schema = registry
+        .schema_for("demo-item")
+        .expect("schema is surfaced");
     let tool_arguments = json!({"id": "DEMO-2", "title": "Created by the agent"});
     let tool_schema = jsonschema::options()
         .build(schema)
@@ -28,7 +30,8 @@ fn surfaced_schema_accepts_valid_tool_arguments_and_reports_retry_path() {
 
     let invalid = json!({"id": "DEMO-3", "title": ""});
     assert!(!tool_schema.is_valid(&invalid));
-    let error = apply_patch(archetype, &json!({}), &invalid).expect_err("invalid arguments refused");
+    let error =
+        apply_patch(archetype, &json!({}), &invalid).expect_err("invalid arguments refused");
     assert!(
         matches!(error, QuireError::SchemaViolation { field_path, .. } if field_path == "title"),
         "the retryable violation must identify the field: {error}"
