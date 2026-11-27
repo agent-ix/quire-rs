@@ -143,6 +143,57 @@ fn corpus_cases_hold() {
     );
 }
 
+#[trace("FR-065-AC-2")]
+#[test]
+fn tc1059_mutating_a_case_copy_preserves_checked_in_input_bytes() {
+    fn snapshot(root: &std::path::Path) -> BTreeMap<std::path::PathBuf, Vec<u8>> {
+        fn visit(
+            root: &std::path::Path,
+            current: &std::path::Path,
+            files: &mut BTreeMap<std::path::PathBuf, Vec<u8>>,
+        ) {
+            for entry in std::fs::read_dir(current).expect("read input tree").flatten() {
+                let path = entry.path();
+                if path.is_dir() {
+                    visit(root, &path, files);
+                } else {
+                    files.insert(
+                        path.strip_prefix(root).expect("path under input root").to_path_buf(),
+                        std::fs::read(path).expect("read input file"),
+                    );
+                }
+            }
+        }
+
+        let mut files = BTreeMap::new();
+        visit(root, root, &mut files);
+        files
+    }
+
+    let case = load_cases()
+        .into_iter()
+        .find(|case| case.meta.kind == "failure" && case.dir.join("input").is_dir())
+        .expect("a failure case with an input tree exists");
+    let checked_in_input = case.dir.join("input");
+    let before = snapshot(&checked_in_input);
+    assert!(!before.is_empty(), "the selected input tree has no files");
+
+    let scratch = scratch_dir("tc1059", 0);
+    copy_tree(&case.dir, &scratch);
+    let copied_input = scratch.join("input");
+    let changed_file = before
+        .keys()
+        .next()
+        .map(|relative| copied_input.join(relative))
+        .expect("the input snapshot has a file");
+    let mut changed = std::fs::read(&changed_file).expect("read copied file");
+    changed.extend_from_slice(b"\nmutation in scratch copy\n");
+    std::fs::write(&changed_file, changed).expect("mutate copied file");
+
+    assert_eq!(snapshot(&checked_in_input), before, "checked-in input changed");
+    assert_ne!(snapshot(&copied_input), before, "the scratch mutation did not apply");
+}
+
 #[trace("FR-065-AC-11")]
 // a failing case names the level it lost, and the
 // deepest level it reached. Driven by MUTATING a real case's expectation
