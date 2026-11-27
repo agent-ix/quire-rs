@@ -204,6 +204,7 @@ fn tc_2233_oidc_attestation_consumes_artifact_without_running_checkout_code() {
         attest["with"]["evidence_artifact"].as_str(),
         Some("${{ inputs.evidence_artifact_name || 'release-evidence' }}")
     );
+    assert_eq!(attest["with"]["quoin_tooling_tag"].as_str(), Some("0.36.10"));
     assert_eq!(attest["permissions"]["id-token"].as_str(), Some("write"));
     assert!(
         attest["steps"].is_null(),
@@ -1236,5 +1237,6 @@ fn tc_2247_adoption_how_to_calls_pinned_workflow_for_generated_release_evidence(
     assert!(how_to.contains("run_wheels: false"));
     assert!(how_to.contains("release_artifact_name:"));
     assert!(how_to.contains("evidence_artifact_name:"));
+    assert!(how_to.contains("quoin_tooling_tag: 0.36.10"));
     assert!(!how_to.contains("copy .github/workflows/tag-attestation.yml"));
 }
