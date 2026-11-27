@@ -21,6 +21,7 @@
 
 use ix_trace_rs::implements;
 use std::collections::{BTreeMap, BTreeSet};
+use std::sync::Arc;
 
 use jsonschema::error::ValidationErrorKind;
 use serde_json::{Map, Value};
@@ -423,8 +424,20 @@ fn semantic_findings(
     warnings: &mut Vec<ValidationWarning>,
 ) {
     use crate::semantic::SemanticSeverity;
-    let (ctx, required) = semantic_context(registry, arch, module, bundle_package, bundle_index);
-    let record = crate::semantic::extract_semantic(doc_text, &ctx, &required);
+    let built;
+    let cached = if bundle_package.is_none() && bundle_index.is_none() {
+        registry.semantic_validation_context(&arch.name)
+    } else {
+        None
+    };
+    let (ctx, required) = match cached {
+        Some(cached) => (&cached.context, &cached.required),
+        None => {
+            built = semantic_context(registry, arch, module, bundle_package, bundle_index);
+            (&built.0, &built.1)
+        }
+    };
+    let record = crate::semantic::extract_semantic(doc_text, ctx, required);
     for d in &record.diagnostics {
         let message = format!("{}: {}", d.code, d.message);
         match d.severity {
@@ -474,7 +487,7 @@ fn semantic_findings(
                                     "semantic.record-invalid: declaration record fails the resolved data schema at {path}: {}",
                                     detail.message
                                 ),
-                                finding_line(&ctx, &record, doc_text, &path),
+                                    finding_line(ctx, &record, doc_text, &path),
                             ));
                         }
                     } else if first_other.is_none() {
@@ -483,7 +496,7 @@ fn semantic_findings(
                                 "semantic.record-invalid: declaration record fails the resolved data schema at {}: {}",
                                 detail.path, detail.message
                             ),
-                            finding_line(&ctx, &record, doc_text, &detail.path),
+                                finding_line(ctx, &record, doc_text, &detail.path),
                         ));
                     }
                 }
@@ -516,6 +529,10 @@ fn semantic_context(
     crate::semantic::SemanticContext,
     crate::semantic::RequiredSections,
 ) {
+    #[cfg(test)]
+    SEMANTIC_CONTEXT_BUILDS.with(|builds| {
+        *builds.borrow_mut().entry(arch.name.clone()).or_default() += 1;
+    });
     use crate::semantic::{
         BundleIndex, ConstructReferences, RelationVocabulary, RequiredSections, SemanticContext,
     };
@@ -563,6 +580,36 @@ fn semantic_context(
         .map(RequiredSections::from_extraction)
         .unwrap_or_default();
     (ctx, required)
+}
+
+pub(crate) struct SemanticValidationContext {
+    context: crate::semantic::SemanticContext,
+    required: crate::semantic::RequiredSections,
+}
+
+/// Build each registry-backed semantic extraction context once, after the
+/// immutable registry has been assembled. The contexts used by ordinary
+/// document validation have no bundle-specific inputs and are shared safely
+/// across every document validated by that registry.
+pub(crate) fn build_semantic_validation_contexts(
+    registry: &crate::Registry,
+) -> BTreeMap<String, Arc<SemanticValidationContext>> {
+    registry
+        .active_archetypes()
+        .filter_map(|arch| {
+            let module = registry.semantic_module(&arch.module)?;
+            let (context, required) = semantic_context(registry, arch, module, None, None);
+            Some((
+                arch.name.clone(),
+                Arc::new(SemanticValidationContext { context, required }),
+            ))
+        })
+        .collect()
+}
+
+#[cfg(test)]
+thread_local! {
+    static SEMANTIC_CONTEXT_BUILDS: std::cell::RefCell<BTreeMap<String, usize>> = const { std::cell::RefCell::new(BTreeMap::new()) };
 }
 
 /// The composed, validated semantic record of one document (FR-084 "Carried
@@ -2060,6 +2107,56 @@ object_types:
         assert!(r.archetype("FR").is_some(), "FR archetype loaded");
         assert!(r.archetype("process").is_some(), "process archetype loaded");
         r
+    }
+
+    fn semantic_context_registry() -> crate::Registry {
+        let manifest = br#"
+name: semantic-context-cache-test
+artifact_types:
+- name: Doc
+  frontmatter_schema_ref: schemas/Doc.json
+object_types:
+- name: Thing
+  data_schema:
+    schema: schemas/Thing.json
+semantic:
+  contract_version: 1.0.0
+  package: agent-ix/context-cache-test
+  exports: [Thing]
+  targets: [json-schema, markdown]
+"#;
+        let schemas = BTreeMap::from([
+            (
+                "schemas/Doc.json".to_string(),
+                r#"{"type":"object","required":["id","title"],"properties":{"id":{"type":"string"},"title":{"type":"string"}}}"#.to_string(),
+            ),
+            (
+                "schemas/Thing.json".to_string(),
+                r#"{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","additionalProperties":false}"#.to_string(),
+            ),
+        ]);
+        let registry =
+            crate::Registry::from_inline_parts(manifest, &schemas).expect("semantic registry");
+        assert!(registry.failures().is_empty(), "{:?}", registry.failures());
+        registry
+    }
+
+    #[trace("NFR-002-AC-4")]
+    #[test]
+    fn repeated_semantic_validation_builds_context_once_per_registry() {
+        SEMANTIC_CONTEXT_BUILDS.with(|builds| builds.borrow_mut().clear());
+        let registry = semantic_context_registry();
+        let arch = registry.archetype("Doc").expect("Doc archetype");
+        for index in 0..50 {
+            let document = format!(
+                "---\nid: TH-{index:03}\ntitle: Thing {index}\ntype: Doc\nobject: Thing\n---\n# Thing {index}\n"
+            );
+            let result = validate_document_in_registry(&registry, arch, &document);
+            assert!(result.is_valid, "{:?}", result.errors);
+        }
+        let builds = SEMANTIC_CONTEXT_BUILDS
+            .with(|builds| builds.borrow().get("Thing").copied().unwrap_or_default());
+        assert_eq!(builds, 1, "one semantic context build for 50 documents");
     }
 
     #[trace("FR-032-AC-11", "FR-032-AC-13")]

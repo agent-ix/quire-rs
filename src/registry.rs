@@ -23,11 +23,19 @@ use crate::loader::{
     flatten_into_registry, flatten_into_registry_strict, load_modules, RegistryShape,
 };
 
-/// Compiled, immutable archetype registry. `Send + Sync` and cheap to
-/// clone (`Arc<Inner>`).
+/// Compiled, immutable archetype registry. `Send + Sync` and cheap to clone;
+/// its loaded module data and semantic validation contexts are Arc-backed.
 #[derive(Clone)]
 pub struct Registry {
     inner: Arc<Inner>,
+    /// Semantic extraction inputs are fixed by the immutable registry and
+    /// reused by every document validated against it.
+    semantic_validation_contexts: Arc<
+        std::collections::BTreeMap<
+            String,
+            Arc<crate::validate_document::SemanticValidationContext>,
+        >,
+    >,
     /// A surface-supplied `grammar_severity` map layered over the
     /// module-declared one (FR-048-AC-5, `--severity`). Held beside `Arc<Inner>`
     /// rather than inside it so a registry stays cheap to clone and `Inner`
@@ -354,7 +362,7 @@ impl Registry {
         let archetypes = crate::loader::vocabulary_refs::resolve_vocabularies(archetypes, &lookup);
         let by_module_and_name =
             crate::loader::vocabulary_refs::resolve_vocabularies(by_module_and_name, &lookup);
-        Self {
+        let mut registry = Self {
             inner: Arc::new(Inner {
                 semantic_modules,
                 archetypes,
@@ -388,7 +396,11 @@ impl Registry {
                 path_diagnostics,
             }),
             severity_override: None,
-        }
+            semantic_validation_contexts: Arc::new(std::collections::BTreeMap::new()),
+        };
+        registry.semantic_validation_contexts =
+            Arc::new(crate::validate_document::build_semantic_validation_contexts(&registry));
+        registry
     }
 
     /// Look up a compiled archetype by name.
@@ -483,6 +495,13 @@ impl Registry {
     /// The loaded `semantic` block of `module`, if it carries one (FR-069).
     pub fn semantic_module(&self, module: &str) -> Option<&crate::semantic::SemanticModule> {
         self.inner.semantic_modules.get(module)
+    }
+
+    pub(crate) fn semantic_validation_context(
+        &self,
+        archetype: &str,
+    ) -> Option<&Arc<crate::validate_document::SemanticValidationContext>> {
+        self.semantic_validation_contexts.get(archetype)
     }
 
     /// Every loaded `semantic` block, keyed by module name, in name order.
@@ -592,6 +611,7 @@ impl Registry {
         Self {
             inner: Arc::clone(&self.inner),
             severity_override: Some(severity),
+            semantic_validation_contexts: Arc::clone(&self.semantic_validation_contexts),
         }
     }
 
