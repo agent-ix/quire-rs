@@ -261,6 +261,39 @@ mod tests {
         assert_eq!(orphans, vec!["FR-002"]); // FR-001 has the edge; FR-002 doesn't
     }
 
+    // A user story with no resolved edge to a test case is returned by the
+    // coverage query; one with such an edge is not.
+    #[trace("FR-027-AC-4")]
+    #[test]
+    fn coverage_query_returns_only_user_stories_without_test_cases() {
+        let root = tmpdir("user_story_coverage");
+        write(
+            &root,
+            "us/US-001.md",
+            "---\nid: US-001\ntype: US\n---\n# no test case\n",
+        );
+        write(
+            &root,
+            "us/US-002.md",
+            "---\nid: US-002\ntype: US\nrelationships:\n  - target: TC-002\n    type: references\n---\n# covered\n",
+        );
+        write(
+            &root,
+            "tc/TC-002.md",
+            "---\nid: TC-002\ntype: TestCase\n---\n# test case\n",
+        );
+        let spec = Spec::from_path(&root);
+
+        let gaps: Vec<_> = spec
+            .orphans("US", "references", Some("TestCase"))
+            .iter()
+            .map(|document| document.id.as_str())
+            .collect();
+
+        assert_eq!(gaps, ["US-001"]);
+        let _ = fs::remove_dir_all(root);
+    }
+
     // untyped doc -> not in by_type, in by_id, diagnostic.
     #[trace("FR-027-AC-9")]
     #[test]
@@ -300,5 +333,30 @@ mod tests {
         let a: Vec<_> = spec1.by_type("FR").iter().map(|d| d.id.clone()).collect();
         let b: Vec<_> = spec2.by_type("FR").iter().map(|d| d.id.clone()).collect();
         assert_eq!(a, b);
+    }
+
+    // Every query after construction uses the in-memory indices, even after
+    // the source tree has been removed.
+    #[trace("FR-027-AC-7")]
+    #[test]
+    fn queries_read_no_files_after_construction() {
+        let root = tmpdir("query_without_filesystem");
+        let spec = build(&root);
+        fs::remove_dir_all(&root).expect("remove source tree after construction");
+
+        assert!(spec.by_id("FR-001").is_some());
+        assert!(spec.by_qualified_id("local", "FR-001").is_none());
+        assert_eq!(spec.by_type("FR").len(), 2);
+        assert_eq!(spec.outgoing("FR-001").len(), 1);
+        assert_eq!(spec.referencing("StR-001").len(), 1);
+        assert!(spec.dangling().is_empty());
+        assert!(spec.diagnostics().is_empty());
+        assert_eq!(
+            spec.orphans("FR", "implements", Some("StR"))
+                .iter()
+                .map(|document| document.id.as_str())
+                .collect::<Vec<_>>(),
+            ["FR-002"]
+        );
     }
 }
