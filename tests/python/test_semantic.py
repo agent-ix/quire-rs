@@ -141,7 +141,11 @@ def test_physical_terms_alias_duplicate_matches_rust_behavior():
 
 @pytest.mark.trace("FR-075-AC-17")
 def test_physical_terms_large_exponent_matches_rust_behavior():
-    exponent = "18446744073709551617"
+    exponent = "9" * 5000
+    expected = 0
+    for offset in range(0, len(exponent), 9):
+        chunk = exponent[offset : offset + 9]
+        expected = expected * (10 ** len(chunk)) + int(chunk)
     request = _physical_request(
         "Powers",
         ["Dimension", "Exponent"],
@@ -151,7 +155,7 @@ def test_physical_terms_large_exponent_matches_rust_behavior():
     )
     record = quire.extract_semantic(request)
     assert record["availability"]["model"]["state"] == "available"
-    assert record["model"]["terms"][0]["exponent"] == int(exponent)
+    assert record["model"]["terms"][0]["exponent"] == expected
 
 
 @pytest.mark.trace("FR-075-AC-18")

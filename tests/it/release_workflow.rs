@@ -251,13 +251,18 @@ fn tc_2234_make_evidence_records_fresh_suite_run_for_retention() {
     assert!(target.contains("--tool 'ix-trace-run 0.1.0+8a0ec153'"));
 
     let workflow = workflow("tag-attestation.yml");
-    assert!(
-        workflow["jobs"]["release-evidence"]["steps"]
-            .as_sequence()
-            .expect("release evidence job has steps")
-            .iter()
-            .any(|step| step["run"].as_str() == Some("make evidence"))
+    let evidence_steps = workflow["jobs"]["release-evidence"]["steps"]
+        .as_sequence()
+        .expect("release evidence job has steps");
+    let generate = evidence_steps
+        .iter()
+        .find(|step| step["run"].as_str() == Some("make evidence"))
+        .expect("release evidence job runs make evidence");
+    assert_eq!(
+        generate["env"]["RELEASE_TAG"].as_str(),
+        Some("${{ github.ref_name }}")
     );
+    assert!(target.contains("tag=$${RELEASE_TAG:-$$(git describe --tags --exact-match HEAD)}"));
 }
 
 const RELEASE_RUN_PATH: &str = "runs/SUITE-001/2026-11-26T00~3A00~3A00~2E123456789Z.json";
