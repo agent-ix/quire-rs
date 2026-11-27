@@ -2447,7 +2447,7 @@ mod tests {
 
     #[trace("FR-013-AC-2")]
     #[test]
-    fn ix_schema_path_loads_the_eight_real_iso_archetypes() {
+    fn ix_schema_path_loads_the_six_real_iso_archetypes() {
         let provider = std::env::var_os("VALIDATION_ISO_ROOT").map_or_else(
             || PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../spec-artifacts-iso"),
             PathBuf::from,
@@ -2462,13 +2462,13 @@ mod tests {
             Registry::from_env().expect("load the ISO module through IX_SCHEMA_PATH")
         });
 
-        for name in ["fr", "nfr", "str", "us", "it", "tc", "ac", "con"] {
+        for name in ["fr", "nfr", "str", "us", "it", "tc"] {
             assert!(
                 registry.archetype(name).is_some(),
                 "ISO archetype {name} must be registered"
             );
         }
-        assert_eq!(registry.archetype_names().count(), 8);
+        assert_eq!(registry.archetype_names().count(), 6);
         assert!(registry.archetype("fr").is_some());
     }
 

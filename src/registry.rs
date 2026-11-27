@@ -917,9 +917,13 @@ mod tests {
         write_named_module(&app.join("spec_artifacts_app"), "spec-artifacts-app", "US");
 
         let registry = Registry::load_from(&[&iso, &app]).expect("load both modules");
+        let names = registry.module_names().collect::<Vec<_>>();
+        assert_eq!(names, ["spec-artifacts-app", "spec-artifacts-iso"]);
+        let reversed = Registry::load_from(&[&app, &iso]).expect("load modules in reverse order");
         assert_eq!(
-            registry.module_names().collect::<Vec<_>>(),
-            ["spec-artifacts-iso", "spec-artifacts-app"]
+            reversed.module_names().collect::<Vec<_>>(),
+            names,
+            "the public iterator is stable even when search roots are reversed"
         );
     }
 
