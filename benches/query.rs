@@ -5,17 +5,38 @@
 //!
 //! Measures point lookup, reverse-edge lookup, and orphan selection over 200
 //! documents. Criterion reports per-query latency; the acceptance target is
-//! below one millisecond for each operation. Criterion supplies the latency
-//! measurement: a hard wall-clock assertion would make this benchmark depend
-//! on host load and hardware rather than query behavior.
+//! below one millisecond for each operation. A repeated-batch median assertion
+//! enforces that limit without timing a single noisy call.
 
 use std::fs;
+use std::time::{Duration, Instant};
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{BenchmarkId, Criterion, black_box, criterion_group, criterion_main};
 use ix_trace_rs::trace;
 use quire_rs::corpus::Spec;
 
 const ARTIFACT_COUNT: usize = 200;
+const MEDIAN_BATCHES: usize = 21;
+const QUERIES_PER_BATCH: usize = 10_000;
+
+fn assert_sub_millis_median(label: &str, mut query: impl FnMut()) -> Duration {
+    let mut samples = Vec::with_capacity(MEDIAN_BATCHES);
+    for _ in 0..MEDIAN_BATCHES {
+        let start = Instant::now();
+        for _ in 0..QUERIES_PER_BATCH {
+            query();
+        }
+        samples.push(start.elapsed() / QUERIES_PER_BATCH as u32);
+    }
+    samples.sort_unstable();
+    let median = samples[MEDIAN_BATCHES / 2];
+    assert!(
+        median < Duration::from_millis(1),
+        "{label} median {median:?} is not below the 1 ms acceptance limit"
+    );
+    eprintln!("{label} acceptance median: {median:?} (< 1 ms)");
+    median
+}
 
 fn write_artifact(root: &std::path::Path, id: &str, ty: &str, relationships: &[(&str, &str)]) {
     let mut document = format!("---\nid: {id}\ntype: {ty}\ntitle: {id}\n");
@@ -82,6 +103,16 @@ fn bench_query_200_artifacts(c: &mut Criterion) {
     );
     assert_eq!(spec.referencing("FR-000").len(), 20);
     assert_eq!(spec.orphans("US", "implements", Some("TC")).len(), 20);
+
+    assert_sub_millis_median("by_id", || {
+        black_box(spec.by_id(black_box("FR-000")));
+    });
+    assert_sub_millis_median("referencing", || {
+        black_box(spec.referencing(black_box("FR-000")));
+    });
+    assert_sub_millis_median("orphans", || {
+        black_box(spec.orphans(black_box("US"), "implements", Some("TC")));
+    });
 
     let mut group = c.benchmark_group("whole_spec_query_200");
     group.bench_with_input(BenchmarkId::new("by_id", "FR-000"), &spec, |b, spec| {
