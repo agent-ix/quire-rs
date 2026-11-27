@@ -913,8 +913,8 @@ mod tests {
     fn module_names_include_two_loaded_modules_in_load_order() {
         let iso = tmpdir("module-order-iso");
         let app = tmpdir("module-order-app");
-        write_named_module(&iso, "spec-artifacts-iso", "FR");
-        write_named_module(&app, "spec-artifacts-app", "US");
+        write_named_module(&iso.join("spec_artifacts_iso"), "spec-artifacts-iso", "FR");
+        write_named_module(&app.join("spec_artifacts_app"), "spec-artifacts-app", "US");
 
         let registry = Registry::load_from(&[&iso, &app]).expect("load both modules");
         assert_eq!(
@@ -990,7 +990,11 @@ mod tests {
     fn module_name_collision_keeps_first_schema_and_strict_mode_refuses() {
         let first = tmpdir("module-name-first");
         let second = tmpdir("module-name-second");
-        for (root, origin) in [(&first, "first"), (&second, "second")] {
+        for (root, origin, directory) in [
+            (&first, "first", "module-first"),
+            (&second, "second", "module-second"),
+        ] {
+            let root = root.join(directory);
             fs::create_dir_all(root.join("schemas")).expect("schema directory");
             fs::write(
                 root.join("manifest.yaml"),
