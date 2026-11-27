@@ -39,6 +39,12 @@ jobs:
           repository: agent-ix/spec-artifacts-iso
           fetch-depth: 0
           path: .ci/spec-artifacts-iso
+      - name: Checkout app schema provider
+        uses: actions/checkout@v4
+        with:
+          repository: agent-ix/spec-artifacts-app
+          fetch-depth: 0
+          path: .ci/spec-artifacts-app
 
       - name: Install Rust toolchain
         shell: bash
@@ -80,6 +86,7 @@ jobs:
           # The corpus resolves `module: ecosystem` from these provider checkouts.
           VALIDATION_PROCESS_ROOT: ${{ github.workspace }}/.ci/spec-artifacts-process
           VALIDATION_ISO_ROOT: ${{ github.workspace }}/.ci/spec-artifacts-iso
+          VALIDATION_APP_ROOT: ${{ github.workspace }}/.ci/spec-artifacts-app
         run: |
           cargo test --locked
           cargo test --locked -p quire-bench
