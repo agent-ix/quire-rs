@@ -1192,7 +1192,6 @@ fn decimal_integer_to_py<'py>(
     number_text: &str,
 ) -> PyResult<Bound<'py, PyAny>> {
     const DECIMAL_CHUNK_DIGITS: usize = 9;
-    const DECIMAL_CHUNK_BASE: u64 = 1_000_000_000;
 
     let negative = number_text.starts_with('-');
     let digits = number_text.strip_prefix('-').unwrap_or(number_text);
@@ -1207,11 +1206,13 @@ fn decimal_integer_to_py<'py>(
     let mut value = first.into_pyobject(py)?.into_any();
 
     for chunk in chunks {
+        let chunk_len = chunk.len();
         let chunk = std::str::from_utf8(chunk)
             .map_err(|_| PyValueError::new_err("JSON integer is not decimal"))?
             .parse::<u32>()
             .map_err(|_| PyValueError::new_err("JSON integer is not decimal"))?;
-        value = value.call_method1("__mul__", (DECIMAL_CHUNK_BASE,))?;
+        let chunk_base = 10u64.pow(chunk_len as u32);
+        value = value.call_method1("__mul__", (chunk_base,))?;
         value = value.call_method1("__add__", (chunk,))?;
     }
 
