@@ -93,6 +93,28 @@ fn tc831_target_bound_source_mints_one_record_per_row() {
     assert_eq!(obligations[1].method.as_deref(), Some("Analysis"));
 }
 
+#[trace("FR-053-CON-4")]
+// A row with no verification method still derives as an obligation record;
+// derivation reports no validation error and emits no grammar-severity key.
+#[test]
+fn tc_obligation_without_method_is_data_not_a_validation_finding() {
+    let scope = ac_bundle(
+        "con4-no-method",
+        "| FR-001-AC-1 | The system shall preserve the record. | | P1 |\n",
+    );
+    let spec = Spec::from_path(&scope);
+    let (obligations, skipped) = derive(&spec, &scope, &model_of("obligations"));
+
+    assert!(skipped.is_empty(), "{skipped:#?}");
+    assert_eq!(obligations.len(), 1, "{obligations:#?}");
+    assert_eq!(obligations[0].id, "FR-001-AC-1");
+    assert_eq!(obligations[0].method, None);
+
+    let record = serde_json::to_value(&obligations[0]).expect("obligation serializes");
+    assert!(record.get("grammar_severity").is_none(), "{record}");
+    assert!(record.get("error").is_none(), "{record}");
+}
+
 #[trace("FR-053-AC-2")]
 // an `archetype:`+`id_format:` source covers rows with no
 // id column, rendering `{document}` and the 1-based `{row}`.

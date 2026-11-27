@@ -43,10 +43,14 @@ Parser, schema loader, and DSL evaluator all consume input that may be hostile o
 
 ## Acceptance Criteria
 
+> **CR note (2026-11-26):** AC-2's 60-second smoke run executes fuzz targets
+> with cargo-fuzz; its verification method is fuzzing, matching the measurement
+> table and `make fuzz` runner.
+
 | ID | Criteria | Verification |
 |----|----------|--------------|
 | NFR-011-AC-1 | `fuzz/fuzz_targets/` contains the six targets listed above, each compiling against `cargo +nightly fuzz`. | Inspection |
-| NFR-011-AC-2 | Each target runs cleanly for 60 seconds on the canonical baseline runner without producing a crash. | Test |
+| NFR-011-AC-2 | Each target runs cleanly for 60 seconds on the canonical baseline runner without producing a crash. | Fuzzing (`cargo-fuzz`) |
 | NFR-011-AC-3 | `.github/workflows/fuzz.yml` runs all targets on a weekly schedule. | Inspection |
 | NFR-011-AC-4 | A documented crash reproducer (when discovered) is committed under `fuzz/corpus/<target>/` with a regression test under `tests/regression/`. | Demonstration |
 

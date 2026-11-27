@@ -18,6 +18,29 @@ fn registry(name: &str) -> Registry {
     Registry::load_module(&fixture(name)).expect("load module")
 }
 
+fn validation_registry(suffix: &str, with_catalog: bool) -> Registry {
+    let root = std::env::temp_dir().join(format!(
+        "quire-rs-catalog-validation-{}-{suffix}",
+        std::process::id()
+    ));
+    let _ = fs::remove_dir_all(&root);
+    fs::create_dir_all(&root).expect("mkdir");
+    let catalog = if with_catalog {
+        "verification_catalog:\n  proof-matrix:\n    name: Proof matrix\n    class: Test\n    definition: Run generated examples and verify their declared invariant.\n    evidence_kind: test-run\n"
+    } else {
+        ""
+    };
+    fs::write(
+        root.join("manifest.yaml"),
+        format!(
+            "name: catalog-validation-{suffix}\nversion: 0.1.0\ndescription: Validation isolation fixture\
+             \nartifact_types:\n- name: FR\n  defaults:\n    id_pattern: FR-{{next:03d}}\n{catalog}"
+        ),
+    )
+    .expect("write manifest");
+    Registry::load_module(&root).expect("load validation fixture")
+}
+
 /// Both fixture modules under one search root, so the merge runs for real.
 ///
 /// `suffix` is per **test**, not per process: tests in one binary share a pid
@@ -117,6 +140,43 @@ fn tc846_no_catalog_is_undeclared_not_empty() {
     assert!(
         registry("none").verification_catalog().is_none(),
         "a module declaring no catalog must read as undeclared, not as empty",
+    );
+}
+
+#[trace("FR-054-CON-3")]
+// A declared catalog method that the document does not use remains module
+// data; it contributes neither validation findings nor FR-048 severity keys.
+#[test]
+fn tc_catalog_entries_do_not_participate_in_validation() {
+    let with_catalog = validation_registry("con3-with", true);
+    let without_catalog = validation_registry("con3-without", false);
+    assert!(with_catalog
+        .verification_catalog()
+        .is_some_and(|catalog| catalog.contains_key("proof-matrix")));
+    assert!(with_catalog.grammar_severity().is_empty());
+    assert!(without_catalog.grammar_severity().is_empty());
+
+    let document = "---\nid: FR-001\ntype: FR\ntitle: A requirement\n---\n\n\
+        ## Acceptance Criteria\n\n\
+        | ID | Criteria | Verification |\n|----|----------|--------------|\n\
+        | FR-001-AC-1 | The system shall preserve the record. | unused-method |\n";
+    let validate = |registry: &Registry| {
+        let archetype = registry.archetype("FR").expect("FR archetype");
+        quire_rs::validate_document_in_registry(registry, archetype, document)
+    };
+    let catalog_result = validate(&with_catalog);
+    let plain_result = validate(&without_catalog);
+
+    assert_eq!(catalog_result, plain_result);
+    assert!(
+        catalog_result.errors.is_empty(),
+        "{:#?}",
+        catalog_result.errors
+    );
+    assert!(
+        catalog_result.warnings.is_empty(),
+        "{:#?}",
+        catalog_result.warnings
     );
 }
 
@@ -381,6 +441,67 @@ fn tc874_uncatalogued_method_is_reported() {
     assert!(report
         .to_json()
         .contains("uncatalogued-verification-method"));
+}
+
+#[trace("FR-054-CON-5")]
+// An uncatalogued method is emitted in the coverage diagnostic channel and
+// does not become a grammar finding or a validation error.
+#[test]
+fn tc_uncatalogued_method_remains_a_nonfatal_coverage_diagnostic() {
+    let dir = std::env::temp_dir().join(format!("quire-rs-uncat-con5-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&dir);
+    let scope = dir.join("spec");
+    fs::create_dir_all(&scope).expect("mkdir");
+    let document = "---\nid: FR-001\ntype: FR\ntitle: A requirement\n---\n\n\
+        ## Acceptance Criteria\n\n\
+        | ID | Criteria | Verification |\n|----|----------|--------------|\n\
+        | FR-001-AC-1 | The record remains available. | CI Gate |\n";
+    fs::write(scope.join("FR-001.md"), document).expect("write criterion");
+    let src = dir.join("src");
+    fs::create_dir_all(&src).expect("mkdir src");
+    fs::write(src.join("lib.rs"), "//! empty\n").expect("write source");
+
+    let module = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("tests")
+        .join("fixtures")
+        .join("traceability")
+        .join("obligations-catalog");
+    let registry = Registry::load_module(&module).expect("load module");
+    let spec = quire_rs::Spec::from_path(&scope);
+    let model = registry.traceability().cloned().expect("model");
+    let graph = quire_rs::symbols::trace::bind(&quire_rs::symbols::extract_tree(&src), &model);
+    let report =
+        quire_rs::coverage::compute(&spec, &registry, &graph, &scope).expect("coverage report");
+    let uncatalogued: Vec<_> = report
+        .diagnostics
+        .iter()
+        .filter(|diagnostic| diagnostic.reason == "uncatalogued-verification-method")
+        .collect();
+
+    assert_eq!(uncatalogued.len(), 1, "{:#?}", report.diagnostics);
+    let json = serde_json::to_value(&report).expect("coverage report serializes");
+    assert!(json.get("diagnostics").is_some());
+    assert!(json.get("errors").is_none(), "{json}");
+    assert!(json.get("grammar_severity").is_none(), "{json}");
+
+    let archetype = registry.archetype("FR").expect("FR archetype");
+    let validation = quire_rs::validate_document_in_registry(&registry, archetype, document);
+    assert!(
+        validation
+            .errors
+            .iter()
+            .all(|error| error.reason != quire_rs::ValidationReason::Grammar),
+        "{:#?}",
+        validation.errors
+    );
+    assert!(
+        validation
+            .warnings
+            .iter()
+            .all(|warning| warning.reason != quire_rs::ValidationReason::Grammar),
+        "{:#?}",
+        validation.warnings
+    );
 }
 
 #[trace("FR-054-AC-12")]

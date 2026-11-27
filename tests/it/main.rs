@@ -11,6 +11,7 @@ mod audit_table;
 mod bundle_validate;
 mod clause_publishable;
 mod combinatorial;
+mod corpus_walk;
 mod corpus_case;
 mod corpus_cases;
 mod corpus_recall;
@@ -24,6 +25,7 @@ mod design_join;
 mod design_matrix;
 mod determinism;
 mod edge_target_kinds;
+mod error_snapshots;
 mod field_rules;
 mod filament_boundary_audit;
 mod filament_core_fixtures;
@@ -79,6 +81,11 @@ mod semantic_surface;
 mod semantic_systems;
 #[cfg(feature = "shell-symbols")]
 mod shell_symbols;
+#[cfg(any(
+    feature = "rust-symbols",
+    all(feature = "python-symbols", feature = "typescript-symbols")
+))]
+mod source_symbols;
 #[cfg(feature = "rust-symbols")]
 mod source_walk;
 mod spec_dogfood;

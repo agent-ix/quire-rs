@@ -29,6 +29,11 @@ relationships:
 > **`empty`** (and absent locators report **`missing`**) — NOT `placeholder`; see
 > [FR-032-AC-9](./FR-032-validate-document.md). The prose below is corrected to match.
 
+> **CR note (superseded verification methods — PLAT-1966, 2026-11-26):** The
+> historical `required_sections` criteria below are superseded by FR-032 and
+> FR-033. Their verification methods are `None` so the matrix does not count
+> them as open test gaps.
+
 ## Description
 
 `quire-rs` validation SHALL enforce manifest `required_sections` for rendered markdown artifacts in addition to frontmatter JSON Schema validation.
@@ -55,12 +60,12 @@ Template authors SHOULD stop emitting friendly placeholder defaults for required
 
 | ID | Criteria | Verification |
 |----|----------|--------------|
-| FR-030-AC-1 | An FR document missing `## Acceptance Criteria` fails validation with a diagnostic naming that required section. | Test |
-| FR-030-AC-2 | An FR document whose `## Specification` contains only `TODO` or unresolved `{{...}}` text fails validation even when frontmatter JSON Schema validation passes. | Test |
-| FR-030-AC-3 | An NFR document whose `## Measurement and Evaluation` table has headers but no substantive measurement rows fails validation. | Test |
-| FR-030-AC-4 | A valid FR document with all required sections populated with substantive content passes required-section validation. | Test |
-| FR-030-AC-5 | Archetypes without `required_sections` continue to validate by frontmatter schema rules without a required-section diagnostic. | Test |
-| FR-030-AC-6 | Diagnostics include archetype name, section name, heading level, and reason (`missing`, `empty`, or `placeholder`). | Test |
+| FR-030-AC-1 | RETIRED — An FR document missing `## Acceptance Criteria` fails validation with a diagnostic naming that required section. | None |
+| FR-030-AC-2 | RETIRED — An FR document whose `## Specification` contains only `TODO` or unresolved `{{...}}` text fails validation even when frontmatter JSON Schema validation passes. | None |
+| FR-030-AC-3 | RETIRED — An NFR document whose `## Measurement and Evaluation` table has headers but no substantive measurement rows fails validation. | None |
+| FR-030-AC-4 | RETIRED — A valid FR document with all required sections populated with substantive content passes required-section validation. | None |
+| FR-030-AC-5 | RETIRED — Archetypes without `required_sections` continue to validate by frontmatter schema rules without a required-section diagnostic. | None |
+| FR-030-AC-6 | RETIRED — Diagnostics include archetype name, section name, heading level, and reason (`missing`, `empty`, or `placeholder`). | None |
 
 ## Dependencies
 

@@ -1472,6 +1472,45 @@ yield_pattern:
         serde_json::from_str(FR_SCHEMA).unwrap()
     }
 
+    #[trace("FR-037-AC-6")]
+    #[test]
+    fn per_document_validation_checks_concept_shape_without_requiring_type() {
+        let a = archetype(Some(fr_schema_value()), None);
+        let typed = "---\nid: FR-001\ntitle: A Thing\ntype: FR\ndescription: A requirement\ntags: [safety, release]\n---\n";
+        let typed_result = validate_document(&a, typed);
+        assert!(
+            typed_result.is_valid,
+            "well-typed OKF fields should pass: {:?}",
+            typed_result.errors
+        );
+
+        // The archetype schema does not type these optional fields, so these
+        // errors specifically prove the per-document concept-shape check ran.
+        for (field, value) in [("description", "7"), ("tags", "x")] {
+            let malformed = format!(
+                "---\nid: FR-001\ntitle: A Thing\ntype: FR\n{field}: {value}\n---\n"
+            );
+            let result = validate_document(&a, &malformed);
+            assert!(
+                result.errors.iter().any(|error| {
+                    error.reason == ValidationReason::Frontmatter
+                        && error.message.contains(field)
+                }),
+                "expected a frontmatter error naming {field}, got: {:?}",
+                result.errors
+            );
+        }
+
+        // Explicit archetype selection must still accept a typeless document.
+        let typeless = "---\nid: FR-001\ntitle: A Thing\ndescription: A requirement\ntags: [safety]\n---\n";
+        let typeless_result = validate_document(&a, typeless);
+        assert!(
+            typeless_result.is_valid,
+            "type is optional on the per-document override path: {:?}",
+            typeless_result.errors
+        );
+    }
+
     const FR_DSL_DESC: &str = r#"
 yield_pattern:
   match:

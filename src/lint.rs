@@ -33,6 +33,7 @@ use crate::query::{section, table_from_section};
 /// validation gate.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[non_exhaustive]
 pub enum LintSeverity {
     #[default]
     Warning,
@@ -51,6 +52,7 @@ impl LintSeverity {
 /// One declarative lint rule, discriminated by `type:`.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
+#[non_exhaustive]
 pub enum LintRule {
     /// Every data cell in `column` of the table under `section` must be
     /// one of `allowed`, optionally followed by whitespace plus an

@@ -42,6 +42,7 @@ fn diagnostic_text(diagnostic: &quire_rs::coverage::CoverageDiagnostic) -> Strin
             } => {
                 fields.push(next_diagnostic_step.as_str());
             }
+            _ => {}
         }
     }
     fields.join(" ")

@@ -448,6 +448,18 @@ validate:
 		--iso-root "$(VALIDATION_ISO_ROOT)" \
 		--severity trace:feature-without-risk-rating=error
 
+# FR-066: explicit, manually invoked census. The caller supplies a bounded
+# corpus root; this target is not a CI prerequisite.
+CENSUS_ROOT ?=
+CENSUS_MODULE ?=
+CENSUS_CONSUMER ?= ../quire-cli
+.PHONY: census
+census:
+	@test -n "$(CENSUS_ROOT)" -a -n "$(CENSUS_MODULE)" || \
+		{ echo "set CENSUS_ROOT and CENSUS_MODULE to scoped inputs" >&2; exit 2; }
+	python3 scripts/gap_census.py --root "$(CENSUS_ROOT)" \
+		--consumer "$(CENSUS_CONSUMER)" --module "$(CENSUS_MODULE)"
+
 QUIRE_CLI ?= ../quire-cli
 
 .PHONY: corpus-recall-update

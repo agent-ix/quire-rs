@@ -2383,6 +2383,7 @@ fn find_cycles(graph: &[Vec<usize>]) -> Vec<Vec<usize>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::Registry;
     use ix_trace_rs::trace;
     use std::ffi::OsString;
     use std::fs;
@@ -2442,6 +2443,34 @@ mod tests {
         let _ = fs::remove_dir_all(&p);
         fs::create_dir_all(&p).expect("mkdir");
         p
+    }
+
+    #[trace("FR-013-AC-2")]
+    #[test]
+    fn ix_schema_path_loads_the_six_real_iso_archetypes() {
+        let provider = std::env::var_os("VALIDATION_ISO_ROOT").map_or_else(
+            || PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../spec-artifacts-iso"),
+            PathBuf::from,
+        );
+        assert!(
+            provider.join("spec_artifacts_iso/manifest.yaml").is_file(),
+            "ISO module provider missing at {}; CI sets VALIDATION_ISO_ROOT",
+            provider.display()
+        );
+        let home = tmpdir("iso-schema-path-home");
+        let registry = with_search_env(&home, None, Some(provider.into_os_string()), || {
+            Registry::from_env().expect("load the ISO module through IX_SCHEMA_PATH")
+        });
+
+        for name in ["fr", "nfr", "str", "us", "it", "tc"] {
+            assert!(
+                registry.archetype(name).is_some(),
+                "ISO archetype {name} must be registered"
+            );
+        }
+        assert!(registry.archetype("fr").is_some());
+        assert!(registry.archetype("ac").is_none());
+        assert!(registry.archetype("con").is_none());
     }
 
     fn write_minimal_module(root: &Path, name: &str) {

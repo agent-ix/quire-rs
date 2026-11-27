@@ -856,7 +856,7 @@ mod tests {
         p
     }
 
-    #[trace("FR-020-AC-2")]
+    #[trace("FR-020-AC-2", "FR-020-CON-1")]
     // block type is an alias over the archetype registry.
     //
     // Written when FR-020 was authored (CR-042): the row had been ✅ since v0.2
@@ -927,6 +927,94 @@ mod tests {
         assert_eq!(names, vec!["foo"]);
         let mods: Vec<&str> = r.module_names().collect();
         assert_eq!(mods, vec!["mod-x"]);
+    }
+
+    #[trace("FR-014-AC-1")]
+    #[test]
+    fn module_names_include_two_loaded_modules_in_load_order() {
+        let iso = tmpdir("module-order-iso");
+        let app = tmpdir("module-order-app");
+        write_named_module(&iso.join("spec_artifacts_iso"), "spec-artifacts-iso", "FR");
+        write_named_module(&app.join("spec_artifacts_app"), "spec-artifacts-app", "US");
+
+        let registry = Registry::load_from(&[&iso, &app]).expect("load both modules");
+        let names = registry.module_names().collect::<Vec<_>>();
+        assert_eq!(names, ["spec-artifacts-app", "spec-artifacts-iso"]);
+        let reversed = Registry::load_from(&[&app, &iso]).expect("load modules in reverse order");
+        assert_eq!(
+            reversed.module_names().collect::<Vec<_>>(),
+            names,
+            "the public iterator is stable even when search roots are reversed"
+        );
+    }
+
+    #[trace("FR-014-AC-5")]
+    #[test]
+    fn three_modules_form_exact_archetype_union() {
+        let first = tmpdir("union-first").join("module_one");
+        let second = tmpdir("union-second").join("module_two");
+        let third = tmpdir("union-third").join("module_three");
+        write_named_module(&first, "module-one", "fr");
+        write_named_module(&second, "module-two", "us");
+        write_named_module(&third, "module-three", "process_record");
+
+        let combined = Registry::load_module_set(&[&first, &second, &third])
+            .expect("load the three modules together");
+        assert_eq!(
+            combined
+                .archetype_names()
+                .collect::<std::collections::BTreeSet<_>>(),
+            ["fr", "process_record", "us"]
+                .into_iter()
+                .collect::<std::collections::BTreeSet<_>>()
+        );
+        assert!(
+            combined.diagnostics().iter().all(|diagnostic| !matches!(
+                diagnostic,
+                Diagnostic::DuplicateArchetype { .. } | Diagnostic::DuplicateModuleName { .. }
+            )),
+            "distinct modules with disjoint archetypes must not collide: {:?}",
+            combined.diagnostics()
+        );
+    }
+
+    #[trace("FR-014-AC-6")]
+    #[test]
+    fn module_name_collision_keeps_first_schema_and_strict_mode_refuses() {
+        let first = tmpdir("module-name-first");
+        let second = tmpdir("module-name-second");
+        for (root, origin, directory) in [
+            (&first, "first", "module-first"),
+            (&second, "second", "module-second"),
+        ] {
+            let root = root.join(directory);
+            fs::create_dir_all(root.join("schemas")).expect("schema directory");
+            fs::write(
+                root.join("manifest.yaml"),
+                "name: duplicate\nartifact_types:\n- name: sample\n  frontmatter_schema_ref: schemas/sample.json\n",
+            )
+            .expect("manifest");
+            fs::write(
+                root.join("schemas/sample.json"),
+                format!(r#"{{"type":"object","properties":{{"origin":{{"const":"{origin}"}}}}}}"#),
+            )
+            .expect("schema");
+        }
+
+        let registry = Registry::load_from(&[&first, &second]).expect("tolerant load");
+        assert!(registry
+            .diagnostics()
+            .iter()
+            .any(|diagnostic| matches!(diagnostic, Diagnostic::DuplicateModuleName { .. })));
+        assert_eq!(
+            registry.schema_for("sample").expect("first schema")["properties"]["origin"]["const"],
+            "first",
+            "the first loaded module remains authoritative"
+        );
+        assert!(matches!(
+            Registry::load_strict(&[&first, &second]),
+            Err(QuireError::ModuleCollision { .. })
+        ));
     }
 
     // A body_extraction DSL that's structurally

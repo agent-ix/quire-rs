@@ -260,6 +260,151 @@ fn tc1084_assurance_schema_compiles_and_accepts_the_complete_fixture() {
     assert!(schema().validate(&golden()).is_ok());
 }
 
+#[trace("FR-067-CON-5")]
+#[test]
+fn tc_assurance_schema_closes_every_object_recursively() {
+    fn visit(value: &Value, path: &str) {
+        if value["type"] == "object" {
+            let additional = value.get("additionalProperties");
+            if path == "#/$defs/obligation/properties/parameters" {
+                assert_eq!(
+                    additional,
+                    Some(&serde_json::json!({"type": "string"})),
+                    "parameter map at {path} accepts dynamic keys only with string values"
+                );
+            } else {
+                assert_eq!(
+                    additional,
+                    Some(&Value::Bool(false)),
+                    "fixed-shape object schema at {path} must reject undeclared properties"
+                );
+            }
+        }
+        match value {
+            Value::Object(members) => {
+                for (key, child) in members {
+                    visit(child, &format!("{path}/{key}"));
+                }
+            }
+            Value::Array(items) => {
+                for (index, child) in items.iter().enumerate() {
+                    visit(child, &format!("{path}/{index}"));
+                }
+            }
+            _ => {}
+        }
+    }
+
+    let schema: Value = serde_json::from_str(ASSURANCE_V1_SCHEMA).expect("schema JSON");
+    visit(&schema, "#");
+}
+
+#[trace("FR-068-CON-2")]
+#[test]
+fn tc_assurance_projection_uses_only_declared_relation_and_verification_vocabulary() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let root = tmp.path();
+    write(
+        root,
+        "spec/Widget-001.md",
+        "---\nid: Widget-001\ntype: Widget\ntitle: Widget\n---\n\n## Acceptance Criteria\n\n| ID | Criteria | Verification |\n|---|---|---|\n| Widget-001-AC-1 | The result carries its custom verification. | OrbitReview |\n",
+    );
+    write(
+        root,
+        "spec/Aggregate-001.md",
+        "---\nid: Aggregate-001\ntype: Aggregate\ntitle: Aggregate\n---\n",
+    );
+    write(root, "src/lib.rs", "#[test]\nfn check_custom_rule() {}\n");
+
+    let manifest = br#"
+name: data-driven-assurance
+version: 1.0.0
+artifact_types:
+- name: Widget
+- name: Aggregate
+edge_types:
+  murmurs: {description: custom relation, category: dataflow}
+traceability:
+  trace_targets:
+  - name: custom-criteria
+    archetype: Widget
+    section: Acceptance Criteria
+    id_column: ID
+  obligations:
+  - name: custom-criteria
+    target: custom-criteria
+    statement_column: Criteria
+    method_column: Verification
+  required_relations:
+  - name: widget-has-aggregate
+    from: Widget
+    edges: [murmurs]
+    to: [Aggregate]
+    direction: outgoing
+    check: widget-without-aggregate
+"#;
+    let registry = Registry::from_inline_parts(manifest, &BTreeMap::new()).expect("registry");
+    let spec = Spec::from_path(&root.join("spec"));
+    let symbols = extract_tree(root);
+    let test_symbol = symbols
+        .symbols
+        .iter()
+        .find(|symbol| symbol.kind == SymbolKind::TestFunction)
+        .expect("test symbol");
+    let graph = SymbolGraph {
+        verifies: vec![VerifiesRelation {
+            symbol_id: test_symbol.id.clone(),
+            symbol: test_symbol.qualified_name.clone(),
+            path: test_symbol.path.clone(),
+            trace_id: "Widget-001-AC-1".to_string(),
+            form: "bespoke-test-form".to_string(),
+            line: test_symbol.line,
+            column: test_symbol.column,
+            kind: test_symbol.kind,
+            ignored: false,
+        }],
+        ..SymbolGraph::default()
+    };
+    let export = build_assurance_export(AssuranceInput {
+        spec: &spec,
+        registry: &registry,
+        corpus_root: root.join("spec").as_path(),
+        symbols: &symbols,
+        symbol_graph: &graph,
+    })
+    .expect("data-driven export");
+
+    assert!(export
+        .artifacts
+        .iter()
+        .any(|artifact| artifact.artifact_type == "Widget"));
+    assert!(export
+        .artifacts
+        .iter()
+        .any(|artifact| artifact.artifact_type == "Aggregate"));
+    assert_eq!(export.obligations[0].method.as_deref(), Some("OrbitReview"));
+    assert!(export.relations.iter().any(|relation| matches!(
+        relation,
+        AssuranceRelation::Verifies { form, .. } if form == "bespoke-test-form"
+    )));
+    assert_eq!(
+        export
+            .relation_kinds
+            .iter()
+            .map(|kind| kind.kind.as_str())
+            .collect::<Vec<_>>(),
+        ["murmurs", "verifies"]
+    );
+    assert!(export.relation_kinds[0]
+        .sources
+        .contains(&quire_rs::assurance::RelationKindSource::RequiredRelation));
+    assert_eq!(export.relation_observations.len(), 1);
+    assert_eq!(
+        export.relation_observations[0].declaration,
+        "widget-has-aggregate"
+    );
+}
+
 #[trace("FR-072-AC-9")]
 // the assurance-v1 bytes for the fixed fixture equal the checked-in export.
 #[test]
@@ -734,6 +879,61 @@ fn tc1098_repeated_projection_is_byte_identical() {
     assert_eq!(
         fixture.export().unwrap().to_json_bytes().unwrap(),
         fixture.export().unwrap().to_json_bytes().unwrap()
+    );
+}
+
+#[trace("FR-068-CON-4")]
+#[test]
+fn tc_assurance_projection_orders_identity_tuples_and_nested_maps() {
+    let unrelated = "Initial unrelated text.";
+    let first = obligation_export(false, unrelated);
+    let reversed = obligation_export(true, unrelated);
+    let first_bytes = first.to_json_bytes().expect("serialize first export");
+    assert_eq!(
+        first_bytes,
+        reversed
+            .to_json_bytes()
+            .expect("serialize reordered export"),
+        "projection order must ignore input document creation order"
+    );
+
+    assert!(first.artifacts.windows(2).all(|pair| {
+        (pair[0].id.as_str(), pair[0].locator.path.as_str())
+            <= (pair[1].id.as_str(), pair[1].locator.path.as_str())
+    }));
+    assert!(first.obligations.windows(2).all(|pair| {
+        (pair[0].id.as_str(), pair[0].document.as_str())
+            <= (pair[1].id.as_str(), pair[1].document.as_str())
+    }));
+    assert!(first
+        .symbols
+        .windows(2)
+        .all(|pair| pair[0].id <= pair[1].id));
+    assert!(first
+        .relation_kinds
+        .windows(2)
+        .all(|pair| pair[0].kind <= pair[1].kind));
+    for obligation in &first.obligations {
+        let keys: Vec<_> = obligation.parameters.keys().collect();
+        assert!(keys.windows(2).all(|pair| pair[0] <= pair[1]));
+    }
+
+    // Inserting the same map entries in reverse order leaves every serialized
+    // byte unchanged; map order is part of the observable interchange form.
+    let mut reverse_maps = first.clone();
+    for obligation in &mut reverse_maps.obligations {
+        obligation.parameters = obligation
+            .parameters
+            .iter()
+            .rev()
+            .map(|(key, value)| (key.clone(), value.clone()))
+            .collect();
+    }
+    assert_eq!(
+        first_bytes,
+        reverse_maps
+            .to_json_bytes()
+            .expect("serialize reverse maps")
     );
 }
 

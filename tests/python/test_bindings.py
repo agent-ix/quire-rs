@@ -6,8 +6,10 @@ boundary; this is the binding layer's verification method (spec.md §13).
 """
 
 import concurrent.futures
+import json
 import pathlib
 import shutil
+import threading
 
 import pytest
 
@@ -389,6 +391,31 @@ def test_validate_sad_path_raises_validation_error_with_field_path():
     assert "id" in str(exc.value)
 
 
+@pytest.mark.trace("FR-028-AC-2")
+def test_validate_matches_rust_dotted_nested_field_path(tmp_path):
+    """A valid object passes and a nested invalid field exposes Rust's dotted path."""
+    module = tmp_path / "nested"
+    (module / "schemas").mkdir(parents=True)
+    (module / "manifest.yaml").write_text(
+        "name: nested\n"
+        "artifact_types:\n"
+        "  - name: nested-item\n"
+        "    frontmatter_schema_ref: schemas/nested-item.schema.json\n"
+    )
+    (module / "schemas" / "nested-item.schema.json").write_text(
+        '{"type":"object","required":["metadata"],'
+        '"properties":{"metadata":{"type":"object","required":["name"],'
+        '"properties":{"name":{"type":"string"}}}}}'
+    )
+
+    assert quire.validate(
+        "nested-item", str(module), {"metadata": {"name": "ok"}}
+    ) is None
+    with pytest.raises(quire.QuireValidationError) as exc:
+        quire.validate("nested-item", str(module), {"metadata": {"name": 7}})
+    assert "metadata.name" in str(exc.value)
+
+
 @pytest.mark.trace("FR-028-AC-3")
 def test_validate_manifest_happy_and_sad(tmp_path):
     """schema-load happy, validation happy + sad, schema-missing → QuireSchemaError."""
@@ -587,45 +614,75 @@ def test_extract_envelope_returns_extraction_and_edges(tmp_path):
     assert ("FR-002", "references") in targets
 
 
-def test_extraction_context_from_object_types_extracts_without_module_root():
-    """Service/library path: caller provides ObjectTypes; quire does not resolve a local registry."""
-    ctx = quire.ExtractionContext.from_object_types(
-        [
-            {
-                "name": "event",
-                "schema": {"type": "object", "properties": {"schema_json": {"type": "string"}}},
-                "body_extraction": {
-                    "yield_pattern": {
-                        "match": {
-                            "id": {
-                                "from": "frontmatter_field",
-                                "path": ["id"],
-                                "required": False,
-                            },
-                            "schema_json": {
-                                "from": "code_block",
-                                "after_heading": "Schema",
-                                "language": "json",
-                                "required": False,
-                            },
-                        }
-                    }
+@pytest.mark.trace("FR-028-AC-9")
+def test_extraction_context_returns_rust_records_and_emitted_edges_without_registry():
+    """Caller-compiled ObjectTypes yield Rust extraction records and emit_edges without a module root."""
+    object_types = [
+        {
+            "name": "event",
+            "schema": {"type": "object", "additionalProperties": True},
+            "body_extraction": {
+                "yield_pattern": {
+                    "iterate_over": {
+                        "section_path": ["Items"],
+                        "kind": "heading",
+                        "depth": 1,
+                    },
+                    "per_match": {"name": {"from": "heading", "required": True}},
                 },
-            }
-        ]
-    )
-    assert ctx.object_type_names() == ["event"]
-    body = (
-        "# Event\n\n"
-        "## Other\n\n"
-        "```json\n{\"wrong\": true}\n```\n\n"
-        "## Schema\n\n"
-        "```json\n{\"right\": true}\n```\n"
-    )
-    out = ctx.extract("event", {"id": "E-1"}, body)
-    assert out["extraction"] == [
-        {"id": "E-1", "schema_json": '{"right": true}'}
+                "emit_edges": [
+                    {
+                        "type": "references",
+                        "target": {"from": "section_body", "after_heading": "Ref"},
+                    }
+                ],
+            },
+        }
     ]
+    context = quire.ExtractionContext.from_object_types(object_types)
+    assert context.object_type_names() == ["event"]
+
+    body = (
+        "## Items\n"
+        "### One\n#### Ref\nFR-100\n"
+        "### Two\n(no ref child)\n"
+    )
+    result = context.extract("event", {}, body)
+    assert result["extraction"] == [
+        {"content": "", "heading": "One", "name": "One"},
+        {"content": "(no ref child)", "heading": "Two", "name": "Two"},
+    ]
+    assert result["edges"] == [
+        {"record_index": 0, "type": "references", "target": "FR-100"}
+    ]
+
+
+@pytest.mark.trace("FR-028-AC-10")
+def test_extraction_context_accepts_list_and_items_envelope():
+    """Both documented ObjectType input shapes compile to equivalent extractors."""
+    object_type = {
+        "name": "event",
+        "schema": {"type": "object", "additionalProperties": True},
+        "body_extraction": {
+            "yield_pattern": {
+                "match": {
+                    "id": {
+                        "from": "frontmatter_field",
+                        "path": ["id"],
+                        "required": False,
+                    }
+                }
+            }
+        },
+    }
+    list_context = quire.ExtractionContext.from_object_types([object_type])
+    envelope_context = quire.ExtractionContext.from_object_types({"items": [object_type]})
+    body = "# Event\n"
+
+    assert list_context.object_type_names() == envelope_context.object_type_names() == ["event"]
+    assert list_context.extract("event", {"id": "E-1"}, body) == envelope_context.extract(
+        "event", {"id": "E-1"}, body
+    )
 
 
 def test_extraction_context_accepts_optional_code_block_language():
@@ -710,6 +767,85 @@ def test_extract_frontmatter_body_matches_rust_bom_and_crlf_parity():
     assert crlf["body"] == "# H\r\n"
 
 
+@pytest.mark.trace("FR-028-AC-8")
+def test_new_module_functions_release_the_gil_under_concurrent_calls(tmp_path):
+    """The five FR-028 module functions overlap their Rust work across two Python threads."""
+    module = tmp_path / "extract"
+    (module / "schemas").mkdir(parents=True)
+    (module / "schemas" / "event.schema.json").write_text(
+        '{"type":"object","properties":{"name":{"type":"string"}}}'
+    )
+    (module / "manifest.yaml").write_text(
+        "name: concurrent-extract\n"
+        "artifact_types:\n"
+        "  - name: event\n"
+        "    frontmatter_schema_ref: schemas/event.schema.json\n"
+        "    body_extraction:\n"
+        "      yield_pattern:\n"
+        "        match:\n"
+        "          purpose:\n"
+        "            from: section_body\n"
+        "            after_heading: Purpose\n"
+    )
+
+    schema_path = tmp_path / "manifest.schema.json"
+    schema = {
+        "anyOf": [
+            {
+                "type": "object",
+                "required": [f"field-{index}"],
+                "properties": {f"field-{index}": {"type": "string"}},
+            }
+            for index in range(4096)
+        ]
+    }
+    schema_path.write_text(json.dumps(schema))
+    payload = {"field-255": "valid"}
+    frontmatter = "---\nid: FR-001\nbody: " + ("x" * 2_500_000) + "\n---\n"
+    markdown = "# Purpose\n" + ("plain content without a link\n" * 200_000)
+    document = "# No links\n" + ("plain content without a link\n" * 200_000)
+
+    calls = [
+        (
+            "validate",
+            lambda: quire.validate(
+                "event", str(module), payload
+            ),
+        ),
+        (
+            "validate_manifest",
+            lambda: quire.validate_manifest(payload, str(schema_path)),
+        ),
+        ("extract", lambda: quire.extract("event", str(module), markdown)),
+        ("extract_frontmatter", lambda: quire.extract_frontmatter(frontmatter)),
+        ("harvest_edges", lambda: quire.harvest_edges(document)),
+    ]
+
+    for name, call in calls:
+        started = threading.Event()
+        finished = threading.Event()
+        errors = []
+
+        def run_call():
+            started.set()
+            try:
+                call()
+            except Exception as error:  # surface worker failures in the test thread
+                errors.append(error)
+            finally:
+                finished.set()
+
+        worker = threading.Thread(target=run_call, daemon=True)
+        worker.start()
+        assert started.wait(timeout=1), f"{name} worker did not start"
+        assert not finished.wait(timeout=0.001), (
+            f"{name} workload completed before the GIL-release observation window"
+        )
+        assert finished.wait(timeout=10), f"{name} did not finish"
+        worker.join()
+        assert not errors, f"{name} raised in worker thread: {errors}"
+
+
 @pytest.mark.trace("FR-028-AC-6")
 def test_harvest_edges_string_and_dict_equal():
     """harvest_edges accepts raw string or parsed dict; outputs equal."""
@@ -743,22 +879,6 @@ def test_exception_hierarchy_importable():
     assert issubclass(quire.QuireParseError, quire.QuireBaseError)
     assert issubclass(quire.QuireBaseError, Exception)
     assert not hasattr(quire, "QuireRenderError")
-
-
-def test_new_functions_release_gil():
-    """concurrent calls to validate complete without serializing."""
-
-    def work(_):
-        for _ in range(20):
-            quire.validate(
-                "demo-item",
-                str(DEMO_MODULE),
-                {"id": "DEMO-1", "title": "x"},
-            )
-        return True
-
-    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as ex:
-        assert all(ex.map(work, range(4)))
 
 
 @pytest.mark.trace("NFR-016-AC-2")
@@ -817,6 +937,76 @@ def test_extract_filament_core_tier1_binding():
     assert data["title"] == "Pay vendors"
 
 
+@pytest.mark.trace("FR-045-CON-2")
+def test_extract_filament_core_uses_caller_object_type_snapshot():
+    """Only caller-supplied ObjectType snapshots make their object extractable."""
+    import json
+
+    schema = {
+        "type": "object",
+        "required": ["approval_code"],
+        "properties": {
+            "approval_code": {"type": "string"},
+            "title": {"type": "string"},
+        },
+        "additionalProperties": False,
+    }
+    request = _filament_input(
+        "---\nid: PO-17\ntitle: Purchase order\nobject: caller_purchase_order\n"
+        "approval_code: AP-8\n---\n# Purchase order\n"
+    )
+    request["objectTypes"] = [
+        {
+            "name": "caller_purchase_order",
+            "schema": schema,
+            "allowedLinks": {},
+            "bodyExtraction": None,
+            "hasPlugin": False,
+            "moduleId": "caller-snapshot",
+        }
+    ]
+
+    supplied = quire.extract_filament_core(request)
+    assert supplied["errors"] == []
+    assert [item["name"] for item in supplied["objectTypes"]] == ["caller_purchase_order"]
+    assert json.loads(supplied["objectTypes"][0]["schemaJson"]) == schema
+    assert supplied["nodes"][0]["objectType"] == "caller_purchase_order"
+    assert json.loads(supplied["nodes"][0]["dataJson"])["approval_code"] == "AP-8"
+
+    request_without_snapshot = {**request, "objectTypes": []}
+    absent = quire.extract_filament_core(request_without_snapshot)
+    assert all(node["objectType"] != "caller_purchase_order" for node in absent["nodes"])
+    assert any(item["code"] == "unknown_object_type" for item in absent["diagnostics"])
+
+
+@pytest.mark.trace("FR-045-CON-4")
+def test_extract_filament_core_qualifies_refs_with_required_caller_org():
+    """Caller org and repo qualify refs before stable node and edge ids are formed."""
+    request = _filament_input(
+        "---\nid: FR-001\ntitle: Pay vendors\nobject: capability\n"
+        "depends_on: FR-002\n---\n# Body\n"
+    )
+    request["org"] = "buyer-org"
+    request["repoName"] = "billing"
+
+    result = quire.extract_filament_core(request)
+    assert result["errors"] == []
+    assert result["nodes"][0]["ref"] == "ix://buyer-org/billing/FR-001"
+    assert result["nodes"][0]["id"] == '["project","graph-node","ix://buyer-org/billing/FR-001"]'
+    dependency = next(edge for edge in result["edges"] if edge["edgeType"] == "depends_on")
+    assert dependency["sourceRef"] == "ix://buyer-org/billing/FR-001"
+    assert dependency["targetRef"] == "ix://buyer-org/billing/FR-002"
+    assert dependency["id"] == (
+        '["project","graph-edge","ix://buyer-org/billing/FR-001",'
+        '"ix://buyer-org/billing/FR-002","depends_on"]'
+    )
+
+    request_without_org = dict(request)
+    request_without_org.pop("org")
+    with pytest.raises(TypeError, match="org"):
+        quire.extract_filament_core(request_without_org)
+
+
 @pytest.mark.trace("FR-046-AC-1", "NFR-020-AC-3")
 def test_extract_filament_core_malformed_frontmatter_reports_parse_failure():
     """a complete-but-unparsable frontmatter block surfaces a
@@ -836,3 +1026,63 @@ def test_extract_core_data_is_alias_and_deterministic():
     a = quire.extract_core_data(inp)
     b = quire.extract_filament_core(inp)
     assert json.dumps(a, sort_keys=True) == json.dumps(b, sort_keys=True)
+
+
+@pytest.mark.trace("NFR-020-M-2")
+def test_filament_core_repeated_output_mismatch_count_is_zero():
+    """Measure repeated-output mismatches across the shared extraction parity fixtures."""
+    import json
+
+    fixtures_path = REPO_ROOT / "tests" / "fixtures" / "filament_core" / "graph_cases.json"
+    fixtures = json.loads(fixtures_path.read_text())
+    mismatches = []
+    for fixture in fixtures:
+        first = quire.extract_filament_core(fixture["input"])
+        second = quire.extract_filament_core(fixture["input"])
+        first_json = json.dumps(first, ensure_ascii=False, separators=(",", ":"))
+        second_json = json.dumps(second, ensure_ascii=False, separators=(",", ":"))
+        if first_json != second_json:
+            mismatches.append(fixture["name"])
+
+    mismatch_count = len(mismatches)
+    print(
+        "NFR-020-M-2 repeated-output mismatch count: "
+        f"{mismatch_count}/{len(fixtures)} parity fixtures"
+    )
+    assert mismatch_count == 0, (
+        f"NFR-020-M-2 repeated-output mismatch count is {mismatch_count}; "
+        f"mismatched fixtures: {mismatches}"
+    )
+
+
+@pytest.mark.trace("NFR-016-AC-4")
+def test_binding_returns_materialized_values_without_python_json_reparse(monkeypatch):
+    """Parsed and extraction results arrive as native Python values without json.loads."""
+    import json
+
+    def reject_python_json_reparse(*_args, **_kwargs):
+        pytest.fail("the binding must return materialized values, not JSON for Python to parse")
+
+    monkeypatch.setattr(json, "loads", reject_python_json_reparse)
+
+    document = quire.parse_document("---\nid: FR-001\ntype: FR\n---\n# Requirement\n")
+    assert type(document) is dict
+    assert type(document["frontmatter"]) is dict
+    assert type(document["sections"]) is list
+    assert type(document["sections"][0]) is dict
+
+    core = quire.extract_filament_core(
+        _filament_input(
+            "---\nid: FR-001\ntitle: Requirement\nobject: capability\n"
+            "depends_on: FR-002\n---\n# Requirement\n"
+        )
+    )
+    assert type(core) is dict
+    assert type(core["objectTypes"]) is list
+    assert type(core["objectTypes"][0]) is dict
+    assert type(core["nodes"]) is list
+    assert type(core["nodes"][0]) is dict
+    assert type(core["nodes"][0]["dataJson"]) is str
+    assert type(core["edges"]) is list
+    assert type(core["edges"][0]) is dict
+    assert type(core["edges"][0]["targetRef"]) is str

@@ -620,6 +620,7 @@ yield_pattern:
         assert_eq!(r.records[1]["diagrams"].as_array().unwrap().len(), 1);
     }
 
+    #[trace("FR-011-AC-4")]
     #[test]
     fn required_miss_returns_missing_field() {
         let d = doc();
@@ -634,7 +635,10 @@ yield_pattern:
 "#,
         );
         let err = extract(&d, &dsl).expect_err("missing");
-        assert!(matches!(err, QuireError::MissingField { .. }));
+        assert!(matches!(
+            err,
+            QuireError::MissingField { key, .. } if key == "nope"
+        ));
     }
 
     // ── Multi-yield ─────────────────────────────────────────────────
@@ -684,7 +688,7 @@ yield_pattern:
         );
     }
 
-    #[trace("FR-011-AC-13")]
+    #[trace("FR-011-AC-13", "FR-011-AC-4")]
     // `code_block` is section-owned, so under iteration
     // each yielded record gets ITS OWN unit's fenced block — not unit
     // #1's block for every record (the latent multi-yield gap closed by
@@ -907,6 +911,63 @@ yield_pattern:
 
         assert!(result.records.is_empty());
         assert!(result.diagnostics.is_empty());
+    }
+
+    #[trace("FR-016-AC-4")]
+    #[test]
+    fn domain_fallback_chains_extract_both_canonical_and_legacy_sections() {
+        let dsl = dsl_from(
+            r#"
+yield_pattern:
+  match:
+    entities:
+    - from: section_body
+      after_heading: Entities
+    - from: section_body
+      after_heading: Entity List
+    ubiquitous_language:
+    - from: section_body
+      after_heading: Ubiquitous Language
+    - from: section_body
+      after_heading: Language
+"#,
+        );
+        let canonical = parse_document(
+            "## Entities\nCanonical entities.\n## Entity List\nLegacy entities.\n\
+             ## Ubiquitous Language\nCanonical terms.\n## Language\nLegacy terms.\n",
+        );
+        let canonical_result = extract(&canonical, &dsl).expect("canonical headings resolve");
+        assert_eq!(
+            canonical_result.records[0]["entities"],
+            "Canonical entities."
+        );
+        assert_eq!(
+            canonical_result.records[0]["ubiquitous_language"],
+            "Canonical terms."
+        );
+        assert!(canonical_result.diagnostics.is_empty());
+
+        let legacy =
+            parse_document("## Entity List\nLegacy entities.\n## Language\nLegacy terms.\n");
+        let legacy_result = extract(&legacy, &dsl).expect("legacy headings resolve");
+        assert_eq!(legacy_result.records[0]["entities"], "Legacy entities.");
+        assert_eq!(
+            legacy_result.records[0]["ubiquitous_language"],
+            "Legacy terms."
+        );
+        assert_eq!(
+            legacy_result
+                .diagnostics
+                .iter()
+                .filter_map(|diagnostic| match diagnostic {
+                    Diagnostic::FallbackLocatorUsed { key, position, .. } => {
+                        Some((key.as_str(), *position))
+                    }
+                    _ => None,
+                })
+                .collect::<Vec<_>>(),
+            [("entities", 1), ("ubiquitous_language", 1)]
+        );
     }
 
     #[test]

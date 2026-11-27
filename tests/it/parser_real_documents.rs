@@ -26,6 +26,7 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
+use ix_trace_rs::trace;
 use quire_rs::{extract_frontmatter, parse_document, QuireDocument};
 
 fn candidate_roots() -> Vec<PathBuf> {
@@ -202,6 +203,23 @@ fn parse_real_documents_never_panics_and_rounds_trip() {
         "round-trip failures:\n{}",
         format_failures(&roundtrip_failures)
     );
+}
+
+#[trace("NFR-002-AC-3")]
+#[test]
+fn five_megabyte_body_round_trips_byte_exactly() {
+    let payload = "x".repeat(990);
+    let mut body = String::with_capacity(5_000_000);
+    for index in 0..5_000 {
+        body.push_str(&format!("## H{index:04}\n"));
+        body.push_str(&payload);
+        body.push('\n');
+    }
+    assert_eq!(body.len(), 5_000_000);
+
+    let document = parse_document(&body);
+    assert_eq!(document.sections.len(), 5_000);
+    assert_eq!(reconstruct(&body, &document).as_bytes(), body.as_bytes());
 }
 
 fn verify_slug_ids(

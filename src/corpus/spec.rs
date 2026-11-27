@@ -499,6 +499,7 @@ mod tests {
     use ix_trace_rs::trace;
     use std::fs;
     use std::path::PathBuf;
+    use std::process::Command;
 
     fn tmpdir(tag: &str) -> PathBuf {
         let mut p = std::env::temp_dir();
@@ -608,6 +609,99 @@ mod tests {
         let body = spec.by_id("FR-023").unwrap().body();
         assert_eq!(body.sections.len(), 1);
         assert_eq!(body.sections[0].heading, "FR-023");
+    }
+
+    #[cfg(target_os = "linux")]
+    #[trace("FR-027-AC-7")]
+    #[test]
+    fn every_query_avoids_corpus_filesystem_reads_after_construction() {
+        const CHILD_FLAG: &str = "QUIRE_FR027_STRACE_CHILD";
+        const CORPUS_ROOT: &str = "QUIRE_FR027_CORPUS_ROOT";
+        const MARKER_PATH: &str = "QUIRE_FR027_MARKER_PATH";
+
+        if std::env::var_os(CHILD_FLAG).is_some() {
+            let root = PathBuf::from(std::env::var_os(CORPUS_ROOT).expect("corpus root"));
+            let spec = Spec::from_path(&root);
+            fs::write(
+                std::env::var_os(MARKER_PATH).expect("post-construction marker"),
+                b"queries start after this point",
+            )
+            .expect("write post-construction marker");
+
+            assert_eq!(spec.len(), 2);
+            assert!(!spec.is_empty());
+            assert_eq!(spec.documents().len(), 2);
+            assert_eq!(spec.by_id("FR-001").unwrap().id, "FR-001");
+            assert!(spec.by_qualified_id("org/repo", "FR-001").is_none());
+            assert_eq!(spec.by_type("FR").len(), 2);
+            assert!(
+                spec.diagnostics()
+                    .iter()
+                    .any(|diagnostic| matches!(diagnostic, Diagnostic::DanglingReference { .. }))
+            );
+            assert_eq!(spec.referencing("FR-002").len(), 1);
+            assert_eq!(spec.outgoing("FR-001").len(), 1);
+            assert_eq!(spec.dangling().len(), 1);
+            assert_eq!(spec.orphans("FR", "implements", Some("StR")).len(), 2);
+            assert_eq!(spec.edges().len(), 2);
+            assert_eq!(spec.by_id("FR-001").unwrap().body().sections.len(), 1);
+            return;
+        }
+
+        let temp = tmpdir("fr027_strace");
+        let corpus = temp.join("corpus");
+        let marker = temp.join("after-construction");
+        let trace = temp.join("file-syscalls");
+        write(
+            &corpus,
+            "FR-001.md",
+            "---\nid: FR-001\ntype: FR\nrelationships:\n  - target: FR-002\n    type: implements\n---\n# FR-001\nbody\n",
+        );
+        write(
+            &corpus,
+            "FR-002.md",
+            "---\nid: FR-002\ntype: FR\nrelationships:\n  - target: StR-404\n    type: implements\n---\n# FR-002\nbody\n",
+        );
+
+        let output = Command::new("strace")
+            .args(["-f", "-qq", "-e", "trace=%file", "-o"])
+            .arg(&trace)
+            .arg(std::env::current_exe().expect("current test executable"))
+            .args([
+                "--exact",
+                "corpus::spec::tests::every_query_avoids_corpus_filesystem_reads_after_construction",
+                "--nocapture",
+            ])
+            .env(CHILD_FLAG, "1")
+            .env(CORPUS_ROOT, &corpus)
+            .env(MARKER_PATH, &marker)
+            .output()
+            .expect("run test process under strace");
+        assert!(
+            output.status.success(),
+            "straced query probe failed:\n{}\n{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+
+        let trace_output = fs::read_to_string(&trace).expect("read strace output");
+        let trace_lines: Vec<_> = trace_output.lines().collect();
+        let marker_line = trace_lines
+            .iter()
+            .position(|line| line.contains(marker.to_string_lossy().as_ref()))
+            .expect("strace observed the post-construction marker");
+        assert!(
+            trace_lines[marker_line + 1..]
+                .iter()
+                .all(|line| !line.contains(corpus.to_string_lossy().as_ref())),
+            "a query accessed the corpus after construction:\n{}",
+            trace_lines[marker_line + 1..]
+                .iter()
+                .filter(|line| line.contains(corpus.to_string_lossy().as_ref()))
+                .copied()
+                .collect::<Vec<_>>()
+                .join("\n")
+        );
     }
 
     // CR-047: the header-tier query surface — len,

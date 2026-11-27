@@ -25,6 +25,7 @@ pub struct ClauseSetKey {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[non_exhaustive]
 pub enum ClauseForce {
     Mandatory,
     Recommended,
@@ -89,6 +90,7 @@ pub struct ExpectedOutput {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "op", rename_all = "snake_case")]
+#[non_exhaustive]
 pub enum ApplicabilityExpr {
     All {
         terms: Vec<ApplicabilityExpr>,
@@ -138,6 +140,7 @@ pub struct Clause {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[non_exhaustive]
 pub enum CrosswalkRelation {
     Equivalent,
     Partial,
@@ -392,6 +395,7 @@ fn validate_non_empty_unique(
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[non_exhaustive]
 pub enum BindingOutcome {
     Binding,
     NotBinding,
@@ -557,6 +561,7 @@ pub fn diff_clause_sets(
 }
 
 #[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
 pub enum ClauseSetError {
     #[error("{0}")]
     Invalid(String),

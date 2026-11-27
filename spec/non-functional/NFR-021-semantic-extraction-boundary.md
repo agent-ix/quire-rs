@@ -42,7 +42,7 @@ later (`agent-ix/quire-contract-ir#55`) must find the clause text untouched.
 |--------|--------|-----------|--------|
 | Clause-language parser or evaluator dependencies in the crate graph | 0 | 0 | inspection (static) |
 | Network, git, or persistence calls on the semantic extraction path | 0 | 0 | inspection (static) |
-| Changed bytes versus the checked-in baselines (Filament graph cases, coverage-v1, properties-v1, assurance-v1) | 0 | 0 | unit-testing |
+| Changed bytes versus the checked-in output baselines (coverage-v1, properties-v1, assurance-v1) | 0 | 0 | unit-testing |
 | Output mismatches across repeated runs and across Rust, Python, and WASM for the semantic fixture suite | 0 | 0 | integration-testing |
 
 ## Verification
@@ -52,6 +52,11 @@ sources; contract-byte tests replay the existing fixture suites; a parity test
 runs the semantic fixture cases through all three surfaces and compares JSON
 values.
 
+The Filament graph cases are input fixtures with partial expected shapes, not a
+checked-in serialized-output baseline. Their expected shape and repeated-output
+equality remain covered by the fixture and determinism tests; they are excluded
+from the changed-bytes baseline metric.
+
 ## Acceptance Criteria
 
 | ID | Criteria | Verification |
@@ -59,6 +64,12 @@ values.
 | NFR-021-AC-1 | A static audit of `cargo metadata` and the semantic module sources finds none of the denylisted crates (`ocl`, `sysml`, `fret`, `tera`, `handlebars`, `minijinja`, `askama`, `reqwest`, `ureq`, `hyper`, `git2`, `rusqlite`, `sled`) and no `eval`/`parse_expr`/`typecheck` symbol over clause text; clause text leaves the engine byte-identical to the fence body. | Test |
 | NFR-021-AC-2 | A static audit finds no `std::net`, `std::process`, or filesystem write on the semantic path, and `cargo check --target wasm32-unknown-unknown --no-default-features --features wasm` passes under `make ci` with the semantic-core bundle embedded. | Test |
 | NFR-021-AC-4 | The semantic fixture suite yields identical JSON values across repeated runs and between the Rust and Python surfaces under `make ci-python`, including diagnostic order and loci; the WASM leg is verified by `agent-ix/quire-wasm#3`. | Test |
+
+> **CR-001 note (2026-11-26):** The changed-bytes metric names only checked-in
+> serialized-output baselines. `fixtures/filament_core/graph_cases.json` is an
+> input corpus with partial expected shapes; its exact output bytes are not
+> committed as a baseline. The existing fixture assertions and repeated-output
+> equality continue to cover that corpus.
 
 ## Dependencies
 

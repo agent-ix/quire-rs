@@ -205,6 +205,73 @@ fn tc939_implements_reaches_the_report_without_moving_a_total() {
     std::fs::remove_dir_all(&dir).ok();
 }
 
+#[trace("FR-062-CON-1")]
+#[test]
+fn tc941_implements_does_not_change_any_coverage_rollup() {
+    use quire_rs::Registry;
+
+    let dir = tempfile::tempdir().expect("temporary fixture");
+    let scope = dir.path().join("spec");
+    std::fs::create_dir_all(&scope).expect("create spec");
+    std::fs::write(
+        scope.join("FR-001.md"),
+        "---\nid: FR-001\ntype: FR\ntitle: A requirement\n---\n\n\
+         ## Acceptance Criteria\n\n\
+         | ID | Criteria | Verification |\n|----|----------|--------------|\n\
+         | FR-001-AC-1 | The system shall do it. | Test |\n",
+    )
+    .expect("write requirement");
+    let source = dir.path().join("src");
+    std::fs::create_dir_all(&source).expect("create source");
+    std::fs::write(
+        source.join("lib.rs"),
+        "#[implements(\"FR-001\")]\npub fn does_it() {}\n",
+    )
+    .expect("write implementation");
+
+    let module = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/traceability/obligations-catalog");
+    let registry = Registry::load_module(&module).expect("load module");
+    let spec = quire_rs::Spec::from_path(&scope);
+    let mut model = registry
+        .traceability()
+        .cloned()
+        .expect("traceability model");
+    model.trace_tags.implements.push(TraceMarkerForm {
+        syntax: None,
+        name: "rust-implements-attr".to_string(),
+        language: SourceLanguage::Rust,
+        pattern: r#"#\[implements\("([^"]+)"\)\]"#.to_string(),
+        template: None,
+        entry_paths: None,
+    });
+    let graph = trace::bind(&quire_rs::symbols::extract_tree(&source), &model);
+    assert_eq!(graph.implements.len(), 1, "fixture must bind implements");
+
+    let with_implements = quire_rs::coverage::compute(&spec, &registry, &graph, &scope)
+        .expect("coverage with implements");
+    let mut without_implements_graph = graph;
+    without_implements_graph.implements.clear();
+    let without_implements =
+        quire_rs::coverage::compute(&spec, &registry, &without_implements_graph, &scope)
+            .expect("coverage without implements");
+
+    let mut with_json = serde_json::to_value(with_implements).expect("serialize report");
+    let mut without_json = serde_json::to_value(without_implements).expect("serialize report");
+    with_json
+        .as_object_mut()
+        .expect("report object")
+        .remove("implements");
+    without_json
+        .as_object_mut()
+        .expect("report object")
+        .remove("implements");
+    assert_eq!(
+        with_json, without_json,
+        "implements changed an FR-050 rollup"
+    );
+}
+
 #[trace("FR-062-AC-5")]
 // the forms reach `bind` when they come from a (CR-081)
 // module manifest, which is the only way a consumer ever supplies them.

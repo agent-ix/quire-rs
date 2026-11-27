@@ -9,6 +9,7 @@ use std::sync::Arc;
 use std::thread;
 
 use ix_trace_rs::trace;
+use proptest::prelude::*;
 use quire_rs::{apply_patch, extract, parse_document, validate_document, Registry};
 use serde_json::json;
 
@@ -38,6 +39,49 @@ fn parse_is_deterministic_across_threads() {
     for h in handles {
         h.join().unwrap();
     }
+}
+
+proptest! {
+    #[trace("NFR-006-AC-2")]
+    #[test]
+    fn parse_is_equal_across_one_hundred_identical_runs(input in ".*") {
+        let baseline = parse_document(&input);
+        for _ in 0..100 {
+            prop_assert_eq!(parse_document(&input), baseline.clone());
+        }
+    }
+}
+
+#[trace("NFR-015-AC-4")]
+#[test]
+fn thousand_document_walk_is_sorted_and_equal_at_one_and_eight_threads() {
+    let root = tempfile::tempdir().expect("create corpus root");
+    for index in 0..1_000 {
+        let path = root.path().join(format!("FR-{index:04}.md"));
+        std::fs::write(
+            path,
+            format!("---\nid: FR-{index:04}\ntype: FR\n---\n# Requirement {index}\n"),
+        )
+        .expect("write corpus document");
+    }
+
+    let one_thread = rayon::ThreadPoolBuilder::new()
+        .num_threads(1)
+        .build()
+        .expect("build one-thread pool")
+        .install(|| quire_rs::load_repo(root.path()));
+    let eight_threads = rayon::ThreadPoolBuilder::new()
+        .num_threads(8)
+        .build()
+        .expect("build eight-thread pool")
+        .install(|| quire_rs::load_repo(root.path()));
+
+    assert_eq!(one_thread.documents.len(), 1_000);
+    assert!(one_thread
+        .documents
+        .windows(2)
+        .all(|pair| pair[0].path < pair[1].path));
+    assert_eq!(one_thread, eight_threads);
 }
 
 const FR_DOC: &str = "---\nid: FR-001\ntitle: Determinism\ntype: FR\n---\n\n\

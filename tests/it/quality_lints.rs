@@ -106,7 +106,7 @@ fn tc862_longest_term_names_the_finding() {
     );
 }
 
-#[trace("FR-056-AC-3")]
+#[trace("FR-056-AC-3", "FR-056-CON-2")]
 // module terms layer OVER the built-ins, never replace.
 #[test]
 fn tc863_module_terms_extend_the_builtins() {
@@ -239,6 +239,31 @@ fn tc867_advisory_and_individually_addressable() {
     assert!(
         !after.iter().any(|c| c == "ambiguous-term"),
         "`off` must remove the check entirely: {after:?}",
+    );
+}
+
+#[trace("FR-056-CON-1")]
+#[test]
+fn every_quality_check_defaults_to_an_advisory_warning() {
+    let registry = plain("all_advisory");
+    let archetype = registry.archetype("FR").expect("FR");
+    let doc = fr("The system shall be validated under adequate conditions and should log every attempt.");
+
+    let result = quire_rs::validate_document_in_registry(&registry, archetype, &doc);
+    assert!(
+        result.errors.is_empty(),
+        "default quality checks must not promote findings to errors: {:#?}",
+        result.errors
+    );
+    let findings = quality_findings(&registry, &doc);
+    let checks: std::collections::BTreeSet<_> =
+        findings.iter().map(|(check, _)| check.as_str()).collect();
+    assert_eq!(
+        checks,
+        ["agentless-passive", "ambiguous-term", "mixed-modal"]
+            .into_iter()
+            .collect(),
+        "each built-in check must be present on the warning path: {findings:#?}"
     );
 }
 

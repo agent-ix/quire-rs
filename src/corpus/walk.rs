@@ -24,6 +24,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use ignore::WalkBuilder;
+use ix_trace_rs::implements;
 use rayon::prelude::*;
 use uuid::Uuid;
 
@@ -199,6 +200,7 @@ pub fn load_repo(root: &Path) -> RepoLoad {
 /// Walk `root` with explicit options. A `root` that is missing or not
 /// a directory yields an empty [`RepoLoad`] plus one warning — never a
 /// panic or `Err` (FR-024-AC-7).
+#[implements("FR-024-AC-5")]
 pub fn load_repo_with(root: &Path, opts: &WalkOptions) -> RepoLoad {
     if !root.exists() {
         return RepoLoad {
@@ -218,6 +220,7 @@ pub fn load_repo_with(root: &Path, opts: &WalkOptions) -> RepoLoad {
     }
 
     // Phase 1 — sequential walk (I/O-bound), collect matching paths.
+    let symlink_diagnostics = symlink_loop_diagnostics(root);
     let files = discover_files(root, opts);
 
     // Phase 2 — data-parallel parse. Each task produces an owned
@@ -240,11 +243,60 @@ pub fn load_repo_with(root: &Path, opts: &WalkOptions) -> RepoLoad {
             Outcome::NotADocument { diag, .. } => diagnostics.push(diag),
         }
     }
+    diagnostics.extend(symlink_diagnostics);
 
     RepoLoad {
         documents,
         diagnostics,
     }
+}
+
+/// Report directory symlinks that point back to one of their ancestors.
+/// The corpus walk does not follow links, so this scan is finite even when a
+/// link closes a cycle; the diagnostic preserves the loader's warning
+/// contract without traversing the target.
+fn symlink_loop_diagnostics(root: &Path) -> Vec<crate::diagnostic::Diagnostic> {
+    let Ok(canonical_root) = std::fs::canonicalize(root) else {
+        return Vec::new();
+    };
+    let mut pending = vec![canonical_root.clone()];
+    let mut loops = Vec::new();
+
+    while let Some(directory) = pending.pop() {
+        let Ok(entries) = std::fs::read_dir(&directory) else {
+            continue;
+        };
+        let mut paths: Vec<_> = entries.flatten().map(|entry| entry.path()).collect();
+        paths.sort();
+        for path in paths {
+            let Ok(file_type) =
+                std::fs::symlink_metadata(&path).map(|metadata| metadata.file_type())
+            else {
+                continue;
+            };
+            if file_type.is_symlink() {
+                let (Some(parent), Ok(target)) = (path.parent(), std::fs::canonicalize(&path))
+                else {
+                    continue;
+                };
+                let Ok(parent) = std::fs::canonicalize(parent) else {
+                    continue;
+                };
+                if target.starts_with(&canonical_root) && parent.starts_with(&target) {
+                    loops.push(path);
+                }
+            } else if file_type.is_dir() {
+                pending.push(path);
+            }
+        }
+    }
+
+    loops.sort();
+    loops.dedup();
+    loops
+        .into_iter()
+        .map(|path| crate::diagnostic::Diagnostic::SymlinkLoop { path })
+        .collect()
 }
 
 /// Per-file parse result — owned, no shared state. The document is boxed
@@ -312,8 +364,8 @@ pub(crate) fn discover_files_observed(root: &Path, opts: &WalkOptions) -> Discov
         // Honor .gitignore even when `root` is not itself a git repo
         // (the default `require_git(true)` would otherwise ignore it).
         .require_git(false)
-        .follow_links(false); // never follow symlinks → no loop risk (FR-024-AC-5)
-                              // Cookiecutter template trees below the root are not this repo's documents.
+        .follow_links(false); // linked directories are not traversed; loops are diagnosed separately.
+    // Cookiecutter template trees below the root are not this repo's documents.
     builder.filter_entry(|e| {
         !(e.depth() > 0
             && e.file_type().is_some_and(|t| t.is_dir())

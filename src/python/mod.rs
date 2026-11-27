@@ -66,6 +66,7 @@ fn quire(m: &Bound<'_, PyModule>) -> PyResult<()> {
 /// Validate `data` against `archetype_name` from `module_root`.
 /// Raises `QuireValidationError` on schema violation (carrying field
 /// path), `QuireSchemaError` if the module / archetype fails to load.
+#[implements("FR-028-AC-8")]
 #[pyfunction]
 fn validate(
     py: Python<'_>,
@@ -425,6 +426,7 @@ fn input_skeleton(
 /// uses internally. Returns a list of structured violations
 /// (`[]` means valid); `QuireSchemaError` is raised if the schema file
 /// fails to load / compile.
+#[implements("FR-028-AC-8")]
 #[pyfunction]
 fn validate_manifest<'py>(
     py: Python<'py>,
@@ -462,6 +464,7 @@ fn validate_manifest<'py>(
 /// DSL, and return `{extraction: [...], edges: [{target, edge_type}, ...]}`.
 /// Raises `QuireSchemaError` on module / archetype load failure,
 /// `QuireParseError` if the archetype has no `body_extraction` DSL.
+#[implements("FR-028-AC-8")]
 #[pyfunction]
 fn extract<'py>(
     py: Python<'py>,
@@ -574,9 +577,11 @@ fn extract_semantic<'py>(
 
 /// Extract frontmatter and body from `text` using the Rust FR-006 parser.
 /// Returns `{frontmatter: dict | None, body: str}`.
+#[implements("FR-028-AC-8")]
 #[pyfunction]
 fn extract_frontmatter<'py>(py: Python<'py>, text: &str) -> PyResult<Bound<'py, PyDict>> {
-    let result = crate::extract_frontmatter(text);
+    let text = text.to_owned();
+    let result = py.detach(move || crate::extract_frontmatter(&text));
     let out = PyDict::new(py);
     match result.frontmatter.as_ref() {
         None => out.set_item("frontmatter", py.None())?,
@@ -595,14 +600,14 @@ fn extract_frontmatter<'py>(py: Python<'py>, text: &str) -> PyResult<Bound<'py, 
 /// Harvest `ix://` + frontmatter `relationships` edges off `doc` —
 /// either a parsed document dict (from `parse_document`) or raw
 /// markdown text. Returns `[{target, edge_type}, ...]` sorted.
+#[implements("FR-028-AC-8")]
 #[pyfunction]
 fn harvest_edges<'py>(py: Python<'py>, doc: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyList>> {
     // Accept either a string (parse it) or a dict (we re-extract raw
     // by serializing through parse_document). For dict input we read
     // `frontmatter`/`raw` if present; otherwise fall back to text.
-    let loaded = if let Ok(s) = doc.extract::<String>() {
-        let parsed = crate::parse_document(&s);
-        LoadedDocument::from_parsed(std::path::PathBuf::new(), String::new(), None, parsed)
+    let (raw, frontmatter) = if let Ok(s) = doc.extract::<String>() {
+        (Some(s), None)
     } else if let Ok(d) = doc.cast::<PyDict>() {
         // Reconstruct a minimal QuireDocument view from the dict.
         let raw = d
@@ -613,8 +618,7 @@ fn harvest_edges<'py>(py: Python<'py>, doc: &Bound<'py, PyAny>) -> PyResult<Boun
         // Re-parse from raw if available (canonical); else build a
         // doc with frontmatter-only edges from the dict.
         if !raw.is_empty() {
-            let parsed = crate::parse_document(&raw);
-            LoadedDocument::from_parsed(std::path::PathBuf::new(), String::new(), None, parsed)
+            (Some(raw), None)
         } else {
             // Build a QuireDocument with frontmatter only.
             let mut fm: serde_json::Map<String, Value> = serde_json::Map::new();
@@ -625,13 +629,7 @@ fn harvest_edges<'py>(py: Python<'py>, doc: &Bound<'py, PyAny>) -> PyResult<Boun
                     }
                 }
             }
-            let qdoc = QuireDocument {
-                preamble: None,
-                sections: Vec::new(),
-                raw: String::new(),
-                frontmatter: if fm.is_empty() { None } else { Some(fm) },
-            };
-            LoadedDocument::from_parsed(std::path::PathBuf::new(), String::new(), None, qdoc)
+            (None, if fm.is_empty() { None } else { Some(fm) })
         }
     } else {
         return Err(PyTypeError::new_err(
@@ -639,7 +637,20 @@ fn harvest_edges<'py>(py: Python<'py>, doc: &Bound<'py, PyAny>) -> PyResult<Boun
         ));
     };
 
-    let edges = crate::harvest_edges(&loaded);
+    let edges = py.detach(move || {
+        let qdoc = match raw {
+            Some(raw) => crate::parse_document(&raw),
+            None => QuireDocument {
+                preamble: None,
+                sections: Vec::new(),
+                raw: String::new(),
+                frontmatter,
+            },
+        };
+        let loaded =
+            LoadedDocument::from_parsed(std::path::PathBuf::new(), String::new(), None, qdoc);
+        crate::harvest_edges(&loaded)
+    });
     let out = PyList::empty(py);
     for (target, edge_type) in &edges {
         let d = PyDict::new(py);
@@ -1226,8 +1237,9 @@ mod tests {
     use pyo3::Python;
     use serde_json::{json, Value};
 
-    use super::{classify_properties, py_to_json};
+    use super::{check_grammar, classify_properties, py_to_json};
     use crate::grammar::property::{AcClassification, Span};
+    use crate::grammar::GrammarFinding;
 
     fn span_json(span: Option<&Span>) -> Value {
         span.map_or(Value::Null, |span| {
@@ -1261,6 +1273,61 @@ mod tests {
                 })
                 .collect(),
         )
+    }
+
+    fn rust_findings_json(findings: &[GrammarFinding]) -> Value {
+        Value::Array(
+            findings
+                .iter()
+                .map(|finding| {
+                    json!({
+                        "grammar": finding.grammar,
+                        "check": finding.check,
+                        "pattern": finding.pattern,
+                        "message": finding.message,
+                        "line": finding.line,
+                        "statement": finding.statement,
+                        "severity": finding.severity.as_str(),
+                    })
+                })
+                .collect(),
+        )
+    }
+
+    #[trace("FR-047-AC-9")]
+    #[test]
+    fn tc983_check_grammar_binding_matches_rust_findings() {
+        let markdown = concat!(
+            "---\nid: FR-001\ntype: FR\n---\n",
+            "## Acceptance Criteria\n\n",
+            "| ID | Criteria | Verification |\n",
+            "|----|----------|--------------|\n",
+            "| FR-001-AC-1 | Navigation works. | Test |\n",
+        );
+
+        Python::attach(|py| {
+            let binding = check_grammar(py, "iso-spec-core", "FR", markdown, None)
+                .expect("PyO3 grammar check");
+            let actual = py_to_json(binding.as_any()).expect("Python findings convert to JSON");
+
+            let document = crate::parse_document(markdown);
+            let rust = crate::grammar::apply_severity(
+                crate::grammar::check_document_grammar(
+                    "iso-spec-core",
+                    "FR",
+                    &document,
+                    crate::validate_document::body_line_offset(markdown),
+                    crate::grammar::GrammarVocabularies::defaults(),
+                ),
+                crate::grammar::default_severity(),
+            );
+            let expected = rust_findings_json(&rust);
+            assert!(
+                !rust.is_empty(),
+                "fixture must exercise at least one grammar finding"
+            );
+            assert_eq!(actual, expected);
+        });
     }
 
     #[trace("FR-052-AC-11")]

@@ -1370,6 +1370,53 @@ mod tests {
         );
     }
 
+    // Property classification is a finding-free record surface: the record
+    // cannot carry a GrammarFinding or an FR-048 severity key.
+    #[trace("FR-052-CON-1")]
+    #[test]
+    fn tc_property_classification_is_metadata_without_finding_or_severity_fields() {
+        let mut records = classify_cells(
+            "FR",
+            &["Serializing a document then parsing it yields the input"],
+        );
+        assert_eq!(records.len(), 1);
+
+        // Exhaustive destructuring intentionally pins the record's public
+        // field set. A finding/severity field cannot appear here unnoticed.
+        let AcClassification {
+            row_id,
+            statement,
+            line,
+            shape,
+            property,
+            extractable,
+            extraction,
+            domain,
+            precondition,
+            oracle,
+            signals,
+            obligation,
+        } = records.remove(0);
+
+        assert_eq!(row_id.as_deref(), Some("FR-001-AC-1"));
+        assert_eq!(
+            statement,
+            "Serializing a document then parsing it yields the input"
+        );
+        assert_eq!(property, PropertyShape::RoundTrip);
+        assert!(extractable);
+        let _ = (
+            line,
+            shape,
+            extraction,
+            domain,
+            precondition,
+            oracle,
+            signals,
+            obligation,
+        );
+    }
+
     #[trace("FR-052-AC-7")]
     // the `ac` finding stream over a (FR-052-CON-1)
     // fixture corpus is unchanged finding-for-finding, field-for-field and

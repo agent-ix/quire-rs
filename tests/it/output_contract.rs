@@ -41,7 +41,13 @@ fn errors(schema: &Validator, instance: &Value) -> Vec<String> {
 
 /// Keys that would let a payload assert its own contract revision
 /// (FR-055-CON-2). Banned in the payload AND in the schemas that declare it.
-const BANNED_VERSION_KEYS: [&str; 3] = ["version", "$schema", "schema_version"];
+const BANNED_CONTRACT_REVISION_KEYS: [&str; 5] = [
+    "version",
+    "$schema",
+    "schema_version",
+    "schema_ref",
+    "schemaRef",
+];
 
 /// Every property name a schema declares, at every depth.
 ///
@@ -746,13 +752,13 @@ fn tc957_line_keys_are_optional_in_both_directions() {
     );
 }
 
-#[trace("FR-055-AC-7")]
+#[trace("FR-055-AC-7", "FR-055-CON-2")]
 // the contract is carried by the artifact alone.
 #[test]
 fn tc860_no_version_key_in_the_payload_and_no_schemars() {
     let payload = baseline();
     let object = payload.as_object().expect("object");
-    for banned in BANNED_VERSION_KEYS {
+    for banned in BANNED_CONTRACT_REVISION_KEYS {
         assert!(
             !object.contains_key(banned),
             "FR-008-AC-5: the payload must carry no `{banned}` key; versioning lives in the schema artifact",
@@ -773,7 +779,7 @@ fn tc860_no_version_key_in_the_payload_and_no_schemars() {
             !declared.is_empty(),
             "{name}: the walk found no declared properties, so this gate is vacuous",
         );
-        for banned in BANNED_VERSION_KEYS {
+        for banned in BANNED_CONTRACT_REVISION_KEYS {
             assert!(
                 !declared.iter().any(|k| k == banned),
                 "{name} declares a `{banned}` property: a payload must never name the \

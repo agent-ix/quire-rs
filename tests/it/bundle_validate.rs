@@ -165,6 +165,40 @@ fn index_incompleteness_is_error_strict_warning_okf() {
         .any(|f| f.reason == "index-incomplete" && f.message.contains("log.md")));
 }
 
+/// Bundle findings stay ordered by their source document and repeat exactly
+/// for the same bundle (NFR-006).
+#[test]
+fn bundle_findings_are_ordered_by_document_and_repeat_identically() {
+    let root = tmpdir("finding_order");
+    write(&root, "NOTE-002.md", &note("NOTE-002", "body"));
+    write(&root, "NOTE-001.md", &note("NOTE-001", "body"));
+    write(
+        &root,
+        "index.md",
+        "---\ntype: index\nokf_version: \"0.1\"\n---\n# Root\n\n## Contents\n\n",
+    );
+
+    let first = validate_bundle_at(&root, &bundle_registry(), BundlePosture::Okf);
+    let second = validate_bundle_at(&root, &bundle_registry(), BundlePosture::Okf);
+
+    assert_eq!(
+        first.errors, second.errors,
+        "error findings changed across runs"
+    );
+    assert_eq!(
+        first.warnings, second.warnings,
+        "warning findings changed across runs"
+    );
+    let paths: Vec<_> = first
+        .warnings
+        .iter()
+        .filter(|finding| finding.reason == "index-incomplete")
+        .map(|finding| finding.path.clone())
+        .collect();
+    assert_eq!(paths.len(), 2, "expected one finding per omitted document");
+    assert!(paths.windows(2).all(|pair| pair[0] <= pair[1]), "{paths:?}");
+}
+
 /// The bundle-root index.md must declare `okf_version`.
 #[trace("FR-038-AC-6")]
 // the bundle root must declare `okf_version`.
@@ -186,7 +220,7 @@ fn root_index_missing_okf_version_is_flagged() {
 }
 
 /// A subdirectory index need not carry `okf_version` (only the root does).
-#[trace("FR-038-AC-6")]
+#[trace("FR-038-AC-7")]
 // a subdirectory index does not.
 #[test]
 fn subdir_index_does_not_require_okf_version() {
@@ -206,11 +240,16 @@ fn subdir_index_does_not_require_okf_version() {
 
     let report = validate_bundle_at(&root, &bundle_registry(), BundlePosture::Strict);
     assert!(report.is_valid(), "errors: {:?}", report.errors);
+    assert!(!report
+        .errors
+        .iter()
+        .chain(&report.warnings)
+        .any(|finding| finding.reason == "index-okf-version"));
 }
 
 /// A mistyped optional `description` is caught by the base concept contract
 /// under Strict.
-#[trace("FR-038-AC-7")]
+#[trace("FR-038-AC-8")]
 // the base-concept contract still applies to a known type.
 #[test]
 fn strict_rejects_mistyped_description() {
