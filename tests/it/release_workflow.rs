@@ -1109,11 +1109,16 @@ fn tc_2230_shared_consumer_refuses_absent_artifact_and_empty_evidence_root() {
             step["name"] == "Validate the retained evidence store with the Quoin exporter"
         })
         .expect("consumer validates evidence only after the absent-root guards");
+    let absent_index = steps
+        .iter()
+        .position(|step| step["name"] == "Refuse when no retained release evidence store exists")
+        .expect("absent artifact guard has an index");
     let empty_index = steps
         .iter()
         .position(|step| step["name"] == "Refuse an empty retained release evidence artifact")
         .expect("empty root guard has an index");
     assert!(empty_index < quoin);
+    assert!(absent_index < quoin);
     assert_eq!(consumer["jobs"]["attest"]["needs"], "verify");
 
     for (name, script, create_empty_root) in [
@@ -1201,6 +1206,21 @@ fn tc_2246_reusable_release_workflow_has_tag_guards_and_typed_inputs() {
                 .contains("startsWith(github.ref, 'refs/tags/v')")
         );
     }
+    assert_eq!(
+        tag_attestation["jobs"]["attest"]["with"]["evidence_artifact"],
+        "${{ inputs.evidence_artifact_name || 'release-evidence' }}"
+    );
+    let evidence_steps = tag_attestation["jobs"]["release-evidence"]["steps"]
+        .as_array()
+        .expect("evidence retention steps");
+    let retained = evidence_steps
+        .iter()
+        .find(|step| step["uses"].as_str() == Some("actions/upload-artifact@v7"))
+        .expect("verified evidence is uploaded");
+    assert_eq!(
+        retained["with"]["name"],
+        "${{ inputs.evidence_artifact_name || 'release-evidence' }}"
+    );
 }
 
 #[trace("FR-095-AC-8")]
