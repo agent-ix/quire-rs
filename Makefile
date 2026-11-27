@@ -135,12 +135,17 @@ check-shell-symbols:
 check-tools:
 	$(CARGO) test --locked -p quire-bench
 
+.PHONY: release-evidence-preflight
+release-evidence-preflight:
+	python3 tests/python/release_evidence_checks.py
+
 .PHONY: evidence
 # FR-095: run SUITE-001 once at the exact tagged commit on Terra, then package
 # its evidence for attachment to that tag's GitHub Release. The tag workflow
 # validates and retains this bundle; it never runs the suite a second time.
 evidence:
 	@set -eu; \
+	  python3 tests/python/release_evidence_checks.py; \
 	  python3 scripts/check_release_evidence_checkout.py --repo-root .; \
 	  tag=$${RELEASE_TAG:-$$(git describe --tags --exact-match HEAD)}; \
 	  printf '%s\n' "$$tag" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$$' || { echo "evidence: HEAD must be an exact vMAJOR.MINOR.PATCH tag" >&2; exit 1; }; \
@@ -458,7 +463,7 @@ check-wasm:
 	CARGO_TARGET_DIR=target/wasm-check $(CARGO) check --locked --target wasm32-unknown-unknown --no-default-features --features wasm --quiet
 	$(CARGO) test --locked --no-default-features --features wasm --quiet --test it -- semantic_contract:: semantic_properties:: semantic_clauses:: semantic_surface:: semantic_relations::
 
-ci: fmt-check lint check-python check-python-symbols check-typescript-symbols check-shell-symbols check-no-adapters check-wasm check-tools test deny deny-grammars audit-property audit-static validate
+ci: release-evidence-preflight fmt-check lint check-python check-python-symbols check-typescript-symbols check-shell-symbols check-no-adapters check-wasm check-tools test deny deny-grammars audit-property audit-static validate
 
 # =============================================================================
 # Python wheel / sdist + local-publish (pypi.ix)
