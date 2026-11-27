@@ -684,7 +684,7 @@ yield_pattern:
         );
     }
 
-    #[trace("FR-011-AC-13")]
+    #[trace("FR-011-AC-13", "FR-011-AC-4")]
     // `code_block` is section-owned, so under iteration
     // each yielded record gets ITS OWN unit's fenced block — not unit
     // #1's block for every record (the latent multi-yield gap closed by
