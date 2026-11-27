@@ -470,6 +470,76 @@ fn no_relation_vocabulary_cases() {
     run(NO_VOCABULARY_CASES);
 }
 
+#[trace("FR-076-CON-1")]
+#[test]
+fn relationships_absent_from_module_and_document_leave_the_fr075_record_shape() {
+    let fixture = mapping_json("relationships.expected.json");
+    let fixture_markdown = mapping_text("relationships.md");
+    let markdown = fixture_markdown
+        .split("## Relationships")
+        .next()
+        .expect("frontmatter and FR-075 body");
+    let mut request = request(&fixture, markdown, "plain.md", None);
+    request["module"]["mappings"] = json!(["typed-table"]);
+
+    let record =
+        serde_json::to_value(extract_semantic_json(&request).expect("FR-075-only extraction"))
+            .expect("serialize FR-075 record");
+    assert!(record.get("relations").is_none(), "{record:#}");
+    assert!(record.get("relationSources").is_none(), "{record:#}");
+    assert!(
+        record["availability"].get("relations").is_none(),
+        "{record:#}"
+    );
+}
+
+#[trace("FR-076-CON-2")]
+#[test]
+fn relationship_composition_and_target_roles_come_from_supplied_module_data() {
+    let fixture = mapping_json("relationships.expected.json");
+    let markdown = concat!(
+        "---\nid: FR-006\ntitle: ConfigVersion\nobject: entity\ntype: FR\n---\n",
+        "## Aggregate Members\n\n",
+        "| Member | Multiplicity |\n|---|---|\n| entry | 1..* |\n\n",
+        "## Relationships\n\n",
+        "| Name | Verb | Target | Multiplicity |\n",
+        "|---|---|---|---|\n",
+        "| child | contains | FR-007 | 1..* |\n",
+    );
+    let mut request = request(&fixture, markdown, "custom.md", None);
+    request["module"]["mappings"] = json!(["typed-table", "relationships", "members"]);
+    request["bodyExtraction"] = json!({
+        "yield_pattern": { "match": {
+            "members": {
+                "from": "table_row",
+                "under_section": "Aggregate Members",
+                "assert": { "columns": ["Member", "Multiplicity"] }
+            }
+        }}
+    });
+    request["relationVocabulary"]["edgeTypes"]["contains"] = json!({
+        "category": "dependency",
+        "composite": false
+    });
+    request["relationVocabulary"]["allowedLinks"]["entity"]["contains"] = json!(["domain-object"]);
+
+    let accepted = extract(&request, declared_core());
+    assert_eq!(
+        accepted["relations"].as_array().unwrap().len(),
+        1,
+        "{accepted:#}"
+    );
+    assert!(
+        accepted["diagnostics"].as_array().unwrap().is_empty(),
+        "{accepted:#}"
+    );
+    assert_eq!(accepted["relations"][0]["category"], "dependency");
+    assert_eq!(accepted["relations"][0]["composite"], false);
+
+    // The word `contains` and the target's entity role suggest a composite
+    // edge, but the explicit module declaration controls both properties.
+}
+
 #[trace("FR-076-AC-11")]
 // no bundle index: a lowering row's unchecked target carries the
 // `no-bundle-index` advisory; a title and a row error are still refused.
