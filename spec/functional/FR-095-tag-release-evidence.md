@@ -96,16 +96,10 @@ tag-release workflow through `workflow_call`, with a documented example.
 > exact tag commit and passes the verified store to the existing fail-closed EA
 > consumer.
 
-> **CR-427 note (2026-11-26, PLAT-1934):** Review requires the Terra run to
+> **CR-427 note (2026-11-26, PLAT-1934):** Review requires the release run to
 > refuse dirty tracked, untracked, or recursive submodule state before tests
 > execute. `make evidence` checks that condition before invoking the suite and
 > verifies the bounded evidence archive before workflow upload.
->
-> **CR-428 note (2026-11-26, PLAT-1934, FND-002):** Per the owner ruling in
-> [SWM-347 comment `ce4d1055`](https://linear.app/agent-ix/issue/SWM-347),
-> authenticated Terra producer provenance is out of scope for this change.
-> The tag workflow now produces evidence directly from the tagged source and
-> validates its archive contents before attestation.
 
 > **CR-429 note (2026-11-26):** Published Quoin 0.30.1 records timestamped runs without a commit field. The producer selects the exact run path from the recorder JSON response and preserves those bytes. The release manifest binds the clean exact-tag source commit to SHA-256 hashes of the run, binding registries, suite registry and raw JUnit results. Producer authentication remains outside scope.
 
