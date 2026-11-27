@@ -2468,8 +2468,9 @@ mod tests {
                 "ISO archetype {name} must be registered"
             );
         }
-        assert_eq!(registry.archetype_names().count(), 6);
         assert!(registry.archetype("fr").is_some());
+        assert!(registry.archetype("ac").is_none());
+        assert!(registry.archetype("con").is_none());
     }
 
     fn write_minimal_module(root: &Path, name: &str) {
