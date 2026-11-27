@@ -2162,7 +2162,7 @@ fn dimension_terms_resolve_tokens_validate_exponents_and_report_ambiguity() {
     let second = serde_json::to_vec(&extract_request(&request)).unwrap();
     assert_eq!(first, second, "repeated extraction is byte-identical");
 
-    let wide_exponent = "9223372036854775808";
+    let wide_exponent = "18446744073709551617";
     let wide_exponent_md = physical_doc(&[(
         "Powers",
         &format!("| Dimension | Exponent |\n|---|---:|\n| Length | {wide_exponent} |\n"),
@@ -2174,7 +2174,7 @@ fn dimension_terms_resolve_tokens_validate_exponents_and_report_ambiguity() {
     ));
     assert_eq!(
         wide_exponent["model"]["terms"][0]["exponent"].to_string(),
-        "9223372036854775808"
+        "18446744073709551617"
     );
 
     let aliases_md = physical_doc(&[(

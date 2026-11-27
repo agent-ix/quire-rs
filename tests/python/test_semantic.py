@@ -141,7 +141,7 @@ def test_physical_terms_alias_duplicate_matches_rust_behavior():
 
 @pytest.mark.trace("FR-075-AC-17")
 def test_physical_terms_large_exponent_matches_rust_behavior():
-    exponent = "9223372036854775808"
+    exponent = "18446744073709551617"
     request = _physical_request(
         "Powers",
         ["Dimension", "Exponent"],
