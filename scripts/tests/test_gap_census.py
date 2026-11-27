@@ -378,20 +378,26 @@ def test_tc1069_reports_are_provenanced_and_byte_stable(tmp_path):
         assert token in markdown
 
 
-@pytest.mark.trace("FR-066-AC-8")
+@pytest.mark.trace("FR-066-AC-10")
 def test_tc1071_human_report_names_locus_owner_reason_and_action(tmp_path):
     """TC-1071"""
-    rendered = render_markdown(payload(tmp_path))
-    for token in (
-        "instrument-unread",
-        "declaration-unreached",
-        "marker-form-mismatch",
-        "id-class-unminted",
-        "method-exempt",
-        "authoring-absent",
-    ):
-        assert token in rendered
-    assert "sample/spec/tests.md" in rendered and "next action" in rendered.lower()
+    data = payload(tmp_path)
+    rendered = render_markdown(data)
+    aggregate = data["aggregate"]
+    examples = aggregate["examples"]
+    observed_dispositions = {
+        outcome for outcome, count in aggregate["counts"].items() if outcome != "backed" and count
+    }
+    assert {example["outcome"] for example in examples} == observed_dispositions
+    for example in examples:
+        assert example["repo"] == "sample"
+        assert example["document"] and example["row_id"] and example["line"]
+        assert example["owner"] and example["reason"] and example["next_action"]
+        where = f"`{example['repo']}/{example['document']}:{example['line']}` `{example['row_id']}`"
+        assert where in rendered
+        assert example["reason"] in rendered
+        assert f"{example['owner']} — {example['next_action']}" in rendered
+    assert "next action" in rendered.lower()
     assert "source `rust:src/lib.rs:1`" in rendered
     assert "Highest owned backlogs" in rendered
 
