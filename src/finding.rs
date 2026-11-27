@@ -48,6 +48,7 @@ impl FindingGuidance {
 /// Exactly one action shape, flattened beside the rest of the finding.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(untagged)]
+#[non_exhaustive]
 pub enum FindingNextMove {
     Remedy { remedy: String },
     NextDiagnosticStep { next_diagnostic_step: String },

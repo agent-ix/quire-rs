@@ -37,6 +37,7 @@ use crate::query::{
 /// list).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
+#[non_exhaustive]
 pub enum Locator {
     /// One primitive — the canonical case.
     Primitive(LocatorPrimitive),
@@ -77,6 +78,7 @@ impl Locator {
 /// enum variant.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "from", rename_all = "snake_case")]
+#[non_exhaustive]
 pub enum LocatorPrimitive {
     /// `from: frontmatter_field` — `doc.frontmatter[path[0]][path[1]]...`
     FrontmatterField {
@@ -174,6 +176,7 @@ pub enum LocatorPrimitive {
 /// The locator kind discriminator (the `from:` value), used by
 /// load-time assert validation to decide which assert keys make sense.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum LocatorKind {
     FrontmatterField,
     SectionBody,

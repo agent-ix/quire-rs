@@ -28,6 +28,7 @@ use serde_json::{Map, Value};
 /// (`frontmatter`/`body`) are byte-identical across all branches, so this
 /// carries no TS/Py wire-shape impact (cf. the BOM/CRLF extensions above).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum FrontmatterStatus {
     /// No opening `---` fence, an opening fence with no closing `\n---`, or a
     /// complete fence block whose content is empty / whitespace / comments
