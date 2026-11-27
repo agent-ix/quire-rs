@@ -521,6 +521,8 @@ fn ix_link_regex() -> &'static Regex {
 mod tests {
     use super::*;
     use ix_trace_rs::trace;
+    use proptest::prelude::*;
+    use std::time::Instant;
 
     // target-id extraction is a pure function.
     #[trace("FR-026-AC-6")]
@@ -575,6 +577,33 @@ mod tests {
             identity_mode: false,
             declared: &[None],
         })
+    }
+
+    fn documents_with_dangling_edges(edge_count: usize) -> Vec<LoadedDocument> {
+        let relationships = (0..edge_count)
+            .map(|index| {
+                format!(
+                    "  - target: \"TARGET-{index:05}\"\n    type: references\n"
+                )
+            })
+            .collect::<String>();
+        let frontmatter = format!("relationships:\n{relationships}");
+        vec![loaded("SOURCE-001", &frontmatter, "# source\n")]
+    }
+
+    fn median_resolution_time(docs: &[LoadedDocument]) -> std::time::Duration {
+        // Warm the static regexes before timing, then use the median to reduce
+        // scheduler noise in this performance assertion.
+        let _ = run(docs);
+        let mut samples: Vec<_> = (0..7)
+            .map(|_| {
+                let start = Instant::now();
+                std::hint::black_box(run(docs));
+                start.elapsed()
+            })
+            .collect();
+        samples.sort_unstable();
+        samples[samples.len() / 2]
     }
 
     // frontmatter relationship to a present id -> Resolved.
@@ -694,6 +723,52 @@ mod tests {
         assert_eq!(from.len(), 1);
         assert_eq!(to.len(), 1);
         assert_eq!(from[0], to[0]); // same edge slot
+    }
+
+    // Probed at 2x edge count, the resolver stays within a linear-growth
+    // envelope; running the same classification under different Rayon pool
+    // sizes yields an identical ordered edge set.
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(8))]
+
+        #[trace("FR-026-AC-7")]
+        #[test]
+        fn edge_resolution_scales_linearly_and_is_thread_count_independent(
+            edge_count in 512usize..1024
+        ) {
+            let docs = documents_with_dangling_edges(edge_count);
+            let one_thread = rayon::ThreadPoolBuilder::new()
+                .num_threads(1)
+                .build()
+                .expect("one-thread pool");
+            let four_threads = rayon::ThreadPoolBuilder::new()
+                .num_threads(4)
+                .build()
+                .expect("four-thread pool");
+            let classify = |pool: &rayon::ThreadPool| {
+                pool.install(|| {
+                    run(&docs)
+                        .edges
+                        .into_iter()
+                        .map(|edge| (edge.source, edge.target, edge.edge_type, edge.resolution))
+                        .collect::<Vec<_>>()
+                })
+            };
+            let one_thread_edges = classify(&one_thread);
+            prop_assert_eq!(one_thread_edges.len(), edge_count);
+            prop_assert!(one_thread_edges.iter().all(|edge| edge.3 == Resolution::Dangling));
+            prop_assert_eq!(one_thread_edges, classify(&four_threads));
+
+            let double_docs = documents_with_dangling_edges(edge_count * 2);
+            let one_edge_time = median_resolution_time(&docs);
+            let two_edge_time = median_resolution_time(&double_docs);
+            // A 2x input may cost at most 3x, with a fixed 2ms allowance for
+            // timer granularity and shared-host scheduling noise.
+            prop_assert!(
+                two_edge_time <= one_edge_time * 3 + std::time::Duration::from_millis(2),
+                "doubling {edge_count} edges took {one_edge_time:?} -> {two_edge_time:?}"
+            );
+        }
     }
 
     // identical (src,target,type) from both sources -> one edge;
