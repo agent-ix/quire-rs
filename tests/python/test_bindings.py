@@ -6,6 +6,9 @@ boundary; this is the binding layer's verification method (spec.md §13).
 """
 
 import concurrent.futures
+import json
+import threading
+import time
 import pathlib
 import shutil
 
@@ -763,6 +766,92 @@ def test_extract_frontmatter_body_matches_rust_bom_and_crlf_parity():
     crlf = quire.extract_frontmatter("---\r\nid: X\r\n---\r\n# H\r\n")
     assert crlf["frontmatter"] == {"id": "X"}
     assert crlf["body"] == "# H\r\n"
+
+
+@pytest.mark.trace("FR-028-AC-8")
+def test_new_module_functions_release_the_gil_under_concurrent_calls(tmp_path):
+    """The five FR-028 module functions overlap their Rust work across two Python threads."""
+    module = tmp_path / "extract"
+    (module / "schemas").mkdir(parents=True)
+    (module / "schemas" / "event.schema.json").write_text(
+        '{"type":"object","properties":{"name":{"type":"string"}}}'
+    )
+    (module / "manifest.yaml").write_text(
+        "name: concurrent-extract\n"
+        "artifact_types:\n"
+        "  - name: event\n"
+        "    frontmatter_schema_ref: schemas/event.schema.json\n"
+        "    body_extraction:\n"
+        "      yield_pattern:\n"
+        "        match:\n"
+        "          purpose:\n"
+        "            from: section_body\n"
+        "            after_heading: Purpose\n"
+    )
+
+    schema_path = tmp_path / "manifest.schema.json"
+    schema = {
+        "anyOf": [
+            {
+                "type": "object",
+                "required": [f"field-{index}"],
+                "properties": {f"field-{index}": {"type": "string"}},
+            }
+            for index in range(256)
+        ]
+    }
+    schema_path.write_text(json.dumps(schema))
+    payload = {"field-255": "valid"}
+    frontmatter = "---\nid: FR-001\nbody: " + ("x" * 250_000) + "\n---\n"
+    markdown = "# Purpose\n" + ("plain content without a link\n" * 40_000)
+    document = "# No links\n" + ("plain content without a link\n" * 40_000)
+
+    calls = [
+        (
+            "validate",
+            lambda: quire.validate(
+                "demo-item", str(DEMO_MODULE), {"id": "DEMO-1", "title": "t"}
+            ),
+        ),
+        (
+            "validate_manifest",
+            lambda: quire.validate_manifest(payload, str(schema_path)),
+        ),
+        ("extract", lambda: quire.extract("event", str(module), markdown)),
+        ("extract_frontmatter", lambda: quire.extract_frontmatter(frontmatter)),
+        ("harvest_edges", lambda: quire.harvest_edges(document)),
+    ]
+
+    failures = []
+    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+        for name, call in calls:
+            single_samples = []
+            for _ in range(3):
+                started = time.perf_counter()
+                call()
+                single_samples.append(time.perf_counter() - started)
+            single_call = sorted(single_samples)[1]
+
+            start_time = [0.0]
+            barrier = threading.Barrier(
+                2, action=lambda: start_time.__setitem__(0, time.perf_counter())
+            )
+
+            def run_concurrently():
+                barrier.wait()
+                return call()
+
+            futures = [executor.submit(run_concurrently) for _ in range(2)]
+            concurrent_results = [future.result() for future in futures]
+            parallel_elapsed = time.perf_counter() - start_time[0]
+
+            assert concurrent_results[0] == concurrent_results[1], name
+            if parallel_elapsed >= single_call * 2:
+                failures.append(
+                    f"{name} took {parallel_elapsed:.6f}s for two concurrent calls; "
+                    f"single-call median was {single_call:.6f}s"
+                )
+    assert not failures, "\n".join(failures)
 
 
 @pytest.mark.trace("FR-028-AC-6")
