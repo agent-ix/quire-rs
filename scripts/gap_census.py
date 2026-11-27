@@ -217,6 +217,7 @@ def read_targets(module: pathlib.Path) -> list[Target]:
     return out
 
 
+# implements: FR-066-AC-2
 def scan_rows(repo: pathlib.Path, targets: list[Target]) -> tuple[dict, dict]:
     authored: dict[tuple[str, str, str, int], Row] = {}
     minted: dict[tuple[str, str, str, int], Row] = {}
