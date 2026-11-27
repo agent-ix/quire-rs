@@ -947,6 +947,33 @@ def test_extract_core_data_is_alias_and_deterministic():
     assert json.dumps(a, sort_keys=True) == json.dumps(b, sort_keys=True)
 
 
+@pytest.mark.trace("NFR-020-M-2")
+def test_filament_core_repeated_output_mismatch_count_is_zero():
+    """Measure repeated-output mismatches across the shared extraction parity fixtures."""
+    import json
+
+    fixtures_path = REPO_ROOT / "tests" / "fixtures" / "filament_core" / "graph_cases.json"
+    fixtures = json.loads(fixtures_path.read_text())
+    mismatches = []
+    for fixture in fixtures:
+        first = quire.extract_filament_core(fixture["input"])
+        second = quire.extract_filament_core(fixture["input"])
+        first_json = json.dumps(first, ensure_ascii=False, separators=(",", ":"))
+        second_json = json.dumps(second, ensure_ascii=False, separators=(",", ":"))
+        if first_json != second_json:
+            mismatches.append(fixture["name"])
+
+    mismatch_count = len(mismatches)
+    print(
+        "NFR-020-M-2 repeated-output mismatch count: "
+        f"{mismatch_count}/{len(fixtures)} parity fixtures"
+    )
+    assert mismatch_count == 0, (
+        f"NFR-020-M-2 repeated-output mismatch count is {mismatch_count}; "
+        f"mismatched fixtures: {mismatches}"
+    )
+
+
 @pytest.mark.trace("NFR-016-AC-4")
 def test_binding_returns_materialized_values_without_python_json_reparse(monkeypatch):
     """Parsed and extraction results arrive as native Python values without json.loads."""
