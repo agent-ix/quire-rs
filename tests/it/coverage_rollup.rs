@@ -2619,6 +2619,40 @@ fn tc988_coverage_metrics_carry_provenance_and_flag_a_hollow_denominator() {
     );
 }
 
+#[trace("FR-050-AC-14")]
+// A declared model with no minted targets reports a zero denominator and the
+// strict decision rejects it, rather than treating an empty population as full.
+#[test]
+fn tc_zero_target_coverage_is_not_full_and_fails_strict() {
+    use quire_rs::evidence::{strict_decision, StrictCause};
+
+    let root = tmpdir("ac14-zero-targets");
+    let scope = root.join("spec");
+    let source = root.join("src");
+    fs::create_dir_all(&scope).expect("mkdir spec");
+    fs::create_dir_all(&source).expect("mkdir source");
+    let bundle = Bundle { scope, source };
+    let report = report_for(&bundle, "iso").expect("declared model computes");
+
+    assert_eq!(report.totals.total, 0);
+    let backed = metric_for(&report, "coverage.backed");
+    assert_eq!(
+        backed.measurement,
+        Measurement::Measured {
+            value: 0,
+            population: 0,
+            examined: 0,
+            matched: 0,
+        },
+        "an empty target population is represented as zero over zero, not 100%"
+    );
+    assert!(!backed.is_hollow());
+    assert_eq!(
+        strict_decision(&report, &[]).unwrap_err().inherited,
+        [StrictCause::ZeroTargets]
+    );
+}
+
 #[trace("FR-050-AC-28", "FR-052-AC-18")]
 // the catch-all is split out of the headline, and (CR-095)
 // the span-grounding rate is reported per shape — the two facts a bare
@@ -4387,6 +4421,174 @@ fn tc2222_strict_decision_passes_exempt_only_rows_and_keeps_every_other_premise(
         .unwrap_err()
         .inherited
         .contains(&StrictCause::UnbackedRows));
+}
+
+#[trace("FR-050-AC-54")]
+// Retired-only coverage passes strict; an empty target set, a live unbacked
+// row, and an incomplete explicit evidence inventory still fail independently.
+#[test]
+fn tc_strict_keeps_empty_live_and_inventory_premises_around_retired_rows() {
+    use quire_rs::evidence::{ActResult, BackingInput, CauseCode, StrictCause, strict_decision};
+    use quire_rs::obligation::inventory::{InventoryOptions, inventory};
+
+    let root = tmpdir("ac54");
+    let module = root.join("retired-module");
+    write(
+        &module,
+        "manifest.yaml",
+        "name: retired-coverage\nversion: 0.1.0\ndescription: FR-050 retired coverage fixture\n\
+         artifact_types:\n- name: FR\n- name: TestMatrix\n\
+         traceability:\n  trace_targets:\n  - name: acceptance-criterion\n    archetype: FR\n    section: Acceptance Criteria\n    id_column: ID\n\
+         \n  - name: test-case\n    archetype: TestMatrix\n    section: Test Cases\n    id_column: ID\n\
+         \n  document_references:\n  - name: traces-to\n    archetype: TestMatrix\n    section: Test Cases\n    column: Traces To\n    row_id_column: ID\n    pattern: '((?:StR|US|FR|NFR)-\\d+(?:-AC-\\d+)?)'\n    targets: [acceptance-criterion]\n\
+         \n  status:\n    column: Status\n    complete: [\"✅\"]\n    pending: [\"🚧\"]\n    failed: [\"❌\"]\n    retired: [\"⛔\"]\n",
+    );
+
+    let make_scope = |suffix: &str, matrix: Option<&str>, with_fr: bool| {
+        let case_root = root.join(suffix);
+        let scope = case_root.join("spec");
+        let source = case_root.join("src");
+        fs::create_dir_all(&scope).expect("mkdir spec");
+        fs::create_dir_all(&source).expect("mkdir source");
+        if with_fr {
+            write(
+                &scope,
+                "FR-001.md",
+                "---\nid: FR-001\ntype: FR\ntitle: A requirement\n---\n\n\
+                 ## Acceptance Criteria\n\n\
+                 | ID | Criteria | Verification |\n|----|----------|--------------|\n\
+                 | FR-001-AC-1 | The record remains available. | Test |\n",
+            );
+        }
+        if let Some(table) = matrix {
+            write(&scope, "tests.md", table);
+        }
+        Bundle { scope, source }
+    };
+    let matrix = |status: &str| {
+        format!(
+            "---\nid: TM-001\ntype: TestMatrix\ntitle: Test Matrix\n---\n\n\
+             ## Test Cases\n\n\
+             | ID | Traces To | Status |\n|----|-----------|--------|\n\
+             | TC-001 | FR-001-AC-1 | {status} |\n"
+        )
+    };
+    let report = |bundle: &Bundle, module: &Registry| {
+        let graph = trace::bind(
+            &extract_tree(&bundle.source),
+            module.traceability().expect("model declared"),
+        );
+        compute(
+            &Spec::from_path(&bundle.scope),
+            module,
+            &graph,
+            &bundle.scope,
+        )
+        .expect("coverage computes")
+    };
+
+    // One authored TestCase is retired; no live target or other strict premise
+    // remains, so this nonempty population is not confused with an empty one.
+    let retired_module = Registry::load_module(&module).expect("retired module");
+    let retired = make_scope("retired", Some(&matrix("⛔ RETIRED")), false);
+    let retired_report = report(&retired, &retired_module);
+    assert_eq!(retired_report.retired_rows.len(), 1);
+    assert_eq!(retired_report.totals.retired, 1);
+    assert_eq!(retired_report.totals.total, 0);
+    assert!(
+        strict_decision(&retired_report, &[]).is_ok(),
+        "{retired_report:?}"
+    );
+
+    // The same declared scope with an empty table has neither live nor retired
+    // targets and must fail the zero-target premise.
+    let empty = make_scope(
+        "empty",
+        Some(
+            "---\nid: TM-001\ntype: TestMatrix\n---\n\n## Test Cases\n\n| ID | Traces To | Status |\n|---|---|---|\n",
+        ),
+        false,
+    );
+    let empty_report = report(&empty, &retired_module);
+    assert_eq!(empty_report.totals.total, 0);
+    assert_eq!(empty_report.totals.retired, 0);
+    assert_eq!(
+        strict_decision(&empty_report, &[]).unwrap_err().inherited,
+        [StrictCause::ZeroTargets]
+    );
+
+    // A live unbacked reference row remains a strict failure.
+    let live = make_scope("live-unbacked", Some(&matrix("In Progress")), true);
+    let live_report = report(&live, &retired_module);
+    assert!(!live_report.unbacked_rows.is_empty(), "{live_report:?}");
+    assert!(
+        strict_decision(&live_report, &[])
+            .unwrap_err()
+            .inherited
+            .contains(&StrictCause::UnbackedRows)
+    );
+
+    // Keep a retired row beside a backed live criterion, then supply an
+    // explicit but incomplete inventory result. The evidence premise still
+    // fails even though the retired target adds no live unbacked row.
+    let evidence_module_dir = root.join("evidence-module");
+    let mut manifest = fs::read_to_string(fixture_module("iso-obligations").join("manifest.yaml"))
+        .expect("read evidence module");
+    manifest = manifest.replace(
+        "    failed: [\"❌\"]\n",
+        "    failed: [\"❌\"]\n    retired: [\"⛔\"]\n",
+    );
+    assert!(manifest.contains("    retired: [\"⛔\"]\n"));
+    write(&evidence_module_dir, "manifest.yaml", &manifest);
+    let evidence_module = Registry::load_module(&evidence_module_dir).expect("evidence module");
+    let with_inventory = iso_bundle(
+        "ac54-evidence",
+        &[("TC-001", "FR-001-AC-1", "⛔ RETIRED")],
+        &["FR-001-AC-1"],
+    );
+    rewrite_criteria(&with_inventory, &["The record remains available."]);
+    let model = evidence_module.traceability().expect("model declared");
+    let selected = inventory(
+        &with_inventory.scope,
+        model,
+        &["acceptance-criterion"],
+        InventoryOptions::default(),
+    );
+    let entry = selected.entries().next().expect("selected criterion");
+    let incomplete = [ActResult {
+        target: Some(entry.identity().into()),
+        requested_target: "FR-001-AC-1",
+        locator: None,
+        cause: CauseCode::Absent,
+        detail: "required retained act absent",
+    }];
+    let backing = BackingInput {
+        inventory: &selected,
+        claims: &[],
+        results: &incomplete,
+    };
+    let spec = Spec::from_path(&with_inventory.scope);
+    let graph = trace::bind(&extract_tree(&with_inventory.source), model);
+    let evidence_report = quire_rs::coverage::compute_with_evidence(
+        &spec,
+        &evidence_module,
+        &graph,
+        &with_inventory.scope,
+        &backing,
+        quire_rs::coverage::EvidenceCoverageMode::Strict,
+    )
+    .expect("strict evidence coverage computes");
+    assert_eq!(evidence_report.retired_rows.len(), 1);
+    assert!(
+        evidence_report.unbacked_rows.is_empty(),
+        "{evidence_report:?}"
+    );
+    assert!(
+        !strict_decision(&evidence_report, &[])
+            .unwrap_err()
+            .evidence
+            .is_empty()
+    );
 }
 
 /// PLAT-1500: the rollup reads every table of a section, so a row of a second
