@@ -268,6 +268,11 @@ fn tc_2234_make_evidence_records_fresh_suite_run_for_retention() {
         .expect("release evidence build has Node available");
     assert_eq!(setup_node["with"]["node-version"].as_str(), Some("22"));
     assert!(evidence_steps.iter().any(|step| {
+        step["run"].as_str().is_some_and(|run| {
+            run.contains("rustup show active-toolchain || rustup toolchain install")
+        })
+    }));
+    assert!(evidence_steps.iter().any(|step| {
         step["uses"].as_str() == Some("agent-ix/nodejs-actions/setup-npmrc@main")
             && step["with"]["npm_registry_token"].as_str() == Some("${{ secrets.REGISTRY_TOKEN }}")
     }));
