@@ -2457,12 +2457,9 @@ mod tests {
             provider.display()
         );
         let home = tmpdir("iso-schema-path-home");
-        let registry = with_search_env(
-            &home,
-            None,
-            Some(provider.into_os_string()),
-            || Registry::from_env().expect("load the ISO module through IX_SCHEMA_PATH"),
-        );
+        let registry = with_search_env(&home, None, Some(provider.into_os_string()), || {
+            Registry::from_env().expect("load the ISO module through IX_SCHEMA_PATH")
+        });
 
         for name in ["fr", "nfr", "str", "us", "it", "tc", "ac", "con"] {
             assert!(
