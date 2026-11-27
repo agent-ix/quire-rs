@@ -90,7 +90,7 @@ reader SHALL return no typed records until all stages succeed. JSON input with
 | FR-067-CON-1 | Maintainers SHALL hand-author the assurance schema; an implementation-derived schema generator is prohibited from defining the contract. | Architecture | Inspection |
 | FR-067-CON-2 | Export construction SHALL perform no Git command, network read, persistence, or cross-corpus resolution. | Architecture | Inspection |
 | FR-067-CON-4 | The explicit assurance `format_version` SHALL NOT be added to coverage-v1 or properties-v1. Those payloads retain FR-055's artifact-only versioning contract. | Compatibility | Test |
-| FR-067-CON-5 | The assurance schema SHALL set `additionalProperties: false` on every object. | Architecture | Test |
+| FR-067-CON-5 | The assurance schema SHALL reject undeclared properties on fixed-shape objects while allowing arbitrary obligation parameter keys only when each value is a string. | Architecture | Test |
 
 ## Acceptance Criteria
 
