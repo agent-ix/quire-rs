@@ -145,6 +145,29 @@ for name, store in (("committed", base_store), ("generated", run_store)):
     if store.get("schemaVersion") != 1 or not isinstance(store.get("bindings"), list):
         parser.error(f"{name} binding registry is not a schema-version-1 Quoin store")
 
+# implements: FR-095-AC-6
+suite_text = members["suites.md"].decode("utf-8")
+required_range = re.search(
+    r"`?SUITE-001`?\s+SHALL\s+bind each acceptance criterion in Quire-rs FR-095\s+\(AC-1 through AC-(\d+)\)",
+    suite_text,
+)
+if required_range is None:
+    parser.error("release suite registry does not declare its required FR-095 bindings")
+required_obligations = {
+    f"FR-095-AC-{number}" for number in range(1, int(required_range.group(1)) + 1)
+}
+generated_obligations = {
+    entry.get("obligation")
+    for entry in run_store["bindings"]
+    if isinstance(entry, dict) and entry.get("suite") == "SUITE-001"
+}
+missing_obligations = sorted(required_obligations - generated_obligations)
+if missing_obligations:
+    parser.error(
+        "generated bindings are missing required release obligations: "
+        + ", ".join(missing_obligations)
+    )
+
 run = json.loads(members[run_path])
 if (
     run.get("schemaVersion") != 1
