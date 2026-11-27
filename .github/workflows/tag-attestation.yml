@@ -89,6 +89,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           ref: ${{ github.sha }}
+          path: source
           fetch-depth: 0
           submodules: recursive
           persist-credentials: false
@@ -127,13 +128,14 @@ jobs:
           CARGO_PROFILE_DEV_DEBUG: "0"
           CARGO_PROFILE_TEST_DEBUG: "0"
           CARGO_INCREMENTAL: "0"
-        run: make evidence
+          NPM_CONFIG_USERCONFIG: ${{ github.workspace }}/.npmrc
+        run: make -C source evidence
 
       - name: Retain verified evidence for the shared attestation workflow
         uses: actions/upload-artifact@v7
         with:
           name: ${{ inputs.evidence_artifact_name || 'release-evidence' }}
-          path: target/release-evidence/verified/
+          path: source/target/release-evidence/verified/
           if-no-files-found: error
 
   attest:
