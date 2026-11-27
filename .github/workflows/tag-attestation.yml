@@ -108,6 +108,9 @@ jobs:
           path: .ci/spec-artifacts-iso
           fetch-depth: 1
           persist-credentials: false
+      - name: Set up the tagged Rust toolchain
+        shell: bash
+        run: rustup show active-toolchain || rustup toolchain install
       - name: Set up Node for build-time schema package fetches
         uses: actions/setup-node@v7
         with:
