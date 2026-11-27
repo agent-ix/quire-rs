@@ -41,7 +41,13 @@ fn errors(schema: &Validator, instance: &Value) -> Vec<String> {
 
 /// Keys that would let a payload assert its own contract revision
 /// (FR-055-CON-2). Banned in the payload AND in the schemas that declare it.
-const BANNED_VERSION_KEYS: [&str; 3] = ["version", "$schema", "schema_version"];
+const BANNED_VERSION_KEYS: [&str; 5] = [
+    "version",
+    "$schema",
+    "schema_version",
+    "schema_ref",
+    "schemaRef",
+];
 
 /// Every property name a schema declares, at every depth.
 ///
