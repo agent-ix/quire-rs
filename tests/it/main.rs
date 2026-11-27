@@ -79,6 +79,11 @@ mod semantic_surface;
 mod semantic_systems;
 #[cfg(feature = "shell-symbols")]
 mod shell_symbols;
+#[cfg(any(
+    feature = "rust-symbols",
+    all(feature = "python-symbols", feature = "typescript-symbols")
+))]
+mod source_symbols;
 #[cfg(feature = "rust-symbols")]
 mod source_walk;
 mod spec_dogfood;
