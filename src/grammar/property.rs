@@ -1399,10 +1399,22 @@ mod tests {
         } = records.remove(0);
 
         assert_eq!(row_id.as_deref(), Some("FR-001-AC-1"));
-        assert_eq!(statement, "Serializing a document then parsing it yields the input");
+        assert_eq!(
+            statement,
+            "Serializing a document then parsing it yields the input"
+        );
         assert_eq!(property, PropertyShape::RoundTrip);
         assert!(extractable);
-        let _ = (line, shape, extraction, domain, precondition, oracle, signals, obligation);
+        let _ = (
+            line,
+            shape,
+            extraction,
+            domain,
+            precondition,
+            oracle,
+            signals,
+            obligation,
+        );
     }
 
     #[trace("FR-052-AC-7")]
