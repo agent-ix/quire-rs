@@ -903,6 +903,99 @@ mod tests {
         )
     }
 
+    #[trace("FR-011-AC-1")]
+    #[test]
+    fn six_locator_primitives_match_the_shared_fixture_expectations() {
+        let document = doc();
+
+        let frontmatter = eval(
+            &document,
+            &LocatorPrimitive::FrontmatterField {
+                path: vec!["id".into()],
+                required: false,
+                multiple: false,
+                regex: None,
+                assert: None,
+            },
+        );
+        assert_eq!(frontmatter, vec![json!("FR-001")]);
+
+        let section_body = eval(
+            &document,
+            &LocatorPrimitive::SectionBody {
+                after_heading: "Purpose".into(),
+                required: false,
+                multiple: false,
+                regex: None,
+                assert: None,
+            },
+        );
+        assert_eq!(section_body, vec![json!("the purpose")]);
+
+        let mermaid_code = eval(
+            &document,
+            &LocatorPrimitive::CodeBlock {
+                language: Some("mermaid".into()),
+                under_section: None,
+                required: false,
+                multiple: false,
+                regex: None,
+                assert: None,
+            },
+        );
+        assert_eq!(mermaid_code, vec![json!("graph TD; A-->B")]);
+
+        let table_rows = eval(
+            &document,
+            &LocatorPrimitive::TableRow {
+                under_section: Some("API".into()),
+                column: None,
+                required: false,
+                multiple: true,
+                regex: None,
+                assert: None,
+            },
+        );
+        assert_eq!(table_rows, vec![json!("GET\t/a"), json!("POST\t/b")]);
+
+        let list_items = eval(
+            &document,
+            &LocatorPrimitive::ListItem {
+                under_section: Some("Notes".into()),
+                pattern: None,
+                required: false,
+                multiple: true,
+                regex: None,
+                assert: None,
+            },
+        );
+        assert_eq!(
+            list_items,
+            vec![json!("**Auth** — token-based"), json!("plain note")]
+        );
+
+        let headings = eval(
+            &document,
+            &LocatorPrimitive::Heading {
+                level: Some(2),
+                path: None,
+                required: false,
+                multiple: true,
+                regex: None,
+                assert: None,
+            },
+        );
+        assert_eq!(
+            headings,
+            vec![
+                json!("Purpose"),
+                json!("API"),
+                json!("Notes"),
+                json!("Diagrams")
+            ]
+        );
+    }
+
     #[test]
     fn frontmatter_field_walks_path() {
         let d = doc();

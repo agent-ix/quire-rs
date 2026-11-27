@@ -160,6 +160,15 @@ only the first block.
 > Discovered during the spec-objects format walkthrough (decision #13:
 > typed diagram anchors + DSL multi-value support).
 
+> **CR-007 note (2026-11-26):** FR-011-AC-1 no longer requires parity with the
+> `filament-parser-lib` Python reference. At upstream `agent-ix/filament-parser-lib`
+> HEAD `b204d332259d7776d038835c5fe58ac883ae047b`, `filament_parser/dispatch.py`
+> delegates Tier 2 extraction to `registry.extract_tier2`; the reference has no
+> independent Locator evaluator. Comparing its output with Quire would compare
+> the engine with itself. AC-1 therefore checks direct expected outputs for each
+> primitive against one small fixture. This does not close AC-5's separate
+> cross-repository parity sweep.
+
 ### DSL structural validation (load-time)
 
 When a manifest entry's `body_extraction` is loaded, the loader SHALL validate the DSL's structural integrity before storing it:
@@ -211,7 +220,7 @@ Single-yield DSLs return `records.len() <= 1`; multi-yield returns one record pe
 
 | ID | Criteria | Verification |
 |----|----------|--------------|
-| FR-011-AC-1 | Each of the 6 Locator primitives is exercised by at least one unit test against a small fixture document; result matches the filament-parser-lib reference for the same input. | Test |
+| FR-011-AC-1 | Each of the 6 Locator primitives is exercised by at least one unit test against the shared small fixture document: `frontmatter_field` resolves `FR-001`, `section_body` resolves `the purpose`, `code_block` finds a Mermaid body containing `A-->B`, `table_row` resolves two rows with the first beginning `GET` then `/a`, `list_item` resolves two items with the first `**Auth** — token-based`, and `heading` resolves `Purpose` and `API`. | Test |
 | FR-011-AC-2 | A multi-yield DSL with `iterate_over: { section_path: [Algorithms], kind: heading, depth: 1 }` against a document with 3 sub-headings under "Algorithms" emits exactly 3 records. | Test |
 | FR-011-AC-4 | A DSL with `required: true` against a missing value returns `QuireError::MissingField` naming the DSL key. | Test |
 | FR-011-AC-5 | A parity sweep evaluates every `body_extraction` DSL from the six object-source repos (`spec-objects-{architecture,business,enterprise,operational,security}`, total 80+ object types) against fixture documents and asserts each `ExtractionResult.records` matches the filament-parser-lib Python reference for the same input. | Test |
