@@ -908,6 +908,104 @@ mod tests {
         assert_eq!(mods, vec!["mod-x"]);
     }
 
+    #[trace("FR-014-AC-1")]
+    #[test]
+    fn module_names_include_two_loaded_modules_in_load_order() {
+        let iso = tmpdir("module-order-iso");
+        let app = tmpdir("module-order-app");
+        write_named_module(&iso, "spec-artifacts-iso", "FR");
+        write_named_module(&app, "spec-artifacts-app", "US");
+
+        let registry = Registry::load_from(&[&iso, &app]).expect("load both modules");
+        assert_eq!(
+            registry.module_names().collect::<Vec<_>>(),
+            ["spec-artifacts-iso", "spec-artifacts-app"]
+        );
+    }
+
+    #[trace("FR-014-AC-5")]
+    #[test]
+    fn iso_app_and_process_modules_form_the_seventeen_archetype_union() {
+        let provider_module = |variable: &str, sibling: &str, module: &str| {
+            let provider = std::env::var_os(variable).map_or_else(
+                || Path::new(env!("CARGO_MANIFEST_DIR")).join("..").join(sibling),
+                PathBuf::from,
+            );
+            let root = provider.join(module);
+            assert!(
+                root.join("manifest.yaml").is_file(),
+                "provider module missing at {}; CI sets {variable}",
+                root.display()
+            );
+            root
+        };
+        let iso = provider_module("VALIDATION_ISO_ROOT", "spec-artifacts-iso", "spec_artifacts_iso");
+        let app = provider_module("VALIDATION_APP_ROOT", "spec-artifacts-app", "spec_artifacts_app");
+        let process = provider_module(
+            "VALIDATION_PROCESS_ROOT",
+            "spec-artifacts-process",
+            "spec_artifacts_process",
+        );
+        let iso_registry = Registry::load_module_set(&[&iso]).expect("load ISO module");
+        let app_registry = Registry::load_module_set(&[&app]).expect("load app module");
+        let process_registry = Registry::load_module_set(&[&process]).expect("load process module");
+        let mut expected = std::collections::BTreeSet::new();
+        expected.extend(iso_registry.archetype_names());
+        expected.extend(app_registry.archetype_names());
+        expected.extend(process_registry.archetype_names());
+
+        let combined = Registry::load_module_set(&[&iso, &app, &process])
+            .expect("load the three modules together");
+        assert_eq!(expected.len(), 17, "the three v1 modules define 17 types");
+        assert_eq!(
+            combined.archetype_names().collect::<std::collections::BTreeSet<_>>(),
+            expected
+        );
+        assert!(
+            combined.diagnostics().iter().all(|diagnostic| !matches!(
+                diagnostic,
+                Diagnostic::DuplicateArchetype { .. } | Diagnostic::DuplicateModuleName { .. }
+            )),
+            "the provider modules must not collide: {:?}",
+            combined.diagnostics()
+        );
+    }
+
+    #[trace("FR-014-AC-6")]
+    #[test]
+    fn module_name_collision_keeps_first_schema_and_strict_mode_refuses() {
+        let first = tmpdir("module-name-first");
+        let second = tmpdir("module-name-second");
+        for (root, origin) in [(&first, "first"), (&second, "second")] {
+            fs::create_dir_all(root.join("schemas")).expect("schema directory");
+            fs::write(
+                root.join("manifest.yaml"),
+                "name: duplicate\nartifact_types:\n- name: sample\n  frontmatter_schema_ref: schemas/sample.json\n",
+            )
+            .expect("manifest");
+            fs::write(
+                root.join("schemas/sample.json"),
+                format!(r#"{{"type":"object","properties":{{"origin":{{"const":"{origin}"}}}}}}"#),
+            )
+            .expect("schema");
+        }
+
+        let registry = Registry::load_from(&[&first, &second]).expect("tolerant load");
+        assert!(registry.diagnostics().iter().any(|diagnostic| matches!(
+            diagnostic,
+            Diagnostic::DuplicateModuleName { .. }
+        )));
+        assert_eq!(
+            registry.schema_for("sample").expect("first schema")["properties"]["origin"]["const"],
+            "first",
+            "the first loaded module remains authoritative"
+        );
+        assert!(matches!(
+            Registry::load_strict(&[&first, &second]),
+            Err(QuireError::ModuleCollision { .. })
+        ));
+    }
+
     // A body_extraction DSL that's structurally
     // invalid (both `match` and `iterate_over` set) surfaces as an
     // ArchetypeLoadFailure at load time, NOT at extract() time.
