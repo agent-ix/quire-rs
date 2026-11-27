@@ -135,7 +135,7 @@ fn tc_2229_tag_workflow_runs_and_uploads_the_declared_release_suite() {
     assert_eq!(checkout["with"]["submodules"].as_str(), Some("recursive"));
     let evidence_index = evidence_steps
         .iter()
-        .position(|step| step["run"].as_str() == Some("make evidence"))
+        .position(|step| step["run"].as_str() == Some("make -C source evidence"))
         .expect("tag workflow runs the release evidence suite");
     assert_eq!(
         evidence_steps[evidence_index]["name"].as_str(),
@@ -155,7 +155,7 @@ fn tc_2229_tag_workflow_runs_and_uploads_the_declared_release_suite() {
     );
     assert_eq!(
         evidence_steps[upload_index]["with"]["path"].as_str(),
-        Some("target/release-evidence/verified/")
+        Some("source/target/release-evidence/verified/")
     );
 }
 
@@ -187,11 +187,11 @@ fn tc_2232_attestation_waits_for_the_retained_evidence_job() {
     assert!(steps.iter().any(|step| {
         step["run"]
             .as_str()
-            .is_some_and(|run| run == "make evidence")
+            .is_some_and(|run| run == "make -C source evidence")
     }));
     assert!(steps.iter().any(|step| {
         step["uses"].as_str() == Some("actions/upload-artifact@v7")
-            && step["with"]["path"].as_str() == Some("target/release-evidence/verified/")
+            && step["with"]["path"].as_str() == Some("source/target/release-evidence/verified/")
     }));
 }
 
@@ -260,8 +260,13 @@ fn tc_2234_make_evidence_records_fresh_suite_run_for_retention() {
         .expect("release evidence job has steps");
     let generate = evidence_steps
         .iter()
-        .find(|step| step["run"].as_str() == Some("make evidence"))
+        .find(|step| step["run"].as_str() == Some("make -C source evidence"))
         .expect("release evidence job runs make evidence");
+    assert!(evidence_steps.iter().any(|step| {
+        step["uses"].as_str() == Some("actions/checkout@v7")
+            && step["with"]["ref"].as_str() == Some("${{ github.sha }}")
+            && step["with"]["path"].as_str() == Some("source")
+    }));
     let setup_node = evidence_steps
         .iter()
         .find(|step| step["uses"].as_str() == Some("actions/setup-node@v7"))
@@ -322,6 +327,10 @@ fn tc_2234_make_evidence_records_fresh_suite_run_for_retention() {
     assert_eq!(
         generate["env"]["RELEASE_TAG"].as_str(),
         Some("${{ github.ref_name }}")
+    );
+    assert_eq!(
+        generate["env"]["NPM_CONFIG_USERCONFIG"].as_str(),
+        Some("${{ github.workspace }}/.npmrc")
     );
     assert!(target.contains("tag=$${RELEASE_TAG:-$$(git describe --tags --exact-match HEAD)}"));
 }
