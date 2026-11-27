@@ -106,7 +106,7 @@ fn tc862_longest_term_names_the_finding() {
     );
 }
 
-#[trace("FR-056-AC-3")]
+#[trace("FR-056-AC-3", "FR-056-CON-2")]
 // module terms layer OVER the built-ins, never replace.
 #[test]
 fn tc863_module_terms_extend_the_builtins() {
