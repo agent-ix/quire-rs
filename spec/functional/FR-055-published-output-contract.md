@@ -161,7 +161,7 @@ value outside them is a defect a consumer should hear about.
 
 | ID | Constraint | Type | Validation |
 |----|------------|------|------------|
-| FR-055-CON-1 | Maintainers SHALL author the schemas by hand, never generate them. A derived contract changes silently with the type it derives from, which is the failure this FR closes. `schemars` stays out of the dependency graph. | Architecture | Test |
+| FR-055-CON-1 | Maintainers SHALL author the schemas by hand, never generate them. A derived contract changes silently with the type it derives from, which is the failure this FR closes. `schemars` stays out of the dependency graph. | Architecture | Inspection |
 | FR-055-CON-2 | Neither coverage-v1 nor properties-v1 SHALL gain a key naming which revision of this contract it conforms to — no version key, no schema reference, no `$schema` (CR-104, CR-156). Their contract is carried by the published artifact alone. This does not reach instrument provenance or a separately defined interchange format. | Architecture | Test |
 | FR-055-CON-3 | A breaking payload change SHALL mint a new versioned schema file rather than editing an existing one in place, so a consumer pinned to a version keeps a schema describing what it pinned. | Process | Inspection |
 
