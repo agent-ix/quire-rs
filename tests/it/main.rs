@@ -24,6 +24,7 @@ mod design_join;
 mod design_matrix;
 mod determinism;
 mod edge_target_kinds;
+mod error_snapshots;
 mod field_rules;
 mod filament_boundary_audit;
 mod filament_core_fixtures;
