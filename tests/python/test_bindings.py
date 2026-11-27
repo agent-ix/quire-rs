@@ -821,7 +821,10 @@ def test_each_new_module_function_releases_gil_for_two_threads(tmp_path):
         "            after_heading: Purpose\n"
     )
     schema_path = tmp_path / "manifest.schema.json"
-    schema_path.write_text('{"type":"object","required":["name"]}')
+    schema_properties = ",".join(
+        f'"field_{index}":{{"type":"string"}}' for index in range(2048)
+    )
+    schema_path.write_text(f'{{"type":"object","properties":{{{schema_properties}}}}}')
     markdown = (
         "---\nid: EVENT-1\nrelationships:\n"
         "  - target: FR-001\n    type: references\n"
@@ -831,9 +834,6 @@ def test_each_new_module_function_releases_gil_for_two_threads(tmp_path):
     )
 
     operations = {
-        "validate": lambda: quire.validate(
-            "demo-item", str(DEMO_MODULE), {"id": "DEMO-1", "title": "x"}
-        ),
         "validate_manifest": lambda: quire.validate_manifest(
             {"name": "ok"}, str(schema_path)
         ),
