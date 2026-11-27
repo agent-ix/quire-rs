@@ -1,0 +1,19 @@
+{
+  "name": "release-evidence-rejects-noncurrent-producer-identities",
+  "issue_ref": "PLAT-1934",
+  "tags": [
+    "FR-095-AC-4",
+    "FR-095-AC-6"
+  ],
+  "input": {
+    "refused_tools": [
+      "ix-trace-run 0.1.0+3cd3285",
+      "ix-trace-run 0.1.0+unknown"
+    ]
+  },
+  "expect": {
+    "producer_refuses": "run record does not match",
+    "verifier_refuses": "manifest or payload hashes",
+    "healthy_control": "tc_2235_valid_terra_bundle_is_verified_and_extracted_for_the_tag_sha"
+  }
+}

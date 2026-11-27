@@ -791,7 +791,12 @@ fn tc_2243_changed_raw_junit_payload_is_refused() {
 #[trace("FR-095-AC-4", "FR-095-AC-6")]
 #[test]
 fn release_evidence_refuses_retired_or_unknown_producers() {
-    for tool in ["ix-trace-run 0.1.0+3cd3285", "ix-trace-run 0.1.0+unknown"] {
+    let case: serde_json::Value = serde_json::from_slice(include_bytes!(
+        "../fixtures/corpus_cases/plat-1934-producer-identity.json"
+    ))
+    .expect("attributed producer identity fixture");
+    for tool in case["input"]["refused_tools"].as_array().unwrap() {
+        let tool = tool.as_str().unwrap();
         let root = tempfile::tempdir().unwrap();
         let commit = "a".repeat(40);
         let (source, archive, bundle) = terra_bundle_fixture(root.path(), &commit, "pass");
@@ -833,7 +838,8 @@ fn release_evidence_refuses_retired_or_unknown_producers() {
             .unwrap();
         assert!(!packaged.status.success(), "{tool}");
         assert!(
-            String::from_utf8_lossy(&packaged.stderr).contains("run record does not match"),
+            String::from_utf8_lossy(&packaged.stderr)
+                .contains(case["expect"]["producer_refuses"].as_str().unwrap()),
             "{tool}: {:?}",
             packaged
         );
@@ -885,7 +891,8 @@ fn release_evidence_refuses_retired_or_unknown_producers() {
             .unwrap();
         assert!(!verified.status.success(), "{tool}");
         assert!(
-            String::from_utf8_lossy(&verified.stderr).contains("manifest or payload hashes"),
+            String::from_utf8_lossy(&verified.stderr)
+                .contains(case["expect"]["verifier_refuses"].as_str().unwrap()),
             "{tool}: {:?}",
             verified
         );
