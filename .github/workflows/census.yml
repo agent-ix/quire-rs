@@ -1,0 +1,77 @@
+name: gap-census
+
+on:
+  workflow_dispatch:
+    inputs:
+      traceability_module:
+        description: Repository-relative path to the traceability module manifest directory
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  census:
+    name: Bounded quire-rs census
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Checkout the Quire CLI consumer
+        uses: actions/checkout@v4
+        with:
+          repository: agent-ix/quire-cli
+          fetch-depth: 0
+          path: .ci/quire-cli
+
+      - name: Set up Node (npm for build.rs schema fetch)
+        uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+
+      - uses: agent-ix/nodejs-actions/setup-npmrc@main
+        with:
+          npm_registry_token: ${{ secrets.REGISTRY_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install census dependency
+        run: python3 -m pip install --require-hashes -r requirements/ci.txt
+
+      - name: Validate bounded inputs
+        env:
+          CENSUS_MODULE: ${{ inputs.traceability_module }}
+        run: |
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+
+          workspace = Path(os.environ["GITHUB_WORKSPACE"]).resolve()
+          module = (workspace / os.environ["CENSUS_MODULE"]).resolve()
+          if not module.is_relative_to(workspace):
+              raise SystemExit("traceability_module must stay inside the checked-out repository")
+          if not (module / "manifest.yaml").is_file():
+              raise SystemExit(f"traceability module has no manifest.yaml: {module}")
+          PY
+
+      - name: Run the bounded census
+        env:
+          CENSUS_ROOT: ${{ github.workspace }}/..
+          CENSUS_MODULE: ${{ github.workspace }}/${{ inputs.traceability_module }}
+          CENSUS_CONSUMER: ${{ github.workspace }}/.ci/quire-cli
+        run: >-
+          make census
+          CENSUS_ROOT="$CENSUS_ROOT"
+          CENSUS_MODULE="$CENSUS_MODULE"
+          CENSUS_CONSUMER="$CENSUS_CONSUMER"
+
+      - name: Retain census reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: gap-census
+          path: reports/*-gap-census.*
+          if-no-files-found: error

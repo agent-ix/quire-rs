@@ -1315,3 +1315,34 @@ fn tc_2247_adoption_how_to_calls_pinned_workflow_for_generated_release_evidence(
     assert!(how_to.contains("quoin_tooling_tag: 0.36.10"));
     assert!(!how_to.contains("copy .github/workflows/tag-attestation.yml"));
 }
+
+#[trace("FR-066-AC-9")]
+#[test]
+fn tc_2360_gap_census_is_manual_or_scheduled_and_bounded_to_explicit_inputs() {
+    let census = workflow("census.yml");
+    let census_events = events(&census);
+    assert!(
+        census_events.contains_key(Value::String("workflow_dispatch".to_owned()))
+            || census_events.contains_key(Value::String("schedule".to_owned())),
+        "census must have a manual or scheduled trigger"
+    );
+    assert!(
+        !census_events.contains_key(Value::String("push".to_owned()))
+            && !census_events.contains_key(Value::String("pull_request".to_owned())),
+        "census must not run as a push or pull-request prerequisite"
+    );
+
+    let census_steps = census["jobs"]["census"]["steps"]
+        .as_sequence()
+        .expect("census job steps");
+    let run = census_steps
+        .iter()
+        .filter_map(|step| step["run"].as_str())
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert!(run.contains("make census"), "workflow must invoke make census");
+    assert!(
+        run.contains("CENSUS_ROOT") && run.contains("CENSUS_MODULE"),
+        "workflow must provide explicit bounded root and module inputs"
+    );
+}
