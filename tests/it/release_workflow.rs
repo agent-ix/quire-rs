@@ -259,6 +259,20 @@ fn tc_2234_make_evidence_records_fresh_suite_run_for_retention() {
         .iter()
         .find(|step| step["run"].as_str() == Some("make evidence"))
         .expect("release evidence job runs make evidence");
+    let setup_node = evidence_steps
+        .iter()
+        .find(|step| step["uses"].as_str() == Some("actions/setup-node@v7"))
+        .expect("release evidence build has Node available");
+    assert_eq!(setup_node["with"]["node-version"].as_str(), Some("22"));
+    assert!(evidence_steps.iter().any(|step| {
+        step["uses"].as_str() == Some("agent-ix/nodejs-actions/setup-npmrc@main")
+            && step["with"]["npm_registry_token"].as_str()
+                == Some("${{ secrets.REGISTRY_TOKEN }}")
+    }));
+    assert_eq!(
+        events(&workflow)["workflow_call"]["secrets"]["REGISTRY_TOKEN"]["required"].as_bool(),
+        Some(true)
+    );
     assert_eq!(
         generate["env"]["RELEASE_TAG"].as_str(),
         Some("${{ github.ref_name }}")
@@ -1234,6 +1248,7 @@ fn tc_2247_adoption_how_to_calls_pinned_workflow_for_generated_release_evidence(
     assert!(how_to.contains("agent-ix/quire-rs/.github/workflows/tag-attestation.yml@"));
     assert!(how_to.contains("tags:"));
     assert!(how_to.contains("make evidence"));
+    assert!(how_to.contains("secrets: inherit"));
     assert!(how_to.contains("run_wheels: false"));
     assert!(how_to.contains("release_artifact_name:"));
     assert!(how_to.contains("evidence_artifact_name:"));
