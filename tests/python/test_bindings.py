@@ -8,6 +8,8 @@ boundary; this is the binding layer's verification method (spec.md §13).
 import concurrent.futures
 import pathlib
 import shutil
+import threading
+import time
 
 import pytest
 
@@ -389,6 +391,31 @@ def test_validate_sad_path_raises_validation_error_with_field_path():
     assert "id" in str(exc.value)
 
 
+@pytest.mark.trace("FR-028-AC-2")
+def test_validate_matches_rust_dotted_nested_field_path(tmp_path):
+    """A valid object passes and a nested invalid field exposes Rust's dotted path."""
+    module = tmp_path / "nested"
+    (module / "schemas").mkdir(parents=True)
+    (module / "manifest.yaml").write_text(
+        "name: nested\n"
+        "artifact_types:\n"
+        "  - name: nested-item\n"
+        "    frontmatter_schema_ref: schemas/nested-item.schema.json\n"
+    )
+    (module / "schemas" / "nested-item.schema.json").write_text(
+        '{"type":"object","required":["metadata"],'
+        '"properties":{"metadata":{"type":"object","required":["name"],'
+        '"properties":{"name":{"type":"string"}}}}}'
+    )
+
+    assert quire.validate(
+        "nested-item", str(module), {"metadata": {"name": "ok"}}
+    ) is None
+    with pytest.raises(quire.QuireValidationError) as exc:
+        quire.validate("nested-item", str(module), {"metadata": {"name": 7}})
+    assert "metadata.name" in str(exc.value)
+
+
 @pytest.mark.trace("FR-028-AC-3")
 def test_validate_manifest_happy_and_sad(tmp_path):
     """schema-load happy, validation happy + sad, schema-missing → QuireSchemaError."""
@@ -587,45 +614,72 @@ def test_extract_envelope_returns_extraction_and_edges(tmp_path):
     assert ("FR-002", "references") in targets
 
 
-def test_extraction_context_from_object_types_extracts_without_module_root():
-    """Service/library path: caller provides ObjectTypes; quire does not resolve a local registry."""
-    ctx = quire.ExtractionContext.from_object_types(
-        [
-            {
-                "name": "event",
-                "schema": {"type": "object", "properties": {"schema_json": {"type": "string"}}},
-                "body_extraction": {
-                    "yield_pattern": {
-                        "match": {
-                            "id": {
-                                "from": "frontmatter_field",
-                                "path": ["id"],
-                                "required": False,
-                            },
-                            "schema_json": {
-                                "from": "code_block",
-                                "after_heading": "Schema",
-                                "language": "json",
-                                "required": False,
-                            },
-                        }
-                    }
+@pytest.mark.trace("FR-028-AC-9")
+def test_extraction_context_returns_rust_records_and_emitted_edges_without_registry():
+    """Caller-compiled ObjectTypes yield Rust extraction records and emit_edges without a module root."""
+    object_types = [
+        {
+            "name": "event",
+            "schema": {"type": "object", "additionalProperties": True},
+            "body_extraction": {
+                "yield_pattern": {
+                    "iterate_over": {
+                        "section_path": ["Items"],
+                        "kind": "heading",
+                        "depth": 1,
+                    },
+                    "per_match": {"name": {"from": "heading", "required": True}},
                 },
-            }
-        ]
-    )
-    assert ctx.object_type_names() == ["event"]
-    body = (
-        "# Event\n\n"
-        "## Other\n\n"
-        "```json\n{\"wrong\": true}\n```\n\n"
-        "## Schema\n\n"
-        "```json\n{\"right\": true}\n```\n"
-    )
-    out = ctx.extract("event", {"id": "E-1"}, body)
-    assert out["extraction"] == [
-        {"id": "E-1", "schema_json": '{"right": true}'}
+                "emit_edges": [
+                    {
+                        "type": "references",
+                        "target": {"from": "section_body", "after_heading": "Ref"},
+                    }
+                ],
+            },
+        }
     ]
+    context = quire.ExtractionContext.from_object_types(object_types)
+    assert context.object_type_names() == ["event"]
+
+    body = (
+        "## Items\n"
+        "### One\n#### Ref\nFR-100\n"
+        "### Two\n(no ref child)\n"
+    )
+    result = context.extract("event", {}, body)
+    assert result["extraction"] == [{"name": "One"}, {"name": "Two"}]
+    assert result["edges"] == [
+        {"record_index": 0, "type": "references", "target": "FR-100"}
+    ]
+
+
+@pytest.mark.trace("FR-028-AC-10")
+def test_extraction_context_accepts_list_and_items_envelope():
+    """Both documented ObjectType input shapes compile to equivalent extractors."""
+    object_type = {
+        "name": "event",
+        "schema": {"type": "object", "additionalProperties": True},
+        "body_extraction": {
+            "yield_pattern": {
+                "match": {
+                    "id": {
+                        "from": "frontmatter_field",
+                        "path": ["id"],
+                        "required": False,
+                    }
+                }
+            }
+        },
+    }
+    list_context = quire.ExtractionContext.from_object_types([object_type])
+    envelope_context = quire.ExtractionContext.from_object_types({"items": [object_type]})
+    body = "# Event\n"
+
+    assert list_context.object_type_names() == envelope_context.object_type_names() == ["event"]
+    assert list_context.extract("event", {"id": "E-1"}, body) == envelope_context.extract(
+        "event", {"id": "E-1"}, body
+    )
 
 
 def test_extraction_context_accepts_optional_code_block_language():
@@ -745,20 +799,69 @@ def test_exception_hierarchy_importable():
     assert not hasattr(quire, "QuireRenderError")
 
 
-def test_new_functions_release_gil():
-    """concurrent calls to validate complete without serializing."""
+@pytest.mark.trace("FR-028-AC-8")
+def test_each_new_module_function_releases_gil_for_two_threads(tmp_path):
+    """Each new module-level binding permits two concurrent Rust calls under the 2x bound."""
+    module = tmp_path / "extractor"
+    module.mkdir()
+    (module / "manifest.yaml").write_text(
+        "name: extractor\n"
+        "object_types:\n"
+        "  - name: event\n"
+        "    data_schema:\n"
+        "      type: object\n"
+        "    body_extraction:\n"
+        "      yield_pattern:\n"
+        "        match:\n"
+        "          purpose:\n"
+        "            from: section_body\n"
+        "            after_heading: Purpose\n"
+    )
+    schema_path = tmp_path / "manifest.schema.json"
+    schema_path.write_text('{"type":"object","required":["name"]}')
+    markdown = (
+        "---\nid: EVENT-1\nrelationships:\n"
+        "  - target: FR-001\n    type: references\n"
+        "---\n## Purpose\n"
+        + ("The event purpose is recorded.\n" * 12_000)
+        + "[requirement](ix://agent-ix/quire-rs/FR-001)\n"
+    )
 
-    def work(_):
-        for _ in range(20):
-            quire.validate(
-                "demo-item",
-                str(DEMO_MODULE),
-                {"id": "DEMO-1", "title": "x"},
-            )
-        return True
+    operations = {
+        "validate": lambda: quire.validate(
+            "demo-item", str(DEMO_MODULE), {"id": "DEMO-1", "title": "x"}
+        ),
+        "validate_manifest": lambda: quire.validate_manifest(
+            {"name": "ok"}, str(schema_path)
+        ),
+        "extract": lambda: quire.extract("event", str(module), markdown),
+        "extract_frontmatter": lambda: quire.extract_frontmatter(markdown),
+        "harvest_edges": lambda: quire.harvest_edges(markdown),
+    }
+    iterations = 8
+    for name, operation in operations.items():
+        started = time.perf_counter()
+        for _ in range(iterations):
+            operation()
+        single_worker_elapsed = time.perf_counter() - started
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as ex:
-        assert all(ex.map(work, range(4)))
+        barrier = threading.Barrier(2)
+
+        def concurrent_worker():
+            barrier.wait()
+            for _ in range(iterations):
+                operation()
+
+        started = time.perf_counter()
+        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+            futures = [executor.submit(concurrent_worker) for _ in range(2)]
+            for future in futures:
+                future.result()
+        concurrent_elapsed = time.perf_counter() - started
+        assert concurrent_elapsed < 2 * single_worker_elapsed, (
+            f"{name} serialized: two-worker {concurrent_elapsed:.4f}s, "
+            f"one-worker {single_worker_elapsed:.4f}s"
+        )
 
 
 @pytest.mark.trace("NFR-016-AC-2")
