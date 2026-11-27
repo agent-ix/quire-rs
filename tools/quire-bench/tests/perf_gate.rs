@@ -10,7 +10,7 @@ fn estimate(root: &Path, name: &str, body: &str) {
     fs::write(directory.join("estimates.json"), body).unwrap();
 }
 
-#[trace("NFR-001", "NFR-002", "NFR-007")]
+#[trace("NFR-002-AC-2")]
 #[test]
 fn regression_gate_checks_means_and_names_the_failed_bench() {
     let temp = tempfile::tempdir().unwrap();
@@ -46,7 +46,6 @@ fn regression_gate_checks_means_and_names_the_failed_bench() {
         .any(|line| line.contains("ok      load/edge")));
 }
 
-#[trace("NFR-001", "NFR-002", "NFR-007")]
 #[test]
 fn unreadable_and_absent_estimates_do_not_invent_a_regression() {
     let temp = tempfile::tempdir().unwrap();
@@ -64,7 +63,6 @@ fn unreadable_and_absent_estimates_do_not_invent_a_regression() {
         .any(|line| line.contains("no change/ files found")));
 }
 
-#[trace("NFR-001", "NFR-002", "NFR-007")]
 #[test]
 fn invalid_band_fails_closed() {
     let temp = tempfile::tempdir().unwrap();

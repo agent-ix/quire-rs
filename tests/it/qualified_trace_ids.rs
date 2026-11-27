@@ -6,7 +6,6 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use ix_trace_rs::trace;
 use quire_rs::corpus::{CorpusMember, Spec};
 use quire_rs::coverage::{compute, CoverageReport};
 use quire_rs::symbols::{extract_tree, trace as sym_trace};
@@ -140,7 +139,6 @@ fn unresolved(report: &CoverageReport) -> Vec<(&str, &str)> {
         .collect()
 }
 
-#[trace("NFR-140-AC-1")]
 // a short-form tag binds the criterion of the member the qualifier names and
 // no criterion of FSL, which mints the same bare id.
 #[test]
@@ -164,7 +162,6 @@ fn an_fspec_tag_binds_the_standard_row_and_not_the_fsl_row() {
     );
 }
 
-#[trace("NFR-140-AC-2")]
 // the qualified long form binds the same row as the short form.
 #[test]
 fn the_long_form_binds_the_same_row_as_the_short_form() {
@@ -176,7 +173,6 @@ fn the_long_form_binds_the_same_row_as_the_short_form() {
     );
 }
 
-#[trace("NFR-140-AC-2")]
 // the binder's ignored state is carried like any other binder's.
 #[test]
 fn a_qualified_binder_keeps_its_ignored_state() {
@@ -196,7 +192,6 @@ fn a_qualified_binder_keeps_its_ignored_state() {
     );
 }
 
-#[trace("NFR-140-AC-2")]
 // over FSL alone a qualified tag is a reference outside the corpus and binds
 // no FSL row.
 #[test]
@@ -217,7 +212,6 @@ fn over_fsl_alone_a_qualified_tag_is_outside_the_corpus() {
     assert!(report.untracked_symbols.is_empty());
 }
 
-#[trace("NFR-140-AC-2")]
 // an id the named member does not mint is reported as unknown in that member.
 #[test]
 fn an_unminted_qualified_id_is_reported_as_unknown_in_the_member() {
@@ -233,7 +227,6 @@ fn an_unminted_qualified_id_is_reported_as_unknown_in_the_member() {
     );
 }
 
-#[trace("NFR-140-AC-3")]
 // the declaration is what makes `FSpec-` a qualifier. Without it the engine cannot
 // know the prefix, so the tag is an ordinary unqualified symbol: it binds no row,
 // bare ids included, and is reported in `untracked_symbols` (not as unresolved).
@@ -249,7 +242,6 @@ fn without_the_declaration_an_fspec_tag_is_an_ordinary_untracked_symbol() {
         .any(|s| s.trace_id == "FSpec-FR-001-AC-1"));
 }
 
-#[trace("NFR-140-AC-3")]
 // the declaration names a non-blank prefix and an `<org>/<repo>` identity.
 #[test]
 fn a_malformed_qualifier_declaration_is_refused_at_load() {
@@ -282,7 +274,6 @@ fn a_malformed_qualifier_declaration_is_refused_at_load() {
     assert_eq!(overlapping.validate().len(), 2);
 }
 
-#[trace("NFR-140-AC-2")]
 // a qualified tag naming a whole document binds nothing a matrix reads, so it is
 // reported as unresolved, as the bare tag is reported untracked.
 #[test]
@@ -308,7 +299,6 @@ fn unbacked_matrix_row(report: &CoverageReport) -> bool {
         .any(|r| r.document.starts_with("fspec") && r.row_id.as_deref() == Some("TC-001"))
 }
 
-#[trace("NFR-140-AC-1")]
 // a qualified tag backs a reference row by the bare rule: every criterion the
 // row traces to must be backed, not any one of them.
 #[test]
@@ -329,7 +319,6 @@ fn a_qualified_tag_backs_a_reference_row_only_when_every_criterion_is_backed() {
     assert!(!unbacked_matrix_row(&report), "{:?}", report.unbacked_rows);
 }
 
-#[trace("NFR-140-AC-1")]
 // a qualified tag backs the minted target of the member it names, not FSL's.
 #[test]
 fn a_qualified_tag_backs_the_minted_target_of_its_own_member() {
@@ -347,7 +336,6 @@ fn a_qualified_tag_backs_the_minted_target_of_its_own_member() {
     assert_eq!(backed("fsl", "FR-001-AC-2"), Some(false));
 }
 
-#[trace("NFR-140-AC-2")]
 // over FSL alone the only report about a qualified tag is the unresolved one.
 #[test]
 fn over_fsl_alone_only_the_unresolved_diagnostic_names_the_tag() {

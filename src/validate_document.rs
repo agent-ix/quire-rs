@@ -1715,7 +1715,6 @@ yield_pattern:
         assert!(r.is_valid, "{:?}", r.errors);
     }
 
-    #[trace("FR-033")]
     // a unit whose required sub-locator violates its
     // assert (list-item text does not match the id_pattern) fails with
     // reason `assert`; a conformant sibling does not.

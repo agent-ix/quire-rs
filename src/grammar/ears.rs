@@ -521,7 +521,6 @@ fn re_vague_quality() -> &'static Regex {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ix_trace_rs::trace;
 
     fn doc(text: &str) -> crate::ast::QuireDocument {
         crate::parse_document(text)
@@ -848,7 +847,6 @@ mod tests {
 
 #[cfg(test)]
 mod props_metamorphic {
-    use ix_trace_rs::trace;
     use proptest::prelude::*;
 
     /// Strings built from the tokens `normalize` rewrites, so the generator
@@ -876,7 +874,6 @@ mod props_metamorphic {
         /// Its counterexample before the fixpoint loop was `[]**()`, which
         /// normalized to `[]()` and then to `""`.
         #[test]
-        #[trace("FR-042")]
         fn tc891_ears_normalize_is_idempotent(s in markdownish()) {
             let once = super::normalize(&s);
             prop_assert_eq!(super::normalize(&once), once.clone(), "input={:?}", s);
@@ -885,7 +882,6 @@ mod props_metamorphic {
         /// CR-069, Property: and it never lengthens its input,
         /// which is what makes the fixpoint loop terminate.
         #[test]
-        #[trace("FR-042")]
         fn tc891_ears_normalize_never_grows(s in markdownish()) {
             prop_assert!(super::normalize(&s).len() <= s.len(), "input={:?}", s);
         }

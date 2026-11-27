@@ -237,7 +237,7 @@ mod tests {
         // program exists to catch, and just as misleading.
         #![proptest_config(ProptestConfig::with_cases(10_000))]
         #[test]
-        #[trace("FR-008-AC-3", "NFR-006")]
+        #[trace("FR-008-AC-3")]
         fn tc024_roundtrip_stitch_is_byte_exact(body in any_body()) {
             prop_assert_eq!(reconstruct(&body), body);
         }

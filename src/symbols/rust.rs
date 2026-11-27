@@ -1412,7 +1412,6 @@ mod tests {
 
     /// PLAT-843 audit item d: `type`/`static`/`const`/`union` mint
     /// no symbols — only fn/mod/struct/enum/trait/impl are recognised.
-    #[trace("FR-051")]
     #[test]
     fn type_static_const_union_mint_no_symbols() {
         let source = concat!(
