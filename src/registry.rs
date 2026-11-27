@@ -929,7 +929,7 @@ mod tests {
 
     #[trace("FR-014-AC-5")]
     #[test]
-    fn iso_app_and_process_modules_form_the_seventeen_archetype_union() {
+    fn iso_app_and_process_modules_form_exact_archetype_union() {
         let provider_module = |variable: &str, sibling: &str, module: &str| {
             let provider = std::env::var_os(variable).map_or_else(
                 || {
