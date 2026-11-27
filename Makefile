@@ -32,6 +32,7 @@ help:
 	@echo "  make lint             - Clippy with -D warnings"
 	@echo "  make test             - cargo test"
 	@echo "  make evidence         - trace-emitting Rust suite plus a Quoin run record"
+	@echo "  make test-fr051-e10   - Run pinned Rust/Python/TypeScript emitter E-10 fixtures"
 	@echo "  make build            - Release build"
 	@echo "  make clean            - cargo clean"
 	@echo "  make deny             - cargo deny license and all-feature dependency bans"
@@ -197,6 +198,10 @@ evidence:
 	    --expected-tag "$$tag" --expected-commit "$$commit" \
 	    --tag-created-at "$$tag_created_at" \
 	    --output-dir "$(EVIDENCE_TARGET)/verified"
+
+.PHONY: test-fr051-e10
+test-fr051-e10:
+	python3 -m pytest -q scripts/tests/test_fr051_e10_e2e.py
 
 .PHONY: test
 test:

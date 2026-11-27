@@ -34,3 +34,14 @@ validation provider snapshots used by the corpus integration tests.
 |----|------|---------|------|---------------|
 | SUITE-001 | Rust unit and integration tests | `make evidence` | ix-trace-run 0.1.0+8a0ec153 | Unit |
 | SUITE-004 | Local real-tool tests | `make real-tool-test` | make | Integration |
+| SUITE-005 | FR-051 cross-language E-10 emitter fixtures | `make test-fr051-e10` | pinned ix-trace emitters + Quoin | Integration |
+
+`SUITE-005` is a local-only, reproducible conformance harness for
+FR-051-AC-33 and FR-051-AC-48. It installs Quoin from the public npm registry,
+installs `ix-trace-run` from the pinned public Git revision, installs the
+Python pytest emitter from its pinned public Git revision, and installs the
+TypeScript emitter from npmjs. The harness runs passing and intentional-failure
+fixtures for Rust, Python and TypeScript, validates the JUnit symbol, file and
+trace fields, and records each result into a fresh temporary Quoin evidence
+store. It uses task-local caches and configuration, does not use npm.ix, and
+does not change the committed evidence bindings.
