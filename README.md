@@ -201,7 +201,7 @@ make build         # release build
 make deny          # cargo-deny license/source check
 ```
 
-The Rust toolchain is declared once, in `rust-toolchain.toml` and the `Cargo.toml` `rust-version`. See `CLAUDE.md` for the safety scaffolding and design conventions, and
+The Rust compiler is pinned in `rust-toolchain.toml`; `Cargo.toml` `rust-version` declares the minimum supported version. See `CLAUDE.md` for the safety scaffolding and design conventions, and
 `spec/` for the normative requirements.
 
 ## Related projects
