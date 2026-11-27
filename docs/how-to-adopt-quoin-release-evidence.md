@@ -14,6 +14,12 @@ release files. Its tagged source must include the `make evidence` target,
 `SUITE-001`, and Quoin suite and binding registries. The reusable workflow
 checks out that exact tag with recursive submodules, runs `make evidence`, and
 uploads the verified store to the same workflow run.
+It also supplies the pinned Process and ISO schema providers required by the
+Quire-rs corpus integration tests.
+
+The caller must provide the `REGISTRY_TOKEN` secret for build-time access to
+Agent-IX schema packages. The example uses `secrets: inherit`; callers can
+instead pass that secret explicitly.
 
 The evidence job uses read-only permissions and disables persisted checkout
 credentials. The OIDC-enabled attestation job runs the shared Engineering
@@ -44,12 +50,13 @@ jobs:
       id-token: write
       attestations: write
     uses: agent-ix/quire-rs/.github/workflows/tag-attestation.yml@vX.Y.Z
+    secrets: inherit
     with:
       run_wheels: false
       release_artifact_name: release-artifacts
       evidence_artifact_name: release-evidence
       ea_tooling_tag: v0.9.0
-      quoin_tooling_tag: 0.30.1
+      quoin_tooling_tag: 0.36.10
 ```
 
 The reusable workflow checks out the caller's tagged source, generates and

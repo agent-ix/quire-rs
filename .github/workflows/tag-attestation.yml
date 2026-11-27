@@ -5,6 +5,10 @@ on:
     tags:
       - 'v*'
   workflow_call:
+    secrets:
+      REGISTRY_TOKEN:
+        description: Read access to the Agent-IX npm packages needed to build Quire-rs.
+        required: true
     inputs:
       run_wheels:
         description: Build and upload Quire-rs release wheels as part of this call.
@@ -30,7 +34,7 @@ on:
         description: Published Quoin evidence exporter release.
         required: false
         type: string
-        default: 0.30.1
+        default: 0.36.10
 
 permissions: {}
 
@@ -88,9 +92,38 @@ jobs:
           fetch-depth: 0
           submodules: recursive
           persist-credentials: false
+      - name: Check out the Process validation provider
+        uses: actions/checkout@v7
+        with:
+          repository: agent-ix/spec-artifacts-process
+          ref: c29697dd2c083e08defdec73d31efa3f41141a80
+          path: .ci/spec-artifacts-process
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Check out the ISO validation provider
+        uses: actions/checkout@v7
+        with:
+          repository: agent-ix/spec-artifacts-iso
+          ref: f3e556c423eee451ac833eb1c0a950006c137bc6
+          path: .ci/spec-artifacts-iso
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Set up Node for build-time schema package fetches
+        uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+      - name: Configure authenticated Agent-IX npm registry
+        uses: agent-ix/nodejs-actions/setup-npmrc@main
+        with:
+          npm_registry_token: ${{ secrets.REGISTRY_TOKEN }}
       - name: Generate and verify release evidence
         env:
           RELEASE_TAG: ${{ github.ref_name }}
+          VALIDATION_PROCESS_ROOT: ${{ github.workspace }}/.ci/spec-artifacts-process
+          VALIDATION_ISO_ROOT: ${{ github.workspace }}/.ci/spec-artifacts-iso
+          CARGO_PROFILE_DEV_DEBUG: "0"
+          CARGO_PROFILE_TEST_DEBUG: "0"
+          CARGO_INCREMENTAL: "0"
         run: make evidence
 
       - name: Retain verified evidence for the shared attestation workflow
@@ -114,7 +147,7 @@ jobs:
     with:
       tag: ${{ github.ref_name }}
       ea_tooling_tag: ${{ inputs.ea_tooling_tag || 'v0.9.0' }}
-      quoin_tooling_tag: ${{ inputs.quoin_tooling_tag || '0.30.1' }}
+      quoin_tooling_tag: ${{ inputs.quoin_tooling_tag || '0.36.10' }}
       record_path: ${{ vars.RELEASE_RECORD_PATH }}
       allowed_signers_path: ${{ vars.ALLOWED_SIGNERS_PATH }}
       artifact_name: ${{ inputs.release_artifact_name || 'release-artifacts' }}

@@ -38,6 +38,8 @@ tag-release workflow through `workflow_call`, with a documented example.
   schema-version-1 Quoin evidence-store shape defined by
   [Quoin FR-030](ix://agent-ix/quoin/FR-030).
 - The exact tagged source tree and its initialized recursive submodules.
+- The pinned Process and ISO validation provider snapshots used by the
+  repository's `ecosystem` corpus cases.
 
 ## Outputs
 
@@ -53,8 +55,11 @@ tag-release workflow through `workflow_call`, with a documented example.
 ## Behavior
 
 - For each pushed `v*` tag, the Quire-rs tag-attestation workflow SHALL check
-  out the exact tag commit with recursive submodules and run `make evidence`
-  once before uploading release evidence.
+  out the exact tag commit with recursive submodules and the pinned Process
+  (`c29697dd2c083e08defdec73d31efa3f41141a80`) and ISO
+  (`f3e556c423eee451ac833eb1c0a950006c137bc6`) validation providers, set
+  `VALIDATION_PROCESS_ROOT` and `VALIDATION_ISO_ROOT` to those roots, and run
+  `make evidence` once before uploading release evidence.
 - `make evidence` SHALL refuse tracked or untracked changes in the repository
   checkout or any initialized recursive submodule before running the suite.
   It SHALL run `SUITE-001` only when `HEAD` is exactly the requested
@@ -107,7 +112,7 @@ tag-release workflow through `workflow_call`, with a documented example.
 
 | ID | Criteria | Verification |
 |----|----------|--------------|
-| FR-095-AC-1 | A workflow test confirms that the `v*` tag job checks out the exact tag commit with recursive submodules, runs `make evidence` once, and uploads the verified evidence store as the `release-evidence` artifact. | Test |
+| FR-095-AC-1 | A workflow test confirms that the `v*` tag job checks out the exact tag commit with recursive submodules and pinned Process/ISO validation providers, runs `make evidence` once with their roots, and uploads the verified evidence store as the `release-evidence` artifact. | Test |
 | FR-095-AC-2 | A workflow test confirms that `make evidence` verifies the generated archive's required files, hashes, tag, commit, registries, and fresh passing SUITE-001 run record before extraction; the upload and attestation jobs do not run after generation or verification fails. | Test |
 | FR-095-AC-3 | A workflow test confirms that the OIDC-enabled job consumes the artifact and has no checkout or repository-code execution step, while the wheel workflow still receives `publish: false`. | Test |
 | FR-095-AC-4 | After a tag-attestation run, the uploaded artifact contains the committed suite and binding registries, the generated binding registry, and the fresh `SUITE-001` run record from the exact tag commit; the source worktree does not commit generated records. | Test |

@@ -14,14 +14,19 @@ top-level `schemaVersion` and `bindings` array; its binding entries identify
 the obligation, suite, and supporting test symbols, and only passing test
 results bind. For the release Test Result, `SUITE-001` SHALL bind each
 acceptance criterion in Quire-rs FR-095 (AC-1 through AC-6). The tag-attestation
-Terra run first refuses dirty tracked, untracked, or recursive submodule state,
-then runs this suite once at the exact signed tag commit with `make evidence`
-and attaches `target/release-evidence/release-evidence.tar.gz` to the matching
-GitHub Release. The tag-attestation workflow validates the asset contents
-against the tag SHA and retains it as the same-run `release-evidence` artifact;
-it does not run the suite again or authenticate the claimed Terra producer.
-Under the SWM-347 owner ruling, producer provenance is out of scope here, so the
-attached evidence is unsigned. The producer uses published Quoin 0.30.1 with explicit Process v0.31.0 provider commit `28c8d2ccf03a477ac07c9955de59c7c2a873238a` to derive the six FR-095 bindings, independently of user-installed modules. The original timestamped run, generated bindings and raw JUnit bytes are hashed in the tag-bound manifest. Generated run records are never committed.
+workflow checks out the exact signed tag and recursive submodules, supplies the
+pinned Process and ISO validation providers for corpus integration tests, then
+runs this suite once with `make evidence`. The target refuses dirty source and
+submodule state, verifies the exact tag and generated run record, restores the
+committed binding registry, and writes `target/release-evidence/verified/`.
+The workflow uploads that verified store as the same-run `release-evidence`
+artifact; the shared Engineering Assurance workflow consumes that artifact and
+does not rerun the suite. The evidence package records the original run,
+generated bindings and raw JUnit bytes. Generated run records are never
+committed. The evidence producer uses published Quoin 0.30.1 with Process
+provider commit `28c8d2ccf03a477ac07c9955de59c7c2a873238a` to derive FR-095
+bindings; this producer provider pin is separate from the Process and ISO
+validation provider snapshots used by the corpus integration tests.
 
 ## Suites
 

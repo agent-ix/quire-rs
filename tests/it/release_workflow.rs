@@ -204,7 +204,10 @@ fn tc_2233_oidc_attestation_consumes_artifact_without_running_checkout_code() {
         attest["with"]["evidence_artifact"].as_str(),
         Some("${{ inputs.evidence_artifact_name || 'release-evidence' }}")
     );
-    assert_eq!(attest["with"]["quoin_tooling_tag"].as_str(), Some("0.36.10"));
+    assert_eq!(
+        attest["with"]["quoin_tooling_tag"].as_str(),
+        Some("0.36.10")
+    );
     assert_eq!(attest["permissions"]["id-token"].as_str(), Some("write"));
     assert!(
         attest["steps"].is_null(),
@@ -266,8 +269,7 @@ fn tc_2234_make_evidence_records_fresh_suite_run_for_retention() {
     assert_eq!(setup_node["with"]["node-version"].as_str(), Some("22"));
     assert!(evidence_steps.iter().any(|step| {
         step["uses"].as_str() == Some("agent-ix/nodejs-actions/setup-npmrc@main")
-            && step["with"]["npm_registry_token"].as_str()
-                == Some("${{ secrets.REGISTRY_TOKEN }}")
+            && step["with"]["npm_registry_token"].as_str() == Some("${{ secrets.REGISTRY_TOKEN }}")
     }));
     for (repository, revision, path, variable) in [
         (
@@ -299,8 +301,14 @@ fn tc_2234_make_evidence_records_fresh_suite_run_for_retention() {
             })
         );
     }
-    assert_eq!(generate["env"]["CARGO_PROFILE_DEV_DEBUG"].as_str(), Some("0"));
-    assert_eq!(generate["env"]["CARGO_PROFILE_TEST_DEBUG"].as_str(), Some("0"));
+    assert_eq!(
+        generate["env"]["CARGO_PROFILE_DEV_DEBUG"].as_str(),
+        Some("0")
+    );
+    assert_eq!(
+        generate["env"]["CARGO_PROFILE_TEST_DEBUG"].as_str(),
+        Some("0")
+    );
     assert_eq!(generate["env"]["CARGO_INCREMENTAL"].as_str(), Some("0"));
     assert_eq!(
         events(&workflow)["workflow_call"]["secrets"]["REGISTRY_TOKEN"]["required"].as_bool(),
