@@ -11,12 +11,15 @@
 
 use std::fs;
 use std::path::PathBuf;
+use std::time::Instant;
 
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, criterion_group, criterion_main};
+use ix_trace_rs::trace;
 use quire_rs::load_repo;
 use rayon::prelude::*;
 
 const DOC_COUNT: usize = 1_000;
+const SPEEDUP_SAMPLES: usize = 11;
 
 fn synthetic_corpus() -> PathBuf {
     let mut root = std::env::temp_dir();
@@ -36,16 +39,39 @@ fn synthetic_corpus() -> PathBuf {
     root
 }
 
+#[trace("FR-024-AC-8")]
 fn bench_load_repo(c: &mut Criterion) {
     let root = synthetic_corpus();
 
-    // Header-tier walk only (the CR-047 lazy-body default).
-    let mut group = c.benchmark_group("load_repo_1k");
-    for threads in [1usize, 8usize] {
-        let pool = rayon::ThreadPoolBuilder::new()
+    let pools = [1usize, 8usize].map(|threads| {
+        rayon::ThreadPoolBuilder::new()
             .num_threads(threads)
             .build()
-            .unwrap();
+            .unwrap()
+    });
+    let mut medians = Vec::with_capacity(pools.len());
+    for pool in &pools {
+        let mut samples = Vec::with_capacity(SPEEDUP_SAMPLES);
+        for _ in 0..SPEEDUP_SAMPLES {
+            let start = Instant::now();
+            let load = pool.install(|| load_repo(&root));
+            samples.push(start.elapsed());
+            assert_eq!(load.documents.len(), DOC_COUNT);
+        }
+        samples.sort_unstable();
+        medians.push(samples[SPEEDUP_SAMPLES / 2]);
+    }
+    let speedup = medians[0].as_secs_f64() / medians[1].as_secs_f64();
+    assert!(medians.iter().all(|median| !median.is_zero()));
+    assert!(speedup.is_finite() && speedup > 0.0);
+    eprintln!(
+        "load_repo {DOC_COUNT}-document median speedup: 1-thread={:?}, 8-thread={:?}, ratio={speedup:.3}x",
+        medians[0], medians[1]
+    );
+
+    // Header-tier walk only (the CR-047 lazy-body default).
+    let mut group = c.benchmark_group("load_repo_1k");
+    for (threads, pool) in [1usize, 8usize].into_iter().zip(&pools) {
         group.bench_function(format!("threads_{threads}"), |b| {
             b.iter(|| {
                 pool.install(|| {
@@ -60,11 +86,7 @@ fn bench_load_repo(c: &mut Criterion) {
 
     // Walk + every body forced (the pre-CR-047 full-parse quantity).
     let mut group = c.benchmark_group("load_repo_1k_bodies");
-    for threads in [1usize, 8usize] {
-        let pool = rayon::ThreadPoolBuilder::new()
-            .num_threads(threads)
-            .build()
-            .unwrap();
+    for (threads, pool) in [1usize, 8usize].into_iter().zip(&pools) {
         group.bench_function(format!("threads_{threads}"), |b| {
             b.iter(|| {
                 pool.install(|| {
