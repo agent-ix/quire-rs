@@ -22,6 +22,7 @@ use loom::sync::atomic::{AtomicUsize, Ordering};
 use loom::sync::{Arc, Mutex};
 use loom::thread;
 
+#[trace("NFR-017-AC-1")]
 #[test]
 fn parallel_collect_is_race_free_and_order_independent() {
     loom::model(|| {
