@@ -1226,8 +1226,9 @@ mod tests {
     use pyo3::Python;
     use serde_json::{json, Value};
 
-    use super::{classify_properties, py_to_json};
+    use super::{check_grammar, classify_properties, py_to_json};
     use crate::grammar::property::{AcClassification, Span};
+    use crate::grammar::GrammarFinding;
 
     fn span_json(span: Option<&Span>) -> Value {
         span.map_or(Value::Null, |span| {
@@ -1261,6 +1262,61 @@ mod tests {
                 })
                 .collect(),
         )
+    }
+
+    fn rust_findings_json(findings: &[GrammarFinding]) -> Value {
+        Value::Array(
+            findings
+                .iter()
+                .map(|finding| {
+                    json!({
+                        "grammar": finding.grammar,
+                        "check": finding.check,
+                        "pattern": finding.pattern,
+                        "message": finding.message,
+                        "line": finding.line,
+                        "statement": finding.statement,
+                        "severity": finding.severity.as_str(),
+                    })
+                })
+                .collect(),
+        )
+    }
+
+    #[trace("FR-047-AC-9")]
+    #[test]
+    fn tc983_check_grammar_binding_matches_rust_findings() {
+        let markdown = concat!(
+            "---\nid: FR-001\ntype: FR\n---\n",
+            "## Acceptance Criteria\n\n",
+            "| ID | Criteria | Verification |\n",
+            "|----|----------|--------------|\n",
+            "| FR-001-AC-1 | Navigation works. | Test |\n",
+        );
+
+        Python::attach(|py| {
+            let binding = check_grammar(py, "iso-spec-core", "FR", markdown, None)
+                .expect("PyO3 grammar check");
+            let actual = py_to_json(binding.as_any()).expect("Python findings convert to JSON");
+
+            let document = crate::parse_document(markdown);
+            let rust = crate::grammar::apply_severity(
+                crate::grammar::check_document_grammar(
+                    "iso-spec-core",
+                    "FR",
+                    &document,
+                    crate::validate_document::body_line_offset(markdown),
+                    crate::grammar::GrammarVocabularies::defaults(),
+                ),
+                crate::grammar::default_severity(),
+            );
+            let expected = rust_findings_json(&rust);
+            assert!(
+                !rust.is_empty(),
+                "fixture must exercise at least one grammar finding"
+            );
+            assert_eq!(actual, expected);
+        });
     }
 
     #[trace("FR-052-AC-11")]
