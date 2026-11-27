@@ -33,7 +33,7 @@ fn surfaced_schema_accepts_valid_tool_arguments_and_reports_retry_path() {
     let error =
         apply_patch(archetype, &json!({}), &invalid).expect_err("invalid arguments refused");
     assert!(
-        matches!(error, QuireError::SchemaViolation { field_path, .. } if field_path == "title"),
+        matches!(error, QuireError::SchemaViolation { ref field_path, .. } if field_path == "title"),
         "the retryable violation must identify the field: {error}"
     );
 }
