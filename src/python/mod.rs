@@ -1147,15 +1147,24 @@ fn section_to_py<'py>(py: Python<'py>, s: &QuireSection) -> PyResult<Bound<'py, 
 
 /// Convert a `serde_json::Value` to a native Python object (no JSON
 /// string round-trip).
+#[implements("FR-075-AC-17", "FR-075-AC-20")]
 fn json_to_py<'py>(py: Python<'py>, v: &Value) -> PyResult<Bound<'py, PyAny>> {
     let obj = match v {
         Value::Null => py.None().into_bound(py),
         Value::Bool(b) => pyo3::types::PyBool::new(py, *b).to_owned().into_any(),
         Value::Number(n) => {
+            let number_text = n.to_string();
             if let Some(i) = n.as_i64() {
                 i.into_pyobject(py)?.into_any()
             } else if let Some(u) = n.as_u64() {
                 u.into_pyobject(py)?.into_any()
+            } else if !number_text
+                .chars()
+                .any(|character| matches!(character, '.' | 'e' | 'E'))
+            {
+                PyModule::import(py, "builtins")?
+                    .getattr("int")?
+                    .call1((number_text,))?
             } else {
                 n.as_f64().unwrap_or(f64::NAN).into_pyobject(py)?.into_any()
             }
