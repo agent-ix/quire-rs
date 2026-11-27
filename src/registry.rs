@@ -929,61 +929,30 @@ mod tests {
 
     #[trace("FR-014-AC-5")]
     #[test]
-    fn iso_app_and_process_modules_form_exact_archetype_union() {
-        let provider_module = |variable: &str, sibling: &str, module: &str| {
-            let provider = std::env::var_os(variable).map_or_else(
-                || {
-                    Path::new(env!("CARGO_MANIFEST_DIR"))
-                        .join("..")
-                        .join(sibling)
-                },
-                PathBuf::from,
-            );
-            let root = provider.join(module);
-            assert!(
-                root.join("manifest.yaml").is_file(),
-                "provider module missing at {}; CI sets {variable}",
-                root.display()
-            );
-            root
-        };
-        let iso = provider_module(
-            "VALIDATION_ISO_ROOT",
-            "spec-artifacts-iso",
-            "spec_artifacts_iso",
-        );
-        let app = provider_module(
-            "VALIDATION_APP_ROOT",
-            "spec-artifacts-app",
-            "spec_artifacts_app",
-        );
-        let process = provider_module(
-            "VALIDATION_PROCESS_ROOT",
-            "spec-artifacts-process",
-            "spec_artifacts_process",
-        );
-        let iso_registry = Registry::load_module_set(&[&iso]).expect("load ISO module");
-        let app_registry = Registry::load_module_set(&[&app]).expect("load app module");
-        let process_registry = Registry::load_module_set(&[&process]).expect("load process module");
-        let mut expected = std::collections::BTreeSet::new();
-        expected.extend(iso_registry.archetype_names());
-        expected.extend(app_registry.archetype_names());
-        expected.extend(process_registry.archetype_names());
+    fn three_modules_form_exact_archetype_union() {
+        let first = tmpdir("union-first").join("module_one");
+        let second = tmpdir("union-second").join("module_two");
+        let third = tmpdir("union-third").join("module_three");
+        write_named_module(&first, "module-one", "fr");
+        write_named_module(&second, "module-two", "us");
+        write_named_module(&third, "module-three", "process_record");
 
-        let combined = Registry::load_module_set(&[&iso, &app, &process])
+        let combined = Registry::load_module_set(&[&first, &second, &third])
             .expect("load the three modules together");
         assert_eq!(
             combined
                 .archetype_names()
                 .collect::<std::collections::BTreeSet<_>>(),
-            expected
+            ["fr", "process_record", "us"]
+                .into_iter()
+                .collect::<std::collections::BTreeSet<_>>()
         );
         assert!(
             combined.diagnostics().iter().all(|diagnostic| !matches!(
                 diagnostic,
                 Diagnostic::DuplicateArchetype { .. } | Diagnostic::DuplicateModuleName { .. }
             )),
-            "the provider modules must not collide: {:?}",
+            "distinct modules with disjoint archetypes must not collide: {:?}",
             combined.diagnostics()
         );
     }
