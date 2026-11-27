@@ -846,6 +846,61 @@ def test_new_module_functions_release_the_gil_under_concurrent_calls(tmp_path):
         assert not errors, f"{name} raised in worker thread: {errors}"
 
 
+@pytest.mark.trace("FR-028-AC-8")
+def test_extract_frontmatter_releases_the_gil_for_two_simultaneous_calls():
+    """Two substantial frontmatter parses overlap while Python observes them."""
+    payload = "x" * 2_500_000
+    markdown = f"---\nid: FR-001\npayload: {payload}\n---\n"
+    start = threading.Barrier(3)
+    ready = [threading.Event(), threading.Event()]
+    entered = [threading.Event(), threading.Event()]
+    finished = [threading.Event(), threading.Event()]
+    results = [None, None]
+    errors = []
+
+    def extract(index):
+        ready[index].set()
+        start.wait(timeout=5)
+        entered[index].set()
+        try:
+            results[index] = quire.extract_frontmatter(markdown)
+        except Exception as error:  # surface worker failures in the test thread
+            errors.append(error)
+        finally:
+            finished[index].set()
+
+    workers = [
+        threading.Thread(target=extract, args=(index,), daemon=True)
+        for index in range(2)
+    ]
+    for worker in workers:
+        worker.start()
+
+    assert all(
+        event.wait(timeout=5) for event in ready
+    ), "both calls must reach the start gate"
+    start.wait(timeout=5)
+    assert all(
+        event.wait(timeout=5) for event in entered
+    ), "both calls must enter the binding before observation"
+
+    assert not finished[0].wait(
+        timeout=0.001
+    ), "the observing Python thread must run during the GIL-release window"
+    assert not finished[1].is_set(), "both concurrent calls should still be processing"
+    assert all(
+        event.wait(timeout=10) for event in finished
+    ), "both calls must complete"
+    for worker in workers:
+        worker.join(timeout=1)
+
+    assert not errors, f"extract_frontmatter raised in worker thread(s): {errors}"
+    assert all(
+        result == {"frontmatter": {"id": "FR-001", "payload": payload}, "body": ""}
+        for result in results
+    )
+
+
 @pytest.mark.trace("FR-028-AC-6")
 def test_harvest_edges_string_and_dict_equal():
     """harvest_edges accepts raw string or parsed dict; outputs equal."""
