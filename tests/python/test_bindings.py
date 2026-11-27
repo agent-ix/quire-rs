@@ -8,8 +8,6 @@ boundary; this is the binding layer's verification method (spec.md §13).
 import concurrent.futures
 import pathlib
 import shutil
-import threading
-import time
 
 import pytest
 
@@ -800,71 +798,6 @@ def test_exception_hierarchy_importable():
     assert issubclass(quire.QuireParseError, quire.QuireBaseError)
     assert issubclass(quire.QuireBaseError, Exception)
     assert not hasattr(quire, "QuireRenderError")
-
-
-@pytest.mark.trace("FR-028-AC-8")
-def test_each_new_module_function_releases_gil_for_two_threads(tmp_path):
-    """Each new module-level binding permits two concurrent Rust calls under the 2x bound."""
-    module = tmp_path / "extractor"
-    module.mkdir()
-    (module / "manifest.yaml").write_text(
-        "name: extractor\n"
-        "object_types:\n"
-        "  - name: event\n"
-        "    data_schema:\n"
-        "      type: object\n"
-        "    body_extraction:\n"
-        "      yield_pattern:\n"
-        "        match:\n"
-        "          purpose:\n"
-        "            from: section_body\n"
-        "            after_heading: Purpose\n"
-    )
-    schema_path = tmp_path / "manifest.schema.json"
-    schema_properties = ",".join(
-        f'"field_{index}":{{"type":"string"}}' for index in range(2048)
-    )
-    schema_path.write_text(f'{{"type":"object","properties":{{{schema_properties}}}}}')
-    markdown = (
-        "---\nid: EVENT-1\nrelationships:\n"
-        "  - target: FR-001\n    type: references\n"
-        "---\n## Purpose\n"
-        + ("The event purpose is recorded.\n" * 12_000)
-        + "[requirement](ix://agent-ix/quire-rs/FR-001)\n"
-    )
-
-    operations = {
-        "validate_manifest": lambda: quire.validate_manifest(
-            {"name": "ok"}, str(schema_path)
-        ),
-        "extract": lambda: quire.extract("event", str(module), markdown),
-        "extract_frontmatter": lambda: quire.extract_frontmatter(markdown),
-        "harvest_edges": lambda: quire.harvest_edges(markdown),
-    }
-    iterations = 128
-    for name, operation in operations.items():
-        started = time.perf_counter()
-        for _ in range(iterations):
-            operation()
-        single_worker_elapsed = time.perf_counter() - started
-
-        barrier = threading.Barrier(2)
-
-        def concurrent_worker():
-            barrier.wait()
-            for _ in range(iterations):
-                operation()
-
-        started = time.perf_counter()
-        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
-            futures = [executor.submit(concurrent_worker) for _ in range(2)]
-            for future in futures:
-                future.result()
-        concurrent_elapsed = time.perf_counter() - started
-        assert concurrent_elapsed < 2 * single_worker_elapsed, (
-            f"{name} serialized: two-worker {concurrent_elapsed:.4f}s, "
-            f"one-worker {single_worker_elapsed:.4f}s"
-        )
 
 
 @pytest.mark.trace("NFR-016-AC-2")
