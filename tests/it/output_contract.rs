@@ -746,7 +746,7 @@ fn tc957_line_keys_are_optional_in_both_directions() {
     );
 }
 
-#[trace("FR-055-AC-7")]
+#[trace("FR-055-AC-7", "FR-055-CON-2")]
 // the contract is carried by the artifact alone.
 #[test]
 fn tc860_no_version_key_in_the_payload_and_no_schemars() {
