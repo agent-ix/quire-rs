@@ -648,7 +648,10 @@ def test_extraction_context_returns_rust_records_and_emitted_edges_without_regis
         "### Two\n(no ref child)\n"
     )
     result = context.extract("event", {}, body)
-    assert result["extraction"] == [{"name": "One"}, {"name": "Two"}]
+    assert result["extraction"] == [
+        {"content": "", "heading": "One", "name": "One"},
+        {"content": "(no ref child)", "heading": "Two", "name": "Two"},
+    ]
     assert result["edges"] == [
         {"record_index": 0, "type": "references", "target": "FR-100"}
     ]
@@ -838,7 +841,7 @@ def test_each_new_module_function_releases_gil_for_two_threads(tmp_path):
         "extract_frontmatter": lambda: quire.extract_frontmatter(markdown),
         "harvest_edges": lambda: quire.harvest_edges(markdown),
     }
-    iterations = 8
+    iterations = 128
     for name, operation in operations.items():
         started = time.perf_counter()
         for _ in range(iterations):
