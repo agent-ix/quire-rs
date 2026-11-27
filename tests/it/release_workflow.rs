@@ -161,6 +161,10 @@ fn tc_2229_tag_workflow_runs_and_uploads_the_declared_release_suite() {
                 .is_some_and(|run| run.contains("scripts/verify_release_evidence.py"))
         })
         .expect("tag workflow validates the downloaded release asset");
+    assert_eq!(
+        evidence_steps[verify_index]["env"]["RELEASE_ASSET_NAME"].as_str(),
+        Some("${{ inputs.evidence_asset_name || 'release-evidence.tar.gz' }}")
+    );
     let upload_index = evidence_steps
         .iter()
         .position(|step| step["with"]["name"].as_str() == Some("release-evidence"))
