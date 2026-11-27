@@ -823,13 +823,15 @@ def test_new_module_functions_release_the_gil_under_concurrent_calls(tmp_path):
     ]
 
     failures = []
+    repetitions = 20
     with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
         for name, call in calls:
             single_samples = []
             for _ in range(3):
                 started = time.perf_counter()
-                call()
-                single_samples.append(time.perf_counter() - started)
+                for _ in range(repetitions):
+                    call()
+                single_samples.append((time.perf_counter() - started) / repetitions)
             single_call = sorted(single_samples)[1]
 
             parallel_samples = []
@@ -841,11 +843,16 @@ def test_new_module_functions_release_the_gil_under_concurrent_calls(tmp_path):
 
                 def run_concurrently():
                     barrier.wait()
-                    return call()
+                    result = None
+                    for _ in range(repetitions):
+                        result = call()
+                    return result
 
                 futures = [executor.submit(run_concurrently) for _ in range(2)]
                 concurrent_results = [future.result() for future in futures]
-                parallel_samples.append(time.perf_counter() - start_time[0])
+                parallel_samples.append(
+                    (time.perf_counter() - start_time[0]) / repetitions
+                )
                 assert concurrent_results[0] == concurrent_results[1], name
 
             parallel_elapsed = sorted(parallel_samples)[len(parallel_samples) // 2]
