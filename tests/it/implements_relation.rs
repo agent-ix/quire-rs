@@ -252,22 +252,24 @@ fn tc941_implements_does_not_change_any_coverage_rollup() {
         .expect("coverage with implements");
     let mut without_implements_graph = graph;
     without_implements_graph.implements.clear();
-    let without_implements = quire_rs::coverage::compute(
-        &spec,
-        &registry,
-        &without_implements_graph,
-        &scope,
-    )
-    .expect("coverage without implements");
+    let without_implements =
+        quire_rs::coverage::compute(&spec, &registry, &without_implements_graph, &scope)
+            .expect("coverage without implements");
 
     let mut with_json = serde_json::to_value(with_implements).expect("serialize report");
     let mut without_json = serde_json::to_value(without_implements).expect("serialize report");
-    with_json.as_object_mut().expect("report object").remove("implements");
+    with_json
+        .as_object_mut()
+        .expect("report object")
+        .remove("implements");
     without_json
         .as_object_mut()
         .expect("report object")
         .remove("implements");
-    assert_eq!(with_json, without_json, "implements changed an FR-050 rollup");
+    assert_eq!(
+        with_json, without_json,
+        "implements changed an FR-050 rollup"
+    );
 }
 
 #[trace("FR-062-AC-5")]
