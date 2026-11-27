@@ -121,8 +121,13 @@ compatibility change in its owning repository.
 | FR-066-AC-7 | An absent capability envelope or a missing required capability aborts the census; the error names the missing token. | Test |
 | FR-066-AC-8 | JSON and Markdown reports carry measured capabilities, enumerated/scanned populations, and exclusions, and identical inputs produce byte-identical bytes. | Test |
 | FR-066-AC-9 | `make census` is exposed as a scheduled/manual operation and no push or pull-request workflow requires it. | Test |
-| FR-066-AC-10 | Each disposition has a worked example tied to the measured ecosystem corpus, and the human report names the repository, row/id when available, owner, reason and next action. | Test |
+| FR-066-AC-10 | Each disposition present in a measured repository's partition has a worked example derived from that repository's rows. The human report names the repository, source document and row/id when available, owner, reason and next action for every example; dispositions absent from the measured rows have no fabricated example. | Test |
 | FR-066-AC-11 | The relationship to `structural-coverage.md` is recorded without changing the owning module's disposition enum. | Inspection |
+
+> **Bounded-scan clarification (2026-11-27):** A census invocation measures
+> repositories one at a time. Its worked examples are therefore selected from
+> the measured repository rows; aggregate reporting may combine already
+> measured per-repository reports without widening a scan's scope.
 
 ## Dependencies
 
