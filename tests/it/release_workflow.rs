@@ -137,45 +137,36 @@ fn tc_2229_tag_workflow_runs_and_uploads_the_declared_release_suite() {
     let evidence_steps = tag_attestation["jobs"]["release-evidence"]["steps"]
         .as_sequence()
         .expect("release evidence job has steps");
-    assert!(
-        !evidence_steps
-            .iter()
-            .any(|step| step["run"].as_str() == Some("make evidence"))
-    );
-    let wait_index = evidence_steps
+    let checkout = evidence_steps
         .iter()
-        .position(|step| {
-            step["name"].as_str()
-                == Some("Wait for the Terra evidence asset on the matching release")
-        })
-        .expect("tag workflow waits for the Terra release asset");
-    let tag_identity_index = evidence_steps
+        .find(|step| step["uses"].as_str() == Some("actions/checkout@v7"))
+        .expect("tagged source is checked out for evidence generation");
+    assert_eq!(checkout["with"]["ref"].as_str(), Some("${{ github.sha }}"));
+    assert_eq!(checkout["with"]["fetch-depth"].as_u64(), Some(0));
+    assert_eq!(checkout["with"]["submodules"].as_str(), Some("recursive"));
+    let evidence_index = evidence_steps
         .iter()
-        .position(|step| step["id"].as_str() == Some("tag"))
-        .expect("tag SHA and annotated creation time are checked");
-    let verify_index = evidence_steps
-        .iter()
-        .position(|step| {
-            step["run"]
-                .as_str()
-                .is_some_and(|run| run.contains("scripts/verify_release_evidence.py"))
-        })
-        .expect("tag workflow validates the downloaded release asset");
+        .position(|step| step["run"].as_str() == Some("make evidence"))
+        .expect("tag workflow runs the release evidence suite");
     assert_eq!(
-        evidence_steps[verify_index]["env"]["RELEASE_ASSET_NAME"].as_str(),
-        Some("${{ inputs.evidence_asset_name || 'release-evidence.tar.gz' }}")
+        evidence_steps[evidence_index]["name"].as_str(),
+        Some("Generate and verify release evidence")
     );
     let upload_index = evidence_steps
         .iter()
-        .position(|step| step["with"]["name"].as_str() == Some("release-evidence"))
+        .position(|step| {
+            step["uses"].as_str() == Some("actions/upload-artifact@v7")
+                && step["with"]["name"].as_str()
+                    == Some("${{ inputs.evidence_artifact_name || 'release-evidence' }}")
+        })
         .expect("release evidence job uploads the named artifact");
     assert!(
-        tag_identity_index < wait_index && wait_index < verify_index && verify_index < upload_index,
-        "asset download and validation precede artifact upload"
+        evidence_index < upload_index,
+        "evidence generation and run-record verification precede artifact upload"
     );
     assert_eq!(
         evidence_steps[upload_index]["with"]["path"].as_str(),
-        Some("release-evidence/")
+        Some("target/release-evidence/verified/")
     );
 }
 
@@ -207,7 +198,11 @@ fn tc_2232_attestation_waits_for_the_retained_evidence_job() {
     assert!(steps.iter().any(|step| {
         step["run"]
             .as_str()
-            .is_some_and(|run| run.contains("release_evidence_asset_missing_or_unavailable"))
+            .is_some_and(|run| run == "make evidence")
+    }));
+    assert!(steps.iter().any(|step| {
+        step["uses"].as_str() == Some("actions/upload-artifact@v7")
+            && step["with"]["path"].as_str() == Some("target/release-evidence/verified/")
     }));
 }
 
