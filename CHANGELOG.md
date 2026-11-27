@@ -7,6 +7,13 @@ bumps; once 1.0 ships, semver is strict.
 
 ## [Unreleased]
 
+## [0.63.5] — 2026-11-27
+
+### Fixed
+
+- Release evidence refuses a dirty checkout before running packaging preflight
+  checks, while retaining preflight validation before costly suite execution.
+
 ## [0.63.4] — 2026-11-27
 
 ### Fixed
