@@ -94,6 +94,7 @@ mod trace_dogfood;
 mod trace_reference_kinds;
 mod trace_references;
 mod trace_target_sources;
+mod traceability_assertions;
 mod verification_catalog;
 mod vocabulary_coverage;
 mod vocabulary_refs;

@@ -19,6 +19,7 @@ use super::{
     TraceIdQualifier, TraceMarkerForm, TraceMarkerSyntax, TraceTarget, TraceTargetSource,
     TraceabilityModel, VocabularyCoverage,
 };
+use ix_trace_rs::implements;
 
 /// The kind of traceability declaration that was dropped.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -63,6 +64,8 @@ pub enum DeclarationKind {
     Vocabulary,
     /// One `flow_rules` entry.
     FlowRule,
+    /// One traceability table assertion.
+    TableAssertion,
     /// One `remediations` entry.
     Remediation,
     /// An archetype whose `frontmatter_schema_ref` cannot be resolved.
@@ -108,6 +111,7 @@ impl DeclarationKind {
             Self::RequiredField => "required_field",
             Self::Vocabulary => "vocabulary",
             Self::FlowRule => "flow_rule",
+            Self::TableAssertion => "table_assertion",
             Self::Remediation => "remediation",
             Self::Archetype => "archetype",
         }
@@ -138,6 +142,7 @@ impl DeclarationKind {
             Self::RequiredField => "required_fields",
             Self::Vocabulary => "vocabulary",
             Self::FlowRule => "flow_rules",
+            Self::TableAssertion => "table_assertions",
             Self::Remediation => "remediations",
             Self::Archetype => "archetypes",
         }
@@ -370,12 +375,22 @@ impl TraceabilityModel {
             &mut out,
         );
 
+        let declared_references = self.document_references.clone();
         self.trace_targets = screen(
             DeclarationKind::TraceTarget,
             std::mem::take(&mut self.trace_targets),
             Duplicates::Reject,
             |t| t.name.as_str(),
             check_trace_target,
+            &mut out,
+        );
+        let all_targets = self.trace_targets.clone();
+        self.trace_targets = screen(
+            DeclarationKind::TraceTarget,
+            std::mem::take(&mut self.trace_targets),
+            Duplicates::Allow,
+            |target| target.name.as_str(),
+            |target| check_trace_target_links(target, &all_targets, &declared_references),
             &mut out,
         );
         let target_names: BTreeSet<String> =
@@ -400,6 +415,15 @@ impl TraceabilityModel {
                     status_dropped,
                 )
             },
+            &mut out,
+        );
+
+        self.table_assertions = screen(
+            DeclarationKind::TableAssertion,
+            std::mem::take(&mut self.table_assertions),
+            Duplicates::Reject,
+            crate::traceability::TableAssertion::name,
+            |assertion| check_table_assertion(assertion, &self.trace_targets),
             &mut out,
         );
 
@@ -694,6 +718,7 @@ impl TraceabilityModel {
             K::RequiredField => self.required_fields.retain(|d| d.name != item),
             K::Vocabulary => self.vocabulary.retain(|d| d.name != item),
             K::FlowRule => self.flow_rules.retain(|d| d.name != item),
+            K::TableAssertion => self.table_assertions.retain(|d| d.name() != item),
             K::Remediation => self.remediations.retain(|d| d.name != item),
             K::Archetype => {}
         }
@@ -739,6 +764,7 @@ fn check_qualifier(qualifier: &TraceIdQualifier) -> Result<(), String> {
     Ok(())
 }
 
+#[implements("FR-050-AC-71", "FR-050-AC-72", "FR-050-AC-74")]
 fn check_trace_target(target: &TraceTarget) -> Result<(), String> {
     check_named("trace_targets", &target.name)?;
     check_field(
@@ -784,6 +810,168 @@ fn check_trace_target(target: &TraceTarget) -> Result<(), String> {
         }
         TraceTargetSource::ListItem { pattern } | TraceTargetSource::Heading { pattern } => {
             check_capturing_pattern("trace_targets", &target.name, pattern)?;
+        }
+    }
+    match (&target.parent_target, &target.parent_id_column) {
+        (None, None) => {}
+        (Some(parent), Some(column)) => {
+            check_field("trace_targets", &target.name, "parent_target", parent)?;
+            check_field("trace_targets", &target.name, "parent_id_column", column)?;
+            if target.id_columns().is_none() {
+                return Err(format!(
+                    "traceability: trace_targets entry '{}' declares parent columns but does not mint table rows",
+                    target.name
+                ));
+            }
+        }
+        _ => {
+            return Err(format!(
+                "traceability: trace_targets entry '{}' must declare `parent_target` and `parent_id_column` together",
+                target.name
+            ));
+        }
+    }
+    if let Some(warning) = &target.all_children_value_warning {
+        check_field(
+            "trace_targets",
+            &target.name,
+            "all_children_value_warning.column",
+            &warning.column,
+        )?;
+        check_field(
+            "trace_targets",
+            &target.name,
+            "all_children_value_warning.value",
+            &warning.value,
+        )?;
+        if target.parent_target.is_none() {
+            return Err(format!(
+                "traceability: trace_targets entry '{}' declares `all_children_value_warning` without a parent",
+                target.name
+            ));
+        }
+    }
+    let mut refs = BTreeSet::new();
+    for reference in &target.required_references {
+        check_field(
+            "trace_targets",
+            &target.name,
+            "required_references",
+            reference,
+        )?;
+        if !refs.insert(reference) {
+            return Err(format!(
+                "traceability: trace_targets entry '{}' repeats required reference kind '{reference}'",
+                target.name
+            ));
+        }
+    }
+    Ok(())
+}
+
+#[implements("FR-050-AC-71", "FR-050-AC-72")]
+fn check_trace_target_links(
+    target: &TraceTarget,
+    targets: &[TraceTarget],
+    references: &[DocumentReference],
+) -> Result<(), String> {
+    if let Some(parent_name) = &target.parent_target {
+        if parent_name == &target.name {
+            return Err(format!(
+                "traceability: trace_targets entry '{}' cannot be its own parent",
+                target.name
+            ));
+        }
+        let Some(parent) = targets
+            .iter()
+            .find(|candidate| candidate.name == *parent_name)
+        else {
+            return Err(format!(
+                "traceability: trace_targets entry '{}' names undeclared parent target '{parent_name}'",
+                target.name
+            ));
+        };
+        if parent.id_column().is_none() {
+            return Err(format!(
+                "traceability: trace_targets entry '{}' parent target '{parent_name}' must have one table-row id column",
+                target.name
+            ));
+        }
+    }
+    for reference in &target.required_references {
+        let Some(declaration) = references
+            .iter()
+            .find(|declaration| declaration.name == *reference)
+        else {
+            return Err(format!(
+                "traceability: trace_targets entry '{}' requires undeclared document reference '{reference}'",
+                target.name
+            ));
+        };
+        if !declaration.targets.iter().any(|name| name == &target.name) {
+            return Err(format!(
+                "traceability: trace_targets entry '{}' requires document reference '{reference}', which does not target it",
+                target.name
+            ));
+        }
+    }
+    Ok(())
+}
+
+#[implements("FR-050-AC-73")]
+fn check_table_assertion(
+    assertion: &crate::traceability::TableAssertion,
+    targets: &[TraceTarget],
+) -> Result<(), String> {
+    use crate::traceability::TableAssertion;
+
+    check_named("table_assertions", assertion.name())?;
+    let table_target = |name: &str| -> Result<&TraceTarget, String> {
+        let Some(target) = targets.iter().find(|target| target.name == name) else {
+            return Err(format!(
+                "traceability: table_assertions entry '{}' references undeclared target '{name}'",
+                assertion.name()
+            ));
+        };
+        if target.id_column().is_none() {
+            return Err(format!(
+                "traceability: table_assertions entry '{}' target '{name}' must mint table rows using one id column",
+                assertion.name()
+            ));
+        }
+        Ok(target)
+    };
+    match assertion {
+        TableAssertion::UniqueIds { target, .. } => {
+            table_target(target)?;
+        }
+        TableAssertion::AllPairsUnequal {
+            left_target,
+            left_column,
+            right_target,
+            right_column,
+            ..
+        } => {
+            check_field(
+                "table_assertions",
+                assertion.name(),
+                "left_column",
+                left_column,
+            )?;
+            check_field(
+                "table_assertions",
+                assertion.name(),
+                "right_column",
+                right_column,
+            )?;
+            table_target(left_target)?;
+            table_target(right_target)?;
+            if left_target == right_target {
+                return Err(format!(
+                    "traceability: table_assertions entry '{}' must name two different targets",
+                    assertion.name()
+                ));
+            }
         }
     }
     Ok(())

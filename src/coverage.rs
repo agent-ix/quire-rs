@@ -265,10 +265,31 @@ pub struct MintedTargetRecord {
     pub target: String,
     pub document: String,
     pub line: usize,
+    /// Parent id read from the row's declared `parent_id_column`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parent_id: Option<String>,
+    /// Declared parent target kind, present with `parent_id`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parent_target: Option<String>,
     pub backed: bool,
     /// Explicit historical retirement; never substitutes for source backing.
     #[serde(default, skip_serializing_if = "crate::symbol_table::is_false")]
     pub retired: bool,
+}
+
+/// One parent's rows grouped by a child target (SWM-247).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ParentedTargetGroup {
+    /// Target that minted the parent identity.
+    pub parent_target: String,
+    /// Parent identity, e.g. a rule id.
+    pub parent_id: String,
+    /// Parent document relative to the scope root.
+    pub parent_document: String,
+    /// Child target whose rows refer to this parent.
+    pub child_target: String,
+    /// Sorted ids of child rows; empty when no child refers to the parent.
+    pub child_ids: Vec<String>,
 }
 
 /// Property-shape counts for one document's binding criteria (FR-050-AC-13,
@@ -413,6 +434,9 @@ pub struct CoverageReport {
     /// when the model minted no rows, preserving the additive v1 contract.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub minted_targets: Vec<MintedTargetRecord>,
+    /// Parent-target groups, including parents with zero child rows.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub parented_target_groups: Vec<ParentedTargetGroup>,
     /// Per-document property-shape counts (CR-028). Empty for a corpus whose
     /// documents bind no criteria, so such a report serializes exactly as it
     /// did before the field existed.
@@ -600,10 +624,13 @@ pub const COVERAGE_DIAGNOSTIC_REASONS: &[&str] = &[
     "outside-entry-paths",
     "partial-implements-attribute-match",
     "partial-implements-syntax-match",
+    "parent-children-all-match",
+    "parent-target-has-no-children",
     "range-in-trace-tag",
     "section-holds-no-table",
     "section-matches-nothing",
     "status-column-matches-nothing",
+    "target-id-unreferenced",
     "trace-id-outside-marker",
     "untracked-id-near-miss",
     "untracked-id-has-minted-children",

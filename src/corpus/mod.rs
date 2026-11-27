@@ -27,6 +27,7 @@ pub mod relation_report;
 pub mod required_relations;
 pub mod resolve;
 pub mod spec;
+mod table_assertions;
 pub mod trace_refs;
 pub mod unlinked;
 pub mod validate;

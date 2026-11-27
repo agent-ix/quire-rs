@@ -415,6 +415,9 @@ pub struct TraceabilityModel {
     /// Documents/sections that mint trace ids.
     #[serde(default)]
     pub trace_targets: Vec<TraceTarget>,
+    /// Assertions over rows selected by trace targets (SWM-248).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub table_assertions: Vec<TableAssertion>,
     /// Columns whose cells reference minted trace ids.
     #[serde(default)]
     pub document_references: Vec<DocumentReference>,
@@ -492,10 +495,11 @@ pub struct TraceabilityModel {
 
 /// The keys a `traceability:` section may hold. A key outside this set is a
 /// manifest written for a newer engine.
-pub(crate) const SECTION_KEYS: [&str; 19] = [
+pub(crate) const SECTION_KEYS: [&str; 20] = [
     "exclude",
     "source_exclude",
     "trace_targets",
+    "table_assertions",
     "document_references",
     "status",
     "trace_tags",
@@ -1191,6 +1195,14 @@ struct TraceTargetWire {
     required: bool,
     #[serde(default, skip_serializing_if = "TraceTargetEvidence::is_source")]
     evidence: TraceTargetEvidence,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    parent_target: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    parent_id_column: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    required_references: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    all_children_value_warning: Option<ChildValueWarning>,
 }
 
 impl TryFrom<TraceTargetWire> for TraceTarget {
@@ -1267,6 +1279,10 @@ impl TryFrom<TraceTargetWire> for TraceTarget {
             source,
             required: wire.required,
             evidence: wire.evidence,
+            parent_target: wire.parent_target,
+            parent_id_column: wire.parent_id_column,
+            required_references: wire.required_references,
+            all_children_value_warning: wire.all_children_value_warning,
         })
     }
 }
@@ -1295,6 +1311,10 @@ impl From<TraceTarget> for TraceTargetWire {
             pattern,
             required: target.required,
             evidence: target.evidence,
+            parent_target: target.parent_target,
+            parent_id_column: target.parent_id_column,
+            required_references: target.required_references,
+            all_children_value_warning: target.all_children_value_warning,
         }
     }
 }
@@ -1328,6 +1348,53 @@ pub struct TraceTarget {
     /// `source` posture; reference-only targets register identifiers without
     /// entering coverage (FR-050-AC-40, #363).
     pub evidence: TraceTargetEvidence,
+    /// The target whose ids the rows in this table refer to as their parent.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parent_target: Option<String>,
+    /// Column holding the parent's id; declared together with `parent_target`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parent_id_column: Option<String>,
+    /// Reference declarations that must mention every id minted by this target.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub required_references: Vec<String>,
+    /// A diagnostic-only warning when all children of a parent have this value.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub all_children_value_warning: Option<ChildValueWarning>,
+}
+
+/// A warning condition over every child row in a nonempty parent group.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ChildValueWarning {
+    /// Child table column to compare.
+    pub column: String,
+    /// Authored value that every child must match to produce the warning.
+    pub value: String,
+}
+
+/// A typed table assertion evaluated during bundle validation (SWM-248).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+pub enum TableAssertion {
+    /// Each nonempty value in a target's id column must be unique per document.
+    UniqueIds { name: String, target: String },
+    /// No selected value in the left target may equal a selected value in the right target.
+    AllPairsUnequal {
+        name: String,
+        left_target: String,
+        left_column: String,
+        right_target: String,
+        right_column: String,
+    },
+}
+
+impl TableAssertion {
+    /// Name used for declaration identity and diagnostics.
+    pub fn name(&self) -> &str {
+        match self {
+            Self::UniqueIds { name, .. } | Self::AllPairsUnequal { name, .. } => name,
+        }
+    }
 }
 
 impl TraceTarget {
@@ -1775,6 +1842,7 @@ impl TraceabilityModel {
     /// (FR-050-AC-2/AC-9).
     pub fn is_empty(&self) -> bool {
         self.trace_targets.is_empty()
+            && self.table_assertions.is_empty()
             && self.document_references.is_empty()
             && self.status.is_none()
             && self.trace_tags.markers.is_empty()

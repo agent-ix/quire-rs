@@ -83,6 +83,11 @@
         "$ref": "#/$defs/MintedTargetRecord"
       }
     },
+    "parented_target_groups": {
+      "type": "array",
+      "description": "FR-050-AC-71: parent-target groups for matrix consumers. Includes each minted parent even when child_ids is empty; separate from the obligation-only coverage_matrix population.",
+      "items": {"$ref": "#/$defs/ParentedTargetGroup"}
+    },
     "criteria": {
       "type": "array",
       "description": "FR-050-AC-13 (CR-028): per-document property-shape counts. Absent for a corpus binding no criteria.",
@@ -832,8 +837,22 @@
         "target": {"type": "string", "minLength": 1},
         "document": {"type": "string", "minLength": 1},
         "line": {"type": "integer", "minimum": 1},
+        "parent_id": {"type": "string", "minLength": 1, "description": "Parent identity read from the declared parent_id_column."},
+        "parent_target": {"type": "string", "minLength": 1, "description": "Target kind that owns parent_id."},
         "backed": {"type": "boolean"},
         "retired": {"const": true, "description": "Explicit historical retirement, independent of backing; omitted for live targets."}
+      }
+    },
+    "ParentedTargetGroup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["parent_target", "parent_id", "parent_document", "child_target", "child_ids"],
+      "properties": {
+        "parent_target": {"type": "string", "minLength": 1},
+        "parent_id": {"type": "string", "minLength": 1},
+        "parent_document": {"type": "string", "minLength": 1},
+        "child_target": {"type": "string", "minLength": 1},
+        "child_ids": {"type": "array", "items": {"type": "string", "minLength": 1}}
       }
     },
     "CriteriaCounts": {
