@@ -8,6 +8,14 @@ relationships:
     cardinality: "1:1"
 ---
 
+> **CR note (provider archetype union — PLAT-1966, 2026-11-26):** The old
+> "17 at v1 baseline" count no longer matches the current
+> `spec-artifacts-iso`, `spec-artifacts-app`, and `spec-artifacts-process`
+> manifests, which expose 24 distinct archetypes together. The acceptance
+> criterion now checks that the combined registry equals the exact union of
+> those three loaded modules and that no module or archetype collisions occur,
+> without freezing a provider-era count.
+
 ## Description
 
 `quire-rs` SHALL support **multiple archetype modules coexisting in a single `Registry`**. A module is one of:
@@ -74,7 +82,7 @@ Typical refresh patterns:
 | FR-014-AC-2 | Two modules both defining archetype `"fr"` produces a `Diagnostic::DuplicateArchetype` and `Registry::archetype("fr")` returns the first-loaded module's archetype; `archetype_in_module("module_b", "fr")` returns the shadowed one. | Test |
 | FR-014-AC-3 | `Registry::load_strict(...)` with the same input returns `Err(QuireError::ArchetypeCollision { name: "fr", modules })`. | Test |
 | FR-014-AC-4 | A module manifest with `version: "0.3.1"` is queryable via `module_version("module-name")` returning `Some("0.3.1")`. | Test |
-| FR-014-AC-5 | A test loads `spec-artifacts-iso` + `spec-artifacts-app` + `spec-artifacts-process` simultaneously and asserts the registry contains exactly the union of their archetypes (17 at v1 baseline) with no collisions. | Test |
+| FR-014-AC-5 | A test loads `spec-artifacts-iso` + `spec-artifacts-app` + `spec-artifacts-process` simultaneously and asserts the registry contains exactly the union of their archetypes with no collisions. | Test |
 | FR-014-AC-6 | Two manifests at different paths both declaring `name: foo` produce a `Diagnostic::DuplicateModuleName` and the first-loaded module wins; `load_strict` returns `QuireError::ModuleCollision`. | Test |
 | FR-014-AC-7 | A manifest without a `name` field uses its parent directory's basename as the module name and emits an informational diagnostic. | Test |
 
