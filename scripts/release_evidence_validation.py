@@ -15,8 +15,14 @@ def missing_required_release_bindings(suite_text, run_store, run_record):
             "release suite registry does not declare its required FR-095 bindings"
         )
 
+    upper_bound = int(required_range.group(1))
+    if upper_bound < 1:
+        raise ValueError(
+            "release suite registry requires a positive FR-095 upper bound"
+        )
+
     required_obligations = {
-        f"FR-095-AC-{number}" for number in range(1, int(required_range.group(1)) + 1)
+        f"FR-095-AC-{number}" for number in range(1, upper_bound + 1)
     }
     bindings = [
         entry

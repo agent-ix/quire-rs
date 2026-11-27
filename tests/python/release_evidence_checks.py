@@ -88,6 +88,21 @@ class TestCommittedReleaseRegistry(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "does not declare"):
             HELPER.missing_required_release_bindings(registry, store, run)
 
+    def test_zero_required_range_is_refused_with_empty_evidence(self):
+        """Reject an empty range instead of accepting absent release evidence.
+
+        Trace: FR-095-AC-6
+        """
+        registry = (
+            (ROOT / "spec/evidence/suites.md")
+            .read_text()
+            .replace("AC-1 through AC-6", "AC-1 through AC-0")
+        )
+        with self.assertRaisesRegex(ValueError, "positive FR-095 upper bound"):
+            HELPER.missing_required_release_bindings(
+                registry, {"bindings": []}, {"entries": []}
+            )
+
     def test_actual_registry_packages_and_verifies_offline(self):
         """Package and verify exact committed registry bytes with passing evidence.
 
