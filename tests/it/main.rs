@@ -54,6 +54,7 @@ mod outside_marker_advisory;
 mod parser_golden;
 mod parser_parity;
 mod parser_real_documents;
+mod perf_workflow;
 mod plain_language;
 mod plat_validation_batch;
 mod props_fr_040;

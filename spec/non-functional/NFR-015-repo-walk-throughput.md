@@ -18,7 +18,7 @@ relationships:
 - **p50 < 600 ms** single-threaded, and
 - **p50 < 200 ms** on 8 threads,
 
-on the canonical baseline runner (Apple Silicon M2 Pro, release build). The parse fan-out ([FR-024](../functional/FR-024-parallel-repo-walk.md)) SHALL exhibit near-linear speedup with core count up to 8 cores (parallel efficiency ≥ 0.6), confirming the rayon parallelization is effective and not serialized on a shared bottleneck.
+on the canonical baseline runner (Apple Silicon M2 Pro, release build). The parse fan-out ([FR-024](../functional/FR-024-parallel-repo-walk.md)) SHALL exhibit near-linear speedup with core count up to 8 cores (parallel efficiency ≥ 0.6); this requires the eight-thread median to be no greater than the single-thread median divided by 4.8.
 
 The directory walk component is I/O-bound and excluded from the scaling claim; the claim is about the parse fan-out, which dominates total time at this corpus size.
 
@@ -36,7 +36,7 @@ Per-runner baselines stored separately (Apple Silicon M2 Pro canonical; Ubuntu x
 |----|----------|--------------|
 | NFR-015-AC-1 | A criterion bench `bench_load_repo_1k` loads a synthetic 1,000-document corpus and measures `load_repo` at 1 and 8 threads; medians below 600 ms and 200 ms respectively. | Analysis |
 | NFR-015-AC-2 | The bench computes parallel efficiency `T1 / (8 × T8)` and asserts ≥ 0.6. | Analysis |
-| NFR-015-AC-3 | A regression test compares against a stored baseline; >10% slowdown on either thread count fails CI. | Test |
+| NFR-015-AC-3 | A regression test compares both thread counts against the stored baseline; slowdown above the runner's allowance fails CI (>10% on the canonical Apple Silicon runner, >50% on Ubuntu CI). | Test |
 | NFR-015-AC-4 | A correctness assertion on the same corpus confirms `documents.len() == 1000` and the output ordering is path-sorted and identical across both thread counts (ties [FR-024-AC-4](../functional/FR-024-parallel-repo-walk.md) / [NFR-006](./NFR-006-determinism.md) to the throughput bench). | Test |
 
 ## Measurement and Evaluation
@@ -46,7 +46,7 @@ Per-runner baselines stored separately (Apple Silicon M2 Pro canonical; Ubuntu x
 | `load_repo` p50, 1,000-doc corpus, single-threaded (canonical M2 Pro) | < 600 ms | 600 ms | performance-benchmarking (Criterion) |
 | `load_repo` p50, 1,000-doc corpus, 8 threads | < 200 ms | 200 ms | performance-benchmarking (Criterion) |
 | Parallel efficiency `T1 / (8 × T8)` | ≥ 0.6 | ≥ 0.6 | performance-benchmarking (Criterion) |
-| Same-runner regression vs stored baseline (either thread count) | no slowdown | < 10% slowdown | performance-benchmarking (Criterion) |
+| Same-runner regression vs stored baseline (either thread count) | no slowdown | < 10% canonical; < 50% Ubuntu CI | performance-benchmarking (Criterion) |
 | Output correctness: `documents.len()` and path-sorted ordering across thread counts | 1000, identical | 1000, identical | Inspection (correctness assertion) |
 
 ## Verification

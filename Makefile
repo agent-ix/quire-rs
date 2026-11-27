@@ -338,16 +338,16 @@ mutants-scope:
 	@$(CARGO) run --locked --release --quiet --example mutants_scope -- $(FR)
 
 # =============================================================================
-# Perf gates (Task 014, NFR-001/002/007)
+# Perf gates (Task 014, NFR-001/002/007/015)
 # =============================================================================
 
 .PHONY: perf-baseline
 perf-baseline:
-	$(CARGO) bench --bench parse --bench load -- --save-baseline main
+	$(CARGO) bench --bench parse --bench load --bench load_repo -- --save-baseline main
 
 .PHONY: perf-check
 perf-check:
-	$(CARGO) bench --bench parse --bench load -- --baseline main
+	$(CARGO) bench --bench parse --bench load --bench load_repo -- --baseline main
 	$(CARGO) run --locked -p quire-bench --bin quire-perf-gate
 
 .PHONY: perf-gate
