@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/AssessmentRow.json",
+  "type": "object",
+  "properties": {
+    "kind": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/AssessmentKind.json"
+    },
+    "target": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/AssessmentTarget.json"
+    },
+    "impact": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/AssessmentImpact.json"
+    },
+    "rationale": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/NonEmptyText.json",
+      "description": "free text: the engineer's judgement."
+    },
+    "line": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/LineNumber.json"
+    }
+  },
+  "required": [
+    "kind",
+    "impact",
+    "rationale",
+    "line"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "One `## Safety Impact Assessment` row (`Kind | Target | Impact | Rationale`).\n`target` is the authored reference token and is absent for a `None` row whose\n`Target` is `-`. Whether a token resolves is a diagnostic, not part of the record.",
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "None"
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      "then": {
+        "not": {
+          "required": [
+            "target"
+          ]
+        }
+      },
+      "else": {
+        "required": [
+          "target"
+        ],
+        "properties": {
+          "impact": {
+            "not": {
+              "const": "None"
+            }
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/IxTarget.json",
+  "type": "string",
+  "pattern": "^ix://.+$",
+  "description": "A relationship target: an `ix://` identity, as every frontmatter schema requires."
+}

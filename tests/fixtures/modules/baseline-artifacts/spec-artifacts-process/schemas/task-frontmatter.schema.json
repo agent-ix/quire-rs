@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "id",
+    "title",
+    "type"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z]{2,4}-[0-9]+$"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "type": {
+      "const": "Task"
+    },
+    "track": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Optional grouping label for parallel execution tracks within a plan (e.g. \"A\", \"Gate\"). A track is a property of a Task; consumers that need a tree node synthesize one from this value."
+    },
+    "object": {
+      "type": "string"
+    },
+    "relationships": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "target",
+          "type"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "target": {
+            "type": "string",
+            "pattern": "^ix://"
+          },
+          "type": {
+            "type": "string"
+          },
+          "cardinality": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

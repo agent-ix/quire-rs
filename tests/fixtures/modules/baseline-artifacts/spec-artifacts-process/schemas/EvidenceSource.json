@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/EvidenceSource.json",
+  "type": "string",
+  "enum": [
+    "ledger",
+    "relay-receipts",
+    "hook-events",
+    "linear",
+    "github",
+    "transcript",
+    "ix-board-metric"
+  ],
+  "description": "The sources an evaluator reads evidence from. The vocabulary of the `Evidence source` columns."
+}

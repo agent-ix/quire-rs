@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-app/ArtifactStatus.json",
+  "type": "string",
+  "pattern": "^[A-Za-z][A-Za-z_-]*$",
+  "description": "Lifecycle status from frontmatter `status`. The value set is deliberately\nopen: closing it is a vocabulary sweep-and-report, not a side effect of this\nschema set (spec.md Out of Scope)."
+}

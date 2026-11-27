@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/NamedText.json",
+  "type": "string",
+  "pattern": "^(?![ \\t]*([nN]/[aA]|[nN][oO][nN][eE]|[uU][nN][kK][nN][oO][wW][nN]|[tT][bB][dD]|-)[ \\t]*$)[ \\t]*\\S",
+  "description": "A release-rationale cell that is written text in shape: non-empty after\ntrimming and not one of the placeholders `n/a`, `none`, `unknown`, `tbd`,\n`-`, compared case-insensitively (the `closed_by` rule, FR-014). Whether the\nauthor is a real person is the commit author's attribution, not this pattern's."
+}

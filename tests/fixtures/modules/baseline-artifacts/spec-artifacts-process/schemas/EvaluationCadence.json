@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/EvaluationCadence.json",
+  "type": "string",
+  "enum": [
+    "tick",
+    "session-end",
+    "3h",
+    "daily",
+    "weekly"
+  ],
+  "description": "How often an evaluation runs."
+}

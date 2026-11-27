@@ -1,0 +1,2286 @@
+manifest_version: 1.0.0
+name: spec-artifacts-process
+version: 0.3.0
+description: "Filament Module: process artifact templates (ADR, Plan, Task, Review, Finding, TestMatrix, Standard) \u2014 Jinja .md.j2 templates"
+archetypes:
+- kind: adr
+  name: ADR
+  doc_backed: true
+  supports_membership: false
+  composition:
+    states:
+    - proposed
+    - accepted
+    - superseded
+    - rejected
+- kind: plan
+  name: Plan
+  doc_backed: true
+  supports_membership: true
+  composition:
+    expected_artifacts:
+    - Task
+- kind: review
+  name: Review
+  doc_backed: true
+  supports_membership: true
+  composition:
+    expected_artifacts:
+    - Finding
+    nav:
+      top_level: true
+      order: 12
+- kind: spec-review
+  name: SpecReview
+  doc_backed: true
+  supports_membership: false
+  composition:
+    nav:
+      top_level: true
+      order: 13
+- kind: test-matrix
+  name: Test Matrix
+  doc_backed: true
+  supports_membership: false
+- kind: dossier-document
+  name: DossierDocument
+  doc_backed: true
+  supports_membership: false
+- kind: standard
+  name: Standard
+  doc_backed: true
+  supports_membership: false
+grammars:
+- name: process-artifacts
+  version: 0.1.0
+  description: Process artifacts grammar (ADR, plan, review, etc.)
+  doc_kinds:
+  - adr
+  - plan
+  - review
+  - spec-review
+  - test-matrix
+  - standard
+  - finding
+  - feedback
+artifact_types:
+- name: IntendedUse
+  grammar_ref: process-artifacts
+  frontmatter_schema_ref: schemas/intended-use-frontmatter.schema.json
+  data_schema:
+    schema: schemas/IntendedUse.json
+  defaults:
+    id_pattern: IU-{next:03d}
+  allowed_links:
+    references: [IntendedUse]
+  examples: [examples/IntendedUse.md]
+  lint_rules_ref: []
+  body_extraction:
+    yield_pattern:
+      match:
+        purpose: {from: section_body, after_heading: Purpose, required: true}
+        records_produced:
+          from: table_row
+          under_section: Records produced
+          required: true
+          multiple: true
+          assert:
+            columns: [Record kind, Command that writes it]
+            min_rows: 1
+        who_relies_on_them: {from: section_body, after_heading: Who relies on them, required: true}
+        limits: {from: section_body, after_heading: Limits, required: true}
+        operating_context: {from: section_body, after_heading: Operating context, required: true}
+- name: FeatureRiskRating
+  grammar_ref: process-artifacts
+  frontmatter_schema_ref: schemas/feature-risk-rating-frontmatter.schema.json
+  data_schema:
+    schema: schemas/FeatureRiskRating.json
+  defaults:
+    id_pattern: FRR-{next:03d}
+  allowed_links:
+    rates_feature: [FR]
+    re_rates: [FeatureRiskRating]
+    uses_intended_use: [IntendedUse]
+  examples: [examples/FeatureRiskRating.md]
+  lint_rules_ref: []
+  body_extraction:
+    yield_pattern:
+      match:
+        rationale: {from: section_body, after_heading: Rationale, required: true}
+        assurance_activities:
+          from: table_row
+          under_section: Assurance activities
+          required: true
+          multiple: true
+          assert:
+            columns: [Activity, Acceptance criterion]
+            min_rows: 1
+- name: ADR
+  grammar_ref: process-artifacts
+  frontmatter_schema_ref: schemas/adr-frontmatter.schema.json
+  data_schema:
+    schema: schemas/ADR.json
+  defaults:
+    id_pattern: ADR-{next:03d}
+  allowed_links:
+    supersedes: ["*"]
+    superseded_by: ["*"]
+    relates_to: ["*"]
+    depends_on: ["*"]
+    realizes_requirement: [FR, NFR]
+    segregates_for_requirement: [FR, NFR]
+  examples: []
+  lint_rules_ref: []
+- name: Anomaly
+  grammar_ref: process-artifacts
+  frontmatter_schema_ref: schemas/anomaly-frontmatter.schema.json
+  data_schema:
+    schema: schemas/Anomaly.json
+  # The YAML-extracted yield record has its own schema (FR-014, FR-015): the
+  # conditional presence checks run on it and are reported at the `status` line.
+  # Anomaly.json above is the emitted (mapped) record's schema.
+  record_validation:
+    schema: schemas/AnomalyFields.json
+    locate_absence_at: status
+  defaults:
+    id_pattern: AN-{next:03d}
+  allowed_links:
+  - references
+  - relates_to
+  examples: []
+  lint_rules_ref: []
+  # FR-014 / FR-015. Vocabularies and shapes are asserted here; the conditional
+  # presence checks (status against resolution and closed_by, assessment
+  # required from `assessed`) and the row rules of a `none` or `impacting`
+  # table are `record_validation`'s (AnomalyFields.json), because the `assert`
+  # facet cannot express a condition on another field. Transition legality is quoin FR-136's, over git history.
+  # The type is required of no repository.
+  body_extraction:
+    yield_pattern:
+      match:
+        status:
+          from: frontmatter_field
+          path: [status]
+          required: true
+          assert:
+            choices: [identified, assessed, resolved, closed]
+        resolution:
+          from: frontmatter_field
+          path: [resolution]
+          required: false
+          assert:
+            choices: [fixed, not-a-defect, duplicate, wont-fix]
+        safety_impact:
+          from: frontmatter_field
+          path: [safety_impact]
+          required: true
+          assert:
+            choices: [unassessed, none, impacting]
+        closed_by:
+          from: frontmatter_field
+          path: [closed_by]
+          required: false
+        # FR-014: a person-assigned severity. No default and never derived from
+        # another field; presence from `assessed` onward is `record_validation`'s.
+        severity:
+          from: frontmatter_field
+          path: [severity]
+          required: false
+          assert:
+            choices: [minor, major, critical]
+        description:
+          from: section_body
+          after_heading: Description
+          required: true
+        assessment:
+          from: table_row
+          under_section: Safety Impact Assessment
+          required: false
+          multiple: true
+          assert:
+            columns: [Kind, Target, Impact, Rationale]
+            min_rows: 1
+            column_choices:
+              Kind: [Requirement, Hazard, None]
+              Impact: [Affects, Mitigates, Introduces, Unaffected, None]
+            column_patterns:
+              Rationale: '\S'
+        # FR-015: required when `resolution` is `fixed` (AnomalyFields.json). The
+        # `Target` pattern requires an id token, because a cell matching no
+        # reference pattern produces no reference and `-` would otherwise pass.
+        fix_verification:
+          from: table_row
+          under_section: Fix Verification
+          required: false
+          multiple: true
+          assert:
+            columns: [Kind, Target, Rationale]
+            min_rows: 1
+            column_choices:
+              Kind: [Criterion, Test]
+            column_patterns:
+              Target: '^[A-Za-z0-9]'
+              Rationale: '\S'
+        # FR-016: optional at any status. The rows are checked against the table
+        # shape here; the non-empty and placeholder rules of both cells and the
+        # closed-status rule are AnomalyFields.json's, so that they report in the
+        # same run as each other (NFR-001: the engine runs `record_validation`
+        # only when the `assert` facet found nothing). No default for any cell.
+        release_rationale:
+          from: table_row
+          under_section: Release Rationale
+          required: false
+          multiple: true
+          assert:
+            columns: [Author, Rationale]
+            min_rows: 1
+        # The same section as one body, present or absent: it carries the
+        # closed-status rule, which the engine then reports at the section
+        # heading line rather than at a row.
+        release_rationale_section:
+          from: section_body
+          after_heading: Release Rationale
+          required: false
+- name: DossierDocument
+  grammar_ref: process-artifacts
+  frontmatter_schema_ref: schemas/dossier-document-frontmatter.schema.json
+  data_schema:
+    schema: schemas/DossierDocument.json
+  allowed_links: []
+  examples: []
+  lint_rules_ref: []
+  # FR-018. One generated document of a submission dossier. Frontmatter carries
+  # the identity `quire export` needs (title, id, version); the body is free
+  # Markdown. The `document_kind` and `generated_by` vocabularies live only in
+  # the frontmatter schema; the locators here assert presence, not membership.
+  body_extraction:
+    yield_pattern:
+      match:
+        version:
+          from: frontmatter_field
+          path: [version]
+          required: false
+        document_kind:
+          from: frontmatter_field
+          path: [document_kind]
+          required: true
+        generated_by:
+          from: frontmatter_field
+          path: [generated_by]
+          required: true
+- name: Plan
+  grammar_ref: process-artifacts
+  frontmatter_schema_ref: schemas/plan-frontmatter.schema.json
+  data_schema:
+    schema: schemas/Plan.json
+  defaults:
+    id_pattern: Plan-{next:03d}
+  allowed_links:
+  - contains
+  - depends_on
+  - references
+  examples: []
+  lint_rules_ref: []
+- name: Task
+  grammar_ref: process-artifacts
+  frontmatter_schema_ref: schemas/task-frontmatter.schema.json
+  data_schema:
+    schema: schemas/Task.json
+  defaults:
+    id_pattern: Task-{next:03d}
+  allowed_links:
+  - depends_on
+  - verifies
+  - references
+  examples: []
+  lint_rules_ref: []
+- name: Review
+  grammar_ref: process-artifacts
+  frontmatter_schema_ref: schemas/review-frontmatter.schema.json
+  data_schema:
+    schema: schemas/Review.json
+  defaults:
+    id_pattern: Review-{next:03d}
+  allowed_links:
+  - reviews
+  - references
+  examples: []
+  lint_rules_ref: []
+- name: SpecReview
+  grammar_ref: process-artifacts
+  frontmatter_schema_ref: schemas/spec-review-frontmatter.schema.json
+  data_schema:
+    schema: schemas/SpecReview.json
+  defaults:
+    id_pattern: SR-{next:03d}
+  allowed_links:
+  - reviews
+  - references
+  examples: []
+  lint_rules_ref: []
+  body_extraction:
+    yield_pattern:
+      match:
+        summary:
+          from: section_body
+          after_heading: Summary
+          required: true
+        findings:
+          from: table_row
+          under_section: Findings
+          required: true
+          multiple: true
+          assert:
+            # FR-008: `Escape Cause` is OPTIONAL (CR-023 `optional_columns`),
+            # so the 169 SpecReview documents already carrying four columns
+            # stay valid. Headers must be an ordered subsequence, so a table
+            # that adds it puts it last.
+            columns: [ID, Severity, Summary, Refs, Escape Cause]
+            optional_columns: [Escape Cause]
+            min_rows: 1
+            id_column: ID
+            id_pattern: '^FND-\d+$'
+            column_choices:
+              # How urgently to look.
+              Severity: [low, medium, high]
+              # WHICH LAYER LET IT THROUGH. Orthogonal to Severity, and the
+              # only axis that answers it: a distribution over enough findings
+              # says whether the specification, the evidence, or the
+              # implementation is leaking.
+              Escape Cause:
+              # Nobody wrote the requirement. Nothing to test against.
+              - missing-requirement
+              # A requirement was written and said the wrong thing.
+              - wrong-requirement
+              # Requirement right, nothing verified it.
+              - correct-requirement-no-evidence
+              # Requirement right, evidence real, code still wrong — the only
+              # cause that does not indict the spec, and the one a green
+              # matrix would have called healthy.
+              - implementation-bug-despite-evidence
+- name: Finding
+  grammar_ref: process-artifacts
+  frontmatter_schema_ref: schemas/finding-frontmatter.schema.json
+  data_schema:
+    schema: schemas/Finding.json
+  defaults:
+    # FR-008: `FIND-`, not `Finding-`. The old pattern minted `Finding-001`,
+    # which fails this archetype's own frontmatter schema (^[A-Z]{2,4}-[0-9]+$
+    # — seven letters is not two-to-four), so every id it produced was invalid.
+    #
+    # Deliberately NOT `FND-`: that is the id namespace of the findings ROWS
+    # inside a SpecReview. A Finding is a document, a child of `Review`
+    # (composition.expected_artifacts). Giving the two the same prefix would
+    # read as unification and be a conflation.
+    #
+    # No body_extraction. Nothing authors a Finding today — the two documents
+    # in the corpus carrying `type: Finding` are mistyped analyses — and the
+    # review skills emit SpecReview documents with an inline findings table by
+    # the 2026-06-20 decision. A contract here would be for a form nobody
+    # produces.
+    id_pattern: FIND-{next:03d}
+  allowed_links:
+  - found_in
+  - blocks
+  - references
+  examples: []
+  lint_rules_ref: []
+- name: Feedback
+  grammar_ref: process-artifacts
+  frontmatter_schema_ref: schemas/feedback-frontmatter.schema.json
+  data_schema:
+    schema: schemas/Feedback.json
+  defaults:
+    id_pattern: FB-{next:03d}
+  allowed_links:
+  - references
+  - found_in
+  examples: []
+  lint_rules_ref: []
+  body_extraction:
+    yield_pattern:
+      match:
+        comment:
+          from: section_body
+          after_heading: Comment
+          required: true
+# ── The index half of the matrix layer (CR-039, #62) ─────────────────────────
+# A repository past a certain size does not have one matrix; it has a tree. The
+# root document indexes the module matrices and the detailed coverage lives one
+# level down. `TestMatrix` modelled only the leaf, so the root was permanently
+# `[missing]` on its required table:
+#
+#   spec/tests.md: [TestMatrix] required 'test_cases' … is missing [missing]
+#
+# and there was no way to clear that without inventing content. Copying the
+# module test cases up into the root would give every TC two declaring
+# matrices — which a tracking tag then binds to neither (filament-ide-rs FR-075).
+#
+# **A separate archetype, not a `role:` discriminator on `TestMatrix`.** #62
+# offered both and preferred this one; it is also the only one that is
+# expressible. `body_extraction` carries a single `yield_pattern` per archetype
+# and cannot branch on a frontmatter value, so a discriminator would be a
+# declaration the engine could not honour — the same wall CR-037 hit.
+#
+# Splitting the archetype buys two things a variant would not:
+#   1. an index mints **no** test-case ids, because `trace_targets.test-case`
+#      binds `archetype: TestMatrix` and this is not one. Under the old typing
+#      the root was a minting document that minted nothing;
+#   2. the index's own structure is asserted for the first time. #62 records
+#      that this repository's root matrix had a subsystem row missing its
+#      `Local Matrix` cell — three columns where every other row had four — and
+#      no validator caught it. `columns:` catches exactly that.
+#
+# Adopting it is a one-line corpus change (`type: TestMatrix` →
+# `TestMatrixIndex` on the root document) and nothing else moves.
+- name: TestMatrixIndex
+  grammar_ref: process-artifacts
+  frontmatter_schema_ref: schemas/testmatrix-index-frontmatter.schema.json
+  data_schema:
+    schema: schemas/TestMatrixIndex.json
+  defaults:
+    id_pattern: TestMatrix-{next:03d}
+  allowed_links:
+  - covers
+  - references
+  examples: []
+  lint_rules_ref: []
+  body_extraction:
+    yield_pattern:
+      match:
+        # The index proper: one row per subsystem, naming where its detail
+        # lives. `Local Matrix` is a relative link and is what makes the tree
+        # navigable; asserting the column is what makes a dropped cell visible.
+        subsystem_index:
+          from: table_row
+          under_section: Requirements Traceability
+          required: true
+          multiple: true
+          assert:
+            columns: [Subsystem, Local Matrix]
+            min_rows: 1
+        # Cross-module integration scenarios. Optional: a repository whose
+        # subsystems do not integrate has none, and requiring the table would
+        # force an empty one.
+        integration_matrix:
+          from: table_row
+          under_section: Integration Test Matrix
+          required: false
+          multiple: true
+          assert:
+            columns: [Integration ID, Purpose, Target, Type, Test Cases, Status]
+            id_column: Integration ID
+            id_pattern: '^INT-\d+$'
+            min_rows: 1
+        # The register of what is knowingly uncovered. Optional for the same
+        # reason: an absent register and an empty one are different claims, and
+        # only the second is authored.
+        coverage_gaps:
+          from: table_row
+          under_section: Coverage Gaps
+          required: false
+          multiple: true
+          assert:
+            id_column: ID
+            id_pattern: '^GAP-\d+$'
+            min_rows: 1
+- name: TestMatrix
+  grammar_ref: process-artifacts
+  frontmatter_schema_ref: schemas/testmatrix-frontmatter.schema.json
+  data_schema:
+    schema: schemas/TestMatrix.json
+  defaults:
+    id_pattern: TestMatrix-{next:03d}
+  allowed_links:
+  - covers
+  - references
+  examples: []
+  lint_rules_ref: []
+  # FR-003: structural + vocabulary contract over the matrix the quoin
+  # `spec-matrix` template emits. Whether a referenced requirement id exists is
+  # the engine's cross-reference job, not this contract's.
+  body_extraction:
+    yield_pattern:
+      match:
+        test_cases:
+          from: table_row
+          under_section: Test Case Summary
+          required: true
+          multiple: true
+          assert:
+            columns: [Test ID, Title, Type, Priority, Traces To, Status]
+            # CR-018: `Priority` is the one asserted column much of the corpus
+            # never authored — many ecosystem matrices carry real test-case
+            # rows with no priority anywhere. Requiring it would either fail all
+            # of them forever or force an invented priority into each. The column
+            # stays declared, and its values stay constrained when authored;
+            # only its presence is optional (quire-rs FR-033-AC-14/15).
+            # Status is an optional authored tracking annotation (PLAT-1155),
+            # not an input to criterion coverage computed from test tags.
+            optional_columns: [Priority, Status]
+            min_rows: 1
+            id_column: Test ID
+            # CR-016: segmented ids the ecosystem authors (TC-060-01,
+            # TC-SB-001, TC-001-HEADER-PARSE) are legal; TC1 / tc-001 / TC- /
+            # TCX-001 and ids carrying prose are not.
+            #
+            # CR-019: the prefix set mirrors the declared *evidence archetypes*
+            # — `TC` and `IT` are the only two artifact types any module mints
+            # test ids for (spec-artifacts-iso `id_pattern: TC-{next:03d}` /
+            # `IT-{next:03d}`). It is deliberately not a list of test kinds:
+            # what kind of testing a row records is the `Type` column's job,
+            # and that vocabulary is open. A new technique is a new `Type`
+            # value, not a new prefix.
+            id_pattern: '^(TC|IT)(-[A-Za-z0-9]+)*-\d+[A-Za-z0-9]*(-[A-Za-z0-9]+)*$'
+            column_choices:
+              # Core evidence vocabulary + this module's declared extensions.
+              # The list mirrors `traceability.vocabularies.test_type`, which is
+              # the single source; `test_manifest.py` asserts they agree.
+              # CR-015's "one vocabulary, three uses", restated because
+              # `column_choices` takes a literal list and `from_vocabulary` is
+              # deferred (quire-rs#146). CR-035 extends all three copies
+              # together; TC-034/TC-042 are what keep them honest until the
+              # reference form lands.
+              Type: [Unit, Integration, E2E, Property, Fuzz, Benchmark, Static, Compile, Snapshot, Manual, Eval,
+                     Inspection, Analysis, Demonstration]
+              Priority: [P0, P1, P2, P3, P4]
+            column_patterns:
+              # A leading status marker, optionally followed by the note
+              # that says why (`🚧 scale evidence deferred`). Classes live in
+              # `traceability.status`, and CR-031 made `test_manifest.py`
+              # assert the two are the SAME SET rather than one containing the
+              # other — `⚠️` was admitted here and classed there by nothing, so
+              # every row carrying it was exempt from the status-lie check by
+              # construction (quire-rs CR-083).
+              Status: '^(✅|❌|🚧|⛔)(\s+.*)?$'
+              # Comma-separated `<KIND>-<N>` tokens with an optional
+              # `-<SUBKIND>-<M>` sub-id. The contract enumerates no kind names:
+              # the legal set follows from the declared trace targets, and
+              # existence is checked by reference resolution, not here. A
+              # same-prefix range or a trailing parenthetical note is allowed.
+              #
+              # CR-017 admits two authoring shorthands the sweep found in real
+              # matrices:
+              #   * continuation, where the parent id is elided —
+              #     `FR-001-AC-2, -AC-3, -AC-4`
+              #   * slash enumeration of sub-ids — `FR-016-AC-1/2/3/6`
+              # Both mean exactly what the expanded list means. Deliberately NOT
+              # admitted: an empty cell or `—`. A test case that traces to
+              # nothing is what a traceability matrix exists to catch.
+              # CR-036 (#61): a lone `-` is the explicit **no-trace** form. A retired row has no live requirement to
+              # trace to — withdrawing it is precisely the act of severing that
+              # edge — and the pattern admitted nothing valid to write.
+              #
+              # Every `Traces To: -` row in the corpus is a retired one (`⛔`),
+              # not a live row with a missing trace. The corpus wrote the
+              # conventional "not applicable" and the pattern rejected it, so a
+              # retired row could not be authored at all.
+              #
+              # NOT coupled to the `Status` cell, though #61 suggested it:
+              # `column_patterns` evaluates one cell in isolation and cannot see
+              # a sibling column, so a Status-conditional form is not expressible
+              # here. The looser rule is still strictly better than the corpus
+              # workaround it replaces — writing a plausible id into a retired
+              # row would fabricate an edge to pass a validator, and every review
+              # built on that matrix would then assert a trace that does not
+              # exist. A live row carrying `-` is a real gap this does not catch;
+              # it is caught one layer over, as an unbacked row.
+              #
+              # **Only the ASCII hyphen**, though #61 offered `—` and `n/a` too.
+              # All 16 measured rows write `-`, and `test_manifest.py` has
+              # pinned `—` as REJECTED since CR-017. Admitting a form no corpus
+              # authors, against a standing decision, to close a ticket is the
+              # widening this repository's CLAUDE.md forbids: the reason has to
+              # be true independent of the count, and for `—` there is no
+              # reason at all. If one appears, it is one line and a measurement.
+              #
+              # quire-rs#460: the BASE alternative is `interface_\d+`, not a
+              # generic `\w+_\d+` — closed to the one underscore-object KIND
+              # actually minted (`interface_004`), same reasoning as
+              # `inspection-obligation` above; a generic word_number class
+              # read `sha_256`/`retry_3` in ordinary prose as trace ids.
+              Traces To: '^(-|(?:[A-Za-z]+-\d+|interface_\d+)(-[A-Za-z]+-\d+(/\d+)*)?(\.\.(?:[A-Za-z]+-\d+|interface_\d+)(-[A-Za-z]+-\d+)?)?( \([^)]*\))?(, (-[A-Za-z]+-\d+(/\d+)*|(?:[A-Za-z]+-\d+|interface_\d+)(-[A-Za-z]+-\d+(/\d+)*)?(\.\.(?:[A-Za-z]+-\d+|interface_\d+)(-[A-Za-z]+-\d+)?)?)( \([^)]*\))?)*)$'
+- name: Standard
+  grammar_ref: process-artifacts
+  frontmatter_schema_ref: schemas/standard-frontmatter.schema.json
+  data_schema:
+    schema: schemas/Standard.json
+  defaults:
+    id_pattern: Standard-{next:03d}
+  allowed_links:
+  - references
+  examples: []
+  lint_rules_ref: []
+  # FR-012: the one artifact type in this module that carries a typed
+  # declaration. A Standard declares the properties a conforming artifact
+  # carries and the invariants conformance requires, so the quoin FR-071
+  # typed-Properties form and the FR-072 clause form both have a meaning here
+  # and have none on a Plan or an ADR.
+  #
+  # BOTH ARE `required: false`, and that is the whole compatibility story: every
+  # Standard document in every consuming repository validates today without
+  # either section, and still does. Introducing a required section on a type
+  # the ecosystem already authors would be a build break everywhere.
+  body_extraction:
+    yield_pattern:
+      match:
+        properties:
+          from: section_body
+          after_heading: Properties
+          required: false
+        # One `### <clauseId>` subsection per invariant, each holding exactly
+        # one ```ocl fence. The clause text is never parsed by this locator; it
+        # fills the record's `invariants` through the FR-011 `ocl-clause`
+        # mapping.
+        invariants:
+          from: code_block
+          language: ocl
+          under_section: Invariants
+          required: false
+          multiple: true
+# ── Evidence layer (agent-ix/spec-artifacts-process#34, ADR-0011) ─────────
+# The AUTHORED half of the evidence store. The machine-transcribed half —
+# bindings.json, baseline.json, runs/** — is typeless and corpus-invisible by
+# design, and its schemas are owned by quoin (agent-ix/quoin#79).
+- name: SuiteRegistry
+  grammar_ref: process-artifacts
+  frontmatter_schema_ref: schemas/suite-registry-frontmatter.schema.json
+  data_schema:
+    schema: schemas/SuiteRegistry.json
+  defaults:
+    id_pattern: SUR-{next:03d}
+  # The suite is the atomic unit of evidence: one run file per (suite, commit),
+  # aggregation is a view, and a partial run must never masquerade as a full
+  # one — the `make ci` / `make ci-python` split already caused exactly that rot
+  # (quire-rs TC-715).
+  body_extraction:
+    yield_pattern:
+      match:
+        suites:
+          from: table_row
+          under_section: Suites
+          required: true
+          multiple: true
+          assert:
+            columns:
+            - ID
+            - Name
+            - Command
+            - Tool
+            - Evidence Kind
+            min_rows: 1
+            id_column: ID
+            # Structured, doc-scoped, never renumbered. Deliberately NOT a
+            # kebab slug: everything joins on this id — run directories,
+            # bindings, freshness — and policy-immutable semantic strings are
+            # what produced the dead tags (quire-rs#72).
+            id_pattern: "^SUITE-\\d+$"
+            column_choices:
+              # CR-015: the SAME vocabulary as the Test Matrix `Type` column and
+              # the obligation record's method. One vocabulary, three uses. The
+              # tool lives in its own column, so an adapter-fed kind (semgrep,
+              # SARIF, SBOM) needs no per-tool vocabulary entry — `Evidence
+              # Kind` stays method-class-shaped. Restated rather than
+              # referenced because `from_vocabulary` does not exist yet
+              # (quire-rs#146); the FR-003 manifest test keeps the copies honest
+              # until it does.
+              # Third copy of the same vocabulary — see the CR-015 note on
+              # the TestMatrix `Type` column. CR-035 extends it in step.
+              Evidence Kind:
+              - Unit
+              - Integration
+              - E2E
+              - Property
+              - Fuzz
+              - Benchmark
+              - Static
+              - Compile
+              - Snapshot
+              - Manual
+              - Eval
+              - Inspection
+              - Analysis
+              - Demonstration
+  allowed_links: []
+  examples: []
+  lint_rules_ref: []
+- name: Inspections
+  grammar_ref: process-artifacts
+  frontmatter_schema_ref: schemas/inspections-frontmatter.schema.json
+  data_schema:
+    schema: schemas/Inspections.json
+  defaults:
+    id_pattern: INS-{next:03d}
+  # Inspection and Analysis evidence acts — the methods that produce no source
+  # symbol and so can never be discharged by a test run (the CR-041
+  # `no_source_symbol` class). Authored markdown rather than machine JSON,
+  # because a human performed the act and the record of who, when, and against
+  # which commit IS the evidence.
+  body_extraction:
+    yield_pattern:
+      match:
+        inspections:
+          from: table_row
+          under_section: Inspections
+          required: true
+          multiple: true
+          assert:
+            columns:
+            - ID
+            - Obligation
+            - Who
+            - Commit
+            - Verdict
+            - Note
+            optional_columns:
+            - Note
+            min_rows: 1
+            id_column: ID
+            id_pattern: "^INSP-\\d+$"
+            column_choices:
+              Verdict:
+              - Pass
+              - Fail
+              - Waived
+  allowed_links: []
+  examples: []
+  lint_rules_ref: []
+- name: RoleSpec
+  grammar_ref: process-artifacts
+  frontmatter_schema_ref: schemas/role-spec-frontmatter.schema.json
+  data_schema:
+    schema: schemas/RoleSpec.json
+  # FR-020. The shape and per-cell vocabularies are the `assert` facets below;
+  # the conditional rules of an evaluation row (a deterministic row's evaluator
+  # and query, a judgement row's evaluator, rubric reference and cadence) are
+  # `record_validation`'s, because `column_patterns` reads one cell in
+  # isolation. The `version` field is what Quoin's version-bump and
+  # skill-citation checks read (FR-022); this module implements neither.
+  record_validation:
+    schema: schemas/RoleSpecFields.json
+    locate_absence_at: evaluations
+  allowed_links:
+  - satisfies
+  - depends_on
+  examples: []
+  lint_rules_ref: []
+  body_extraction:
+    yield_pattern:
+      match:
+        metrics:
+          from: table_row
+          under_section: Metrics
+          required: true
+          multiple: true
+          assert:
+            columns: [ID, Name, Evidence source, Query, Unit, Target, Direction]
+            min_rows: 1
+            id_column: ID
+            id_pattern: '^{id}-M\d{2}$'
+            column_choices:
+              Evidence source: &evidence_sources [ledger, relay-receipts, hook-events, linear, github, transcript, ix-board-metric]
+              Direction: [higher, lower]
+            column_patterns:
+              Name: '\S'
+              Query: &query_ref '^[a-z][a-z0-9-]*\.[a-z][a-z0-9_]*$'
+              Unit: '\S'
+              Target: '\S'
+        objectives:
+          from: table_row
+          under_section: Objectives
+          required: true
+          multiple: true
+          assert:
+            columns: [ID, Objective, Metrics]
+            min_rows: 1
+            id_column: ID
+            id_pattern: '^{id}-O\d{2}$'
+            column_patterns:
+              Objective: '\S'
+              Metrics: '\S'
+        rules:
+          from: table_row
+          under_section: Rules
+          required: true
+          multiple: true
+          assert:
+            columns: [ID, Rule, Objective, Class, Source]
+            min_rows: 1
+            id_column: ID
+            id_pattern: '^{id}-R\d{2}$'
+            column_patterns:
+              Rule: '\S'
+              Objective: '\S'
+              Class: '\S'
+              Source: '\S'
+        evaluations:
+          from: table_row
+          under_section: Evaluations
+          required: true
+          multiple: true
+          assert:
+            columns: [ID, Rule, Evidence source, Trigger, Method, Query or rubric, Evaluator, Comparator, Value, Unit, Cadence]
+            min_rows: 1
+            id_column: ID
+            id_pattern: '^{id}-R\d{2}-E\d+$'
+            column_choices:
+              Evidence source: *evidence_sources
+              Method: [deterministic, judgement]
+              Comparator: ['<', '<=', '=', '>=', '>']
+              Cadence: [tick, session-end, 3h, daily, weekly]
+            column_patterns:
+              Rule: '\S'
+              Trigger: *query_ref
+              Value: '^-?[0-9]+(\.[0-9]+)?$'
+              Unit: '\S'
+- name: Rubric
+  grammar_ref: process-artifacts
+  frontmatter_schema_ref: schemas/rubric-frontmatter.schema.json
+  data_schema:
+    schema: schemas/Rubric.json
+  allowed_links:
+  - satisfies
+  - depends_on
+  examples: []
+  lint_rules_ref: []
+  # FR-023. Each check id carries the rubric id and version, so a rubric edit
+  # that bumps `version` without renumbering its checks fails here and a role
+  # spec still citing the old version dangles.
+  body_extraction:
+    yield_pattern:
+      match:
+        checks:
+          from: table_row
+          under_section: Checks
+          required: true
+          multiple: true
+          assert:
+            columns: [ID, Check, Scale]
+            min_rows: 1
+            id_column: ID
+            id_pattern: '^{id}@{version}#[a-z][a-z0-9-]*$'
+            column_patterns:
+              Check: '\S'
+              Scale: '\S'
+doc_kinds:
+- adr
+- dossier-document
+- plan
+- review
+- spec-review
+- test-matrix
+- standard
+- finding
+- feedback
+object_types:
+- name: standard
+  # No `data_schema`: the declaration record a document yields holds only
+  # section-sourced keys (fields, clauses, operations, relations), never a
+  # frontmatter field, so a record schema requiring `code` could never be
+  # satisfied by any `object: standard` document. The locator below is the
+  # contract: `code` is `required: true` there, and it is read from frontmatter.
+  body_extraction:
+    yield_pattern:
+      match:
+        id:
+          from: frontmatter_field
+          path:
+          - id
+          required: false
+        title:
+          from: frontmatter_field
+          path:
+          - title
+          required: false
+        type:
+          from: frontmatter_field
+          path:
+          - type
+          required: false
+        code:
+          from: frontmatter_field
+          path:
+          - code
+          required: true
+        name:
+          from: frontmatter_field
+          path:
+          - name
+          required: false
+        link:
+          from: frontmatter_field
+          path:
+          - link
+          required: false
+        description:
+          from: section_body
+          after_heading: Description
+          required: false
+        guide:
+          from: section_body
+          after_heading: Application Guidance
+          required: false
+  allowed_links:
+    references: []
+
+# ── Declarative lint rules (quire-rs FR-036) ───────────────────────────────
+# PLAT-1079: TC ids are retired ecosystem-wide (epic PLAT-1076) — a criterion
+# is bound to its evidence by trace tag now, not by a `TC-…`/`IT-…` id sitting
+# in the `Verification` cell, so a lingering one is stale data. This is a
+# `table_column_values` rule rather than a `document_references` change:
+# quire-rs rejects a `document_references` entry that declares an empty
+# `targets` at module load, so emptying `verification`/`nfr-verification`/
+# `interface-verification`'s `targets` was never an option — those three stay
+# untouched, bound to `test-case` exactly as before, and are retired later,
+# with the Test Matrix itself.
+#
+# `severity: warning`, not `error`: this repository's own FR/NFR Acceptance
+# Criteria tables carry existing violations — `Test (TC-…)`/`Inspection
+# (TC-…)` cells (SR-018 FND-003) — today, and an error-severity rule would
+# fail every one of them the moment it shipped. Any measured count here would
+# drift as the corpus changes; PLAT-1081 sweeps that population and PLAT-1082
+# promotes this rule to `error` once the sweep clears it. Neither is this
+# change.
+#
+# `allowed` is the four ISO 29148 IADT classes union every `verification_catalog`
+# method id and the explicitly declared retirement tokens below, written out
+# rather than referenced: quire-rs's
+# `table_column_values` `allowed` is a plain `Vec<String>`, with no mechanism to
+# point at another manifest block. FR-004-AC-22 keeps the two from drifting
+# apart by asserting set equality in a test rather than trusting a second
+# hand-maintained list. Restricting `allowed` to the four classes alone would
+# warn on an author who follows FR-007's own CR-005 guidance and writes the
+# precise catalog method (`property-based-testing`) instead of the class
+# (`Test`) — quire-rs FR-054-AC-11 already accepts either in this same cell for
+# the `acceptance-criterion` obligation's `method_column`. `Eval` and `Manual`
+# are deliberately absent: they are `traceability.vocabularies.test_type`
+# values, never catalog method ids, and this column is never populated from
+# that vocabulary.
+#
+# No `annotation_pattern`: admitting one would mean re-admitting the very
+# `TC-…`/`IT-…` suffix this rule exists to reject, so a cell naming an allowed
+# value plus any trailing annotation is not valid here — unlike the retired
+# `spec-artifacts-iso` rule (`ac-verification-method`) this one replaces
+# ecosystem-default coverage for; PLAT-1085 removes that rule from `iso`, and
+# the two changes ship together.
+lint_rules:
+- type: table_column_values
+  id: acceptance-criterion-verification-method
+  archetypes: [FR, NFR, interface]
+  section: Acceptance Criteria
+  column: Verification
+  allowed:
+    - Test
+    - Inspection
+    - Analysis
+    - Demonstration
+    - Withdrawn
+    - unit-testing
+    - integration-testing
+    - e2e-testing
+    - property-based-testing
+    - metamorphic-testing
+    - model-based-test-generation
+    - combinatorial-tway
+    - mutation-testing
+    - fuzzing
+    - grammar-based-fuzzing
+    - concolic-execution
+    - bdd-spec-by-example
+    - contract-testing
+    - design-by-contract
+    - runtime-monitoring
+    - deterministic-simulation
+    - fault-injection
+    - performance-benchmarking
+    - golden-approval-testing
+    - negative-abuse-testing
+    - dast
+    - iast
+    - sast
+    - sca-sbom
+    - architecture-conformance
+    - compile-time-check
+    - dynamic-analysis-sanitizer
+    - static-quality
+    - formal-analysis-smt
+    - model-checking
+    - inspection
+    - demonstration
+    - agent-behaviour-eval
+  severity: warning
+
+# ── Traceability model (quire-rs FR-050) ──────────────────────────────────
+# The single source for what this module's matrix columns mean. The TestMatrix
+# `body_extraction` above validates the *shape*; these declarations tell the
+# coverage rollup how to read the same columns, so a contract and its coverage
+# computation cannot drift (CR-015 / CR-016).
+traceability:
+  required_relations:
+  - name: fr-has-risk-rating
+    from: FR
+    edges: [rates_feature]
+    to: [FeatureRiskRating]
+    direction: incoming
+    check: feature-without-risk-rating
+  # ── What is NOT traceable source ──
+  #
+  # Path globs under the **code** root naming fixture trees that hold no
+  # traceable source (quire-rs FR-050-AC-22, CR-085). A repository whose
+  # fixtures deliberately contain trace tags — the engine's own
+  # `coverage_baseline` fixture carries `#[trace("TC-999")]` on a test nothing
+  # declares, because *being unbacked is what it tests* — reported them as
+  # untracked symbols forever, and nothing on the authoring side could fix it.
+  #
+  # `tests/**` MUST NEVER APPEAR HERE, and this is the one comment in this file
+  # worth reading twice. `exclude:` on the trace targets below covers `tests/**`
+  # because that is where *documents* must not be read from. This key is the
+  # other root, and the majority of any repository's trace markers live under
+  # `tests/` — 194 of quire-rs's own ~458. A well-meaning "harmonisation" of the
+  # two lists would delete the evidence tree and read as an ecosystem-wide
+  # coverage collapse.
+  #
+  # The globs anchor at the fixture directory. `globset` anchors a pattern at
+  # the start unless it opens with `**/`, so `tests/fixtures/**` matches
+  # `tests/fixtures/a/b.rs` and cannot reach `src/tests/fixtures/x.rs`.
+  source_exclude:
+  - "tests/fixtures/**"
+  - "tests_integration/fixtures/**"
+  - "fixtures/**"
+  # ── What mints trace ids ──
+  #
+  # The Test Matrix is bound by **archetype**, and the fixture problem is solved
+  # by `exclude:` rather than by enumeration (quire-rs CR-062, #74).
+  #
+  # This reverses #22 decision 4, because both halves of that finding changed:
+  #
+  #   * `archetype: TestMatrix` could not see the canonical matrix at all — the
+  #     corpus walk skipped every file named `tests.md` (quire-rs
+  #     `corpus/walk.rs` `DEFAULT_SKIP`). Type-driven corpus membership
+  #     (quire-rs #73) removed that skip, so the premise is gone.
+  #   * Archetype binding still sees matrices that are *test data* — scanning
+  #     this module's own repo by archetype minted 67 test-case ids from
+  #     `tests/fixtures/testmatrix/*.md` and reported 50 of them "backed",
+  #     because a fixture reusing `TC-017` collides with the real one. That is
+  #     what `exclude:` is for, and it is now load-bearing rather than optional.
+  #
+  # Enumeration was the cost of the old form: three near-identical entries, one
+  # per filename the ecosystem happens to use, reaching nothing nested. A matrix
+  # at `spec/<module>/matrix/tests.md` minted zero ids however correctly it was
+  # authored. The collapse removes those dead trace tags.
+  #
+  # Collapsing the *references* matters as much as the target: rebinding
+  # `test-case` alone leaves dead tags behind, because `traces-to` was
+  # path-bound too and could not read the nested
+  # matrices they describe.
+  #
+  # Nine declarations collapse to three. `spec/matrix.md` and `spec/evals.md`
+  # need no entry of their own: a matrix is reached by what it *is*, not by what
+  # it is called.
+  trace_targets:
+  # FR-015: the ids an anomaly's assessment `Target` can name. Requirement and
+  # hazard DOCUMENT ids are minted from each document's title heading
+  # (`# FR-001: ...`, `# [HAZ-001] ...`); acceptance-criterion ids come from the
+  # `acceptance-criterion` and `nfr-acceptance-criterion` targets below. All are
+  # `required: false`: a repository with no hazard documents is not defective.
+  # No hazard id pattern is assumed (FR-015): the hazard heading is read by its
+  # `[id]` bracket, which spec-objects-safety's skeleton authors, not by a shape.
+  - name: requirement-document
+    archetype: FR
+    exclude: ['tests/**', 'tests_integration/**', 'fixtures/**']
+    from: heading
+    section: '*'
+    pattern: '^\[?(FR-\d+)\b'
+    required: false
+    evidence: reference-only
+  - name: nfr-document
+    archetype: NFR
+    exclude: ['tests/**', 'tests_integration/**', 'fixtures/**']
+    from: heading
+    section: '*'
+    pattern: '^\[?(NFR-\d+)\b'
+    required: false
+    evidence: reference-only
+  - name: hazard-document
+    archetype: hazard
+    exclude: ['tests/**', 'tests_integration/**', 'fixtures/**']
+    from: heading
+    section: '*'
+    pattern: '^\[([^\]\s]+)\]'
+    required: false
+    evidence: reference-only
+  - name: test-case
+    archetype: TestMatrix
+    exclude: ['tests/**', 'tests_integration/**', 'fixtures/**']
+    section: Test Case Summary
+    id_column: Test ID
+  - name: acceptance-criterion
+    archetype: FR
+    exclude: ['tests/**', 'tests_integration/**', 'fixtures/**']
+    section: Acceptance Criteria
+    id_column: ID
+  - name: nfr-acceptance-criterion
+    archetype: NFR
+    exclude: ['tests/**', 'tests_integration/**', 'fixtures/**']
+    section: Acceptance Criteria
+    id_column: ID
+  # quire-rs#460: `interface` is an `object_types` archetype — declared in
+  # spec-objects-architecture's manifest, not this one — whose own id joins
+  # KIND and NUMBER with an underscore (`interface_004`) rather than the
+  # requirement archetypes' hyphen. Cross-module `archetype:` reference is
+  # sound: `FR`/`NFR`/`StR` above are the real precedent for it — they are
+  # declared in spec-artifacts-iso's manifest, not this one, and this
+  # module's own `acceptance-criterion`/`nfr-acceptance-criterion` targets
+  # already bind them across that module boundary (`suite`/`inspection`
+  # below are NOT this precedent: this module declares both itself, so
+  # binding them is same-module). The match itself is a raw frontmatter
+  # `type:` string compare against every loaded document, one archetype at
+  # a time (quire-rs `src/corpus/declared_tables.rs::scan`, "type" ==
+  # `scope.archetype`) — there is no merged-registry lookup involved.
+  #
+  # `required: false`: the SOA `interface` template has no Acceptance
+  # Criteria section on most interface documents, so — unlike `FR`/`NFR`,
+  # where every document has one — declaring this target required (the
+  # default) raised a false `section-matches-nothing` diagnostic on every
+  # ordinary interface doc that has no such section. With `required: false`
+  # that regression is gone while the `interface_004-AC-*` ids still mint.
+  #
+  # Excluded the same as the requirement archetypes for the same reason
+  # (CR-060): a fixture legitimately typed `interface` would otherwise mint
+  # phantom ids.
+  - name: interface-acceptance-criterion
+    archetype: interface
+    exclude: ['tests/**', 'tests_integration/**', 'fixtures/**']
+    section: Acceptance Criteria
+    id_column: ID
+    required: false
+  # PLAT-1079: a `-CON-` id is minted by the same section+id_column mechanism
+  # `acceptance-criterion` already mints from — `## Constraints` is a table
+  # with an `ID` column exactly like `## Acceptance Criteria` is. No `evidence:
+  # reference_only`: a constraint is a criterion, so it enters the same
+  # evidence-bearing denominator `acceptance-criterion` does (omitting the key
+  # keeps the default `source` posture, same as `acceptance-criterion` above).
+  #
+  # `required: false`: spec-artifacts-iso's own FR skeleton lists `Constraints`
+  # among the OPTIONAL level-2 sections ("Omit the section rather than
+  # inventing filler constraints"), unlike `Acceptance Criteria`, which is
+  # required on every FR. Measured in this repository: 6 of 14 FR documents
+  # carry no `## Constraints` section. Leaving `required` at its default
+  # (`true`) raised a `section-matches-nothing` finding on every one of them —
+  # the same false-positive `interface-acceptance-criterion` already avoids
+  # for the same reason.
+  - name: constraint
+    archetype: FR
+    exclude: ['tests/**', 'tests_integration/**', 'fixtures/**']
+    section: Constraints
+    id_column: ID
+    required: false
+  # ── Evidence layer (#34) ──
+  #
+  # Declaring the suite registry as a trace target is what makes `SUITE-N` a
+  # **referenceable id class**: FR-049's `dangling-trace-reference` then covers
+  # every reference to a suite for free, so a binding or a run directory naming
+  # a suite that no longer exists is reported rather than silently orphaned.
+  # A consumer may have no suite registry at all, so the target is optional.
+  - name: suite
+    archetype: SuiteRegistry
+    exclude:
+    - tests/**
+    - tests_integration/**
+    - fixtures/**
+    section: Suites
+    id_column: ID
+    required: false
+  # CR-037 (#63): StR validation criteria are a **minted id class** — a tag
+  # naming `StR-004-VC-1` reconciled against nothing and landed in
+  # `untracked_symbols` permanently, with no authoring-side fix available.
+  #
+  # `Analysis` and `Demonstration` (CR-035 above) are the methods these rows
+  # actually declare, which is why the two changes ship together: without the
+  # vocabulary the target would mint ids whose rows have no valid `Type`.
+  #
+  # **IT and US are deliberately absent, and the reason is an engine limit, not
+  # a decision.** `TraceTarget` mints from `section` + `id_column` — a table
+  # column under a heading. StR fits: `## Validation Criteria` is a table whose
+  # first column is the id. The other two are not tables:
+  #   - `IT-NNN-SC-NN` are **bullet items** under `## Test Procedure`
+  #     (`- IT-002-SC-01: lexical results are returned with no remote call.`);
+  #   - `US-NNN-EX-N` are **H3 headings** (`### [US-033-EX-1] Toggling …`).
+  # Declaring either would be a declaration the engine cannot honour. Filed as
+  # `agent-ix/quire-rs#244`; this entry lands the third of the three now rather
+  # than holding it behind the other two.
+  - name: stakeholder-validation-criterion
+    archetype: StR
+    exclude:
+    - tests/**
+    - tests_integration/**
+    - fixtures/**
+    section: Validation Criteria
+    id_column: ID
+  - name: inspection
+    archetype: Inspections
+    exclude:
+    - tests/**
+    - tests_integration/**
+    - fixtures/**
+    section: Inspections
+    id_column: ID
+    required: false
+  # ── RoleSpec and Rubric (FR-021, FR-023) ──
+  #
+  # A rule is a requirement and an evaluation is its criterion. Only the
+  # evaluation is evidence-bearing; metrics, objectives, rules and rubric checks
+  # are referenceable ids that no test binds, so they stay out of the criterion
+  # denominator. `required: false` because a repository with no role specs is
+  # not defective.
+  - name: role-metric
+    archetype: RoleSpec
+    exclude: ['tests/**', 'tests_integration/**', 'fixtures/**']
+    section: Metrics
+    id_column: ID
+    required: false
+    evidence: reference-only
+  - name: role-objective
+    archetype: RoleSpec
+    exclude: ['tests/**', 'tests_integration/**', 'fixtures/**']
+    section: Objectives
+    id_column: ID
+    required: false
+    evidence: reference-only
+  - name: role-rule
+    archetype: RoleSpec
+    exclude: ['tests/**', 'tests_integration/**', 'fixtures/**']
+    section: Rules
+    id_column: ID
+    required: false
+    evidence: reference-only
+  - name: role-evaluation
+    archetype: RoleSpec
+    exclude: ['tests/**', 'tests_integration/**', 'fixtures/**']
+    section: Evaluations
+    id_column: ID
+    required: false
+  - name: rubric-check
+    archetype: Rubric
+    exclude: ['tests/**', 'tests_integration/**', 'fixtures/**']
+    section: Checks
+    id_column: ID
+    required: false
+    evidence: reference-only
+  # Requirement documents stay archetype-bound — but archetype binding requires
+  # scope exclusion, because fixtures are legitimately typed. A test fixture
+  # that exercises the `FR` contract *is* `type: FR`; that is what makes it a
+  # fixture. `quire-cli/tests/fixtures/validate-mod/docs/valid-fr.md` is
+  # `type: FR, id: FR-001` with an `## Acceptance Criteria` table minting
+  # `FR-001-AC-1`/`-AC-2`, colliding with the real `FR-001` in `quire-cli/spec/`
+  # — siblings `broken-fr.md`, `placeholder-fr.md`, `override-fr.md`,
+  # `missing-section-fr.md`, `unknown-object-fr.md`, `lint-mod/docs/*.md`,
+  # `iso-docs/{FR,NFR}-*.md`. `quire coverage --scope` defaults to the repo
+  # root, so this is the *default* invocation, not an opt-in one.
+  #
+  # The same failure the `tests/fixtures/testmatrix/*.md` incident produced (67
+  # phantom ids, 50 reported "backed", recorded below). That one was fixed by
+  # switching to path binding; these targets get the exclusion instead, because
+  # `FR`/`NFR` have no canonical single path to bind to.
+  #
+  # Deliberately not minted: `US` criteria are authored as a bullet list, not a
+  # table, and `declared_tables::scan` reads tables only; `StR` criteria sit
+  # under `## Validation Criteria` with a `Validation` column and are validated
+  # by review rather than by a test. Neither is a denominator a test tag could
+  # ever satisfy, and a denominator nothing can satisfy is noise.
+
+  # ── What references those ids ──
+  #
+  # `expand_ranges` and `strip_annotations` are opt-in per declaration
+  # (FR-050-AC-12) and both are needed here: the corpus authors
+  # `FR-001-AC-1 .. FR-001-AC-4` and `TC-024 (blocked: no uniqueness assert)`.
+  #
+  # Known limit, recorded rather than papered over: the two CR-017 authoring
+  # shorthands the *shape* contract admits — continuation (`FR-001-AC-2, -AC-3`)
+  # and slash enumeration (`FR-016-AC-1/2/3`) — are not expanded by the engine,
+  # so such a cell contributes its first token only. The row is still backed
+  # when that token is backed; it just under-counts the rest.
+  document_references:
+  # An inspection names the obligation it discharges. Reusing the existing
+  # criterion targets means a typo in that cell dangles like any other broken
+  # reference, instead of recording an act against nothing (#34).
+  - name: inspection-obligation
+    archetype: Inspections
+    exclude:
+    - tests/**
+    - tests_integration/**
+    - fixtures/**
+    section: Inspections
+    column: Obligation
+    row_id_column: ID
+    # quire-rs#460: the BASE token admits the underscore-object-id shape
+    # (`interface_004`) alongside the requirement-id shape (`FR`), the same
+    # widening applied to `traces-to` and the TestMatrix `Traces To` column
+    # check below — otherwise `interface_004-AC-1` matched only its trailing
+    # `AC-1`, a wrong partial bind.
+    #
+    # Closed to the literal KIND, not a generic `\w+_\d+`: the first cut
+    # admitted any identifier of that shape, so ordinary code comments —
+    # `// sha_256: digest`, `# retry_3: backoff`, `Implements: sha_256` — read
+    # as trace tags. `interface_NNN` is the only underscore object-id this
+    # module's spec or any consuming repo (QSpec, tl-syntax, quire-analyze,
+    # contract-runtime, contract-codegen) actually mints today, so the
+    # alternative names that KIND, the same way `TC|IT|FR|NFR|StR|US` below
+    # names the hyphenated ones. Add the next KIND here, measured, when one
+    # of the other `spec-objects-*` archetypes actually mints an id.
+    pattern: "\\b((?:[A-Za-z]{2,4}-\\d+|interface_\\d+)(?:-[A-Za-z]+-\\d+)?)\\b"
+    targets:
+    - acceptance-criterion
+    - nfr-acceptance-criterion
+    - interface-acceptance-criterion
+    # PLAT-1079: an inspection can now discharge a constraint, not only a
+    # criterion — `constraint` mints the same shape id (`FR-NNN-CON-N`) this
+    # pattern already matches.
+    - constraint
+    expand_ranges: false
+    strip_annotations: true
+  # FR-021: the cells of a role spec that name another row. Each pattern admits
+  # only its own `<PREFIX>-<letter><number>` shape, so a reference resolves only
+  # against the target it names. An undefined id is `dangling-trace-reference`.
+  - name: role-objective-metrics
+    archetype: RoleSpec
+    exclude: ['tests/**', 'tests_integration/**', 'fixtures/**']
+    section: Objectives
+    column: Metrics
+    row_id_column: ID
+    pattern: '\b([A-Z]{2,6}-M\d{2})\b'
+    targets: [role-metric]
+    expand_ranges: false
+    strip_annotations: false
+  - name: role-rule-objective
+    archetype: RoleSpec
+    exclude: ['tests/**', 'tests_integration/**', 'fixtures/**']
+    section: Rules
+    column: Objective
+    row_id_column: ID
+    pattern: '\b([A-Z]{2,6}-O\d{2})\b'
+    targets: [role-objective]
+    expand_ranges: false
+    strip_annotations: false
+  - name: role-evaluation-rule
+    archetype: RoleSpec
+    exclude: ['tests/**', 'tests_integration/**', 'fixtures/**']
+    section: Evaluations
+    column: Rule
+    row_id_column: ID
+    pattern: '\b([A-Z]{2,6}-R\d{2})\b'
+    targets: [role-rule]
+    expand_ranges: false
+    strip_annotations: false
+  - name: role-evaluation-rubric
+    archetype: RoleSpec
+    exclude: ['tests/**', 'tests_integration/**', 'fixtures/**']
+    section: Evaluations
+    column: Query or rubric
+    row_id_column: ID
+    pattern: '([a-z][a-z0-9-]*@[0-9]+#[a-z][a-z0-9-]*)'
+    targets: [rubric-check]
+    expand_ranges: false
+    strip_annotations: false
+  # Most `Verification` cells carry no test id at all — a sweep over quire-rs,
+  # quoin and this repo found 285 bare `Test`, 99 `Test (TC-nnn)`, and ~100
+  # naming a file rather than an id (`Test (org.test.ts)`), plus `Eval (EV-nnn)`.
+  # The pattern extracts what is there; a row naming no id is still answerable
+  # for its own criterion id, which is what a tag on the test binds.
+  - name: verification
+    archetype: FR
+    exclude: ['tests/**', 'tests_integration/**', 'fixtures/**']
+    section: Acceptance Criteria
+    column: Verification
+    row_id_column: ID
+    pattern: '\b((?:TC|IT)(?:-[A-Za-z0-9]+)*-\d+[A-Za-z0-9]*)\b'
+    targets: [test-case]
+    expand_ranges: true
+    strip_annotations: false
+  - name: nfr-verification
+    archetype: NFR
+    exclude: ['tests/**', 'tests_integration/**', 'fixtures/**']
+    section: Acceptance Criteria
+    column: Verification
+    row_id_column: ID
+    pattern: '\b((?:TC|IT)(?:-[A-Za-z0-9]+)*-\d+[A-Za-z0-9]*)\b'
+    targets: [test-case]
+    expand_ranges: true
+    strip_annotations: false
+  # quire-rs#460: `interface` documents carry the same Verification column as
+  # `FR`/`NFR`, so a stale TC id cited there was silently unchecked — mirrors
+  # `verification`/`nfr-verification` above exactly.
+  - name: interface-verification
+    archetype: interface
+    exclude: ['tests/**', 'tests_integration/**', 'fixtures/**']
+    section: Acceptance Criteria
+    column: Verification
+    row_id_column: ID
+    pattern: '\b((?:TC|IT)(?:-[A-Za-z0-9]+)*-\d+[A-Za-z0-9]*)\b'
+    targets: [test-case]
+    expand_ranges: true
+    strip_annotations: false
+  - name: traces-to
+    archetype: TestMatrix
+    exclude: ['tests/**', 'tests_integration/**', 'fixtures/**']
+    section: Test Case Summary
+    column: Traces To
+    row_id_column: Test ID
+    # quire-rs#460: same BASE widening as `inspection-obligation` above.
+    pattern: '\b((?:[A-Za-z]{2,4}-\d+|interface_\d+)(?:-[A-Za-z]+-\d+)?)\b'
+    # PLAT-1079: `constraint` joins the other three, so a `-CON-` id authored
+    # in a `Traces To` cell resolves instead of reporting
+    # `dangling-trace-reference` — measured at 13 such warnings in this
+    # repository's own `spec/tests.md` before this addition (CR-064).
+    targets: [acceptance-criterion, nfr-acceptance-criterion, interface-acceptance-criterion, constraint]
+    expand_ranges: true
+    strip_annotations: true
+  # FR-015: an assessment row's `Target` must resolve to a requirement,
+  # acceptance criterion or hazard that exists. A token that resolves to none
+  # of them is a `dangling-trace-reference` (quire-rs FR-049). Whether the
+  # target is of the kind the row's `Kind` names is typed by `kind_column` and
+  # `kind_targets` (quire-rs FR-049-AC-10..18): a mismatch is a
+  # `reference-kind-mismatch`.
+  - name: anomaly-assessment
+    archetype: Anomaly
+    exclude: ['tests/**', 'tests_integration/**', 'fixtures/**']
+    section: Safety Impact Assessment
+    column: Target
+    row_id_column: Kind
+    pattern: '([A-Za-z0-9_]+(?:-[A-Za-z0-9_]+)*)'
+    targets: [requirement-document, nfr-document, acceptance-criterion, nfr-acceptance-criterion, hazard-document]
+    kind_column: Kind
+    kind_targets:
+      Requirement: [requirement-document, nfr-document, acceptance-criterion, nfr-acceptance-criterion]
+      Hazard: [hazard-document]
+    expand_ranges: false
+    strip_annotations: false
+  # FR-015: a fix-verification row's `Target` must resolve to the criterion or
+  # test case its `Kind` names. An id resolves only against `targets`, so the
+  # requirement and hazard documents are listed to make a wrong-kind id a
+  # `reference-kind-mismatch` rather than a `dangling-trace-reference`.
+  - name: anomaly-fix-verification
+    archetype: Anomaly
+    exclude: ['tests/**', 'tests_integration/**', 'fixtures/**']
+    section: Fix Verification
+    column: Target
+    row_id_column: Kind
+    pattern: '([A-Za-z0-9_]+(?:-[A-Za-z0-9_]+)*)'
+    targets: [acceptance-criterion, nfr-acceptance-criterion, test-case, requirement-document, nfr-document, hazard-document]
+    kind_column: Kind
+    kind_targets:
+      Criterion: [acceptance-criterion, nfr-acceptance-criterion]
+      Test: [test-case]
+    expand_ranges: false
+    strip_annotations: false
+
+  # ── How a test carries a trace id (FR-051) ──
+  #
+  # FR-051 specified all three marker forms and deferred this declaration to
+  # "a follow-up change in spec-artifacts-iso". It lands here instead: the rest
+  # of the traceability model is already here, the TestMatrix that mints test
+  # ids is this module's archetype, and splitting one model across two modules
+  # would let the halves version apart (#22 decision 1).
+  trace_tags:
+    # Arguments must be **quoted**. `bind_symbol` scans a symbol's raw source
+    # with no comment awareness, so a marker written in prose binds like a real
+    # one: `#[trace(...)]` in a doc comment explaining the form minted a trace id
+    # of literally `...`. Quoted-only admits every authored marker (FR-051 writes
+    # them quoted, and `marker_ids` prefers the quoted reading) and rejects the
+    # placeholder. A module wanting bare-identifier markers declares its own
+    # pattern — the engine still supports them.
+    markers:
+    - name: rust-trace-attribute
+      language: rust
+      pattern: '#\[trace\(((?:\s*"[^"]*"\s*,?)+)\)\]'
+      template: '#[trace({ids})]'
+    - name: pytest-trace-marker
+      language: python
+      pattern: '@pytest\.mark\.trace\(((?:\s*"[^"]*"\s*,?)+)\)'
+      template: '@pytest.mark.trace({ids})'
+    - name: ts-trace-helper
+      language: typescript
+      pattern: '\btrace\(((?:\s*"[^"]*"\s*,?)+)\)'
+      template: 'trace({ids})'
+    # Shell has no attribute syntax, so the canonical shell marker is a `#`
+    # comment (`# trace: FR-007-AC-01`) read from the syntax tree's comment
+    # nodes (quire-rs FR-051-AC-40..42). Only a script's `entry_point` binds, and
+    # only where its path matches `entry_paths` (AC-38): a production script
+    # that merely mentions a requirement in a comment verifies nothing. The
+    # globs name the audit scripts, which are tests of the repo in all but
+    # extension. A marker that binds nothing is reported (AC-44), not dropped.
+    - name: shell-trace-comment
+      language: shell
+      syntax: comment
+      pattern: '#\s*trace:\s*(.+)$'
+      template: '# trace: {ids}'
+      entry_paths:
+      - 'scripts/audits/**/*.sh'
+    # ── implements: what code a requirement is ABOUT (quire-rs FR-062) ──
+    #
+    # A SEPARATE list from `markers`, and the separation is the whole point:
+    #
+    #   markers    -> verifies    "this test would fail if the behaviour broke"
+    #                             evidence — may back an acceptance criterion
+    #   implements -> implements  "this code is what the requirement is about"
+    #                             scope — never may
+    #
+    # quire-rs CR-061 stopped `verifies` binding production symbols precisely
+    # because a doc comment in `src/foo.rs` that merely *cites* `FR-053-AC-1`
+    # would otherwise count as evidence backing it. A shared list with a
+    # discriminator field would put ONE TYPO between scope and evidence, so
+    # there is no field to flip: two lists, two relation types, and
+    # complementary symbol kinds (`markers` bind only test/benchmark/fuzz
+    # symbols, `implements` only functions and containers). A mis-declared
+    # marker therefore binds NOTHING rather than the wrong thing.
+    #
+    # Why it exists: nothing linked a requirement to its production code, so
+    # mutation scoping (quoin FR-039) had no file set to mutate. Measured across
+    # quire-rs's 52 FRs, 38 had a mutable target and 14 had none — and the 14
+    # fail for one reason, that every symbol verifying them lives in `tests/`.
+    # Reach correlated with TEST PLACEMENT, not requirement quality (quire-rs
+    # CR-071).
+    #
+    # Rust keeps its existing Implements: line-comment form and adds ix-trace-rs's
+    # compile-checked attribute on production items. Python and TypeScript use
+    # structural forms only (quire-rs FR-062): a decorator, and for TypeScript
+    # also the `implementing(...)(fn)` wrapper. Patterns are anchored with \A and
+    # match the whole decorator node or wrapper inner call; double-quoted ids only;
+    # spellings `implements`/`ix_trace_py.implements` and
+    # `implementing`/`ixTrace.implementing`. Renamed imports bind nothing.
+    # These forms mint scope, never verification evidence.
+    #
+    # For line-comment forms, the `Implements:` prefix is the prose guard: a
+    # sentence naming a requirement matches nothing. Comma lists are accepted
+    # because authors already write them that way.
+    # The Rust attribute instead takes one quoted literal per id. Both Rust
+    # forms remain declared while consumers choose the attribute. The syntax
+    # guard restricts this form to complete outer Rust attributes, using the
+    # engine's declaration association rather than matching comment/string data.
+    #
+    # Criterion ids are admitted (`FR-001-AC-1`, not just `FR-001`).
+    implements:
+    - name: rust-implements-line
+      language: rust
+      pattern: '(?m)Implements:\s*((?:(?:TC|IT|FR|NFR|StR|US)-\d+|interface_\d+)(?:-[A-Za-z]+-\d+)?(?:\s*,\s*(?:(?:TC|IT|FR|NFR|StR|US)-\d+|interface_\d+)(?:-[A-Za-z]+-\d+)?)*)'
+      template: '/// Implements: {ids}'
+    - name: rust-implements-attribute
+      language: rust
+      syntax: rust_attribute
+      pattern: '(?m)^[ \t]*#\[implements\(\s*("(?:[A-Za-z][A-Za-z0-9_]*(?:-[A-Za-z0-9]+)*-[A-Za-z0-9]*[0-9][A-Za-z0-9]*(?:-[A-Za-z0-9]+)*)"(?:\s*,\s*"(?:[A-Za-z][A-Za-z0-9_]*(?:-[A-Za-z0-9]+)*-[A-Za-z0-9]*[0-9][A-Za-z0-9]*(?:-[A-Za-z0-9]+)*)")*\s*,?)\s*\)\]'
+      template: '#[implements({ids})]'
+    - name: python-implements-decorator
+      language: python
+      syntax: python_decorator
+      pattern: '\A@(?:ix_trace_py\.)?implements\(\s*("(?:[A-Za-z][A-Za-z0-9_]*(?:-[A-Za-z0-9]+)*-[A-Za-z0-9]*[0-9][A-Za-z0-9]*(?:-[A-Za-z0-9]+)*)"(?:\s*,\s*"(?:[A-Za-z][A-Za-z0-9_]*(?:-[A-Za-z0-9]+)*-[A-Za-z0-9]*[0-9][A-Za-z0-9]*(?:-[A-Za-z0-9]+)*)")*\s*,?)\s*\)'
+      template: '@implements({ids})'
+    - name: typescript-implements-decorator
+      language: typescript
+      syntax: typescript_decorator
+      pattern: '\A@(?:ixTrace\.)?implementing\(\s*("(?:[A-Za-z][A-Za-z0-9_]*(?:-[A-Za-z0-9]+)*-[A-Za-z0-9]*[0-9][A-Za-z0-9]*(?:-[A-Za-z0-9]+)*)"(?:\s*,\s*"(?:[A-Za-z][A-Za-z0-9_]*(?:-[A-Za-z0-9]+)*-[A-Za-z0-9]*[0-9][A-Za-z0-9]*(?:-[A-Za-z0-9]+)*)")*\s*,?)\s*\)'
+      template: '@implementing({ids})'
+    - name: typescript-implements-wrapper
+      language: typescript
+      syntax: typescript_wrapper
+      pattern: '\A(?:ixTrace\.)?implementing\(\s*("(?:[A-Za-z][A-Za-z0-9_]*(?:-[A-Za-z0-9]+)*-[A-Za-z0-9]*[0-9][A-Za-z0-9]*(?:-[A-Za-z0-9]+)*)"(?:\s*,\s*"(?:[A-Za-z][A-Za-z0-9_]*(?:-[A-Za-z0-9]+)*-[A-Za-z0-9]*[0-9][A-Za-z0-9]*(?:-[A-Za-z0-9]+)*)")*\s*,?)\s*\)'
+      template: 'implementing({ids})'
+    # ── formalizes: which requirement a QSL declaration states formally (quire-rs FR-094) ──
+    #
+    # A third list beside `markers` and `implements`, never a flag on either: a
+    # formalization is neither verification evidence nor production scope, so it
+    # never backs an acceptance criterion. Only QSL source carries the marker, as
+    # a `//` comment above a declaration; the engine binds it. The capture may be
+    # empty so the engine, not this pattern, reports a marker that names no id.
+    formalizes:
+    - name: qsl-formalizes-comment
+      language: qsl
+      syntax: comment
+      pattern: '^//\s*formalizes:\s*(.*)$'
+      template: '// formalizes: {ids}'
+  status:
+    column: Status
+    complete: ["✅"]
+    pending: ["🚧"]
+    failed: ["❌"]
+    retired: ["⛔"]
+  # ── What states an obligation (quire-rs FR-053) ──
+  #
+  # An obligation is DERIVED, never authored: choosing an acceptance criterion's
+  # `Verification` method IS minting it. Without these declarations the engine's
+  # obligation machinery is inert — it ships and derives nothing — which is why
+  # they land with the evidence layer rather than after it.
+  obligations:
+  - name: acceptance-criterion
+    target: acceptance-criterion
+    statement_column: Criteria
+    method_column: Verification
+    criticality_field: criticality
+  - name: nfr-acceptance-criterion
+    target: nfr-acceptance-criterion
+    statement_column: Criteria
+    method_column: Verification
+    criticality_field: criticality
+  # quire-rs#460: same 3-column `| ID | Criteria | Verification |` shape as
+  # the two obligations above — the real `interface_004-checked-package.md`
+  # in `agent-ix/quire-specification` carries no fourth (criticality) column,
+  # so this entry declares none either.
+  - name: interface-acceptance-criterion
+    target: interface-acceptance-criterion
+    statement_column: Criteria
+    method_column: Verification
+  # PLAT-1079: the sixth obligation source. `statement_column`/`method_column`
+  # name the same two columns `acceptance-criterion` already reads under
+  # different headers (`Criteria`/`Verification` there, `Constraint`/
+  # `Validation` here) — the exact `ID | Constraint | Type | Validation` shape
+  # this repository's own `## Constraints` tables already carry, so no new row
+  # shape is introduced, only a sixth declared source for one FR-053 already
+  # defines.
+  - name: constraint
+    target: constraint
+    statement_column: Constraint
+    method_column: Validation
+  # The second source, and not an afterthought: an NFR `Measurement and
+  # Evaluation` row states one number three times over — the spec threshold, the
+  # benchmark assertion and the evidence gate are the same quantity. Its rows
+  # carry no id of their own, which is why `id_format` exists.
+  - name: nfr-metric
+    archetype: NFR
+    section: Measurement and Evaluation
+    id_format: "{document}-M-{row}"
+    statement_column: Metric
+    method_column: Method
+    parameters:
+      target: Target
+      threshold: Threshold
+  # The third source, and the only one whose arity is not one-per-row
+  # (quire-rs FR-061). A `## Configuration Dimensions` table states a
+  # CONFIGURATION SPACE: `features(default|python|wasm)` crossed with
+  # `target(linux|wasm32)`, minus whatever cannot co-exist. The obligation is
+  # about the INTERACTION of those rows, so no single row can carry it and the
+  # table mints exactly one.
+  #
+  # `strength: 2` — pairwise. Published evidence puts most configuration-space
+  # defects in pairs, and 3-way multiplies the target for a return nobody in
+  # this ecosystem has measured. A module wanting more says so; the engine
+  # knows no default.
+  #
+  # `Excludes` is declared because real spaces have forbidden combinations —
+  # a feature unavailable on a target, a codec absent from a build. Omitting
+  # the column on a space that has them demands coverage of combinations that
+  # cannot exist, and the target becomes permanently unreachable.
+  - name: configuration-matrix
+    archetype: FR
+    section: Configuration Dimensions
+    id_format: "{document}-CFG-{row}"
+    statement_column: Dimension
+    combinatorial:
+      dimension_column: Dimension
+      values_column: Values
+      excludes_column: Excludes
+      strength: 2
+  vocabularies:
+    # CR-035 (#60): the last three are the ISO 29148 **verification methods**,
+    # not harness kinds. Every other value names how a test is run; a
+    # 29148-aligned corpus also authors verification by inspection, by analysis
+    # and by demonstration, and had no declared value for any of them.
+    #
+    # Many rejected `Type` cells were a means the vocabulary had no word for —
+    # `Inspection`, `Analysis`, `Demonstration`. Rows read rather than assumed:
+    # "Inspect Core for domain behavior ownership drift", "Inspect the packaged
+    # artifact for the pinned sidecar runtime". `Manual` is the nearest declared
+    # value and is wrong — those are automated scripts in a CI lane, not people.
+    #
+    # Case variants and synonyms are a **corpus** problem, swept in the
+    # consuming repo, not admitted here.
+    #
+    # The catalog already carries this distinction one level up:
+    # `verification_catalog` entries declare `class:`, and the classes in use
+    # are `Test` (21 methods) and `Analysis` (8). `test_type` enumerated only
+    # the `Test` class, so a row for an `Analysis`-class method had nothing
+    # valid to write. Same resolution as CR-005, which added two catalog entries
+    # rather than forcing the corpus onto a near-miss.
+    test_type: [Unit, Integration, E2E, Property, Fuzz, Benchmark, Static, Compile, Snapshot, Manual, Eval,
+                Inspection, Analysis, Demonstration]
+    # CR-002: which column carries the value above, and which of those values
+    # name a verification method that mints no source symbol (quire-rs
+    # FR-050-AC-16).
+    #
+    # An `Eval` is an agent driven against a live scenario; a `Manual` step is a
+    # person. Neither produces a symbol a trace tag could attach to, so a row
+    # verified that way can never be backed — and reporting it as a status lie
+    # asserts something its own declared method makes impossible. The row still
+    # counts as unbacked; only the accusation is withdrawn.
+    #
+    # Deliberately NOT listed: `Static`, `Benchmark` and `Compile`. Each is
+    # usually asserted by real code — this repo's own static boundary audit is a
+    # test — so exempting them would hide overclaims rather than explain them.
+    test_type_column: Type
+    # CR-035 (#60): `Inspection` and `Analysis` join the exemption. An
+    # inspection is a CI lane running a script against a tree and an analysis is
+    # an argument; neither mints a symbol a trace tag attaches to. Until they
+    # were declared, such rows were typed as something that demands a symbol and
+    # coverage reported them as **status lies** — the whole substance of
+    # SR-152 FND-002 in filament-ide-rs, carried as an open question across
+    # three reviews (TC-441, TC-446, TC-447). Those rows were not lying; there
+    # was no declared type that said what they are.
+    #
+    # `Demonstration` deliberately stays OUT: a demonstration is observed
+    # running, so it can carry a symbol, and exempting it would hide an
+    # overclaim rather than explain one — the same line `Static`/`Benchmark`
+    # are held to above.
+    no_source_symbol: [Eval, Manual, Inspection, Analysis]
+    # Historical verification rows, not methods or source-symbol exemptions.
+    # The independent status.retired marker applies to Status cells only.
+    retired: [Withdrawn]
+
+# ── Verification-method catalog (quire-rs FR-054, #35) ────────────────────────
+# The 29119-4-shaped answer to "how should this requirement be verified".
+# Before this, the knowledge was prose: IADT lived in two spec-artifacts-iso
+# lint rules, techniques in `traceability.vocabularies.test_type`, and quoin's
+# spec-evidence-analysis skill assigned a method per requirement from a
+# skill-local table that no manifest declared and no code read.
+#
+# `class` is the ISO 29148 IADT axis. The engine treats it as a free string
+# (quire-rs FR-054-CON-1) — this module chooses IADT; another may not.
+#
+# `evidence_kind` is drawn from `traceability.vocabularies.test_type` below —
+# the SAME vocabulary the Test Matrix `Type` column and the suite registry's
+# `Evidence Kind` use (CR-015: one vocabulary, several uses). It is
+# method-class-shaped on purpose: the TOOL lives in the suite registry's own
+# `tool` column, so semgrep, an SBOM generator and a DAST scanner need no
+# vocabulary entries of their own. Restated rather than referenced because
+# `from_vocabulary` is deferred (quire-rs#146); TC-048 keeps the two honest.
+#
+# `applicability` rule names are this module's axes. The engine stores and
+# surfaces them and interprets none (FR-054-CON-2) — deciding which requirement
+# a rule matches is the advisor's judgement (agent-ix/quoin#89).
+verification_catalog:
+
+  # ── Test: execution against the running system ──
+  unit-testing:
+    name: Unit testing
+    class: Test
+    definition: >-
+      Exercise one unit in isolation against a fixed expected result.
+    evidence_kind: Unit
+    applicability:
+      property_shapes: [example]
+      characteristics: [single-component]
+    tooling: [cargo test, pytest, jest]
+  integration-testing:
+    name: Integration testing
+    class: Test
+    definition: >-
+      Exercise two or more components across their real boundary, without
+      substituting the boundary itself.
+    evidence_kind: Integration
+    applicability:
+      characteristics: [cross-component, io-boundary]
+    tooling: [pytest, testcontainers]
+  e2e-testing:
+    name: End-to-end testing
+    class: Test
+    definition: >-
+      Drive the assembled system through the interface a user or caller uses.
+    evidence_kind: E2E
+    applicability:
+      characteristics: [user-visible, workflow]
+    tooling: [playwright, cypress]
+  property-based-testing:
+    name: Property-based testing
+    class: Test
+    definition: >-
+      Execute a property over generated inputs, asserting an invariant that
+      holds for every input rather than a fixed expected value.
+    evidence_kind: Property
+    applicability:
+      property_shapes: [universal, invariant, round-trip, idempotence, ordering]
+      characteristics: [universally-quantified]
+    tooling: [proptest, fast-check, hypothesis]
+  metamorphic-testing:
+    name: Metamorphic testing
+    class: Test
+    definition: >-
+      Assert a relation between the outputs of two related executions, for a
+      requirement whose correct output cannot be stated independently.
+    evidence_kind: Property
+    applicability:
+      property_shapes: [round-trip, idempotence, ordering]
+      characteristics: [no-independent-oracle]
+    tooling: [proptest, hypothesis]
+  model-based-test-generation:
+    name: Model-based test generation
+    class: Test
+    definition: >-
+      Derive test cases from a state or protocol model rather than authoring
+      them, so the generated set covers the model's transitions.
+    evidence_kind: Property
+    applicability:
+      property_shapes: [lifecycle]
+      characteristics: [state-machine, protocol]
+    tooling: [proptest state machine, stateful hypothesis]
+  combinatorial-tway:
+    name: Combinatorial t-way testing
+    class: Test
+    definition: >-
+      Cover every t-way combination of declared configuration dimensions,
+      rather than every combination or one arbitrary combination.
+    evidence_kind: Property
+    applicability:
+      characteristics: [configuration-matrix, feature-flags]
+    tooling: [PICT, ACTS]
+  mutation-testing:
+    name: Mutation testing
+    class: Test
+    definition: >-
+      Seed faults into the implementation and measure whether the existing
+      suite detects them — a test of the tests, not of the code.
+    evidence_kind: Static
+    applicability:
+      # `suite-quality-unknown` before it was renamed. "Quality" over-claimed — a
+      # suite can be slow, flaky or unreadable and none of that is what this
+      # measures — and "suite" named the wrong subject, since the fact is about
+      # THIS obligation's evidence and the same suite may have a measured score
+      # for one obligation and none for another. Renamed while it was still
+      # declared in one place and produced by nothing, which it will not be for
+      # long.
+      characteristics: [high-criticality, fault-detection-unmeasured]
+    tooling: [cargo-mutants, mutmut, stryker]
+  fuzzing:
+    name: Fuzzing
+    class: Test
+    definition: >-
+      Execute the input surface against generated or mutated data, looking for
+      crashes, hangs and assertion failures rather than wrong answers.
+    evidence_kind: Fuzz
+    applicability:
+      characteristics: [untrusted-input, parser, deserializer]
+    tooling: [cargo-fuzz, libFuzzer, AFL++]
+  grammar-based-fuzzing:
+    name: Grammar-based fuzzing
+    class: Test
+    definition: >-
+      Fuzz with inputs generated from a grammar, so the generated data reaches
+      past the parser into the logic behind it.
+    evidence_kind: Fuzz
+    applicability:
+      characteristics: [structured-input, grammar-declared]
+    tooling: [cargo-fuzz + arbitrary, Nautilus]
+  # ── Concolic execution: an ESCALATION, not an up-front choice ──
+  #
+  # The name is `concrete` + `symbolic`. Run the code for real while recording
+  # the algebra of what must hold to reach each branch, then negate one of those
+  # constraints and ask a solver for an input satisfying the flipped version.
+  # `if x * 3 == 51` is a 1-in-4-billion coin flip for a fuzzer and a one-line
+  # answer for a solver.
+  #
+  # This entry was keyed on `path-sensitive` and `hard-to-reach-branch`, and
+  # nothing could ever produce either: both describe the IMPLEMENTATION's
+  # control flow, and a specification states what the system must do, never that
+  # a branch behind it is hard to reach. Measured across the installed catalog,
+  # it was the last of 33 methods no requirement could elicit
+  # (agent-ix/quoin#128).
+  #
+  # The re-key follows how the technique is actually reached in practice.
+  # Nobody starts here — it path-explodes and it is slow. The industrial pattern
+  # is HYBRID FUZZING: fuzz until the coverage curve flattens, hand the stuck
+  # branches to a solver, feed the solved inputs back as seeds (Driller 2016,
+  # then QSYM, SymCC, Fuzzolic). Four documented reasons people reach for it, and
+  # every one of them is observable:
+  #
+  #   magic-value-comparison       a checksum, CRC, HMAC or magic number. THE
+  #                                classic wall a fuzzer cannot climb and a
+  #                                solver clears in one step — and specs say this
+  #                                outright.
+  #
+  # `structured-input` was here for one release and is NOT any more. It is what
+  # `grammar-based-fuzzing` is keyed on, so both methods were recommended on
+  # identical evidence and a reader had no basis to choose — while one of them
+  # is an escalation and the other is not. Nearly every
+  # concolic recommendation came from it. A trigger shared with a cheaper
+  # method that answers the same question distinguishes nothing; the values
+  # below are the ones that separate the two.
+  #   high-criticality             the standards-driven case. DO-178C Level A
+  #                                wants MC/DC, ISO 26262 ASIL D and IEC 62304
+  #                                Class C want equivalents, and hand-written
+  #                                tests do not get there.
+  #   secret-dependent-branch      constant-time code. `haybale-pitchfork` exists
+  #                                for exactly this.
+  #   reference-equivalence        proving two IMPLEMENTATIONS agree for every
+  #                                input. Distinct from `stable-output`, which
+  #                                compares against a RECORDED output.
+  #   fault-detection-unmeasured   the obligation is exercised by a bound run and
+  #                                nothing measures whether that exercise would
+  #                                catch a fault.
+  #   fault-detection-failed       something did measure it and the tests missed
+  #                                one. The evidence-side form of "the cheap
+  #                                search stalled".
+  #
+  # The last two are NOT named `surviving-mutants`. That would name mutation
+  # testing's artifact, and this method reads the same signal while producing no
+  # mutants — the same reason `evidence_kind` is method-class-shaped and never
+  # per-tool. They stay true whether the measurement came from mutation testing,
+  # fault injection, a sanitizer or a solver.
+  #
+  # Deliberately absent: a `fuzz-plateau` value, the literal Driller trigger.
+  # Nothing records coverage over time, and a proxy invented to fill the gap is
+  # the CR-014 failure — an open set whose membership had to be judged.
+  #
+  # `haybale` joins the tooling: symbolic execution of LLVM IR written in Rust,
+  # so it applies to anything rustc compiles. `Kani` is bounded model checking
+  # rather than concolic, and is listed because it answers the same question —
+  # find me the input that reaches this state.
+  #
+  # What this entry still CANNOT say is that it is an escalation of last resort.
+  # `advise` ranks by how many rules matched, so this outranks `unit-testing` on
+  # a statement matching two of the above, with nothing to mark the difference.
+  # Filed as agent-ix/quire-rs#190; the guidance lives in quoin's
+  # `spec-evidence-analysis` and `spec-fuzz` skills until it can live here.
+  concolic-execution:
+    name: Concolic / symbolic execution
+    class: Analysis
+    definition: >-
+      Explore execution paths symbolically to find inputs that reach a state,
+      rather than sampling inputs and hoping one does. An escalation: reach for
+      it after cheaper search has stalled, not first.
+    evidence_kind: Fuzz
+    applicability:
+      characteristics: [magic-value-comparison, high-criticality,
+                        secret-dependent-branch, reference-equivalence,
+                        fault-detection-unmeasured, fault-detection-failed]
+    tooling: [CrossHair, KLEE, Kani, haybale]
+  bdd-spec-by-example:
+    name: Spec-by-example (BDD)
+    class: Test
+    definition: >-
+      Execute the worked examples the requirement was specified with, so the
+      example and the test are one artifact.
+    evidence_kind: E2E
+    applicability:
+      property_shapes: [example]
+      characteristics: [stakeholder-facing, workflow]
+    tooling: [cucumber, behave]
+  contract-testing:
+    name: Consumer-driven contract testing
+    class: Test
+    definition: >-
+      Assert that a provider's output satisfies the schema its consumers were
+      written against, checked from both sides independently.
+    evidence_kind: Integration
+    applicability:
+      characteristics: [published-interface, cross-repo-boundary]
+    tooling: [pact, published JSON Schema]
+  design-by-contract:
+    name: Design by contract
+    class: Test
+    definition: >-
+      Encode preconditions, postconditions and invariants as executable
+      annotations on the implementation, checked wherever it runs.
+    evidence_kind: Compile
+    applicability:
+      property_shapes: [invariant]
+      characteristics: [precondition-bearing]
+    tooling: [contracts crate, icontract]
+  runtime-monitoring:
+    name: Runtime verification / monitors
+    class: Test
+    definition: >-
+      Check a temporal property continuously against a running system, for a
+      requirement no single execution can discharge.
+    evidence_kind: Integration
+    applicability:
+      characteristics: [temporal, liveness, invariance]
+    tooling: [OpenTelemetry assertions, monitors]
+  deterministic-simulation:
+    name: Deterministic simulation
+    class: Test
+    definition: >-
+      Run the system under a seeded, controlled scheduler so a concurrency
+      failure reproduces exactly rather than intermittently.
+    evidence_kind: Integration
+    applicability:
+      property_shapes: [concurrency]
+      characteristics: [concurrent, distributed]
+    tooling: [loom, madsim, FoundationDB-style simulation]
+  fault-injection:
+    name: Fault injection
+    class: Test
+    definition: >-
+      Induce a failure the system claims to tolerate — a dropped connection, a
+      full disk, a killed process — and observe that it does.
+    evidence_kind: Integration
+    applicability:
+      # `hazard` and `failure_mode` are spec-objects-safety object types. A
+      # declared failure mode names a failure the system can suffer, and a
+      # hazard names a state that failure can reach — which is the applicability
+      # question this method asks, already answered, in the document. The
+      # `object_types` axis is the same one `attack_surface` already uses to
+      # advise DAST/SAST/IAST (agent-ix/spec-objects-security#5).
+      object_types: [hazard, failure_mode]
+      characteristics: [reliability, fault-tolerance, degradation]
+    tooling: [toxiproxy, chaos-mesh, fs fault injection]
+  performance-benchmarking:
+    name: Performance benchmarking
+    class: Test
+    definition: >-
+      Measure a quantified metric against its declared target and threshold —
+      the NFR measurement row, executed.
+    evidence_kind: Benchmark
+    applicability:
+      characteristics: [latency, throughput, quantified-threshold]
+    tooling: [criterion, pytest-benchmark, hyperfine]
+  golden-approval-testing:
+    name: Golden / approval testing
+    class: Test
+    definition: >-
+      Compare output byte-for-byte against a reviewed, checked-in artifact, so
+      an unintended change is a diff rather than a surprise.
+    evidence_kind: Snapshot
+    applicability:
+      characteristics: [stable-output, serialization]
+    tooling: [insta, syrupy, jest snapshots]
+  negative-abuse-testing:
+    name: Negative / abuse-case testing
+    class: Test
+    definition: >-
+      Exercise the paths an adversary or a mistaken caller takes, asserting the
+      system refuses rather than that it succeeds.
+    evidence_kind: Integration
+    applicability:
+      object_types: [attack_surface, threat]
+      characteristics: [security, input-validation]
+    tooling: [pytest, integration harness]
+  dast:
+    name: Dynamic application security testing
+    class: Test
+    definition: >-
+      Probe the running system's exposed surface for exploitable behaviour,
+      from outside, without its source.
+    evidence_kind: Integration
+    applicability:
+      object_types: [attack_surface]
+      characteristics: [network-exposed, security]
+    tooling: [ZAP, Burp]
+  iast:
+    name: Interactive application security testing
+    class: Test
+    definition: >-
+      Observe the running system from inside during exercise, correlating
+      requests with the code paths they reach.
+    evidence_kind: Integration
+    applicability:
+      object_types: [attack_surface]
+      characteristics: [security]
+    tooling: [Contrast, in-process agents]
+
+  # ── Analysis: reasoning over the artifact without running it ──
+  sast:
+    name: Static application security testing
+    class: Analysis
+    definition: >-
+      Match declared rules against source to find a defect class without
+      executing it.
+    evidence_kind: Static
+    applicability:
+      object_types: [attack_surface]
+      characteristics: [security, injection-risk]
+    tooling: [semgrep, CodeQL]
+  sca-sbom:
+    name: Software composition analysis / SBOM
+    class: Analysis
+    definition: >-
+      Enumerate dependencies and check them against known-vulnerability and
+      licence policy.
+    evidence_kind: Static
+    applicability:
+      characteristics: [third-party-dependency, licence, supply-chain]
+    tooling: [cargo-audit, cargo-deny, pip-audit, CycloneDX, SPDX]
+  architecture-conformance:
+    name: Architecture conformance
+    class: Analysis
+    definition: >-
+      Check the implemented dependency structure against the declared one, so a
+      layering rule is enforced rather than documented.
+    evidence_kind: Static
+    applicability:
+      characteristics: [layering, module-boundary]
+    tooling: [import-linter, cargo-deny bans, custom audit]
+  # ── The two gaps the corpus found (agent-ix/spec-artifacts-process#43) ──
+  #
+  # quire-rs FR-054-AC-11 started reporting a declared method no catalog
+  # carries. Most such strings were a TOOL name (`Proptest`, `cargo-mutants`,
+  # `Criterion Benchmark`), a class SYNONYM (`Unit Test`, `Static Inspection`)
+  # or a CADENCE (`CI Gate`, `Scheduled CI Gate`) standing in for a method this
+  # catalog already carried. Two were neither: the corpus was verifying things
+  # by means the catalog had no word for.
+  compile-time-check:
+    name: Compile-time check
+    class: Analysis
+    definition: >-
+      Encode the property so that violating it does not compile — a lint
+      promoted to a hard error, a type that cannot represent the bad state, a
+      const assertion. The evidence is that the build succeeded, and there is
+      no runtime cost or runtime escape.
+    evidence_kind: Compile
+    applicability:
+      characteristics: [memory-safety, invariance, layering]
+      property_shapes: [invariant]
+    tooling: ["#![forbid(unsafe_code)]", static_assertions, "mypy --strict", "tsc --strict"]
+  dynamic-analysis-sanitizer:
+    name: Dynamic analysis (sanitizers)
+    class: Analysis
+    definition: >-
+      Run the program under an instrumented runtime that reports undefined
+      behaviour, data races, leaks or use-after-free the source does not show
+      and no assertion would catch. Distinct from fuzzing, which generates the
+      inputs, and from static analysis, which never executes.
+    evidence_kind: Integration
+    applicability:
+      characteristics: [memory-safety, concurrent, undefined-behaviour]
+      property_shapes: [concurrency]
+    tooling: [ThreadSanitizer, AddressSanitizer, MemorySanitizer, valgrind, Miri]
+  static-quality:
+    name: Static quality analysis (ISO 5055)
+    class: Analysis
+    definition: >-
+      Measure structural quality weaknesses — complexity, coupling, known
+      defect patterns — over the source.
+    evidence_kind: Static
+    applicability:
+      characteristics: [maintainability, complexity]
+    tooling: [clippy, ruff, sonarqube]
+  formal-analysis-smt:
+    name: Formal analysis (SMT)
+    class: Analysis
+    definition: >-
+      Encode the requirement set as constraints and ask a solver about
+      consistency, redundancy, gaps, or a witness for a claim.
+    evidence_kind: Static
+    applicability:
+      characteristics: [requirement-set, consistency, decidable]
+    tooling: [Z3, CVC5]
+  model-checking:
+    name: Temporal model checking
+    class: Analysis
+    definition: >-
+      Exhaustively check a temporal property against a state model, returning a
+      counterexample trace rather than a pass.
+    evidence_kind: Static
+    applicability:
+      characteristics: [temporal, liveness, safety, state-machine]
+    tooling: [Kind2, nuXmv, TLA+]
+
+  # ── Inspection and Demonstration: acts a person performs ──
+  inspection:
+    name: Inspection
+    class: Inspection
+    definition: >-
+      A person reads the artifact against the requirement and records a
+      verdict. Produces no source symbol, so it is discharged through the
+      inspections registry rather than by a tagged test.
+    evidence_kind: Manual
+    applicability:
+      characteristics: [judgement-required, no-executable-oracle]
+    tooling: [inspections registry]
+  demonstration:
+    name: Demonstration
+    class: Demonstration
+    definition: >-
+      The system is operated in front of a witness and observed to do the
+      thing. Produces no source symbol.
+    evidence_kind: Manual
+    applicability:
+      characteristics: [stakeholder-acceptance, user-visible]
+    tooling: [inspections registry]
+  agent-behaviour-eval:
+    name: Agent-behaviour evaluation
+    class: Demonstration
+    definition: >-
+      Drive a real agent through a scenario and score the transcript against
+      the criterion, for a requirement whose subject is an agent's behaviour.
+    evidence_kind: Eval
+    applicability:
+      characteristics: [agent-behaviour, non-deterministic-subject]
+    tooling: [eval harness]
+
+# ── Edge-type registry (quire-rs FR-040) ─────────────────────────────────
+# Process-specific relationship verbs are registered here. `covers` is owned
+# by spec-artifacts-iso and `realizes_requirement` by
+# spec-objects-architecture; consumers load those canonical owners alongside
+# this module when resolving the corresponding artifact links.
+edge_types:
+  rates_feature: {description: "A feature risk rating assesses a functional requirement.", category: traceability, inverse: rated_by_rating}
+  rated_by_rating: {description: "A functional requirement is assessed by a feature risk rating.", category: traceability, inverse: rates_feature}
+  re_rates: {description: "An adopter feature risk rating reassesses a supplier rating.", category: traceability, inverse: rerated_by}
+  rerated_by: {description: "A supplier feature risk rating is reassessed by an adopter rating.", category: traceability, inverse: re_rates}
+  uses_intended_use: {description: "A supplier rating is evaluated under an IntendedUse record.", category: traceability, inverse: used_by_rating}
+  used_by_rating: {description: "An IntendedUse record provides context for a supplier rating.", category: traceability, inverse: uses_intended_use}
+  # structural
+  contains: { description: "Composition; the source owns the target's lifecycle.", category: structural, inverse: contained_in, composite: true }
+  # dependency
+  blocks: { description: "Source blocks progress on or resolution of the target.", category: dependency, inverse: blocked_by }
+  depends_on: { description: "Requires the target to exist/function.", category: dependency }
+  # traceability
+  found_in: { description: "A finding was identified in the target.", category: traceability }
+  references: { description: "Loose, untyped linkage.", category: traceability }
+  relates_to: { description: "Loose associative link between decisions/records.", category: traceability }
+  reviews: { description: "A review assesses the target artifact.", category: traceability, inverse: reviewed_by }
+  satisfies: { description: "The source requirement or document satisfies the target need or requirement.", category: traceability }
+  superseded_by: { description: "The source artifact was replaced by the target.", category: traceability }
+  supersedes: { description: "Replaces a prior artifact.", category: traceability, inverse: superseded_by }
+  verifies: { description: "Test/integration artifact verifies a requirement.", category: traceability }
+
+# FR-021: a reference to an undefined id is an error, not the engine's default
+# warning, so `quire validate --okf` over a corpus fails on a dangling role-spec
+# or rubric reference. The key is module-wide.
+grammar_severity:
+  "trace:feature-without-risk-rating": off
+  "trace:dangling-trace-reference": error
+
+# ── Semantic module contract (quoin FR-070, agent-ix/spec-artifacts-process#78) ──
+# `exports` names every artifact type carrying a `data_schema` reference.
+#
+# `object_types.standard` is deliberately NOT exported and carries no
+# `data_schema`. It is a different declaration from the `Standard` artifact
+# type: a document is dispatched on frontmatter `type:`, so `type: Standard`
+# resolves to the artifact type and `Standard.json` is its record schema, while
+# the object type is reached only through `object: standard` and is governed by
+# its locator, which requires `code` from frontmatter.
+semantic:
+  contract_version: 1.0.0
+  package: agent-ix/spec-artifacts-process
+  exports:
+  - IntendedUse
+  - FeatureRiskRating
+  - ADR
+  - Anomaly
+  - DossierDocument
+  - Plan
+  - Task
+  - Review
+  - SpecReview
+  - Finding
+  - Feedback
+  - TestMatrixIndex
+  - TestMatrix
+  - Standard
+  - SuiteRegistry
+  - Inspections
+  - RoleSpec
+  - Rubric
+  imports: {}
+  targets:
+  - json-schema
+  - markdown
+  mappings:
+  - frontmatter
+  - section
+  - table
+  - typed-table
+  - sysml-fence
+  - ocl-clause
+  - list
+  - token
+  - provenance
+  compatibility_posture: additive
+  legacy_forms: warning

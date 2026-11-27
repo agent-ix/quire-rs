@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-app/UiSurface.json",
+  "type": "string",
+  "pattern": "^[a-z][a-z0-9-]*$",
+  "description": "A UI surface an application renders on (`web`, `cli`, `ide-panel`).\nDeliberately open: the surface vocabulary belongs to the applications, not to\nthis module, and closing it here would reject the corpus it describes."
+}

@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/MetricRow.json",
+  "type": "object",
+  "properties": {
+    "id": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/MetricId.json"
+    },
+    "name": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/NonEmptyText.json",
+      "description": "free text: what is measured."
+    },
+    "evidenceSource": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/EvidenceSource.json"
+    },
+    "query": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/QueryRef.json"
+    },
+    "unit": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/NonEmptyText.json",
+      "description": "free text: the unit of the measure."
+    },
+    "target": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/NonEmptyText.json",
+      "description": "free text: the target as authored."
+    },
+    "direction": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/MetricDirection.json"
+    },
+    "line": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/LineNumber.json"
+    }
+  },
+  "required": [
+    "id",
+    "name",
+    "evidenceSource",
+    "query",
+    "unit",
+    "target",
+    "direction",
+    "line"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "One `## Metrics` row: a measured quantity and where its evidence comes from."
+}

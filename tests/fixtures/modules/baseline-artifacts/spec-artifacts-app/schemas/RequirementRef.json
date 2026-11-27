@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-app/RequirementRef.json",
+  "type": "object",
+  "properties": {
+    "id": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-app/RequirementRefId.json"
+    },
+    "kind": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-app/RequirementKind.json"
+    },
+    "source": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-app/ImportedTypeRef.json"
+    },
+    "target": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-app/IxTarget.json"
+    },
+    "line": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-app/LineNumber.json"
+    }
+  },
+  "required": [
+    "id",
+    "kind",
+    "source",
+    "target",
+    "line"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "One row of `## Requirements`: a requirement this composite rolls up. The\nrequirement's own fields belong to the module that owns its type; this record\ncarries only the reference.\n\n`$defs.isoRequirement` is the one cross-package `$ref` in the bundle: the\nrequirement types of `spec-artifacts-iso` this application aggregates. It sits\nin `$defs`, which no property references, because the engine rewrites every\n`$ref` under an imported package into a schema that accepts anything — placed on\n`source` it would weaken `source`, here it only counts the import as used.",
+  "$defs": {
+    "isoRequirement": {
+      "anyOf": [
+        {
+          "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/StR.json"
+        },
+        {
+          "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/US.json"
+        },
+        {
+          "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/FR.json"
+        },
+        {
+          "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/NFR.json"
+        },
+        {
+          "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/IT.json"
+        },
+        {
+          "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/TC.json"
+        }
+      ]
+    }
+  }
+}

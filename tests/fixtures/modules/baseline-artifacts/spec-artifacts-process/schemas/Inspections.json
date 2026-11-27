@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/Inspections.json",
+  "type": "object",
+  "properties": {
+    "id": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/UpperDocId.json"
+    },
+    "title": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/NonEmptyText.json"
+    },
+    "type": {
+      "type": "string",
+      "const": "Inspections"
+    },
+    "provenance": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/Provenance.json"
+    },
+    "inspections": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/InspectionRow.json"
+      },
+      "minItems": 1
+    }
+  },
+  "required": [
+    "id",
+    "title",
+    "type",
+    "provenance",
+    "inspections"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "Inspection record (archetype `Inspections`). An **evidence act**: the\nauthored record of inspection and analysis, the methods that produce no\nsource symbol and so can never be discharged by a test run. A human performed\nthe act, and the record of who, when and against which commit *is* the\nevidence (FR-013)."
+}

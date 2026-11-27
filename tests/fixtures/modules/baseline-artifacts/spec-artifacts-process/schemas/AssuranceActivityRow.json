@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/AssuranceActivityRow.json",
+  "type": "object",
+  "properties": {
+    "activity": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/NonEmptyText.json"
+    },
+    "acceptanceCriterion": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/NonEmptyText.json"
+    },
+    "line": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/LineNumber.json"
+    }
+  },
+  "required": [
+    "activity",
+    "acceptanceCriterion",
+    "line"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "One selected assurance activity and its acceptance criterion."
+}

@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/Story.json",
+  "type": "object",
+  "properties": {
+    "asA": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/NonEmptyText.json",
+      "description": "free text: the role clause."
+    },
+    "iWant": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/NonEmptyText.json",
+      "description": "free text: the need clause."
+    },
+    "soThat": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/NonEmptyText.json",
+      "description": "free text: the value clause."
+    },
+    "section": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/Section.json"
+    }
+  },
+  "required": [
+    "asA",
+    "iWant",
+    "soThat",
+    "section"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "The `## Story` section parsed by the `story` locator's regex (As a / I want / So that)."
+}

@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-app/Provenance.json",
+  "type": "object",
+  "properties": {
+    "path": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-app/NonEmptyText.json",
+      "description": "free text: a corpus-relative filesystem path, whose shape is the checkout's, not this module's."
+    },
+    "sourceIdentity": {
+      "$ref": "https://schemas.agent-ix.org/semantic-core/0.3.2/SemanticId.json"
+    },
+    "digest": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-app/Sha256Digest.json"
+    }
+  },
+  "required": [
+    "path",
+    "digest"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "Where the record came from. `sourceIdentity` is never synthesized (FR-004)."
+}

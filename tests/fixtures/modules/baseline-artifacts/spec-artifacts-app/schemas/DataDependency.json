@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-app/DataDependency.json",
+  "type": "object",
+  "properties": {
+    "id": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-app/DataDependencyId.json"
+    },
+    "name": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-app/NonEmptyText.json"
+    },
+    "source": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-app/ImportedTypeRef.json"
+    },
+    "access": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-app/DataAccessMode.json"
+    },
+    "line": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-app/LineNumber.json"
+    }
+  },
+  "required": [
+    "id",
+    "name",
+    "source",
+    "access",
+    "line"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "One row of `## Data Dependencies`: a typed source the application reads or writes."
+}

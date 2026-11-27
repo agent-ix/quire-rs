@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/Finding.json",
+  "type": "object",
+  "properties": {
+    "id": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/UpperDocId.json"
+    },
+    "title": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/NonEmptyText.json"
+    },
+    "type": {
+      "type": "string",
+      "const": "Finding"
+    },
+    "object": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/ObjectTypeName.json"
+    },
+    "relationships": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/Relationship.json"
+      },
+      "description": "Absent when the author declared none; the frontmatter schemas do not require the key, and the model must not require what the schema does not (FR-011-AC-15)."
+    },
+    "provenance": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/Provenance.json"
+    },
+    "body": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/Section.json",
+      "description": "free text: the whole authored body; the archetype declares no `body_extraction`, because nothing authors one today."
+    }
+  },
+  "required": [
+    "id",
+    "title",
+    "type",
+    "provenance",
+    "body"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "Finding document (archetype `Finding`), a child of `Review`. Deliberately a\ndifferent id namespace from the `FND-` rows inside a SpecReview: the document\nand the row are different things, and one prefix would read as unification."
+}

@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/IntendedUse.json",
+  "type": "object",
+  "properties": {
+    "id": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/IntendedUseId.json"
+    },
+    "title": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/NonEmptyText.json"
+    },
+    "type": {
+      "type": "string",
+      "const": "IntendedUse"
+    },
+    "tool": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/IntendedUseTool.json"
+    },
+    "relationships": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/Relationship.json"
+      }
+    },
+    "provenance": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/Provenance.json"
+    },
+    "purpose": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/Section.json"
+    },
+    "recordsProduced": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/RecordProducedRow.json"
+      }
+    },
+    "whoReliesOnThem": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/Section.json"
+    },
+    "limits": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/Section.json"
+    },
+    "operatingContext": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/Section.json"
+    }
+  },
+  "required": [
+    "id",
+    "title",
+    "type",
+    "tool",
+    "relationships",
+    "provenance",
+    "purpose",
+    "recordsProduced",
+    "whoReliesOnThem",
+    "limits",
+    "operatingContext"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "Supplier-authored account of one package's intended operating use."
+}

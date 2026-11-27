@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/StRId.json",
+  "type": "string",
+  "pattern": "^StR-[0-9]+$",
+  "description": "Stakeholder requirement id (`StR-N`); the frontmatter schema pins the same form."
+}

@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/AnomalyStatus.json",
+  "type": "string",
+  "enum": [
+    "identified",
+    "assessed",
+    "resolved",
+    "closed"
+  ],
+  "description": "Anomaly lifecycle status; the legal moves between members are judged over git history by quoin, not by this model."
+}

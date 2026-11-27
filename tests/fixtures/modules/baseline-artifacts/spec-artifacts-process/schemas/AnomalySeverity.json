@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/AnomalySeverity.json",
+  "type": "string",
+  "enum": [
+    "minor",
+    "major",
+    "critical"
+  ],
+  "description": "A person-assigned anomaly severity. No default and never derived from another field (FR-014)."
+}

@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["id", "title", "type", "status", "safety_impact"],
+  "additionalProperties": true,
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Z]{2,4}-[0-9]+$"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "type": {
+      "const": "Anomaly"
+    },
+    "status": {
+      "enum": ["identified", "assessed", "resolved", "closed"]
+    },
+    "resolution": {
+      "enum": ["fixed", "not-a-defect", "duplicate", "wont-fix"]
+    },
+    "closed_by": {
+      "type": "string"
+    },
+    "severity": {
+      "enum": ["minor", "major", "critical"]
+    },
+    "safety_impact": {
+      "enum": ["unassessed", "none", "impacting"]
+    },
+    "object": {
+      "type": "string"
+    },
+    "relationships": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["target", "type"],
+        "additionalProperties": false,
+        "properties": {
+          "target": { "type": "string", "pattern": "^ix://" },
+          "type": { "type": "string" },
+          "cardinality": { "type": "string" }
+        }
+      }
+    }
+  }
+}

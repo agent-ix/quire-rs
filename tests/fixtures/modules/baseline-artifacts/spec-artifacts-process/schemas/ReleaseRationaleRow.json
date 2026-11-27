@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/ReleaseRationaleRow.json",
+  "type": "object",
+  "properties": {
+    "author": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/NamedText.json"
+    },
+    "rationale": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/NamedText.json"
+    },
+    "line": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/LineNumber.json"
+    }
+  },
+  "required": [
+    "author",
+    "rationale",
+    "line"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "One `## Release Rationale` row (`Author | Rationale`): a named person's\nwritten reason for releasing with the anomaly not fixed (FR-016). It holds no\ndate, commit, release identifier, signature or sign-off."
+}

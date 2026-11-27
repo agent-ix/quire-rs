@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-app/Relationship.json",
+  "type": "object",
+  "properties": {
+    "target": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-app/IxTarget.json"
+    },
+    "type": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-app/EdgeVerb.json"
+    },
+    "cardinality": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-app/Cardinality.json"
+    }
+  },
+  "required": [
+    "target",
+    "type"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "A typed frontmatter edge. Exactly three properties; annotation keys are dropped (FR-004)."
+}

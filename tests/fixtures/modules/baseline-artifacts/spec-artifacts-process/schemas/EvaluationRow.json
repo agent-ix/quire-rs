@@ -1,0 +1,118 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/EvaluationRow.json",
+  "type": "object",
+  "properties": {
+    "id": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/EvaluationId.json"
+    },
+    "rule": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/NonEmptyText.json",
+      "description": "free text: the rule id as authored."
+    },
+    "evidenceSource": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/EvidenceSource.json"
+    },
+    "trigger": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/QueryRef.json"
+    },
+    "method": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/EvaluationMethod.json"
+    },
+    "queryOrRubric": {
+      "type": "string",
+      "description": "A query reference when `method` is `deterministic`, a rubric check reference when `judgement`."
+    },
+    "evaluator": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/EvaluatorKind.json"
+    },
+    "comparator": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/Comparator.json"
+    },
+    "value": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/NumericText.json"
+    },
+    "unit": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/NonEmptyText.json",
+      "description": "free text: the unit of the threshold."
+    },
+    "cadence": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/EvaluationCadence.json"
+    },
+    "line": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/LineNumber.json"
+    }
+  },
+  "required": [
+    "id",
+    "rule",
+    "evidenceSource",
+    "trigger",
+    "method",
+    "queryOrRubric",
+    "evaluator",
+    "comparator",
+    "value",
+    "unit",
+    "cadence",
+    "line"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "One `## Evaluations` row: how a rule is checked. A `deterministic` row names a\nquery reference and is decided by the `evaluator`; a `judgement` row names a\nversioned rubric check, is decided by the `director` or `team-retro`, and never\nruns at cadence `tick`.",
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "method": {
+            "const": "deterministic"
+          }
+        },
+        "required": [
+          "method"
+        ]
+      },
+      "then": {
+        "properties": {
+          "evaluator": {
+            "const": "evaluator"
+          },
+          "queryOrRubric": {
+            "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/QueryRef.json"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "method": {
+            "const": "judgement"
+          }
+        },
+        "required": [
+          "method"
+        ]
+      },
+      "then": {
+        "properties": {
+          "evaluator": {
+            "enum": [
+              "director",
+              "team-retro"
+            ]
+          },
+          "queryOrRubric": {
+            "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/RubricCheckRef.json"
+          },
+          "cadence": {
+            "not": {
+              "const": "tick"
+            }
+          }
+        }
+      }
+    }
+  ]
+}

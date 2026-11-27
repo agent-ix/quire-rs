@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/StandardCode.json",
+  "type": "string",
+  "pattern": "^[a-z0-9][a-z0-9.-]*$",
+  "description": "A `Standard` code: the stable slug referenced from spec frontmatter `standards_alignment[]`."
+}

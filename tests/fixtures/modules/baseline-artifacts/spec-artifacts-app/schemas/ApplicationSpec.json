@@ -1,0 +1,116 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-app/ApplicationSpec.json",
+  "type": "object",
+  "properties": {
+    "id": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-app/ArtifactId.json"
+    },
+    "title": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-app/NonEmptyText.json"
+    },
+    "type": {
+      "type": "string",
+      "const": "ApplicationSpec"
+    },
+    "status": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-app/ArtifactStatus.json"
+    },
+    "relationships": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-app/Relationship.json"
+      }
+    },
+    "provenance": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-app/Provenance.json"
+    },
+    "purpose": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-app/Section.json"
+    },
+    "scope": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-app/Section.json"
+    },
+    "systemOverview": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-app/Section.json"
+    },
+    "structure": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-app/Section.json"
+    },
+    "requirementsArchitecture": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-app/Section.json"
+    },
+    "references": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-app/Section.json"
+    },
+    "fields": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/semantic-core/0.3.2/FieldDecl.json"
+      },
+      "minItems": 1,
+      "description": "The application's identity attributes, declared as one typed row per field\nin `## Properties` (`Field | Type | Multiplicity | Constraints`) or, as the\nalternate form of the same declarations, as one `sysml` fence under the\nsame heading. Each row is a semantic-core `FieldDecl`; no field of it is\nredeclared here (quoin FR-071)."
+    },
+    "boundaries": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-app/Boundary.json"
+      }
+    },
+    "capabilities": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-app/Capability.json"
+      }
+    },
+    "actors": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-app/Actor.json"
+      }
+    },
+    "interfaces": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-app/Interface.json"
+      }
+    },
+    "dataDependencies": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-app/DataDependency.json"
+      }
+    },
+    "renderingRequirements": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-app/RenderingRequirement.json"
+      }
+    },
+    "requirements": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-app/RequirementRef.json"
+      }
+    },
+    "invariants": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/semantic-core/0.3.2/ClauseRef.json"
+      },
+      "minItems": 1
+    }
+  },
+  "required": [
+    "id",
+    "title",
+    "type",
+    "relationships",
+    "provenance",
+    "purpose"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "The record of an `ApplicationSpec` document: an application's identity, its\nboundaries, capabilities, actors, interfaces, data dependencies, UI rendering\nrequirements, and the requirements it aggregates.\n\nThis model describes an application *declaration*, and\nruntime state (deployment, health, uptime) is not modelled: a deployed\ninstance's condition belongs to the platform that runs it, never to the\ndocument that specifies it (FR-002-CON-4)."
+}

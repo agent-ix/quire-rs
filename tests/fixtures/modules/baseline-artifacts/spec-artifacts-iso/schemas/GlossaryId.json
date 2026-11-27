@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/GlossaryId.json",
+  "type": "string",
+  "pattern": "^[A-Z][A-Za-z]{1,3}-[0-9]+$",
+  "description": "Glossary id: a 2..4 letter prefix and a number (`GLO-001`); the frontmatter schema requires only non-empty."
+}

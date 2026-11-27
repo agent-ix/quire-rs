@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/EscapeCause.json",
+  "type": "string",
+  "enum": [
+    "missing-requirement",
+    "wrong-requirement",
+    "correct-requirement-no-evidence",
+    "implementation-bug-despite-evidence"
+  ],
+  "description": "Which layer let a defect through (FR-008). Orthogonal to `Severity`, and the\nonly axis that answers the question. The fourth value is the one to watch: the\nonly cause that does not indict the specification, and the only one a green\nTest Matrix would have called healthy."
+}

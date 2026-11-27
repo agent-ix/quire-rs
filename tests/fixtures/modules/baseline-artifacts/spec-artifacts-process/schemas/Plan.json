@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/Plan.json",
+  "type": "object",
+  "properties": {
+    "id": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/MixedDocId.json"
+    },
+    "title": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/NonEmptyText.json"
+    },
+    "type": {
+      "type": "string",
+      "const": "Plan"
+    },
+    "object": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/ObjectTypeName.json"
+    },
+    "status": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/NonEmptyText.json",
+      "description": "free text: the authored lifecycle word (`active`, `done`); the archetype declares no vocabulary for it."
+    },
+    "relationships": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/Relationship.json"
+      },
+      "description": "Absent when the author declared none; the frontmatter schemas do not require the key, and the model must not require what the schema does not (FR-011-AC-15)."
+    },
+    "provenance": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/Provenance.json"
+    },
+    "body": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/Section.json",
+      "description": "free text: the whole authored body; the archetype declares no `body_extraction`."
+    }
+  },
+  "required": [
+    "id",
+    "title",
+    "type",
+    "provenance",
+    "body"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "Plan record (archetype `Plan`). The authored plan: its scope, its tracks and\nits gates. It carries nothing about an execution of that plan — no start, no\nfinish, no outcome (FR-013)."
+}

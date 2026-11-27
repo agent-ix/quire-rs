@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/DossierProducerIdentity.json",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "const": "quoin"
+    },
+    "version": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/NonEmptyText.json"
+    }
+  },
+  "required": [
+    "name",
+    "version"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "Quoin tool identity written to each generated dossier document."
+}

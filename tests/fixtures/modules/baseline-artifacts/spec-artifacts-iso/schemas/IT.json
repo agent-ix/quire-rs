@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/IT.json",
+  "type": "object",
+  "properties": {
+    "id": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/ITId.json"
+    },
+    "title": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/NonEmptyText.json"
+    },
+    "type": {
+      "type": "string",
+      "const": "IT"
+    },
+    "object": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/ObjectTypeName.json"
+    },
+    "status": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/ArtifactStatus.json"
+    },
+    "relationships": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/Relationship.json"
+      }
+    },
+    "provenance": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/Provenance.json"
+    },
+    "objective": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/Section.json"
+    },
+    "targetIntegration": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/Section.json"
+    },
+    "preconditions": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/Section.json"
+    },
+    "inputs": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/Section.json"
+    },
+    "testProcedure": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/Section.json"
+    },
+    "successCriteria": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/SuccessCriterion.json"
+      },
+      "description": "One per `IT-XXX-SC-NN` token in the procedure; empty when the author declared none (the lint rule is advisory)."
+    },
+    "expectedResults": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/Section.json"
+    },
+    "metadata": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/Section.json"
+    },
+    "dependencies": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/Section.json"
+    },
+    "notes": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/Section.json"
+    },
+    "traceability": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/Section.json"
+    }
+  },
+  "required": [
+    "id",
+    "title",
+    "type",
+    "relationships",
+    "provenance",
+    "objective",
+    "targetIntegration",
+    "preconditions",
+    "inputs",
+    "testProcedure",
+    "successCriteria",
+    "expectedResults"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "Integration test record (archetype `IT`): the test's definition, never its run."
+}

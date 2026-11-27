@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/StandardDocId.json",
+  "type": "string",
+  "pattern": "^[A-Za-z]{2,}-[0-9]+$",
+  "description": "`Standard` document id; its frontmatter schema pins `^[A-Za-z]{2,}-[0-9]+$` (no upper bound on the prefix length)."
+}

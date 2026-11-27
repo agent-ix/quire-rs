@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/SuccessCriterion.json",
+  "type": "object",
+  "properties": {
+    "id": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/SuccessCriterionId.json"
+    },
+    "text": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/NonEmptyText.json",
+      "description": "free text: the criterion statement."
+    },
+    "line": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/LineNumber.json"
+    }
+  },
+  "required": [
+    "id",
+    "text",
+    "line"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "One `IT-XXX-SC-NN` success-criterion token of `## Test Procedure` with the text that follows it on its line."
+}

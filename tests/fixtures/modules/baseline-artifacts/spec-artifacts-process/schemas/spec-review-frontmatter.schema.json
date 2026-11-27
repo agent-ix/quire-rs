@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "id",
+    "title",
+    "type"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Z]{2,4}-[0-9]+$"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "type": {
+      "const": "SpecReview"
+    },
+    "analysis": {
+      "type": "string",
+      "enum": [
+        "base",
+        "failure-domain",
+        "integrity",
+        "dependency",
+        "evidence",
+        "risk-complexity",
+        "scope-boundary",
+        "gap-analysis",
+        "ears-conformance",
+        "architecture-evaluation",
+        "criterion-strength",
+        "code-review",
+        "spec-correctness"
+      ]
+    },
+    "scope": {
+      "type": "string"
+    },
+    "review_set": {
+      "type": "string",
+      "enum": [
+        "base",
+        "all",
+        "subset"
+      ]
+    },
+    "object": {
+      "type": "string"
+    },
+    "relationships": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "target",
+          "type"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "target": {
+            "type": "string",
+            "pattern": "^ix://"
+          },
+          "type": {
+            "type": "string"
+          },
+          "cardinality": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

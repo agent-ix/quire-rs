@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/FeedbackKind.json",
+  "type": "string",
+  "enum": [
+    "comment",
+    "triage"
+  ],
+  "description": "A free-form passage comment, or a decision on a review finding."
+}

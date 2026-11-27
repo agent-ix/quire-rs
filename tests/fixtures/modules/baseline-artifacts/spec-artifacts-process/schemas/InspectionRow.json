@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/InspectionRow.json",
+  "type": "object",
+  "properties": {
+    "id": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/InspectionId.json"
+    },
+    "obligation": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/NonEmptyText.json",
+      "description": "free text: the obligation id or statement the act discharges."
+    },
+    "who": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/NonEmptyText.json",
+      "description": "free text: who performed the inspection."
+    },
+    "commit": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/CommitRef.json"
+    },
+    "verdict": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/Verdict.json"
+    },
+    "note": {
+      "type": "string",
+      "description": "Absent when the author omitted the optional column; never synthesised."
+    },
+    "line": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/LineNumber.json"
+    }
+  },
+  "required": [
+    "id",
+    "obligation",
+    "who",
+    "commit",
+    "verdict",
+    "line"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "One `## Inspections` row: a human evidence act for a method that produces no\nsource symbol. Who performed it, against which commit, with what verdict — the\nrecord *is* the evidence, and it is authored, never transcribed from a run."
+}

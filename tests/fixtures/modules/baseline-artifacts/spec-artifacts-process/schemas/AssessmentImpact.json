@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/AssessmentImpact.json",
+  "type": "string",
+  "enum": [
+    "Affects",
+    "Mitigates",
+    "Introduces",
+    "Unaffected",
+    "None"
+  ],
+  "description": "How the anomaly bears on the row's target. `None` is admitted only on a row of kind `None`."
+}

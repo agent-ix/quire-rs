@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/FeedbackStatus.json",
+  "type": "string",
+  "enum": [
+    "open",
+    "addressed",
+    "resolved"
+  ],
+  "description": "Feedback thread lifecycle. Anchor resolution is computed at load time and is not part of the record."
+}

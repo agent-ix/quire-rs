@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/HeadingRef.json",
+  "type": "object",
+  "properties": {
+    "heading": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/NonEmptyText.json"
+    },
+    "line": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/LineNumber.json"
+    }
+  },
+  "required": [
+    "heading",
+    "line"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "A heading-presence locator's yield: the heading text and its line (master-requirements containers)."
+}

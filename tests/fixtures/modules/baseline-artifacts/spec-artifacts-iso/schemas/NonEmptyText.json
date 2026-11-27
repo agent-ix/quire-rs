@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/NonEmptyText.json",
+  "type": "string",
+  "minLength": 1,
+  "description": "A non-empty string; the base of every prose cell and every name."
+}

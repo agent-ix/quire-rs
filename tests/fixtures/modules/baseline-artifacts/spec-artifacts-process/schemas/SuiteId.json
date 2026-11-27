@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/SuiteId.json",
+  "type": "string",
+  "pattern": "^SUITE-[0-9]+$",
+  "description": "A suite id in a SuiteRegistry. Structured, doc-scoped and never renumbered: everything joins on it."
+}

@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/IntendedUseId.json",
+  "type": "string",
+  "pattern": "^IU-[0-9]{3}$",
+  "description": "IntendedUse document identifier."
+}

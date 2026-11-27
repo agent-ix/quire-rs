@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/VerificationTarget.json",
+  "type": "string",
+  "pattern": "^[A-Za-z0-9]\\S*$",
+  "description": "A fix-verification `Target` token: an acceptance-criterion id or a test-case\nid, beginning with a letter or digit so that `-` and an empty cell are not\nreferences (FR-015). Existence and kind are the engine's reference\ndiagnostics, never part of the record."
+}

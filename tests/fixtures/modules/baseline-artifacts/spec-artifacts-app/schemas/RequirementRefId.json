@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-app/RequirementRefId.json",
+  "type": "string",
+  "pattern": "^(StR|US|FR|NFR|IT|TC)-[0-9]+$",
+  "description": "An aggregated requirement's own id, in the ISO artifact-type forms."
+}

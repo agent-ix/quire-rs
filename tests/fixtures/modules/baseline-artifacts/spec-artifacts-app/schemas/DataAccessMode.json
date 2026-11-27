@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-app/DataAccessMode.json",
+  "type": "string",
+  "enum": [
+    "read",
+    "write",
+    "read_write"
+  ],
+  "description": "How the application touches a data dependency."
+}

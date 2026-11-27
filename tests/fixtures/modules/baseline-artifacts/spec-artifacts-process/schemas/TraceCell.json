@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/TraceCell.json",
+  "type": "object",
+  "properties": {
+    "tokens": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/TraceToken.json"
+      }
+    },
+    "noTrace": {
+      "type": "boolean"
+    },
+    "note": {
+      "type": "string",
+      "description": "free text: a trailing parenthesised remark, verbatim."
+    }
+  },
+  "required": [
+    "tokens",
+    "noTrace"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "A `Traces To` cell after the mapping expands its two shorthands. `noTrace` is\nthe explicit `-` form a retired row writes: severing the edge is precisely the\nact of retiring, and an empty list with no flag would be indistinguishable\nfrom a cell nobody filled in."
+}

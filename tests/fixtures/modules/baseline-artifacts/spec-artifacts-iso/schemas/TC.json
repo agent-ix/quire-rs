@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/TC.json",
+  "type": "object",
+  "properties": {
+    "id": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/TCId.json"
+    },
+    "title": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/NonEmptyText.json"
+    },
+    "type": {
+      "type": "string",
+      "const": "TC"
+    },
+    "object": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/ObjectTypeName.json"
+    },
+    "status": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/ArtifactStatus.json"
+    },
+    "relationships": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/Relationship.json"
+      }
+    },
+    "provenance": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/Provenance.json"
+    },
+    "description": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/Section.json"
+    },
+    "testProcedure": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/Section.json"
+    },
+    "expectedResults": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/Section.json"
+    }
+  },
+  "required": [
+    "id",
+    "title",
+    "type",
+    "relationships",
+    "provenance",
+    "description",
+    "testProcedure",
+    "expectedResults"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "Test case record (archetype `TC`). `expectedResults` is the definition of what\na passing run shows; execution results (pass/fail, run time, evidence) are\nnot modelled here or anywhere in this module."
+}

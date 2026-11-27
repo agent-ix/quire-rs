@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/AnalysisKind.json",
+  "type": "string",
+  "enum": [
+    "base",
+    "failure-domain",
+    "integrity",
+    "dependency",
+    "evidence",
+    "risk-complexity",
+    "scope-boundary",
+    "gap-analysis",
+    "ears-conformance",
+    "architecture-evaluation",
+    "criterion-strength",
+    "code-review",
+    "spec-correctness"
+  ],
+  "description": "The analysis a SpecReview carries; the enum its frontmatter schema declares."
+}

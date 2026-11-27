@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/FindingRowId.json",
+  "type": "string",
+  "pattern": "^FND-[0-9]+$",
+  "description": "A findings ROW id inside a SpecReview (`FND-1`). Deliberately not the `Finding` document namespace, which is `FIND-` (FR-008, FR-013)."
+}

@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/ValidationCriterionId.json",
+  "type": "string",
+  "pattern": "^StR-[0-9]+-VC-[0-9]+$",
+  "description": "Validation-criterion row id: `<StR id>-VC-N`, the locator `id_pattern`."
+}

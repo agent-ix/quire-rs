@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/Verification.json",
+  "type": "object",
+  "properties": {
+    "method": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/NonEmptyText.json",
+      "description": "free text: on FR/NFR this is the Verification cell, owned by spec-artifacts-process's lint rule (ISO 29148 methods plus its catalog method ids); on StR this is the Validation cell, owned by this module's advisory `vc-validation-method` rule (the four ISO 29148 methods). A schema that closed the vocabulary would reject the corpus it describes."
+    },
+    "testRefs": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/TestCaseRef.json"
+      }
+    },
+    "annotation": {
+      "type": "string",
+      "description": "free text: the parenthesized remainder of the cell, verbatim, so the split loses nothing the author wrote."
+    }
+  },
+  "required": [
+    "method",
+    "testRefs"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "A verification or validation cell split by the `typed-table` mapping. The\nskeletons author a plain cell — `Test` is `method: Test`, `testRefs: []`,\nno `annotation`. A cell still carrying parentheses splits into `method`,\n`annotation` (the text between the first `(` and the last `)` verbatim, so\nno byte of the authored cell is dropped), and `testRefs` (the `TC-nnn`\ntokens found in `annotation`). The split keeps parsing that shape for a\ncaller that still authors one, but a criterion binds to its tests by\ncriterion id, not a cell annotation."
+}
