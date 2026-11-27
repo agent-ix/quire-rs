@@ -26,7 +26,7 @@
       ],
       "additionalProperties": true
     },
-    "document": "---\nid: OBJECTIVE-001\ntitle: Synthetic delivery objective\ntype: doc\nobject: objective\n---\n# Synthetic delivery objective\n\n## Properties\n\n| Field | Type | Multiplicity | Constraints |\n|---|---|---|---|\n| objective_id | UUID | 1..1 | identity |\n| horizon | Timestamp | 1..1 | |\n| baseline_hours | Integer [h] | 1..1 | min: 0 |\n| target_hours | Integer [h] | 1..1 | min: 0 |\n\n## Invariants\n\n### ImprovesBaseline\n\n```quire\nself.target_hours < self.baseline_hours\n```\n",
+    "document": "---\nid: OBJECTIVE-001\ntitle: Synthetic delivery objective\ntype: doc\nobject: objective\n---\n# Synthetic delivery objective\n\n## Properties\n\n| Field | Type | Multiplicity | Constraints |\n|---|---|---|---|\n| objective_id | UUID | 1..1 | identity |\n| horizon | Timestamp | 1..1 | |\n| baseline_hours | Integer [h] | 1..1 | min: 0 |\n| target_hours | Integer [h] | 1..1 | min: 0 |\n\n## Invariants\n\nThe objective declares its target-improvement condition.\n\n### ImprovesBaseline\n\n```quire\nself.target_hours < self.baseline_hours\n```\n",
     "bundle_package": "acme/objectives"
   },
   "expect": {
