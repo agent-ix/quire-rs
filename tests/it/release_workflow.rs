@@ -27,6 +27,17 @@ fn workflow(name: &str) -> Value {
         .unwrap_or_else(|error| panic!("parse workflow {}: {error}", path.display()))
 }
 
+fn shared_consumer_workflow() -> Value {
+    // Snapshot of agent-ix/engineering-assurance v0.9.0 at
+    // 0eb172e712f812cf456e89af14de74bba303a0fc, the consumer pin used here.
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/engineering-assurance-release-attestation-v0.9.0.yml");
+    let source = fs::read_to_string(&path)
+        .unwrap_or_else(|error| panic!("read shared workflow {}: {error}", path.display()));
+    serde_yaml::from_str(&source)
+        .unwrap_or_else(|error| panic!("parse shared workflow {}: {error}", path.display()))
+}
+
 fn events(document: &Value) -> &Mapping {
     document["on"]
         .as_mapping()
@@ -101,10 +112,14 @@ fn tc_2262_tag_build_calls_wheels_without_publishing() {
 fn tc_2263_tag_attestation_calls_shared_release_workflow() {
     let tag_attestation = workflow("tag-attestation.yml");
     let attest = &tag_attestation["jobs"]["attest"];
-    assert!(attest["uses"]
-        .as_str()
-        .expect("tag workflow calls the shared attestation workflow")
-        .starts_with("agent-ix/engineering-assurance/.github/workflows/release-attestation.yml@"));
+    assert!(
+        attest["uses"]
+            .as_str()
+            .expect("tag workflow calls the shared attestation workflow")
+            .starts_with(
+                "agent-ix/engineering-assurance/.github/workflows/release-attestation.yml@"
+            )
+    );
 }
 
 #[trace("FR-095-AC-1")]
@@ -121,9 +136,11 @@ fn tc_2229_tag_workflow_runs_and_uploads_the_declared_release_suite() {
     let evidence_steps = tag_attestation["jobs"]["release-evidence"]["steps"]
         .as_sequence()
         .expect("release evidence job has steps");
-    assert!(!evidence_steps
-        .iter()
-        .any(|step| step["run"].as_str() == Some("make evidence")));
+    assert!(
+        !evidence_steps
+            .iter()
+            .any(|step| step["run"].as_str() == Some("make evidence"))
+    );
     let wait_index = evidence_steps
         .iter()
         .position(|step| {
@@ -164,21 +181,29 @@ fn tc_2232_attestation_waits_for_the_retained_evidence_job() {
     let needs = tag_attestation["jobs"]["attest"]["needs"]
         .as_sequence()
         .expect("attestation job declares prerequisites");
-    assert!(needs
-        .iter()
-        .any(|job| job.as_str() == Some("release-evidence")));
-    assert!(needs
-        .iter()
-        .any(|job| job.as_str() == Some("release-artifacts")));
+    assert!(
+        needs
+            .iter()
+            .any(|job| job.as_str() == Some("release-evidence"))
+    );
+    assert!(
+        needs
+            .iter()
+            .any(|job| job.as_str() == Some("release-artifacts"))
+    );
     let steps = tag_attestation["jobs"]["release-evidence"]["steps"]
         .as_sequence()
         .expect("release evidence job has steps");
-    assert!(steps
-        .iter()
-        .any(|step| step["uses"].as_str() == Some("actions/upload-artifact@v7")));
-    assert!(steps.iter().any(|step| step["run"]
-        .as_str()
-        .is_some_and(|run| { run.contains("release_evidence_asset_missing_or_unavailable") })));
+    assert!(
+        steps
+            .iter()
+            .any(|step| step["uses"].as_str() == Some("actions/upload-artifact@v7"))
+    );
+    assert!(steps.iter().any(|step| {
+        step["run"]
+            .as_str()
+            .is_some_and(|run| run.contains("release_evidence_asset_missing_or_unavailable"))
+    }));
 }
 
 #[trace("FR-095-AC-3")]
@@ -237,11 +262,13 @@ fn tc_2234_make_evidence_records_fresh_suite_run_for_retention() {
     assert!(target.contains("--tool 'ix-trace-run 0.1.0+8a0ec153'"));
 
     let workflow = workflow("tag-attestation.yml");
-    assert!(!workflow["jobs"]["release-evidence"]["steps"]
-        .as_sequence()
-        .expect("release evidence job has steps")
-        .iter()
-        .any(|step| step["run"].as_str() == Some("make evidence")));
+    assert!(
+        !workflow["jobs"]["release-evidence"]["steps"]
+            .as_sequence()
+            .expect("release evidence job has steps")
+            .iter()
+            .any(|step| step["run"].as_str() == Some("make evidence"))
+    );
 }
 
 const TERRA_RUN_PATH: &str = "runs/SUITE-001/2026-11-26T00~3A00~3A00~2E123456789Z.json";
@@ -258,21 +285,28 @@ fn terra_bundle_fixture(
     fs::create_dir_all(source_evidence.join("runs/SUITE-001")).expect("create source evidence");
     fs::create_dir_all(bundle_root.join("runs/SUITE-001")).expect("create bundle evidence");
 
-    let suite_registry = b"id: SUR-001\ntitle: release suites\n";
-    let committed_bindings = b"{\"bindings\":[],\"schemaVersion\":1}\n";
-    fs::write(source_evidence.join("suites.md"), suite_registry).expect("write suite registry");
-    fs::write(source_evidence.join("bindings.json"), committed_bindings)
-        .expect("write committed bindings");
-
-    let generated_bindings = serde_json::json!({
+    let suite_registry = b"id: SUR-001\ntitle: release suites\n\nFor the release Test Result, SUITE-001 SHALL bind each acceptance criterion in Quire-rs FR-095 (AC-1 through AC-6).\n";
+    let required_bindings = (1..=6)
+        .map(|criterion| {
+            serde_json::json!({
+                "obligation": format!("FR-095-AC-{criterion}"),
+                "statementHashAtBinding": "sha256:statement",
+                "suite": "SUITE-001",
+                "symbols": [format!("tests::tc_{}", 2228 + criterion)]
+            })
+        })
+        .collect::<Vec<_>>();
+    let all_bindings = serde_json::json!({
         "schemaVersion": 1,
-        "bindings": [{
-            "obligation": "FR-095-AC-1",
-            "statementHashAtBinding": "sha256:statement",
-            "suite": "SUITE-001",
-            "symbols": ["tests::tc_2229"]
-        }]
+        "bindings": required_bindings
     });
+    let committed_bindings =
+        serde_json::to_vec(&all_bindings).expect("serialize committed bindings");
+    let generated_bindings =
+        serde_json::to_vec_pretty(&all_bindings).expect("serialize generated bindings");
+    fs::write(source_evidence.join("suites.md"), suite_registry).expect("write suite registry");
+    fs::write(source_evidence.join("bindings.json"), &committed_bindings)
+        .expect("write committed bindings");
     let run = serde_json::json!({
         "schemaVersion": 1,
         "suite": "SUITE-001",
@@ -293,14 +327,13 @@ fn terra_bundle_fixture(
     fs::write(bundle_root.join("suites.md"), suite_registry).expect("write bundle suite registry");
     fs::write(
         bundle_root.join("bindings.committed.json"),
-        committed_bindings,
+        &committed_bindings,
     )
     .expect("write bundle committed bindings");
-    fs::write(
-        bundle_root.join("bindings.json"),
-        serde_json::to_vec_pretty(&generated_bindings).expect("serialize generated bindings"),
-    )
-    .expect("write generated bindings");
+    fs::write(source_evidence.join("bindings.json"), &generated_bindings)
+        .expect("write generated source bindings");
+    fs::write(bundle_root.join("bindings.json"), &generated_bindings)
+        .expect("write generated bindings");
     fs::write(
         bundle_root.join("release-evidence.json"),
         serde_json::to_vec_pretty(&manifest).expect("serialize manifest"),
@@ -346,6 +379,32 @@ fn terra_bundle_fixture(
         .expect("run tar to create fixture archive");
     assert!(archive.success(), "fixture tar command succeeds");
     (source_root, archive_path, bundle_root)
+}
+
+fn rearchive_terra_bundle(bundle_root: &std::path::Path, archive_path: &std::path::Path) {
+    let hashes = Command::new("python3")
+        .arg("-c")
+        .arg("import hashlib,json,sys; from pathlib import Path; root=Path(sys.argv[1]); p=root/'release-evidence.json'; m=json.loads(p.read_text()); m['sha256']={f.relative_to(root).as_posix():hashlib.sha256(f.read_bytes()).hexdigest() for f in root.rglob('*') if f.is_file() and f!=p}; p.write_text(json.dumps(m))")
+        .arg(bundle_root)
+        .status()
+        .expect("rehash exact Terra fixture payloads");
+    assert!(hashes.success(), "fixture payload hashes are refreshed");
+    let archived = Command::new("tar")
+        .arg("-czf")
+        .arg(archive_path)
+        .arg("-C")
+        .arg(bundle_root)
+        .args([
+            "release-evidence.json",
+            "suites.md",
+            "bindings.committed.json",
+            "bindings.json",
+            "junit.xml",
+            TERRA_RUN_PATH,
+        ])
+        .status()
+        .expect("rebuild Terra fixture archive");
+    assert!(archived.success(), "tampered fixture is rearchived");
 }
 
 #[trace("FR-095-AC-4")]
@@ -897,5 +956,179 @@ fn release_evidence_refuses_retired_or_unknown_producers() {
             verified
         );
         assert!(!output.exists());
+    }
+}
+
+#[trace("FR-095-AC-6")]
+#[test]
+fn tc_2245_missing_required_release_binding_is_refused_by_package_and_verifier() {
+    let root = tempfile::tempdir().expect("create fixture root");
+    let commit = "e".repeat(40);
+    let (source, archive, bundle) = terra_bundle_fixture(root.path(), &commit, "pass");
+
+    let generated_path = bundle.join("bindings.json");
+    let mut generated: serde_json::Value =
+        serde_json::from_slice(&fs::read(&generated_path).expect("read generated bindings"))
+            .expect("parse generated bindings");
+    generated["bindings"]
+        .as_array_mut()
+        .expect("binding list")
+        .retain(|binding| binding["obligation"] != "FR-095-AC-5");
+    let generated_bytes =
+        serde_json::to_vec_pretty(&generated).expect("serialize missing-binding fixture");
+    fs::write(&generated_path, &generated_bytes).expect("write missing-binding bundle");
+    fs::write(source.join("spec/evidence/bindings.json"), &generated_bytes)
+        .expect("write missing generated registry for packaging");
+    rearchive_terra_bundle(&bundle, &archive);
+
+    let evidence = source.join("spec/evidence");
+    let package =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("scripts/package_release_evidence.py");
+    let rejected_archive = root.path().join("missing-ac5.tar.gz");
+    let packaged = Command::new("python3")
+        .arg(package)
+        .arg("--source-root")
+        .arg(&source)
+        .arg("--committed-bindings")
+        .arg(bundle.join("bindings.committed.json"))
+        .arg("--run-record")
+        .arg(evidence.join(TERRA_RUN_PATH))
+        .arg("--junit-results")
+        .arg(bundle.join("junit.xml"))
+        .args([
+            "--expected-tag",
+            "v0.63.3",
+            "--expected-commit",
+            &commit,
+            "--tag-created-at",
+            "1795564800",
+        ])
+        .arg("--archive")
+        .arg(&rejected_archive)
+        .output()
+        .expect("run package validator against missing binding");
+    assert!(
+        !packaged.status.success(),
+        "packager refuses a missing AC-5 binding"
+    );
+    assert!(
+        String::from_utf8_lossy(&packaged.stderr).contains("FR-095-AC-5"),
+        "{:?}",
+        packaged
+    );
+    assert!(
+        !rejected_archive.exists(),
+        "invalid binding is not packaged"
+    );
+
+    let output = root.path().join("verified-missing-ac5");
+    let verifier =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("scripts/verify_release_evidence.py");
+    let verified = Command::new("python3")
+        .arg(verifier)
+        .arg("--archive")
+        .arg(&archive)
+        .arg("--source-root")
+        .arg(&source)
+        .args([
+            "--expected-tag",
+            "v0.63.3",
+            "--expected-commit",
+            &commit,
+            "--tag-created-at",
+            "1795564800",
+        ])
+        .arg("--output-dir")
+        .arg(&output)
+        .output()
+        .expect("run release verifier against missing binding");
+    assert!(
+        !verified.status.success(),
+        "verifier refuses a missing AC-5 binding"
+    );
+    assert!(
+        String::from_utf8_lossy(&verified.stderr).contains("FR-095-AC-5"),
+        "{:?}",
+        verified
+    );
+    assert!(!output.exists(), "invalid evidence is not extracted");
+}
+
+#[trace("FR-095-AC-5")]
+#[test]
+fn tc_2230_shared_consumer_refuses_absent_artifact_and_empty_evidence_root() {
+    let caller = workflow("tag-attestation.yml");
+    assert_eq!(caller["jobs"]["attest"]["with"]["ea_tooling_tag"], "v0.9.0");
+
+    let consumer = shared_consumer_workflow();
+    let verify = &consumer["jobs"]["verify"];
+    let steps = verify["steps"]
+        .as_array()
+        .expect("consumer verification steps");
+    let download = steps
+        .iter()
+        .find(|step| step["id"] == "retained-evidence")
+        .expect("consumer downloads the optional evidence artifact");
+    assert_eq!(download["continue-on-error"], true);
+    assert_eq!(download["with"]["path"], "release-evidence");
+
+    let absent = steps
+        .iter()
+        .find(|step| step["name"] == "Refuse when no retained release evidence store exists")
+        .expect("missing artifact fails closed");
+    assert_eq!(absent["if"], "steps.retained-evidence.outcome == 'failure'");
+    let empty = steps
+        .iter()
+        .find(|step| step["name"] == "Refuse an empty retained release evidence artifact")
+        .expect("missing evidence root fails closed");
+    let quoin = steps
+        .iter()
+        .position(|step| {
+            step["name"] == "Validate the retained evidence store with the Quoin exporter"
+        })
+        .expect("consumer validates evidence only after the absent-root guards");
+    let empty_index = steps
+        .iter()
+        .position(|step| step["name"] == "Refuse an empty retained release evidence artifact")
+        .expect("empty root guard has an index");
+    assert!(empty_index < quoin);
+    assert_eq!(consumer["jobs"]["attest"]["needs"], "verify");
+
+    for (name, script, create_empty_root) in [
+        (
+            "absent-artifact",
+            absent["run"]
+                .as_str()
+                .expect("absent artifact refusal script"),
+            false,
+        ),
+        (
+            "empty-root",
+            empty["run"].as_str().expect("empty root refusal script"),
+            true,
+        ),
+    ] {
+        let root = tempfile::tempdir().expect("create isolated consumer workspace");
+        if create_empty_root {
+            fs::create_dir(root.path().join("release-evidence"))
+                .expect("create empty downloaded evidence root");
+        }
+        let output = Command::new("bash")
+            .args(["-euo", "pipefail", "-c", script])
+            .current_dir(root.path())
+            .output()
+            .expect("execute the production consumer guard script");
+        assert!(!output.status.success(), "{name} must fail before export");
+        let combined = format!(
+            "{}{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert!(
+            combined.contains("no_retained_evidence_store"),
+            "{combined}"
+        );
+        assert!(!root.path().join("test-result.json").exists());
+        assert!(!root.path().join("attestation-inputs").exists());
     }
 }
