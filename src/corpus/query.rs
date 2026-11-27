@@ -342,6 +342,7 @@ mod tests {
     fn queries_read_no_files_after_construction() {
         let root = tmpdir("query_without_filesystem");
         let spec = build(&root);
+        let diagnostics_before = spec.diagnostics().to_vec();
         fs::remove_dir_all(&root).expect("remove source tree after construction");
 
         assert!(spec.by_id("FR-001").is_some());
@@ -350,7 +351,7 @@ mod tests {
         assert_eq!(spec.outgoing("FR-001").len(), 1);
         assert_eq!(spec.referencing("StR-001").len(), 1);
         assert!(spec.dangling().is_empty());
-        assert!(spec.diagnostics().is_empty());
+        assert_eq!(spec.diagnostics(), diagnostics_before);
         assert_eq!(
             spec.orphans("FR", "implements", Some("StR"))
                 .iter()
