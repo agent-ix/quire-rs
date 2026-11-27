@@ -11,6 +11,7 @@ mod audit_table;
 mod bundle_validate;
 mod clause_publishable;
 mod combinatorial;
+mod corpus_walk;
 mod corpus_case;
 mod corpus_cases;
 mod corpus_recall;
