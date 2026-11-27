@@ -52,6 +52,38 @@ proptest! {
     }
 }
 
+#[trace("NFR-015-AC-4")]
+#[test]
+fn thousand_document_walk_is_sorted_and_equal_at_one_and_eight_threads() {
+    let root = tempfile::tempdir().expect("create corpus root");
+    for index in 0..1_000 {
+        let path = root.path().join(format!("FR-{index:04}.md"));
+        std::fs::write(
+            path,
+            format!("---\nid: FR-{index:04}\ntype: FR\n---\n# Requirement {index}\n"),
+        )
+        .expect("write corpus document");
+    }
+
+    let one_thread = rayon::ThreadPoolBuilder::new()
+        .num_threads(1)
+        .build()
+        .expect("build one-thread pool")
+        .install(|| quire_rs::load_repo(root.path()));
+    let eight_threads = rayon::ThreadPoolBuilder::new()
+        .num_threads(8)
+        .build()
+        .expect("build eight-thread pool")
+        .install(|| quire_rs::load_repo(root.path()));
+
+    assert_eq!(one_thread.documents.len(), 1_000);
+    assert!(one_thread
+        .documents
+        .windows(2)
+        .all(|pair| pair[0].path < pair[1].path));
+    assert_eq!(one_thread, eight_threads);
+}
+
 const FR_DOC: &str = "---\nid: FR-001\ntitle: Determinism\ntype: FR\n---\n\n\
 ## Description\n\nThe engine is deterministic.\n\n\
 ## Specification\n\nGiven identical input it produces identical output.\n\n\
