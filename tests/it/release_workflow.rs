@@ -89,10 +89,11 @@ fn tc_2261_tag_attestation_triggers_only_on_version_tags() {
     let tag_events = events(&tag_attestation);
     assert_eq!(
         tag_events.len(),
-        1,
-        "tag workflow is independent of manual release"
+        2,
+        "direct tag push remains available while exposing reusable workflow_call"
     );
     assert_eq!(event(tag_events, "push")["tags"][0].as_str(), Some("v*"));
+    assert!(tag_events.contains_key(Value::String("workflow_call".to_owned())));
 }
 
 #[trace("FR-093-AC-5")]
@@ -1058,7 +1059,12 @@ fn tc_2245_missing_required_release_binding_is_refused_by_package_and_verifier()
 #[test]
 fn tc_2230_shared_consumer_refuses_absent_artifact_and_empty_evidence_root() {
     let caller = workflow("tag-attestation.yml");
-    assert_eq!(caller["jobs"]["attest"]["with"]["ea_tooling_tag"], "v0.9.0");
+    assert!(
+        caller["jobs"]["attest"]["with"]["ea_tooling_tag"]
+            .as_str()
+            .expect("pinned EA consumer version")
+            .contains("v0.9.0")
+    );
 
     let consumer = shared_consumer_workflow();
     let verify = &consumer["jobs"]["verify"];
@@ -1131,4 +1137,70 @@ fn tc_2230_shared_consumer_refuses_absent_artifact_and_empty_evidence_root() {
         assert!(!root.path().join("test-result.json").exists());
         assert!(!root.path().join("attestation-inputs").exists());
     }
+}
+
+#[trace("FR-095-AC-7")]
+#[test]
+fn tc_2246_reusable_release_workflow_has_tag_guards_and_typed_inputs() {
+    let tag_attestation = workflow("tag-attestation.yml");
+    let call = event(events(&tag_attestation), "workflow_call");
+    let inputs = call["inputs"].as_mapping().expect("workflow_call inputs");
+    for name in [
+        "run_wheels",
+        "release_artifact_name",
+        "evidence_asset_name",
+        "evidence_artifact_name",
+        "ea_tooling_tag",
+        "quoin_tooling_tag",
+    ] {
+        assert!(
+            inputs.contains_key(Value::String(name.to_owned())),
+            "missing reusable input {name}"
+        );
+    }
+    assert_eq!(inputs["run_wheels"]["type"], "boolean");
+    for name in [
+        "release_artifact_name",
+        "evidence_asset_name",
+        "evidence_artifact_name",
+        "ea_tooling_tag",
+        "quoin_tooling_tag",
+    ] {
+        assert_eq!(inputs[name]["type"], "string");
+    }
+    for job in ["build", "release-artifacts"] {
+        let guard = tag_attestation["jobs"][job]["if"]
+            .as_str()
+            .expect("wheel job tag and reuse guard");
+        assert!(guard.contains("inputs.run_wheels"));
+        assert!(guard.contains("github.repository == 'agent-ix/quire-rs'"));
+        assert!(guard.contains("github.workflow_ref"));
+        assert!(guard.contains("startsWith(github.ref, 'refs/tags/v')"));
+    }
+    for job in ["release-evidence", "attest"] {
+        assert!(
+            tag_attestation["jobs"][job]["if"]
+                .as_str()
+                .expect("release evidence jobs are tag-only")
+                .contains("startsWith(github.ref, 'refs/tags/v')")
+        );
+    }
+}
+
+#[trace("FR-095-AC-8")]
+#[test]
+fn tc_2247_adoption_how_to_calls_pinned_workflow_for_attached_release_evidence() {
+    let how_to = fs::read_to_string(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("docs/how-to-adopt-quoin-release-evidence.md"),
+    )
+    .expect("read release evidence adoption how-to");
+    assert!(how_to.contains("agent-ix/quire-rs/.github/workflows/tag-attestation.yml@"));
+    assert!(how_to.contains("tags:"));
+    assert!(how_to.contains("release-evidence.tar.gz"));
+    assert!(how_to.contains("run_wheels: false"));
+    assert!(how_to.contains("release_artifact_name:"));
+    assert!(how_to.contains("evidence_asset_name:"));
+    assert!(how_to.contains("evidence_artifact_name:"));
+    assert!(!how_to.contains("copy .github/workflows/tag-attestation.yml"));
 }
