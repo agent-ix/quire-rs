@@ -2408,7 +2408,7 @@ fn unit_rows_resolve_dimensions_and_targets_with_canonical_rationals() {
     );
 
     let mut own_and_imported = imported.clone();
-    own_and_imported["markdown"] = json!(md.replace("| Time | s |", "| Time | s |"));
+    own_and_imported["markdown"] = json!(md);
     own_and_imported["bundle"]["artifacts"] = json!([
         { "id": "Time", "object": "dimension", "operations": [] },
         { "id": "s", "object": "unit", "operations": [] }

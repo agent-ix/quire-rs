@@ -102,14 +102,10 @@ fn tc_2262_tag_build_calls_wheels_without_publishing() {
 fn tc_2263_tag_attestation_calls_shared_release_workflow() {
     let tag_attestation = workflow("tag-attestation.yml");
     let attest = &tag_attestation["jobs"]["attest"];
-    assert!(
-        attest["uses"]
-            .as_str()
-            .expect("tag workflow calls the shared attestation workflow")
-            .starts_with(
-                "agent-ix/engineering-assurance/.github/workflows/release-attestation.yml@"
-            )
-    );
+    assert!(attest["uses"]
+        .as_str()
+        .expect("tag workflow calls the shared attestation workflow")
+        .starts_with("agent-ix/engineering-assurance/.github/workflows/release-attestation.yml@"));
 }
 
 #[trace("FR-095-AC-1")]
@@ -166,24 +162,18 @@ fn tc_2232_attestation_waits_for_the_retained_evidence_job() {
     let needs = tag_attestation["jobs"]["attest"]["needs"]
         .as_sequence()
         .expect("attestation job declares prerequisites");
-    assert!(
-        needs
-            .iter()
-            .any(|job| job.as_str() == Some("release-evidence"))
-    );
-    assert!(
-        needs
-            .iter()
-            .any(|job| job.as_str() == Some("release-artifacts"))
-    );
+    assert!(needs
+        .iter()
+        .any(|job| job.as_str() == Some("release-evidence")));
+    assert!(needs
+        .iter()
+        .any(|job| job.as_str() == Some("release-artifacts")));
     let steps = tag_attestation["jobs"]["release-evidence"]["steps"]
         .as_sequence()
         .expect("release evidence job has steps");
-    assert!(
-        steps
-            .iter()
-            .any(|step| step["uses"].as_str() == Some("actions/upload-artifact@v7"))
-    );
+    assert!(steps
+        .iter()
+        .any(|step| step["uses"].as_str() == Some("actions/upload-artifact@v7")));
     assert!(steps.iter().any(|step| {
         step["run"]
             .as_str()
@@ -1242,12 +1232,10 @@ fn tc_2230_attestation_requires_successful_evidence_generation_and_upload() {
         tag_attestation["jobs"]["attest"]["needs"],
         serde_yaml::from_str::<Value>("[release-artifacts, release-evidence]").unwrap()
     );
-    assert!(
-        tag_attestation["jobs"]["attest"]["if"]
-            .as_str()
-            .expect("attestation fails closed")
-            .contains("needs.release-evidence.result == 'success'")
-    );
+    assert!(tag_attestation["jobs"]["attest"]["if"]
+        .as_str()
+        .expect("attestation fails closed")
+        .contains("needs.release-evidence.result == 'success'"));
 }
 
 #[trace("FR-095-AC-7")]
@@ -1287,12 +1275,10 @@ fn tc_2246_reusable_release_workflow_has_tag_guards_and_typed_inputs() {
         assert!(guard.contains("startsWith(github.ref, 'refs/tags/v')"));
     }
     for job in ["release-evidence", "attest"] {
-        assert!(
-            tag_attestation["jobs"][job]["if"]
-                .as_str()
-                .expect("release evidence jobs are tag-only")
-                .contains("startsWith(github.ref, 'refs/tags/v')")
-        );
+        assert!(tag_attestation["jobs"][job]["if"]
+            .as_str()
+            .expect("release evidence jobs are tag-only")
+            .contains("startsWith(github.ref, 'refs/tags/v')"));
     }
     assert_eq!(
         tag_attestation["jobs"]["attest"]["with"]["evidence_artifact"],

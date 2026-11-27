@@ -1187,10 +1187,7 @@ fn json_to_py<'py>(py: Python<'py>, v: &Value) -> PyResult<Bound<'py, PyAny>> {
 }
 
 #[implements("FR-075-AC-17", "FR-075-AC-20")]
-fn decimal_integer_to_py<'py>(
-    py: Python<'py>,
-    number_text: &str,
-) -> PyResult<Bound<'py, PyAny>> {
+fn decimal_integer_to_py<'py>(py: Python<'py>, number_text: &str) -> PyResult<Bound<'py, PyAny>> {
     const DECIMAL_CHUNK_DIGITS: usize = 9;
 
     let negative = number_text.starts_with('-');
