@@ -533,7 +533,7 @@ f() { :; }
     assert_eq!(got, ["not-in-tag-channel", "function-not-evidence"]);
 }
 
-#[trace("FR-051-AC-45")]
+#[trace("FR-051-AC-45", "FR-051-CON-2")]
 // an unparseable file is a per-file diagnostic naming the line; siblings extract.
 #[test]
 fn tc2112_unparseable_file() {
