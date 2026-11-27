@@ -3,9 +3,11 @@ use std::fs;
 use std::path::Path;
 
 use ix_trace_rs::trace;
+use quire_rs::symbols::{extract_tree_excluding, trace as symbol_trace};
 use quire_rs::{
-    check_plain_language, check_plain_language_at, extract, parse_document, update_section,
-    validate_document_in_registry, ExtractionDsl, PlainLanguageProfile, Registry,
+    check_plain_language, check_plain_language_at, check_plain_language_repo_load, extract,
+    parse_document, update_section, validate_document_in_registry, ExtractionDsl,
+    PlainLanguageProfile, PlainLanguageReport, Registry, RepoLoad, Spec,
 };
 use tempfile::tempdir;
 
@@ -93,6 +95,20 @@ fn profile_merge_is_first_wins_and_has_no_default() {
     assert!(registry.plain_language_profile("missing").is_none());
 }
 
+#[trace("FR-074-CON-2")]
+#[test]
+fn missing_profile_has_no_default_and_checks_require_explicit_profile() {
+    let registry =
+        Registry::from_inline_parts(b"name: docs\narchetypes: []\n", &BTreeMap::new()).unwrap();
+    assert!(registry.plain_language_profile("default").is_none());
+
+    let _: fn(&Path, &str, &PlainLanguageProfile) -> Vec<quire_rs::PlainLanguageFinding> =
+        check_plain_language;
+    let _: fn(&Path, &str, &PlainLanguageProfile) -> PlainLanguageReport = check_plain_language_at;
+    let _: fn(RepoLoad, &str, &PlainLanguageProfile) -> PlainLanguageReport =
+        check_plain_language_repo_load;
+}
+
 #[trace("FR-074-AC-9")]
 #[test]
 fn batch_report_accounts_for_clean_empty_and_non_documents() {
@@ -144,7 +160,7 @@ fn batch_report_accounts_for_clean_empty_and_non_documents() {
     assert_eq!(empty.skipped_inputs[0].reason, "no-readable-prose");
 }
 
-#[trace("FR-074-AC-12")]
+#[trace("FR-074-AC-12", "FR-074-CON-1")]
 #[test]
 fn advisory_run_does_not_change_other_engine_results() {
     let manifest = br#"
@@ -170,8 +186,33 @@ plain_language_profiles:
     .unwrap();
     let extraction_before = extract(&parsed_before, &dsl).unwrap();
 
+    let coverage_scope =
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/coverage_baseline/scope");
+    let coverage_registry = Registry::load_module(
+        &Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/coverage_baseline/module"),
+    )
+    .unwrap();
+    let coverage_spec = Spec::from_path(&coverage_scope.join("spec"));
+    let coverage_extraction = extract_tree_excluding(&coverage_scope, &[Path::new("spec")]);
+    let coverage_model = coverage_registry
+        .traceability()
+        .cloned()
+        .unwrap_or_default();
+    let coverage_graph = symbol_trace::bind(&coverage_extraction, &coverage_model);
+    let coverage_before = quire_rs::compute_coverage(
+        &coverage_spec,
+        &coverage_registry,
+        &coverage_graph,
+        &coverage_scope,
+    )
+    .unwrap()
+    .to_json();
+
     let selected = registry.plain_language_profile("docs").unwrap();
     let _advice = check_plain_language(Path::new("FR-1.md"), markdown, selected);
+    let coverage_markdown = fs::read_to_string(coverage_scope.join("spec/FR-001.md")).unwrap();
+    let _coverage_advice =
+        check_plain_language(Path::new("spec/FR-001.md"), &coverage_markdown, selected);
 
     let parsed_after = parse_document(markdown);
     assert_eq!(parsed_before, parsed_after);
@@ -184,4 +225,14 @@ plain_language_profiles:
         update_section(&parsed_after, "Notes", "Replacement").unwrap()
     );
     assert_eq!(extraction_before, extract(&parsed_after, &dsl).unwrap());
+
+    let coverage_after = quire_rs::compute_coverage(
+        &coverage_spec,
+        &coverage_registry,
+        &coverage_graph,
+        &coverage_scope,
+    )
+    .unwrap()
+    .to_json();
+    assert_eq!(coverage_before, coverage_after);
 }
