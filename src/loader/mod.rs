@@ -2383,6 +2383,7 @@ fn find_cycles(graph: &[Vec<usize>]) -> Vec<Vec<usize>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::Registry;
     use ix_trace_rs::trace;
     use std::ffi::OsString;
     use std::fs;
