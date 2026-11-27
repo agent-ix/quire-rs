@@ -581,11 +581,7 @@ mod tests {
 
     fn documents_with_dangling_edges(edge_count: usize) -> Vec<LoadedDocument> {
         let relationships = (0..edge_count)
-            .map(|index| {
-                format!(
-                    "  - target: \"TARGET-{index:05}\"\n    type: references\n"
-                )
-            })
+            .map(|index| format!("  - target: \"TARGET-{index:05}\"\n    type: references\n"))
             .collect::<String>();
         let frontmatter = format!("relationships:\n{relationships}");
         vec![loaded("SOURCE-001", &frontmatter, "# source\n")]
