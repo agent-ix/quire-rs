@@ -221,7 +221,7 @@ fn root_index_missing_okf_version_is_flagged() {
 }
 
 /// A subdirectory index need not carry `okf_version` (only the root does).
-#[trace("FR-038-AC-6")]
+#[trace("FR-038-AC-7")]
 // a subdirectory index does not.
 #[test]
 fn subdir_index_does_not_require_okf_version() {
@@ -241,6 +241,11 @@ fn subdir_index_does_not_require_okf_version() {
 
     let report = validate_bundle_at(&root, &bundle_registry(), BundlePosture::Strict);
     assert!(report.is_valid(), "errors: {:?}", report.errors);
+    assert!(!report
+        .errors
+        .iter()
+        .chain(&report.warnings)
+        .any(|finding| finding.reason == "index-okf-version"));
 }
 
 /// A mistyped optional `description` is caught by the base concept contract
