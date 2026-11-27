@@ -1,0 +1,4 @@
+# Intentionally no suppressions are enabled: the focused CPython 3.12 object-
+# handoff test set has no accepted interpreter-only report to suppress yet.
+# Add a narrow LeakSanitizer rule only after recording the exact benign report;
+# broad CPython or PyO3 suppressions could hide first-party ownership defects.

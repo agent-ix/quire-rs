@@ -1346,3 +1346,70 @@ fn tc_2360_gap_census_is_manual_or_scheduled_and_bounded_to_explicit_inputs() {
         "workflow must provide explicit bounded root and module inputs"
     );
 }
+
+#[trace("NFR-018-AC-1")]
+#[test]
+fn tc_2361_tsan_lane_runs_the_python_load_repo_harness() {
+    let sanitizer = workflow("sanitize.yml");
+    let sanitizer_events = events(&sanitizer);
+    assert!(
+        sanitizer_events.contains_key(Value::String("schedule".to_owned()))
+            && sanitizer_events.contains_key(Value::String("workflow_dispatch".to_owned())),
+        "sanitizer must run on a schedule and on manual dispatch"
+    );
+    assert!(
+        !sanitizer_events.contains_key(Value::String("push".to_owned()))
+            && !sanitizer_events.contains_key(Value::String("pull_request".to_owned())),
+        "sanitizer lanes must not run as per-push or per-PR checks"
+    );
+
+    let job = &sanitizer["jobs"]["tsan-python"];
+    let steps = job["steps"].as_sequence().expect("TSAN Python steps");
+    let commands = steps
+        .iter()
+        .filter_map(|step| step["run"].as_str())
+        .collect::<Vec<_>>()
+        .join("\n");
+    let flags = job["env"]["CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS"]
+        .as_str()
+        .unwrap_or_default();
+    assert!(flags.contains("-Zsanitizer=thread"));
+    assert!(commands.contains("maturin develop"));
+    assert!(commands.contains("tests/python/test_fr023_gil.py"));
+    assert!(commands.contains("TSAN_OPTIONS"));
+}
+
+#[trace("NFR-018-AC-2")]
+#[test]
+fn tc_2362_asan_lane_runs_python_object_handoff_tests_with_documented_suppressions() {
+    let sanitizer = workflow("sanitize.yml");
+    let sanitizer_events = events(&sanitizer);
+    assert!(
+        sanitizer_events.contains_key(Value::String("schedule".to_owned()))
+            && sanitizer_events.contains_key(Value::String("workflow_dispatch".to_owned()))
+    );
+    assert!(
+        !sanitizer_events.contains_key(Value::String("push".to_owned()))
+            && !sanitizer_events.contains_key(Value::String("pull_request".to_owned()))
+    );
+
+    let job = &sanitizer["jobs"]["asan-python"];
+    let steps = job["steps"].as_sequence().expect("ASAN Python steps");
+    let commands = steps
+        .iter()
+        .filter_map(|step| step["run"].as_str())
+        .collect::<Vec<_>>()
+        .join("\n");
+    let flags = job["env"]["CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS"]
+        .as_str()
+        .unwrap_or_default();
+    assert!(flags.contains("-Zsanitizer=address"));
+    assert!(commands.contains("maturin develop"));
+    assert!(commands.contains("test_bindings.py"));
+    assert!(commands.contains("LSAN_OPTIONS"));
+    let suppressions = fs::read_to_string(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("asan.supp"),
+    )
+    .expect("ASAN suppression rationale file");
+    assert!(suppressions.contains("#"), "suppressions include rationale comments");
+}

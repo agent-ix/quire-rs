@@ -50,3 +50,28 @@ def test_concurrent_load_repo_calls_release_the_gil(tmp_path):
         f"load_repo serialized: two-worker {concurrent_elapsed:.4f}s, "
         f"one-worker {single_worker_elapsed:.4f}s"
     )
+
+
+@pytest.mark.trace("NFR-018-AC-1")
+def test_two_python_threads_stress_parse_document_under_tsan():
+    """Concurrent binding parses stay value-stable under ThreadSanitizer."""
+    document = (
+        "---\nid: FR-018\ntype: FR\n---\n# Requirement\n\n"
+        + "## Acceptance\n\n- **AC-1**: a concurrent parse input.\n" * 300
+    )
+    barrier = threading.Barrier(2)
+
+    def parse_repeatedly():
+        barrier.wait()
+        parsed = None
+        for _ in range(32):
+            parsed = quire.parse_document(document)
+        return parsed
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+        left, right = [future.result() for future in (
+            executor.submit(parse_repeatedly),
+            executor.submit(parse_repeatedly),
+        )]
+
+    assert left == right
