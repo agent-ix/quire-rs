@@ -358,12 +358,16 @@ def test_tc1069_reports_are_provenanced_and_byte_stable(tmp_path):
     second = write_reports(copy.deepcopy(data), tmp_path / "out")
     assert first_bytes == tuple(path.read_bytes() for path in second)
     loaded = json.loads(first[0].read_text())
-    assert loaded["provenance"]["capabilities"]
+    assert loaded["provenance"]["capabilities"] == data["provenance"]["capabilities"]
     assert loaded["provenance"]["repos_enumerated"] == 1
     assert loaded["provenance"]["repos_scanned"] == 1
     assert loaded["provenance"]["exclusions"] == []
     assert len(set(loaded["aggregate"]["population_units"].values())) == 4
     markdown = first[1].read_text()
+    assert (
+        f"- Capabilities: `{', '.join(data['provenance']['capabilities'])}`"
+        in markdown
+    )
     for token in (
         "Capabilities:",
         "1 scanned / 1 enumerated",
