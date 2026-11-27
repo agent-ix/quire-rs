@@ -906,6 +906,7 @@ mod tests {
         )
     }
 
+    #[trace("FR-011-AC-1")]
     #[test]
     fn six_locator_primitives_match_the_shared_fixture_expectations() {
         let document = doc();
