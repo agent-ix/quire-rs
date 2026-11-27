@@ -139,6 +139,21 @@ def test_physical_terms_alias_duplicate_matches_rust_behavior():
     assert duplicate["line"] == 13
 
 
+@pytest.mark.trace("FR-075-AC-17")
+def test_physical_terms_large_exponent_matches_rust_behavior():
+    exponent = "9223372036854775808"
+    request = _physical_request(
+        "Powers",
+        ["Dimension", "Exponent"],
+        [["Length", exponent]],
+        [{"id": "Length", "names": ["Length"]}],
+        [{"id": "Length", "object": "dimension", "operations": []}],
+    )
+    record = quire.extract_semantic(request)
+    assert record["availability"]["model"]["state"] == "available"
+    assert record["model"]["terms"][0]["exponent"] == int(exponent)
+
+
 @pytest.mark.trace("FR-075-AC-18")
 def test_physical_unit_large_canonical_rational_matches_rust_behavior():
     value = "100000000000000000000000000000000000001/3"
