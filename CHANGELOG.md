@@ -23,6 +23,12 @@ bumps; once 1.0 ships, semver is strict.
 
 - Multi-repository validation resolves typed record-table relationships under
   the source member's package identity.
+- Table validation checks the locator that supplied fallback rows, and composed
+  corpora retain artifact kinds for typed references across repository boundaries.
+- Semantic clause spans retain explicitly supplied repository identities, and
+  unit names resolve only through declared imports.
+- Release evidence collection distinguishes stacked trace attributes from
+  distinct source definitions using compiler-proven record owners.
 
 ## [0.63.2] — 2026-11-26
 

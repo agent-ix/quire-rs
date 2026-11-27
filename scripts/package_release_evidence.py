@@ -42,7 +42,7 @@ if not re.fullmatch(r"runs/SUITE-001/[A-Za-z0-9~_.-]+\.json", run_path):
 if (
     run_record.get("schemaVersion") != 1
     or run_record.get("suite") != "SUITE-001"
-    or run_record.get("tool") != "ix-trace-run 0.1.0+3cd3285"
+    or run_record.get("tool") != "ix-trace-run 0.1.0+8a0ec153"
     or run_record.get("evidenceKind") != "Unit"
     or not run_record.get("timestamp")
 ):
@@ -87,7 +87,7 @@ manifest = {
     "suite": "SUITE-001",
     "runPath": run_path,
     "sha256": {name: hashlib.sha256(content).hexdigest() for name, content in files.items()},
-    "tool": "ix-trace-run 0.1.0+3cd3285",
+    "tool": "ix-trace-run 0.1.0+8a0ec153",
 }
 (bundle / "release-evidence.json").write_text(
     json.dumps(manifest, sort_keys=True, indent=2) + "\n", encoding="utf-8"

@@ -505,7 +505,7 @@ fn semantic_findings(
 
 /// The extraction context and required sections of `arch` for the registry
 /// surface. It has no document path: spans and refusals name `<document>`.
-#[implements("FR-081-AC-22")]
+#[implements("FR-081-AC-22", "FR-071-AC-7")]
 fn semantic_context(
     registry: &crate::Registry,
     arch: &CompiledArchetype,
@@ -532,6 +532,13 @@ fn semantic_context(
     let mut ctx = SemanticContext::new(module.clone(), "<document>", bundle)
         .with_relation_vocabulary(RelationVocabulary::from_registry(registry, arch))
         .with_object_type(arch.name.clone());
+    if let Some(package) = bundle_package {
+        let identity = format!("ix://{package}/spec");
+        if crate::ix_ref::IxRef::parse(&identity).is_some_and(|parsed| parsed.package() == package)
+        {
+            ctx = ctx.with_source_identity(identity);
+        }
+    }
     if let Some(references) = arch
         .construct()
         .and_then(ConstructReferences::from_construct)
@@ -1009,6 +1016,7 @@ fn validate_body(
     flagged
 }
 
+#[implements("FR-032-AC-10")]
 fn validate_required_locator(
     archetype: &CompiledArchetype,
     doc: &QuireDocument,
@@ -1017,16 +1025,19 @@ fn validate_required_locator(
     line_offset: usize,
     errors: &mut Vec<ValidationError>,
 ) {
-    let canonical = locator.canonical();
     let frontmatter = doc.frontmatter.as_ref();
 
-    let (values, _pos) = crate::extract::locator::eval_locator(doc, locator);
+    let (values, position) = crate::extract::locator::eval_locator(doc, locator);
+    let primitive = match locator {
+        Locator::Primitive(primitive) => primitive,
+        Locator::Fallback(chain) => chain.get(position).unwrap_or_else(|| locator.canonical()),
+    };
     // FR-032-AC-9: a `table_row`/`list_item` locator that resolves to a
     // present-but-empty substrate (header-only table, item-less list)
     // is `empty`, not `missing`; a substrate that does not resolve at
     // all is `missing`. The generic `content_status` cannot tell these
     // apart (both yield zero values), so refine for these two kinds.
-    let status = match table_or_list_status(doc, canonical, &values) {
+    let status = match table_or_list_status(doc, primitive, &values) {
         Some(s) => s,
         None => content_status(&values),
     };
@@ -1042,14 +1053,14 @@ fn validate_required_locator(
     // A present value that the locator's `regex` rejects is neither missing
     // nor empty: name the value and the pattern instead.
     if locator.required() && matches!(status, ContentStatus::Missing | ContentStatus::Empty) {
-        if let Some((found, pattern)) = crate::extract::locator::regex_mismatch(doc, canonical) {
+        if let Some((found, pattern)) = crate::extract::locator::regex_mismatch(doc, primitive) {
             errors.push(ValidationError {
                 message: format!(
                     "[{}] required '{key}' ({}) value {found:?} does not match pattern /{pattern}/",
                     archetype.name,
-                    canonical.describe()
+                    primitive.describe()
                 ),
-                line: locator_line(doc, canonical, line_offset),
+                line: locator_line(doc, primitive, line_offset),
                 reason: ValidationReason::Regex,
             });
             return;
@@ -1063,9 +1074,9 @@ fn validate_required_locator(
                     message: format!(
                         "[{}] required '{key}' ({}) is missing",
                         archetype.name,
-                        canonical.describe()
+                        primitive.describe()
                     ),
-                    line: locator_line(doc, canonical, line_offset),
+                    line: locator_line(doc, primitive, line_offset),
                     reason: ValidationReason::Missing,
                 });
                 // No content to assert against; stop here for this key.
@@ -1076,9 +1087,9 @@ fn validate_required_locator(
                     message: format!(
                         "[{}] required '{key}' ({}) is empty",
                         archetype.name,
-                        canonical.describe()
+                        primitive.describe()
                     ),
-                    line: locator_line(doc, canonical, line_offset),
+                    line: locator_line(doc, primitive, line_offset),
                     reason: ValidationReason::Empty,
                 });
             }
@@ -1087,9 +1098,9 @@ fn validate_required_locator(
                     message: format!(
                         "[{}] required '{key}' ({}) contains only placeholder content",
                         archetype.name,
-                        canonical.describe()
+                        primitive.describe()
                     ),
-                    line: locator_line(doc, canonical, line_offset),
+                    line: locator_line(doc, primitive, line_offset),
                     reason: ValidationReason::Placeholder,
                 });
             }
@@ -1099,8 +1110,8 @@ fn validate_required_locator(
 
     // Assert facet (FR-033/FR-034) — evaluated for required and optional
     // locators alike (an assert is a structural promise either way).
-    if let Some(assert) = canonical.assert() {
-        for failure in evaluate_assert(doc, canonical, assert, frontmatter) {
+    if let Some(assert) = primitive.assert() {
+        for failure in evaluate_assert(doc, primitive, assert, frontmatter) {
             let reason = match failure.reason {
                 AssertReason::Assert => ValidationReason::Assert,
                 AssertReason::UnresolvedField => ValidationReason::UnresolvedField,
@@ -1121,7 +1132,7 @@ fn validate_required_locator(
                 line: failure
                     .doc_line
                     .or_else(|| failure.line.map(|l| to_doc_line(line_offset, l)))
-                    .or_else(|| locator_line(doc, canonical, line_offset)),
+                    .or_else(|| locator_line(doc, primitive, line_offset)),
                 reason,
             });
         }
@@ -2303,5 +2314,62 @@ edge_types:
         assert_eq!(record_key_line(&record, doc, "relations.0"), 17);
         assert_eq!(record_key_line(&record, doc, "clauses"), FRONTMATTER_LINE);
         assert_eq!(record_key_line(&record, doc, "<root>"), FRONTMATTER_LINE);
+    }
+
+    #[trace("FR-071-AC-7", "FR-071-AC-8")]
+    #[test]
+    fn explicit_bundle_identity_reaches_clause_spans_without_defaulting() {
+        let case: Value = serde_json::from_str(include_str!(
+            "../tests/fixtures/corpus_cases/plat-1921-clause-source-identity.json"
+        ))
+        .expect("attributed clause identity fixture");
+        let input = &case["input"];
+        let registry = crate::Registry::from_inline_parts(
+            input["module_manifest"].as_str().unwrap().as_bytes(),
+            &BTreeMap::from([(
+                "schemas/Objective.json".to_string(),
+                input["schema"].to_string(),
+            )]),
+        )
+        .unwrap();
+        assert!(registry.failures().is_empty(), "{:?}", registry.failures());
+        let artifact = registry.archetype("doc").unwrap();
+        let objective = registry.archetype("objective").unwrap();
+        let module = registry.semantic_module(&objective.module).unwrap();
+        let text = input["document"].as_str().unwrap();
+        let package = input["bundle_package"].as_str().unwrap();
+        let (context, required) =
+            semantic_context(&registry, objective, module, Some(package), None);
+        let extracted = crate::semantic::extract_semantic(text, &context, &required);
+        assert!(
+            extracted.diagnostics.is_empty(),
+            "{:?}",
+            extracted.diagnostics
+        );
+        let extracted = serde_json::to_value(extracted).unwrap();
+        assert_eq!(
+            extracted["clauses"][0]["sourceSpan"]["sourceIdentity"],
+            case["expect"]["source_identity"]
+        );
+        let explicit = validate_document_in_bundle(&registry, artifact, text, package, None);
+        assert!(explicit.is_valid, "{:?}", explicit.errors);
+        assert!(explicit.warnings.is_empty(), "{:?}", explicit.warnings);
+        let no_context = validate_document_in_registry(&registry, artifact, text);
+        assert!(no_context.is_valid, "{:?}", no_context.errors);
+        assert!(no_context.warnings.iter().any(|warning| warning
+            .message
+            .contains(case["expect"]["default_diagnostic"].as_str().unwrap())));
+        let carried = validate_document_in_bundle(
+            &registry,
+            artifact,
+            &text.replace("```quire", "```ocl"),
+            package,
+            None,
+        );
+        assert!(carried.is_valid, "{:?}", carried.errors);
+        assert_eq!(carried.warnings.len(), 1, "{:?}", carried.warnings);
+        assert!(carried.warnings[0]
+            .message
+            .contains(case["expect"]["ocl_diagnostic"].as_str().unwrap()));
     }
 }

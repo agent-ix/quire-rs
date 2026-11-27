@@ -126,7 +126,7 @@ if manifest != {
     "tagCreatedAt": args.tag_created_at,
     "suite": "SUITE-001",
     "runPath": run_path,
-    "tool": "ix-trace-run 0.1.0+3cd3285",
+    "tool": "ix-trace-run 0.1.0+8a0ec153",
     "sha256": expected_hashes,
 }:
     parser.error("release evidence manifest or payload hashes do not match the triggering tag SHA")

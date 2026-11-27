@@ -27,5 +27,5 @@ attached evidence is unsigned. The producer uses published Quoin 0.30.1 with exp
 
 | ID | Name | Command | Tool | Evidence Kind |
 |----|------|---------|------|---------------|
-| SUITE-001 | Rust unit and integration tests | `make evidence` | ix-trace-run 0.1.0+3cd3285 | Unit |
+| SUITE-001 | Rust unit and integration tests | `make evidence` | ix-trace-run 0.1.0+8a0ec153 | Unit |
 | SUITE-004 | Local real-tool tests | `make real-tool-test` | make | Integration |

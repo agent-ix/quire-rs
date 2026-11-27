@@ -217,6 +217,7 @@ fn tc_2234_make_evidence_records_fresh_suite_run_for_retention() {
         .collect::<Vec<_>>()
         .join("\n");
     assert!(target.contains("ix-trace-run"));
+    assert!(target.contains("--rev 8a0ec153a097036e257cdc8e0ba391bf4dea93d1"));
     assert!(target.contains("scripts/check_release_evidence_checkout.py --repo-root ."));
     assert!(target.contains("git describe --tags --exact-match HEAD"));
     assert!(target.contains("git rev-parse \"$$tag^{commit}\""));
@@ -233,7 +234,7 @@ fn tc_2234_make_evidence_records_fresh_suite_run_for_retention() {
     assert!(target.contains("scripts/package_release_evidence.py"));
     assert!(target.contains("@agent-ix/quoin@0.30.1"));
     assert!(target.contains("$(RELEASE_QUOIN)"));
-    assert!(target.contains("--tool 'ix-trace-run 0.1.0+3cd3285'"));
+    assert!(target.contains("--tool 'ix-trace-run 0.1.0+8a0ec153'"));
 
     let workflow = workflow("tag-attestation.yml");
     assert!(!workflow["jobs"]["release-evidence"]["steps"]
@@ -275,7 +276,7 @@ fn terra_bundle_fixture(
     let run = serde_json::json!({
         "schemaVersion": 1,
         "suite": "SUITE-001",
-        "tool": "ix-trace-run 0.1.0+3cd3285",
+        "tool": "ix-trace-run 0.1.0+8a0ec153",
         "evidenceKind": "Unit",
         "timestamp": "2026-11-26T00:00:00.123456789Z",
         "entries": [{"symbol":"tests::tc_2229", "outcome":outcome}]
@@ -287,7 +288,7 @@ fn terra_bundle_fixture(
         "tagCreatedAt": 1795564800,
         "suite": "SUITE-001",
         "runPath": run_path,
-        "tool": "ix-trace-run 0.1.0+3cd3285"
+        "tool": "ix-trace-run 0.1.0+8a0ec153"
     });
     fs::write(bundle_root.join("suites.md"), suite_registry).expect("write bundle suite registry");
     fs::write(
@@ -785,4 +786,116 @@ fn tc_2243_changed_raw_junit_payload_is_refused() {
     assert!(!result.status.success());
     assert!(String::from_utf8_lossy(&result.stderr).contains("payload hashes"));
     assert!(!output.exists());
+}
+
+#[trace("FR-095-AC-4", "FR-095-AC-6")]
+#[test]
+fn release_evidence_refuses_retired_or_unknown_producers() {
+    let case: serde_json::Value = serde_json::from_slice(include_bytes!(
+        "../fixtures/corpus_cases/plat-1934-producer-identity.json"
+    ))
+    .expect("attributed producer identity fixture");
+    for tool in case["input"]["refused_tools"].as_array().unwrap() {
+        let tool = tool.as_str().unwrap();
+        let root = tempfile::tempdir().unwrap();
+        let commit = "a".repeat(40);
+        let (source, archive, bundle) = terra_bundle_fixture(root.path(), &commit, "pass");
+        let run_path = source.join("spec/evidence").join(TERRA_RUN_PATH);
+        let mut run: serde_json::Value =
+            serde_json::from_slice(&fs::read(&run_path).unwrap()).unwrap();
+        run["tool"] = serde_json::json!(tool);
+        fs::write(&run_path, serde_json::to_vec(&run).unwrap()).unwrap();
+        fs::write(
+            bundle.join(TERRA_RUN_PATH),
+            serde_json::to_vec(&run).unwrap(),
+        )
+        .unwrap();
+        let rejected_archive = root.path().join("rejected.tar.gz");
+        let packaged = Command::new("python3")
+            .arg(
+                PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                    .join("scripts/package_release_evidence.py"),
+            )
+            .arg("--source-root")
+            .arg(&source)
+            .arg("--committed-bindings")
+            .arg(bundle.join("bindings.committed.json"))
+            .arg("--run-record")
+            .arg(&run_path)
+            .arg("--junit-results")
+            .arg(bundle.join("junit.xml"))
+            .args([
+                "--expected-tag",
+                "v0.63.3",
+                "--expected-commit",
+                &commit,
+                "--tag-created-at",
+                "1795564800",
+            ])
+            .arg("--archive")
+            .arg(&rejected_archive)
+            .output()
+            .unwrap();
+        assert!(!packaged.status.success(), "{tool}");
+        assert!(
+            String::from_utf8_lossy(&packaged.stderr)
+                .contains(case["expect"]["producer_refuses"].as_str().unwrap()),
+            "{tool}: {:?}",
+            packaged
+        );
+        assert!(!rejected_archive.exists());
+
+        // Keep every payload hash correct, so only the retired/unknown tool
+        // identity makes the otherwise-valid archive fail verification.
+        let hashed = Command::new("python3").arg("-c")
+            .arg("import hashlib,json,sys; from pathlib import Path; root=Path(sys.argv[1]); p=root/'release-evidence.json'; m=json.loads(p.read_text()); m['tool']=sys.argv[2]; m['sha256']={f.relative_to(root).as_posix():hashlib.sha256(f.read_bytes()).hexdigest() for f in root.rglob('*') if f.is_file() and f!=p}; p.write_text(json.dumps(m))")
+            .arg(&bundle).arg(tool).status().unwrap();
+        assert!(hashed.success());
+        let archived = Command::new("tar")
+            .arg("-czf")
+            .arg(&archive)
+            .arg("-C")
+            .arg(&bundle)
+            .args([
+                "release-evidence.json",
+                "suites.md",
+                "bindings.committed.json",
+                "bindings.json",
+                "junit.xml",
+                TERRA_RUN_PATH,
+            ])
+            .status()
+            .unwrap();
+        assert!(archived.success());
+        let output = root.path().join("verified");
+        let verified = Command::new("python3")
+            .arg(
+                PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                    .join("scripts/verify_release_evidence.py"),
+            )
+            .arg("--archive")
+            .arg(&archive)
+            .arg("--source-root")
+            .arg(&source)
+            .args([
+                "--expected-tag",
+                "v0.63.3",
+                "--expected-commit",
+                &commit,
+                "--tag-created-at",
+                "1795564800",
+            ])
+            .arg("--output-dir")
+            .arg(&output)
+            .output()
+            .unwrap();
+        assert!(!verified.status.success(), "{tool}");
+        assert!(
+            String::from_utf8_lossy(&verified.stderr)
+                .contains(case["expect"]["verifier_refuses"].as_str().unwrap()),
+            "{tool}: {:?}",
+            verified
+        );
+        assert!(!output.exists());
+    }
 }

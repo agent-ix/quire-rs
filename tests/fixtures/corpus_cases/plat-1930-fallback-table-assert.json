@@ -1,0 +1,34 @@
+{
+  "name": "fallback-table-assertions-follow-selected-locator",
+  "issue_ref": "PLAT-1930",
+  "tags": [
+    "FR-032-AC-10"
+  ],
+  "input": {
+    "module_manifest": "name: process-fallback\nartifact_types:\n- name: process\n  body_extraction:\n    yield_pattern:\n      match:\n        steps:\n        - from: table_row\n          under_section: Workflow\n          required: true\n          assert:\n            columns: [Step, Kind, Consumes, Emits, Description]\n            optional_columns: [Consumes, Emits, Description]\n            min_rows: 1\n        - from: table_row\n          under_section: Steps\n          required: false\n          assert:\n            columns: [Step, Kind, Consumes, Emits, Receiver, Description]\n            optional_columns: [Consumes, Emits, Receiver, Description]\n            min_rows: 1\n",
+    "documents": {
+      "canonical": "---\nid: PROCESS\ntitle: Synthetic business process\ntype: process\nobject: process\n---\n# Synthetic business process\n\n## Properties\n\n| Field | Type | Multiplicity | Constraints |\n|---|---|---|---|\n| process_id | String | 1..1 | identity |\n\n## Workflow\n\n| Step | Kind | Consumes | Emits | Description |\n|---|---|---|---|---|\n| start | event | | | Start the synthetic run |\n",
+      "fallback": "---\nid: PROCESS-RECEIVER-SYN-001\ntitle: Synthetic process handoff\ntype: process\nobject: process\n---\n\n# Synthetic process handoff\n\n## Properties\n\n| Field | Type | Multiplicity | Constraints |\n|---|---|---|---|\n| correlation_id | UUID | 1..1 | identity |\n\n## Steps\n\n| Step | Kind | Consumes | Emits | Receiver | Description |\n|---|---|---|---|---|---|\n| accept_request | command | | | ix://agent-ix/spec-artifacts-process/ROLE | Receive the synthetic handoff |\n",
+      "fallback_absent_receiver": "---\nid: PROCESS-RECEIVER-SYN-001\ntitle: Synthetic process handoff\ntype: process\nobject: process\n---\n\n# Synthetic process handoff\n\n## Properties\n\n| Field | Type | Multiplicity | Constraints |\n|---|---|---|---|\n| correlation_id | UUID | 1..1 | identity |\n\n## Steps\n\n| Step | Kind | Consumes | Emits | Description |\n|---|---|---|---|---|\n| accept_request | command | | | Receive the synthetic handoff |\n",
+      "fallback_empty_receiver": "---\nid: PROCESS-RECEIVER-SYN-001\ntitle: Synthetic process handoff\ntype: process\nobject: process\n---\n\n# Synthetic process handoff\n\n## Properties\n\n| Field | Type | Multiplicity | Constraints |\n|---|---|---|---|\n| correlation_id | UUID | 1..1 | identity |\n\n## Steps\n\n| Step | Kind | Consumes | Emits | Receiver | Description |\n|---|---|---|---|---|---|\n| accept_request | command | | |  | Receive the synthetic handoff |\n",
+      "fallback_bad_header": "---\nid: PROCESS-RECEIVER-SYN-001\ntitle: Synthetic process handoff\ntype: process\nobject: process\n---\n\n# Synthetic process handoff\n\n## Properties\n\n| Field | Type | Multiplicity | Constraints |\n|---|---|---|---|\n| correlation_id | UUID | 1..1 | identity |\n\n## Steps\n\n| Step | Kind | Consumes | Emits | Recipient | Description |\n|---|---|---|---|---|---|\n| accept_request | command | | | ix://agent-ix/spec-artifacts-process/ROLE | Receive the synthetic handoff |\n",
+      "missing": "---\nid: NO-TABLE\ntype: process\n---\n# No table\n\nSubstantive prose with no steps.\n"
+    }
+  },
+  "expect": {
+    "valid": [
+      "canonical",
+      "fallback",
+      "fallback_absent_receiver",
+      "fallback_empty_receiver"
+    ],
+    "invalid": {
+      "fallback_bad_header": "assert",
+      "missing": "missing"
+    },
+    "absent_diagnostic_reasons": [
+      "assert",
+      "missing"
+    ]
+  }
+}

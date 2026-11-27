@@ -1,0 +1,50 @@
+{
+  "name": "loaded-unimported-unit-is-not-a-resolution-candidate",
+  "issue_ref": "PLAT-1930",
+  "tags": [
+    "FR-070-AC-14"
+  ],
+  "input": {
+    "bundle": {
+      "package": "acme/own",
+      "artifacts": [
+        {
+          "id": "s",
+          "object": "unit",
+          "operations": []
+        }
+      ],
+      "importedArtifacts": [
+        {
+          "package": "acme/time-units",
+          "id": "ms",
+          "names": [
+            "Millisecond"
+          ],
+          "object": "unit"
+        },
+        {
+          "package": "acme/other-units",
+          "id": "ms",
+          "names": [],
+          "object": "unit"
+        },
+        {
+          "package": "acme/time-units",
+          "id": "Time",
+          "names": [],
+          "object": "dimension"
+        }
+      ]
+    },
+    "remove_first": "acme/other-units",
+    "remove_second": "acme/time-units"
+  },
+  "expect": {
+    "healthy_resolved": "ix://acme/time-units/type/ms",
+    "no_import_reason": "unknown-token",
+    "absent_diagnostic_reasons": [
+      "ambiguous-type"
+    ]
+  }
+}

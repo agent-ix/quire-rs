@@ -6,6 +6,8 @@
 //! package. A match never crosses an owner; the identity names the package
 //! that owns the artifact.
 
+use ix_trace_rs::implements;
+
 use super::context::SemanticContext;
 use super::decl::is_identifier;
 
@@ -132,6 +134,7 @@ fn own_candidates<'a>(ctx: &'a SemanticContext, object: &str) -> Vec<Candidate<'
 }
 
 /// The imported artifacts of `object`, optionally of one `package`.
+#[implements("FR-070-AC-14")]
 fn imported_candidates<'a>(
     ctx: &'a SemanticContext,
     object: &str,
@@ -141,6 +144,7 @@ fn imported_candidates<'a>(
         .imported_artifacts
         .iter()
         .filter(|a| a.object.as_deref() == Some(object))
+        .filter(|a| ctx.module.imports.contains_key(&a.package))
         .filter(|a| package.is_none_or(|p| a.package == p))
         .map(|a| Candidate {
             package: &a.package,
@@ -321,6 +325,34 @@ mod tests {
         assert_eq!(
             resolve(&ctx, TokenKind::Unit, "ms"),
             resolved("ix://acme/own/type/ms")
+        );
+    }
+
+    #[trace("FR-070-AC-14")]
+    #[test]
+    fn bare_tokens_ignore_loaded_but_unimported_packages() {
+        let case: serde_json::Value = serde_json::from_str(include_str!(
+            "../../tests/fixtures/corpus_cases/plat-1930-unimported-units.json"
+        ))
+        .expect("attributed unimported-unit fixture");
+        let mut ctx = context(case["input"]["bundle"].clone());
+        ctx.module
+            .imports
+            .remove(case["input"]["remove_first"].as_str().unwrap());
+        assert_eq!(
+            resolve(&ctx, TokenKind::Unit, "ms"),
+            resolved(case["expect"]["healthy_resolved"].as_str().unwrap())
+        );
+        ctx.module
+            .imports
+            .remove(case["input"]["remove_second"].as_str().unwrap());
+        assert_eq!(
+            resolve(&ctx, TokenKind::Unit, "ms"),
+            unresolved(UnresolvedReason::UnknownToken)
+        );
+        assert_eq!(
+            resolve(&ctx, TokenKind::Dimension, "Time"),
+            unresolved(UnresolvedReason::UnknownToken)
         );
     }
 

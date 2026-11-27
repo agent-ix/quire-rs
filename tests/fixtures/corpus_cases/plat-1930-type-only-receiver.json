@@ -1,0 +1,59 @@
+{
+  "name": "indexed-record-receiver-retains-type-only-artifact-kind",
+  "issue_ref": "PLAT-1930",
+  "tags": [
+    "FR-081-AC-22"
+  ],
+  "input": {
+    "module_manifest": "manifest_version: 1.0.0\nname: multi-repo-record-relations\nversion: 0.1.0\nartifact_types:\n- name: RoleSpec\n- name: principal\nobject_types:\n- name: workflow\n  allowed_links:\n    receiver: [RoleSpec]\n  data_schema:\n    schema: schemas/Workflow.json\n  body_extraction:\n    yield_pattern:\n      match:\n        entries:\n          from: table_row\n          under_section: Entries\n          required: false\n          assert:\n            columns: [Name, Receiver]\nsemantic:\n  contract_version: 1.0.0\n  package: acme/workflows\n  imports:\n    acme/events: 0.1.0\n  import_types:\n    acme/events: [RoleSpec]\n  exports: [workflow]\n  mappings: [record-sections]\n  targets: [json-schema, markdown]\n",
+    "schema_path": "schemas/Workflow.json",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "$id": "https://schemas.agent-ix.org/acme/workflows/0.1.0/Workflow.json",
+      "type": "object",
+      "properties": {
+        "entries": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "receiver": {
+                "$ref": "https://schemas.agent-ix.org/semantic-core/0.1.0/SemanticId.json"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "name"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+    "source_package": "acme/workflows",
+    "source": "---\nid: WF-001\ntitle: Workflow\ntype: workflow\nobject: workflow\n---\n# Workflow\n\n## Entries\n\n| Name | Receiver |\n|---|---|\n| Local | ROLE-001 |\n| CrossRepo | ix://acme/events/ROLE-002 |\n",
+    "local_event": "---\nid: ROLE-001\ntitle: Local role\ntype: RoleSpec\n---\n# Local role\n",
+    "remote_event": "---\nid: ROLE-002\ntitle: Remote role\ntype: RoleSpec\n---\n# Remote role\n",
+    "empty_index_package": "",
+    "wrong_kind_local": "---\nid: PRINCIPAL-001\ntitle: Local principal\ntype: principal\nobject: principal\n---\n# Local principal\n",
+    "type_only_enumeration": "---\nid: ENUM-ONLY\ntype: enumeration\n---\n# Not an object declaration\n",
+    "malformed_object": "---\nid: MALFORMED\ntype: RoleSpec\nobject: 42\n---\n# Malformed explicit object kind\n",
+    "remote_wrong_kind": "---\nid: ROLE-002\ntitle: Remote role\ntype: principal\n---\n# Remote role\n"
+  },
+  "expect": {
+    "valid_diagnostics_absent": [
+      "relationships-no-bundle-package",
+      "reference-kind-mismatch",
+      "dangling-reference"
+    ],
+    "wrong_kind_diagnostic": "semantic.reference-kind-mismatch",
+    "object_ids": [
+      "WF-001",
+      "PRINCIPAL-001"
+    ],
+    "enumeration_ids": []
+  }
+}
