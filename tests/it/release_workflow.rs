@@ -27,17 +27,6 @@ fn workflow(name: &str) -> Value {
         .unwrap_or_else(|error| panic!("parse workflow {}: {error}", path.display()))
 }
 
-fn shared_consumer_workflow() -> Value {
-    // Snapshot of agent-ix/engineering-assurance v0.9.0 at
-    // 0eb172e712f812cf456e89af14de74bba303a0fc, the consumer pin used here.
-    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("tests/fixtures/engineering-assurance-release-attestation-v0.9.0.yml");
-    let source = fs::read_to_string(&path)
-        .unwrap_or_else(|error| panic!("read shared workflow {}: {error}", path.display()));
-    serde_yaml::from_str(&source)
-        .unwrap_or_else(|error| panic!("parse shared workflow {}: {error}", path.display()))
-}
-
 fn events(document: &Value) -> &Mapping {
     document["on"]
         .as_mapping()
@@ -213,7 +202,7 @@ fn tc_2233_oidc_attestation_consumes_artifact_without_running_checkout_code() {
     let attest = &tag_attestation["jobs"]["attest"];
     assert_eq!(
         attest["with"]["evidence_artifact"].as_str(),
-        Some("release-evidence")
+        Some("${{ inputs.evidence_artifact_name || 'release-evidence' }}")
     );
     assert_eq!(attest["permissions"]["id-token"].as_str(), Some("write"));
     assert!(
@@ -262,13 +251,11 @@ fn tc_2234_make_evidence_records_fresh_suite_run_for_retention() {
     assert!(target.contains("--tool 'ix-trace-run 0.1.0+8a0ec153'"));
 
     let workflow = workflow("tag-attestation.yml");
-    assert!(
-        !workflow["jobs"]["release-evidence"]["steps"]
-            .as_sequence()
-            .expect("release evidence job has steps")
-            .iter()
-            .any(|step| step["run"].as_str() == Some("make evidence"))
-    );
+    assert!(workflow["jobs"]["release-evidence"]["steps"]
+        .as_sequence()
+        .expect("release evidence job has steps")
+        .iter()
+        .any(|step| step["run"].as_str() == Some("make evidence")));
 }
 
 const TERRA_RUN_PATH: &str = "runs/SUITE-001/2026-11-26T00~3A00~3A00~2E123456789Z.json";
@@ -1068,95 +1055,96 @@ fn tc_2245_missing_required_release_binding_is_refused_by_package_and_verifier()
         verified
     );
     assert!(!output.exists(), "invalid evidence is not extracted");
+
+    let mut unsupported: serde_json::Value = serde_json::from_slice(
+        &fs::read(bundle.join("bindings.committed.json")).expect("read complete bindings"),
+    )
+    .expect("parse complete bindings");
+    unsupported["bindings"][0]["symbols"] = serde_json::json!(["tests::never_executed"]);
+    let unsupported_bytes =
+        serde_json::to_vec_pretty(&unsupported).expect("serialize unsupported binding fixture");
+    fs::write(&generated_path, &unsupported_bytes).expect("write unsupported bundle bindings");
+    fs::write(source.join("spec/evidence/bindings.json"), &unsupported_bytes)
+        .expect("write unsupported source bindings");
+    rearchive_terra_bundle(&bundle, &archive);
+
+    let package_without_support = Command::new("python3")
+        .arg(&package)
+        .arg("--source-root")
+        .arg(&source)
+        .arg("--committed-bindings")
+        .arg(bundle.join("bindings.committed.json"))
+        .arg("--run-record")
+        .arg(evidence.join(TERRA_RUN_PATH))
+        .arg("--junit-results")
+        .arg(bundle.join("junit.xml"))
+        .args([
+            "--expected-tag",
+            "v0.63.3",
+            "--expected-commit",
+            &commit,
+            "--tag-created-at",
+            "1795564800",
+        ])
+        .arg("--archive")
+        .arg(root.path().join("unsupported-binding.tar.gz"))
+        .output()
+        .expect("run package validator against unsupported test symbol");
+    assert!(
+        !package_without_support.status.success(),
+        "packager rejects a required binding with no passing run symbol"
+    );
+    assert!(String::from_utf8_lossy(&package_without_support.stderr)
+        .contains("tests::never_executed"));
+
+    let verify_without_support = Command::new("python3")
+        .arg(&verifier)
+        .arg("--archive")
+        .arg(&archive)
+        .arg("--source-root")
+        .arg(&source)
+        .args([
+            "--expected-tag",
+            "v0.63.3",
+            "--expected-commit",
+            &commit,
+            "--tag-created-at",
+            "1795564800",
+        ])
+        .arg("--output-dir")
+        .arg(root.path().join("verified-unsupported-binding"))
+        .output()
+        .expect("run release verifier against unsupported test symbol");
+    assert!(
+        !verify_without_support.status.success(),
+        "verifier rejects a required binding with no passing run symbol"
+    );
+    assert!(String::from_utf8_lossy(&verify_without_support.stderr)
+        .contains("tests::never_executed"));
 }
 
 #[trace("FR-095-AC-5")]
 #[test]
-fn tc_2230_shared_consumer_refuses_absent_artifact_and_empty_evidence_root() {
-    let caller = workflow("tag-attestation.yml");
-    assert!(
-        caller["jobs"]["attest"]["with"]["ea_tooling_tag"]
-            .as_str()
-            .expect("pinned EA consumer version")
-            .contains("v0.9.0")
+fn tc_2230_attestation_requires_successful_evidence_generation_and_upload() {
+    let tag_attestation = workflow("tag-attestation.yml");
+    let evidence = &tag_attestation["jobs"]["release-evidence"];
+    let steps = evidence["steps"].as_sequence().expect("evidence steps");
+    let upload = steps
+        .iter()
+        .find(|step| step["uses"].as_str() == Some("actions/upload-artifact@v7"))
+        .expect("verified evidence is uploaded");
+    assert_eq!(
+        upload["with"]["name"].as_str(),
+        Some("${{ inputs.evidence_artifact_name || 'release-evidence' }}")
     );
-
-    let consumer = shared_consumer_workflow();
-    let verify = &consumer["jobs"]["verify"];
-    let steps = verify["steps"]
-        .as_array()
-        .expect("consumer verification steps");
-    let download = steps
-        .iter()
-        .find(|step| step["id"] == "retained-evidence")
-        .expect("consumer downloads the optional evidence artifact");
-    assert_eq!(download["continue-on-error"], true);
-    assert_eq!(download["with"]["path"], "release-evidence");
-
-    let absent = steps
-        .iter()
-        .find(|step| step["name"] == "Refuse when no retained release evidence store exists")
-        .expect("missing artifact fails closed");
-    assert_eq!(absent["if"], "steps.retained-evidence.outcome == 'failure'");
-    let empty = steps
-        .iter()
-        .find(|step| step["name"] == "Refuse an empty retained release evidence artifact")
-        .expect("missing evidence root fails closed");
-    let quoin = steps
-        .iter()
-        .position(|step| {
-            step["name"] == "Validate the retained evidence store with the Quoin exporter"
-        })
-        .expect("consumer validates evidence only after the absent-root guards");
-    let absent_index = steps
-        .iter()
-        .position(|step| step["name"] == "Refuse when no retained release evidence store exists")
-        .expect("absent artifact guard has an index");
-    let empty_index = steps
-        .iter()
-        .position(|step| step["name"] == "Refuse an empty retained release evidence artifact")
-        .expect("empty root guard has an index");
-    assert!(empty_index < quoin);
-    assert!(absent_index < quoin);
-    assert_eq!(consumer["jobs"]["attest"]["needs"], "verify");
-
-    for (name, script, create_empty_root) in [
-        (
-            "absent-artifact",
-            absent["run"]
-                .as_str()
-                .expect("absent artifact refusal script"),
-            false,
-        ),
-        (
-            "empty-root",
-            empty["run"].as_str().expect("empty root refusal script"),
-            true,
-        ),
-    ] {
-        let root = tempfile::tempdir().expect("create isolated consumer workspace");
-        if create_empty_root {
-            fs::create_dir(root.path().join("release-evidence"))
-                .expect("create empty downloaded evidence root");
-        }
-        let output = Command::new("bash")
-            .args(["-euo", "pipefail", "-c", script])
-            .current_dir(root.path())
-            .output()
-            .expect("execute the production consumer guard script");
-        assert!(!output.status.success(), "{name} must fail before export");
-        let combined = format!(
-            "{}{}",
-            String::from_utf8_lossy(&output.stdout),
-            String::from_utf8_lossy(&output.stderr)
-        );
-        assert!(
-            combined.contains("no_retained_evidence_store"),
-            "{combined}"
-        );
-        assert!(!root.path().join("test-result.json").exists());
-        assert!(!root.path().join("attestation-inputs").exists());
-    }
+    assert_eq!(
+        tag_attestation["jobs"]["attest"]["needs"],
+        serde_yaml::from_str::<Value>("[release-artifacts, release-evidence]").unwrap()
+    );
+    assert!(tag_attestation["jobs"]["attest"]["if"]
+        .as_str()
+        .expect("attestation fails closed")
+        .contains("needs.release-evidence.result == 'success'"));
 }
 
 #[trace("FR-095-AC-7")]

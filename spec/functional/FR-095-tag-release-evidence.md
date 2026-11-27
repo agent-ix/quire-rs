@@ -16,19 +16,13 @@ relationships:
 ## Description
 
 FR-095 governs the tag-attestation workflow handoff; it does not change
-Quire-rs product, library, CLI, or engine runtime behavior. The release
-process calls for Terra to run `SUITE-001` once at the exact release tag
-commit and package the committed suite registry, committed and generated
-binding registries, raw JUnit results, and fresh run record as `release-evidence.tar.gz`. That
-archive is attached to the matching
-GitHub Release. The tag workflow does not execute the suite; it validates the
-attached bundle against the tag and source commit, retains it as a same-run
-`release-evidence` Actions artifact, and transfers that artifact to the shared
-release-attestation workflow. The attached bundle is unsigned: the workflow
-validates its contents and tag/commit binding, but does not authenticate that
-Terra produced it. Under the owner ruling recorded in SWM-347 comment
-`ce4d1055`, producer provenance authentication is out of scope for this change.
-The shared consumer uses this store under
+Quire-rs product, library, CLI, or engine runtime behavior. For a `v*` tag,
+the tag workflow checks out the exact tagged source and runs `make evidence`
+once. That target verifies the clean checkout and tag identity, executes
+`SUITE-001`, packages and validates its generated Quoin store, then restores
+the committed binding registry. The workflow uploads the verified store as a
+same-run `release-evidence` Actions artifact and transfers it to the shared
+release-attestation workflow. The shared consumer uses this store under
 [Engineering Assurance FR-069](ix://agent-ix/engineering-assurance/FR-069)
 and writes no Test Result when evidence is absent or unusable.
 The tag-attestation workflow is also reusable by another repository's
@@ -43,15 +37,13 @@ tag-release workflow through `workflow_call`, with a documented example.
   [`spec/evidence/bindings.json`](../evidence/bindings.json), with the
   schema-version-1 Quoin evidence-store shape defined by
   [Quoin FR-030](ix://agent-ix/quoin/FR-030).
-- A `release-evidence.tar.gz` asset attached to the matching GitHub Release,
-  intended to contain the result of one successful `make evidence` run on
-  Terra at the tag commit. The workflow does not authenticate that producer
-  claim.
+- The exact tagged source tree and its initialized recursive submodules.
 
 ## Outputs
 
-- A Quoin evidence store containing the committed suite and binding registries
-  and a fresh `SUITE-001` run record.
+- A verified Quoin evidence store containing the committed suite and binding
+  registries, generated bindings, raw JUnit results, and a fresh `SUITE-001`
+  run record.
 - A workflow artifact named `release-evidence` carrying that store.
 - A shared Engineering Assurance workflow call with
   `evidence_artifact` equal to `release-evidence`.
@@ -60,9 +52,9 @@ tag-release workflow through `workflow_call`, with a documented example.
 
 ## Behavior
 
-- For each pushed `v*` tag, the Quire-rs tag-attestation workflow SHALL wait
-  for `release-evidence.tar.gz` to be attached to the matching GitHub Release;
-  it SHALL fail closed if the asset is absent after a 60-minute bounded wait.
+- For each pushed `v*` tag, the Quire-rs tag-attestation workflow SHALL check
+  out the exact tag commit with recursive submodules and run `make evidence`
+  once before uploading release evidence.
 - `make evidence` SHALL refuse tracked or untracked changes in the repository
   checkout or any initialized recursive submodule before running the suite.
   It SHALL run `SUITE-001` only when `HEAD` is exactly the requested
@@ -70,15 +62,14 @@ tag-release workflow through `workflow_call`, with a documented example.
   run record, restore the committed binding registry in the source worktree,
   and package the committed suite and binding registries with the generated
   bindings and run record as `target/release-evidence/release-evidence.tar.gz`.
-- The tag-attestation workflow SHALL stream-validate the archive with a
+- `make evidence` SHALL stream-validate its archive with a
   maximum of six regular files, 20,000,000 compressed bytes, and 50,000,000
   aggregate decompressed bytes. It SHALL validate the safe file set, manifest
   tag, full commit SHA, suite and run record; verify manifest SHA-256 hashes of each payload file; compare the suite and
   committed binding registries byte-for-byte with the tagged source; and
-  reject stale, empty, failed, or wrong-commit evidence before uploading it as
-  the same-run `release-evidence` artifact.
-- The tag-attestation workflow SHALL NOT run `make evidence` or otherwise
-  execute `SUITE-001`; the Terra run is the one full suite for the release.
+  reject stale, empty, failed, or wrong-commit evidence before extracting the
+  verified store. The tag-attestation workflow SHALL upload that store as the
+  same-run `release-evidence` artifact.
 - The Quire-rs tag-attestation workflow SHALL pass
   `evidence_artifact: release-evidence` to the shared Engineering Assurance
   workflow.
@@ -100,21 +91,21 @@ tag-release workflow through `workflow_call`, with a documented example.
 
 > **CR-426 note (2026-11-26, PLAT-1934):** The tag workflow originally reran `SUITE-001`
 > on a GitHub-hosted runner after the required Terra release run, producing two
-> full-suite runs for one release. The tag workflow now waits for the single
-> Terra-produced bundle attached to the matching GitHub Release, binds it to
-> the tag's full commit SHA, and republishes only the verified evidence store
-> as a same-run Actions artifact for the existing fail-closed EA consumer.
+> full-suite runs for one release. The approved FR-095 resolution makes the
+> tagged workflow the single producer: it runs `make evidence` once at the
+> exact tag commit and passes the verified store to the existing fail-closed EA
+> consumer.
 
 > **CR-427 note (2026-11-26, PLAT-1934):** Review requires the Terra run to
 > refuse dirty tracked, untracked, or recursive submodule state before tests
-> execute. The tag workflow now streams a bounded archive and refuses excess
-> member count or compressed/decompressed bytes before extraction.
+> execute. `make evidence` checks that condition before invoking the suite and
+> verifies the bounded evidence archive before workflow upload.
 >
 > **CR-428 note (2026-11-26, PLAT-1934, FND-002):** Per the owner ruling in
 > [SWM-347 comment `ce4d1055`](https://linear.app/agent-ix/issue/SWM-347),
 > authenticated Terra producer provenance is out of scope for this change.
-> The attached evidence is unsigned; the tag workflow validates contents and
-> tag/commit consistency but does not prove Terra produced the bundle.
+> The tag workflow now produces evidence directly from the tagged source and
+> validates its archive contents before attestation.
 
 > **CR-429 note (2026-11-26):** Published Quoin 0.30.1 records timestamped runs without a commit field. The producer selects the exact run path from the recorder JSON response and preserves those bytes. The release manifest binds the clean exact-tag source commit to SHA-256 hashes of the run, binding registries, suite registry and raw JUnit results. Producer authentication remains outside scope.
 
@@ -122,12 +113,12 @@ tag-release workflow through `workflow_call`, with a documented example.
 
 | ID | Criteria | Verification |
 |----|----------|--------------|
-| FR-095-AC-1 | A workflow test confirms that `make evidence` refuses dirty tracked, untracked, or recursive submodule state, requires the exact `v*` tag commit, and creates a bundle from one successful `SUITE-001` run, while the tag-attestation workflow waits for the attached release asset and does not rerun the suite. | Test |
-| FR-095-AC-2 | A workflow test confirms that the tag-attestation job rejects a missing, malformed, failed, wrong-commit, or over-limit asset; uploads verified evidence as `release-evidence`; and the shared Engineering Assurance call waits for that upload. | Test |
+| FR-095-AC-1 | A workflow test confirms that the `v*` tag job checks out the exact tag commit with recursive submodules, runs `make evidence` once, and uploads the verified evidence store as the `release-evidence` artifact. | Test |
+| FR-095-AC-2 | A workflow test confirms that `make evidence` verifies the generated archive's required files, hashes, tag, commit, registries, and fresh passing SUITE-001 run record before extraction; the upload and attestation jobs do not run after generation or verification fails. | Test |
 | FR-095-AC-3 | A workflow test confirms that the OIDC-enabled job consumes the artifact and has no checkout or repository-code execution step, while the wheel workflow still receives `publish: false`. | Test |
 | FR-095-AC-4 | After a tag-attestation run, the uploaded artifact contains the committed suite and binding registries, the generated binding registry, and the fresh `SUITE-001` run record from the exact tag commit; the source worktree does not commit generated records. | Test |
-| FR-095-AC-5 | When the shared consumer receives no `release-evidence` artifact or the artifact has no evidence root, it writes no Test Result and no release attestation, and reports an absent-evidence failure. | Test |
-| FR-095-AC-6 | When the shared consumer receives an unusable evidence root, including an invalid binding registry or run record, a missing required binding, a failing suite result, or a stale run, it writes no Test Result and no release attestation, and reports the applicable failure. The tag workflow also refuses excess archive entries or byte totals before extraction. | Test |
+| FR-095-AC-5 | If the tag workflow cannot generate or upload the `release-evidence` artifact, it does not call the shared Engineering Assurance workflow. | Test |
+| FR-095-AC-6 | When the release evidence verifier receives an unusable archive, including an invalid binding registry or run record, a missing required binding, a binding without passing test evidence, a failing suite result, or a stale run, it rejects the archive before extraction or artifact upload. | Test |
 | FR-095-AC-7 | A workflow test confirms that the tag-attestation workflow exposes typed `workflow_call` inputs for the wheel-build choice and release artifact names, runs evidence validation and attestation only for `v*` tag refs, and builds wheels from a reusable call only when explicitly requested. | Test |
 | FR-095-AC-8 | A documentation test confirms that the adoption how-to calls the reusable workflow by repository reference from a tag-only caller and provides the release artifact inputs without vendoring the workflow. | Test |
 
@@ -135,15 +126,15 @@ tag-release workflow through `workflow_call`, with a documented example.
 
 | Test Case | Expected assertion |
 |-----------|--------------------|
-| TC-2229 | Parse the tag-attestation workflow and suite registry. Confirm the workflow does not run the suite, waits for the release asset, validates it against the tag SHA and committed registries, uploads it as `release-evidence`, and calls EA only after validation. |
-| TC-2230 | Invoke the shared consumer without the `release-evidence` artifact and with an artifact lacking the evidence root. Confirm each case reports absent evidence and writes neither a Test Result nor a release attestation. Covers FR-095-AC-5. |
-| TC-2231 | Invoke the shared consumer with an invalid binding registry, invalid or missing run record, missing required binding, failing suite result, and stale run. Confirm each case reports the applicable failure and writes neither a Test Result nor a release attestation. Covers FR-095-AC-6. |
-| TC-2232 | Verify a synthetic Terra bundle for the exact tag SHA and matching committed registries; refuse a wrong SHA, changed registry, failed or stale run before extraction. |
-| TC-2235 | Verify a valid synthetic Terra bundle and confirm the original timestamped run path and bytes are preserved. |
-| TC-2236 | Refuse a Terra bundle whose full commit SHA differs from the triggering tag SHA. |
-| TC-2237 | Refuse a Terra bundle whose committed suite registry differs from the tagged source. |
-| TC-2238 | Refuse a Terra bundle containing a failed SUITE-001 run record. |
-| TC-2239 | Refuse a Terra bundle whose run timestamp does not postdate the annotated tag creation time. |
+| TC-2229 | Parse the tag-attestation workflow and suite registry. Confirm the workflow checks out the exact tag with recursive submodules, runs `make evidence`, uploads the verified output as `release-evidence`, and calls EA only after upload. |
+| TC-2230 | Confirm the tag-attestation job requires successful evidence generation and upload before invoking EA, and a failed evidence job prevents attestation. Covers FR-095-AC-5. |
+| TC-2231 | Run packaging and archive verification against invalid bindings, unsupported test symbols, an invalid or missing run record, a failing suite result, and a stale run. Confirm each case fails before packaging or extraction. Covers FR-095-AC-6. |
+| TC-2232 | Verify a synthetic evidence archive for the exact tag SHA and matching committed registries; refuse a wrong SHA, changed registry, failed or stale run before extraction. |
+| TC-2235 | Verify a valid evidence archive and confirm the original timestamped run path and bytes are preserved. |
+| TC-2236 | Refuse an evidence archive whose full commit SHA differs from the triggering tag SHA. |
+| TC-2237 | Refuse an evidence archive whose committed suite registry differs from the tagged source. |
+| TC-2238 | Refuse an evidence archive containing a failed SUITE-001 run record. |
+| TC-2239 | Refuse an evidence archive whose run timestamp does not postdate the annotated tag creation time. |
 | TC-2240 | Refuse an archive with an unsafe member path or without the exact SUITE-001 run record. |
 | TC-2241 | Refuse `make evidence` before test execution when tracked, untracked, or recursive submodule state is dirty. |
 | TC-2242 | Stream an archive with more than six entries, more than 20,000,000 compressed bytes, or more than 50,000,000 decompressed bytes; refuse each before extraction. |
