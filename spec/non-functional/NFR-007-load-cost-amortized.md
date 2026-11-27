@@ -28,12 +28,16 @@ The engine must be cheap to use in hot paths (Filament editor live-preview, bulk
 
 ## Acceptance Criteria
 
+> **CR note (2026-11-26):** The render and template runtime was removed with
+> NFR-001's render path. These retained rows have no operation to instrument
+> or soak in this repository and are not verification obligations.
+
 | ID | Criteria | Verification |
 |----|----------|--------------|
 | NFR-007-AC-1 | A criterion bench `bench_registry_load` measures cold load of the v1 baseline corpus and reports median under 100 ms. | Analysis |
 | NFR-007-AC-2 | A criterion bench `bench_render_after_load` measures 10000 sequential renders against a pre-loaded registry and reports per-call median under 1 ms with no I/O or compile events captured. | Analysis |
-| NFR-007-AC-3 | A test instrumented via `tracing` asserts zero `Template::parse` and zero `JSONSchema::compile` calls during a `render` operation. | Test |
-| NFR-007-AC-4 | Holding a `Registry` reference across many `render` calls produces no monotonically growing memory footprint (verified by a long-running soak test). | Test |
+| NFR-007-AC-3 | RETIRED: A test instrumented via `tracing` asserts zero `Template::parse` and zero `JSONSchema::compile` calls during a `render` operation. | None |
+| NFR-007-AC-4 | RETIRED: Holding a `Registry` reference across many `render` calls produces no monotonically growing memory footprint (verified by a long-running soak test). | None |
 
 ## Measurement and Evaluation
 
