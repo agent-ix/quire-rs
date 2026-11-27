@@ -152,13 +152,18 @@ fn tc1059_mutating_a_case_copy_preserves_checked_in_input_bytes() {
             current: &std::path::Path,
             files: &mut BTreeMap<std::path::PathBuf, Vec<u8>>,
         ) {
-            for entry in std::fs::read_dir(current).expect("read input tree").flatten() {
+            for entry in std::fs::read_dir(current)
+                .expect("read input tree")
+                .flatten()
+            {
                 let path = entry.path();
                 if path.is_dir() {
                     visit(root, &path, files);
                 } else {
                     files.insert(
-                        path.strip_prefix(root).expect("path under input root").to_path_buf(),
+                        path.strip_prefix(root)
+                            .expect("path under input root")
+                            .to_path_buf(),
                         std::fs::read(path).expect("read input file"),
                     );
                 }
@@ -190,8 +195,16 @@ fn tc1059_mutating_a_case_copy_preserves_checked_in_input_bytes() {
     changed.extend_from_slice(b"\nmutation in scratch copy\n");
     std::fs::write(&changed_file, changed).expect("mutate copied file");
 
-    assert_eq!(snapshot(&checked_in_input), before, "checked-in input changed");
-    assert_ne!(snapshot(&copied_input), before, "the scratch mutation did not apply");
+    assert_eq!(
+        snapshot(&checked_in_input),
+        before,
+        "checked-in input changed"
+    );
+    assert_ne!(
+        snapshot(&copied_input),
+        before,
+        "the scratch mutation did not apply"
+    );
 }
 
 #[trace("FR-065-AC-11")]
