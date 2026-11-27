@@ -251,6 +251,10 @@ name = "query"
 harness = false
 
 [[bench]]
+name = "apply_patch"
+harness = false
+
+[[bench]]
 name = "plain_language"
 harness = false
 
