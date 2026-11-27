@@ -206,6 +206,10 @@ fn tc_2233_oidc_attestation_consumes_artifact_without_running_checkout_code() {
     );
     assert_eq!(
         attest["with"]["quoin_tooling_tag"].as_str(),
+        Some("${{ inputs.quoin_tooling_tag || '0.36.10' }}")
+    );
+    assert_eq!(
+        tag_attestation["on"]["workflow_call"]["inputs"]["quoin_tooling_tag"]["default"].as_str(),
         Some("0.36.10")
     );
     assert_eq!(attest["permissions"]["id-token"].as_str(), Some("write"));
