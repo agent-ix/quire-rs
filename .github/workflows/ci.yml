@@ -231,7 +231,7 @@ jobs:
           if-no-files-found: warn
 
   perf:
-    name: Perf Bench (NFR-001/002/007 baselines + regression bands)
+    name: Perf Bench (NFR-001/002/007/015 baselines + regression bands)
     runs-on: ubuntu-24.04
     if: >-
       github.event_name == 'pull_request' ||
@@ -268,13 +268,18 @@ jobs:
       # First PR ever has no baseline — `--save-baseline main` writes
       # one; subsequent runs compare against it via `--baseline main`
       # and the make perf-gate target inspects criterion's stored JSON
-      # for a >10% slowdown.
+      # for regressions beyond the configured runner allowance.
       - name: Run benches against stored baseline
         run: |
-          if [[ -d target/criterion/parse/small/main ]]; then
-            cargo bench --locked --bench parse --bench load -- --baseline main
+          if [[ -d target/criterion/parse/small/main && \
+                -d target/criterion/load/registry_load_from_demo/main && \
+                -d target/criterion/load_repo_1k/threads_1/main && \
+                -d target/criterion/load_repo_1k/threads_8/main && \
+                -d target/criterion/load_repo_1k_bodies/threads_1/main && \
+                -d target/criterion/load_repo_1k_bodies/threads_8/main ]]; then
+            cargo bench --locked --bench parse --bench load --bench load_repo -- --baseline main
           else
-            cargo bench --locked --bench parse --bench load -- --save-baseline main
+            cargo bench --locked --bench parse --bench load --bench load_repo -- --save-baseline main
           fi
       # The canonical perf gate is the Apple Silicon baseline (10% band,
       # enforced locally / on the canonical runner). The shared Ubuntu CI

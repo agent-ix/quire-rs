@@ -338,16 +338,16 @@ mutants-scope:
 	@$(CARGO) run --locked --release --quiet --example mutants_scope -- $(FR)
 
 # =============================================================================
-# Perf gates (Task 014, NFR-001/002/007)
+# Perf gates (Task 014, NFR-001/002/007/015)
 # =============================================================================
 
 .PHONY: perf-baseline
 perf-baseline:
-	$(CARGO) bench --bench parse --bench load -- --save-baseline main
+	$(CARGO) bench --bench parse --bench load --bench load_repo -- --save-baseline main
 
 .PHONY: perf-check
 perf-check:
-	$(CARGO) bench --bench parse --bench load -- --baseline main
+	$(CARGO) bench --bench parse --bench load --bench load_repo -- --baseline main
 	$(CARGO) run --locked -p quire-bench --bin quire-perf-gate
 
 .PHONY: perf-gate
@@ -375,7 +375,7 @@ loom:
 
 .PHONY: sanitize
 sanitize:
-	@echo "TSAN + ASAN on the rayon walk (NFR-018). Needs nightly + build-std."
+	@echo "TSAN + ASAN on the rayon walk and Python bindings (NFR-018). Needs nightly + rust-src."
 	@# Pin RUSTC to nightly: a stable rustc on PATH (e.g. homebrew) would
 	@# reject the -Zsanitizer probe otherwise.
 	NRUSTC=$$(rustup which --toolchain nightly rustc); TGT=$$(rustc -vV | sed -n 's/host: //p'); \
@@ -384,8 +384,29 @@ sanitize:
 	NRUSTC=$$(rustup which --toolchain nightly rustc); TGT=$$(rustc -vV | sed -n 's/host: //p'); \
 	RUSTC=$$NRUSTC RUSTFLAGS="-Zsanitizer=address" rustup run nightly cargo test --locked \
 		-Z build-std --target $$TGT --test corpus_concurrency
-	@echo "NOTE: TSAN/ASAN of the GIL window + Python object handoff needs a"
-	@echo "sanitizer-instrumented CPython and runs on the scheduled CI lane."
+	python3 -m venv .venv
+	.venv/bin/python -m pip install --require-hashes -r requirements/ci.txt
+	.venv/bin/python -m pip install maturin==1.13.3
+	TGT=$$(rustc -vV | sed -n 's/host: //p'); \
+	CARGO_TARGET_DIR=target/sanitize-tsan \
+	CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS="-Zsanitizer=thread" \
+	RUSTUP_TOOLCHAIN=nightly .venv/bin/maturin develop --locked --features python \
+		--target $$TGT -Z build-std
+	TSAN_RUNTIME=$$(gcc -print-file-name=libtsan.so); \
+	LD_PRELOAD=$$TSAN_RUNTIME TSAN_OPTIONS=halt_on_error=1 \
+		.venv/bin/python -m pytest tests/python/test_fr023_gil.py \
+		-k test_two_python_threads_stress_load_repo_under_tsan -q
+	TGT=$$(rustc -vV | sed -n 's/host: //p'); \
+	CARGO_TARGET_DIR=target/sanitize-asan \
+	CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS="-Zsanitizer=address" \
+	RUSTUP_TOOLCHAIN=nightly .venv/bin/maturin develop --locked --features python \
+		--target $$TGT -Z build-std
+	ASAN_RUNTIME=$$(gcc -print-file-name=libasan.so); \
+	LD_PRELOAD=$$ASAN_RUNTIME ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 \
+	PYTHONMALLOC=malloc \
+	PYTHONPATH=tests/python .venv/bin/python -m pytest \
+		-p lsan_before_exit tests/python/test_bindings.py \
+		-k 'parse_document_returns_structured_object or extract_envelope_returns_extraction_and_edges or extract_frontmatter_returns_dict_or_none or binding_returns_materialized_values_without_python_json_reparse' -q
 
 # The corpus-scale benchmark (quire-rs#231, CR-099) — `coverage-baseline`'s
 # byte-diff pattern extended from one fixture to the whole corpus.

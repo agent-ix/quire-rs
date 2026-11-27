@@ -1,40 +1,40 @@
 name: sanitize
 
-# NFR-018 — ThreadSanitizer + AddressSanitizer on the rayon walk
-# (tests/corpus_concurrency.rs). Manual-trigger for now.
-#
-# This covers the data-race / memory surface of the parallel walk. TSAN/
-# ASAN of the GIL window + Python object handoff needs a sanitizer-
-# instrumented CPython and is tracked separately.
-
+# NFR-018 — FFI sanitizer coverage is too slow for PR checks. The workflow is
+# available manually and runs weekly; it does not add a push or pull-request gate.
 on:
+  push:
+    tags:
+      - "v*"
+  schedule:
+    - cron: "17 7 * * 1"
   workflow_dispatch:
 
 permissions:
   contents: read
 
+env:
+  CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+
 jobs:
-  sanitize:
-    name: TSAN + ASAN (rayon walk)
+  rust-corpus:
+    name: Rust corpus TSAN + ASAN
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
       - name: Install nightly + rust-src
         shell: bash
         run: |
           rustup toolchain install nightly --profile minimal --component rust-src
-          rustup default nightly
+          rustup target add --toolchain nightly x86_64-unknown-linux-gnu
       - name: Cache cargo artifacts
         uses: Swatinem/rust-cache@v2
-      # PLAT-901: `build.rs` fetches its schema packages via `npm pack`;
-      # `cargo test` compiles the crate, so it needs npm on PATH.
-      - name: Set up Node (npm for build.rs's fetch)
+      - name: Set up Node (npm for build.rs schema fetch)
         uses: actions/setup-node@v7
         with:
           node-version: "22"
-      # @agent-ix/* scoped packages live on GitHub Packages (npm.ix's
-      # target), not public npm. Without this, npm/npm-pack falls back to
-      # registry.npmjs.org and 404s on every @agent-ix package.
       - uses: agent-ix/nodejs-actions/setup-npmrc@main
         with:
           npm_registry_token: ${{ secrets.REGISTRY_TOKEN }}
@@ -48,3 +48,96 @@ jobs:
           RUSTFLAGS="-Zsanitizer=address" cargo +nightly test --locked \
             -Z build-std --target x86_64-unknown-linux-gnu \
             --test corpus_concurrency
+
+  tsan-python:
+    name: Python extension TSAN
+    runs-on: ubuntu-24.04
+    env:
+      CARGO_TARGET_DIR: target/sanitize-tsan
+      CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS: "-Zsanitizer=thread"
+      RUSTUP_TOOLCHAIN: nightly
+      TSAN_OPTIONS: halt_on_error=1
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install nightly + rust-src
+        run: |
+          rustup toolchain install nightly --profile minimal --component rust-src
+          rustup target add --toolchain nightly x86_64-unknown-linux-gnu
+      - name: Set up Node (npm for build.rs schema fetch)
+        uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+      - uses: agent-ix/nodejs-actions/setup-npmrc@main
+        with:
+          npm_registry_token: ${{ secrets.REGISTRY_TOKEN }}
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Python build and test dependencies
+        run: |
+          python3 -m venv .venv
+          .venv/bin/python -m pip install --require-hashes -r requirements/ci.txt
+          .venv/bin/python -m pip install maturin==1.13.3
+      - name: Build the Python extension with ThreadSanitizer
+        run: |
+          .venv/bin/maturin develop --locked --features python \
+            --target x86_64-unknown-linux-gnu -Z build-std
+      - name: Run concurrent Python binding harnesses under ThreadSanitizer
+        run: |
+          TSAN_RUNTIME="$(gcc -print-file-name=libtsan.so)"
+          test -f "$TSAN_RUNTIME"
+          LD_PRELOAD="$TSAN_RUNTIME" TSAN_OPTIONS="$TSAN_OPTIONS" \
+            .venv/bin/python -m pytest tests/python/test_fr023_gil.py \
+              -k test_two_python_threads_stress_load_repo_under_tsan -q
+
+  asan-python:
+    name: Python extension ASAN
+    runs-on: ubuntu-24.04
+    env:
+      CARGO_TARGET_DIR: target/sanitize-asan
+      CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS: "-Zsanitizer=address"
+      RUSTUP_TOOLCHAIN: nightly
+      ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install nightly + rust-src
+        run: |
+          rustup toolchain install nightly --profile minimal --component rust-src
+          rustup target add --toolchain nightly x86_64-unknown-linux-gnu
+      - name: Set up Node (npm for build.rs schema fetch)
+        uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+      - uses: agent-ix/nodejs-actions/setup-npmrc@main
+        with:
+          npm_registry_token: ${{ secrets.REGISTRY_TOKEN }}
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Python build and test dependencies
+        run: |
+          python3 -m venv .venv
+          .venv/bin/python -m pip install --require-hashes -r requirements/ci.txt
+          .venv/bin/python -m pip install maturin==1.13.3
+      - name: Build the Python extension with AddressSanitizer
+        run: |
+          .venv/bin/maturin develop --locked --features python \
+            --target x86_64-unknown-linux-gnu -Z build-std
+      - name: Run focused Python object-handoff tests under AddressSanitizer
+        env:
+          PYTHONMALLOC: malloc
+        run: |
+          ASAN_RUNTIME="$(gcc -print-file-name=libasan.so)"
+          test -f "$ASAN_RUNTIME"
+          LD_PRELOAD="$ASAN_RUNTIME" ASAN_OPTIONS="$ASAN_OPTIONS" \
+            PYTHONPATH=tests/python .venv/bin/python -m pytest \
+              -p lsan_before_exit \
+              tests/python/test_bindings.py \
+              -k 'parse_document_returns_structured_object or extract_envelope_returns_extraction_and_edges or extract_frontmatter_returns_dict_or_none or binding_returns_materialized_values_without_python_json_reparse' \
+              -q

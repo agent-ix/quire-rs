@@ -33,14 +33,18 @@ This NFR supersedes the v1 §19 decision to skip `-Z sanitizer=address|thread` (
 ### Known cost / limitations
 
 - Sanitizers require a nightly toolchain and a rebuild of the extension + dependencies with instrumentation; the lane is heavier than miri. Bounded by running only the focused FFI concurrency/handoff tests, not the full suite.
-- Some CPython internals produce ASAN noise; a suppressions file (`asan.supp`) SHALL be maintained for known-benign interpreter allocations, with each suppression carrying a one-line rationale (parity with the deny.toml advisory-ignore policy).
+- CPython reports interpreter-owned Unicode allocations as leaks during process
+  shutdown. The Python lane runs LeakSanitizer's one-shot check after the tests
+  and before interpreter teardown, while test-created leaks remain attributable
+  to the extension. Do not suppress `PyUnicode_New` or another allocator-wide
+  frame: those rules would also hide first-party Python-string leaks.
 
 ## Acceptance Criteria
 
 | ID | Criteria | Verification |
 |----|----------|--------------|
 | NFR-018-AC-1 | A scheduled CI lane builds the `python`-feature extension with `-Z sanitizer=thread` and runs the two-thread `load_repo` harness; zero races reported. | Test |
-| NFR-018-AC-2 | A scheduled CI lane builds with `-Z sanitizer=address` and runs the object-handoff test set; zero leaks / use-after-free in first-party handoff code (interpreter-internal noise suppressed via `asan.supp` with rationale). | Test |
+| NFR-018-AC-2 | A scheduled CI lane builds with `-Z sanitizer=address` and runs the object-handoff test set; zero leaks / use-after-free in first-party handoff code. LeakSanitizer checks before CPython teardown so interpreter-owned shutdown allocations do not mask or become test leaks; no allocator-wide suppression is used. | Test |
 | NFR-018-AC-3 | Both lanes run on weekly schedule + workflow_dispatch + tag push (not per-PR); `make sanitize` reproduces them locally. | Inspection |
 | NFR-018-AC-4 | A sanitizer-detected race/leak/UAF is recorded as a P0 issue with a committed reproducer. | Demonstration |
 
@@ -55,4 +59,4 @@ This NFR supersedes the v1 §19 decision to skip `-Z sanitizer=address|thread` (
 
 ## Verification
 
-- Sanitizer jobs visible in `.github/workflows/ci.yml`; passing run on tag push; `asan.supp` checked in with rationale comments.
+- Sanitizer jobs visible in `.github/workflows/sanitize.yml`; passing run on tag push; the ASAN job runs its leak check before CPython teardown.

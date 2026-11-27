@@ -50,3 +50,34 @@ def test_concurrent_load_repo_calls_release_the_gil(tmp_path):
         f"load_repo serialized: two-worker {concurrent_elapsed:.4f}s, "
         f"one-worker {single_worker_elapsed:.4f}s"
     )
+
+
+@pytest.mark.trace("NFR-018-AC-1")
+def test_two_python_threads_stress_load_repo_under_tsan(tmp_path):
+    """Concurrent repository loads exercise the Rust walk under TSAN."""
+    root = tmp_path / "spec"
+    root.mkdir()
+    for index in range(128):
+        body = "\n".join(
+            f"Line {line}: concurrent load_repo input {index}." for line in range(300)
+        )
+        (root / f"FR-{index:03}.md").write_text(
+            f"---\nid: FR-{index:03}\ntype: FR\n---\n# Requirement {index}\n\n{body}\n"
+        )
+
+    barrier = threading.Barrier(2)
+
+    def load_repo_concurrently():
+        barrier.wait()
+        return quire.load_repo(str(root))
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+        futures = [
+            executor.submit(load_repo_concurrently)
+            for _ in range(2)
+        ]
+        left, right = [future.result() for future in futures]
+
+    assert len(left) == 128
+    assert len(right) == 128
+    assert left == right
