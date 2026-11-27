@@ -7,6 +7,13 @@ bumps; once 1.0 ships, semver is strict.
 
 ## [Unreleased]
 
+## [0.63.4] — 2026-11-27
+
+### Fixed
+
+- Release evidence packaging and verification accept wrapped whitespace in the
+  declared suite contract while retaining required passing evidence checks.
+
 ## [0.63.3] — 2026-11-26
 
 ### Added

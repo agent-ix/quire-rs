@@ -8,13 +8,21 @@ def missing_required_release_bindings(suite_text, run_store, run_record):
     """Return required obligations lacking at least one passing supporting test."""
     required_range = re.search(
         r"`?SUITE-001`?\s+SHALL\s+bind each acceptance criterion in Quire-rs FR-095\s+\(AC-1 through AC-(\d+)\)",
-        suite_text,
+        " ".join(suite_text.split()),
     )
     if required_range is None:
-        raise ValueError("release suite registry does not declare its required FR-095 bindings")
+        raise ValueError(
+            "release suite registry does not declare its required FR-095 bindings"
+        )
+
+    upper_bound = int(required_range.group(1))
+    if upper_bound < 1:
+        raise ValueError(
+            "release suite registry requires a positive FR-095 upper bound"
+        )
 
     required_obligations = {
-        f"FR-095-AC-{number}" for number in range(1, int(required_range.group(1)) + 1)
+        f"FR-095-AC-{number}" for number in range(1, upper_bound + 1)
     }
     bindings = [
         entry
@@ -28,7 +36,9 @@ def missing_required_release_bindings(suite_text, run_store, run_record):
     }
     missing = []
     for obligation in sorted(required_obligations):
-        matching = [entry for entry in bindings if entry.get("obligation") == obligation]
+        matching = [
+            entry for entry in bindings if entry.get("obligation") == obligation
+        ]
         if not matching:
             missing.append(obligation)
             continue
