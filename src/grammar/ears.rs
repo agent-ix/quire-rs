@@ -520,6 +520,7 @@ fn re_vague_quality() -> &'static Regex {
 
 #[cfg(test)]
 mod tests {
+    use ix_trace_rs::trace;
     use super::*;
 
     fn doc(text: &str) -> crate::ast::QuireDocument {

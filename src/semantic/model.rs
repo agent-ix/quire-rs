@@ -878,7 +878,7 @@ pub struct DimensionDecl {
 #[serde(rename_all = "camelCase")]
 pub struct DimensionTermDecl {
     pub dimension: TypeRef,
-    pub exponent: i64,
+    pub exponent: serde_json::Number,
     pub source_span: SourceLocus,
 }
 
@@ -1274,6 +1274,7 @@ pub(crate) fn entry_errors(diagnostics: &[SemanticDiagnostic]) -> KindAvailabili
 
 impl ModelOutcome {
     /// The frontmatter and table source for [`model_availability`].
+    #[implements("FR-075-AC-21")]
     pub(crate) fn source(&self) -> ModelSource<'_> {
         ModelSource {
             declared: self.declared,
@@ -2228,16 +2229,11 @@ fn kind_name(kind: TokenKind) -> &'static str {
 }
 
 #[implements("FR-075-AC-17")]
-fn canonical_integer(text: &str) -> Option<i64> {
-    if text.is_empty()
-        || text == "-0"
-        || text.starts_with('+')
-        || (text.starts_with('0') && text.len() > 1)
-        || (text.starts_with("-0") && text.len() > 2)
-    {
+fn canonical_integer(text: &str) -> Option<serde_json::Number> {
+    if !canonical_integer_syntax(text) {
         return None;
     }
-    text.parse().ok()
+    serde_json::from_str(text).ok()
 }
 
 #[implements("FR-075-AC-18")]
