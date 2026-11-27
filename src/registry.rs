@@ -928,7 +928,11 @@ mod tests {
     fn iso_app_and_process_modules_form_the_seventeen_archetype_union() {
         let provider_module = |variable: &str, sibling: &str, module: &str| {
             let provider = std::env::var_os(variable).map_or_else(
-                || Path::new(env!("CARGO_MANIFEST_DIR")).join("..").join(sibling),
+                || {
+                    Path::new(env!("CARGO_MANIFEST_DIR"))
+                        .join("..")
+                        .join(sibling)
+                },
                 PathBuf::from,
             );
             let root = provider.join(module);
@@ -939,8 +943,16 @@ mod tests {
             );
             root
         };
-        let iso = provider_module("VALIDATION_ISO_ROOT", "spec-artifacts-iso", "spec_artifacts_iso");
-        let app = provider_module("VALIDATION_APP_ROOT", "spec-artifacts-app", "spec_artifacts_app");
+        let iso = provider_module(
+            "VALIDATION_ISO_ROOT",
+            "spec-artifacts-iso",
+            "spec_artifacts_iso",
+        );
+        let app = provider_module(
+            "VALIDATION_APP_ROOT",
+            "spec-artifacts-app",
+            "spec_artifacts_app",
+        );
         let process = provider_module(
             "VALIDATION_PROCESS_ROOT",
             "spec-artifacts-process",
@@ -958,7 +970,9 @@ mod tests {
             .expect("load the three modules together");
         assert_eq!(expected.len(), 17, "the three v1 modules define 17 types");
         assert_eq!(
-            combined.archetype_names().collect::<std::collections::BTreeSet<_>>(),
+            combined
+                .archetype_names()
+                .collect::<std::collections::BTreeSet<_>>(),
             expected
         );
         assert!(
@@ -991,10 +1005,10 @@ mod tests {
         }
 
         let registry = Registry::load_from(&[&first, &second]).expect("tolerant load");
-        assert!(registry.diagnostics().iter().any(|diagnostic| matches!(
-            diagnostic,
-            Diagnostic::DuplicateModuleName { .. }
-        )));
+        assert!(registry
+            .diagnostics()
+            .iter()
+            .any(|diagnostic| matches!(diagnostic, Diagnostic::DuplicateModuleName { .. })));
         assert_eq!(
             registry.schema_for("sample").expect("first schema")["properties"]["origin"]["const"],
             "first",
