@@ -2,6 +2,38 @@
 
 use ix_trace_rs::trace;
 use serde_json::{json, Value};
+use std::path::Path;
+
+use quire_rs::{apply_patch, QuireError, Registry};
+
+#[trace("FR-003-AC-3")]
+#[test]
+fn surfaced_schema_accepts_valid_tool_arguments_and_reports_retry_path() {
+    let module = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/modules/demo");
+    let registry = Registry::load_module(&module).expect("load the tool schema fixture");
+    let schema = registry.schema_for("demo-item").expect("schema is surfaced");
+    let tool_arguments = json!({"id": "DEMO-2", "title": "Created by the agent"});
+    let tool_schema = jsonschema::options()
+        .build(schema)
+        .expect("the surfaced schema is a valid tool argument schema");
+
+    assert!(
+        tool_schema.is_valid(&tool_arguments),
+        "the tool-call argument must satisfy the exact schema surfaced by the registry"
+    );
+    let archetype = registry.archetype("demo-item").expect("loaded archetype");
+    let applied = apply_patch(archetype, &json!({}), &tool_arguments)
+        .expect("a schema-valid tool argument applies successfully");
+    assert_eq!(applied, tool_arguments);
+
+    let invalid = json!({"id": "DEMO-3", "title": ""});
+    assert!(!tool_schema.is_valid(&invalid));
+    let error = apply_patch(archetype, &json!({}), &invalid).expect_err("invalid arguments refused");
+    assert!(
+        matches!(error, QuireError::SchemaViolation { field_path, .. } if field_path == "title"),
+        "the retryable violation must identify the field: {error}"
+    );
+}
 
 #[trace("FR-069-AC-8")]
 // The embedded semantic-core bundle is complete and made of valid schemas.
