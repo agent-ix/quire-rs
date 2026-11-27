@@ -305,6 +305,22 @@ fn terra_bundle_fixture(
         serde_json::to_vec(&all_bindings).expect("serialize committed bindings");
     let generated_bindings =
         serde_json::to_vec_pretty(&all_bindings).expect("serialize generated bindings");
+    let test_entries = (1..=6)
+        .map(|criterion| {
+            serde_json::json!({
+                "symbol": format!("tests::tc_{}", 2228 + criterion),
+                "outcome": outcome
+            })
+        })
+        .collect::<Vec<_>>();
+    let junit_cases = (1..=6)
+        .map(|criterion| {
+            format!(
+                "<testcase classname=\"tests\" name=\"tc_{}\"/>",
+                2228 + criterion
+            )
+        })
+        .collect::<String>();
     fs::write(source_evidence.join("suites.md"), suite_registry).expect("write suite registry");
     fs::write(source_evidence.join("bindings.json"), &committed_bindings)
         .expect("write committed bindings");
@@ -314,7 +330,7 @@ fn terra_bundle_fixture(
         "tool": "ix-trace-run 0.1.0+8a0ec153",
         "evidenceKind": "Unit",
         "timestamp": "2026-11-26T00:00:00.123456789Z",
-        "entries": [{"symbol":"tests::tc_2229", "outcome":outcome}]
+        "entries": test_entries
     });
     let manifest = serde_json::json!({
         "schemaVersion": 1,
@@ -347,7 +363,7 @@ fn terra_bundle_fixture(
     .expect("write run record");
     fs::write(
         bundle_root.join("junit.xml"),
-        "<testsuite><testcase classname=\"tests\" name=\"tc_2229\"/></testsuite>",
+        format!("<testsuite>{junit_cases}</testsuite>"),
     )
     .expect("write raw JUnit result");
     let hashes = Command::new("python3")
