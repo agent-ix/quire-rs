@@ -168,8 +168,16 @@ fn tc_catalog_entries_do_not_participate_in_validation() {
     let plain_result = validate(&without_catalog);
 
     assert_eq!(catalog_result, plain_result);
-    assert!(catalog_result.errors.is_empty(), "{:#?}", catalog_result.errors);
-    assert!(catalog_result.warnings.is_empty(), "{:#?}", catalog_result.warnings);
+    assert!(
+        catalog_result.errors.is_empty(),
+        "{:#?}",
+        catalog_result.errors
+    );
+    assert!(
+        catalog_result.warnings.is_empty(),
+        "{:#?}",
+        catalog_result.warnings
+    );
 }
 
 #[trace("FR-054-AC-4")]
@@ -440,10 +448,7 @@ fn tc874_uncatalogued_method_is_reported() {
 // does not become a grammar finding or a validation error.
 #[test]
 fn tc_uncatalogued_method_remains_a_nonfatal_coverage_diagnostic() {
-    let dir = std::env::temp_dir().join(format!(
-        "quire-rs-uncat-con5-{}",
-        std::process::id()
-    ));
+    let dir = std::env::temp_dir().join(format!("quire-rs-uncat-con5-{}", std::process::id()));
     let _ = fs::remove_dir_all(&dir);
     let scope = dir.join("spec");
     fs::create_dir_all(&scope).expect("mkdir");
@@ -465,8 +470,8 @@ fn tc_uncatalogued_method_remains_a_nonfatal_coverage_diagnostic() {
     let spec = quire_rs::Spec::from_path(&scope);
     let model = registry.traceability().cloned().expect("model");
     let graph = quire_rs::symbols::trace::bind(&quire_rs::symbols::extract_tree(&src), &model);
-    let report = quire_rs::coverage::compute(&spec, &registry, &graph, &scope)
-        .expect("coverage report");
+    let report =
+        quire_rs::coverage::compute(&spec, &registry, &graph, &scope).expect("coverage report");
     let uncatalogued: Vec<_> = report
         .diagnostics
         .iter()
