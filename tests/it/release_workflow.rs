@@ -787,3 +787,108 @@ fn tc_2243_changed_raw_junit_payload_is_refused() {
     assert!(String::from_utf8_lossy(&result.stderr).contains("payload hashes"));
     assert!(!output.exists());
 }
+
+#[trace("FR-095-AC-4", "FR-095-AC-6")]
+#[test]
+fn release_evidence_refuses_retired_or_unknown_producers() {
+    for tool in ["ix-trace-run 0.1.0+3cd3285", "ix-trace-run 0.1.0+unknown"] {
+        let root = tempfile::tempdir().unwrap();
+        let commit = "a".repeat(40);
+        let (source, archive, bundle) = terra_bundle_fixture(root.path(), &commit, "pass");
+        let run_path = source.join("spec/evidence").join(TERRA_RUN_PATH);
+        let mut run: serde_json::Value =
+            serde_json::from_slice(&fs::read(&run_path).unwrap()).unwrap();
+        run["tool"] = serde_json::json!(tool);
+        fs::write(&run_path, serde_json::to_vec(&run).unwrap()).unwrap();
+        fs::write(
+            bundle.join(TERRA_RUN_PATH),
+            serde_json::to_vec(&run).unwrap(),
+        )
+        .unwrap();
+        let rejected_archive = root.path().join("rejected.tar.gz");
+        let packaged = Command::new("python3")
+            .arg(
+                PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                    .join("scripts/package_release_evidence.py"),
+            )
+            .arg("--source-root")
+            .arg(&source)
+            .arg("--committed-bindings")
+            .arg(bundle.join("bindings.committed.json"))
+            .arg("--run-record")
+            .arg(&run_path)
+            .arg("--junit-results")
+            .arg(bundle.join("junit.xml"))
+            .args([
+                "--expected-tag",
+                "v0.63.3",
+                "--expected-commit",
+                &commit,
+                "--tag-created-at",
+                "1795564800",
+            ])
+            .arg("--archive")
+            .arg(&rejected_archive)
+            .output()
+            .unwrap();
+        assert!(!packaged.status.success(), "{tool}");
+        assert!(
+            String::from_utf8_lossy(&packaged.stderr).contains("run record does not match"),
+            "{tool}: {:?}",
+            packaged
+        );
+        assert!(!rejected_archive.exists());
+
+        // Keep every payload hash correct, so only the retired/unknown tool
+        // identity makes the otherwise-valid archive fail verification.
+        let hashed = Command::new("python3").arg("-c")
+            .arg("import hashlib,json,sys; from pathlib import Path; root=Path(sys.argv[1]); p=root/'release-evidence.json'; m=json.loads(p.read_text()); m['tool']=sys.argv[2]; m['sha256']={f.relative_to(root).as_posix():hashlib.sha256(f.read_bytes()).hexdigest() for f in root.rglob('*') if f.is_file() and f!=p}; p.write_text(json.dumps(m))")
+            .arg(&bundle).arg(tool).status().unwrap();
+        assert!(hashed.success());
+        let archived = Command::new("tar")
+            .arg("-czf")
+            .arg(&archive)
+            .arg("-C")
+            .arg(&bundle)
+            .args([
+                "release-evidence.json",
+                "suites.md",
+                "bindings.committed.json",
+                "bindings.json",
+                "junit.xml",
+                TERRA_RUN_PATH,
+            ])
+            .status()
+            .unwrap();
+        assert!(archived.success());
+        let output = root.path().join("verified");
+        let verified = Command::new("python3")
+            .arg(
+                PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                    .join("scripts/verify_release_evidence.py"),
+            )
+            .arg("--archive")
+            .arg(&archive)
+            .arg("--source-root")
+            .arg(&source)
+            .args([
+                "--expected-tag",
+                "v0.63.3",
+                "--expected-commit",
+                &commit,
+                "--tag-created-at",
+                "1795564800",
+            ])
+            .arg("--output-dir")
+            .arg(&output)
+            .output()
+            .unwrap();
+        assert!(!verified.status.success(), "{tool}");
+        assert!(
+            String::from_utf8_lossy(&verified.stderr).contains("manifest or payload hashes"),
+            "{tool}: {:?}",
+            verified
+        );
+        assert!(!output.exists());
+    }
+}
