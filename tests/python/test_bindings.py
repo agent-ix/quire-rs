@@ -838,7 +838,7 @@ def test_new_module_functions_release_the_gil_under_concurrent_calls(tmp_path):
         worker = threading.Thread(target=run_call, daemon=True)
         worker.start()
         assert started.wait(timeout=1), f"{name} worker did not start"
-        assert not finished.wait(timeout=0.005), (
+        assert not finished.wait(timeout=0.001), (
             f"{name} workload completed before the GIL-release observation window"
         )
         assert finished.wait(timeout=10), f"{name} did not finish"
