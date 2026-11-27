@@ -9,6 +9,7 @@ use std::sync::Arc;
 use std::thread;
 
 use ix_trace_rs::trace;
+use proptest::prelude::*;
 use quire_rs::{apply_patch, extract, parse_document, validate_document, Registry};
 use serde_json::json;
 
@@ -37,6 +38,17 @@ fn parse_is_deterministic_across_threads() {
         .collect();
     for h in handles {
         h.join().unwrap();
+    }
+}
+
+proptest! {
+    #[trace("NFR-006-AC-2")]
+    #[test]
+    fn parse_is_equal_across_one_hundred_identical_runs(input in ".*") {
+        let baseline = parse_document(&input);
+        for _ in 0..100 {
+            prop_assert_eq!(parse_document(&input), baseline.clone());
+        }
     }
 }
 
