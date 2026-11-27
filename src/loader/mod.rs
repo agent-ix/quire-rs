@@ -2444,6 +2444,36 @@ mod tests {
         p
     }
 
+    #[trace("FR-013-AC-2")]
+    #[test]
+    fn ix_schema_path_loads_the_eight_real_iso_archetypes() {
+        let provider = std::env::var_os("VALIDATION_ISO_ROOT").map_or_else(
+            || PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../spec-artifacts-iso"),
+            PathBuf::from,
+        );
+        assert!(
+            provider.join("spec_artifacts_iso/manifest.yaml").is_file(),
+            "ISO module provider missing at {}; CI sets VALIDATION_ISO_ROOT",
+            provider.display()
+        );
+        let home = tmpdir("iso-schema-path-home");
+        let registry = with_search_env(
+            &home,
+            None,
+            Some(provider.into_os_string()),
+            || Registry::from_env().expect("load the ISO module through IX_SCHEMA_PATH"),
+        );
+
+        for name in ["fr", "nfr", "str", "us", "it", "tc", "ac", "con"] {
+            assert!(
+                registry.archetype(name).is_some(),
+                "ISO archetype {name} must be registered"
+            );
+        }
+        assert_eq!(registry.archetype_names().count(), 8);
+        assert!(registry.archetype("fr").is_some());
+    }
+
     fn write_minimal_module(root: &Path, name: &str) {
         fs::create_dir_all(root.join("schemas")).unwrap();
         fs::write(
