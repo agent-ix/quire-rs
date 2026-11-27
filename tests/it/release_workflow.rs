@@ -251,16 +251,18 @@ fn tc_2234_make_evidence_records_fresh_suite_run_for_retention() {
     assert!(target.contains("--tool 'ix-trace-run 0.1.0+8a0ec153'"));
 
     let workflow = workflow("tag-attestation.yml");
-    assert!(workflow["jobs"]["release-evidence"]["steps"]
-        .as_sequence()
-        .expect("release evidence job has steps")
-        .iter()
-        .any(|step| step["run"].as_str() == Some("make evidence")));
+    assert!(
+        workflow["jobs"]["release-evidence"]["steps"]
+            .as_sequence()
+            .expect("release evidence job has steps")
+            .iter()
+            .any(|step| step["run"].as_str() == Some("make evidence"))
+    );
 }
 
-const TERRA_RUN_PATH: &str = "runs/SUITE-001/2026-11-26T00~3A00~3A00~2E123456789Z.json";
+const RELEASE_RUN_PATH: &str = "runs/SUITE-001/2026-11-26T00~3A00~3A00~2E123456789Z.json";
 
-fn terra_bundle_fixture(
+fn release_bundle_fixture(
     root: &std::path::Path,
     commit: &str,
     outcome: &str,
@@ -268,7 +270,7 @@ fn terra_bundle_fixture(
     let source_root = root.join("source");
     let source_evidence = source_root.join("spec/evidence");
     let bundle_root = root.join("bundle");
-    let run_path = TERRA_RUN_PATH.to_owned();
+    let run_path = RELEASE_RUN_PATH.to_owned();
     fs::create_dir_all(source_evidence.join("runs/SUITE-001")).expect("create source evidence");
     fs::create_dir_all(bundle_root.join("runs/SUITE-001")).expect("create bundle evidence");
 
@@ -384,13 +386,13 @@ fn terra_bundle_fixture(
     (source_root, archive_path, bundle_root)
 }
 
-fn rearchive_terra_bundle(bundle_root: &std::path::Path, archive_path: &std::path::Path) {
+fn rearchive_release_bundle(bundle_root: &std::path::Path, archive_path: &std::path::Path) {
     let hashes = Command::new("python3")
         .arg("-c")
         .arg("import hashlib,json,sys; from pathlib import Path; root=Path(sys.argv[1]); p=root/'release-evidence.json'; m=json.loads(p.read_text()); m['sha256']={f.relative_to(root).as_posix():hashlib.sha256(f.read_bytes()).hexdigest() for f in root.rglob('*') if f.is_file() and f!=p}; p.write_text(json.dumps(m))")
         .arg(bundle_root)
         .status()
-        .expect("rehash exact Terra fixture payloads");
+        .expect("rehash exact release fixture payloads");
     assert!(hashes.success(), "fixture payload hashes are refreshed");
     let archived = Command::new("tar")
         .arg("-czf")
@@ -403,19 +405,19 @@ fn rearchive_terra_bundle(bundle_root: &std::path::Path, archive_path: &std::pat
             "bindings.committed.json",
             "bindings.json",
             "junit.xml",
-            TERRA_RUN_PATH,
+            RELEASE_RUN_PATH,
         ])
         .status()
-        .expect("rebuild Terra fixture archive");
+        .expect("rebuild release fixture archive");
     assert!(archived.success(), "tampered fixture is rearchived");
 }
 
 #[trace("FR-095-AC-4")]
 #[test]
-fn tc_2235_valid_terra_bundle_is_verified_and_extracted_for_the_tag_sha() {
+fn tc_2235_valid_release_bundle_is_verified_and_extracted_for_the_tag_sha() {
     let root = tempfile::tempdir().expect("create fixture root");
     let commit = "a".repeat(40);
-    let (source_root, archive, bundle_root) = terra_bundle_fixture(root.path(), &commit, "pass");
+    let (source_root, archive, bundle_root) = release_bundle_fixture(root.path(), &commit, "pass");
     let evidence_root = source_root.join("spec/evidence");
     let package =
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("scripts/package_release_evidence.py");
@@ -426,7 +428,7 @@ fn tc_2235_valid_terra_bundle_is_verified_and_extracted_for_the_tag_sha() {
         .args(["--committed-bindings"])
         .arg(bundle_root.join("bindings.committed.json"))
         .args(["--run-record"])
-        .arg(evidence_root.join(TERRA_RUN_PATH))
+        .arg(evidence_root.join(RELEASE_RUN_PATH))
         .arg("--junit-results")
         .arg(bundle_root.join("junit.xml"))
         .args(["--expected-tag", "v0.63.3", "--expected-commit", &commit])
@@ -451,16 +453,16 @@ fn tc_2235_valid_terra_bundle_is_verified_and_extracted_for_the_tag_sha() {
         .arg(&output)
         .status()
         .expect("run release evidence verifier");
-    assert!(result.success(), "matching Terra evidence verifies");
-    assert!(output.join(TERRA_RUN_PATH).is_file());
+    assert!(result.success(), "matching release evidence verifies");
+    assert!(output.join(RELEASE_RUN_PATH).is_file());
     assert!(output.join("bindings.committed.json").is_file());
     assert_eq!(
-        fs::read(output.join(TERRA_RUN_PATH)).unwrap(),
-        fs::read(evidence_root.join(TERRA_RUN_PATH)).unwrap(),
+        fs::read(output.join(RELEASE_RUN_PATH)).unwrap(),
+        fs::read(evidence_root.join(RELEASE_RUN_PATH)).unwrap(),
         "raw Quoin record bytes are preserved"
     );
     let run: serde_json::Value =
-        serde_json::from_slice(&fs::read(output.join(TERRA_RUN_PATH)).unwrap()).unwrap();
+        serde_json::from_slice(&fs::read(output.join(RELEASE_RUN_PATH)).unwrap()).unwrap();
     assert!(
         run.get("commit").is_none(),
         "published Quoin records have no invented commit field"
@@ -472,7 +474,7 @@ fn tc_2235_valid_terra_bundle_is_verified_and_extracted_for_the_tag_sha() {
 fn tc_2236_wrong_tag_sha_refuses_terra_bundle_before_extraction() {
     let root = tempfile::tempdir().expect("create fixture root");
     let commit = "a".repeat(40);
-    let (source_root, archive, _) = terra_bundle_fixture(root.path(), &commit, "pass");
+    let (source_root, archive, _) = release_bundle_fixture(root.path(), &commit, "pass");
     let output = root.path().join("verified");
     let verifier =
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("scripts/verify_release_evidence.py");
@@ -503,7 +505,7 @@ fn tc_2236_wrong_tag_sha_refuses_terra_bundle_before_extraction() {
 fn tc_2237_changed_committed_registry_refuses_terra_bundle() {
     let root = tempfile::tempdir().expect("create fixture root");
     let commit = "c".repeat(40);
-    let (source_root, archive, _) = terra_bundle_fixture(root.path(), &commit, "pass");
+    let (source_root, archive, _) = release_bundle_fixture(root.path(), &commit, "pass");
     fs::write(
         source_root.join("spec/evidence/suites.md"),
         "id: SUR-001\ntitle: changed suite registry\n",
@@ -533,7 +535,7 @@ fn tc_2237_changed_committed_registry_refuses_terra_bundle() {
 fn tc_2238_failed_suite_record_refuses_terra_bundle() {
     let root = tempfile::tempdir().expect("create fixture root");
     let commit = "d".repeat(40);
-    let (source_root, archive, _) = terra_bundle_fixture(root.path(), &commit, "fail");
+    let (source_root, archive, _) = release_bundle_fixture(root.path(), &commit, "fail");
     let output = root.path().join("verified");
     let verifier =
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("scripts/verify_release_evidence.py");
@@ -558,7 +560,7 @@ fn tc_2238_failed_suite_record_refuses_terra_bundle() {
 fn tc_2239_stale_run_record_refuses_terra_bundle() {
     let root = tempfile::tempdir().expect("create fixture root");
     let commit = "e".repeat(40);
-    let (source_root, archive, _) = terra_bundle_fixture(root.path(), &commit, "pass");
+    let (source_root, archive, _) = release_bundle_fixture(root.path(), &commit, "pass");
     let output = root.path().join("verified");
     let verifier =
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("scripts/verify_release_evidence.py");
@@ -654,7 +656,7 @@ fn tc_2241_make_evidence_refuses_a_dirty_checkout_before_running_tests() {
 fn tc_2242_streaming_archive_reader_enforces_member_and_byte_bounds() {
     let root = tempfile::tempdir().expect("create archive fixture root");
     let commit = "9".repeat(40);
-    let (source_root, _, bundle_root) = terra_bundle_fixture(root.path(), &commit, "pass");
+    let (source_root, _, bundle_root) = release_bundle_fixture(root.path(), &commit, "pass");
     let verifier =
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("scripts/verify_release_evidence.py");
     let many_archive = root.path().join("many-members.tar.gz");
@@ -704,7 +706,7 @@ fn tc_2240_unsafe_archive_path_and_missing_run_are_refused() {
     let root = tempfile::tempdir().expect("create fixture root");
     let commit = "f".repeat(40);
     let (source_root, valid_archive, bundle_root) =
-        terra_bundle_fixture(root.path(), &commit, "pass");
+        release_bundle_fixture(root.path(), &commit, "pass");
     let verifier =
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("scripts/verify_release_evidence.py");
     let unsafe_archive = root.path().join("unsafe.tar.gz");
@@ -808,7 +810,7 @@ fn tc_2240_unsafe_archive_path_and_missing_run_are_refused() {
 fn tc_2243_changed_raw_junit_payload_is_refused() {
     let root = tempfile::tempdir().expect("create fixture root");
     let commit = "a".repeat(40);
-    let (source, archive, bundle) = terra_bundle_fixture(root.path(), &commit, "pass");
+    let (source, archive, bundle) = release_bundle_fixture(root.path(), &commit, "pass");
     fs::write(bundle.join("junit.xml"), "changed raw producer result").expect("tamper JUnit");
     let tar = Command::new("tar")
         .arg("-czf")
@@ -821,7 +823,7 @@ fn tc_2243_changed_raw_junit_payload_is_refused() {
             "bindings.committed.json",
             "bindings.json",
             "junit.xml",
-            TERRA_RUN_PATH,
+            RELEASE_RUN_PATH,
         ])
         .status()
         .expect("repack tampered payload");
@@ -861,14 +863,14 @@ fn release_evidence_refuses_retired_or_unknown_producers() {
         let tool = tool.as_str().unwrap();
         let root = tempfile::tempdir().unwrap();
         let commit = "a".repeat(40);
-        let (source, archive, bundle) = terra_bundle_fixture(root.path(), &commit, "pass");
-        let run_path = source.join("spec/evidence").join(TERRA_RUN_PATH);
+        let (source, archive, bundle) = release_bundle_fixture(root.path(), &commit, "pass");
+        let run_path = source.join("spec/evidence").join(RELEASE_RUN_PATH);
         let mut run: serde_json::Value =
             serde_json::from_slice(&fs::read(&run_path).unwrap()).unwrap();
         run["tool"] = serde_json::json!(tool);
         fs::write(&run_path, serde_json::to_vec(&run).unwrap()).unwrap();
         fs::write(
-            bundle.join(TERRA_RUN_PATH),
+            bundle.join(RELEASE_RUN_PATH),
             serde_json::to_vec(&run).unwrap(),
         )
         .unwrap();
@@ -924,7 +926,7 @@ fn release_evidence_refuses_retired_or_unknown_producers() {
                 "bindings.committed.json",
                 "bindings.json",
                 "junit.xml",
-                TERRA_RUN_PATH,
+                RELEASE_RUN_PATH,
             ])
             .status()
             .unwrap();
@@ -967,7 +969,7 @@ fn release_evidence_refuses_retired_or_unknown_producers() {
 fn tc_2245_missing_required_release_binding_is_refused_by_package_and_verifier() {
     let root = tempfile::tempdir().expect("create fixture root");
     let commit = "e".repeat(40);
-    let (source, archive, bundle) = terra_bundle_fixture(root.path(), &commit, "pass");
+    let (source, archive, bundle) = release_bundle_fixture(root.path(), &commit, "pass");
 
     let generated_path = bundle.join("bindings.json");
     let mut generated: serde_json::Value =
@@ -982,7 +984,7 @@ fn tc_2245_missing_required_release_binding_is_refused_by_package_and_verifier()
     fs::write(&generated_path, &generated_bytes).expect("write missing-binding bundle");
     fs::write(source.join("spec/evidence/bindings.json"), &generated_bytes)
         .expect("write missing generated registry for packaging");
-    rearchive_terra_bundle(&bundle, &archive);
+    rearchive_release_bundle(&bundle, &archive);
 
     let evidence = source.join("spec/evidence");
     let package =
@@ -995,7 +997,7 @@ fn tc_2245_missing_required_release_binding_is_refused_by_package_and_verifier()
         .arg("--committed-bindings")
         .arg(bundle.join("bindings.committed.json"))
         .arg("--run-record")
-        .arg(evidence.join(TERRA_RUN_PATH))
+        .arg(evidence.join(RELEASE_RUN_PATH))
         .arg("--junit-results")
         .arg(bundle.join("junit.xml"))
         .args([
@@ -1064,9 +1066,12 @@ fn tc_2245_missing_required_release_binding_is_refused_by_package_and_verifier()
     let unsupported_bytes =
         serde_json::to_vec_pretty(&unsupported).expect("serialize unsupported binding fixture");
     fs::write(&generated_path, &unsupported_bytes).expect("write unsupported bundle bindings");
-    fs::write(source.join("spec/evidence/bindings.json"), &unsupported_bytes)
-        .expect("write unsupported source bindings");
-    rearchive_terra_bundle(&bundle, &archive);
+    fs::write(
+        source.join("spec/evidence/bindings.json"),
+        &unsupported_bytes,
+    )
+    .expect("write unsupported source bindings");
+    rearchive_release_bundle(&bundle, &archive);
 
     let package_without_support = Command::new("python3")
         .arg(&package)
@@ -1075,7 +1080,7 @@ fn tc_2245_missing_required_release_binding_is_refused_by_package_and_verifier()
         .arg("--committed-bindings")
         .arg(bundle.join("bindings.committed.json"))
         .arg("--run-record")
-        .arg(evidence.join(TERRA_RUN_PATH))
+        .arg(evidence.join(RELEASE_RUN_PATH))
         .arg("--junit-results")
         .arg(bundle.join("junit.xml"))
         .args([
@@ -1094,8 +1099,9 @@ fn tc_2245_missing_required_release_binding_is_refused_by_package_and_verifier()
         !package_without_support.status.success(),
         "packager rejects a required binding with no passing run symbol"
     );
-    assert!(String::from_utf8_lossy(&package_without_support.stderr)
-        .contains("tests::never_executed"));
+    assert!(
+        String::from_utf8_lossy(&package_without_support.stderr).contains("tests::never_executed")
+    );
 
     let verify_without_support = Command::new("python3")
         .arg(&verifier)
@@ -1119,8 +1125,9 @@ fn tc_2245_missing_required_release_binding_is_refused_by_package_and_verifier()
         !verify_without_support.status.success(),
         "verifier rejects a required binding with no passing run symbol"
     );
-    assert!(String::from_utf8_lossy(&verify_without_support.stderr)
-        .contains("tests::never_executed"));
+    assert!(
+        String::from_utf8_lossy(&verify_without_support.stderr).contains("tests::never_executed")
+    );
 }
 
 #[trace("FR-095-AC-5")]
@@ -1141,10 +1148,12 @@ fn tc_2230_attestation_requires_successful_evidence_generation_and_upload() {
         tag_attestation["jobs"]["attest"]["needs"],
         serde_yaml::from_str::<Value>("[release-artifacts, release-evidence]").unwrap()
     );
-    assert!(tag_attestation["jobs"]["attest"]["if"]
-        .as_str()
-        .expect("attestation fails closed")
-        .contains("needs.release-evidence.result == 'success'"));
+    assert!(
+        tag_attestation["jobs"]["attest"]["if"]
+            .as_str()
+            .expect("attestation fails closed")
+            .contains("needs.release-evidence.result == 'success'")
+    );
 }
 
 #[trace("FR-095-AC-7")]
@@ -1156,7 +1165,6 @@ fn tc_2246_reusable_release_workflow_has_tag_guards_and_typed_inputs() {
     for name in [
         "run_wheels",
         "release_artifact_name",
-        "evidence_asset_name",
         "evidence_artifact_name",
         "ea_tooling_tag",
         "quoin_tooling_tag",
@@ -1169,7 +1177,6 @@ fn tc_2246_reusable_release_workflow_has_tag_guards_and_typed_inputs() {
     assert_eq!(inputs["run_wheels"]["type"], "boolean");
     for name in [
         "release_artifact_name",
-        "evidence_asset_name",
         "evidence_artifact_name",
         "ea_tooling_tag",
         "quoin_tooling_tag",
@@ -1212,7 +1219,7 @@ fn tc_2246_reusable_release_workflow_has_tag_guards_and_typed_inputs() {
 
 #[trace("FR-095-AC-8")]
 #[test]
-fn tc_2247_adoption_how_to_calls_pinned_workflow_for_attached_release_evidence() {
+fn tc_2247_adoption_how_to_calls_pinned_workflow_for_generated_release_evidence() {
     let how_to = fs::read_to_string(
         PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("docs/how-to-adopt-quoin-release-evidence.md"),
@@ -1220,10 +1227,9 @@ fn tc_2247_adoption_how_to_calls_pinned_workflow_for_attached_release_evidence()
     .expect("read release evidence adoption how-to");
     assert!(how_to.contains("agent-ix/quire-rs/.github/workflows/tag-attestation.yml@"));
     assert!(how_to.contains("tags:"));
-    assert!(how_to.contains("release-evidence.tar.gz"));
+    assert!(how_to.contains("make evidence"));
     assert!(how_to.contains("run_wheels: false"));
     assert!(how_to.contains("release_artifact_name:"));
-    assert!(how_to.contains("evidence_asset_name:"));
     assert!(how_to.contains("evidence_artifact_name:"));
     assert!(!how_to.contains("copy .github/workflows/tag-attestation.yml"));
 }

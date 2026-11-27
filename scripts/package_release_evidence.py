@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Package the single Terra SUITE-001 run for its signed release tag."""
+"""Package the single SUITE-001 run for its signed release tag."""
 # implements: FR-095-AC-4
 
 import argparse
@@ -9,6 +9,8 @@ import re
 import tarfile
 from datetime import datetime, timezone
 from pathlib import Path
+
+from release_evidence_validation import missing_required_release_bindings
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--source-root", type=Path, required=True)
@@ -65,26 +67,15 @@ for name, store in (("committed", base_store), ("generated", run_store)):
     if store.get("schemaVersion") != 1 or not isinstance(store.get("bindings"), list):
         parser.error(f"{name} bindings registry is not a schema-version-1 Quoin store")
 
-# implements: FR-095-AC-6
-suite_text = suite_registry.decode("utf-8")
-required_range = re.search(
-    r"`?SUITE-001`?\s+SHALL\s+bind each acceptance criterion in Quire-rs FR-095\s+\(AC-1 through AC-(\d+)\)",
-    suite_text,
-)
-if required_range is None:
-    parser.error("release suite registry does not declare its required FR-095 bindings")
-required_obligations = {
-    f"FR-095-AC-{number}" for number in range(1, int(required_range.group(1)) + 1)
-}
-generated_obligations = {
-    entry.get("obligation")
-    for entry in run_store["bindings"]
-    if isinstance(entry, dict) and entry.get("suite") == "SUITE-001"
-}
-missing_obligations = sorted(required_obligations - generated_obligations)
+try:
+    missing_obligations = missing_required_release_bindings(
+        suite_registry.decode("utf-8"), run_store, run_record
+    )
+except ValueError as error:
+    parser.error(str(error))
 if missing_obligations:
     parser.error(
-        "generated bindings are missing required release obligations: "
+        "generated bindings lack required passing release evidence: "
         + ", ".join(missing_obligations)
     )
 
