@@ -927,7 +927,6 @@ mod tests {
         );
     }
 
-    #[trace("FR-014-AC-5")]
     #[test]
     fn three_modules_form_exact_archetype_union() {
         let first = tmpdir("union-first").join("module_one");

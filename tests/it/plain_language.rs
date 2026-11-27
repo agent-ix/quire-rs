@@ -95,7 +95,6 @@ fn profile_merge_is_first_wins_and_has_no_default() {
     assert!(registry.plain_language_profile("missing").is_none());
 }
 
-#[trace("FR-074-CON-2")]
 #[test]
 fn missing_profile_has_no_default_and_checks_require_explicit_profile() {
     let registry =

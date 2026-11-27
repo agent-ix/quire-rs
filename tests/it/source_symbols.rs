@@ -51,7 +51,6 @@ fn rust_marker_with_spaced_ids_and_trailing_comma_binds_each_id_once() {
 }
 
 #[cfg(feature = "rust-symbols")]
-#[trace("FR-051-AC-26")]
 #[test]
 fn uncompiled_tree_with_missing_dependency_still_extracts_and_binds() {
     use quire_rs::symbols::{extract_tree, trace::bind, SymbolKind};

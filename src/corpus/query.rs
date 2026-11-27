@@ -337,7 +337,6 @@ mod tests {
 
     // Every query after construction uses the in-memory indices, even after
     // the source tree has been removed.
-    #[trace("FR-027-AC-7")]
     #[test]
     fn queries_read_no_files_after_construction() {
         let root = tmpdir("query_without_filesystem");

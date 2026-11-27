@@ -167,7 +167,6 @@ fn index_incompleteness_is_error_strict_warning_okf() {
 
 /// Bundle findings stay ordered by their source document and repeat exactly
 /// for the same bundle (NFR-006).
-#[trace("FR-058-AC-9")]
 #[test]
 fn bundle_findings_are_ordered_by_document_and_repeat_identically() {
     let root = tmpdir("finding_order");

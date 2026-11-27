@@ -2445,7 +2445,6 @@ mod tests {
         p
     }
 
-    #[trace("FR-013-AC-2")]
     #[test]
     fn ix_schema_path_loads_the_six_real_iso_archetypes() {
         let provider = std::env::var_os("VALIDATION_ISO_ROOT").map_or_else(
