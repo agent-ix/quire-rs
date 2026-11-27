@@ -882,6 +882,61 @@ fn tc1098_repeated_projection_is_byte_identical() {
     );
 }
 
+#[trace("FR-068-CON-4")]
+#[test]
+fn tc_assurance_projection_orders_identity_tuples_and_nested_maps() {
+    let unrelated = "Initial unrelated text.";
+    let first = obligation_export(false, unrelated);
+    let reversed = obligation_export(true, unrelated);
+    let first_bytes = first.to_json_bytes().expect("serialize first export");
+    assert_eq!(
+        first_bytes,
+        reversed
+            .to_json_bytes()
+            .expect("serialize reordered export"),
+        "projection order must ignore input document creation order"
+    );
+
+    assert!(first.artifacts.windows(2).all(|pair| {
+        (pair[0].id.as_str(), pair[0].locator.path.as_str())
+            <= (pair[1].id.as_str(), pair[1].locator.path.as_str())
+    }));
+    assert!(first.obligations.windows(2).all(|pair| {
+        (pair[0].id.as_str(), pair[0].document.as_str())
+            <= (pair[1].id.as_str(), pair[1].document.as_str())
+    }));
+    assert!(first
+        .symbols
+        .windows(2)
+        .all(|pair| pair[0].id <= pair[1].id));
+    assert!(first
+        .relation_kinds
+        .windows(2)
+        .all(|pair| pair[0].kind <= pair[1].kind));
+    for obligation in &first.obligations {
+        let keys: Vec<_> = obligation.parameters.keys().collect();
+        assert!(keys.windows(2).all(|pair| pair[0] <= pair[1]));
+    }
+
+    // Inserting the same map entries in reverse order leaves every serialized
+    // byte unchanged; map order is part of the observable interchange form.
+    let mut reverse_maps = first.clone();
+    for obligation in &mut reverse_maps.obligations {
+        obligation.parameters = obligation
+            .parameters
+            .iter()
+            .rev()
+            .map(|(key, value)| (key.clone(), value.clone()))
+            .collect();
+    }
+    assert_eq!(
+        first_bytes,
+        reverse_maps
+            .to_json_bytes()
+            .expect("serialize reverse maps")
+    );
+}
+
 #[test]
 fn accepted_module_premises_remain_sorted_contract_values() {
     let export: AssuranceExport = serde_json::from_value(golden()).expect("typed golden");
