@@ -1,0 +1,232 @@
+manifest_version: 1.0.0
+name: spec-artifacts-app
+version: 0.2.0
+description: "Filament Module: application/composite spec artifact templates (ApplicationSpec); master-requirements is imported from spec-artifacts-iso"
+# Semantic-module contract (quoin FR-070/FR-073, agent-ix/spec-artifacts-app#3).
+# `imports` names every module whose types this module's artifacts reference;
+# an artifact references an imported type through `{module, type}` and an id,
+# never by restating the imported type's fields (FR-002-AC-10, FR-003-AC-4).
+# The engine counts an import as used only when a `$ref` in the module's own
+# data schemas names a type under that package's schema base (`RequirementRef.$defs`).
+semantic:
+  contract_version: 1.0.0
+  package: agent-ix/spec-artifacts-app
+  exports:
+  - ApplicationSpec
+  # `imports` is `<org>/<repo>` -> exact semver; `import_types` lists the types
+  # this module references from each imported package. The suite checks every
+  # `ImportedTypeRef` against both, and the engine refuses a listed type the
+  # provider does not export.
+  imports:
+    agent-ix/spec-artifacts-iso: 0.3.0
+  import_types:
+    agent-ix/spec-artifacts-iso:
+    - StR
+    - US
+    - FR
+    - NFR
+    - IT
+    - TC
+    - master-requirements
+  targets: [json-schema, markdown]
+  mappings: [frontmatter, section, typed-table, sysml-fence, ocl-clause, provenance]
+  compatibility_posture: additive
+  legacy_forms: warning
+archetypes:
+- kind: application-spec
+  name: Application Spec
+  doc_backed: true
+  supports_membership: true
+  composition:
+    expected_artifacts:
+    - master-requirements
+    - StR
+    - FR
+    - NFR
+grammars:
+- name: app-spec
+  version: 0.1.0
+  description: Composite application spec grammar
+  doc_kinds:
+  - application-spec
+artifact_types:
+- name: ApplicationSpec
+  grammar_ref: app-spec
+  frontmatter_schema_ref: schemas/applicationspec-frontmatter.schema.json
+  data_schema:
+    schema: schemas/ApplicationSpec.json
+  defaults:
+    id_pattern: AS-{next:03d}
+  allowed_links:
+  - contains
+  - depends_on
+  - references
+  examples: []
+  lint_rules_ref: []
+  # Every locator this ticket adds is optional except `title` and `purpose`,
+  # which every application spec authored before the change already carries
+  # (NFR-001 metric 3, FR-005-CON-1).
+  body_extraction:
+    yield_pattern:
+      match:
+        title:
+          from: heading
+          level: 1
+          required: true
+          assert:
+            level: 1
+        purpose:
+          from: section_body
+          after_heading: Purpose
+          required: true
+          assert:
+            level: 2
+        scope:
+          from: section_body
+          after_heading: Scope
+          required: false
+          assert:
+            level: 2
+        system_overview:
+          from: section_body
+          after_heading: System Overview
+          required: false
+          assert:
+            level: 2
+        structure:
+          from: section_body
+          after_heading: Structure
+          required: false
+          assert:
+            level: 2
+        requirements_architecture:
+          from: section_body
+          after_heading: Requirements Architecture
+          required: false
+          assert:
+            level: 2
+        references:
+          from: section_body
+          after_heading: References
+          required: false
+          assert:
+            level: 2
+        boundaries_table:
+          from: table_row
+          under_section: Boundaries
+          required: false
+          assert:
+            columns:
+            - ID
+            - Name
+            - Kind
+            - Description
+            min_rows: 1
+            id_column: ID
+            id_pattern: ^{id}-BND-\d+$
+        capabilities_table:
+          from: table_row
+          under_section: Capabilities
+          required: false
+          assert:
+            columns:
+            - ID
+            - Name
+            - Description
+            - Actors
+            min_rows: 1
+            id_column: ID
+            id_pattern: ^{id}-CAP-\d+$
+        actors_table:
+          from: table_row
+          under_section: Actors
+          required: false
+          assert:
+            columns:
+            - ID
+            - Name
+            - Kind
+            - Description
+            min_rows: 1
+            id_column: ID
+            id_pattern: ^{id}-ACT-\d+$
+        interfaces_table:
+          from: table_row
+          under_section: Interfaces
+          required: false
+          assert:
+            columns:
+            - ID
+            - Name
+            - Kind
+            - Direction
+            - Contract
+            min_rows: 1
+            id_column: ID
+            id_pattern: ^{id}-IFC-\d+$
+        data_dependencies_table:
+          from: table_row
+          under_section: Data Dependencies
+          required: false
+          assert:
+            columns:
+            - ID
+            - Name
+            - Source
+            - Access
+            min_rows: 1
+            id_column: ID
+            id_pattern: ^{id}-DAT-\d+$
+        rendering_requirements_table:
+          from: table_row
+          under_section: UI Rendering Requirements
+          required: false
+          assert:
+            columns:
+            - ID
+            - Surface
+            - Requirement
+            - Verification
+            min_rows: 1
+            id_column: ID
+            id_pattern: ^{id}-UI-\d+$
+        requirements_table:
+          from: table_row
+          under_section: Requirements
+          required: false
+          assert:
+            columns:
+            - ID
+            - Kind
+            - Source
+            - Target
+            min_rows: 1
+            id_column: ID
+            id_pattern: ^(StR|US|FR|NFR|IT|TC)-\d+$
+        properties_table:
+          from: table_row
+          under_section: Properties
+          required: false
+          assert:
+            columns:
+            - Field
+            - Type
+            - Multiplicity
+            - Constraints
+            min_rows: 1
+        properties_fence:
+          from: code_block
+          language: sysml
+          under_section: Properties
+          required: false
+          multiple: false
+        invariants:
+          from: code_block
+          language: ocl
+          under_section: Invariants
+          required: false
+          multiple: true
+doc_kinds:
+- application-spec
+object_types: []
+lint_rules: []

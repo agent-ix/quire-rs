@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/SafetyImpact.json",
+  "type": "string",
+  "enum": [
+    "unassessed",
+    "none",
+    "impacting"
+  ],
+  "description": "Whether the anomaly's safety impact has been assessed, and with what outcome."
+}

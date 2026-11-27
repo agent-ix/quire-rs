@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-app/RequirementKind.json",
+  "type": "string",
+  "enum": [
+    "StR",
+    "US",
+    "FR",
+    "NFR",
+    "IT",
+    "TC"
+  ],
+  "description": "The ISO artifact type of an aggregated requirement."
+}

@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/RoleSpecFields.json",
+  "type": "object",
+  "properties": {
+    "evaluations": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "allOf": [
+          {
+            "if": {
+              "pattern": "^(?:[^\\t]*\\t){4}deterministic\\t"
+            },
+            "then": {
+              "pattern": "^(?:[^\\t]*\\t){4}deterministic\\t[a-z][a-z0-9-]*\\.[a-z][a-z0-9_]*\\tevaluator\\t"
+            }
+          },
+          {
+            "if": {
+              "pattern": "^(?:[^\\t]*\\t){4}judgement\\t"
+            },
+            "then": {
+              "pattern": "^(?:[^\\t]*\\t){4}judgement\\t[a-z][a-z0-9-]*@[0-9]+#[a-z][a-z0-9-]*\\t(?:director|team-retro)\\t",
+              "not": {
+                "pattern": "^(?:[^\\t]*\\t){10}tick$"
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  "description": "The RoleSpec archetype's YAML-extracted yield record (record_validation, FR-020): the values of `yield_pattern.match`, keyed by the match key names verbatim. An evaluation row is one tab-joined string `ID<TAB>Rule<TAB>Evidence source<TAB>Trigger<TAB>Method<TAB>Query or rubric<TAB>Evaluator<TAB>Comparator<TAB>Value<TAB>Unit<TAB>Cadence`. It holds the method-conditional rules the `assert` facet cannot express: a `deterministic` row is checked by the `evaluator` over a query reference, a `judgement` row is judged by the `director` or `team-retro` over a versioned rubric reference and never at cadence `tick`. The vocabularies themselves (method, cadence, evidence source) are the `assert` facet's. It is the module's own schema for the extracted record and is not the emitted record schema: `RoleSpec.json` (camelCase keys, the mapped record) is projected from TypeSpec."
+}

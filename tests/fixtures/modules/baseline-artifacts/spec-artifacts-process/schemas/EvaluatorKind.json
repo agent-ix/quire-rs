@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/EvaluatorKind.json",
+  "type": "string",
+  "enum": [
+    "evaluator",
+    "director",
+    "team-retro"
+  ],
+  "description": "Who decides an evaluation: the evaluator for a deterministic row, the director or team-retro for a judgement row."
+}

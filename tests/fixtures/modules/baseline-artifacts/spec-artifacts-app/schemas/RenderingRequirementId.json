@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-app/RenderingRequirementId.json",
+  "type": "string",
+  "pattern": "^[A-Z]{2,4}-[0-9]+-UI-[0-9]+$",
+  "description": "UI rendering-requirement row id, `<document id>-UI-N`."
+}

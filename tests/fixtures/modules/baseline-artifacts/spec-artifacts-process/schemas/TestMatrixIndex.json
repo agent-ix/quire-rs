@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/TestMatrixIndex.json",
+  "type": "object",
+  "properties": {
+    "id": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/UpperDocId.json"
+    },
+    "title": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/NonEmptyText.json"
+    },
+    "type": {
+      "type": "string",
+      "const": "TestMatrixIndex"
+    },
+    "object": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/ObjectTypeName.json"
+    },
+    "relationships": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/Relationship.json"
+      },
+      "description": "Absent when the author declared none; the frontmatter schemas do not require the key, and the model must not require what the schema does not (FR-011-AC-15)."
+    },
+    "provenance": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/Provenance.json"
+    },
+    "subsystemIndex": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/SubsystemIndexRow.json"
+      },
+      "minItems": 1
+    },
+    "integrationMatrix": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/IntegrationMatrixRow.json"
+      },
+      "minItems": 1,
+      "description": "Optional: a repository whose subsystems do not integrate has none, and requiring the table would force an empty one."
+    },
+    "coverageGaps": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/CoverageGapRow.json"
+      },
+      "minItems": 1,
+      "description": "Optional: an absent register and an empty one are different claims, and only the second is authored."
+    }
+  },
+  "required": [
+    "id",
+    "title",
+    "type",
+    "provenance",
+    "subsystemIndex"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "Root matrix record (archetype `TestMatrixIndex`, CR-039). A repository past a\ncertain size does not have one matrix; it has a tree, and this is the root.\nIt mints no test-case id, because `trace_targets.test-case` binds `TestMatrix`\nand this is not one."
+}

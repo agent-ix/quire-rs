@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-app/Interface.json",
+  "type": "object",
+  "properties": {
+    "id": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-app/InterfaceId.json"
+    },
+    "name": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-app/NonEmptyText.json"
+    },
+    "kind": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-app/InterfaceKind.json"
+    },
+    "direction": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-app/InterfaceDirection.json"
+    },
+    "contract": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-app/NonEmptyText.json",
+      "description": "free text: how the contract is named — an OpenAPI path, a topic, a command; no one vocabulary spans them."
+    },
+    "line": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-app/LineNumber.json"
+    }
+  },
+  "required": [
+    "id",
+    "name",
+    "kind",
+    "direction",
+    "contract",
+    "line"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "One row of `## Interfaces`: a surface the application exposes or consumes."
+}

@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-app/ArtifactId.json",
+  "type": "string",
+  "pattern": "^[A-Z]{2,4}-[0-9]+$",
+  "description": "Artifact id as the frontmatter schemas of this module already pin it:\na 2..4 letter prefix and a number (`AS-001`, `MR-001`)."
+}

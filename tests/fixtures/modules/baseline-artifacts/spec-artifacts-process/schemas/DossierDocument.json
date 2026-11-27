@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/DossierDocument.json",
+  "type": "object",
+  "properties": {
+    "id": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/NonEmptyText.json"
+    },
+    "title": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/NonEmptyText.json"
+    },
+    "type": {
+      "type": "string",
+      "const": "DossierDocument"
+    },
+    "object": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/ObjectTypeName.json"
+    },
+    "version": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/NonEmptyText.json"
+    },
+    "documentKind": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/DossierKind.json"
+    },
+    "generatedBy": {
+      "type": "string",
+      "const": "quoin dossier"
+    },
+    "producerIdentity": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/DossierProducerIdentity.json"
+    },
+    "asOf": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/Rfc3339Instant.json"
+    },
+    "relationships": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/Relationship.json"
+      },
+      "description": "Absent when the author declared none; the frontmatter schemas do not require the key, and the model must not require what the schema does not (FR-011-AC-15)."
+    },
+    "body": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/Section.json",
+      "description": "free text: the whole generated body."
+    }
+  },
+  "required": [
+    "id",
+    "title",
+    "type",
+    "documentKind",
+    "generatedBy",
+    "producerIdentity",
+    "body"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "Dossier document record (archetype `DossierDocument`, FR-018): one generated\ndocument of a submission dossier. `version` is required for every kind\nexcept `records-of-processing`; `asOf` is required for a requirements mapping\nmatrix (`rmm`). A source-backed SOUP list supplies `asOf`, while a SOUP gap\ndocument may omit it.",
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "documentKind": {
+            "const": "rmm"
+          }
+        },
+        "required": [
+          "documentKind"
+        ]
+      },
+      "then": {
+        "required": [
+          "asOf"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "documentKind": {
+            "not": {
+              "const": "records-of-processing"
+            }
+          }
+        },
+        "required": [
+          "documentKind"
+        ]
+      },
+      "then": {
+        "required": [
+          "version"
+        ]
+      }
+    }
+  ]
+}

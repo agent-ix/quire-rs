@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/Section.json",
+  "type": "object",
+  "properties": {
+    "text": {
+      "type": "string",
+      "description": "free text: authored prose; sentence grammar is the `iso-spec-core` EARS advisory, not a schema."
+    },
+    "startLine": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/LineNumber.json"
+    },
+    "endLine": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/LineNumber.json"
+    }
+  },
+  "required": [
+    "text",
+    "startLine",
+    "endLine"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "One level-2 section as a `section` mapping yields it: the byte-exact section\ncontent (quire-rs FR-008) and its document lines."
+}

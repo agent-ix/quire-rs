@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/Verdict.json",
+  "type": "string",
+  "enum": [
+    "Pass",
+    "Fail",
+    "Waived"
+  ],
+  "description": "The verdict of one inspection act."
+}

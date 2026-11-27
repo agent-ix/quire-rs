@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/EvaluationMethod.json",
+  "type": "string",
+  "enum": [
+    "deterministic",
+    "judgement"
+  ],
+  "description": "How an evaluation is decided: by a registered query, or by judgement against a rubric."
+}

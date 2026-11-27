@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/TestRowId.json",
+  "type": "string",
+  "pattern": "^(TC|IT)(-[A-Za-z0-9]+)*-[0-9]+[A-Za-z0-9]*(-[A-Za-z0-9]+)*$",
+  "description": "A test-case row id. The segmented forms the ecosystem authors (`TC-060-01`,\n`TC-SB-001`, `IT-001-HEADER-PARSE`) are legal; the prefix set is `TC` and `IT`\nbecause those are the only two artifact types any module mints test ids for\n(CR-019). Copied verbatim from the manifest's `id_pattern`."
+}

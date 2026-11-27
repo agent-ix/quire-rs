@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/SubsystemIndexRow.json",
+  "type": "object",
+  "properties": {
+    "subsystem": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/NonEmptyText.json",
+      "description": "free text: the subsystem name."
+    },
+    "localMatrix": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/RelativeHref.json",
+      "description": "The relative link that makes the matrix tree navigable; asserting it is what makes a dropped cell visible."
+    },
+    "line": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/LineNumber.json"
+    }
+  },
+  "required": [
+    "subsystem",
+    "localMatrix",
+    "line"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "One `## Requirements Traceability` row of a TestMatrixIndex: a subsystem and where its detail lives."
+}

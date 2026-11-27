@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/InspectionId.json",
+  "type": "string",
+  "pattern": "^INSP-[0-9]+$",
+  "description": "An inspection-act id in an Inspections record."
+}

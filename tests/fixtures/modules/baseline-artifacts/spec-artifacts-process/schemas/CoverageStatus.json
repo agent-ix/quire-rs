@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/CoverageStatus.json",
+  "type": "object",
+  "properties": {
+    "marker": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/StatusMarker.json"
+    },
+    "note": {
+      "type": "string",
+      "description": "free text: the authored reason, verbatim, so no byte of the cell is dropped."
+    }
+  },
+  "required": [
+    "marker"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "A status cell split by the `typed-table` mapping: the leading marker and the\nnote that says why. `🚧 scale evidence deferred` is `marker: 🚧`,\n`note: \"scale evidence deferred\"`; a bare marker carries no `note`."
+}

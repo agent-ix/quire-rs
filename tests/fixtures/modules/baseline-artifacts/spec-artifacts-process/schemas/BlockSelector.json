@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/BlockSelector.json",
+  "type": "object",
+  "properties": {
+    "requirementId": {
+      "type": "string",
+      "description": "free text: the owning requirement or criterion id, e.g. `FR-003-AC-2`."
+    },
+    "headingPath": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Ordered heading trail to the block."
+    },
+    "blockIndex": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 2147483647
+    }
+  },
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "A structural feedback locator that survives prose rewrites."
+}

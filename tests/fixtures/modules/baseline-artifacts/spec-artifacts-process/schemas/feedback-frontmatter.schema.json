@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "id",
+    "title",
+    "type",
+    "status",
+    "kind",
+    "anchor"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Z]{2,4}-[0-9]+$"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "type": {
+      "const": "Feedback"
+    },
+    "status": {
+      "description": "Human review-thread lifecycle. Anchor resolution (anchored/drifted/orphaned) is computed at load time and not stored here.",
+      "enum": ["open", "addressed", "resolved"]
+    },
+    "kind": {
+      "description": "A free-form passage comment, or a decision on a review finding.",
+      "enum": ["comment", "triage"]
+    },
+    "decision": {
+      "description": "Required meaning only when kind is 'triage'.",
+      "enum": ["Fix", "Dismiss", "Defer"]
+    },
+    "anchor": {
+      "description": "Where this feedback attaches. Resolution is text-primary, block-fallback: prefer the exact text selector; if the quote is gone, fall back to the structural block; if the block is gone, the app marks the thread orphaned (never silently re-points).",
+      "type": "object",
+      "required": ["artifact"],
+      "additionalProperties": true,
+      "properties": {
+        "artifact": {
+          "description": "The artifact this feedback is anchored in — a repo-relative path or an ix:// reference.",
+          "type": "string",
+          "minLength": 1
+        },
+        "text": {
+          "description": "PRIMARY selector — the exact selected text plus a little surrounding context for disambiguation (W3C TextQuoteSelector style).",
+          "type": "object",
+          "required": ["quote"],
+          "additionalProperties": true,
+          "properties": {
+            "quote": { "type": "string", "minLength": 1 },
+            "prefix": { "type": "string" },
+            "suffix": { "type": "string" }
+          }
+        },
+        "block": {
+          "description": "FALLBACK selector — a structural locator that survives prose rewrites. At least one of its fields should be present.",
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "requirementId": {
+              "description": "The owning requirement or acceptance-criterion id, e.g. FR-003 or FR-003-AC-2.",
+              "type": "string"
+            },
+            "headingPath": {
+              "description": "Ordered heading trail to the block, e.g. [\"FR-003\", \"Description\"].",
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "blockIndex": {
+              "description": "Zero-based index of the block within its section.",
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        }
+      }
+    },
+    "object": {
+      "type": "string"
+    },
+    "relationships": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["target", "type"],
+        "additionalProperties": false,
+        "properties": {
+          "target": { "type": "string", "pattern": "^ix://" },
+          "type": { "type": "string" },
+          "cardinality": { "type": "string" }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-app/ActorKind.json",
+  "type": "string",
+  "enum": [
+    "human",
+    "service",
+    "agent",
+    "external_system",
+    "scheduler"
+  ],
+  "description": "What kind of actor interacts with the application."
+}

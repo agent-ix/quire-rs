@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/Severity.json",
+  "type": "string",
+  "enum": [
+    "low",
+    "medium",
+    "high"
+  ],
+  "description": "Finding severity: how urgently to look. Orthogonal to `EscapeCause`."
+}

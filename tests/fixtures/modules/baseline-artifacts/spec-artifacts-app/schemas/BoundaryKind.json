@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-app/BoundaryKind.json",
+  "type": "string",
+  "enum": [
+    "owned",
+    "consumed",
+    "external",
+    "deferred"
+  ],
+  "description": "How a named area sits relative to the application's boundary."
+}

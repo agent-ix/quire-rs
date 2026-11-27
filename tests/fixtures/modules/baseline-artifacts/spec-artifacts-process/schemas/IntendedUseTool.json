@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/IntendedUseTool.json",
+  "type": "string",
+  "enum": [
+    "quoin",
+    "quire-rs",
+    "quire-cli",
+    "engineering-assurance",
+    "filament-analyze"
+  ],
+  "description": "Initial tool-validation packages covered by this module."
+}

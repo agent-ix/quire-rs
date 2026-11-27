@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/TestType.json",
+  "type": "string",
+  "enum": [
+    "Unit",
+    "Integration",
+    "E2E",
+    "Property",
+    "Fuzz",
+    "Benchmark",
+    "Static",
+    "Compile",
+    "Snapshot",
+    "Manual",
+    "Eval",
+    "Inspection",
+    "Analysis",
+    "Demonstration"
+  ],
+  "description": "Test-case type. The same fourteen values as `traceability.vocabularies.test_type`,\nthe TestMatrix `Type` column and the SuiteRegistry `Evidence Kind` column —\nCR-015's one vocabulary, three uses, restated a fourth time because\n`from_vocabulary` does not exist yet (quire-rs#146). The manifest test keeps\nevery copy honest."
+}

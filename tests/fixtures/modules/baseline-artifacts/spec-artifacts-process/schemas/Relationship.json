@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/Relationship.json",
+  "type": "object",
+  "properties": {
+    "target": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/IxTarget.json"
+    },
+    "type": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/EdgeVerb.json"
+    },
+    "cardinality": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/Cardinality.json"
+    }
+  },
+  "required": [
+    "target",
+    "type"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "One frontmatter `relationships[]` entry, sealed to the three keys every\nfrontmatter schema in this module admits. An annotation key an author adds\ncannot reach a sealed model; the `frontmatter` mapping drops it and lists it\nas dropped, so the loss is declared rather than silent."
+}

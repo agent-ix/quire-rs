@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "id",
+    "title",
+    "type"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Z]{2,4}-[0-9]+$"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "type": {
+      "const": "US"
+    },
+    "criticality": {
+      "description": "Human-assigned criticality; optional, never defaulted",
+      "enum": [
+        "low",
+        "medium",
+        "high"
+      ]
+    },
+    "software_safety_class": {
+      "description": "Human-assigned software safety class; optional, never defaulted; ordered lowest to highest rigour",
+      "enum": [
+        "class-1",
+        "class-2",
+        "class-3"
+      ]
+    },
+    "software_safety_class_assigned_by": {
+      "description": "Person who assigned the software safety class",
+      "type": "string",
+      "minLength": 1
+    },
+    "software_safety_class_rationale": {
+      "description": "That person's reason for the class",
+      "type": "string",
+      "minLength": 1
+    },
+    "object": {
+      "type": "string"
+    },
+    "relationships": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "target",
+          "type"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "target": {
+            "type": "string",
+            "pattern": "^ix://"
+          },
+          "type": {
+            "type": "string"
+          },
+          "cardinality": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "dependentRequired": {
+    "software_safety_class": [
+      "software_safety_class_assigned_by",
+      "software_safety_class_rationale"
+    ],
+    "software_safety_class_assigned_by": [
+      "software_safety_class"
+    ],
+    "software_safety_class_rationale": [
+      "software_safety_class"
+    ]
+  }
+}

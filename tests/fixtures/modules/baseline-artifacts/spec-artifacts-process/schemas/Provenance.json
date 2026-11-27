@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/Provenance.json",
+  "type": "object",
+  "properties": {
+    "path": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/NonEmptyText.json",
+      "description": "Repository-relative path of the document."
+    },
+    "sourceIdentity": {
+      "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/SemanticId.json",
+      "description": "`ix://<org>/<repo>/spec` when the caller supplies one; absent otherwise."
+    },
+    "digest": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/Sha256Digest.json",
+      "description": "SHA-256 over the line-ending-normalised document bytes (FR-011)."
+    }
+  },
+  "required": [
+    "path",
+    "digest"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "Where the record came from."
+}

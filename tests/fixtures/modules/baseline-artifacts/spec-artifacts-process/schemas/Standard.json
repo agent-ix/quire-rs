@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/Standard.json",
+  "type": "object",
+  "properties": {
+    "id": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/StandardDocId.json"
+    },
+    "title": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/NonEmptyText.json"
+    },
+    "type": {
+      "type": "string",
+      "const": "Standard"
+    },
+    "code": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/StandardCode.json"
+    },
+    "description": {
+      "type": "string",
+      "description": "free text: the frontmatter summary of what the standard defines."
+    },
+    "guide": {
+      "type": "string",
+      "description": "free text: frontmatter application guidance."
+    },
+    "link": {
+      "type": "string",
+      "description": "free text: the canonical URL; the frontmatter schema declares `format: uri` and no pattern."
+    },
+    "object": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/ObjectTypeName.json"
+    },
+    "relationships": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/Relationship.json"
+      },
+      "description": "Absent when the author declared none; the frontmatter schemas do not require the key, and the model must not require what the schema does not (FR-011-AC-15)."
+    },
+    "provenance": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/Provenance.json"
+    },
+    "properties": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/FieldDecl.json"
+      },
+      "minItems": 1,
+      "description": "The typed `## Properties` declarations, authored as the table or as the `sysml` fence — one artifact carries one form."
+    },
+    "invariants": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/ClauseRef.json"
+      },
+      "minItems": 1,
+      "description": "Formal clauses from an optional `## Invariants` section; clause text is carried beside the record, never parsed."
+    }
+  },
+  "required": [
+    "id",
+    "title",
+    "type",
+    "code",
+    "provenance"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "Standard record (archetype `Standard`): the stable definition a spec's\n`standards_alignment[]` points at.\n\nThe one type in this module that carries a typed declaration, because a\nstandard declares the properties a conforming artifact carries and the\ninvariants conformance requires. Both sections are optional, so every\nStandard document that validates today keeps validating (FR-012)."
+}

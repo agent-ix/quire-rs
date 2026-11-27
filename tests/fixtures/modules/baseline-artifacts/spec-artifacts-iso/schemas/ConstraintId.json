@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/ConstraintId.json",
+  "type": "string",
+  "pattern": "^FR-[0-9]+-CON-[0-9]+$",
+  "description": "Constraint row id: `<FR id>-CON-N`, the locator `id_pattern`."
+}

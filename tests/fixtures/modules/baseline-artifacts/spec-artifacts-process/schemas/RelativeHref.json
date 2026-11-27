@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/RelativeHref.json",
+  "type": "string",
+  "pattern": "^(\\./|\\.\\./)*[^:/][^:]*$",
+  "description": "A relative link target (`./tests.md`, `modules/api/tests.md`); never a scheme, because a matrix link is local navigation."
+}

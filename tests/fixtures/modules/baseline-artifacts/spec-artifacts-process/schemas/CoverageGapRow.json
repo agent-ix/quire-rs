@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/CoverageGapRow.json",
+  "type": "object",
+  "properties": {
+    "id": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/GapId.json"
+    },
+    "cells": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/RecordString.json"
+    },
+    "line": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/LineNumber.json"
+    }
+  },
+  "required": [
+    "id",
+    "cells",
+    "line"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "One `## Coverage Gaps` row: the register of what is knowingly uncovered.\n\nThe locator asserts an id column and no column list, so the header belongs to\nthe author. `cells` carries every other authored cell by column name rather\nthan dropping the columns this module has no contract to name."
+}

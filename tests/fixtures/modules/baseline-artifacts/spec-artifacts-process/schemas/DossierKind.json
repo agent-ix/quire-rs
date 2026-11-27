@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/DossierKind.json",
+  "type": "string",
+  "enum": [
+    "srs",
+    "architecture",
+    "trace-matrix",
+    "rmm",
+    "verification-report",
+    "soup",
+    "anomalies",
+    "risk-management",
+    "risk-management-plan",
+    "release-record",
+    "threat-model",
+    "records-of-processing",
+    "vulnerability-management-plan"
+  ],
+  "description": "The document a dossier carries; the record and frontmatter schemas both enumerate it (FR-018)."
+}

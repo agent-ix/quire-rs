@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/Comparator.json",
+  "type": "string",
+  "enum": [
+    "<",
+    "<=",
+    "=",
+    ">=",
+    ">"
+  ],
+  "description": "A threshold comparator."
+}

@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/TCId.json",
+  "type": "string",
+  "pattern": "^TC-[0-9]+$",
+  "description": "Test case id (`TC-N`)."
+}

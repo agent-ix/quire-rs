@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/FeatureRatingValue.json",
+  "type": "string",
+  "enum": [
+    "high_process_risk",
+    "not_high_process_risk"
+  ],
+  "description": "Human-authored feature rating. No default or computed value is defined."
+}

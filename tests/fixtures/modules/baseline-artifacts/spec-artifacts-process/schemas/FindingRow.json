@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/FindingRow.json",
+  "type": "object",
+  "properties": {
+    "id": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/FindingRowId.json"
+    },
+    "severity": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/Severity.json"
+    },
+    "summary": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/NonEmptyText.json",
+      "description": "free text: the one-line finding."
+    },
+    "refs": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/NonEmptyText.json",
+      "description": "free text: what the finding points at; the column is prose and the census admits ids, paths and `-`."
+    },
+    "escapeCause": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/EscapeCause.json",
+      "description": "Absent when the analysis did not classify the escape, which the archetype makes optional."
+    },
+    "line": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/LineNumber.json"
+    }
+  },
+  "required": [
+    "id",
+    "severity",
+    "summary",
+    "refs",
+    "line"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "One `## Findings` row of a SpecReview (`ID | Severity | Summary | Refs | Escape Cause`)."
+}

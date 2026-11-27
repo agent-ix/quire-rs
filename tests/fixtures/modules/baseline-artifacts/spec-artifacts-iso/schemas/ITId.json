@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/ITId.json",
+  "type": "string",
+  "pattern": "^IT-[0-9]+$",
+  "description": "Integration test id (`IT-N`)."
+}

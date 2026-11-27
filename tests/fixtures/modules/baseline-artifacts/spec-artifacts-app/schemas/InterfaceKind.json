@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-app/InterfaceKind.json",
+  "type": "string",
+  "enum": [
+    "http_api",
+    "grpc",
+    "cli",
+    "event_stream",
+    "ui",
+    "library",
+    "file"
+  ],
+  "description": "The shape of an interface the application exposes or consumes."
+}

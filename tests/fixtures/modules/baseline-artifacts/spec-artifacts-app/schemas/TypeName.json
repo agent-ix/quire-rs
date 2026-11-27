@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-app/TypeName.json",
+  "type": "string",
+  "pattern": "^[A-Za-z][A-Za-z0-9_-]*$",
+  "description": "A type name exported by a module (`FR`, `master-requirements`, `Entity`)."
+}

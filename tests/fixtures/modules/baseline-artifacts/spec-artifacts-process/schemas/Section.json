@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/Section.json",
+  "type": "object",
+  "properties": {
+    "text": {
+      "type": "string",
+      "description": "free text: authored prose; sentence grammar is the advisory EARS lens, not a schema."
+    },
+    "startLine": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/LineNumber.json"
+    },
+    "endLine": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/LineNumber.json"
+    }
+  },
+  "required": [
+    "text",
+    "startLine",
+    "endLine"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "One level-2 section as the `section` mapping yields it: byte-exact content and its document lines."
+}

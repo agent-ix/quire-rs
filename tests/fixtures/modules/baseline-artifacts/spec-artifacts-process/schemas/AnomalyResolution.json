@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/AnomalyResolution.json",
+  "type": "string",
+  "enum": [
+    "fixed",
+    "not-a-defect",
+    "duplicate",
+    "wont-fix"
+  ],
+  "description": "How a resolved or closed anomaly ended."
+}

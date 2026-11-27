@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/USId.json",
+  "type": "string",
+  "pattern": "^US-[0-9]+$",
+  "description": "User story id (`US-N`)."
+}

@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/AdrState.json",
+  "type": "string",
+  "enum": [
+    "proposed",
+    "accepted",
+    "superseded",
+    "rejected"
+  ],
+  "description": "ADR lifecycle, from the `adr` archetype's declared `composition.states`."
+}

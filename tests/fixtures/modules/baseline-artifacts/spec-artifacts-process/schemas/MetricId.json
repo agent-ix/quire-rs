@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/MetricId.json",
+  "type": "string",
+  "pattern": "^[A-Z]{2,6}-M[0-9]{2}$",
+  "description": "A metric row id, `<PREFIX>-M01`. The row's prefix must equal the frontmatter `id`; that is the archetype's assert, not this pattern's."
+}

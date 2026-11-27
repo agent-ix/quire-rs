@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/Feedback.json",
+  "type": "object",
+  "properties": {
+    "id": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/UpperDocId.json"
+    },
+    "title": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/NonEmptyText.json"
+    },
+    "type": {
+      "type": "string",
+      "const": "Feedback"
+    },
+    "status": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/FeedbackStatus.json"
+    },
+    "kind": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/FeedbackKind.json"
+    },
+    "decision": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/FeedbackDecision.json",
+      "description": "Meaningful only when `kind` is `triage`."
+    },
+    "anchor": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/FeedbackAnchor.json"
+    },
+    "object": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/ObjectTypeName.json"
+    },
+    "relationships": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/Relationship.json"
+      },
+      "description": "Absent when the author declared none; the frontmatter schemas do not require the key, and the model must not require what the schema does not (FR-011-AC-15)."
+    },
+    "provenance": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/Provenance.json"
+    },
+    "comment": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/Section.json"
+    }
+  },
+  "required": [
+    "id",
+    "title",
+    "type",
+    "status",
+    "kind",
+    "anchor",
+    "provenance",
+    "comment"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "Review-thread feedback record (archetype `Feedback`)."
+}

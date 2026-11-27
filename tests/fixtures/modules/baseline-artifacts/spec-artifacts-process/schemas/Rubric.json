@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/Rubric.json",
+  "type": "object",
+  "properties": {
+    "id": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/RubricId.json"
+    },
+    "type": {
+      "type": "string",
+      "const": "Rubric"
+    },
+    "version": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/DocVersion.json"
+    },
+    "relationships": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/Relationship.json"
+      },
+      "description": "Absent when the author declared none; the frontmatter schema does not require the key (FR-011-AC-15)."
+    },
+    "provenance": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/Provenance.json"
+    },
+    "checks": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/RubricCheckRow.json"
+      },
+      "minItems": 1
+    }
+  },
+  "required": [
+    "id",
+    "type",
+    "version",
+    "provenance",
+    "checks"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "Rubric (archetype `Rubric`). A **definition**: the versioned checks that\njudgement evaluations in a role spec cite. It records no score (FR-013)."
+}

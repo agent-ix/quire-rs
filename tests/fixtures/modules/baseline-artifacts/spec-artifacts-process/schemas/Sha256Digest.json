@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/Sha256Digest.json",
+  "type": "string",
+  "pattern": "^sha256:[0-9a-f]{64}$",
+  "description": "SHA-256 over the document bytes, `sha256:<64 hex>`."
+}

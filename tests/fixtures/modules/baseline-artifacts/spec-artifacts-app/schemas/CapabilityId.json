@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-app/CapabilityId.json",
+  "type": "string",
+  "pattern": "^[A-Z]{2,4}-[0-9]+-CAP-[0-9]+$",
+  "description": "Capability row id, `<document id>-CAP-N`; anchored on the artifact type, not the document."
+}

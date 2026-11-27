@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/Cardinality.json",
+  "type": "string",
+  "pattern": "^[0-9A-Za-z*]+(\\.\\.[0-9A-Za-z*]+)?(:[0-9A-Za-z*]+(\\.\\.[0-9A-Za-z*]+)?)?$",
+  "description": "Relationship cardinality as authored (`1:1`, `1:N`, `0..1`); each side is a number, a letter token, or `*`, optionally a `..` range."
+}

@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["id", "title", "type", "tool", "relationships"],
+  "additionalProperties": false,
+  "properties": {
+    "id": {"type": "string", "pattern": "^IU-[0-9]{3}$"},
+    "title": {"type": "string", "minLength": 1},
+    "type": {"const": "IntendedUse"},
+    "tool": {"enum": ["quoin", "quire-rs", "quire-cli", "engineering-assurance", "filament-analyze"]},
+    "relationships": {"$ref": "#/$defs/relationships"}
+  },
+  "$defs": {
+    "relationships": {"type": "array", "items": {"type": "object", "required": ["target", "type"], "additionalProperties": false, "properties": {"target": {"type": "string", "pattern": "^ix://"}, "type": {"type": "string"}, "cardinality": {"type": "string"}}}}
+  }
+}

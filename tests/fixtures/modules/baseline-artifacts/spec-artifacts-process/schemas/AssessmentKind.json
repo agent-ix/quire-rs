@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/AssessmentKind.json",
+  "type": "string",
+  "enum": [
+    "Requirement",
+    "Hazard",
+    "None"
+  ],
+  "description": "What an assessment row points at."
+}

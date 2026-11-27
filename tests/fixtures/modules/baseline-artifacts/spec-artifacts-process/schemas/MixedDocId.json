@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/MixedDocId.json",
+  "type": "string",
+  "pattern": "^[A-Za-z]{2,4}-[0-9]+$",
+  "description": "Document id of `Plan` and `Task`, whose frontmatter schemas pin\n`^[A-Za-z]{2,4}-[0-9]+$` — the minted forms are `Plan-001` and `Task-001`,\nwhich are mixed case and would fail the upper-only pattern."
+}

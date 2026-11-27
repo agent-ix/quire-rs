@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/TextSelector.json",
+  "type": "object",
+  "properties": {
+    "quote": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/NonEmptyText.json"
+    },
+    "prefix": {
+      "type": "string",
+      "description": "free text: preceding context."
+    },
+    "suffix": {
+      "type": "string",
+      "description": "free text: following context."
+    }
+  },
+  "required": [
+    "quote"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "The exact selected text of a feedback anchor, with context for disambiguation (W3C TextQuoteSelector style)."
+}

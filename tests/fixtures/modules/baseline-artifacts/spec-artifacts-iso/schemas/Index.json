@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/Index.json",
+  "type": "object",
+  "properties": {
+    "type": {
+      "type": "string",
+      "const": "index"
+    },
+    "title": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/NonEmptyText.json"
+    },
+    "description": {
+      "type": "string",
+      "description": "free text: the frontmatter description."
+    },
+    "okfVersion": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/NonEmptyText.json"
+    },
+    "provenance": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/Provenance.json"
+    },
+    "entries": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/IndexEntry.json"
+      }
+    }
+  },
+  "required": [
+    "type",
+    "provenance",
+    "entries"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "Directory index record (archetype `index`, OKF reserved file)."
+}

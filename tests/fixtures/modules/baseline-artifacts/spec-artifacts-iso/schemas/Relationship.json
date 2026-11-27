@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/Relationship.json",
+  "type": "object",
+  "properties": {
+    "target": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/IxTarget.json"
+    },
+    "type": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/EdgeVerb.json"
+    },
+    "cardinality": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/Cardinality.json"
+    }
+  },
+  "required": [
+    "target",
+    "type"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "One frontmatter `relationships[]` entry, sealed to the three keys the record\ncarries. FR-003 admits extra annotation keys on a relationship item (`note`,\n`models`, `endpoints`); they cannot reach a sealed model, so the FR-007\n`frontmatter` mapping drops them and lists them as dropped keys — a declared\nloss, not a silent one."
+}

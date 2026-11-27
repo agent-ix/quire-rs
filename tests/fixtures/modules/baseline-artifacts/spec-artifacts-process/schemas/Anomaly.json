@@ -1,0 +1,343 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/Anomaly.json",
+  "type": "object",
+  "properties": {
+    "id": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/UpperDocId.json"
+    },
+    "title": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/NonEmptyText.json"
+    },
+    "type": {
+      "type": "string",
+      "const": "Anomaly"
+    },
+    "status": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/AnomalyStatus.json"
+    },
+    "resolution": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/AnomalyResolution.json"
+    },
+    "closedBy": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/ClosedBy.json"
+    },
+    "severity": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/AnomalySeverity.json",
+      "description": "Person-assigned; absent only while the anomaly is `identified`, by the conditionals above."
+    },
+    "safetyImpact": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/SafetyImpact.json"
+    },
+    "object": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/ObjectTypeName.json"
+    },
+    "relationships": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/Relationship.json"
+      },
+      "description": "Absent when the author declared none; the frontmatter schemas do not require the key, and the model must not require what the schema does not (FR-011-AC-15)."
+    },
+    "provenance": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/Provenance.json"
+    },
+    "description": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/Section.json"
+    },
+    "assessment": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/AssessmentRow.json"
+      },
+      "minItems": 1,
+      "description": "Absent while the anomaly is `identified` and unassessed; required from `assessed` onward by the conditionals above."
+    },
+    "verification": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/VerificationRow.json"
+      },
+      "minItems": 1,
+      "description": "Absent unless the resolution is `fixed`, which requires it by the conditionals above."
+    },
+    "releaseRationale": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/ReleaseRationaleRow.json"
+      },
+      "minItems": 1,
+      "description": "Absent when the section is absent; an engineer's written reason, never filled in by a tool (FR-016)."
+    }
+  },
+  "required": [
+    "id",
+    "title",
+    "type",
+    "status",
+    "safetyImpact",
+    "provenance",
+    "description"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "Anomaly record (archetype `Anomaly`): one reported anomaly, its lifecycle\nstatus, how it ended, who closed it, its severity, its safety-impact\nassessment, the verification of its fix and, optionally, the rationale for\nreleasing with it not fixed (FR-014, FR-015, FR-016). The conditional rules below are the status-conditional\nchecks the module owns; the legality of a status move is judged over git\nhistory by quoin and is not representable in a record. The record holds no\nhistory, no author and no date.",
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "enum": [
+              "resolved",
+              "closed"
+            ]
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "required": [
+          "resolution"
+        ]
+      },
+      "else": {
+        "not": {
+          "required": [
+            "resolution"
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "resolved"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "properties": {
+          "resolution": {
+            "const": "fixed"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "closed"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "required": [
+          "closedBy"
+        ]
+      },
+      "else": {
+        "not": {
+          "required": [
+            "closedBy"
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "enum": [
+              "assessed",
+              "resolved",
+              "closed"
+            ]
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "required": [
+          "assessment"
+        ],
+        "properties": {
+          "safetyImpact": {
+            "not": {
+              "const": "unassessed"
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "identified"
+          },
+          "safetyImpact": {
+            "enum": [
+              "none",
+              "impacting"
+            ]
+          }
+        },
+        "required": [
+          "status",
+          "safetyImpact"
+        ]
+      },
+      "then": {
+        "required": [
+          "assessment"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "safetyImpact": {
+            "const": "none"
+          }
+        },
+        "required": [
+          "safetyImpact",
+          "assessment"
+        ]
+      },
+      "then": {
+        "properties": {
+          "assessment": {
+            "minItems": 1,
+            "maxItems": 1,
+            "items": {
+              "properties": {
+                "kind": {
+                  "const": "None"
+                },
+                "impact": {
+                  "const": "None"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "safetyImpact": {
+            "const": "impacting"
+          }
+        },
+        "required": [
+          "safetyImpact",
+          "assessment"
+        ]
+      },
+      "then": {
+        "properties": {
+          "assessment": {
+            "contains": {
+              "properties": {
+                "kind": {
+                  "enum": [
+                    "Requirement",
+                    "Hazard"
+                  ]
+                },
+                "impact": {
+                  "not": {
+                    "enum": [
+                      "Unaffected",
+                      "None"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "enum": [
+              "assessed",
+              "resolved",
+              "closed"
+            ]
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "required": [
+          "severity"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "resolution": {
+            "const": "fixed"
+          }
+        },
+        "required": [
+          "resolution"
+        ]
+      },
+      "then": {
+        "required": [
+          "verification"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "closed"
+          },
+          "resolution": {
+            "enum": [
+              "fixed",
+              "not-a-defect",
+              "duplicate"
+            ]
+          }
+        },
+        "required": [
+          "status",
+          "resolution"
+        ]
+      },
+      "then": {
+        "not": {
+          "required": [
+            "releaseRationale"
+          ]
+        }
+      }
+    }
+  ]
+}

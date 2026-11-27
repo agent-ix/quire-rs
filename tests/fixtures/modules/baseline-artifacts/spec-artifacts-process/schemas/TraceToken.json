@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/TraceToken.json",
+  "type": "string",
+  "pattern": "^[A-Za-z]+-[0-9]+(-[A-Za-z]+-[0-9]+)?$",
+  "description": "One trace reference token as the `Traces To` cell writes it, after the two\nauthoring shorthands are expanded: `FR-001`, `FR-001-AC-2`, `IT-003-SC-01`.\nThe kind prefix is deliberately not enumerated — the legal set follows from\nthe declared trace targets and existence is checked by reference resolution."
+}

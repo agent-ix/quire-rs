@@ -1,0 +1,1011 @@
+manifest_version: 1.0.0
+name: spec-artifacts-iso
+version: 0.3.0
+description: "Filament Module: ISO-style spec artifacts (FR, NFR, StR, US, IT, TC) — unified-shape archetypes (frontmatter schema + body_extraction asserts) validated by quire-rs; per-archetype authoring skeletons are the source of truth (no render templates); iso-spec-core grammar"
+archetypes:
+- kind: spec
+  name: Spec
+  description: Container holding ISO-style requirement artifacts
+  doc_backed: true
+  supports_membership: true
+  composition:
+    expected_artifacts:
+    - StR
+    - FR
+    - NFR
+    - US
+    - IT
+    - TC
+grammars:
+- name: iso-spec-core
+  version: 0.1.0
+  description: ISO-style requirements spec grammar
+  doc_kinds:
+  - spec
+
+# FR-048 per-check severity. Promotion of an `ac` check is gated by
+# quire-rs FR-047-CON-1: a corpus baseline sweep plus explicit user sign-off,
+# which this module has. The engine default stays `warning` (quire-rs
+# DEFAULT_SEVERITY, unchanged); this module declares the promotion, which is
+# the lever CON-2 sanctions.
+grammar_severity:
+  ac:vacuous-outcome: error
+  ac:non-singular: error
+
+# FR-052 property-idiom registry (quire-rs FR-052, umbrella agent-ix/quire-rs#20).
+# phrase -> {definition, shape}. Merged first-wins OVER the engine built-in idioms
+# and applied AFTER the closed structural signals, so a declaration can only
+# sharpen a label to a higher-precedence shape. `extractable` is derived from the
+# structural shape alone (FR-052-CON-4), so nothing declared here can make a
+# criterion extractable, or remove one from extraction — the registry is a
+# booster, never a prerequisite.
+#
+# Deliberately small. quire-rs CR-014 retired `no-observable-outcome` because an
+# open verb set whose membership was *required* to earn a label reached ~13%
+# sampled precision; an aspirational phrase list here would recreate that shape.
+# Two rules were applied to every candidate:
+#
+#   1. attested — the phrase occurs in the authored corpus (`/home/peter/dev/*/spec`,
+#      counted by distinct file and repo, not by raw grep hit);
+#   2. sufficient alone — the phrase, on its own, is evidence of the shape. The
+#      matcher sees only the phrase, so a phrase that also names a subsystem is a
+#      mislabel generator. `encode/decode` was DECLINED on
+#      this rule: nearly every occurrence is an API or seam name ("the encode/decode
+#      seam", "the complete encode/decode/score API"), not a property claim. So were
+#      `encoding/decoding`, `serialization/deserialization`, `read`/`write`,
+#      `save/load`, `monotonic` (usually "monotonic clock") and bare `deterministic`
+#      (excluded by FR-052 itself). `marshal`/`unmarshal` and `compress`/`inflate`
+#      are unattested in the corpus and are therefore not declared.
+#
+# What is NOT declared because the engine built-ins already close it: `round-trip`
+# / `round-trips` / `roundtrip` (both a composition signal and an identity
+# back-reference), `byte-identical`, `losslessly`.
+property_idioms:
+  # RoundTrip. `losslessly` is a built-in back-reference; the adjective is not, so
+  # "Pack then unpack of MSE indices is lossless for all bit widths 1-7" composes
+  # but carries no back-reference and falls through to Universal without this.
+  lossless:
+    definition: "An operation asserted to preserve its input exactly, so composing it with its inverse recovers the original."
+    shape: round-trip
+  # (quire-rs FR-051) Names the composition outright; `then`
+  # supplies the built-in composition signal but no identity back-reference follows.
+  parse-then-serialize:
+    definition: "The composition of a parse with the serialization of its result, asserted against the original text."
+    shape: round-trip
+
+  # Idempotence. Four inflections of one lemma that names a shape in the closed
+  # enum outright. The built-in signal needs a repetition adverb (`twice`,
+  # `again`, `re-run`, ...) in the same clause as an equality verb; a criterion
+  # that simply says "re-activation is idempotent" carries neither.
+  idempotent:
+    definition: "Applying the operation a second time yields the result of the first."
+    shape: idempotence
+  idempotently:
+    definition: "Adverbial form of `idempotent`: the operation is performed such that a repeat application changes nothing."
+    shape: idempotence
+  idempotence:
+    definition: "The property that a repeat application of an operation yields the first result."
+    shape: idempotence
+  idempotency:
+    definition: "Nominal form of `idempotence`, the spelling used in service and API criteria."
+    shape: idempotence
+
+  # Ordering. The built-in ordering lexicon is a closed set that does not carry
+  # the term of art. E.g. "Ranking is a total order - results
+  # with absent `stars`/`updatedAt` sort last".
+  total order:
+    definition: "Every pair of elements is comparable, so the ordering is complete and not merely partial."
+    shape: ordering
+artifact_types:
+- name: FR
+  grammar_ref: iso-spec-core
+  frontmatter_schema_ref: schemas/fr-frontmatter.schema.json
+  data_schema:
+    schema: schemas/FR.json
+  defaults:
+    id_pattern: FR-{next:03d}
+  allowed_links:
+  - calls
+  - publishes
+  - consumes
+  - triggers
+  - reads
+  - writes
+  - requires
+  - implements
+  - satisfies
+  - depends_on
+  - contains
+  - transitions_to
+  - references
+  - constrains
+  - supersedes
+  - extends
+  - specifies
+  - governs
+  - supports
+  - traces_to
+  - represents
+  - derives_from
+  - migrated_from
+  - uses
+  - projection_of
+  - delegates_to
+  - manages
+  - soup_requirement_for
+  examples: []
+  lint_rules_ref: []
+  # Format-walkthrough decisions #1-#4 (2026-06-11): the `## Specification`
+  # umbrella was never intended — Inputs/Outputs/Behavior are level-2
+  # sections and OPTIONAL (object-kind FRs carry their kind's anchors
+  # instead); Constraints is optional (no filler rows). Description +
+  # AC table + Dependencies remain the required FR core.
+  body_extraction:
+    yield_pattern:
+      match:
+        description:
+          from: section_body
+          after_heading: Description
+          required: true
+          assert:
+            level: 2
+        inputs:
+          from: section_body
+          after_heading: Inputs
+          required: false
+          assert:
+            level: 2
+        outputs:
+          from: section_body
+          after_heading: Outputs
+          required: false
+          assert:
+            level: 2
+        behavior:
+          from: section_body
+          after_heading: Behavior
+          required: false
+          assert:
+            level: 2
+        constraints_table:
+          from: table_row
+          under_section: Constraints
+          required: false
+          assert:
+            columns:
+            - ID
+            - Constraint
+            - Type
+            - Validation
+            min_rows: 1
+            id_column: ID
+            id_pattern: '^{id}-CON-\d+$'
+        acceptance_criteria:
+          from: section_body
+          after_heading: Acceptance Criteria
+          required: true
+          assert:
+            level: 2
+        acceptance_criteria_table:
+          from: table_row
+          under_section: Acceptance Criteria
+          required: true
+          assert:
+            columns:
+            - ID
+            - Criteria
+            - Verification
+            min_rows: 1
+            id_column: ID
+            id_pattern: '^{id}-AC-\d+$'
+        dependencies:
+          from: section_body
+          after_heading: Dependencies
+          required: true
+          assert:
+            level: 2
+        # FR-006: the optional `## Invariants` section the FR skeleton carries.
+        # Each `### <clauseId>` subsection holds exactly one ```ocl fence; the
+        # clause text is never parsed here — FR-007's `ocl-clause` mapping fills
+        # the FR record's `invariants?: ClauseRef[]`.
+        invariants:
+          from: code_block
+          language: ocl
+          under_section: Invariants
+          required: false
+          multiple: true
+- name: NFR
+  grammar_ref: iso-spec-core
+  frontmatter_schema_ref: schemas/nfr-frontmatter.schema.json
+  data_schema:
+    schema: schemas/NFR.json
+  defaults:
+    id_pattern: NFR-{next:03d}
+  allowed_links:
+  - constrains
+  - references
+  - depends_on
+  - traces_to
+  - verifies
+  - verifies_implementation
+  - verifies_effectiveness
+  - supersedes
+  - extends
+  - uses
+  - derives_from
+  - mitigates
+  - soup_requirement_for
+  examples: []
+  lint_rules_ref: []
+  # Format-walkthrough decision #9 (2026-06-11): required NFR core is
+  # Statement + Measurement and Evaluation table + Verification.
+  # `quality_attribute` moved to FRONTMATTER (enum over ISO 25010
+  # attributes, see schemas/nfr-frontmatter.schema.json) — the old
+  # one-line `## Quality Attribute` section is retired. Scope /
+  # Rationale / Dependencies / Acceptance Criteria are optional.
+  body_extraction:
+    yield_pattern:
+      match:
+        quality_attribute:
+          from: frontmatter_field
+          path:
+          - quality_attribute
+          required: false
+        statement:
+          from: section_body
+          after_heading: Statement
+          required: true
+          assert:
+            level: 2
+        scope:
+          from: section_body
+          after_heading: Scope
+          required: false
+          assert:
+            level: 2
+        rationale:
+          from: section_body
+          after_heading: Rationale
+          required: false
+          assert:
+            level: 2
+        measurement_and_evaluation:
+          from: section_body
+          after_heading: Measurement and Evaluation
+          required: true
+          assert:
+            level: 2
+        measurement_table:
+          from: table_row
+          under_section: Measurement and Evaluation
+          required: true
+          assert:
+            columns:
+            - Metric
+            - Target
+            - Threshold
+            - Method
+            min_rows: 1
+        verification:
+          from: section_body
+          after_heading: Verification
+          required: true
+          assert:
+            level: 2
+        # Optional by design: a *measurable* NFR's acceptance criteria are its
+        # `Metric | Target | Threshold | Method` rows above, and it omits this
+        # section entirely. This section is for a *policy* NFR whose compliance
+        # checks do not reduce to a number ("evidence artifacts live under the
+        # owning packet"). When present it takes the FR table shape, so the
+        # section is either absent or well-formed — never unstructured prose.
+        acceptance_criteria:
+          from: section_body
+          after_heading: Acceptance Criteria
+          required: false
+          assert:
+            level: 2
+            # `required: false` on the table below only means "no table, no
+            # finding" — on its own it would let a *present* AC section stay
+            # unstructured prose, which is exactly what this change removes.
+            # Requiring the header row in the section body is what makes the
+            # section either absent or well-formed.
+            matches: '(?m)^\s*\|\s*ID\s*\|\s*Criteria\s*\|\s*Verification\s*\|'
+        acceptance_criteria_table:
+          from: table_row
+          under_section: Acceptance Criteria
+          required: false
+          assert:
+            columns:
+            - ID
+            - Criteria
+            - Verification
+            min_rows: 1
+            id_column: ID
+            id_pattern: '^{id}-AC-\d+$'
+        dependencies:
+          from: section_body
+          after_heading: Dependencies
+          required: false
+          assert:
+            level: 2
+- name: StR
+  grammar_ref: iso-spec-core
+  frontmatter_schema_ref: schemas/str-frontmatter.schema.json
+  data_schema:
+    schema: schemas/StR.json
+  defaults:
+    id_pattern: StR-{next:03d}
+  allowed_links:
+  - satisfied_by
+  - depends_on
+  - references
+  - supersedes
+  - traces_to
+  - extends
+  - represents
+  examples: []
+  lint_rules_ref: []
+  # ISO-standard (2026-06-16): required StR core is Stakeholder Need +
+  # Rationale + Validation Criteria (ISO/IEC/IEEE 29148 stakeholder-requirement
+  # triad — the need, why it exists, and how its satisfaction is judged).
+  # Stakeholders / context / constraints / dependencies / priority / notes /
+  # traceability are optional.
+  body_extraction:
+    yield_pattern:
+      match:
+        stakeholder_need:
+          from: section_body
+          after_heading: Stakeholder Need
+          required: true
+          assert:
+            level: 2
+        rationale:
+          from: section_body
+          after_heading: Rationale
+          required: true
+          assert:
+            level: 2
+        validation_criteria:
+          from: section_body
+          after_heading: Validation Criteria
+          required: true
+          assert:
+            level: 2
+        # Binding criteria are addressable rows, on every archetype that has
+        # them (FR, NFR, StR). The heading stays `Validation Criteria` and the
+        # column stays `Validation`: ISO/IEC/IEEE 29148 splits *validation*
+        # (evidence the requirements for a specific intended use are fulfilled
+        # — the reference is the stakeholder's real need) from *verification*
+        # (evidence the specified requirements are fulfilled — the reference is
+        # the spec). A Stakeholder Requirements Specification is validated; a
+        # System/Software Requirements Specification is verified. The table
+        # shape and the heading name are independent decisions, and only the
+        # shape is being unified.
+        validation_criteria_table:
+          from: table_row
+          under_section: Validation Criteria
+          required: true
+          assert:
+            columns:
+            - ID
+            - Criteria
+            - Validation
+            min_rows: 1
+            id_column: ID
+            id_pattern: '^{id}-VC-\d+$'
+        stakeholders:
+          from: section_body
+          after_heading: Stakeholders
+          required: false
+          assert:
+            level: 2
+        context_and_assumptions:
+          from: section_body
+          after_heading: Context and Assumptions
+          required: false
+          assert:
+            level: 2
+        stakeholder_constraints:
+          from: section_body
+          after_heading: Stakeholder Constraints (Contextual)
+          required: false
+          assert:
+            level: 2
+        dependencies:
+          from: section_body
+          after_heading: Dependencies
+          required: false
+          assert:
+            level: 2
+        priority_and_risk:
+          from: section_body
+          after_heading: Priority and Risk (Informative)
+          required: false
+          assert:
+            level: 2
+        notes:
+          from: section_body
+          after_heading: Notes (Informative)
+          required: false
+          assert:
+            level: 2
+        traceability:
+          from: section_body
+          after_heading: Traceability
+          required: false
+          assert:
+            level: 2
+- name: US
+  grammar_ref: iso-spec-core
+  frontmatter_schema_ref: schemas/us-frontmatter.schema.json
+  data_schema:
+    schema: schemas/US.json
+  defaults:
+    id_pattern: US-{next:03d}
+  allowed_links:
+  - satisfied_by
+  - traces_to
+  - references
+  - implements
+  - exercises
+  - depends_on
+  - derives_from
+  - migrated_from
+  examples: []
+  lint_rules_ref: []
+  # ISO-standard (2026-06-16): required US core is just `Story` (ISO/IEC/IEEE
+  # 29148 user-story shape — As a / I want / So that, enforced by a `matches`
+  # regex). Every other section is OPTIONAL and contextual/informative — a US
+  # carries discovery context, not normative requirements.
+  body_extraction:
+    yield_pattern:
+      match:
+        story:
+          from: section_body
+          after_heading: Story
+          required: true
+          assert:
+            level: 2
+            matches: '(?is)\bas an?\b.+\bi want\b.+\bso that\b'
+        context:
+          from: section_body
+          after_heading: Context
+          required: false
+          assert:
+            level: 2
+        acceptance_examples:
+          from: section_body
+          after_heading: Acceptance Examples (Illustrative)
+          required: false
+          assert:
+            level: 2
+        options:
+          from: section_body
+          after_heading: Options (Exploratory)
+          required: false
+          assert:
+            level: 2
+        constraints:
+          from: section_body
+          after_heading: Constraints (Contextual)
+          required: false
+          assert:
+            level: 2
+        dependencies:
+          from: section_body
+          after_heading: Dependencies (Contextual)
+          required: false
+          assert:
+            level: 2
+        priority_and_risk:
+          from: section_body
+          after_heading: Priority and Risk (Informative)
+          required: false
+          assert:
+            level: 2
+        notes:
+          from: section_body
+          after_heading: Notes (Informative)
+          required: false
+          assert:
+            level: 2
+        traceability:
+          from: section_body
+          after_heading: Traceability (Informative)
+          required: false
+          assert:
+            level: 2
+- name: IT
+  grammar_ref: iso-spec-core
+  frontmatter_schema_ref: schemas/it-frontmatter.schema.json
+  data_schema:
+    schema: schemas/IT.json
+  defaults:
+    id_pattern: IT-{next:03d}
+  allowed_links:
+  - verifies
+  - verifies_implementation
+  - verifies_effectiveness
+  - depends_on
+  - references
+  examples: []
+  lint_rules_ref: []
+  # ISO-standard (2026-06-16): ISO/IEC/IEEE 29119 integration-test core is the
+  # six-section required set — Objective, Target Integration, Preconditions,
+  # Inputs, Test Procedure, Expected Results. Metadata / dependencies / notes /
+  # traceability are optional.
+  body_extraction:
+    yield_pattern:
+      match:
+        objective:
+          from: section_body
+          after_heading: Objective
+          required: true
+          assert:
+            level: 2
+        target_integration:
+          from: section_body
+          after_heading: Target Integration
+          required: true
+          assert:
+            level: 2
+        preconditions:
+          from: section_body
+          after_heading: Preconditions
+          required: true
+          assert:
+            level: 2
+        inputs:
+          from: section_body
+          after_heading: Inputs
+          required: true
+          assert:
+            level: 2
+        test_procedure:
+          from: section_body
+          after_heading: Test Procedure
+          required: true
+          assert:
+            level: 2
+        expected_results:
+          from: section_body
+          after_heading: Expected Results
+          required: true
+          assert:
+            level: 2
+        metadata:
+          from: section_body
+          after_heading: Metadata
+          required: false
+          assert:
+            level: 2
+        dependencies:
+          from: section_body
+          after_heading: Dependencies
+          required: false
+          assert:
+            level: 2
+        notes:
+          from: section_body
+          after_heading: Notes
+          required: false
+          assert:
+            level: 2
+        traceability:
+          from: section_body
+          after_heading: Traceability
+          required: false
+          assert:
+            level: 2
+- name: TC
+  grammar_ref: iso-spec-core
+  frontmatter_schema_ref: schemas/tc-frontmatter.schema.json
+  data_schema:
+    schema: schemas/TC.json
+  defaults:
+    id_pattern: TC-{next:03d}
+  allowed_links:
+  - verifies
+  - verifies_implementation
+  - verifies_effectiveness
+  - references
+  examples: []
+  lint_rules_ref: []
+  # ISO-standard (2026-06-16): minimal test-case core (ISO/IEC/IEEE 29119
+  # test-case essentials) — Description, Test Procedure, Expected Results.
+  body_extraction:
+    yield_pattern:
+      match:
+        description:
+          from: section_body
+          after_heading: Description
+          required: true
+          assert:
+            level: 2
+        test_procedure:
+          from: section_body
+          after_heading: Test Procedure
+          required: true
+          assert:
+            level: 2
+        expected_results:
+          from: section_body
+          after_heading: Expected Results
+          required: true
+          assert:
+            level: 2
+# ISO-standard (2026-06-16): AC and CON archetypes removed — zero corpus usage.
+# Acceptance Criteria are carried by the FR `## Acceptance Criteria` table and
+# Constraints by the FR `## Constraints` table; standalone AC/CON artifacts are
+# redundant with that normative FR structure.
+- name: master-requirements
+  grammar_ref: iso-spec-core
+  frontmatter_schema_ref: schemas/master-requirements-frontmatter.schema.json
+  data_schema:
+    schema: schemas/MasterRequirements.json
+  allowed_links:
+  - depends_on
+  - calls
+  - publishes
+  - consumes
+  - reads
+  - writes
+  - triggers
+  - requires
+  - implements
+  - references
+  - supersedes
+  - peer
+  - contained_by
+  - contains
+  - deploys
+  - uses
+  - imports
+  - generated_from
+  - aggregates
+  examples: []
+  lint_rules_ref: []
+  body_extraction:
+    yield_pattern:
+      match:
+        title:
+          from: heading
+          level: 1
+          regex: ^Master Requirements Specification$
+          required: true
+          assert:
+            level: 1
+        purpose:
+          from: section_body
+          after_heading: Purpose
+          required: true
+          assert:
+            level: 2
+        scope:
+          from: heading
+          level: 2
+          regex: ^Scope$
+          required: true
+          assert:
+            level: 2
+        system_overview:
+          from: heading
+          level: 2
+          regex: ^System Overview$
+          required: true
+          assert:
+            level: 2
+        requirements_architecture:
+          from: heading
+          level: 2
+          regex: ^Requirements Architecture$
+          required: true
+          assert:
+            level: 2
+        references:
+          from: section_body
+          after_heading: References
+          required: true
+          assert:
+            level: 2
+# OKF bundle index: a first-class authored artifact, validated like any other.
+# Routed by frontmatter `type: index`. Its navigation uses relative links that
+# are LOCAL to the content; knowledge-graph edges use ix:// links.
+- name: index
+  grammar_ref: iso-spec-core
+  frontmatter_schema_ref: schemas/index-frontmatter.schema.json
+  data_schema:
+    schema: schemas/Index.json
+  allowed_links: []
+  examples: []
+  lint_rules_ref: []
+  body_extraction:
+    yield_pattern:
+      match:
+        contents:
+          from: section_body
+          after_heading: Contents
+          required: true
+          assert:
+            level: 2
+- name: Glossary
+  # FR-044: a project Ubiquitous-Language glossary. Its `## Terms` table
+  # (Term | Definition) is harvested by quire-rs and fed to the EARS
+  # object-aware vague-response check as accepted concrete terms.
+  grammar_ref: iso-spec-core
+  frontmatter_schema_ref: schemas/glossary-frontmatter.schema.json
+  data_schema:
+    schema: schemas/Glossary.json
+  defaults:
+    id_pattern: GLO-{next:03d}
+  allowed_links:
+  - references
+  - depends_on
+  examples: []
+  lint_rules_ref: []
+  body_extraction:
+    yield_pattern:
+      match:
+        terms:
+          from: section_body
+          after_heading: Terms
+          required: true
+          assert:
+            level: 2
+        terms_table:
+          from: table_row
+          under_section: Terms
+          required: true
+          assert:
+            columns:
+            - Term
+            - Definition
+            min_rows: 1
+doc_kinds:
+- spec
+object_types: []
+# Advisory lint rules (quire-rs FR-036; format-walkthrough decision #14):
+# FR/NFR Verification cells are owned by spec-artifacts-process, which lints
+# the method catalog and allows both the ISO 29148 classes and its catalog
+# method ids. Evaluated by `quire lint`; never blocks validation/extraction/sync.
+lint_rules:
+# StR's Validation column. ISO/IEC/IEEE 15288 and 29148 apply **one** method
+# taxonomy to both verification and validation — what differs is the reference
+# you check against, not the technique — so the vocabulary is reused unchanged
+# and only the column name differs. Expect StR rows to skew to `Demonstration`,
+# since a stakeholder need is usually confirmed in an operational context;
+# `Test` stays legitimate (operational test and evaluation) and is not
+# excluded.
+# US drift. A user story carries `## Acceptance Examples (Illustrative)` and its
+# skeleton says outright that nothing in it is binding or verification criteria.
+# Repos that authored `## Acceptance Criteria` on a US invented a heading no
+# template offers, and downstream tooling read those cells as though they were
+# binding — which is how improvised US cells reached downstream
+# acceptance-criteria cells. Advisory: the fix is either to move the content to
+# the illustrative section or, if it really is binding, to promote it to an FR.
+# Requires an engine with the `forbidden_section` rule type (quire-rs CR-020).
+- type: forbidden_section
+  id: us-acceptance-criteria-drift
+  archetypes: [US]
+  section: Acceptance Criteria
+  message: "a US carries `## Acceptance Examples (Illustrative)` — nothing on a user story is binding or verification criteria. Move this content there, or promote it to an FR if it is genuinely binding."
+  severity: warning
+- type: table_column_values
+  id: vc-validation-method
+  archetypes: [StR]
+  section: Validation Criteria
+  column: Validation
+  allowed: [Inspection, Analysis, Demonstration, Test]
+  severity: warning
+# ISO-standard (2026-06-16): normative-language + per-step success-criteria
+# advisories (quire-rs FR-036 `section_body_pattern`). The body of the named
+# section must contain a match for `pattern`; a missing section produces no
+# finding (structural presence is validation's job). Advisory only — `quire
+# lint` reports these and never blocks validation/extraction/sync.
+- type: section_body_pattern
+  id: fr-shall-language
+  archetypes: [FR]
+  section: Description
+  pattern: '(?i)\b(shall|must|require)'
+  message: "FR Description should use normative language (shall/must) per ISO/IEC/IEEE 29148."
+  severity: warning
+- type: section_body_pattern
+  id: nfr-shall-language
+  archetypes: [NFR]
+  section: Statement
+  pattern: '(?i)\b(shall|must|require)'
+  message: "NFR Statement should use normative language (shall/must) per ISO/IEC/IEEE 29148."
+  severity: warning
+- type: section_body_pattern
+  id: str-shall-language
+  archetypes: [StR]
+  section: Stakeholder Need
+  pattern: '(?i)\b(shall|must|require)'
+  message: "Stakeholder Need should state a normative expectation (shall/must/require) per ISO/IEC/IEEE 29148."
+  severity: warning
+- type: section_body_pattern
+  id: it-success-criteria
+  archetypes: [IT]
+  section: Test Procedure
+  pattern: '\bIT-\d+-SC-\d+'
+  message: "Integration Test Procedure should declare per-step success criteria (IT-XXX-SC-NN)."
+  severity: warning
+
+# ── Edge-type registry (quire-rs FR-040) ─────────────────────────────────
+# The controlled relationship-verb vocabulary for the whole ecosystem.
+# Merged first-wins across active modules; each verb used in an artifact's or
+# object's `allowed_links` must appear here (else an advisory UnknownEdgeType).
+# category ∈ structural|behavioral|dataflow|dependency|realization|governance|traceability
+edge_types:
+  # structural
+  contains: { description: "Composition; the source owns the target's lifecycle.", category: structural, inverse: contained_in, composite: true }
+  aggregates: { description: "Aggregate root owns member entities.", category: structural, inverse: part_of, composite: true }
+  composes: { description: "Value object composed of other value objects/enums.", category: structural, inverse: composed_by }
+  contained_by: { description: "This spec/requirement is a child of a parent bundle's master-requirements.", category: structural, inverse: contains }
+  # behavioral
+  calls: { description: "Synchronous invocation.", category: behavioral, inverse: called_by }
+  triggers: { description: "Initiates a process or action.", category: behavioral, inverse: triggered_by }
+  transitions_to: { description: "State-machine flow to another state.", category: behavioral }
+  raises: { description: "State machine raises a domain event.", category: behavioral }
+  guards: { description: "Permission/policy guards access to a surface.", category: behavioral }
+  # dataflow
+  reads: { description: "Non-mutating data access.", category: dataflow }
+  writes: { description: "Mutating data access.", category: dataflow }
+  publishes: { description: "Asynchronous emission to a channel.", category: dataflow, inverse: consumed_by }
+  consumes: { description: "Asynchronous reception from a channel.", category: dataflow }
+  emits: { description: "Source produces the target domain event.", category: dataflow, inverse: emitted_by }
+  carries: { description: "Channel/event carries a payload type.", category: dataflow }
+  renders: { description: "UI component renders a data type.", category: dataflow, inverse: rendered_by }
+  serializes: { description: "Binary format serializes a data schema.", category: dataflow }
+  # dependency
+  depends_on: { description: "Requires the target to exist/function.", category: dependency }
+  requires: { description: "Security/configuration precondition.", category: dependency, inverse: required_by }
+  implements: { description: "Fulfils an interface/contract. NOT requirement lineage: an artifact answering a stakeholder requirement uses `satisfies` (inverse `satisfied_by`).", category: dependency, inverse: implemented_by }
+  extends: { description: "Extends an interface/extension point.", category: dependency }
+  conforms_to: { description: "Conforms to an external contract.", category: dependency }
+  persists: { description: "Repository persists an aggregate/entity.", category: dependency }
+  owns: { description: "Entity owns a state machine.", category: dependency }
+  # realization (concrete → abstract)
+  represents: { description: "A concrete artifact represents/mirrors another (DTO↔domain object, or a parallel spec).", category: realization }
+  exposes: { description: "Technical surface for a domain object/operation.", category: realization, inverse: exposed_by }
+  operates_on: { description: "Process/endpoint manipulates a domain object.", category: realization }
+  realizes: { description: "Realizes an enterprise capability/intent.", category: realization }
+  decomposes: { description: "Capability decomposes into sub-capabilities.", category: realization }
+  supports: { description: "Supports a value stream / higher objective.", category: realization }
+  # governance (cross-cutting)
+  classifies: { description: "Assigns a data classification to a target.", category: governance }
+  protects: { description: "Control protects an asset/surface.", category: governance }
+  governs: { description: "Principle/policy governs a target.", category: governance }
+  measures: { description: "SLI/SLO/KPI measures a target.", category: governance }
+  deploys: { description: "Deployment deploys a runtime component.", category: governance }
+  configures: { description: "Configuration configures a target.", category: governance }
+  migrates: { description: "Migration evolves a data schema.", category: governance }
+  throttles: { description: "Rate limit throttles a surface.", category: governance }
+  grants: { description: "Role/permission grants a scope/permission.", category: governance }
+  encrypts: { description: "Encryption key encrypts a secret/classification.", category: governance }
+  mitigates: { description: "Control mitigates a threat/risk/vulnerability.", category: governance }
+  threatens: { description: "Threat endangers an asset/attack surface.", category: governance }
+  exploits: { description: "Threat exploits a vulnerability.", category: governance }
+  affects: { description: "Vulnerability affects an asset/attack surface.", category: governance }
+  arises_from: { description: "Risk arises from a threat/vulnerability.", category: governance }
+  escalates_to: { description: "Alert escalates to an incident.", category: governance }
+  remediates: { description: "Runbook remediates an incident/alert.", category: governance }
+  correlates: { description: "Incident correlates with an alert.", category: governance }
+  breaches: { description: "Incident breaches an SLO.", category: governance }
+  # traceability (spec-meta)
+  references: { description: "Loose, untyped linkage.", category: traceability }
+  constrains: { description: "Imposes a constraint on the target.", category: traceability, inverse: constrained_by }
+  supersedes: { description: "Replaces a prior artifact.", category: traceability, inverse: superseded_by }
+  specifies: { description: "Object FR specifies a behavioral FR.", category: traceability, inverse: specified_by }
+  satisfied_by: { description: "The generic stakeholder-requirement-to-artifact relationship: this StR is answered by the target. Authorable from either end — the artifact may declare `satisfies` instead.", category: traceability, inverse: satisfies }
+  traces_to: { description: "Traceability link (matrix/coverage).", category: traceability }
+  verifies: { description: "Test/integration artifact verifies a requirement.", category: traceability }
+  verifies_implementation: { description: "Verification artifact shows a control was built as specified.", category: traceability }
+  verifies_effectiveness: { description: "Verification artifact shows a control does its job against the risk it was chosen for.", category: traceability }
+  exercises: { description: "User story exercises a functional requirement.", category: traceability }
+  peer: { description: "Lateral sibling linkage between peer specs/bundles.", category: traceability }
+  # ── FR-041 ecosystem vocabulary (2026-06-21): verbs the real corpus uses ──
+  # behavioral
+  delegates_to: { description: "Source delegates behaviour/handling to the target.", category: behavioral }
+  # dependency
+  uses: { description: "Source uses the target capability/module.", category: dependency, inverse: used_by }
+  imports: { description: "Source imports definitions/models from the target.", category: dependency }
+  blocks: { description: "Source blocks progress on or resolution of the target.", category: dependency, inverse: blocked_by }
+  # realization
+  projection_of: { description: "Source is a projection/view of the target.", category: realization, inverse: projected_by }
+  # governance (credential/lifecycle relations)
+  manages: { description: "Source manages the lifecycle of the target.", category: governance, inverse: managed_by }
+  issues: { description: "Source issues the target credential/token.", category: governance, inverse: issued_by }
+  revokes: { description: "Source revokes the target credential/grant.", category: governance, inverse: revoked_by }
+  rotates: { description: "Source rotates the target key/secret.", category: governance, inverse: rotated_by }
+  signs: { description: "Source signs the target artifact/token.", category: governance, inverse: signed_by }
+  advertises: { description: "Source advertises the target capability/endpoint.", category: governance, inverse: advertised_by }
+  # traceability (lineage / provenance / review)
+  derives_from: { description: "Source is derived/refined from the target (decomposition lineage).", category: traceability, inverse: derives_into }
+  migrated_from: { description: "Source was carried over from the target during a migration.", category: traceability }
+  generated_from: { description: "Source was generated from the target by a tool/source.", category: traceability }
+  reviews: { description: "A review assesses the target artifact.", category: traceability, inverse: reviewed_by }
+  relates_to: { description: "Loose associative link between decisions/records.", category: traceability }
+  found_in: { description: "A finding was identified in the target.", category: traceability }
+  covers: { description: "A test/matrix covers the target requirement.", category: traceability, inverse: covered_by }
+
+# ── Role registry (quire-rs FR-040) ──────────────────────────────────────
+# Capability tags object types opt into; cross-domain `allowed_links` target a
+# role instead of a concrete cross-module type name.
+roles:
+  domain-object: { description: "A business-model type (entity, value object, aggregate, nested entity)." }
+  persistable: { description: "May be stored by a repository." }
+  event-like: { description: "A domain or audit event." }
+  externally-exposed: { description: "A surface reachable from outside the system." }
+  deployable: { description: "A runtime component that is deployed." }
+  measurable: { description: "A target whose health/value is measured." }
+  configurable: { description: "A target driven by configuration." }
+  business-intent: { description: "An enterprise capability/function/value-stream the system realizes." }
+  sensitive: { description: "Carries secret or otherwise sensitive material." }
+
+# FR-059 (quire-rs): which declared vocabulary values does no document
+# claim. Declared HERE because this module owns both halves — the `NFR`
+# archetype and the `quality_attribute` enum in its frontmatter schema — so the
+# vocabulary is read from the schema beside it and nothing is restated.
+#
+# A bundle can be 100% acceptance-criterion covered and still carry no
+# requirement anywhere for reliability, security or maintainability. Every
+# document is individually well-formed; what is wrong is the SET, and no
+# per-document check can see that.
+traceability:
+  # FR-009-AC-14: the software safety class a person states on a requirement
+  # reaches the coverage report as written, and its ordered vocabulary is the
+  # `enum` of the frontmatter schemas. `criticality` is its own axis and is
+  # not carried here.
+  carried_fields:
+  - name: software_safety_class
+    key: software_safety_class
+    from: [StR, US, FR, NFR]
+  vocabulary_coverage:
+  - name: quality-characteristics
+    from: NFR
+    field: quality_attribute
+    # A value a bundle deliberately does not address is COVERED, not unowned.
+    # "This is a CLI that controls no physical process, so it has no safety
+    # characteristic" is an answer, and a check that cannot accept one forces
+    # either a permanent false finding or a fabricated requirement written to
+    # silence it. Read on ANY document, because the statement is about the
+    # product: requiring it on an NFR would mean authoring an NFR to say an NFR
+    # is unnecessary.
+    justified_absence_field: quality_attributes_not_applicable
+    check: unowned-quality-characteristic
+
+# ── Semantic module block (FR-006; quoin FR-070 contract 1.0.0) ──────────
+# Nine of the ten admitted keys. `sweep_report` is absent by design: it is
+# required only when `legacy_forms` is promoted to `error`, and `warning` is
+# the value that changes nothing for a module none of whose documents author
+# the legacy `## Properties` forms quoin FR-074 sweeps.
+# `exports` names every artifact type carrying a `data_schema` reference.
+semantic:
+  contract_version: 1.0.0
+  package: agent-ix/spec-artifacts-iso
+  exports:
+  - FR
+  - NFR
+  - StR
+  - US
+  - IT
+  - TC
+  - master-requirements
+  - index
+  - Glossary
+  imports: {}
+  targets:
+  - json-schema
+  - markdown
+  mappings:
+  - frontmatter
+  - section
+  - table
+  - typed-table
+  - ocl-clause
+  - list
+  - token
+  - provenance
+  compatibility_posture: additive
+  legacy_forms: warning

@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/Constraint.json",
+  "type": "object",
+  "properties": {
+    "id": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/ConstraintId.json"
+    },
+    "constraint": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/NonEmptyText.json",
+      "description": "free text: the constraint statement."
+    },
+    "type": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/NonEmptyText.json",
+      "description": "free text: the constraint category; no rule owns the vocabulary."
+    },
+    "validation": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/Verification.json"
+    },
+    "line": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/LineNumber.json"
+    }
+  },
+  "required": [
+    "id",
+    "constraint",
+    "type",
+    "validation",
+    "line"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "One `## Constraints` row (`ID | Constraint | Type | Validation`)."
+}

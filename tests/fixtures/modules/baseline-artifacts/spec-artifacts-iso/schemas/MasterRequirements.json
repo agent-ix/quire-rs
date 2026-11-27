@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/MasterRequirements.json",
+  "type": "object",
+  "properties": {
+    "type": {
+      "type": "string",
+      "const": "master-requirements"
+    },
+    "name": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/NonEmptyText.json"
+    },
+    "org": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/NonEmptyText.json"
+    },
+    "componentType": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/ComponentType.json"
+    },
+    "title": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/NonEmptyText.json"
+    },
+    "implementationLanguage": {
+      "anyOf": [
+        {
+          "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/NonEmptyText.json"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "`null` is authored for components without one; the frontmatter schema admits it."
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/NonEmptyText.json"
+      }
+    },
+    "dependsOn": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/NonEmptyText.json"
+      },
+      "description": "Bare module names."
+    },
+    "standardsAlignment": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/NonEmptyText.json"
+      }
+    },
+    "securityCritical": {
+      "type": "boolean"
+    },
+    "status": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/ArtifactStatus.json"
+    },
+    "relationships": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/Relationship.json"
+      }
+    },
+    "provenance": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/Provenance.json"
+    },
+    "purpose": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/Section.json"
+    },
+    "scope": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/HeadingRef.json"
+    },
+    "systemOverview": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/HeadingRef.json"
+    },
+    "requirementsArchitecture": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/HeadingRef.json"
+    },
+    "references": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/Section.json"
+    }
+  },
+  "required": [
+    "type",
+    "name",
+    "org",
+    "componentType",
+    "relationships",
+    "provenance",
+    "purpose",
+    "scope",
+    "systemOverview",
+    "requirementsArchitecture",
+    "references"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "Master requirements specification record (archetype `master-requirements`)."
+}

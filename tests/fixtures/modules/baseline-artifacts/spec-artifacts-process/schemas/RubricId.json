@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/RubricId.json",
+  "type": "string",
+  "pattern": "^rubric-[a-z0-9]+(-[a-z0-9]+)*$",
+  "description": "A rubric's `id`: a lower-case slug starting with `rubric-`."
+}

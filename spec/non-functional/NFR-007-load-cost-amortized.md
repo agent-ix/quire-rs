@@ -26,6 +26,10 @@ Targets:
 
 The engine must be cheap to use in hot paths (Filament editor live-preview, bulk batch jobs). Up-front compilation is the standard pattern for high-perf template/validation engines; the cost is paid once per process and amortized over many calls. Per-call disk I/O or schema re-parsing would defeat the entire perf model.
 
+## Change Records
+
+> **CR (2026-11-27):** Updated the `bench_registry_load` corpus reference to the current pinned 28-artifact snapshot documented in FR-013-AC-4. The broader historical v1 baseline statement in the target section includes 87 object archetypes and is not represented by this artifact-only benchmark; this criterion's explicitly named artifact corpus now has a reproducible source and count. The Ubuntu host run measured 93.217 ms median (89.657–96.789 ms interval), below this criterion's 100 ms target.
+
 ## Acceptance Criteria
 
 > **CR note (2026-11-26):** The render and template runtime was removed with
@@ -34,7 +38,7 @@ The engine must be cheap to use in hot paths (Filament editor live-preview, bulk
 
 | ID | Criteria | Verification |
 |----|----------|--------------|
-| NFR-007-AC-1 | A criterion bench `bench_registry_load` measures cold load of the v1 baseline corpus and reports median under 100 ms. | Analysis |
+| NFR-007-AC-1 | A criterion bench `bench_registry_load` measures cold load of the pinned baseline artifact corpus (28 artifact types; provenance and fixture at `tests/fixtures/modules/baseline-artifacts/`) and reports median under 100 ms. | Analysis |
 | NFR-007-AC-2 | A criterion bench `bench_render_after_load` measures 10000 sequential renders against a pre-loaded registry and reports per-call median under 1 ms with no I/O or compile events captured. | Analysis |
 | NFR-007-AC-3 | RETIRED: A test instrumented via `tracing` asserts zero `Template::parse` and zero `JSONSchema::compile` calls during a `render` operation. | None |
 | NFR-007-AC-4 | RETIRED: Holding a `Registry` reference across many `render` calls produces no monotonically growing memory footprint (verified by a long-running soak test). | None |

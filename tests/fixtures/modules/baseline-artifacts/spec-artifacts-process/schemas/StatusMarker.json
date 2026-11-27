@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/StatusMarker.json",
+  "type": "string",
+  "enum": [
+    "✅",
+    "❌",
+    "🚧",
+    "⛔"
+  ],
+  "description": "A status marker: exactly the four the manifest admits.\n\n`⚠️` is absent and stays absent. CR-031 retired it because\n`traceability.status` classed it as nothing, so `class_of` returned `Unknown`\nand every row carrying it was exempt from the status-lie check by\nconstruction (quire-rs CR-083). The `quoin:spec-matrix` skill still documents\nit as valid; the skill is the defect (agent-ix/quoin#337), not this pattern."
+}

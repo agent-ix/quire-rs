@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/RolePrefix.json",
+  "type": "string",
+  "pattern": "^[A-Z]{2,6}$",
+  "description": "A role spec's `id`: the role's rule prefix, 2 to 6 upper-case letters (`MIND`)."
+}

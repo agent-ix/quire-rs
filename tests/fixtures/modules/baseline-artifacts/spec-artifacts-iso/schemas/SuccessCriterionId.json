@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/SuccessCriterionId.json",
+  "type": "string",
+  "pattern": "^IT-[0-9]+-SC-[0-9]+$",
+  "description": "Per-step success-criterion token of an integration test: `<IT id>-SC-N` (lint rule `it-success-criteria`)."
+}

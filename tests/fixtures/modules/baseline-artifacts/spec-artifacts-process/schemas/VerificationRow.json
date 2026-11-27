@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/VerificationRow.json",
+  "type": "object",
+  "properties": {
+    "kind": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/VerificationKind.json"
+    },
+    "target": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/VerificationTarget.json"
+    },
+    "rationale": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/NonEmptyText.json",
+      "description": "free text: the engineer's statement of how the fix is demonstrated."
+    },
+    "line": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/LineNumber.json"
+    }
+  },
+  "required": [
+    "kind",
+    "target",
+    "rationale",
+    "line"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "One `## Fix Verification` row (`Kind | Target | Rationale`). `target` is the\nauthored reference token; whether it resolves, and to what kind, is a\ndiagnostic, not part of the record. No field names the fixing change or holds\na verdict: the change is the git history of the file (FR-015)."
+}

@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/VerificationKind.json",
+  "type": "string",
+  "enum": [
+    "Criterion",
+    "Test"
+  ],
+  "description": "What a fix-verification row points at: an acceptance criterion or a test case."
+}

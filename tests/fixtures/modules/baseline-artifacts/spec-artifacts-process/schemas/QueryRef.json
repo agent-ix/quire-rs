@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/QueryRef.json",
+  "type": "string",
+  "pattern": "^[a-z][a-z0-9-]*\\.[a-z][a-z0-9_]*$",
+  "description": "A query registered with the evaluator, `<source>.<name>`; whether it is registered is the evaluator's binding check."
+}

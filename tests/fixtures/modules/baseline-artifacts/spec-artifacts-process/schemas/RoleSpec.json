@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/RoleSpec.json",
+  "type": "object",
+  "properties": {
+    "id": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/RolePrefix.json"
+    },
+    "role": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/NonEmptyText.json",
+      "description": "free text: the role name."
+    },
+    "type": {
+      "type": "string",
+      "const": "RoleSpec"
+    },
+    "version": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/DocVersion.json"
+    },
+    "relationships": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/Relationship.json"
+      },
+      "description": "Absent when the author declared none; the frontmatter schema does not require the key (FR-011-AC-15)."
+    },
+    "provenance": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/Provenance.json"
+    },
+    "metrics": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/MetricRow.json"
+      },
+      "minItems": 1
+    },
+    "objectives": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/ObjectiveRow.json"
+      },
+      "minItems": 1
+    },
+    "rules": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/RuleRow.json"
+      },
+      "minItems": 1
+    },
+    "evaluations": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/EvaluationRow.json"
+      },
+      "minItems": 1
+    }
+  },
+  "required": [
+    "id",
+    "role",
+    "type",
+    "version",
+    "provenance",
+    "metrics",
+    "objectives",
+    "rules",
+    "evaluations"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "Role spec (archetype `RoleSpec`). A **definition**: what a role is for, which\nbehavior it requires or forbids, and how each statement is checked. It records\nno evaluation result (FR-013)."
+}

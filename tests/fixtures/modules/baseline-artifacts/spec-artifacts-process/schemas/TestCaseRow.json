@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/TestCaseRow.json",
+  "type": "object",
+  "properties": {
+    "id": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/TestRowId.json"
+    },
+    "title": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/NonEmptyText.json",
+      "description": "free text: the row title."
+    },
+    "type": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/TestType.json"
+    },
+    "priority": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/Priority.json",
+      "description": "Absent where the matrix omits the whole column, which the archetype allows (CR-018); never synthesised."
+    },
+    "tracesTo": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/TraceCell.json"
+    },
+    "status": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/CoverageStatus.json",
+      "description": "Optional authored tracking annotation; criterion coverage is computed from requirements and test tags."
+    },
+    "line": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-process/LineNumber.json"
+    }
+  },
+  "required": [
+    "id",
+    "title",
+    "type",
+    "tracesTo",
+    "line"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "One `## Test Case Summary` row (`Test ID | Title | Type | Priority | Traces To | Status`)."
+}

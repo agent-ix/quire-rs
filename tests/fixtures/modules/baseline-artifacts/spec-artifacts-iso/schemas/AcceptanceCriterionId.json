@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-artifacts-iso/AcceptanceCriterionId.json",
+  "type": "string",
+  "pattern": "^(FR|NFR)-[0-9]+-AC-[0-9]+$",
+  "description": "Acceptance-criterion row id: `<FR|NFR id>-AC-N`, the locator `id_pattern`."
+}
