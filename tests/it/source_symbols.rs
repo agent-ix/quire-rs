@@ -51,9 +51,47 @@ fn rust_marker_with_spaced_ids_and_trailing_comma_binds_each_id_once() {
 }
 
 #[cfg(feature = "rust-symbols")]
+#[trace("FR-051-AC-26")]
 #[test]
 fn uncompiled_tree_with_missing_dependency_still_extracts_and_binds() {
-    use quire_rs::symbols::{extract_tree, trace::bind, SymbolKind};
+    use quire_rs::symbols::{SymbolKind, extract_tree, trace::bind};
+    use std::os::unix::fs::PermissionsExt;
+    use std::process::Command;
+
+    if std::env::var_os("QUIRE_FR051_PROBE_CHILD").is_some() {
+        let root = std::path::PathBuf::from(
+            std::env::var_os("QUIRE_FR051_FIXTURE_ROOT").expect("probe root"),
+        );
+        let extraction = extract_tree(&root);
+        let graph = bind(&extraction, &trace_model());
+        assert!(
+            extraction.diagnostics.is_empty(),
+            "{:?}",
+            extraction.diagnostics
+        );
+        assert!(extraction.symbols.iter().any(|symbol| {
+            symbol.kind == SymbolKind::TestFunction
+                && symbol.qualified_name == "uses_an_unresolved_type"
+        }));
+        assert_eq!(graph.verifies.len(), 1);
+        assert_eq!(graph.verifies[0].trace_id, "FR-001-AC-1");
+        assert!(
+            !root.join("target").exists(),
+            "extraction made no build artifacts"
+        );
+        assert!(
+            !root.join("Cargo.lock").exists(),
+            "extraction created a package-manager lockfile"
+        );
+        assert!(
+            !std::path::PathBuf::from(
+                std::env::var_os("BUILD_TOOL_MARKER").expect("build-tool marker path")
+            )
+            .exists(),
+            "extraction invoked a compiler or package manager"
+        );
+        return;
+    }
 
     let root = tempfile::tempdir().expect("temporary fixture tree");
     write(
@@ -75,27 +113,53 @@ fn uncompiled_tree_with_missing_dependency_still_extracts_and_binds() {
     assert!(!root.path().join("target").exists());
     assert!(!root.path().join("Cargo.lock").exists());
 
-    let extraction = extract_tree(root.path());
-    let graph = bind(&extraction, &trace_model());
+    let bin = root.path().join("tool-shims");
+    std::fs::create_dir_all(&bin).expect("tool shim directory");
+    let marker = root.path().join("build-tool-invoked");
+    for tool in ["cargo", "rustc", "pip", "npm", "pnpm", "yarn", "bun"] {
+        let shim = bin.join(tool);
+        std::fs::write(
+            &shim,
+            "#!/bin/sh\nprintf '%s\\n' \"$0 $*\" >> \"$BUILD_TOOL_MARKER\"\nexit 97\n",
+        )
+        .expect("write build-tool shim");
+        let mut permissions = std::fs::metadata(&shim)
+            .expect("read shim metadata")
+            .permissions();
+        permissions.set_mode(0o755);
+        std::fs::set_permissions(&shim, permissions).expect("make shim executable");
+    }
+
+    let mut paths = vec![bin.clone()];
+    paths.extend(std::env::split_paths(
+        &std::env::var_os("PATH").unwrap_or_default(),
+    ));
+    let path = std::env::join_paths(paths).expect("compose shim PATH");
+    let output = Command::new(std::env::current_exe().expect("test executable"))
+        .args([
+            "--exact",
+            "source_symbols::uncompiled_tree_with_missing_dependency_still_extracts_and_binds",
+            "--nocapture",
+        ])
+        .env("QUIRE_FR051_PROBE_CHILD", "1")
+        .env("QUIRE_FR051_FIXTURE_ROOT", root.path())
+        .env("BUILD_TOOL_MARKER", &marker)
+        .env("PATH", path)
+        .output()
+        .expect("run isolated extraction probe");
     assert!(
-        extraction.diagnostics.is_empty(),
-        "{:?}",
-        extraction.diagnostics
-    );
-    assert!(extraction.symbols.iter().any(|symbol| {
-        symbol.kind == SymbolKind::TestFunction
-            && symbol.qualified_name == "uses_an_unresolved_type"
-    }));
-    assert_eq!(graph.verifies.len(), 1);
-    assert_eq!(graph.verifies[0].trace_id, "FR-001-AC-1");
-    assert!(
-        !root.path().join("target").exists(),
-        "extraction made no build artifacts"
+        output.status.success(),
+        "isolated extraction probe failed:\n{}\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
     );
     assert!(
-        !root.path().join("Cargo.lock").exists(),
-        "extraction invoked no package manager"
+        !marker.exists(),
+        "extraction invoked a compiler or package manager: {}",
+        std::fs::read_to_string(&marker).unwrap_or_default()
     );
+    assert!(!root.path().join("target").exists());
+    assert!(!root.path().join("Cargo.lock").exists());
 }
 
 #[cfg(all(feature = "python-symbols", feature = "typescript-symbols"))]
