@@ -913,6 +913,63 @@ yield_pattern:
         assert!(result.diagnostics.is_empty());
     }
 
+    #[trace("FR-016-AC-4")]
+    #[test]
+    fn domain_fallback_chains_extract_both_canonical_and_legacy_sections() {
+        let dsl = dsl_from(
+            r#"
+yield_pattern:
+  match:
+    entities:
+    - from: section_body
+      after_heading: Entities
+    - from: section_body
+      after_heading: Entity List
+    ubiquitous_language:
+    - from: section_body
+      after_heading: Ubiquitous Language
+    - from: section_body
+      after_heading: Language
+"#,
+        );
+        let canonical = parse_document(
+            "## Entities\nCanonical entities.\n## Entity List\nLegacy entities.\n\
+             ## Ubiquitous Language\nCanonical terms.\n## Language\nLegacy terms.\n",
+        );
+        let canonical_result = extract(&canonical, &dsl).expect("canonical headings resolve");
+        assert_eq!(
+            canonical_result.records[0]["entities"],
+            "Canonical entities."
+        );
+        assert_eq!(
+            canonical_result.records[0]["ubiquitous_language"],
+            "Canonical terms."
+        );
+        assert!(canonical_result.diagnostics.is_empty());
+
+        let legacy =
+            parse_document("## Entity List\nLegacy entities.\n## Language\nLegacy terms.\n");
+        let legacy_result = extract(&legacy, &dsl).expect("legacy headings resolve");
+        assert_eq!(legacy_result.records[0]["entities"], "Legacy entities.");
+        assert_eq!(
+            legacy_result.records[0]["ubiquitous_language"],
+            "Legacy terms."
+        );
+        assert_eq!(
+            legacy_result
+                .diagnostics
+                .iter()
+                .filter_map(|diagnostic| match diagnostic {
+                    Diagnostic::FallbackLocatorUsed { key, position, .. } => {
+                        Some((key.as_str(), *position))
+                    }
+                    _ => None,
+                })
+                .collect::<Vec<_>>(),
+            [("entities", 1), ("ubiquitous_language", 1)]
+        );
+    }
+
     #[test]
     fn fallback_canonical_position_does_not_emit_diagnostic() {
         let d = doc();
