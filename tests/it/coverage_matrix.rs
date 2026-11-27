@@ -2201,3 +2201,88 @@ fn fr082_the_evidence_path_carries_criticality_too() {
         .is_none());
     let _ = fs::remove_dir_all(&root);
 }
+
+#[trace("FR-078-AC-20", "FR-078-CON-2")]
+#[test]
+fn retained_coverage_and_trace_treat_untrusted_strings_as_data() {
+    use quire_rs::evidence::{
+        trace, ActResult, BackingInput, CauseCode, RecordClaim, RecordLocator, TraceQuery,
+    };
+    use quire_rs::obligation::inventory::{inventory, InventoryOptions};
+
+    let root = tmpdir("qualified-evidence-inert");
+    write(
+        &root,
+        "spec/FR-001.md",
+        "---\nid: FR-001\ntype: FR\n---\n\n## Acceptance Criteria\n\n| ID | Criteria | Verification |\n|---|---|---|\n| FR-001-AC-1 | The retained result is current. | Inspection |\n",
+    );
+    let registry = Registry::load_module(&fixture_module("obligations")).unwrap();
+    let model = registry.traceability().unwrap();
+    let inventory = inventory(
+        &root,
+        model,
+        &["acceptance-criterion"],
+        InventoryOptions::default(),
+    );
+    let target = inventory
+        .entries()
+        .next()
+        .expect("selected target")
+        .identity();
+    let marker = root.join("must-not-execute");
+    let untrusted = format!("$(touch {})", marker.display());
+    let provenance = [untrusted.as_str()];
+    let claims = [RecordClaim {
+        target: target.into(),
+        locator: RecordLocator {
+            record: &untrusted,
+            run: "https://127.0.0.1:9/no-service-call",
+            entry: "malformed-retained-entry",
+        },
+        method: "UnknownMethod",
+        actor: &untrusted,
+        provenance: &provenance,
+    }];
+    let results = [ActResult {
+        target: Some(target.into()),
+        requested_target: "FR-001-AC-1",
+        locator: Some(claims[0].locator),
+        cause: CauseCode::Unevaluated,
+        detail: &untrusted,
+    }];
+    let input = BackingInput {
+        inventory: &inventory,
+        claims: &claims,
+        results: &results,
+    };
+    let before = fs::read(root.join("spec/FR-001.md")).unwrap();
+    let spec = Spec::from_path(&root.join("spec"));
+    let graph = sym_trace::SymbolGraph::default();
+    let report = quire_rs::coverage::compute_with_evidence(
+        &spec,
+        &registry,
+        &graph,
+        &root,
+        &input,
+        EvidenceCoverageMode::Strict,
+    )
+    .expect("retained-input coverage is a read-only projection");
+
+    let criterion = &report.coverage_matrix[0].criteria[0];
+    assert!(criterion.record_binders.as_ref().unwrap().is_empty());
+    assert!(report
+        .evidence_results
+        .as_ref()
+        .unwrap()
+        .iter()
+        .any(|result| result.cause == CauseCode::Unevaluated && result.detail == untrusted));
+    let traced = trace(&input, TraceQuery::Target(target.into()));
+    assert!(
+        traced.is_empty(),
+        "unevaluated input cannot create a passing claim"
+    );
+    assert!(!marker.exists(), "retained text must never be executed");
+    assert_eq!(before, fs::read(root.join("spec/FR-001.md")).unwrap());
+    assert!(!root.join("published.json").exists());
+    let _ = fs::remove_dir_all(&root);
+}
