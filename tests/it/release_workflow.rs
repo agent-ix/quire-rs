@@ -269,6 +269,39 @@ fn tc_2234_make_evidence_records_fresh_suite_run_for_retention() {
             && step["with"]["npm_registry_token"].as_str()
                 == Some("${{ secrets.REGISTRY_TOKEN }}")
     }));
+    for (repository, revision, path, variable) in [
+        (
+            "agent-ix/spec-artifacts-process",
+            "c29697dd2c083e08defdec73d31efa3f41141a80",
+            ".ci/spec-artifacts-process",
+            "VALIDATION_PROCESS_ROOT",
+        ),
+        (
+            "agent-ix/spec-artifacts-iso",
+            "f3e556c423eee451ac833eb1c0a950006c137bc6",
+            ".ci/spec-artifacts-iso",
+            "VALIDATION_ISO_ROOT",
+        ),
+    ] {
+        assert!(evidence_steps.iter().any(|step| {
+            step["uses"].as_str() == Some("actions/checkout@v7")
+                && step["with"]["repository"].as_str() == Some(repository)
+                && step["with"]["ref"].as_str() == Some(revision)
+                && step["with"]["path"].as_str() == Some(path)
+        }));
+        assert_eq!(
+            generate["env"][variable].as_str(),
+            Some(match variable {
+                "VALIDATION_PROCESS_ROOT" => {
+                    "${{ github.workspace }}/.ci/spec-artifacts-process"
+                }
+                _ => "${{ github.workspace }}/.ci/spec-artifacts-iso",
+            })
+        );
+    }
+    assert_eq!(generate["env"]["CARGO_PROFILE_DEV_DEBUG"].as_str(), Some("0"));
+    assert_eq!(generate["env"]["CARGO_PROFILE_TEST_DEBUG"].as_str(), Some("0"));
+    assert_eq!(generate["env"]["CARGO_INCREMENTAL"].as_str(), Some("0"));
     assert_eq!(
         events(&workflow)["workflow_call"]["secrets"]["REGISTRY_TOKEN"]["required"].as_bool(),
         Some(true)
