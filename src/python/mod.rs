@@ -1162,9 +1162,7 @@ fn json_to_py<'py>(py: Python<'py>, v: &Value) -> PyResult<Bound<'py, PyAny>> {
                 .chars()
                 .any(|character| matches!(character, '.' | 'e' | 'E'))
             {
-                PyModule::import(py, "builtins")?
-                    .getattr("int")?
-                    .call1((number_text,))?
+                decimal_integer_to_py(py, &number_text)?
             } else {
                 n.as_f64().unwrap_or(f64::NAN).into_pyobject(py)?.into_any()
             }
@@ -1186,6 +1184,42 @@ fn json_to_py<'py>(py: Python<'py>, v: &Value) -> PyResult<Bound<'py, PyAny>> {
         }
     };
     Ok(obj)
+}
+
+#[implements("FR-075-AC-17", "FR-075-AC-20")]
+fn decimal_integer_to_py<'py>(
+    py: Python<'py>,
+    number_text: &str,
+) -> PyResult<Bound<'py, PyAny>> {
+    const DECIMAL_CHUNK_DIGITS: usize = 9;
+    const DECIMAL_CHUNK_BASE: u64 = 1_000_000_000;
+
+    let negative = number_text.starts_with('-');
+    let digits = number_text.strip_prefix('-').unwrap_or(number_text);
+    let mut chunks = digits.as_bytes().chunks(DECIMAL_CHUNK_DIGITS);
+    let first = chunks
+        .next()
+        .ok_or_else(|| PyValueError::new_err("JSON integer has no digits"))?;
+    let first = std::str::from_utf8(first)
+        .map_err(|_| PyValueError::new_err("JSON integer is not decimal"))?
+        .parse::<u32>()
+        .map_err(|_| PyValueError::new_err("JSON integer is not decimal"))?;
+    let mut value = first.into_pyobject(py)?.into_any();
+
+    for chunk in chunks {
+        let chunk = std::str::from_utf8(chunk)
+            .map_err(|_| PyValueError::new_err("JSON integer is not decimal"))?
+            .parse::<u32>()
+            .map_err(|_| PyValueError::new_err("JSON integer is not decimal"))?;
+        value = value.call_method1("__mul__", (DECIMAL_CHUNK_BASE,))?;
+        value = value.call_method1("__add__", (chunk,))?;
+    }
+
+    if negative {
+        value.call_method0("__neg__")
+    } else {
+        Ok(value)
+    }
 }
 
 #[cfg(test)]
