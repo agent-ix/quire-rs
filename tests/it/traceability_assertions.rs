@@ -69,6 +69,15 @@ traceability:
     right_column: Query or rubric
 "#;
 
+/// Reasons exercised by the module-declared RoleSpec contracts below. These
+/// are intentionally test-owned: they are not vocabulary supplied by the
+/// qa-corpus module.
+pub(crate) const MODULE_DECLARED_DIAGNOSTIC_REASONS: [&str; 3] = [
+    "parent-children-all-match",
+    "parent-target-has-no-children",
+    "target-id-unreferenced",
+];
+
 const ROLE_SPEC: &str = r#"---
 id: RS
 type: RoleSpec
@@ -177,6 +186,7 @@ fn matrix_keeps_parent_groups_with_empty_children_and_warns_only_for_all_judgeme
         1,
         "only the all-judgement group warns: {warnings:?}"
     );
+    assert_eq!(warnings[0].reason, MODULE_DECLARED_DIAGNOSTIC_REASONS[0]);
     assert!(warnings[0].message.contains("RS-R01"));
     let unmeasured: Vec<_> = report
         .diagnostics
@@ -188,12 +198,45 @@ fn matrix_keeps_parent_groups_with_empty_children_and_warns_only_for_all_judgeme
         1,
         "only the empty parent warns: {unmeasured:?}"
     );
+    assert_eq!(unmeasured[0].reason, MODULE_DECLARED_DIAGNOSTIC_REASONS[1]);
     assert!(unmeasured[0].message.contains("RS-R02"));
 
     let validation = validate(root.path(), &registry);
     assert!(
         validation.errors.is_empty(),
         "warnings do not fail validation: {validation:#?}"
+    );
+}
+
+#[trace("FR-050-AC-71")]
+#[trace("FR-050-AC-72")]
+#[trace("FR-050-AC-74")]
+#[test]
+fn module_declared_warning_reasons_are_absent_for_complete_mixed_groups() {
+    let healthy = ROLE_SPEC
+        .replace(
+            "RS-R01-E2 | RS-R01 | judgement",
+            "RS-R01-E2 | RS-R01 | deterministic",
+        )
+        .replace("| RS-R02 | Rule with no evaluations |\n", "")
+        .replace("| RS-O01 | RS-M01 |", "| RS-O01 | RS-M01, RS-M02 |");
+    let root = setup(MODULE, &healthy);
+    let (report, registry) = report(root.path());
+    for reason in MODULE_DECLARED_DIAGNOSTIC_REASONS {
+        assert!(
+            report
+                .diagnostics
+                .iter()
+                .all(|diagnostic| diagnostic.reason != reason),
+            "healthy RoleSpec input must omit {reason}: {:?}",
+            report.diagnostics
+        );
+    }
+    let validation = validate(root.path(), &registry);
+    assert!(
+        validation.errors.is_empty(),
+        "complete RoleSpec control validates: {:#?}",
+        validation.errors
     );
 }
 
@@ -208,6 +251,7 @@ fn each_unreferenced_minted_metric_warns_and_referenced_metric_is_clean() {
         .filter(|diagnostic| diagnostic.reason == "target-id-unreferenced")
         .collect();
     assert_eq!(warnings.len(), 1, "one unused metric warns: {warnings:?}");
+    assert_eq!(warnings[0].reason, MODULE_DECLARED_DIAGNOSTIC_REASONS[2]);
     assert!(warnings[0].message.contains("RS-M02"));
     assert!(!warnings[0].message.contains("RS-M01"));
 }
@@ -252,6 +296,80 @@ fn equal_trigger_with_distinct_metric_query_is_a_clean_control() {
     assert!(
         validation.errors.is_empty(),
         "Trigger is not compared: {:#?}",
+        validation.errors
+    );
+}
+
+#[trace("FR-050-AC-73")]
+#[test]
+fn equal_values_in_different_role_spec_documents_are_a_clean_control() {
+    let module = MODULE
+        .replace(
+            "  - name: role-rule\n",
+            "  - name: role-rule\n    required: false\n",
+        )
+        .replace(
+            "  - name: role-evaluation\n",
+            "  - name: role-evaluation\n    required: false\n",
+        )
+        .replace(
+            "  - name: role-metric\n",
+            "  - name: role-metric\n    required: false\n",
+        )
+        .replace(
+            "  - name: role-objective\n",
+            "  - name: role-objective\n    required: false\n",
+        );
+    let root = tempfile::tempdir().expect("fixture root created");
+    write(root.path(), "module/manifest.yaml", &module);
+    write(root.path(), "src/empty.rs", "fn no_trace_markers() {}\n");
+    write(
+        root.path(),
+        "spec/evaluations.md",
+        r#"---
+id: RS-E
+type: RoleSpec
+---
+
+## Rules
+
+| ID | Rule |
+|---|---|
+| RS-R10 | Rule |
+
+## Evaluations
+
+| ID | Rule | Method | Query or rubric | Trigger |
+|---|---|---|---|---|
+| RS-R10-E1 | RS-R10 | deterministic | ledger.shared | ledger.eval |
+"#,
+    );
+    write(
+        root.path(),
+        "spec/metrics.md",
+        r#"---
+id: RS-M
+type: RoleSpec
+---
+
+## Metrics
+
+| ID | Query |
+|---|---|
+| RS-M10 | ledger.shared |
+
+## Objectives
+
+| ID | Metrics |
+|---|---|
+| RS-O10 | RS-M10 |
+"#,
+    );
+    let registry = Registry::load_module(&root.path().join("module")).expect("module loads");
+    let validation = validate(root.path(), &registry);
+    assert!(
+        validation.errors.is_empty(),
+        "equal Query values in different documents do not conflict: {:#?}",
         validation.errors
     );
 }

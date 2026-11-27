@@ -17,6 +17,7 @@
 //! how a corpus rots into a set of assertions everybody works around.
 
 use crate::corpus_case;
+use crate::traceability_assertions::MODULE_DECLARED_DIAGNOSTIC_REASONS;
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -1884,22 +1885,28 @@ fn tc1026_the_declared_vocabulary_matches_the_engine() {
     ];
     // NFR-140 (QSL-2517): registered by this engine ahead of the pinned corpus.
     const QUALIFIED_TRACE_REASONS: [&str; 1] = ["unresolved-qualified-trace-id"];
+    // SWM-247/248: these reasons require module-declared RoleSpec rows and are
+    // covered by the dedicated integration contract, not qa-corpus fixtures.
     let registry = quire_rs::coverage::COVERAGE_DIAGNOSTIC_REASONS;
-    let declared_plus_formalizes: BTreeSet<&str> = emitted
+    let declared_and_engine_owned: BTreeSet<&str> = emitted
         .iter()
         .copied()
         .chain(FORMALIZES_REASONS)
         .chain(QUALIFIED_TRACE_REASONS)
+        .chain(MODULE_DECLARED_DIAGNOSTIC_REASONS)
         .collect();
     assert_eq!(
-        emitted.len() + FORMALIZES_REASONS.len() + QUALIFIED_TRACE_REASONS.len(),
-        declared_plus_formalizes.len(),
+        emitted.len()
+            + FORMALIZES_REASONS.len()
+            + QUALIFIED_TRACE_REASONS.len()
+            + MODULE_DECLARED_DIAGNOSTIC_REASONS.len(),
+        declared_and_engine_owned.len(),
         "corpus.yaml `emitted` must not already list an engine-ahead reason",
     );
     assert_eq!(
-        declared_plus_formalizes,
+        declared_and_engine_owned,
         registry.iter().copied().collect::<BTreeSet<_>>(),
-        "corpus.yaml `emitted` plus the engine-ahead reasons must equal the engine registry",
+        "corpus-driven and module-declared reason contracts must equal the engine registry",
     );
 
     // The same registry is present in an ordinary report, which makes the

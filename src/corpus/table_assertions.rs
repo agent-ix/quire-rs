@@ -138,7 +138,7 @@ pub(crate) fn validate_table_assertions(
                         let Some(right_value) = right.cell(right_column) else {
                             continue;
                         };
-                        if left_value != right_value {
+                        if left.path != right.path || left_value != right_value {
                             continue;
                         }
                         let left_id = left_id_column
