@@ -233,8 +233,19 @@ fn tc941_implements_does_not_change_any_coverage_rollup() {
         .join("tests/fixtures/traceability/obligations-catalog");
     let registry = Registry::load_module(&module).expect("load module");
     let spec = quire_rs::Spec::from_path(&scope);
-    let model = registry.traceability().expect("traceability model");
-    let graph = trace::bind(&quire_rs::symbols::extract_tree(&source), model);
+    let mut model = registry
+        .traceability()
+        .cloned()
+        .expect("traceability model");
+    model.trace_tags.implements.push(TraceMarkerForm {
+        syntax: None,
+        name: "rust-implements-attr".to_string(),
+        language: SourceLanguage::Rust,
+        pattern: r#"#\[implements\("([^"]+)"\)\]"#.to_string(),
+        template: None,
+        entry_paths: None,
+    });
+    let graph = trace::bind(&quire_rs::symbols::extract_tree(&source), &model);
     assert_eq!(graph.implements.len(), 1, "fixture must bind implements");
 
     let with_implements = quire_rs::coverage::compute(&spec, &registry, &graph, &scope)
