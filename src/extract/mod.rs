@@ -620,6 +620,7 @@ yield_pattern:
         assert_eq!(r.records[1]["diagrams"].as_array().unwrap().len(), 1);
     }
 
+    #[trace("FR-011-AC-4")]
     #[test]
     fn required_miss_returns_missing_field() {
         let d = doc();
@@ -634,7 +635,10 @@ yield_pattern:
 "#,
         );
         let err = extract(&d, &dsl).expect_err("missing");
-        assert!(matches!(err, QuireError::MissingField { .. }));
+        assert!(matches!(
+            err,
+            QuireError::MissingField { key, .. } if key == "nope"
+        ));
     }
 
     // ── Multi-yield ─────────────────────────────────────────────────
