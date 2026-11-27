@@ -359,7 +359,7 @@ fn tc1086_tc1088_premises_and_bytes_are_deterministic() {
         .all(|pair| pair[0] < pair[1]));
 }
 
-#[trace("FR-067-AC-4", "StR-007-VC-2")]
+#[trace("FR-067-AC-4")]
 #[test]
 fn tc1087_reader_rejects_unsupported_premises_before_returning_records() {
     let export: AssuranceExport = serde_json::from_value(golden()).expect("typed golden");
@@ -501,7 +501,7 @@ fn tc2249_assurance_reader_returns_error_for_deep_nesting_without_panicking() {
     );
 }
 
-#[trace("FR-068-AC-1", "StR-007-VC-1")]
+#[trace("FR-068-AC-1")]
 #[trace("FR-068-AC-2")]
 #[trace("FR-068-AC-3")]
 #[test]
@@ -695,7 +695,7 @@ fn tc1094_tc1097_relation_variants_preserve_graph_meaning() {
     }));
 }
 
-#[trace("FR-068-AC-6", "StR-007-VC-3")]
+#[trace("FR-068-AC-6")]
 #[test]
 fn tc1096_relation_observations_keep_all_four_states_distinct() {
     let fixture = Fixture::new();

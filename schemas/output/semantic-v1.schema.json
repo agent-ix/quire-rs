@@ -190,6 +190,37 @@
         "sourceSpan": { "$ref": "#/$defs/sourceLocus" }
       }
     },
+    "dimensionDecl": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["base", "sourceSpan"],
+      "properties": {
+        "base": { "type": "boolean" },
+        "sourceSpan": { "$ref": "#/$defs/sourceLocus" }
+      }
+    },
+    "dimensionTermDecl": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["dimension", "exponent", "sourceSpan"],
+      "properties": {
+        "dimension": { "$ref": "#/$defs/typeRef" },
+        "exponent": { "type": "integer" },
+        "sourceSpan": { "$ref": "#/$defs/sourceLocus" }
+      }
+    },
+    "unitDecl": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["dimension", "scale", "offset", "sourceSpan"],
+      "properties": {
+        "dimension": { "$ref": "#/$defs/typeRef" },
+        "target": { "$ref": "#/$defs/typeRef" },
+        "scale": { "type": "string", "pattern": "^(0|-?[1-9][0-9]*|-?[1-9][0-9]*/[1-9][0-9]*)$" },
+        "offset": { "type": "string", "pattern": "^(0|-?[1-9][0-9]*|-?[1-9][0-9]*/[1-9][0-9]*)$" },
+        "sourceSpan": { "$ref": "#/$defs/sourceLocus" }
+      }
+    },
     "stageCapabilityBindingDecl": {
       "type": "object",
       "additionalProperties": false,
@@ -404,6 +435,9 @@
           }
         },
         "stages": { "type": "array", "items": { "$ref": "#/$defs/valueStageDecl" } },
+        "dimension": { "$ref": "#/$defs/dimensionDecl" },
+        "terms": { "type": "array", "items": { "$ref": "#/$defs/dimensionTermDecl" } },
+        "unit": { "$ref": "#/$defs/unitDecl" },
         "stageCapabilityBindings": {
           "type": "array",
           "items": { "$ref": "#/$defs/stageCapabilityBindingDecl" }

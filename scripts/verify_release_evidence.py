@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate and safely unpack an unsigned release evidence asset."""
+"""Validate and safely unpack a release evidence archive."""
 # implements: FR-095-AC-2, FR-095-AC-6
 
 import argparse
@@ -10,6 +10,8 @@ import re
 import tarfile
 from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
+
+from release_evidence_validation import missing_required_release_bindings
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--archive", type=Path, required=True)
@@ -146,6 +148,18 @@ for name, store in (("committed", base_store), ("generated", run_store)):
         parser.error(f"{name} binding registry is not a schema-version-1 Quoin store")
 
 run = json.loads(members[run_path])
+try:
+    missing_obligations = missing_required_release_bindings(
+        members["suites.md"].decode("utf-8"), run_store, run
+    )
+except ValueError as error:
+    parser.error(str(error))
+if missing_obligations:
+    parser.error(
+        "generated bindings lack required passing release evidence: "
+        + ", ".join(missing_obligations)
+    )
+
 if (
     run.get("schemaVersion") != 1
     or run.get("suite") != "SUITE-001"

@@ -9,13 +9,14 @@
 //! availability of the feature set as a whole.
 
 use ix_trace_rs::implements;
+use num_bigint::BigInt;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use super::clauses::{Expression, SourceLocus};
 use super::context::SemanticContext;
 use super::contract::SemanticSeverity;
-use super::decl::{is_identifier, Multiplicity, TypeRef};
+use super::decl::{is_identifier, Multiplicity, TypeRef, TypeRefTarget};
 use super::properties::{
     feature_columns, is_typed_prefix, map_multiplicity, map_type, strip_ticks, RowInput,
 };
@@ -26,6 +27,7 @@ use super::systems::{
     self, AllocationRecord, ConnectionRecord, PartRecord, PortRecord, SystemsDecl,
 };
 use super::target::{resolve_reference, Admission, Declarations, OwnDeclaration, ReferenceRefusal};
+use super::units::{resolve_token, Resolution, TokenKind, UnitToken};
 use super::{AvailabilityState, KindAvailability, ResolvedReference, SemanticDiagnostic};
 use crate::extract::assert_eval::headers_conform;
 use crate::extract::dsl::ExtractionDsl;
@@ -250,19 +252,19 @@ const TABLE_SPECS: [TableSpec; 18] = [
         feature: ModelFeature::Dimension,
         columns: &["Base"],
         required: &["Base"],
-        read: None,
+        read: Some(read_dimension),
     },
     TableSpec {
         feature: ModelFeature::Terms,
         columns: &["Dimension", "Exponent"],
         required: &["Dimension", "Exponent"],
-        read: None,
+        read: Some(read_terms),
     },
     TableSpec {
         feature: ModelFeature::Unit,
         columns: &["Dimension", "Target", "Scale", "Offset"],
         required: &["Dimension", "Scale", "Offset"],
-        read: None,
+        read: Some(read_unit),
     },
     TableSpec {
         feature: ModelFeature::Stages,
@@ -863,6 +865,35 @@ pub struct TermDecl {
     pub source_span: SourceLocus,
 }
 
+/// The `Base` declaration of a physical dimension.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DimensionDecl {
+    pub base: bool,
+    pub source_span: SourceLocus,
+}
+
+/// A dimension and its integer exponent in a unit's dimension vector.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DimensionTermDecl {
+    pub dimension: TypeRef,
+    pub exponent: serde_json::Number,
+    pub source_span: SourceLocus,
+}
+
+/// A unit's dimension, optional reference unit, and canonical scale/offset.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UnitDecl {
+    pub dimension: TypeRef,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub target: Option<TypeRef>,
+    pub scale: String,
+    pub offset: String,
+    pub source_span: SourceLocus,
+}
+
 /// One authored enterprise value-stream stage.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -948,6 +979,12 @@ pub struct ModelDeclarations {
     pub stages: Option<Vec<ValueStageDecl>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub stage_capability_bindings: Option<Vec<StageCapabilityBindingDecl>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub dimension: Option<DimensionDecl>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub terms: Option<Vec<DimensionTermDecl>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub unit: Option<UnitDecl>,
 }
 
 /// What the frontmatter and table extraction of one artifact produced.
@@ -971,6 +1008,9 @@ pub(crate) struct ModelOutcome {
     /// with no error.
     pub(crate) unresolved: Option<&'static str>,
     pub(crate) diagnostics: Vec<SemanticDiagnostic>,
+    /// Diagnostic indexes for cross-kind Dimension/Unit duplicates, which
+    /// report the later declaration while preserving the earlier model.
+    preserved_physical_conflicts: Vec<usize>,
     pub(crate) resolved_references: Vec<ResolvedReference>,
     pending_stage_outcomes: Vec<PendingStageOutcome>,
 }
@@ -1234,10 +1274,17 @@ pub(crate) fn entry_errors(diagnostics: &[SemanticDiagnostic]) -> KindAvailabili
 
 impl ModelOutcome {
     /// The frontmatter and table source for [`model_availability`].
+    #[implements("FR-075-AC-21")]
     pub(crate) fn source(&self) -> ModelSource<'_> {
         ModelSource {
             declared: self.declared,
-            failed: self.diagnostics.iter().any(SemanticDiagnostic::is_error),
+            failed: self
+                .diagnostics
+                .iter()
+                .enumerate()
+                .any(|(index, diagnostic)| {
+                    diagnostic.is_error() && !self.preserved_physical_conflicts.contains(&index)
+                }),
             lossy: self.lossy,
             unresolved: self.unresolved,
             diagnostics: &self.diagnostics,
@@ -1421,6 +1468,7 @@ fn block_line(block: &Block) -> usize {
 }
 
 #[implements("FR-075-AC-31")]
+#[implements("FR-075-AC-21")]
 fn table_features(
     lines: &[&str],
     body_start: usize,
@@ -1531,6 +1579,24 @@ fn table_features(
                     ),
                 ));
                 failed.push(owner.feature);
+                continue;
+            }
+            if matches!(owner.feature, ModelFeature::Dimension | ModelFeature::Unit)
+                && read.iter().any(|feature| {
+                    matches!(feature, ModelFeature::Dimension | ModelFeature::Unit)
+                        && *feature != owner.feature
+                })
+            {
+                let diagnostic = err(
+                    "semantic.duplicate-section",
+                    table.line,
+                    format!(
+                        "a {} table beside a dimension or unit table; one physical type table per artifact",
+                        owner.feature.name()
+                    ),
+                );
+                out.preserved_physical_conflicts.push(out.diagnostics.len());
+                out.diagnostics.push(diagnostic);
                 continue;
             }
             read.push(owner.feature);
@@ -1940,6 +2006,283 @@ impl<'a> TableRead<'a> {
         self.keys.push(key.to_string());
         true
     }
+}
+
+#[implements("FR-075-AC-16")]
+fn read_dimension(r: &mut TableRead<'_>) {
+    let table = r.table;
+    if table.rows.len() != 1 {
+        if table.rows.is_empty() {
+            r.error(
+                "semantic.invalid-model-cell",
+                table.line,
+                "a dimension table requires one Base row",
+            );
+        } else {
+            for (line, _) in table.rows.iter().skip(1) {
+                r.error(
+                    "semantic.duplicate-model-entry",
+                    *line,
+                    "dimension Base is declared more than once",
+                );
+            }
+        }
+        return;
+    }
+    let (line, cells) = &table.rows[0];
+    let base = r.cell(cells, "Base");
+    let Some(value) = (match base {
+        "true" => Some(true),
+        "false" => Some(false),
+        _ => None,
+    }) else {
+        r.error(
+            "semantic.invalid-model-cell",
+            *line,
+            format!("Base {base:?} is not `true` or `false`"),
+        );
+        return;
+    };
+    r.out.model.dimension = Some(DimensionDecl {
+        base: value,
+        source_span: r.span(*line),
+    });
+}
+
+#[implements("FR-075-AC-17")]
+fn read_terms(r: &mut TableRead<'_>) {
+    let mut entries = Vec::new();
+    for (line, cells) in &r.table.rows {
+        let token = r.cell(cells, "Dimension");
+        let exponent = r.cell(cells, "Exponent");
+        let Some(dimension) = resolve_dimension_or_unit(r, token, TokenKind::Dimension, *line)
+        else {
+            continue;
+        };
+        if !r.fresh(dimension.target.as_str(), *line) {
+            continue;
+        }
+        let Some(exponent) = canonical_integer(exponent) else {
+            r.error(
+                "semantic.invalid-model-cell",
+                *line,
+                format!("Exponent {exponent:?} is not a canonical integer"),
+            );
+            continue;
+        };
+        entries.push(DimensionTermDecl {
+            dimension,
+            exponent,
+            source_span: r.span(*line),
+        });
+    }
+    r.out.model.terms = Some(entries);
+}
+
+#[implements("FR-075-AC-18")]
+fn read_unit(r: &mut TableRead<'_>) {
+    let table = r.table;
+    if table.rows.len() != 1 {
+        if table.rows.is_empty() {
+            r.error(
+                "semantic.invalid-model-cell",
+                table.line,
+                "a unit table requires one declaration row",
+            );
+        } else {
+            for (line, _) in table.rows.iter().skip(1) {
+                r.error(
+                    "semantic.duplicate-model-entry",
+                    *line,
+                    "a unit declaration appears more than once",
+                );
+            }
+        }
+        return;
+    }
+    let (line, cells) = &table.rows[0];
+    let dimension_token = r.cell(cells, "Dimension");
+    let target_token = r.cell(cells, "Target");
+    let scale = r.cell(cells, "Scale");
+    let offset = r.cell(cells, "Offset");
+
+    let Some(dimension) =
+        resolve_dimension_or_unit(r, dimension_token, TokenKind::Dimension, *line)
+    else {
+        return;
+    };
+    let target = if target_token.is_empty() {
+        None
+    } else {
+        let Some(target) = resolve_dimension_or_unit(r, target_token, TokenKind::Unit, *line)
+        else {
+            return;
+        };
+        Some(target)
+    };
+    if !canonical_rational(scale) {
+        r.error(
+            "semantic.invalid-model-cell",
+            *line,
+            format!("Scale {scale:?} is not a canonical rational"),
+        );
+        return;
+    }
+    if !canonical_rational(offset) {
+        r.error(
+            "semantic.invalid-model-cell",
+            *line,
+            format!("Offset {offset:?} is not a canonical rational"),
+        );
+        return;
+    }
+    r.out.model.unit = Some(UnitDecl {
+        dimension,
+        target,
+        scale: scale.to_string(),
+        offset: offset.to_string(),
+        source_span: r.span(*line),
+    });
+}
+
+#[implements("FR-075-AC-17")]
+#[implements("FR-075-AC-18")]
+fn resolve_dimension_or_unit(
+    r: &mut TableRead<'_>,
+    text: &str,
+    kind: TokenKind,
+    line: usize,
+) -> Option<TypeRef> {
+    let Some(token) = UnitToken::parse(text) else {
+        r.error_with_reason(
+            "semantic.invalid-type-token",
+            line,
+            format!(
+                "{} token {text:?} is not an Identifier or qualified token",
+                kind_name(kind)
+            ),
+            "invalid-token",
+        );
+        return None;
+    };
+    let token_name = token.name();
+    let identity = match resolve_token(r.ctx, kind, token) {
+        Resolution::Resolved(identity) => identity,
+        Resolution::Ambiguous(message) => {
+            r.error("semantic.ambiguous-type", line, message);
+            return None;
+        }
+        Resolution::Unresolved { reason } => {
+            let package = r.ctx.identity_package();
+            let identity = format!("ix://{package}/unresolved/{token_name}");
+            let diagnostic = r.reference_diagnostic(
+                "semantic.unresolved-type",
+                SemanticSeverity::Advisory,
+                Some(reason.as_str()),
+                line,
+                format_args!("{} token {text:?} cannot be resolved", kind_name(kind)),
+            );
+            r.out.diagnostics.push(diagnostic);
+            r.out.lossy = true;
+            identity
+        }
+    };
+    if let Some(target_span) = type_target_span(&r.ctx.bundle, &identity) {
+        r.out.resolved_references.push(ResolvedReference {
+            identity: identity.clone(),
+            reference_span: r.span(line),
+            target_span,
+        });
+    }
+    Some(TypeRef {
+        target: TypeRefTarget::SemanticId(identity),
+        multiplicity: None,
+        unit: None,
+        decimal: None,
+    })
+}
+
+#[implements("FR-075-AC-17")]
+#[implements("FR-075-AC-18")]
+fn type_target_span(bundle: &super::context::BundleIndex, identity: &str) -> Option<SourceLocus> {
+    let remainder = identity.strip_prefix("ix://")?;
+    let (package, type_id) = remainder.split_once("/type/")?;
+    bundle
+        .artifacts
+        .iter()
+        .find(|artifact| artifact.id == type_id && bundle.package == package)
+        .and_then(|artifact| artifact.source_span.clone())
+        .or_else(|| {
+            bundle
+                .imported_artifacts
+                .iter()
+                .find(|artifact| artifact.id == type_id && artifact.package == package)
+                .and_then(|artifact| artifact.source_span.clone())
+        })
+}
+
+fn kind_name(kind: TokenKind) -> &'static str {
+    match kind {
+        TokenKind::Dimension => "dimension",
+        TokenKind::Unit => "unit",
+    }
+}
+
+#[implements("FR-075-AC-17")]
+fn canonical_integer(text: &str) -> Option<serde_json::Number> {
+    if !canonical_integer_syntax(text) {
+        return None;
+    }
+    serde_json::from_str(text).ok()
+}
+
+#[implements("FR-075-AC-18")]
+fn canonical_rational(text: &str) -> bool {
+    if canonical_integer_syntax(text) {
+        return true;
+    }
+    let Some((numerator, denominator)) = text.split_once('/') else {
+        return false;
+    };
+    if denominator.contains('/') {
+        return false;
+    }
+    if !canonical_integer_syntax(numerator) {
+        return false;
+    }
+    if !canonical_integer_syntax(denominator) {
+        return false;
+    }
+    let numerator_abs = numerator.strip_prefix('-').unwrap_or(numerator);
+    let Ok(numerator) = numerator_abs.parse::<BigInt>() else {
+        return false;
+    };
+    let Ok(denominator) = denominator.parse::<BigInt>() else {
+        return false;
+    };
+    if denominator < BigInt::from(2) || numerator == BigInt::from(0) {
+        return false;
+    }
+    gcd_bigint(numerator, denominator) == BigInt::from(1)
+}
+
+#[implements("FR-075-AC-18")]
+fn canonical_integer_syntax(text: &str) -> bool {
+    let digits = text.strip_prefix('-').unwrap_or(text);
+    !digits.is_empty()
+        && digits.bytes().all(|byte| byte.is_ascii_digit())
+        && (digits == "0" || !digits.starts_with('0'))
+        && text != "-0"
+}
+
+#[implements("FR-075-AC-18")]
+fn gcd_bigint(mut a: BigInt, mut b: BigInt) -> BigInt {
+    while b != BigInt::from(0) {
+        let remainder = &a % &b;
+        a = b;
+        b = remainder;
+    }
+    a
 }
 
 fn optional(text: &str) -> Option<String> {

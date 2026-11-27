@@ -46,11 +46,11 @@ pub use decl::{
     NumericConstraintValue, TypeRef, TypeRefTarget,
 };
 pub use model::{
-    AbstractDecl, EnumValueDecl, FeatureKind, FeatureOrderDecl, FieldFeatureDecl, IdentityDecl,
-    MemberDecl, ModelDeclarations, OperationFrameDecl, PopulationDecl, PopulationExtent,
-    PopulationMemberDecl, Presence, StageCapabilityBindingDecl, StepDecl, StepKind, SupertypeDecl,
-    TermDecl, TransitionDecl, UnknownFeatureKind, UnknownStepKind, ValueStageDecl,
-    ValueStageOutcomeDecl,
+    AbstractDecl, DimensionDecl, DimensionTermDecl, EnumValueDecl, FeatureKind, FeatureOrderDecl,
+    FieldFeatureDecl, IdentityDecl, MemberDecl, ModelDeclarations, OperationFrameDecl,
+    PopulationDecl, PopulationExtent, PopulationMemberDecl, Presence, StageCapabilityBindingDecl,
+    StepDecl, StepKind, SupertypeDecl, TermDecl, TransitionDecl, UnitDecl, UnknownFeatureKind,
+    UnknownStepKind, ValueStageDecl, ValueStageOutcomeDecl,
 };
 pub use properties::{extract_fields, FieldsForm, FieldsOutcome};
 pub use record::{record_key_owners, KeyOwner, RecordSource, RECORD_SECTIONS_TOKEN};

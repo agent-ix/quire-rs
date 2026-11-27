@@ -532,7 +532,6 @@ mod tests {
         }
     }
 
-    #[trace("NFR-006")]
     // deterministic across threads.
     #[test]
     fn cross_thread_determinism() {

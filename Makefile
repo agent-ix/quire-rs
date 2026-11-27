@@ -31,6 +31,7 @@ help:
 	@echo "  make evidence         - Run SUITE-001 at a release tag and package Quoin evidence"
 	@echo "  make lint             - Clippy with -D warnings"
 	@echo "  make test             - cargo test"
+	@echo "  make evidence         - trace-emitting Rust suite plus a Quoin run record"
 	@echo "  make build            - Release build"
 	@echo "  make clean            - cargo clean"
 	@echo "  make deny             - cargo deny license and all-feature dependency bans"
@@ -141,10 +142,10 @@ check-tools:
 evidence:
 	@set -eu; \
 	  python3 scripts/check_release_evidence_checkout.py --repo-root .; \
-	  tag=$$(git describe --tags --exact-match HEAD); \
+	  tag=$${RELEASE_TAG:-$$(git describe --tags --exact-match HEAD)}; \
 	  printf '%s\n' "$$tag" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$$' || { echo "evidence: HEAD must be an exact vMAJOR.MINOR.PATCH tag" >&2; exit 1; }; \
 	  commit=$$(git rev-parse HEAD); \
-	  test "$$(git rev-parse "$$tag^{commit}")" = "$$commit" || { echo "evidence: tag does not resolve to HEAD" >&2; exit 1; }; \
+	  test "$$(git rev-parse "refs/tags/$$tag^{commit}")" = "$$commit" || { echo "evidence: tag does not resolve to HEAD" >&2; exit 1; }; \
 	  tag_created_at=$$(git for-each-ref --format='%(taggerdate:unix)' "refs/tags/$$tag"); \
 	  test -n "$$tag_created_at" || { echo "evidence: release tag must be annotated" >&2; exit 1; }; \
 	  mkdir -p "$(EVIDENCE_TARGET)"; \

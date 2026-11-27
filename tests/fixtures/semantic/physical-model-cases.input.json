@@ -1,0 +1,2665 @@
+{
+  "cases": [
+    {
+      "name": "dimension_base_true",
+      "request": {
+        "markdown": "---\nid: U-001\ntitle: Unit\nobject: unit\n---\n# U-001: Unit\n\n## Basis\n\n| Base |\n|---|\n| true |\n\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "unit"
+          ],
+          "imports": {}
+        },
+        "path": "spec/units/U-001.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+          "package": "agent-ix/shop",
+          "objects": [],
+          "artifacts": []
+        },
+        "bodyExtraction": {
+          "yield_pattern": {
+            "match": {
+              "dimension": {
+                "from": "table_row",
+                "under_section": "Basis",
+                "assert": {
+                  "columns": [
+                    "Base"
+                  ],
+                  "optional_columns": []
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "dimension_base_false",
+      "request": {
+        "markdown": "---\nid: U-001\ntitle: Unit\nobject: unit\n---\n# U-001: Unit\n\n## Basis\n\n| Base |\n|---|\n| false |\n\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "unit"
+          ],
+          "imports": {}
+        },
+        "path": "spec/units/U-001.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+          "package": "agent-ix/shop",
+          "objects": [],
+          "artifacts": []
+        },
+        "bodyExtraction": {
+          "yield_pattern": {
+            "match": {
+              "dimension": {
+                "from": "table_row",
+                "under_section": "Basis",
+                "assert": {
+                  "columns": [
+                    "Base"
+                  ],
+                  "optional_columns": []
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "dimension_base_yes",
+      "request": {
+        "markdown": "---\nid: U-001\ntitle: Unit\nobject: unit\n---\n# U-001: Unit\n\n## Basis\n\n| Base |\n|---|\n| yes |\n\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "unit"
+          ],
+          "imports": {}
+        },
+        "path": "spec/units/U-001.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+          "package": "agent-ix/shop",
+          "objects": [],
+          "artifacts": []
+        },
+        "bodyExtraction": {
+          "yield_pattern": {
+            "match": {
+              "dimension": {
+                "from": "table_row",
+                "under_section": "Basis",
+                "assert": {
+                  "columns": [
+                    "Base"
+                  ],
+                  "optional_columns": []
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "dimension_base_empty",
+      "request": {
+        "markdown": "---\nid: U-001\ntitle: Unit\nobject: unit\n---\n# U-001: Unit\n\n## Basis\n\n| Base |\n|---|\n|  |\n\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "unit"
+          ],
+          "imports": {}
+        },
+        "path": "spec/units/U-001.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+          "package": "agent-ix/shop",
+          "objects": [],
+          "artifacts": []
+        },
+        "bodyExtraction": {
+          "yield_pattern": {
+            "match": {
+              "dimension": {
+                "from": "table_row",
+                "under_section": "Basis",
+                "assert": {
+                  "columns": [
+                    "Base"
+                  ],
+                  "optional_columns": []
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "dimension_base_no_rows",
+      "request": {
+        "markdown": "---\nid: U-001\ntitle: Unit\nobject: unit\n---\n# U-001: Unit\n\n## Basis\n\n| Base |\n|---|\n\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "unit"
+          ],
+          "imports": {}
+        },
+        "path": "spec/units/U-001.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+          "package": "agent-ix/shop",
+          "objects": [],
+          "artifacts": []
+        },
+        "bodyExtraction": {
+          "yield_pattern": {
+            "match": {
+              "dimension": {
+                "from": "table_row",
+                "under_section": "Basis",
+                "assert": {
+                  "columns": [
+                    "Base"
+                  ],
+                  "optional_columns": []
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "dimension_base_multiple_rows",
+      "request": {
+        "markdown": "---\nid: U-001\ntitle: Unit\nobject: unit\n---\n# U-001: Unit\n\n## Basis\n\n| Base |\n|---|\n| true |\n| false |\n| true |\n| false |\n\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "unit"
+          ],
+          "imports": {}
+        },
+        "path": "spec/units/U-001.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+          "package": "agent-ix/shop",
+          "objects": [],
+          "artifacts": []
+        },
+        "bodyExtraction": {
+          "yield_pattern": {
+            "match": {
+              "dimension": {
+                "from": "table_row",
+                "under_section": "Basis",
+                "assert": {
+                  "columns": [
+                    "Base"
+                  ],
+                  "optional_columns": []
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "dimension_base_duplicate_tables",
+      "request": {
+        "markdown": "---\nid: U-001\ntitle: Unit\nobject: unit\n---\n# U-001: Unit\n\n## Basis\n\n| Base |\n|---|\n| true |\n\n\n## Basis\n\n| Base |\n|---|\n| false |\n\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "unit"
+          ],
+          "imports": {}
+        },
+        "path": "spec/units/U-001.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+          "package": "agent-ix/shop",
+          "objects": [],
+          "artifacts": []
+        },
+        "bodyExtraction": {
+          "yield_pattern": {
+            "match": {
+              "dimension": {
+                "from": "table_row",
+                "under_section": "Basis",
+                "assert": {
+                  "columns": [
+                    "Base"
+                  ],
+                  "optional_columns": []
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "terms_valid_two_rows",
+      "request": {
+        "markdown": "---\nid: U-001\ntitle: Unit\nobject: unit\n---\n# U-001: Unit\n\n## Powers\n\n| Dimension | Exponent |\n|---|---|\n| Length | 1 |\n| Time | -2 |\n\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "unit"
+          ],
+          "imports": {}
+        },
+        "path": "spec/units/U-001.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+          "package": "agent-ix/shop",
+          "objects": [
+            {
+              "id": "Length",
+              "names": [
+                "Length"
+              ]
+            },
+            {
+              "id": "Time",
+              "names": [
+                "Time"
+              ]
+            }
+          ],
+          "artifacts": [
+            {
+              "id": "Length",
+              "object": "dimension",
+              "operations": []
+            },
+            {
+              "id": "Time",
+              "object": "dimension",
+              "operations": []
+            }
+          ]
+        },
+        "bodyExtraction": {
+          "yield_pattern": {
+            "match": {
+              "terms": {
+                "from": "table_row",
+                "under_section": "Powers",
+                "assert": {
+                  "columns": [
+                    "Dimension",
+                    "Exponent"
+                  ],
+                  "optional_columns": []
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "terms_unit_where_dimension_expected",
+      "request": {
+        "markdown": "---\nid: U-001\ntitle: Unit\nobject: unit\n---\n# U-001: Unit\n\n## Powers\n\n| Dimension | Exponent |\n|---|---|\n| Speed | 1 |\n\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "unit"
+          ],
+          "imports": {}
+        },
+        "path": "spec/units/U-001.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+          "package": "agent-ix/shop",
+          "objects": [
+            {
+              "id": "Speed",
+              "names": [
+                "Speed"
+              ]
+            }
+          ],
+          "artifacts": [
+            {
+              "id": "Speed",
+              "object": "unit",
+              "operations": []
+            }
+          ]
+        },
+        "bodyExtraction": {
+          "yield_pattern": {
+            "match": {
+              "terms": {
+                "from": "table_row",
+                "under_section": "Powers",
+                "assert": {
+                  "columns": [
+                    "Dimension",
+                    "Exponent"
+                  ],
+                  "optional_columns": []
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "terms_invalid_exponent_01",
+      "request": {
+        "markdown": "---\nid: U-001\ntitle: Unit\nobject: unit\n---\n# U-001: Unit\n\n## Powers\n\n| Dimension | Exponent |\n|---|---|\n| Length | 01 |\n\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "unit"
+          ],
+          "imports": {}
+        },
+        "path": "spec/units/U-001.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+          "package": "agent-ix/shop",
+          "objects": [
+            {
+              "id": "Length",
+              "names": [
+                "Length"
+              ]
+            }
+          ],
+          "artifacts": [
+            {
+              "id": "Length",
+              "object": "dimension",
+              "operations": []
+            }
+          ]
+        },
+        "bodyExtraction": {
+          "yield_pattern": {
+            "match": {
+              "terms": {
+                "from": "table_row",
+                "under_section": "Powers",
+                "assert": {
+                  "columns": [
+                    "Dimension",
+                    "Exponent"
+                  ],
+                  "optional_columns": []
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "terms_invalid_exponent_1dot5",
+      "request": {
+        "markdown": "---\nid: U-001\ntitle: Unit\nobject: unit\n---\n# U-001: Unit\n\n## Powers\n\n| Dimension | Exponent |\n|---|---|\n| Length | 1.5 |\n\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "unit"
+          ],
+          "imports": {}
+        },
+        "path": "spec/units/U-001.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+          "package": "agent-ix/shop",
+          "objects": [
+            {
+              "id": "Length",
+              "names": [
+                "Length"
+              ]
+            }
+          ],
+          "artifacts": [
+            {
+              "id": "Length",
+              "object": "dimension",
+              "operations": []
+            }
+          ]
+        },
+        "bodyExtraction": {
+          "yield_pattern": {
+            "match": {
+              "terms": {
+                "from": "table_row",
+                "under_section": "Powers",
+                "assert": {
+                  "columns": [
+                    "Dimension",
+                    "Exponent"
+                  ],
+                  "optional_columns": []
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "terms_invalid_exponent_x",
+      "request": {
+        "markdown": "---\nid: U-001\ntitle: Unit\nobject: unit\n---\n# U-001: Unit\n\n## Powers\n\n| Dimension | Exponent |\n|---|---|\n| Length | x |\n\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "unit"
+          ],
+          "imports": {}
+        },
+        "path": "spec/units/U-001.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+          "package": "agent-ix/shop",
+          "objects": [
+            {
+              "id": "Length",
+              "names": [
+                "Length"
+              ]
+            }
+          ],
+          "artifacts": [
+            {
+              "id": "Length",
+              "object": "dimension",
+              "operations": []
+            }
+          ]
+        },
+        "bodyExtraction": {
+          "yield_pattern": {
+            "match": {
+              "terms": {
+                "from": "table_row",
+                "under_section": "Powers",
+                "assert": {
+                  "columns": [
+                    "Dimension",
+                    "Exponent"
+                  ],
+                  "optional_columns": []
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "terms_duplicate_same_token",
+      "request": {
+        "markdown": "---\nid: U-001\ntitle: Unit\nobject: unit\n---\n# U-001: Unit\n\n## Powers\n\n| Dimension | Exponent |\n|---|---|\n| Length | 1 |\n| Length | 2 |\n\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "unit"
+          ],
+          "imports": {}
+        },
+        "path": "spec/units/U-001.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+          "package": "agent-ix/shop",
+          "objects": [
+            {
+              "id": "Length",
+              "names": [
+                "Length"
+              ]
+            }
+          ],
+          "artifacts": [
+            {
+              "id": "Length",
+              "object": "dimension",
+              "operations": []
+            }
+          ]
+        },
+        "bodyExtraction": {
+          "yield_pattern": {
+            "match": {
+              "terms": {
+                "from": "table_row",
+                "under_section": "Powers",
+                "assert": {
+                  "columns": [
+                    "Dimension",
+                    "Exponent"
+                  ],
+                  "optional_columns": []
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "terms_ambiguous_dimension",
+      "request": {
+        "markdown": "---\nid: U-001\ntitle: Unit\nobject: unit\n---\n# U-001: Unit\n\n## Powers\n\n| Dimension | Exponent |\n|---|---|\n| Length | 1 |\n\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "unit"
+          ],
+          "imports": {}
+        },
+        "path": "spec/units/U-001.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+          "package": "agent-ix/shop",
+          "objects": [
+            {
+              "id": "D1",
+              "names": [
+                "Length"
+              ]
+            },
+            {
+              "id": "D2",
+              "names": [
+                "Length"
+              ]
+            }
+          ],
+          "artifacts": [
+            {
+              "id": "D1",
+              "object": "dimension",
+              "operations": []
+            },
+            {
+              "id": "D2",
+              "object": "dimension",
+              "operations": []
+            }
+          ]
+        },
+        "bodyExtraction": {
+          "yield_pattern": {
+            "match": {
+              "terms": {
+                "from": "table_row",
+                "under_section": "Powers",
+                "assert": {
+                  "columns": [
+                    "Dimension",
+                    "Exponent"
+                  ],
+                  "optional_columns": []
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "terms_invalid_dimension_token",
+      "request": {
+        "markdown": "---\nid: U-001\ntitle: Unit\nobject: unit\n---\n# U-001: Unit\n\n## Powers\n\n| Dimension | Exponent |\n|---|---|\n| not a token | 1 |\n\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "unit"
+          ],
+          "imports": {}
+        },
+        "path": "spec/units/U-001.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+          "package": "agent-ix/shop",
+          "objects": [],
+          "artifacts": []
+        },
+        "bodyExtraction": {
+          "yield_pattern": {
+            "match": {
+              "terms": {
+                "from": "table_row",
+                "under_section": "Powers",
+                "assert": {
+                  "columns": [
+                    "Dimension",
+                    "Exponent"
+                  ],
+                  "optional_columns": []
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "terms_duplicate_identity_through_alias",
+      "request": {
+        "markdown": "---\nid: U-001\ntitle: Unit\nobject: unit\n---\n# U-001: Unit\n\n## Powers\n\n| Dimension | Exponent |\n|---|---|\n| Length | 1 |\n| D1 | 2 |\n\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "unit"
+          ],
+          "imports": {}
+        },
+        "path": "spec/units/U-001.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+          "package": "agent-ix/shop",
+          "objects": [
+            {
+              "id": "D1",
+              "names": [
+                "Length"
+              ]
+            }
+          ],
+          "artifacts": [
+            {
+              "id": "D1",
+              "object": "dimension",
+              "operations": []
+            }
+          ]
+        },
+        "bodyExtraction": {
+          "yield_pattern": {
+            "match": {
+              "terms": {
+                "from": "table_row",
+                "under_section": "Powers",
+                "assert": {
+                  "columns": [
+                    "Dimension",
+                    "Exponent"
+                  ],
+                  "optional_columns": []
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "terms_large_exponent",
+      "request": {
+        "markdown": "---\nid: U-001\ntitle: Unit\nobject: unit\n---\n# U-001: Unit\n\n## Powers\n\n| Dimension | Exponent |\n|---|---|\n| Length | 9223372036854775808 |\n\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "unit"
+          ],
+          "imports": {}
+        },
+        "path": "spec/units/U-001.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+          "package": "agent-ix/shop",
+          "objects": [
+            {
+              "id": "Length",
+              "names": [
+                "Length"
+              ]
+            }
+          ],
+          "artifacts": [
+            {
+              "id": "Length",
+              "object": "dimension",
+              "operations": []
+            }
+          ]
+        },
+        "bodyExtraction": {
+          "yield_pattern": {
+            "match": {
+              "terms": {
+                "from": "table_row",
+                "under_section": "Powers",
+                "assert": {
+                  "columns": [
+                    "Dimension",
+                    "Exponent"
+                  ],
+                  "optional_columns": []
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "unit_valid_target_and_ratio",
+      "request": {
+        "markdown": "---\nid: U-001\ntitle: Unit\nobject: unit\n---\n# U-001: Unit\n\n## Scale\n\n| Dimension | Target | Scale | Offset |\n|---|---|---|---|\n| Time | s | 1/1000 | 0 |\n\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "unit"
+          ],
+          "imports": {}
+        },
+        "path": "spec/units/U-001.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+          "package": "agent-ix/shop",
+          "objects": [
+            {
+              "id": "Time",
+              "names": [
+                "Time"
+              ]
+            },
+            {
+              "id": "s",
+              "names": [
+                "s"
+              ]
+            }
+          ],
+          "artifacts": [
+            {
+              "id": "Time",
+              "object": "dimension",
+              "operations": []
+            },
+            {
+              "id": "s",
+              "object": "unit",
+              "operations": []
+            }
+          ]
+        },
+        "bodyExtraction": {
+          "yield_pattern": {
+            "match": {
+              "unit": {
+                "from": "table_row",
+                "under_section": "Scale",
+                "assert": {
+                  "columns": [
+                    "Dimension",
+                    "Target",
+                    "Scale",
+                    "Offset"
+                  ],
+                  "optional_columns": [
+                    "Target"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "unit_empty_optional_target",
+      "request": {
+        "markdown": "---\nid: U-001\ntitle: Unit\nobject: unit\n---\n# U-001: Unit\n\n## Scale\n\n| Dimension | Target | Scale | Offset |\n|---|---|---|---|\n| Time |  | 1 | 0 |\n\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "unit"
+          ],
+          "imports": {}
+        },
+        "path": "spec/units/U-001.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+          "package": "agent-ix/shop",
+          "objects": [
+            {
+              "id": "Time",
+              "names": [
+                "Time"
+              ]
+            }
+          ],
+          "artifacts": [
+            {
+              "id": "Time",
+              "object": "dimension",
+              "operations": []
+            }
+          ]
+        },
+        "bodyExtraction": {
+          "yield_pattern": {
+            "match": {
+              "unit": {
+                "from": "table_row",
+                "under_section": "Scale",
+                "assert": {
+                  "columns": [
+                    "Dimension",
+                    "Target",
+                    "Scale",
+                    "Offset"
+                  ],
+                  "optional_columns": [
+                    "Target"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "unit_target_column_omitted",
+      "request": {
+        "markdown": "---\nid: U-001\ntitle: Unit\nobject: unit\n---\n# U-001: Unit\n\n## Scale\n\n| Dimension | Scale | Offset |\n|---|---|---|\n| Time | 1 | 0 |\n\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "unit"
+          ],
+          "imports": {}
+        },
+        "path": "spec/units/U-001.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+          "package": "agent-ix/shop",
+          "objects": [
+            {
+              "id": "Time",
+              "names": [
+                "Time"
+              ]
+            }
+          ],
+          "artifacts": [
+            {
+              "id": "Time",
+              "object": "dimension",
+              "operations": []
+            }
+          ]
+        },
+        "bodyExtraction": {
+          "yield_pattern": {
+            "match": {
+              "unit": {
+                "from": "table_row",
+                "under_section": "Scale",
+                "assert": {
+                  "columns": [
+                    "Dimension",
+                    "Scale",
+                    "Offset"
+                  ],
+                  "optional_columns": []
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "unit_accepted_-3of2_both_fields",
+      "request": {
+        "markdown": "---\nid: U-001\ntitle: Unit\nobject: unit\n---\n# U-001: Unit\n\n## Scale\n\n| Dimension | Scale | Offset |\n|---|---|---|\n| Time | -3/2 | -3/2 |\n\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "unit"
+          ],
+          "imports": {}
+        },
+        "path": "spec/units/U-001.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+          "package": "agent-ix/shop",
+          "objects": [
+            {
+              "id": "Time",
+              "names": [
+                "Time"
+              ]
+            }
+          ],
+          "artifacts": [
+            {
+              "id": "Time",
+              "object": "dimension",
+              "operations": []
+            }
+          ]
+        },
+        "bodyExtraction": {
+          "yield_pattern": {
+            "match": {
+              "unit": {
+                "from": "table_row",
+                "under_section": "Scale",
+                "assert": {
+                  "columns": [
+                    "Dimension",
+                    "Scale",
+                    "Offset"
+                  ],
+                  "optional_columns": []
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "unit_accepted_-3_both_fields",
+      "request": {
+        "markdown": "---\nid: U-001\ntitle: Unit\nobject: unit\n---\n# U-001: Unit\n\n## Scale\n\n| Dimension | Scale | Offset |\n|---|---|---|\n| Time | -3 | -3 |\n\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "unit"
+          ],
+          "imports": {}
+        },
+        "path": "spec/units/U-001.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+          "package": "agent-ix/shop",
+          "objects": [
+            {
+              "id": "Time",
+              "names": [
+                "Time"
+              ]
+            }
+          ],
+          "artifacts": [
+            {
+              "id": "Time",
+              "object": "dimension",
+              "operations": []
+            }
+          ]
+        },
+        "bodyExtraction": {
+          "yield_pattern": {
+            "match": {
+              "unit": {
+                "from": "table_row",
+                "under_section": "Scale",
+                "assert": {
+                  "columns": [
+                    "Dimension",
+                    "Scale",
+                    "Offset"
+                  ],
+                  "optional_columns": []
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "unit_accepted_0_both_fields",
+      "request": {
+        "markdown": "---\nid: U-001\ntitle: Unit\nobject: unit\n---\n# U-001: Unit\n\n## Scale\n\n| Dimension | Scale | Offset |\n|---|---|---|\n| Time | 0 | 0 |\n\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "unit"
+          ],
+          "imports": {}
+        },
+        "path": "spec/units/U-001.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+          "package": "agent-ix/shop",
+          "objects": [
+            {
+              "id": "Time",
+              "names": [
+                "Time"
+              ]
+            }
+          ],
+          "artifacts": [
+            {
+              "id": "Time",
+              "object": "dimension",
+              "operations": []
+            }
+          ]
+        },
+        "bodyExtraction": {
+          "yield_pattern": {
+            "match": {
+              "unit": {
+                "from": "table_row",
+                "under_section": "Scale",
+                "assert": {
+                  "columns": [
+                    "Dimension",
+                    "Scale",
+                    "Offset"
+                  ],
+                  "optional_columns": []
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "unit_invalid_scale_2of4",
+      "request": {
+        "markdown": "---\nid: U-001\ntitle: Unit\nobject: unit\n---\n# U-001: Unit\n\n## Scale\n\n| Dimension | Scale | Offset |\n|---|---|---|\n| Time | 2/4 | 0 |\n\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "unit"
+          ],
+          "imports": {}
+        },
+        "path": "spec/units/U-001.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+          "package": "agent-ix/shop",
+          "objects": [
+            {
+              "id": "Time",
+              "names": [
+                "Time"
+              ]
+            }
+          ],
+          "artifacts": [
+            {
+              "id": "Time",
+              "object": "dimension",
+              "operations": []
+            }
+          ]
+        },
+        "bodyExtraction": {
+          "yield_pattern": {
+            "match": {
+              "unit": {
+                "from": "table_row",
+                "under_section": "Scale",
+                "assert": {
+                  "columns": [
+                    "Dimension",
+                    "Scale",
+                    "Offset"
+                  ],
+                  "optional_columns": []
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "unit_invalid_offset_2of4",
+      "request": {
+        "markdown": "---\nid: U-001\ntitle: Unit\nobject: unit\n---\n# U-001: Unit\n\n## Scale\n\n| Dimension | Scale | Offset |\n|---|---|---|\n| Time | 1 | 2/4 |\n\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "unit"
+          ],
+          "imports": {}
+        },
+        "path": "spec/units/U-001.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+          "package": "agent-ix/shop",
+          "objects": [
+            {
+              "id": "Time",
+              "names": [
+                "Time"
+              ]
+            }
+          ],
+          "artifacts": [
+            {
+              "id": "Time",
+              "object": "dimension",
+              "operations": []
+            }
+          ]
+        },
+        "bodyExtraction": {
+          "yield_pattern": {
+            "match": {
+              "unit": {
+                "from": "table_row",
+                "under_section": "Scale",
+                "assert": {
+                  "columns": [
+                    "Dimension",
+                    "Scale",
+                    "Offset"
+                  ],
+                  "optional_columns": []
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "unit_invalid_scale_1of1",
+      "request": {
+        "markdown": "---\nid: U-001\ntitle: Unit\nobject: unit\n---\n# U-001: Unit\n\n## Scale\n\n| Dimension | Scale | Offset |\n|---|---|---|\n| Time | 1/1 | 0 |\n\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "unit"
+          ],
+          "imports": {}
+        },
+        "path": "spec/units/U-001.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+          "package": "agent-ix/shop",
+          "objects": [
+            {
+              "id": "Time",
+              "names": [
+                "Time"
+              ]
+            }
+          ],
+          "artifacts": [
+            {
+              "id": "Time",
+              "object": "dimension",
+              "operations": []
+            }
+          ]
+        },
+        "bodyExtraction": {
+          "yield_pattern": {
+            "match": {
+              "unit": {
+                "from": "table_row",
+                "under_section": "Scale",
+                "assert": {
+                  "columns": [
+                    "Dimension",
+                    "Scale",
+                    "Offset"
+                  ],
+                  "optional_columns": []
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "unit_invalid_offset_1of1",
+      "request": {
+        "markdown": "---\nid: U-001\ntitle: Unit\nobject: unit\n---\n# U-001: Unit\n\n## Scale\n\n| Dimension | Scale | Offset |\n|---|---|---|\n| Time | 1 | 1/1 |\n\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "unit"
+          ],
+          "imports": {}
+        },
+        "path": "spec/units/U-001.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+          "package": "agent-ix/shop",
+          "objects": [
+            {
+              "id": "Time",
+              "names": [
+                "Time"
+              ]
+            }
+          ],
+          "artifacts": [
+            {
+              "id": "Time",
+              "object": "dimension",
+              "operations": []
+            }
+          ]
+        },
+        "bodyExtraction": {
+          "yield_pattern": {
+            "match": {
+              "unit": {
+                "from": "table_row",
+                "under_section": "Scale",
+                "assert": {
+                  "columns": [
+                    "Dimension",
+                    "Scale",
+                    "Offset"
+                  ],
+                  "optional_columns": []
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "unit_invalid_scale_minus0",
+      "request": {
+        "markdown": "---\nid: U-001\ntitle: Unit\nobject: unit\n---\n# U-001: Unit\n\n## Scale\n\n| Dimension | Scale | Offset |\n|---|---|---|\n| Time | -0 | 0 |\n\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "unit"
+          ],
+          "imports": {}
+        },
+        "path": "spec/units/U-001.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+          "package": "agent-ix/shop",
+          "objects": [
+            {
+              "id": "Time",
+              "names": [
+                "Time"
+              ]
+            }
+          ],
+          "artifacts": [
+            {
+              "id": "Time",
+              "object": "dimension",
+              "operations": []
+            }
+          ]
+        },
+        "bodyExtraction": {
+          "yield_pattern": {
+            "match": {
+              "unit": {
+                "from": "table_row",
+                "under_section": "Scale",
+                "assert": {
+                  "columns": [
+                    "Dimension",
+                    "Scale",
+                    "Offset"
+                  ],
+                  "optional_columns": []
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "unit_invalid_offset_minus0",
+      "request": {
+        "markdown": "---\nid: U-001\ntitle: Unit\nobject: unit\n---\n# U-001: Unit\n\n## Scale\n\n| Dimension | Scale | Offset |\n|---|---|---|\n| Time | 1 | -0 |\n\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "unit"
+          ],
+          "imports": {}
+        },
+        "path": "spec/units/U-001.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+          "package": "agent-ix/shop",
+          "objects": [
+            {
+              "id": "Time",
+              "names": [
+                "Time"
+              ]
+            }
+          ],
+          "artifacts": [
+            {
+              "id": "Time",
+              "object": "dimension",
+              "operations": []
+            }
+          ]
+        },
+        "bodyExtraction": {
+          "yield_pattern": {
+            "match": {
+              "unit": {
+                "from": "table_row",
+                "under_section": "Scale",
+                "assert": {
+                  "columns": [
+                    "Dimension",
+                    "Scale",
+                    "Offset"
+                  ],
+                  "optional_columns": []
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "unit_invalid_scale_0of5",
+      "request": {
+        "markdown": "---\nid: U-001\ntitle: Unit\nobject: unit\n---\n# U-001: Unit\n\n## Scale\n\n| Dimension | Scale | Offset |\n|---|---|---|\n| Time | 0/5 | 0 |\n\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "unit"
+          ],
+          "imports": {}
+        },
+        "path": "spec/units/U-001.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+          "package": "agent-ix/shop",
+          "objects": [
+            {
+              "id": "Time",
+              "names": [
+                "Time"
+              ]
+            }
+          ],
+          "artifacts": [
+            {
+              "id": "Time",
+              "object": "dimension",
+              "operations": []
+            }
+          ]
+        },
+        "bodyExtraction": {
+          "yield_pattern": {
+            "match": {
+              "unit": {
+                "from": "table_row",
+                "under_section": "Scale",
+                "assert": {
+                  "columns": [
+                    "Dimension",
+                    "Scale",
+                    "Offset"
+                  ],
+                  "optional_columns": []
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "unit_invalid_offset_0of5",
+      "request": {
+        "markdown": "---\nid: U-001\ntitle: Unit\nobject: unit\n---\n# U-001: Unit\n\n## Scale\n\n| Dimension | Scale | Offset |\n|---|---|---|\n| Time | 1 | 0/5 |\n\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "unit"
+          ],
+          "imports": {}
+        },
+        "path": "spec/units/U-001.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+          "package": "agent-ix/shop",
+          "objects": [
+            {
+              "id": "Time",
+              "names": [
+                "Time"
+              ]
+            }
+          ],
+          "artifacts": [
+            {
+              "id": "Time",
+              "object": "dimension",
+              "operations": []
+            }
+          ]
+        },
+        "bodyExtraction": {
+          "yield_pattern": {
+            "match": {
+              "unit": {
+                "from": "table_row",
+                "under_section": "Scale",
+                "assert": {
+                  "columns": [
+                    "Dimension",
+                    "Scale",
+                    "Offset"
+                  ],
+                  "optional_columns": []
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "unit_invalid_scale_01of3",
+      "request": {
+        "markdown": "---\nid: U-001\ntitle: Unit\nobject: unit\n---\n# U-001: Unit\n\n## Scale\n\n| Dimension | Scale | Offset |\n|---|---|---|\n| Time | 01/3 | 0 |\n\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "unit"
+          ],
+          "imports": {}
+        },
+        "path": "spec/units/U-001.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+          "package": "agent-ix/shop",
+          "objects": [
+            {
+              "id": "Time",
+              "names": [
+                "Time"
+              ]
+            }
+          ],
+          "artifacts": [
+            {
+              "id": "Time",
+              "object": "dimension",
+              "operations": []
+            }
+          ]
+        },
+        "bodyExtraction": {
+          "yield_pattern": {
+            "match": {
+              "unit": {
+                "from": "table_row",
+                "under_section": "Scale",
+                "assert": {
+                  "columns": [
+                    "Dimension",
+                    "Scale",
+                    "Offset"
+                  ],
+                  "optional_columns": []
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "unit_invalid_offset_01of3",
+      "request": {
+        "markdown": "---\nid: U-001\ntitle: Unit\nobject: unit\n---\n# U-001: Unit\n\n## Scale\n\n| Dimension | Scale | Offset |\n|---|---|---|\n| Time | 1 | 01/3 |\n\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "unit"
+          ],
+          "imports": {}
+        },
+        "path": "spec/units/U-001.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+          "package": "agent-ix/shop",
+          "objects": [
+            {
+              "id": "Time",
+              "names": [
+                "Time"
+              ]
+            }
+          ],
+          "artifacts": [
+            {
+              "id": "Time",
+              "object": "dimension",
+              "operations": []
+            }
+          ]
+        },
+        "bodyExtraction": {
+          "yield_pattern": {
+            "match": {
+              "unit": {
+                "from": "table_row",
+                "under_section": "Scale",
+                "assert": {
+                  "columns": [
+                    "Dimension",
+                    "Scale",
+                    "Offset"
+                  ],
+                  "optional_columns": []
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "unit_invalid_scale_1dot5",
+      "request": {
+        "markdown": "---\nid: U-001\ntitle: Unit\nobject: unit\n---\n# U-001: Unit\n\n## Scale\n\n| Dimension | Scale | Offset |\n|---|---|---|\n| Time | 1.5 | 0 |\n\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "unit"
+          ],
+          "imports": {}
+        },
+        "path": "spec/units/U-001.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+          "package": "agent-ix/shop",
+          "objects": [
+            {
+              "id": "Time",
+              "names": [
+                "Time"
+              ]
+            }
+          ],
+          "artifacts": [
+            {
+              "id": "Time",
+              "object": "dimension",
+              "operations": []
+            }
+          ]
+        },
+        "bodyExtraction": {
+          "yield_pattern": {
+            "match": {
+              "unit": {
+                "from": "table_row",
+                "under_section": "Scale",
+                "assert": {
+                  "columns": [
+                    "Dimension",
+                    "Scale",
+                    "Offset"
+                  ],
+                  "optional_columns": []
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "unit_invalid_offset_1dot5",
+      "request": {
+        "markdown": "---\nid: U-001\ntitle: Unit\nobject: unit\n---\n# U-001: Unit\n\n## Scale\n\n| Dimension | Scale | Offset |\n|---|---|---|\n| Time | 1 | 1.5 |\n\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "unit"
+          ],
+          "imports": {}
+        },
+        "path": "spec/units/U-001.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+          "package": "agent-ix/shop",
+          "objects": [
+            {
+              "id": "Time",
+              "names": [
+                "Time"
+              ]
+            }
+          ],
+          "artifacts": [
+            {
+              "id": "Time",
+              "object": "dimension",
+              "operations": []
+            }
+          ]
+        },
+        "bodyExtraction": {
+          "yield_pattern": {
+            "match": {
+              "unit": {
+                "from": "table_row",
+                "under_section": "Scale",
+                "assert": {
+                  "columns": [
+                    "Dimension",
+                    "Scale",
+                    "Offset"
+                  ],
+                  "optional_columns": []
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "unit_invalid_scale_1of0",
+      "request": {
+        "markdown": "---\nid: U-001\ntitle: Unit\nobject: unit\n---\n# U-001: Unit\n\n## Scale\n\n| Dimension | Scale | Offset |\n|---|---|---|\n| Time | 1/0 | 0 |\n\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "unit"
+          ],
+          "imports": {}
+        },
+        "path": "spec/units/U-001.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+          "package": "agent-ix/shop",
+          "objects": [
+            {
+              "id": "Time",
+              "names": [
+                "Time"
+              ]
+            }
+          ],
+          "artifacts": [
+            {
+              "id": "Time",
+              "object": "dimension",
+              "operations": []
+            }
+          ]
+        },
+        "bodyExtraction": {
+          "yield_pattern": {
+            "match": {
+              "unit": {
+                "from": "table_row",
+                "under_section": "Scale",
+                "assert": {
+                  "columns": [
+                    "Dimension",
+                    "Scale",
+                    "Offset"
+                  ],
+                  "optional_columns": []
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "unit_invalid_offset_1of0",
+      "request": {
+        "markdown": "---\nid: U-001\ntitle: Unit\nobject: unit\n---\n# U-001: Unit\n\n## Scale\n\n| Dimension | Scale | Offset |\n|---|---|---|\n| Time | 1 | 1/0 |\n\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "unit"
+          ],
+          "imports": {}
+        },
+        "path": "spec/units/U-001.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+          "package": "agent-ix/shop",
+          "objects": [
+            {
+              "id": "Time",
+              "names": [
+                "Time"
+              ]
+            }
+          ],
+          "artifacts": [
+            {
+              "id": "Time",
+              "object": "dimension",
+              "operations": []
+            }
+          ]
+        },
+        "bodyExtraction": {
+          "yield_pattern": {
+            "match": {
+              "unit": {
+                "from": "table_row",
+                "under_section": "Scale",
+                "assert": {
+                  "columns": [
+                    "Dimension",
+                    "Scale",
+                    "Offset"
+                  ],
+                  "optional_columns": []
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "unit_invalid_scale_empty",
+      "request": {
+        "markdown": "---\nid: U-001\ntitle: Unit\nobject: unit\n---\n# U-001: Unit\n\n## Scale\n\n| Dimension | Scale | Offset |\n|---|---|---|\n| Time |  | 0 |\n\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "unit"
+          ],
+          "imports": {}
+        },
+        "path": "spec/units/U-001.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+          "package": "agent-ix/shop",
+          "objects": [
+            {
+              "id": "Time",
+              "names": [
+                "Time"
+              ]
+            }
+          ],
+          "artifacts": [
+            {
+              "id": "Time",
+              "object": "dimension",
+              "operations": []
+            }
+          ]
+        },
+        "bodyExtraction": {
+          "yield_pattern": {
+            "match": {
+              "unit": {
+                "from": "table_row",
+                "under_section": "Scale",
+                "assert": {
+                  "columns": [
+                    "Dimension",
+                    "Scale",
+                    "Offset"
+                  ],
+                  "optional_columns": []
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "unit_invalid_offset_empty",
+      "request": {
+        "markdown": "---\nid: U-001\ntitle: Unit\nobject: unit\n---\n# U-001: Unit\n\n## Scale\n\n| Dimension | Scale | Offset |\n|---|---|---|\n| Time | 1 |  |\n\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "unit"
+          ],
+          "imports": {}
+        },
+        "path": "spec/units/U-001.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+          "package": "agent-ix/shop",
+          "objects": [
+            {
+              "id": "Time",
+              "names": [
+                "Time"
+              ]
+            }
+          ],
+          "artifacts": [
+            {
+              "id": "Time",
+              "object": "dimension",
+              "operations": []
+            }
+          ]
+        },
+        "bodyExtraction": {
+          "yield_pattern": {
+            "match": {
+              "unit": {
+                "from": "table_row",
+                "under_section": "Scale",
+                "assert": {
+                  "columns": [
+                    "Dimension",
+                    "Scale",
+                    "Offset"
+                  ],
+                  "optional_columns": []
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "unit_target_is_dimension",
+      "request": {
+        "markdown": "---\nid: U-001\ntitle: Unit\nobject: unit\n---\n# U-001: Unit\n\n## Scale\n\n| Dimension | Target | Scale | Offset |\n|---|---|---|---|\n| Time | Length | 1 | 0 |\n\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "unit"
+          ],
+          "imports": {}
+        },
+        "path": "spec/units/U-001.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+          "package": "agent-ix/shop",
+          "objects": [
+            {
+              "id": "Time",
+              "names": [
+                "Time"
+              ]
+            },
+            {
+              "id": "Length",
+              "names": [
+                "Length"
+              ]
+            }
+          ],
+          "artifacts": [
+            {
+              "id": "Time",
+              "object": "dimension",
+              "operations": []
+            },
+            {
+              "id": "Length",
+              "object": "dimension",
+              "operations": []
+            }
+          ]
+        },
+        "bodyExtraction": {
+          "yield_pattern": {
+            "match": {
+              "unit": {
+                "from": "table_row",
+                "under_section": "Scale",
+                "assert": {
+                  "columns": [
+                    "Dimension",
+                    "Target",
+                    "Scale",
+                    "Offset"
+                  ],
+                  "optional_columns": [
+                    "Target"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "unit_no_rows",
+      "request": {
+        "markdown": "---\nid: U-001\ntitle: Unit\nobject: unit\n---\n# U-001: Unit\n\n## Scale\n\n| Dimension | Scale | Offset |\n|---|---|---|\n\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "unit"
+          ],
+          "imports": {}
+        },
+        "path": "spec/units/U-001.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+          "package": "agent-ix/shop",
+          "objects": [
+            {
+              "id": "Time",
+              "names": [
+                "Time"
+              ]
+            }
+          ],
+          "artifacts": [
+            {
+              "id": "Time",
+              "object": "dimension",
+              "operations": []
+            }
+          ]
+        },
+        "bodyExtraction": {
+          "yield_pattern": {
+            "match": {
+              "unit": {
+                "from": "table_row",
+                "under_section": "Scale",
+                "assert": {
+                  "columns": [
+                    "Dimension",
+                    "Scale",
+                    "Offset"
+                  ],
+                  "optional_columns": []
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "unit_multiple_rows",
+      "request": {
+        "markdown": "---\nid: U-001\ntitle: Unit\nobject: unit\n---\n# U-001: Unit\n\n## Scale\n\n| Dimension | Scale | Offset |\n|---|---|---|\n| Time | 1 | 0 |\n| Time | 2 | 0 |\n| Time | 3 | 0 |\n\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "unit"
+          ],
+          "imports": {}
+        },
+        "path": "spec/units/U-001.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+          "package": "agent-ix/shop",
+          "objects": [
+            {
+              "id": "Time",
+              "names": [
+                "Time"
+              ]
+            }
+          ],
+          "artifacts": [
+            {
+              "id": "Time",
+              "object": "dimension",
+              "operations": []
+            }
+          ]
+        },
+        "bodyExtraction": {
+          "yield_pattern": {
+            "match": {
+              "unit": {
+                "from": "table_row",
+                "under_section": "Scale",
+                "assert": {
+                  "columns": [
+                    "Dimension",
+                    "Scale",
+                    "Offset"
+                  ],
+                  "optional_columns": []
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "unit_self_target_zero_scale",
+      "request": {
+        "markdown": "---\nid: U-001\ntitle: Unit\nobject: unit\n---\n# U-001: Unit\n\n## Scale\n\n| Dimension | Target | Scale | Offset |\n|---|---|---|---|\n| Time | Millisecond | 0 | 0 |\n\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "unit"
+          ],
+          "imports": {}
+        },
+        "path": "spec/units/U-001.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+          "package": "agent-ix/shop",
+          "objects": [
+            {
+              "id": "Time",
+              "names": [
+                "Time"
+              ]
+            },
+            {
+              "id": "U-001",
+              "names": [
+                "Millisecond"
+              ]
+            }
+          ],
+          "artifacts": [
+            {
+              "id": "Time",
+              "object": "dimension",
+              "operations": []
+            },
+            {
+              "id": "U-001",
+              "object": "unit",
+              "operations": []
+            }
+          ]
+        },
+        "bodyExtraction": {
+          "yield_pattern": {
+            "match": {
+              "unit": {
+                "from": "table_row",
+                "under_section": "Scale",
+                "assert": {
+                  "columns": [
+                    "Dimension",
+                    "Target",
+                    "Scale",
+                    "Offset"
+                  ],
+                  "optional_columns": [
+                    "Target"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "unit_cycle_A_targets_B",
+      "request": {
+        "markdown": "---\nid: U-001\ntitle: Unit\nobject: unit\n---\n# U-001: Unit\n\n## Scale\n\n| Dimension | Target | Scale | Offset |\n|---|---|---|---|\n| Time | B | 1 | 0 |\n\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "unit"
+          ],
+          "imports": {}
+        },
+        "path": "spec/units/U-001.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+          "package": "agent-ix/shop",
+          "objects": [
+            {
+              "id": "Time",
+              "names": [
+                "Time"
+              ]
+            },
+            {
+              "id": "A",
+              "names": [
+                "A"
+              ]
+            },
+            {
+              "id": "B",
+              "names": [
+                "B"
+              ]
+            }
+          ],
+          "artifacts": [
+            {
+              "id": "Time",
+              "object": "dimension",
+              "operations": []
+            },
+            {
+              "id": "A",
+              "object": "unit",
+              "operations": []
+            },
+            {
+              "id": "B",
+              "object": "unit",
+              "operations": []
+            }
+          ]
+        },
+        "bodyExtraction": {
+          "yield_pattern": {
+            "match": {
+              "unit": {
+                "from": "table_row",
+                "under_section": "Scale",
+                "assert": {
+                  "columns": [
+                    "Dimension",
+                    "Target",
+                    "Scale",
+                    "Offset"
+                  ],
+                  "optional_columns": [
+                    "Target"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "unit_cycle_B_targets_A",
+      "request": {
+        "markdown": "---\nid: U-001\ntitle: Unit\nobject: unit\n---\n# U-001: Unit\n\n## Scale\n\n| Dimension | Target | Scale | Offset |\n|---|---|---|---|\n| Time | A | 1 | 0 |\n\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "unit"
+          ],
+          "imports": {}
+        },
+        "path": "spec/units/U-001.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+          "package": "agent-ix/shop",
+          "objects": [
+            {
+              "id": "Time",
+              "names": [
+                "Time"
+              ]
+            },
+            {
+              "id": "A",
+              "names": [
+                "A"
+              ]
+            },
+            {
+              "id": "B",
+              "names": [
+                "B"
+              ]
+            }
+          ],
+          "artifacts": [
+            {
+              "id": "Time",
+              "object": "dimension",
+              "operations": []
+            },
+            {
+              "id": "A",
+              "object": "unit",
+              "operations": []
+            },
+            {
+              "id": "B",
+              "object": "unit",
+              "operations": []
+            }
+          ]
+        },
+        "bodyExtraction": {
+          "yield_pattern": {
+            "match": {
+              "unit": {
+                "from": "table_row",
+                "under_section": "Scale",
+                "assert": {
+                  "columns": [
+                    "Dimension",
+                    "Target",
+                    "Scale",
+                    "Offset"
+                  ],
+                  "optional_columns": [
+                    "Target"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "unit_zero_scale",
+      "request": {
+        "markdown": "---\nid: U-001\ntitle: Unit\nobject: unit\n---\n# U-001: Unit\n\n## Scale\n\n| Dimension | Scale | Offset |\n|---|---|---|\n| Time | 0 | 0 |\n\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "unit"
+          ],
+          "imports": {}
+        },
+        "path": "spec/units/U-001.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+          "package": "agent-ix/shop",
+          "objects": [
+            {
+              "id": "Time",
+              "names": [
+                "Time"
+              ]
+            }
+          ],
+          "artifacts": [
+            {
+              "id": "Time",
+              "object": "dimension",
+              "operations": []
+            }
+          ]
+        },
+        "bodyExtraction": {
+          "yield_pattern": {
+            "match": {
+              "unit": {
+                "from": "table_row",
+                "under_section": "Scale",
+                "assert": {
+                  "columns": [
+                    "Dimension",
+                    "Scale",
+                    "Offset"
+                  ],
+                  "optional_columns": []
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "unit_qualified_imported_dimension_and_target",
+      "request": {
+        "markdown": "---\nid: U-001\ntitle: Unit\nobject: unit\n---\n# U-001: Unit\n\n## Scale\n\n| Dimension | Target | Scale | Offset |\n|---|---|---|---|\n| acme/time-units::Time | acme/time-units::s | 1/1000 | 0 |\n\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "unit"
+          ],
+          "imports": {
+            "acme/time-units": "1.0.0"
+          }
+        },
+        "path": "spec/units/U-001.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+          "package": "agent-ix/shop",
+          "objects": [],
+          "artifacts": [],
+          "imports": {
+            "acme/time-units": [
+              "Time",
+              "s"
+            ]
+          },
+          "importedArtifacts": [
+            {
+              "package": "acme/time-units",
+              "id": "Time",
+              "names": [
+                "Time"
+              ],
+              "object": "dimension",
+              "sourceSpan": {
+                "sourceIdentity": "ix://acme/time-units/spec",
+                "path": "spec/Time.md",
+                "startLine": 1,
+                "startColumn": 1,
+                "endLine": 1,
+                "endColumn": 1
+              }
+            },
+            {
+              "package": "acme/time-units",
+              "id": "s",
+              "names": [
+                "s"
+              ],
+              "object": "unit"
+            }
+          ]
+        },
+        "bodyExtraction": {
+          "yield_pattern": {
+            "match": {
+              "unit": {
+                "from": "table_row",
+                "under_section": "Scale",
+                "assert": {
+                  "columns": [
+                    "Dimension",
+                    "Target",
+                    "Scale",
+                    "Offset"
+                  ],
+                  "optional_columns": [
+                    "Target"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "unit_bare_name_prefers_own_over_imported",
+      "request": {
+        "markdown": "---\nid: U-001\ntitle: Unit\nobject: unit\n---\n# U-001: Unit\n\n## Scale\n\n| Dimension | Target | Scale | Offset |\n|---|---|---|---|\n| Time | s | 1/1000 | 0 |\n\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "unit"
+          ],
+          "imports": {
+            "acme/time-units": "1.0.0"
+          }
+        },
+        "path": "spec/units/U-001.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+          "package": "agent-ix/shop",
+          "objects": [
+            {
+              "id": "Time",
+              "names": [
+                "Time"
+              ]
+            },
+            {
+              "id": "s",
+              "names": [
+                "s"
+              ]
+            }
+          ],
+          "artifacts": [
+            {
+              "id": "Time",
+              "object": "dimension",
+              "operations": []
+            },
+            {
+              "id": "s",
+              "object": "unit",
+              "operations": []
+            }
+          ],
+          "imports": {
+            "acme/time-units": [
+              "Time",
+              "s"
+            ]
+          },
+          "importedArtifacts": [
+            {
+              "package": "acme/time-units",
+              "id": "Time",
+              "names": [
+                "Time"
+              ],
+              "object": "dimension",
+              "sourceSpan": {
+                "sourceIdentity": "ix://acme/time-units/spec",
+                "path": "spec/Time.md",
+                "startLine": 1,
+                "startColumn": 1,
+                "endLine": 1,
+                "endColumn": 1
+              }
+            },
+            {
+              "package": "acme/time-units",
+              "id": "s",
+              "names": [
+                "s"
+              ],
+              "object": "unit"
+            }
+          ]
+        },
+        "bodyExtraction": {
+          "yield_pattern": {
+            "match": {
+              "unit": {
+                "from": "table_row",
+                "under_section": "Scale",
+                "assert": {
+                  "columns": [
+                    "Dimension",
+                    "Target",
+                    "Scale",
+                    "Offset"
+                  ],
+                  "optional_columns": [
+                    "Target"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "undeclared_dimension_table",
+      "request": {
+        "markdown": "---\nid: U-001\ntitle: Unit\nobject: unit\n---\n# U-001: Unit\n\n## Basis\n\n| Base |\n|---|\n| true |\n\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "unit"
+          ],
+          "imports": {}
+        },
+        "path": "spec/units/U-001.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+          "package": "agent-ix/shop",
+          "objects": [],
+          "artifacts": []
+        },
+        "bodyExtraction": {
+          "yield_pattern": {
+            "match": {}
+          }
+        }
+      }
+    },
+    {
+      "name": "undeclared_terms_table",
+      "request": {
+        "markdown": "---\nid: U-001\ntitle: Unit\nobject: unit\n---\n# U-001: Unit\n\n## Powers\n\n| Dimension | Exponent |\n|---|---|\n| Length | 1 |\n\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "unit"
+          ],
+          "imports": {}
+        },
+        "path": "spec/units/U-001.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+          "package": "agent-ix/shop",
+          "objects": [],
+          "artifacts": []
+        },
+        "bodyExtraction": {
+          "yield_pattern": {
+            "match": {}
+          }
+        }
+      }
+    },
+    {
+      "name": "undeclared_unit_table",
+      "request": {
+        "markdown": "---\nid: U-001\ntitle: Unit\nobject: unit\n---\n# U-001: Unit\n\n## Scale\n\n| Dimension | Scale | Offset |\n|---|---|---|\n| Time | 1 | 0 |\n\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "unit"
+          ],
+          "imports": {}
+        },
+        "path": "spec/units/U-001.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+          "package": "agent-ix/shop",
+          "objects": [],
+          "artifacts": []
+        },
+        "bodyExtraction": {
+          "yield_pattern": {
+            "match": {}
+          }
+        }
+      }
+    },
+    {
+      "name": "no_physical_tables",
+      "request": {
+        "markdown": "---\nid: U-001\ntitle: Unit\nobject: unit\n---\n# U-001: Unit\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "unit"
+          ],
+          "imports": {}
+        },
+        "path": "spec/units/U-001.md",
+        "sourceIdentity": "ix://agent-ix/shop/spec",
+        "bundle": {
+          "package": "agent-ix/shop",
+          "objects": [],
+          "artifacts": []
+        },
+        "bodyExtraction": {
+          "yield_pattern": {
+            "match": {}
+          }
+        }
+      }
+    }
+  ]
+}

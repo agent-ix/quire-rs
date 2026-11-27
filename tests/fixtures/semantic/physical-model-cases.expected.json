@@ -1,0 +1,2464 @@
+{
+  "dimension_base_duplicate_tables": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "model": {
+        "lossy": false,
+        "reason": "entry-errors: lines 17",
+        "state": "unavailable"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "not_applicable"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [
+      {
+        "code": "semantic.duplicate-section",
+        "column": 1,
+        "line": 17,
+        "message": "a second dimension table; one per artifact",
+        "severity": "error"
+      }
+    ],
+    "formatVersion": 1,
+    "package": "agent-ix/spec-objects-fixture"
+  },
+  "dimension_base_empty": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "model": {
+        "lossy": false,
+        "reason": "entry-errors: lines 12",
+        "state": "unavailable"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "not_applicable"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [
+      {
+        "code": "semantic.invalid-model-cell",
+        "column": 1,
+        "line": 12,
+        "message": "Base \"\" is not `true` or `false`",
+        "severity": "error"
+      }
+    ],
+    "formatVersion": 1,
+    "package": "agent-ix/spec-objects-fixture"
+  },
+  "dimension_base_false": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "model": {
+        "lossy": false,
+        "state": "available"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "not_applicable"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [],
+    "formatVersion": 1,
+    "model": {
+      "dimension": {
+        "base": false,
+        "sourceSpan": {
+          "endColumn": 10,
+          "endLine": 12,
+          "path": "spec/units/U-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 12
+        }
+      },
+      "displayName": {
+        "sourceSpan": {
+          "endColumn": 12,
+          "endLine": 3,
+          "path": "spec/units/U-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 3
+        },
+        "value": "Unit"
+      },
+      "identity": {
+        "sourceSpan": {
+          "endColumn": 10,
+          "endLine": 2,
+          "path": "spec/units/U-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 2
+        },
+        "value": "U-001"
+      }
+    },
+    "package": "agent-ix/spec-objects-fixture"
+  },
+  "dimension_base_multiple_rows": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "model": {
+        "lossy": false,
+        "reason": "entry-errors: lines 13, 14, 15",
+        "state": "unavailable"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "not_applicable"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [
+      {
+        "code": "semantic.duplicate-model-entry",
+        "column": 1,
+        "line": 13,
+        "message": "dimension Base is declared more than once",
+        "severity": "error"
+      },
+      {
+        "code": "semantic.duplicate-model-entry",
+        "column": 1,
+        "line": 14,
+        "message": "dimension Base is declared more than once",
+        "severity": "error"
+      },
+      {
+        "code": "semantic.duplicate-model-entry",
+        "column": 1,
+        "line": 15,
+        "message": "dimension Base is declared more than once",
+        "severity": "error"
+      }
+    ],
+    "formatVersion": 1,
+    "package": "agent-ix/spec-objects-fixture"
+  },
+  "dimension_base_no_rows": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "model": {
+        "lossy": false,
+        "reason": "entry-errors: lines 10",
+        "state": "unavailable"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "not_applicable"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [
+      {
+        "code": "semantic.invalid-model-cell",
+        "column": 1,
+        "line": 10,
+        "message": "a dimension table requires one Base row",
+        "severity": "error"
+      }
+    ],
+    "formatVersion": 1,
+    "package": "agent-ix/spec-objects-fixture"
+  },
+  "dimension_base_true": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "model": {
+        "lossy": false,
+        "state": "available"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "not_applicable"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [],
+    "formatVersion": 1,
+    "model": {
+      "dimension": {
+        "base": true,
+        "sourceSpan": {
+          "endColumn": 9,
+          "endLine": 12,
+          "path": "spec/units/U-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 12
+        }
+      },
+      "displayName": {
+        "sourceSpan": {
+          "endColumn": 12,
+          "endLine": 3,
+          "path": "spec/units/U-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 3
+        },
+        "value": "Unit"
+      },
+      "identity": {
+        "sourceSpan": {
+          "endColumn": 10,
+          "endLine": 2,
+          "path": "spec/units/U-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 2
+        },
+        "value": "U-001"
+      }
+    },
+    "package": "agent-ix/spec-objects-fixture"
+  },
+  "dimension_base_yes": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "model": {
+        "lossy": false,
+        "reason": "entry-errors: lines 12",
+        "state": "unavailable"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "not_applicable"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [
+      {
+        "code": "semantic.invalid-model-cell",
+        "column": 1,
+        "line": 12,
+        "message": "Base \"yes\" is not `true` or `false`",
+        "severity": "error"
+      }
+    ],
+    "formatVersion": 1,
+    "package": "agent-ix/spec-objects-fixture"
+  },
+  "no_physical_tables": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "not_applicable"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [],
+    "formatVersion": 1,
+    "package": "agent-ix/spec-objects-fixture"
+  },
+  "terms_ambiguous_dimension": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "model": {
+        "lossy": false,
+        "reason": "entry-errors: lines 12",
+        "state": "unavailable"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "not_applicable"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [
+      {
+        "code": "semantic.ambiguous-type",
+        "column": 1,
+        "line": 12,
+        "message": "token \"Length\" names D1 of agent-ix/shop and D2 of agent-ix/shop",
+        "severity": "error"
+      }
+    ],
+    "formatVersion": 1,
+    "package": "agent-ix/spec-objects-fixture"
+  },
+  "terms_duplicate_identity_through_alias": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "model": {
+        "lossy": false,
+        "reason": "entry-errors: lines 13",
+        "state": "unavailable"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "not_applicable"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [
+      {
+        "code": "semantic.duplicate-model-entry",
+        "column": 1,
+        "line": 13,
+        "message": "terms ix://agent-ix/shop/type/D1 is declared twice",
+        "severity": "error"
+      }
+    ],
+    "formatVersion": 1,
+    "package": "agent-ix/spec-objects-fixture"
+  },
+  "terms_duplicate_same_token": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "model": {
+        "lossy": false,
+        "reason": "entry-errors: lines 13",
+        "state": "unavailable"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "not_applicable"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [
+      {
+        "code": "semantic.duplicate-model-entry",
+        "column": 1,
+        "line": 13,
+        "message": "terms ix://agent-ix/shop/type/Length is declared twice",
+        "severity": "error"
+      }
+    ],
+    "formatVersion": 1,
+    "package": "agent-ix/spec-objects-fixture"
+  },
+  "terms_invalid_dimension_token": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "model": {
+        "lossy": false,
+        "reason": "entry-errors: lines 12",
+        "state": "unavailable"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "not_applicable"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [
+      {
+        "code": "semantic.invalid-type-token",
+        "column": 1,
+        "line": 12,
+        "message": "dimension token \"not a token\" is not an Identifier or qualified token",
+        "reason": "invalid-token",
+        "severity": "error",
+        "sourceSpan": {
+          "endColumn": 20,
+          "endLine": 12,
+          "path": "spec/units/U-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 12
+        }
+      }
+    ],
+    "formatVersion": 1,
+    "package": "agent-ix/spec-objects-fixture"
+  },
+  "terms_invalid_exponent_01": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "model": {
+        "lossy": false,
+        "reason": "entry-errors: lines 12",
+        "state": "unavailable"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "not_applicable"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [
+      {
+        "code": "semantic.invalid-model-cell",
+        "column": 1,
+        "line": 12,
+        "message": "Exponent \"01\" is not a canonical integer",
+        "severity": "error"
+      }
+    ],
+    "formatVersion": 1,
+    "package": "agent-ix/spec-objects-fixture"
+  },
+  "terms_invalid_exponent_1dot5": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "model": {
+        "lossy": false,
+        "reason": "entry-errors: lines 12",
+        "state": "unavailable"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "not_applicable"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [
+      {
+        "code": "semantic.invalid-model-cell",
+        "column": 1,
+        "line": 12,
+        "message": "Exponent \"1.5\" is not a canonical integer",
+        "severity": "error"
+      }
+    ],
+    "formatVersion": 1,
+    "package": "agent-ix/spec-objects-fixture"
+  },
+  "terms_invalid_exponent_x": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "model": {
+        "lossy": false,
+        "reason": "entry-errors: lines 12",
+        "state": "unavailable"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "not_applicable"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [
+      {
+        "code": "semantic.invalid-model-cell",
+        "column": 1,
+        "line": 12,
+        "message": "Exponent \"x\" is not a canonical integer",
+        "severity": "error"
+      }
+    ],
+    "formatVersion": 1,
+    "package": "agent-ix/spec-objects-fixture"
+  },
+  "terms_large_exponent": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "model": {
+        "lossy": false,
+        "state": "available"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "not_applicable"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [],
+    "formatVersion": 1,
+    "model": {
+      "displayName": {
+        "sourceSpan": {
+          "endColumn": 12,
+          "endLine": 3,
+          "path": "spec/units/U-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 3
+        },
+        "value": "Unit"
+      },
+      "identity": {
+        "sourceSpan": {
+          "endColumn": 10,
+          "endLine": 2,
+          "path": "spec/units/U-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 2
+        },
+        "value": "U-001"
+      },
+      "terms": [
+        {
+          "dimension": {
+            "target": {
+              "kind": "SemanticId",
+              "value": "ix://agent-ix/shop/type/Length"
+            }
+          },
+          "exponent": 9223372036854775808,
+          "sourceSpan": {
+            "endColumn": 33,
+            "endLine": 12,
+            "path": "spec/units/U-001.md",
+            "sourceIdentity": "ix://agent-ix/shop/spec",
+            "startColumn": 1,
+            "startLine": 12
+          }
+        }
+      ]
+    },
+    "package": "agent-ix/spec-objects-fixture"
+  },
+  "terms_unit_where_dimension_expected": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "model": {
+        "lossy": true,
+        "state": "available"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "not_applicable"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [
+      {
+        "code": "semantic.unresolved-type",
+        "column": 1,
+        "line": 12,
+        "message": "artifact spec/units/U-001.md declares terms in `## Powers` at line 12: dimension token \"Speed\" cannot be resolved",
+        "reason": "unknown-token",
+        "section": "Powers",
+        "severity": "advisory",
+        "sourceSpan": {
+          "endColumn": 14,
+          "endLine": 12,
+          "path": "spec/units/U-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 12
+        }
+      }
+    ],
+    "formatVersion": 1,
+    "model": {
+      "displayName": {
+        "sourceSpan": {
+          "endColumn": 12,
+          "endLine": 3,
+          "path": "spec/units/U-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 3
+        },
+        "value": "Unit"
+      },
+      "identity": {
+        "sourceSpan": {
+          "endColumn": 10,
+          "endLine": 2,
+          "path": "spec/units/U-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 2
+        },
+        "value": "U-001"
+      },
+      "terms": [
+        {
+          "dimension": {
+            "target": {
+              "kind": "SemanticId",
+              "value": "ix://agent-ix/shop/unresolved/Speed"
+            }
+          },
+          "exponent": 1,
+          "sourceSpan": {
+            "endColumn": 14,
+            "endLine": 12,
+            "path": "spec/units/U-001.md",
+            "sourceIdentity": "ix://agent-ix/shop/spec",
+            "startColumn": 1,
+            "startLine": 12
+          }
+        }
+      ]
+    },
+    "package": "agent-ix/spec-objects-fixture"
+  },
+  "terms_valid_two_rows": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "model": {
+        "lossy": false,
+        "state": "available"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "not_applicable"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [],
+    "formatVersion": 1,
+    "model": {
+      "displayName": {
+        "sourceSpan": {
+          "endColumn": 12,
+          "endLine": 3,
+          "path": "spec/units/U-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 3
+        },
+        "value": "Unit"
+      },
+      "identity": {
+        "sourceSpan": {
+          "endColumn": 10,
+          "endLine": 2,
+          "path": "spec/units/U-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 2
+        },
+        "value": "U-001"
+      },
+      "terms": [
+        {
+          "dimension": {
+            "target": {
+              "kind": "SemanticId",
+              "value": "ix://agent-ix/shop/type/Length"
+            }
+          },
+          "exponent": 1,
+          "sourceSpan": {
+            "endColumn": 15,
+            "endLine": 12,
+            "path": "spec/units/U-001.md",
+            "sourceIdentity": "ix://agent-ix/shop/spec",
+            "startColumn": 1,
+            "startLine": 12
+          }
+        },
+        {
+          "dimension": {
+            "target": {
+              "kind": "SemanticId",
+              "value": "ix://agent-ix/shop/type/Time"
+            }
+          },
+          "exponent": -2,
+          "sourceSpan": {
+            "endColumn": 14,
+            "endLine": 13,
+            "path": "spec/units/U-001.md",
+            "sourceIdentity": "ix://agent-ix/shop/spec",
+            "startColumn": 1,
+            "startLine": 13
+          }
+        }
+      ]
+    },
+    "package": "agent-ix/spec-objects-fixture"
+  },
+  "undeclared_dimension_table": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "model": {
+        "lossy": false,
+        "reason": "entry-errors: lines 10",
+        "state": "unavailable"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "not_applicable"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [
+      {
+        "code": "semantic.feature-not-extractable",
+        "column": 1,
+        "line": 10,
+        "message": "artifact spec/units/U-001.md declares dimension in `## Basis` at line 10; the module agent-ix/spec-objects-fixture manifest does not declare it",
+        "reason": "dimension",
+        "section": "Basis",
+        "severity": "error",
+        "sourceSpan": {
+          "endColumn": 9,
+          "endLine": 10,
+          "path": "spec/units/U-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 10
+        }
+      }
+    ],
+    "formatVersion": 1,
+    "package": "agent-ix/spec-objects-fixture"
+  },
+  "undeclared_terms_table": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "model": {
+        "lossy": false,
+        "reason": "entry-errors: lines 10",
+        "state": "unavailable"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "not_applicable"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [
+      {
+        "code": "semantic.feature-not-extractable",
+        "column": 1,
+        "line": 10,
+        "message": "artifact spec/units/U-001.md declares terms in `## Powers` at line 10; the module agent-ix/spec-objects-fixture manifest does not declare it",
+        "reason": "terms",
+        "section": "Powers",
+        "severity": "error",
+        "sourceSpan": {
+          "endColumn": 25,
+          "endLine": 10,
+          "path": "spec/units/U-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 10
+        }
+      }
+    ],
+    "formatVersion": 1,
+    "package": "agent-ix/spec-objects-fixture"
+  },
+  "undeclared_unit_table": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "model": {
+        "lossy": false,
+        "reason": "entry-errors: lines 10",
+        "state": "unavailable"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "not_applicable"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [
+      {
+        "code": "semantic.feature-not-extractable",
+        "column": 1,
+        "line": 10,
+        "message": "artifact spec/units/U-001.md declares unit in `## Scale` at line 10; the module agent-ix/spec-objects-fixture manifest does not declare it",
+        "reason": "unit",
+        "section": "Scale",
+        "severity": "error",
+        "sourceSpan": {
+          "endColumn": 31,
+          "endLine": 10,
+          "path": "spec/units/U-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 10
+        }
+      }
+    ],
+    "formatVersion": 1,
+    "package": "agent-ix/spec-objects-fixture"
+  },
+  "unit_accepted_-3_both_fields": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "model": {
+        "lossy": false,
+        "state": "available"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "not_applicable"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [],
+    "formatVersion": 1,
+    "model": {
+      "displayName": {
+        "sourceSpan": {
+          "endColumn": 12,
+          "endLine": 3,
+          "path": "spec/units/U-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 3
+        },
+        "value": "Unit"
+      },
+      "identity": {
+        "sourceSpan": {
+          "endColumn": 10,
+          "endLine": 2,
+          "path": "spec/units/U-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 2
+        },
+        "value": "U-001"
+      },
+      "unit": {
+        "dimension": {
+          "target": {
+            "kind": "SemanticId",
+            "value": "ix://agent-ix/shop/type/Time"
+          }
+        },
+        "offset": "-3",
+        "scale": "-3",
+        "sourceSpan": {
+          "endColumn": 19,
+          "endLine": 12,
+          "path": "spec/units/U-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 12
+        }
+      }
+    },
+    "package": "agent-ix/spec-objects-fixture"
+  },
+  "unit_accepted_-3of2_both_fields": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "model": {
+        "lossy": false,
+        "state": "available"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "not_applicable"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [],
+    "formatVersion": 1,
+    "model": {
+      "displayName": {
+        "sourceSpan": {
+          "endColumn": 12,
+          "endLine": 3,
+          "path": "spec/units/U-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 3
+        },
+        "value": "Unit"
+      },
+      "identity": {
+        "sourceSpan": {
+          "endColumn": 10,
+          "endLine": 2,
+          "path": "spec/units/U-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 2
+        },
+        "value": "U-001"
+      },
+      "unit": {
+        "dimension": {
+          "target": {
+            "kind": "SemanticId",
+            "value": "ix://agent-ix/shop/type/Time"
+          }
+        },
+        "offset": "-3/2",
+        "scale": "-3/2",
+        "sourceSpan": {
+          "endColumn": 23,
+          "endLine": 12,
+          "path": "spec/units/U-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 12
+        }
+      }
+    },
+    "package": "agent-ix/spec-objects-fixture"
+  },
+  "unit_accepted_0_both_fields": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "model": {
+        "lossy": false,
+        "state": "available"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "not_applicable"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [],
+    "formatVersion": 1,
+    "model": {
+      "displayName": {
+        "sourceSpan": {
+          "endColumn": 12,
+          "endLine": 3,
+          "path": "spec/units/U-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 3
+        },
+        "value": "Unit"
+      },
+      "identity": {
+        "sourceSpan": {
+          "endColumn": 10,
+          "endLine": 2,
+          "path": "spec/units/U-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 2
+        },
+        "value": "U-001"
+      },
+      "unit": {
+        "dimension": {
+          "target": {
+            "kind": "SemanticId",
+            "value": "ix://agent-ix/shop/type/Time"
+          }
+        },
+        "offset": "0",
+        "scale": "0",
+        "sourceSpan": {
+          "endColumn": 17,
+          "endLine": 12,
+          "path": "spec/units/U-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 12
+        }
+      }
+    },
+    "package": "agent-ix/spec-objects-fixture"
+  },
+  "unit_bare_name_prefers_own_over_imported": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "model": {
+        "lossy": false,
+        "state": "available"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "not_applicable"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [],
+    "formatVersion": 1,
+    "model": {
+      "displayName": {
+        "sourceSpan": {
+          "endColumn": 12,
+          "endLine": 3,
+          "path": "spec/units/U-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 3
+        },
+        "value": "Unit"
+      },
+      "identity": {
+        "sourceSpan": {
+          "endColumn": 10,
+          "endLine": 2,
+          "path": "spec/units/U-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 2
+        },
+        "value": "U-001"
+      },
+      "unit": {
+        "dimension": {
+          "target": {
+            "kind": "SemanticId",
+            "value": "ix://agent-ix/shop/type/Time"
+          }
+        },
+        "offset": "0",
+        "scale": "1/1000",
+        "sourceSpan": {
+          "endColumn": 26,
+          "endLine": 12,
+          "path": "spec/units/U-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 12
+        },
+        "target": {
+          "target": {
+            "kind": "SemanticId",
+            "value": "ix://agent-ix/shop/type/s"
+          }
+        }
+      }
+    },
+    "package": "agent-ix/spec-objects-fixture"
+  },
+  "unit_cycle_A_targets_B": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "model": {
+        "lossy": false,
+        "state": "available"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "not_applicable"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [],
+    "formatVersion": 1,
+    "model": {
+      "displayName": {
+        "sourceSpan": {
+          "endColumn": 12,
+          "endLine": 3,
+          "path": "spec/units/U-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 3
+        },
+        "value": "Unit"
+      },
+      "identity": {
+        "sourceSpan": {
+          "endColumn": 10,
+          "endLine": 2,
+          "path": "spec/units/U-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 2
+        },
+        "value": "U-001"
+      },
+      "unit": {
+        "dimension": {
+          "target": {
+            "kind": "SemanticId",
+            "value": "ix://agent-ix/shop/type/Time"
+          }
+        },
+        "offset": "0",
+        "scale": "1",
+        "sourceSpan": {
+          "endColumn": 21,
+          "endLine": 12,
+          "path": "spec/units/U-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 12
+        },
+        "target": {
+          "target": {
+            "kind": "SemanticId",
+            "value": "ix://agent-ix/shop/type/B"
+          }
+        }
+      }
+    },
+    "package": "agent-ix/spec-objects-fixture"
+  },
+  "unit_cycle_B_targets_A": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "model": {
+        "lossy": false,
+        "state": "available"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "not_applicable"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [],
+    "formatVersion": 1,
+    "model": {
+      "displayName": {
+        "sourceSpan": {
+          "endColumn": 12,
+          "endLine": 3,
+          "path": "spec/units/U-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 3
+        },
+        "value": "Unit"
+      },
+      "identity": {
+        "sourceSpan": {
+          "endColumn": 10,
+          "endLine": 2,
+          "path": "spec/units/U-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 2
+        },
+        "value": "U-001"
+      },
+      "unit": {
+        "dimension": {
+          "target": {
+            "kind": "SemanticId",
+            "value": "ix://agent-ix/shop/type/Time"
+          }
+        },
+        "offset": "0",
+        "scale": "1",
+        "sourceSpan": {
+          "endColumn": 21,
+          "endLine": 12,
+          "path": "spec/units/U-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 12
+        },
+        "target": {
+          "target": {
+            "kind": "SemanticId",
+            "value": "ix://agent-ix/shop/type/A"
+          }
+        }
+      }
+    },
+    "package": "agent-ix/spec-objects-fixture"
+  },
+  "unit_empty_optional_target": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "model": {
+        "lossy": false,
+        "state": "available"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "not_applicable"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [],
+    "formatVersion": 1,
+    "model": {
+      "displayName": {
+        "sourceSpan": {
+          "endColumn": 12,
+          "endLine": 3,
+          "path": "spec/units/U-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 3
+        },
+        "value": "Unit"
+      },
+      "identity": {
+        "sourceSpan": {
+          "endColumn": 10,
+          "endLine": 2,
+          "path": "spec/units/U-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 2
+        },
+        "value": "U-001"
+      },
+      "unit": {
+        "dimension": {
+          "target": {
+            "kind": "SemanticId",
+            "value": "ix://agent-ix/shop/type/Time"
+          }
+        },
+        "offset": "0",
+        "scale": "1",
+        "sourceSpan": {
+          "endColumn": 20,
+          "endLine": 12,
+          "path": "spec/units/U-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 12
+        }
+      }
+    },
+    "package": "agent-ix/spec-objects-fixture"
+  },
+  "unit_invalid_offset_01of3": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "model": {
+        "lossy": false,
+        "reason": "entry-errors: lines 12",
+        "state": "unavailable"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "not_applicable"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [
+      {
+        "code": "semantic.invalid-model-cell",
+        "column": 1,
+        "line": 12,
+        "message": "Offset \"01/3\" is not a canonical rational",
+        "severity": "error"
+      }
+    ],
+    "formatVersion": 1,
+    "package": "agent-ix/spec-objects-fixture"
+  },
+  "unit_invalid_offset_0of5": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "model": {
+        "lossy": false,
+        "reason": "entry-errors: lines 12",
+        "state": "unavailable"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "not_applicable"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [
+      {
+        "code": "semantic.invalid-model-cell",
+        "column": 1,
+        "line": 12,
+        "message": "Offset \"0/5\" is not a canonical rational",
+        "severity": "error"
+      }
+    ],
+    "formatVersion": 1,
+    "package": "agent-ix/spec-objects-fixture"
+  },
+  "unit_invalid_offset_1dot5": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "model": {
+        "lossy": false,
+        "reason": "entry-errors: lines 12",
+        "state": "unavailable"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "not_applicable"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [
+      {
+        "code": "semantic.invalid-model-cell",
+        "column": 1,
+        "line": 12,
+        "message": "Offset \"1.5\" is not a canonical rational",
+        "severity": "error"
+      }
+    ],
+    "formatVersion": 1,
+    "package": "agent-ix/spec-objects-fixture"
+  },
+  "unit_invalid_offset_1of0": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "model": {
+        "lossy": false,
+        "reason": "entry-errors: lines 12",
+        "state": "unavailable"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "not_applicable"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [
+      {
+        "code": "semantic.invalid-model-cell",
+        "column": 1,
+        "line": 12,
+        "message": "Offset \"1/0\" is not a canonical rational",
+        "severity": "error"
+      }
+    ],
+    "formatVersion": 1,
+    "package": "agent-ix/spec-objects-fixture"
+  },
+  "unit_invalid_offset_1of1": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "model": {
+        "lossy": false,
+        "reason": "entry-errors: lines 12",
+        "state": "unavailable"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "not_applicable"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [
+      {
+        "code": "semantic.invalid-model-cell",
+        "column": 1,
+        "line": 12,
+        "message": "Offset \"1/1\" is not a canonical rational",
+        "severity": "error"
+      }
+    ],
+    "formatVersion": 1,
+    "package": "agent-ix/spec-objects-fixture"
+  },
+  "unit_invalid_offset_2of4": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "model": {
+        "lossy": false,
+        "reason": "entry-errors: lines 12",
+        "state": "unavailable"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "not_applicable"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [
+      {
+        "code": "semantic.invalid-model-cell",
+        "column": 1,
+        "line": 12,
+        "message": "Offset \"2/4\" is not a canonical rational",
+        "severity": "error"
+      }
+    ],
+    "formatVersion": 1,
+    "package": "agent-ix/spec-objects-fixture"
+  },
+  "unit_invalid_offset_empty": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "model": {
+        "lossy": false,
+        "reason": "entry-errors: lines 12",
+        "state": "unavailable"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "not_applicable"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [
+      {
+        "code": "semantic.invalid-model-cell",
+        "column": 1,
+        "line": 12,
+        "message": "Offset \"\" is not a canonical rational",
+        "severity": "error"
+      }
+    ],
+    "formatVersion": 1,
+    "package": "agent-ix/spec-objects-fixture"
+  },
+  "unit_invalid_offset_minus0": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "model": {
+        "lossy": false,
+        "reason": "entry-errors: lines 12",
+        "state": "unavailable"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "not_applicable"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [
+      {
+        "code": "semantic.invalid-model-cell",
+        "column": 1,
+        "line": 12,
+        "message": "Offset \"-0\" is not a canonical rational",
+        "severity": "error"
+      }
+    ],
+    "formatVersion": 1,
+    "package": "agent-ix/spec-objects-fixture"
+  },
+  "unit_invalid_scale_01of3": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "model": {
+        "lossy": false,
+        "reason": "entry-errors: lines 12",
+        "state": "unavailable"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "not_applicable"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [
+      {
+        "code": "semantic.invalid-model-cell",
+        "column": 1,
+        "line": 12,
+        "message": "Scale \"01/3\" is not a canonical rational",
+        "severity": "error"
+      }
+    ],
+    "formatVersion": 1,
+    "package": "agent-ix/spec-objects-fixture"
+  },
+  "unit_invalid_scale_0of5": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "model": {
+        "lossy": false,
+        "reason": "entry-errors: lines 12",
+        "state": "unavailable"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "not_applicable"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [
+      {
+        "code": "semantic.invalid-model-cell",
+        "column": 1,
+        "line": 12,
+        "message": "Scale \"0/5\" is not a canonical rational",
+        "severity": "error"
+      }
+    ],
+    "formatVersion": 1,
+    "package": "agent-ix/spec-objects-fixture"
+  },
+  "unit_invalid_scale_1dot5": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "model": {
+        "lossy": false,
+        "reason": "entry-errors: lines 12",
+        "state": "unavailable"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "not_applicable"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [
+      {
+        "code": "semantic.invalid-model-cell",
+        "column": 1,
+        "line": 12,
+        "message": "Scale \"1.5\" is not a canonical rational",
+        "severity": "error"
+      }
+    ],
+    "formatVersion": 1,
+    "package": "agent-ix/spec-objects-fixture"
+  },
+  "unit_invalid_scale_1of0": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "model": {
+        "lossy": false,
+        "reason": "entry-errors: lines 12",
+        "state": "unavailable"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "not_applicable"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [
+      {
+        "code": "semantic.invalid-model-cell",
+        "column": 1,
+        "line": 12,
+        "message": "Scale \"1/0\" is not a canonical rational",
+        "severity": "error"
+      }
+    ],
+    "formatVersion": 1,
+    "package": "agent-ix/spec-objects-fixture"
+  },
+  "unit_invalid_scale_1of1": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "model": {
+        "lossy": false,
+        "reason": "entry-errors: lines 12",
+        "state": "unavailable"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "not_applicable"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [
+      {
+        "code": "semantic.invalid-model-cell",
+        "column": 1,
+        "line": 12,
+        "message": "Scale \"1/1\" is not a canonical rational",
+        "severity": "error"
+      }
+    ],
+    "formatVersion": 1,
+    "package": "agent-ix/spec-objects-fixture"
+  },
+  "unit_invalid_scale_2of4": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "model": {
+        "lossy": false,
+        "reason": "entry-errors: lines 12",
+        "state": "unavailable"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "not_applicable"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [
+      {
+        "code": "semantic.invalid-model-cell",
+        "column": 1,
+        "line": 12,
+        "message": "Scale \"2/4\" is not a canonical rational",
+        "severity": "error"
+      }
+    ],
+    "formatVersion": 1,
+    "package": "agent-ix/spec-objects-fixture"
+  },
+  "unit_invalid_scale_empty": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "model": {
+        "lossy": false,
+        "reason": "entry-errors: lines 12",
+        "state": "unavailable"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "not_applicable"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [
+      {
+        "code": "semantic.invalid-model-cell",
+        "column": 1,
+        "line": 12,
+        "message": "Scale \"\" is not a canonical rational",
+        "severity": "error"
+      }
+    ],
+    "formatVersion": 1,
+    "package": "agent-ix/spec-objects-fixture"
+  },
+  "unit_invalid_scale_minus0": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "model": {
+        "lossy": false,
+        "reason": "entry-errors: lines 12",
+        "state": "unavailable"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "not_applicable"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [
+      {
+        "code": "semantic.invalid-model-cell",
+        "column": 1,
+        "line": 12,
+        "message": "Scale \"-0\" is not a canonical rational",
+        "severity": "error"
+      }
+    ],
+    "formatVersion": 1,
+    "package": "agent-ix/spec-objects-fixture"
+  },
+  "unit_multiple_rows": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "model": {
+        "lossy": false,
+        "reason": "entry-errors: lines 13, 14",
+        "state": "unavailable"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "not_applicable"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [
+      {
+        "code": "semantic.duplicate-model-entry",
+        "column": 1,
+        "line": 13,
+        "message": "a unit declaration appears more than once",
+        "severity": "error"
+      },
+      {
+        "code": "semantic.duplicate-model-entry",
+        "column": 1,
+        "line": 14,
+        "message": "a unit declaration appears more than once",
+        "severity": "error"
+      }
+    ],
+    "formatVersion": 1,
+    "package": "agent-ix/spec-objects-fixture"
+  },
+  "unit_no_rows": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "model": {
+        "lossy": false,
+        "reason": "entry-errors: lines 10",
+        "state": "unavailable"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "not_applicable"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [
+      {
+        "code": "semantic.invalid-model-cell",
+        "column": 1,
+        "line": 10,
+        "message": "a unit table requires one declaration row",
+        "severity": "error"
+      }
+    ],
+    "formatVersion": 1,
+    "package": "agent-ix/spec-objects-fixture"
+  },
+  "unit_qualified_imported_dimension_and_target": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "model": {
+        "lossy": false,
+        "state": "available"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "not_applicable"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [],
+    "formatVersion": 1,
+    "model": {
+      "displayName": {
+        "sourceSpan": {
+          "endColumn": 12,
+          "endLine": 3,
+          "path": "spec/units/U-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 3
+        },
+        "value": "Unit"
+      },
+      "identity": {
+        "sourceSpan": {
+          "endColumn": 10,
+          "endLine": 2,
+          "path": "spec/units/U-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 2
+        },
+        "value": "U-001"
+      },
+      "unit": {
+        "dimension": {
+          "target": {
+            "kind": "SemanticId",
+            "value": "ix://acme/time-units/type/Time"
+          }
+        },
+        "offset": "0",
+        "scale": "1/1000",
+        "sourceSpan": {
+          "endColumn": 60,
+          "endLine": 12,
+          "path": "spec/units/U-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 12
+        },
+        "target": {
+          "target": {
+            "kind": "SemanticId",
+            "value": "ix://acme/time-units/type/s"
+          }
+        }
+      }
+    },
+    "package": "agent-ix/spec-objects-fixture",
+    "resolvedReferences": [
+      {
+        "identity": "ix://acme/time-units/type/Time",
+        "referenceSpan": {
+          "endColumn": 60,
+          "endLine": 12,
+          "path": "spec/units/U-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 12
+        },
+        "targetSpan": {
+          "endColumn": 1,
+          "endLine": 1,
+          "path": "spec/Time.md",
+          "sourceIdentity": "ix://acme/time-units/spec",
+          "startColumn": 1,
+          "startLine": 1
+        }
+      }
+    ]
+  },
+  "unit_self_target_zero_scale": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "model": {
+        "lossy": false,
+        "state": "available"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "not_applicable"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [],
+    "formatVersion": 1,
+    "model": {
+      "displayName": {
+        "sourceSpan": {
+          "endColumn": 12,
+          "endLine": 3,
+          "path": "spec/units/U-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 3
+        },
+        "value": "Unit"
+      },
+      "identity": {
+        "sourceSpan": {
+          "endColumn": 10,
+          "endLine": 2,
+          "path": "spec/units/U-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 2
+        },
+        "value": "U-001"
+      },
+      "unit": {
+        "dimension": {
+          "target": {
+            "kind": "SemanticId",
+            "value": "ix://agent-ix/shop/type/Time"
+          }
+        },
+        "offset": "0",
+        "scale": "0",
+        "sourceSpan": {
+          "endColumn": 31,
+          "endLine": 12,
+          "path": "spec/units/U-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 12
+        },
+        "target": {
+          "target": {
+            "kind": "SemanticId",
+            "value": "ix://agent-ix/shop/type/U-001"
+          }
+        }
+      }
+    },
+    "package": "agent-ix/spec-objects-fixture"
+  },
+  "unit_target_column_omitted": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "model": {
+        "lossy": false,
+        "state": "available"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "not_applicable"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [],
+    "formatVersion": 1,
+    "model": {
+      "displayName": {
+        "sourceSpan": {
+          "endColumn": 12,
+          "endLine": 3,
+          "path": "spec/units/U-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 3
+        },
+        "value": "Unit"
+      },
+      "identity": {
+        "sourceSpan": {
+          "endColumn": 10,
+          "endLine": 2,
+          "path": "spec/units/U-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 2
+        },
+        "value": "U-001"
+      },
+      "unit": {
+        "dimension": {
+          "target": {
+            "kind": "SemanticId",
+            "value": "ix://agent-ix/shop/type/Time"
+          }
+        },
+        "offset": "0",
+        "scale": "1",
+        "sourceSpan": {
+          "endColumn": 17,
+          "endLine": 12,
+          "path": "spec/units/U-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 12
+        }
+      }
+    },
+    "package": "agent-ix/spec-objects-fixture"
+  },
+  "unit_target_is_dimension": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "model": {
+        "lossy": true,
+        "state": "available"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "not_applicable"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [
+      {
+        "code": "semantic.unresolved-type",
+        "column": 1,
+        "line": 12,
+        "message": "artifact spec/units/U-001.md declares unit in `## Scale` at line 12: unit token \"Length\" cannot be resolved",
+        "reason": "unknown-token",
+        "section": "Scale",
+        "severity": "advisory",
+        "sourceSpan": {
+          "endColumn": 26,
+          "endLine": 12,
+          "path": "spec/units/U-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 12
+        }
+      }
+    ],
+    "formatVersion": 1,
+    "model": {
+      "displayName": {
+        "sourceSpan": {
+          "endColumn": 12,
+          "endLine": 3,
+          "path": "spec/units/U-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 3
+        },
+        "value": "Unit"
+      },
+      "identity": {
+        "sourceSpan": {
+          "endColumn": 10,
+          "endLine": 2,
+          "path": "spec/units/U-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 2
+        },
+        "value": "U-001"
+      },
+      "unit": {
+        "dimension": {
+          "target": {
+            "kind": "SemanticId",
+            "value": "ix://agent-ix/shop/type/Time"
+          }
+        },
+        "offset": "0",
+        "scale": "1",
+        "sourceSpan": {
+          "endColumn": 26,
+          "endLine": 12,
+          "path": "spec/units/U-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 12
+        },
+        "target": {
+          "target": {
+            "kind": "SemanticId",
+            "value": "ix://agent-ix/shop/unresolved/Length"
+          }
+        }
+      }
+    },
+    "package": "agent-ix/spec-objects-fixture"
+  },
+  "unit_valid_target_and_ratio": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "model": {
+        "lossy": false,
+        "state": "available"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "not_applicable"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [],
+    "formatVersion": 1,
+    "model": {
+      "displayName": {
+        "sourceSpan": {
+          "endColumn": 12,
+          "endLine": 3,
+          "path": "spec/units/U-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 3
+        },
+        "value": "Unit"
+      },
+      "identity": {
+        "sourceSpan": {
+          "endColumn": 10,
+          "endLine": 2,
+          "path": "spec/units/U-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 2
+        },
+        "value": "U-001"
+      },
+      "unit": {
+        "dimension": {
+          "target": {
+            "kind": "SemanticId",
+            "value": "ix://agent-ix/shop/type/Time"
+          }
+        },
+        "offset": "0",
+        "scale": "1/1000",
+        "sourceSpan": {
+          "endColumn": 26,
+          "endLine": 12,
+          "path": "spec/units/U-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 12
+        },
+        "target": {
+          "target": {
+            "kind": "SemanticId",
+            "value": "ix://agent-ix/shop/type/s"
+          }
+        }
+      }
+    },
+    "package": "agent-ix/spec-objects-fixture"
+  },
+  "unit_zero_scale": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "model": {
+        "lossy": false,
+        "state": "available"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "not_applicable"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [],
+    "formatVersion": 1,
+    "model": {
+      "displayName": {
+        "sourceSpan": {
+          "endColumn": 12,
+          "endLine": 3,
+          "path": "spec/units/U-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 3
+        },
+        "value": "Unit"
+      },
+      "identity": {
+        "sourceSpan": {
+          "endColumn": 10,
+          "endLine": 2,
+          "path": "spec/units/U-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 2
+        },
+        "value": "U-001"
+      },
+      "unit": {
+        "dimension": {
+          "target": {
+            "kind": "SemanticId",
+            "value": "ix://agent-ix/shop/type/Time"
+          }
+        },
+        "offset": "0",
+        "scale": "0",
+        "sourceSpan": {
+          "endColumn": 17,
+          "endLine": 12,
+          "path": "spec/units/U-001.md",
+          "sourceIdentity": "ix://agent-ix/shop/spec",
+          "startColumn": 1,
+          "startLine": 12
+        }
+      }
+    },
+    "package": "agent-ix/spec-objects-fixture"
+  }
+}

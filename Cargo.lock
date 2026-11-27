@@ -1056,6 +1056,7 @@ dependencies = [
  "ix-trace-rs",
  "jsonschema",
  "loom",
+ "num-bigint",
  "proptest",
  "pyo3",
  "qa-corpus",

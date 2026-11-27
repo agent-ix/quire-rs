@@ -4,11 +4,47 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_call:
+    secrets:
+      REGISTRY_TOKEN:
+        description: Read access to the Agent-IX npm packages needed to build Quire-rs.
+        required: true
+    inputs:
+      run_wheels:
+        description: Build and upload Quire-rs release wheels as part of this call.
+        required: false
+        type: boolean
+        default: false
+      release_artifact_name:
+        description: Actions artifact containing the release files.
+        required: false
+        type: string
+        default: release-artifacts
+      evidence_artifact_name:
+        description: Same-run Actions artifact passed to Engineering Assurance.
+        required: false
+        type: string
+        default: release-evidence
+      ea_tooling_tag:
+        description: Published Engineering Assurance consumer release.
+        required: false
+        type: string
+        default: v0.9.0
+      quoin_tooling_tag:
+        description: Published Quoin evidence exporter release.
+        required: false
+        type: string
+        default: 0.36.10
 
 permissions: {}
 
 jobs:
   build:
+    if: >-
+      ${{ startsWith(github.ref, 'refs/tags/v') &&
+          (inputs.run_wheels ||
+           (github.repository == 'agent-ix/quire-rs' &&
+            github.workflow_ref == format('agent-ix/quire-rs/.github/workflows/tag-attestation.yml@{0}', github.ref))) }}
     permissions:
       contents: read
     uses: ./.github/workflows/wheels.yml
@@ -17,6 +53,11 @@ jobs:
 
   release-artifacts:
     name: collect release wheels
+    if: >-
+      ${{ startsWith(github.ref, 'refs/tags/v') &&
+          (inputs.run_wheels ||
+           (github.repository == 'agent-ix/quire-rs' &&
+            github.workflow_ref == format('agent-ix/quire-rs/.github/workflows/tag-attestation.yml@{0}', github.ref))) }}
     needs: build
     runs-on: ubuntu-24.04
     permissions:
@@ -32,99 +73,77 @@ jobs:
       - name: Upload release files
         uses: actions/upload-artifact@v7
         with:
-          name: release-artifacts
+          name: ${{ inputs.release_artifact_name || 'release-artifacts' }}
           path: dist/*.whl
           if-no-files-found: error
 
-  # SWM-347 FND-002 disposition: this validates content and tag binding only;
-  # it does not authenticate that Terra produced the attached unsigned bundle.
   release-evidence:
-    name: validate and retain attached release evidence
+    name: generate and retain release evidence
+    if: ${{ startsWith(github.ref, 'refs/tags/v') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 75
     permissions:
       contents: read
     steps:
-      - name: Check out tagged evidence policy and validator as data
+      - name: Check out the exact tagged source and recursive submodules
         uses: actions/checkout@v7
         with:
           ref: ${{ github.sha }}
+          path: source
           fetch-depth: 0
+          submodules: recursive
           persist-credentials: false
-
-      - name: Confirm annotated tag identity and creation time
-        id: tag
+      - name: Check out the Process validation provider
+        uses: actions/checkout@v7
+        with:
+          repository: agent-ix/spec-artifacts-process
+          ref: c29697dd2c083e08defdec73d31efa3f41141a80
+          path: .ci/spec-artifacts-process
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Check out the ISO validation provider
+        uses: actions/checkout@v7
+        with:
+          repository: agent-ix/spec-artifacts-iso
+          ref: f3e556c423eee451ac833eb1c0a950006c137bc6
+          path: .ci/spec-artifacts-iso
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Set up the tagged Rust toolchain
         shell: bash
+        run: rustup show active-toolchain || rustup toolchain install
+      - name: Set up Node for build-time schema package fetches
+        uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+      - name: Configure authenticated Agent-IX npm registry
+        uses: agent-ix/nodejs-actions/setup-npmrc@main
+        with:
+          npm_registry_token: ${{ secrets.REGISTRY_TOKEN }}
+      - name: Generate and verify release evidence
         env:
           RELEASE_TAG: ${{ github.ref_name }}
-          RELEASE_SHA: ${{ github.sha }}
-        run: |
-          set -euo pipefail
-          tag_commit="$(git rev-parse "$RELEASE_TAG^{commit}")"
-          if [[ "$tag_commit" != "$RELEASE_SHA" ]]; then
-            echo '::error::release_tag_commit_mismatch'
-            exit 1
-          fi
-          tag_created_at="$(git for-each-ref --format='%(taggerdate:unix)' "refs/tags/$RELEASE_TAG")"
-          if [[ -z "$tag_created_at" ]]; then
-            echo '::error::release_tag_must_be_annotated'
-            exit 1
-          fi
-          printf 'created_at=%s\n' "$tag_created_at" >> "$GITHUB_OUTPUT"
-
-      - name: Wait for the Terra evidence asset on the matching release
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ github.ref_name }}
-          RELEASE_REPOSITORY: ${{ github.repository }}
-          RELEASE_ASSET_DIR: ${{ runner.temp }}/release-evidence-source
-        run: |
-          set -euo pipefail
-          mkdir -p "$RELEASE_ASSET_DIR"
-          found=false
-          for attempt in $(seq 1 60); do
-            rm -f "$RELEASE_ASSET_DIR/release-evidence.tar.gz"
-            if gh release download "$RELEASE_TAG" \
-              --repo "$RELEASE_REPOSITORY" \
-              --pattern release-evidence.tar.gz \
-              --dir "$RELEASE_ASSET_DIR" \
-              > /dev/null 2> "$RUNNER_TEMP/release-evidence-download.log"; then
-              found=true
-              break
-            fi
-            sleep 60
-          done
-          if [[ "$found" != true ]]; then
-            cat "$RUNNER_TEMP/release-evidence-download.log" >&2
-            echo '::error::release_evidence_asset_missing_or_unavailable'
-            exit 1
-          fi
-
-      - name: Verify attached evidence contents against this tag and commit
-        env:
-          RELEASE_TAG: ${{ github.ref_name }}
-          RELEASE_SHA: ${{ github.sha }}
-          TAG_CREATED_AT: ${{ steps.tag.outputs.created_at }}
-          RELEASE_ASSET_DIR: ${{ runner.temp }}/release-evidence-source
-        run: |
-          python3 scripts/verify_release_evidence.py \
-            --archive "$RELEASE_ASSET_DIR/release-evidence.tar.gz" \
-            --source-root . \
-            --expected-tag "$RELEASE_TAG" \
-            --expected-commit "$RELEASE_SHA" \
-            --tag-created-at "$TAG_CREATED_AT" \
-            --output-dir release-evidence
+          VALIDATION_PROCESS_ROOT: ${{ github.workspace }}/.ci/spec-artifacts-process
+          VALIDATION_ISO_ROOT: ${{ github.workspace }}/.ci/spec-artifacts-iso
+          CARGO_PROFILE_DEV_DEBUG: "0"
+          CARGO_PROFILE_TEST_DEBUG: "0"
+          CARGO_INCREMENTAL: "0"
+          NPM_CONFIG_USERCONFIG: ${{ github.workspace }}/.npmrc
+        run: make -C source evidence
 
       - name: Retain verified evidence for the shared attestation workflow
         uses: actions/upload-artifact@v7
         with:
-          name: release-evidence
-          path: release-evidence/
+          name: ${{ inputs.evidence_artifact_name || 'release-evidence' }}
+          path: source/target/release-evidence/verified/
           if-no-files-found: error
 
   attest:
     needs: [release-artifacts, release-evidence]
+    if: >-
+      ${{ !cancelled() && startsWith(github.ref, 'refs/tags/v') &&
+          needs.release-evidence.result == 'success' &&
+          (needs.release-artifacts.result == 'success' || needs.release-artifacts.result == 'skipped') }}
     permissions:
       contents: read
       id-token: write
@@ -132,9 +151,9 @@ jobs:
     uses: agent-ix/engineering-assurance/.github/workflows/release-attestation.yml@v0.9.0
     with:
       tag: ${{ github.ref_name }}
-      ea_tooling_tag: v0.9.0
-      quoin_tooling_tag: 0.30.1
+      ea_tooling_tag: ${{ inputs.ea_tooling_tag || 'v0.9.0' }}
+      quoin_tooling_tag: ${{ inputs.quoin_tooling_tag || '0.36.10' }}
       record_path: ${{ vars.RELEASE_RECORD_PATH }}
       allowed_signers_path: ${{ vars.ALLOWED_SIGNERS_PATH }}
-      artifact_name: release-artifacts
-      evidence_artifact: release-evidence
+      artifact_name: ${{ inputs.release_artifact_name || 'release-artifacts' }}
+      evidence_artifact: ${{ inputs.evidence_artifact_name || 'release-evidence' }}

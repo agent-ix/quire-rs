@@ -2628,7 +2628,6 @@ mod tests {
         );
     }
 
-    #[trace("NFR-140-AC-3")]
     // trace_id_qualifiers merge across modules: an identical declaration is
     // deduplicated, while the same prefix for another repository, or two
     // overlapping prefixes, are refused rather than resolved by load order.

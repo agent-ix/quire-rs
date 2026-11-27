@@ -45,6 +45,6 @@ path.
 | TC-2258 | Parse `wheels.yml`; assert that `workflow_dispatch` has a `publish` input defaulting to `false`. |
 | TC-2259 | Parse `wheels.yml`; assert that `workflow_call` has a Boolean `publish` input defaulting to `false`. |
 | TC-2260 | Parse `wheels.yml`; assert that the publish job requires both `github.event_name == 'workflow_dispatch'` and `inputs.publish`. |
-| TC-2261 | Parse `tag-attestation.yml`; assert that its only trigger is `push` for `v*` tags. |
+| TC-2261 | Parse `tag-attestation.yml`; assert its direct `push` trigger is limited to `v*` tags and that `workflow_call` is its reusable entry. |
 | TC-2262 | Parse `tag-attestation.yml`; assert that its build job calls `wheels.yml` with `publish: false`. |
 | TC-2263 | Parse `tag-attestation.yml`; assert that its attest job calls the shared Engineering Assurance release-attestation workflow. |

@@ -6,6 +6,7 @@
 `tests/fixtures/semantic/cases.json`, as JSON values.
 """
 
+import copy
 import json
 from pathlib import Path
 
@@ -47,6 +48,142 @@ def test_extract_semantic_is_deterministic():
         second = quire.extract_semantic(case["input"])
         assert first == second, case["name"]
         assert [d["code"] for d in first["diagnostics"]] == [d["code"] for d in second["diagnostics"]]
+
+
+@pytest.mark.trace("FR-075-AC-20")
+def test_physical_model_unit_matches_rust_golden():
+    """The Python binding matches the Rust record for dimension and unit output."""
+    request = json.loads((FIXTURES / "physical-model-unit.input.json").read_text())
+    expected = json.loads((FIXTURES / "physical-model-unit.expected.json").read_text())
+    first = quire.extract_semantic(request)
+    second = quire.extract_semantic(request)
+    assert first == expected
+    assert second == expected
+
+
+@pytest.mark.trace(
+    "FR-075-AC-16",
+    "FR-075-AC-17",
+    "FR-075-AC-18",
+    "FR-075-AC-19",
+    "FR-075-AC-20",
+)
+def test_physical_model_cases_match_complete_rust_records():
+    """The Python binding matches the full Rust records for every physical-model case."""
+    cases = json.loads(
+        (FIXTURES / "physical-model-cases.input.json").read_text()
+    )["cases"]
+    expected = json.loads(
+        (FIXTURES / "physical-model-cases.expected.json").read_text()
+    )
+    assert len(cases) == len(expected)
+    for case in cases:
+        name = case["name"]
+        record = quire.extract_semantic(case["request"])
+        assert record == expected[name], name
+
+
+def _physical_request(section, columns, rows, objects=(), artifacts=()):
+    request = copy.deepcopy(
+        json.loads((FIXTURES / "physical-model-unit.input.json").read_text())
+    )
+    table = "| " + " | ".join(columns) + " |\n|" + "|".join("---" for _ in columns) + "|\n"
+    table += "".join("| " + " | ".join(row) + " |\n" for row in rows)
+    request["markdown"] = (
+        "---\nid: U-001\ntitle: Unit\nobject: unit\n---\n# U-001: Unit\n\n"
+        f"## {section}\n\n{table}"
+    )
+    feature = "dimension" if columns == ["Base"] else "terms" if "Exponent" in columns else "unit"
+    request["bodyExtraction"]["yield_pattern"]["match"] = {
+        feature: {
+            "from": "table_row",
+            "under_section": section,
+            "assert": {
+                "columns": columns,
+                "optional_columns": ["Target"] if "Target" in columns else [],
+            },
+        }
+    }
+    request["bundle"]["objects"] = list(objects)
+    request["bundle"]["artifacts"] = list(artifacts)
+    return request
+
+
+@pytest.mark.trace("FR-075-AC-16")
+def test_physical_dimension_record_matches_rust_behavior():
+    request = _physical_request("Basis", ["Base"], [["false"]])
+    record = quire.extract_semantic(request)
+    assert record["availability"]["model"]["state"] == "available"
+    assert record["model"]["dimension"]["base"] is False
+
+
+@pytest.mark.trace("FR-075-AC-17")
+def test_physical_terms_alias_duplicate_matches_rust_behavior():
+    objects = [
+        {"id": "D1", "names": ["Length"]},
+    ]
+    artifacts = [{"id": "D1", "object": "dimension", "operations": []}]
+    request = _physical_request(
+        "Powers",
+        ["Dimension", "Exponent"],
+        [["Length", "1"], ["D1", "2"]],
+        objects,
+        artifacts,
+    )
+    record = quire.extract_semantic(request)
+    assert record["availability"]["model"]["state"] == "unavailable"
+    assert "model" not in record
+    duplicate = next(
+        d for d in record["diagnostics"] if d["code"] == "semantic.duplicate-model-entry"
+    )
+    assert duplicate["line"] == 13
+
+
+@pytest.mark.trace("FR-075-AC-17")
+def test_physical_terms_large_exponent_matches_rust_behavior():
+    exponent = "9" * 5000
+    expected = 0
+    for offset in range(0, len(exponent), 9):
+        chunk = exponent[offset : offset + 9]
+        expected = expected * (10 ** len(chunk)) + int(chunk)
+    request = _physical_request(
+        "Powers",
+        ["Dimension", "Exponent"],
+        [["Length", exponent]],
+        [{"id": "Length", "names": ["Length"]}],
+        [{"id": "Length", "object": "dimension", "operations": []}],
+    )
+    record = quire.extract_semantic(request)
+    assert record["availability"]["model"]["state"] == "available"
+    assert record["model"]["terms"][0]["exponent"] == expected
+
+
+@pytest.mark.trace("FR-075-AC-18")
+def test_physical_unit_large_canonical_rational_matches_rust_behavior():
+    value = "100000000000000000000000000000000000001/3"
+    request = _physical_request(
+        "Scale", ["Dimension", "Target", "Scale", "Offset"], [["Time", "ms", value, "0"]],
+        [{"id": "Time", "names": ["Time"]}, {"id": "ms", "names": ["ms"]}],
+        [
+            {"id": "Time", "object": "dimension", "operations": []},
+            {"id": "ms", "object": "unit", "operations": []},
+        ],
+    )
+    record = quire.extract_semantic(request)
+    assert record["availability"]["model"]["state"] == "available"
+    assert record["model"]["unit"]["scale"] == value
+
+
+@pytest.mark.trace("FR-075-AC-19")
+def test_undeclared_physical_table_refusal_matches_rust_behavior():
+    request = _physical_request("Basis", ["Base"], [["true"]])
+    request["bodyExtraction"]["yield_pattern"]["match"] = {}
+    record = quire.extract_semantic(request)
+    assert record["availability"]["model"]["state"] == "unavailable"
+    assert any(
+        d["code"] == "semantic.feature-not-extractable" and d["reason"] == "dimension"
+        for d in record["diagnostics"]
+    )
 
 
 @pytest.mark.trace("FR-072-AC-6")

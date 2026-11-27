@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Package the single Terra SUITE-001 run for its signed release tag."""
+"""Package the single SUITE-001 run for its signed release tag."""
 # implements: FR-095-AC-4
 
 import argparse
@@ -9,6 +9,8 @@ import re
 import tarfile
 from datetime import datetime, timezone
 from pathlib import Path
+
+from release_evidence_validation import missing_required_release_bindings
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--source-root", type=Path, required=True)
@@ -64,6 +66,18 @@ run_store = json.loads(generated_bindings)
 for name, store in (("committed", base_store), ("generated", run_store)):
     if store.get("schemaVersion") != 1 or not isinstance(store.get("bindings"), list):
         parser.error(f"{name} bindings registry is not a schema-version-1 Quoin store")
+
+try:
+    missing_obligations = missing_required_release_bindings(
+        suite_registry.decode("utf-8"), run_store, run_record
+    )
+except ValueError as error:
+    parser.error(str(error))
+if missing_obligations:
+    parser.error(
+        "generated bindings lack required passing release evidence: "
+        + ", ".join(missing_obligations)
+    )
 
 bundle = args.archive.parent / "release-evidence-bundle"
 bundle.mkdir(parents=True, exist_ok=True)

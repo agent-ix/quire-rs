@@ -387,7 +387,6 @@ classes\n\
     assert!(result.is_valid, "expected valid, got: {:?}", result.errors);
 }
 
-#[trace("FR-035")]
 // a duplicate heading at the same level fails with (TC-544/547)
 // reason `duplicate-heading`, line-numbered at the second heading.
 #[test]
