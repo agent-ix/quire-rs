@@ -413,6 +413,7 @@ pub fn validate_document_in_indexed_bundle(
 /// checked against the registry's own vocabulary (FR-076): its `edge_types`
 /// and inverse index, and the `roles` and `allowed_links` of its active
 /// archetypes, and qualify under the caller's `bundle_package`.
+#[implements("NFR-002-AC-4")]
 fn semantic_findings(
     registry: &crate::Registry,
     arch: &CompiledArchetype,

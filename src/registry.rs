@@ -281,6 +281,7 @@ impl Registry {
         Ok(Self::from_shape(shape))
     }
 
+    #[implements("NFR-002-AC-4")]
     fn from_shape(shape: RegistryShape) -> Self {
         let RegistryShape {
             semantic_modules,
