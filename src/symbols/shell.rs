@@ -28,6 +28,7 @@
 //! inside a string, a heredoc, `$#`, `${#x}`, `${x#pat}` or a word is never a
 //! comment node, so none of them is ever a tag (AC-41).
 
+use ix_trace_rs::implements;
 use quire_code_extraction::tree_sitter::Node;
 use quire_code_extraction::{parse_file, Language};
 
@@ -54,6 +55,7 @@ struct Function {
     container: Option<String>,
 }
 
+#[implements("FR-051-AC-45")]
 pub(crate) fn parse(source: &str) -> Result<Parsed, String> {
     let parsed =
         parse_file(Language::Bash, "<source>", source).map_err(|e| format!("parse: {e}"))?;

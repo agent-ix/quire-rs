@@ -7,6 +7,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
+use ix_trace_rs::implements;
 use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::Diagnostic;
@@ -145,6 +146,7 @@ pub struct PlainLanguageReport {
 }
 
 /// Extract the source-located reader-visible block view from authored Markdown.
+#[implements("FR-074-AC-1", "FR-074-AC-2", "FR-074-AC-3")]
 pub fn reader_blocks(markdown: &str) -> Vec<ReaderBlock> {
     let fm = crate::parser::frontmatter::extract_frontmatter_ref(markdown);
     let body = fm.body;
@@ -422,6 +424,7 @@ fn profile_applies(profile: &PlainLanguageProfile, markdown: &str) -> bool {
         })
 }
 
+#[implements("FR-074-AC-4", "FR-074-AC-5", "FR-074-AC-6", "FR-074-AC-11")]
 fn check_blocks(
     path: &Path,
     blocks: &[ReaderBlock],

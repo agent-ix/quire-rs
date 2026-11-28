@@ -21,6 +21,7 @@
 
 use std::sync::OnceLock;
 
+use ix_trace_rs::implements;
 use regex::Regex;
 
 use super::ears::{abs_line, excerpt, locate_line, normalize};
@@ -107,6 +108,17 @@ fn bound_sections(archetype: &str) -> &'static [(&'static str, Option<&'static s
 /// Check `doc` against the requirement-quality pack.
 ///
 /// `ambiguous` is the merged module registry layered over `BUILTIN_AMBIGUOUS`.
+#[implements(
+    "FR-056-AC-1",
+    "FR-056-AC-2",
+    "FR-056-AC-4",
+    "FR-056-AC-5",
+    "FR-056-AC-6",
+    "FR-056-AC-9",
+    "FR-056-AC-10",
+    "FR-056-AC-11",
+    "FR-056-AC-12"
+)]
 pub fn check(
     archetype: &str,
     doc: &crate::ast::QuireDocument,

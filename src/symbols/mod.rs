@@ -640,6 +640,7 @@ fn read_pending(
 
 /// Extract one in-memory file — the unit-testable entry point, and what
 /// [`extract_tree`] calls per file.
+#[implements("FR-051-AC-47")]
 pub fn extract_file(path: &str, language: SourceLanguage, source: &str) -> SymbolExtraction {
     let mut out = SymbolExtraction::default();
     out.extend_with_file(path, language, source.to_string());

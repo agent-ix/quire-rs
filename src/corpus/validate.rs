@@ -240,6 +240,7 @@ pub(crate) fn posture_tier(posture: BundlePosture) -> GrammarSeverity {
 /// document root and the reference root are `root` — the shape for a
 /// self-contained bundle whose traceability model declares paths relative
 /// to the bundle itself.
+#[implements("FR-038-AC-7", "FR-038-AC-8")]
 pub fn validate_bundle_at(
     root: &Path,
     registry: &Registry,
