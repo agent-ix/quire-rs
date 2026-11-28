@@ -1,0 +1,15 @@
+---
+id: "EXAMPLE-PROCESSING_ACTIVITY"
+title: "Example Processing Activity"
+type: "processing_activity"
+role: "example_role"
+controller: "example_controller"
+home_regions: "example_home_regions"
+processor: "example_processor"
+joint_controllers: "example_joint_controllers"
+representative: "example_representative"
+dpo_contact: "example_dpo_contact"
+purposes: "example_purposes"
+data_subject_categories: "example_data_subject_categories"
+retention: "example_retention"
+---
