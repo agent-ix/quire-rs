@@ -11,6 +11,7 @@
 
 use std::collections::BTreeMap;
 
+use ix_trace_rs::implements;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -888,6 +889,7 @@ fn settle(diagnostics: &[SemanticDiagnostic], otherwise: KindAvailability) -> Ki
 }
 
 /// FR-076 over one document.
+#[implements("FR-076-CON-1", "FR-076-CON-2")]
 pub(crate) fn extract_relations(raw: &str, ctx: &SemanticContext) -> RelationsOutcome {
     let lines = lines(raw);
     let fm = crate::parser::frontmatter::extract_frontmatter_ref(raw);

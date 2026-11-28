@@ -126,6 +126,7 @@
 //! correctly, not as a deliberate optimisation — no benchmark exists for
 //! that site alone.
 
+use ix_trace_rs::implements;
 use quire_code_extraction::tree_sitter::Node;
 use quire_code_extraction::{parse_file, Language};
 
@@ -434,6 +435,7 @@ fn container_symbol(
 /// resolvable `name` field, which the grammar guarantees it always does for
 /// these two kinds — kept as a guard rather than a panic, matching this
 /// crate's no-panic-in-production-code convention.
+#[implements("FR-051-AC-32")]
 fn function_symbol(node: Node, source: &str, container: Option<String>) -> Option<RawSymbol> {
     let name = field_text(node, "name", source)?;
     let qualified_name = qualify(&container, &name);

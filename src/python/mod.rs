@@ -672,6 +672,7 @@ fn parse_document<'py>(py: Python<'py>, text: &str) -> PyResult<Bound<'py, PyDic
 /// Walk `root`, parse every markdown file, and return a list of
 /// `{path, id, uuid, doc}` dicts. The Rust walk runs with the GIL
 /// released (NFR-016).
+#[implements("FR-023-AC-5")]
 #[pyfunction]
 fn load_repo<'py>(py: Python<'py>, root: &str) -> PyResult<Bound<'py, PyList>> {
     let load = py.detach(|| {

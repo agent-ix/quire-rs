@@ -16,6 +16,8 @@ use std::ops::Range;
 use std::path::Path;
 use std::sync::Arc;
 
+use ix_trace_rs::implements;
+
 use crate::corpus::resolve::{ix_authority, resolve, Edge, Index};
 use crate::corpus::walk::{load_repo, LoadedDocument, RepoLoad};
 use crate::corpus::ArtifactId;
@@ -441,6 +443,7 @@ impl Spec {
     /// Look up a document by its artifact key (human `id`, else uuid,
     /// else path). O(1). Over a corpus of several members it answers only when
     /// exactly one member holds the id (FR-027).
+    #[implements("FR-027-AC-8")]
     pub fn by_id(&self, id: &str) -> Option<&LoadedDocument> {
         self.slot_of(id).map(|slot| self.doc(slot))
     }

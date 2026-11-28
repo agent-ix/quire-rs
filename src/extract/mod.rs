@@ -18,6 +18,7 @@ pub mod interpolate;
 pub mod locator;
 
 use indexmap::IndexMap;
+use ix_trace_rs::implements;
 use serde_json::{Map, Value};
 
 use crate::ast::{QuireDocument, QuireSection};
@@ -90,6 +91,7 @@ pub struct ExtractedEdge {
 }
 
 /// Evaluate `dsl` against `doc`.
+#[implements("FR-011-AC-5", "FR-016-AC-4")]
 pub fn extract(doc: &QuireDocument, dsl: &ExtractionDsl) -> Result<ExtractionResult, QuireError> {
     let mut diagnostics: Vec<Diagnostic> = Vec::new();
 

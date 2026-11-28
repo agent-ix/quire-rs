@@ -9,6 +9,7 @@
 use crate::corpus::resolve::{Edge, Resolution};
 use crate::corpus::spec::{artifact_key, artifact_type, Spec};
 use crate::corpus::walk::LoadedDocument;
+use ix_trace_rs::implements;
 
 impl Spec {
     /// Every document whose frontmatter `type` equals
@@ -63,6 +64,7 @@ impl Spec {
     /// Resolved edges whose target is `id` (reverse-edge lookup),
     /// sorted by source id. Dangling edges have no resolved target and
     /// never appear here.
+    #[implements("FR-027-AC-8")]
     pub fn referencing(&self, id: &str) -> Vec<&Edge> {
         let mut edges: Vec<&Edge> = self
             .slot_of(id)
@@ -140,6 +142,7 @@ impl Spec {
     ///
     /// `orphans("FR", "implements", Some("StR"))` → every FR with no
     /// resolved `implements` edge to a StR.
+    #[implements("FR-027-AC-8")]
     pub fn orphans(
         &self,
         of_type: &str,

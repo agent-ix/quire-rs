@@ -118,7 +118,7 @@ impl Registry {
     /// (same as [`from_env`](Registry::from_env)). Module and archetype
     /// name collisions surface as [`Diagnostic`]s, not errors —
     /// see [`load_strict`](Registry::load_strict) for the strict variant.
-    #[implements("FR-013-AC-4")]
+    #[implements("FR-013-AC-4", "FR-014-AC-5")]
     pub fn load_from(paths: &[&Path]) -> Result<Self, QuireError> {
         let outcome = load_modules(paths);
         Self::finish_tolerant(outcome)
@@ -198,6 +198,7 @@ impl Registry {
 
     /// Load from `IX_FILAMENT_MODULES_PATH` / `IX_SCHEMA_PATH` (then the
     /// default `~/.ix/filament/modules/`).
+    #[implements("FR-013-AC-2")]
     pub fn from_env() -> Result<Self, QuireError> {
         let outcome = load_modules(&[]);
         Self::finish_tolerant(outcome)
@@ -560,6 +561,7 @@ impl Registry {
 
     /// A named module profile. There is intentionally no default profile:
     /// absence means no plain-language policy was selected (FR-074-CON-2).
+    #[implements("FR-074-AC-8")]
     pub fn plain_language_profile(
         &self,
         id: &str,
