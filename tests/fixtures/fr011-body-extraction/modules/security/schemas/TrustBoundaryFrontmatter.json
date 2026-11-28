@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/TrustBoundaryFrontmatter.json",
+  "type": "object",
+  "properties": {
+    "trust_level": {
+      "type": "string",
+      "enum": [
+        "untrusted",
+        "semi_trusted",
+        "trusted",
+        "unknown"
+      ]
+    }
+  },
+  "required": [
+    "trust_level"
+  ],
+  "description": "Frontmatter keys authored on a trust-boundary document."
+}

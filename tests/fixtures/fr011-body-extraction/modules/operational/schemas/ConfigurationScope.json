@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-objects-operational/ConfigurationScope.json",
+  "type": "string",
+  "enum": [
+    "creation",
+    "runtime",
+    "session"
+  ],
+  "description": "When a configuration parameter takes effect. The same closed set the\n`configuration-scope` lint rule allows on the untyped `## Configuration`\ntable, so the typed and untyped forms cannot disagree."
+}

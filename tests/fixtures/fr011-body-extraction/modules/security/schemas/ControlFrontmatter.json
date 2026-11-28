@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/ControlFrontmatter.json",
+  "type": "object",
+  "properties": {
+    "safeguards": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "encrypt-in-transit",
+          "encrypt-at-rest",
+          "anonymize",
+          "pseudonymize",
+          "obtain-consent",
+          "restrict-region",
+          "validate-before-display"
+        ]
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "option_type": {
+      "type": "string",
+      "enum": [
+        "design",
+        "protective",
+        "information"
+      ]
+    }
+  },
+  "description": "Frontmatter keys authored on a control document."
+}

@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/MfaFactorKind.json",
+  "type": "string",
+  "enum": [
+    "knowledge",
+    "possession",
+    "inherence",
+    "unknown"
+  ],
+  "description": "Which authentication factor an MFA method is. `unknown` states that it was not classified."
+}

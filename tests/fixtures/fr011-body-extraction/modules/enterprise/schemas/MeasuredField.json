@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-objects-enterprise/MeasuredField.json",
+  "type": "object",
+  "properties": {
+    "type": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-enterprise/MeasuredTypeRef.json"
+    }
+  },
+  "required": [
+    "type"
+  ],
+  "description": "Open marker: a `FieldDecl` whose type carries a unit — the measure a KPI\ndefinition names. A dimensionless measure uses the UCUM unity symbol `1`, so\na count or a ratio satisfies this predicate without a dimensional unit."
+}

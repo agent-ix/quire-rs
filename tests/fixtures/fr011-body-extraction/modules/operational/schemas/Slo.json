@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-objects-operational/Slo.json",
+  "type": "object",
+  "properties": {
+    "fields": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/FieldDecl.json"
+      },
+      "minItems": 1,
+      "contains": {
+        "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-operational/MeasuredField.json"
+      }
+    },
+    "clauses": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/ClauseRef.json"
+      },
+      "minItems": 1
+    },
+    "target": {
+      "type": "string",
+      "description": "Kernel frontmatter form retained until Quire maps it into `objective`."
+    },
+    "window": {
+      "type": "string"
+    },
+    "objective": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-operational/ObjectiveDecl.json"
+    },
+    "constrains": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/SemanticId.json"
+      }
+    },
+    "dependsOn": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/SemanticId.json"
+      }
+    }
+  },
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "A service level objective: the promise made over an SLI.\n\n`clauses` is optional; the objective is an invariant over the\nindicator, expressed as a clause when present; `objective` carries the same promise in\ntyped form once the extractor populates it. `operations` is forbidden by the\nseal, and so is every consumed-budget or sample key.",
+  "allOf": [
+    {
+      "properties": {
+        "fields": {
+          "contains": {
+            "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-operational/OccurrenceField.json"
+          },
+          "minContains": 0,
+          "maxContains": 0
+        }
+      }
+    }
+  ]
+}

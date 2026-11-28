@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-objects-operational/FeedbackChannel.json",
+  "type": "object",
+  "properties": {
+    "name": {
+      "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/Identifier.json"
+    },
+    "owner": {
+      "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/SemanticId.json"
+    },
+    "doc": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "name",
+    "owner"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "One channel through which feedback on released software reaches the\nmaintainer. `owner` is the person or role accountable for reviewing what\narrives; the channel carries no severity or acceptability."
+}

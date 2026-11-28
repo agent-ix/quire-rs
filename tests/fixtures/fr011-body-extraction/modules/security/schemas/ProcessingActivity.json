@@ -1,0 +1,129 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/ProcessingActivity.json",
+  "type": "object",
+  "properties": {
+    "role": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/ProcessingRole.json"
+    },
+    "controller": {
+      "anyOf": [
+        {
+          "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/NonBlankText.json"
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/NonBlankText.json"
+          }
+        }
+      ]
+    },
+    "home_regions": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/RegionCode.json"
+      },
+      "minItems": 1
+    },
+    "processor": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/NonBlankText.json"
+    },
+    "joint_controllers": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/NonBlankText.json"
+      },
+      "minItems": 1
+    },
+    "representative": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/NonBlankText.json"
+    },
+    "dpo_contact": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/NonBlankText.json"
+    },
+    "purposes": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/NonBlankText.json"
+      },
+      "minItems": 1
+    },
+    "data_subject_categories": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/NonBlankText.json"
+      },
+      "minItems": 1
+    },
+    "retention": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/NonBlankText.json"
+    }
+  },
+  "required": [
+    "role",
+    "controller",
+    "home_regions"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "Processing activity declaration record; authored frontmatter is projected without defaults.",
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "role": {
+            "const": "controller"
+          }
+        },
+        "required": [
+          "role"
+        ]
+      },
+      "then": {
+        "properties": {
+          "controller": {
+            "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/NonBlankText.json"
+          }
+        },
+        "required": [
+          "purposes",
+          "data_subject_categories",
+          "retention"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "role": {
+            "const": "processor"
+          }
+        },
+        "required": [
+          "role"
+        ]
+      },
+      "then": {
+        "properties": {
+          "controller": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/NonBlankText.json"
+            }
+          }
+        },
+        "required": [
+          "processor"
+        ],
+        "not": {
+          "required": [
+            "joint_controllers"
+          ]
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/ThreatModel.json",
+  "type": "object",
+  "properties": {
+    "fields": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/FieldDecl.json"
+      },
+      "minItems": 1,
+      "contains": {
+        "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/IdentityField.json"
+      }
+    },
+    "clauses": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/ClauseRef.json"
+      }
+    },
+    "relations": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/RelationDecl.json"
+      }
+    },
+    "method": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/ThreatModelMethod.json"
+    },
+    "reviewed_by": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "required": [
+    "fields",
+    "method",
+    "reviewed_by"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "A scoped threat analysis a person wrote. `scopes` and `considers` are edges\nauthored in the document's relationships, not members here. There is no\ndefault for `method` or `reviewed_by`.",
+  "allOf": [
+    {
+      "properties": {
+        "fields": {
+          "items": {
+            "not": {
+              "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/DefaultedField.json"
+            }
+          }
+        }
+      }
+    }
+  ]
+}

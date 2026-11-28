@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-objects-operational/AlertCondition.json",
+  "type": "object",
+  "properties": {
+    "name": {
+      "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/Identifier.json"
+    },
+    "sli": {
+      "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/SemanticId.json"
+    },
+    "comparator": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-operational/Comparator.json"
+    },
+    "threshold": {
+      "type": "number"
+    },
+    "window": {
+      "type": "string",
+      "pattern": "^P(?!$)(\\d+Y)?(\\d+M)?(\\d+W)?(\\d+D)?(T(?=\\d)(\\d+H)?(\\d+M)?(\\d+(\\.\\d+)?S)?)?$"
+    },
+    "severity": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-operational/AlertSeverity.json"
+    }
+  },
+  "required": [
+    "name",
+    "sli",
+    "comparator",
+    "threshold",
+    "window",
+    "severity"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "One firing condition of an alert.\n\nReader rule JSON Schema cannot express (FR-004): `sli` names an `sli`\nartifact of the same bundle."
+}

@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/Impact.json",
+  "type": "string",
+  "enum": [
+    "negligible",
+    "minor",
+    "moderate",
+    "major",
+    "severe",
+    "unknown"
+  ],
+  "description": "What a realized risk costs. `unknown` states that it was not assessed."
+}

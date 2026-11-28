@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/RiskFrontmatter.json",
+  "type": "object",
+  "properties": {
+    "decision": {
+      "type": "string",
+      "enum": [
+        "undecided",
+        "accepted",
+        "not_accepted"
+      ]
+    }
+  },
+  "description": "Risk keys authored in frontmatter; other project metadata remains open."
+}

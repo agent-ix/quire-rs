@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/ControlMapping.json",
+  "type": "object",
+  "properties": {
+    "set": {
+      "type": "string",
+      "pattern": "^[!-.0-?A-~]{1,64}/[!-.0-?A-~]{1,64}@[!-.0-?A-~]{1,64}$"
+    },
+    "clause": {
+      "type": "string",
+      "pattern": "^[!-~]{1,64}$"
+    }
+  },
+  "required": [
+    "set",
+    "clause"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "One clause of one clause set that a control answers. `set` is the clause set\nkey `authority/id@version`; `clause` is the clause id inside it. Both are\nprintable ASCII, so the character limits are the byte limits. No other\nproperty is admitted, so a mapping can carry no text of a standard."
+}

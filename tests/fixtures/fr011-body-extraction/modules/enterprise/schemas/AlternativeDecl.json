@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-objects-enterprise/AlternativeDecl.json",
+  "type": "object",
+  "properties": {
+    "name": {
+      "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/Identifier.json"
+    },
+    "doc": {
+      "type": "string"
+    },
+    "rejected_because": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "name",
+    "doc",
+    "rejected_because"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "One alternative a decision rejected. Unique by `name` within `alternatives`."
+}

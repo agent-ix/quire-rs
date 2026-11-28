@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-objects-enterprise/ThresholdLevel.json",
+  "type": "string",
+  "enum": [
+    "alert",
+    "warning",
+    "breach"
+  ],
+  "description": "Alerting levels a KPI declaration may attach to a bound."
+}

@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/FlowStep.json",
+  "type": "object",
+  "properties": {
+    "name": {
+      "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/Identifier.json"
+    },
+    "actor": {
+      "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/Identifier.json"
+    },
+    "doc": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "name",
+    "actor"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "One exchange of an authentication flow, as a human-facing summary."
+}

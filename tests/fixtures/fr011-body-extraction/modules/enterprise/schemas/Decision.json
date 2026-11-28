@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-objects-enterprise/Decision.json",
+  "type": "object",
+  "properties": {
+    "clauses": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/ClauseRef.json"
+      },
+      "minItems": 1
+    },
+    "fields": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/FieldDecl.json"
+      }
+    },
+    "relations": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/RelationDecl.json"
+      }
+    },
+    "alternatives": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-enterprise/AlternativeDecl.json"
+      }
+    },
+    "owner": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-enterprise/OwnershipDecl.json"
+    },
+    "lifecycle": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-enterprise/LifecycleDecl.json"
+    },
+    "provenance": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-enterprise/ProvenanceDecl.json"
+    },
+    "audience": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string"
+    },
+    "updated": {
+      "type": "string",
+      "format": "date"
+    }
+  },
+  "required": [
+    "clauses"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "A decision: a commitment taken, stated as an asserted clause rather than as\nprose. `operations` is forbidden by the seal.",
+  "allOf": [
+    {
+      "properties": {
+        "relations": {
+          "items": {
+            "properties": {
+              "verb": {
+                "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-enterprise/DecisionVerb.json"
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

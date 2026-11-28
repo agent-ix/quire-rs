@@ -139,6 +139,7 @@ spec-objects-architecture-fixture = { path = "crates/spec-objects-architecture-f
 tempfile = "^3"
 proptest = "^1"
 criterion = "^0.5"
+sha2 = "^0.10"
 # Concurrency-permutation harness (NFR-017). Only compiled under
 # `--cfg loom`; the scheduled `make loom` lane sets that flag. Models the
 # FR-024 data-parallel collect abstractly (loom cannot model rayon).

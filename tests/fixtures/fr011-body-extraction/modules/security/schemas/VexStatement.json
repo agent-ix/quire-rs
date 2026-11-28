@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/VexStatement.json",
+  "type": "object",
+  "properties": {
+    "advisory": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/NonBlankText.json"
+    },
+    "status": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/VexStatus.json"
+    },
+    "assessed_by": {
+      "type": "string",
+      "pattern": "\\S"
+    },
+    "assessed_at": {
+      "type": "string",
+      "pattern": "^([0-9]{4}-(0[13578]|1[02])-(0[1-9]|[12][0-9]|3[01])|[0-9]{4}-(0[469]|11)-(0[1-9]|[12][0-9]|30)|[0-9]{4}-02-(0[1-9]|1[0-9]|2[0-8])|([0-9]{2}(0[48]|[2468][048]|[13579][26])|([02468][048]|[13579][26])00)-02-29)$"
+    },
+    "justification": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/VexJustification.json"
+    },
+    "action_statement": {
+      "type": "string",
+      "pattern": "\\S"
+    },
+    "impact_statement": {
+      "type": "string"
+    },
+    "evidence_refs": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/SemanticId.json"
+      }
+    }
+  },
+  "required": [
+    "advisory",
+    "status",
+    "assessed_by",
+    "assessed_at"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "One person-authored VEX statement about an advisory and a SOUP component.",
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "not_affected"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "required": [
+          "justification"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "affected"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "required": [
+          "action_statement"
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-objects-enterprise/OwnershipDecl.json",
+  "type": "object",
+  "properties": {
+    "owner": {
+      "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/SemanticId.json"
+    },
+    "steward": {
+      "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/SemanticId.json"
+    }
+  },
+  "required": [
+    "owner"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "Who owns a declaration.\n\nDeliberately carries no role name, no score and no rating: the organizational\nrole vocabulary is corpus-review evidence this module does not have\n(FR-004-CON-3, the ticket's safety gate)."
+}

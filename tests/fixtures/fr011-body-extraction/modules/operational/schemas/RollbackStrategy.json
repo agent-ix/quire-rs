@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-objects-operational/RollbackStrategy.json",
+  "type": "string",
+  "enum": [
+    "reversible",
+    "forward_only",
+    "compensating"
+  ],
+  "description": "How a migration can be undone."
+}

@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/AnomalyOrigin.json",
+  "type": "string",
+  "enum": [
+    "internal-test",
+    "field",
+    "complaint",
+    "soup-advisory"
+  ],
+  "description": "Where an anomaly was found. It is an observation of provenance, not a\ngrade: it carries no severity and decides no acceptability."
+}

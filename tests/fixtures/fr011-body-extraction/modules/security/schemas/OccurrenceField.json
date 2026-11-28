@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/OccurrenceField.json",
+  "type": "object",
+  "properties": {
+    "type": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/OccurrenceTypeRef.json"
+    }
+  },
+  "required": [
+    "type"
+  ],
+  "description": "A `FieldDecl` whose type targets `Timestamp` — the occurrence time an audit event declaration must carry."
+}

@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/Severity.json",
+  "type": "string",
+  "enum": [
+    "none",
+    "low",
+    "medium",
+    "high",
+    "critical",
+    "unknown"
+  ],
+  "description": "How bad a vulnerability is. `unknown` states that it was not assessed."
+}

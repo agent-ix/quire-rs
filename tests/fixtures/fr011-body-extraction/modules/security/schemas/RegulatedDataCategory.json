@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/RegulatedDataCategory.json",
+  "type": "string",
+  "enum": [
+    "health",
+    "personal",
+    "financial"
+  ],
+  "description": "The regulated kind of data a classification covers. The set is closed and has\nno unassessed member: an absent `regulatedCategories` already means no\ncategory was stated. `health` does not imply `personal`; each is stated."
+}

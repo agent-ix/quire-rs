@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-objects-enterprise/TemporalField.json",
+  "type": "object",
+  "properties": {
+    "type": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-enterprise/TemporalTypeRef.json"
+    }
+  },
+  "required": [
+    "type"
+  ],
+  "description": "Open marker: a `FieldDecl` whose type targets `Timestamp`. Required at least\nonce by `Objective` (the horizon) and forbidden entirely by `Kpi` (it would\nbe the instant of a reading)."
+}

@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-objects-enterprise/Objective.json",
+  "type": "object",
+  "properties": {
+    "metric": {
+      "type": "string",
+      "description": "Note-level summary; semantic goals are carried by typed targets."
+    },
+    "target": {
+      "type": "string",
+      "description": "Note-level summary; semantic goals are carried by typed targets."
+    },
+    "deadline": {
+      "type": "string",
+      "description": "Note-level time summary; the typed horizon remains a Timestamp field."
+    },
+    "fields": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/FieldDecl.json"
+      },
+      "minItems": 1,
+      "contains": {
+        "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-enterprise/IdentityField.json"
+      }
+    },
+    "clauses": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/ClauseRef.json"
+      },
+      "minItems": 1
+    },
+    "relations": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/RelationDecl.json"
+      }
+    },
+    "targets": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-enterprise/TargetDecl.json"
+      }
+    },
+    "owner": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-enterprise/OwnershipDecl.json"
+    },
+    "lifecycle": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-enterprise/LifecycleDecl.json"
+    },
+    "provenance": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-enterprise/ProvenanceDecl.json"
+    },
+    "audience": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string"
+    },
+    "updated": {
+      "type": "string",
+      "format": "date"
+    }
+  },
+  "required": [
+    "fields",
+    "clauses"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "An objective: a time-bound commitment measured against a KPI definition.\n\nIts `fields` carry an identity and a horizon, expressed as a second\n`contains` predicate through `allOf` because JSON Schema admits one\n`contains` per array. `measure` is absent by intent: an objective references\na measure definition through `targets[].measure` and never declares one.",
+  "allOf": [
+    {
+      "properties": {
+        "fields": {
+          "contains": {
+            "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-enterprise/TemporalField.json"
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "relations": {
+          "items": {
+            "properties": {
+              "verb": {
+                "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-enterprise/ObjectiveVerb.json"
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/ControlEffectiveness.json",
+  "type": "string",
+  "enum": [
+    "not_assessed",
+    "ineffective",
+    "partially_effective",
+    "effective"
+  ],
+  "description": "How well a control works. `not_assessed` is both the unassessed member and\nthe least-granting one: no schema may supply any other value implicitly."
+}

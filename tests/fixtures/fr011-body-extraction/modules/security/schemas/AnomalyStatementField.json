@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/AnomalyStatementField.json",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "const": "statement"
+    },
+    "type": {
+      "type": "object",
+      "properties": {
+        "target": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "KernelScalar"
+            },
+            "value": {
+              "type": "string",
+              "const": "String"
+            }
+          },
+          "required": [
+            "kind",
+            "value"
+          ]
+        }
+      },
+      "required": [
+        "target"
+      ]
+    },
+    "constraints": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/ConstraintDecl.json"
+      },
+      "contains": {
+        "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/StatementMinLengthConstraint.json"
+      }
+    }
+  },
+  "required": [
+    "name",
+    "type",
+    "constraints"
+  ],
+  "description": "A `FieldDecl` named `statement`, typed as String and constrained to minLength 1."
+}

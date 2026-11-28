@@ -1,0 +1,297 @@
+manifest_version: 1.0.0
+name: spec-objects-enterprise
+version: 0.2.0
+description: 'Filament Module: tier-2 enterprise-architecture ObjectTypes (capability, business_function, value_stream, decision, objective, principle, kpi)'
+depends_on:
+- name: spec-artifacts-iso
+  version_range: ^0.3.0
+semantic:
+  contract_version: 1.0.0
+  package: agent-ix/spec-objects-enterprise
+  exports:
+  - capability
+  - business_function
+  - value_stream
+  - decision
+  - objective
+  - principle
+  - kpi
+  imports: {}
+  targets: [json-schema, markdown]
+  mappings: [typed-table, sysml-fence, ocl-clause, relationships]
+  compatibility_posture: additive
+  legacy_forms: warning
+nav:
+  category:
+    slug: enterprise-architecture
+    label: Enterprise Architecture
+    icon: Building2
+    order: 50
+archetypes: []
+grammars: []
+artifact_types: []
+lint_rules: []
+object_types:
+- name: capability
+  roles: [business-intent, measurable]
+  allowed_links:
+    decomposes: [capability]
+    realizes: [business_function]
+    depends_on: [capability]
+    references: [principle]
+  data_schema:
+    schema: schemas/Capability.json
+  body_extraction:
+    yield_pattern:
+      match:
+        id: &id001
+          from: frontmatter_field
+          path:
+          - id
+          required: true
+        title: &id002
+          from: frontmatter_field
+          path:
+          - title
+          required: true
+        type: &id003
+          from: frontmatter_field
+          path:
+          - type
+          required: true
+        sub_capabilities:
+          from: section_body
+          after_heading: Sub-capabilities
+          required: true
+        properties:
+          from: section_body
+          after_heading: Properties
+          required: false
+        invariants:
+          from: section_body
+          after_heading: Invariants
+          required: false
+        relationships:
+          from: table_row
+          under_section: Relationships
+          required: false
+          assert:
+            columns: [Name, Verb, Target, Multiplicity]
+- name: business_function
+  roles: [business-intent]
+  allowed_links:
+    supports: [value_stream]
+    realizes: [capability]
+    references: [business_function]
+  data_schema:
+    schema: schemas/BusinessFunction.json
+  body_extraction:
+    yield_pattern:
+      match:
+        id: *id001
+        title: *id002
+        type: *id003
+        description_body:
+          from: section_body
+          after_heading: Description
+          required: true
+        properties:
+          from: section_body
+          after_heading: Properties
+          required: false
+        invariants:
+          from: section_body
+          after_heading: Invariants
+          required: false
+        relationships:
+          from: table_row
+          under_section: Relationships
+          required: false
+          assert:
+            columns: [Name, Verb, Target, Multiplicity]
+        operations:
+          from: section_body
+          after_heading: Operations
+          required: false
+- name: value_stream
+  roles: [business-intent, measurable]
+  allowed_links:
+    contains: [business_function]
+  data_schema:
+    schema: schemas/ValueStream.json
+  body_extraction:
+    yield_pattern:
+      match:
+        id: *id001
+        title: *id002
+        type: *id003
+        stages:
+          from: table_row
+          under_section: Stages
+          required: true
+          assert:
+            columns: [Stage ID, Order, Name, Value]
+        stage_capability_bindings:
+          from: table_row
+          under_section: Stage Capability Bindings
+          required: false
+          assert:
+            columns: [Stage ID, Capability, Process]
+        stage_outcomes:
+          from: table_row
+          under_section: Stage Outcomes
+          required: false
+          assert:
+            columns: [Stage ID, Outcome ID, Name, Description]
+        properties:
+          from: section_body
+          after_heading: Properties
+          required: false
+        invariants:
+          from: section_body
+          after_heading: Invariants
+          required: false
+        relationships:
+          from: table_row
+          under_section: Relationships
+          required: false
+          assert:
+            columns: [Name, Verb, Target, Multiplicity]
+- name: decision
+  allowed_links:
+    references: [objective, principle, capability]
+    supersedes: [decision]
+    constrains: [capability]
+  data_schema:
+    schema: schemas/Decision.json
+  body_extraction:
+    yield_pattern:
+      match:
+        id: *id001
+        title: *id002
+        type: *id003
+        decision_body:
+          from: section_body
+          after_heading: Decision
+          required: true
+        properties:
+          from: section_body
+          after_heading: Properties
+          required: false
+        invariants:
+          from: section_body
+          after_heading: Invariants
+          required: false
+        relationships:
+          from: table_row
+          under_section: Relationships
+          required: false
+          assert:
+            columns: [Name, Verb, Target, Multiplicity]
+- name: objective
+  roles: [measurable]
+  allowed_links:
+    supports: [objective]
+    references: [kpi, capability]
+  data_schema:
+    schema: schemas/Objective.json
+  body_extraction:
+    yield_pattern:
+      match:
+        id: *id001
+        title: *id002
+        type: *id003
+        metric:
+          from: frontmatter_field
+          path:
+          - metric
+          required: true
+        target:
+          from: frontmatter_field
+          path:
+          - target
+          required: true
+        deadline:
+          from: frontmatter_field
+          path:
+          - deadline
+          required: false
+        properties:
+          from: section_body
+          after_heading: Properties
+          required: false
+        invariants:
+          from: section_body
+          after_heading: Invariants
+          required: false
+        relationships:
+          from: table_row
+          under_section: Relationships
+          required: false
+          assert:
+            columns: [Name, Verb, Target, Multiplicity]
+- name: principle
+  allowed_links:
+    governs: ["*"]
+  data_schema:
+    schema: schemas/Principle.json
+  body_extraction:
+    yield_pattern:
+      match:
+        id: *id001
+        title: *id002
+        type: *id003
+        rationale:
+          from: section_body
+          after_heading: Rationale
+          required: true
+        invariants:
+          from: section_body
+          after_heading: Invariants
+          required: false
+        relationships:
+          from: table_row
+          under_section: Relationships
+          required: false
+          assert:
+            columns: [Name, Verb, Target, Multiplicity]
+- name: kpi
+  allowed_links:
+    measures: [measurable]
+  data_schema:
+    schema: schemas/Kpi.json
+  body_extraction:
+    yield_pattern:
+      match:
+        id: *id001
+        title: *id002
+        type: *id003
+        metric:
+          from: frontmatter_field
+          path:
+          - metric
+          required: true
+        target:
+          from: frontmatter_field
+          path:
+          - target
+          required: true
+        threshold:
+          from: frontmatter_field
+          path:
+          - threshold
+          required: false
+        properties:
+          from: section_body
+          after_heading: Properties
+          required: false
+        invariants:
+          from: section_body
+          after_heading: Invariants
+          required: false
+        relationships:
+          from: table_row
+          under_section: Relationships
+          required: false
+          assert:
+            columns: [Name, Verb, Target, Multiplicity]

@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-objects-operational/EvidenceRef.json",
+  "type": "object",
+  "properties": {
+    "shape": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-operational/EvidenceRecordShape.json"
+    },
+    "record": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-operational/EvidenceRecordId.json"
+    },
+    "doc": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "shape",
+    "record"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "A reference into the operational evidence record family that quoin FR-059 defines\n(`agent-ix/quoin#267` is its closed epic).\n\nThis is the module's single canonical mapping to that family: `Incident`\ndeclares `evidence` and no other model does, and no model redeclares any\nfield of the referenced record. An incompatibility with that programme is\nresolved by changing this reference, never by minting a second record family\nhere."
+}

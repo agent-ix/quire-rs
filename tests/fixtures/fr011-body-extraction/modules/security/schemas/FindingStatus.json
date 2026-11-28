@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/FindingStatus.json",
+  "type": "string",
+  "enum": [
+    "open",
+    "in_remediation",
+    "remediated",
+    "risk_accepted",
+    "false_positive",
+    "unknown"
+  ],
+  "description": "Where an audit finding stands. `unknown` states that it was not triaged."
+}

@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-objects-operational/EvidenceRecordShape.json",
+  "type": "string",
+  "enum": [
+    "standing_capability",
+    "exercise"
+  ],
+  "description": "The shape of the operational evidence record an incident references.\n\nThis is quoin FR-059's `record_shape` enum, copied as a *correspondence*\nrather than invented here: a reference whose vocabulary does not match the\nreferenced family cannot name a real record. FR-059 owns the values; a\nchange there is a breaking change to this module."
+}

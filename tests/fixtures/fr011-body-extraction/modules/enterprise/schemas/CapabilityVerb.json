@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-objects-enterprise/CapabilityVerb.json",
+  "type": "string",
+  "enum": [
+    "decomposes",
+    "realizes",
+    "depends_on",
+    "references"
+  ],
+  "description": "Relation verbs a `capability` declaration may use."
+}

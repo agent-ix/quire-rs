@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-objects-enterprise/ValueStreamVerb.json",
+  "type": "string",
+  "enum": [
+    "contains"
+  ],
+  "description": "Relation verbs a `value_stream` declaration may use."
+}

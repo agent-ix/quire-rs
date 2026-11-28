@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-objects-operational/MeasuredField.json",
+  "type": "object",
+  "properties": {
+    "type": {
+      "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-operational/UnitTypeRef.json"
+    }
+  },
+  "required": [
+    "type"
+  ],
+  "description": "Open marker: a `FieldDecl` whose type carries a unit — the typed measurement\nan SLI or SLO declares. Used as a `@contains` predicate."
+}

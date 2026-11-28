@@ -1,0 +1,142 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/ProcessingActivityFrontmatter.json",
+  "type": "object",
+  "properties": {
+    "role": {
+      "type": "string",
+      "enum": [
+        "controller",
+        "processor"
+      ]
+    },
+    "controller": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      ]
+    },
+    "home_regions": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^([A-Z]{2}|eu|eea)$"
+      },
+      "minItems": 1
+    },
+    "processor": {
+      "type": "string",
+      "minLength": 1
+    },
+    "joint_controllers": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 1
+    },
+    "representative": {
+      "type": "string",
+      "minLength": 1
+    },
+    "dpo_contact": {
+      "type": "string",
+      "minLength": 1
+    },
+    "purposes": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 1
+    },
+    "data_subject_categories": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 1
+    },
+    "retention": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "required": [
+    "role",
+    "controller",
+    "home_regions"
+  ],
+  "description": "Person-authored context for one covered processing activity (FR-028).",
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "role": {
+            "const": "controller"
+          }
+        },
+        "required": [
+          "role"
+        ]
+      },
+      "then": {
+        "properties": {
+          "controller": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "purposes",
+          "data_subject_categories",
+          "retention"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "role": {
+            "const": "processor"
+          }
+        },
+        "required": [
+          "role"
+        ]
+      },
+      "then": {
+        "properties": {
+          "controller": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "required": [
+          "processor"
+        ],
+        "not": {
+          "required": [
+            "joint_controllers"
+          ]
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/Likelihood.json",
+  "type": "string",
+  "enum": [
+    "rare",
+    "unlikely",
+    "possible",
+    "likely",
+    "almost_certain",
+    "unknown"
+  ],
+  "description": "How likely a risk is to be realized. `unknown` states that it was not assessed."
+}

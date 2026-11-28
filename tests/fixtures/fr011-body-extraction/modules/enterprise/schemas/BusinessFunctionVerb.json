@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-objects-enterprise/BusinessFunctionVerb.json",
+  "type": "string",
+  "enum": [
+    "supports",
+    "realizes",
+    "references"
+  ],
+  "description": "Relation verbs a `business_function` declaration may use."
+}

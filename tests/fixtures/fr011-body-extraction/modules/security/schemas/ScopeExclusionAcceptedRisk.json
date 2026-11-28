@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-objects-security/ScopeExclusionAcceptedRisk.json",
+  "type": "object",
+  "properties": {
+    "set": {
+      "type": "string",
+      "pattern": "^[!-.0-?A-~]{1,64}/[!-.0-?A-~]{1,64}@[!-.0-?A-~]{1,64}$"
+    },
+    "clause": {
+      "type": "string",
+      "pattern": "^[!-~]{1,64}$"
+    },
+    "responsible": {
+      "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/SemanticId.json"
+    },
+    "rationale": {
+      "type": "string",
+      "pattern": "\\S"
+    },
+    "decision": {
+      "type": "string",
+      "const": "accepted_risk"
+    },
+    "decision_owner": {
+      "$ref": "https://schemas.agent-ix.org/semantic-core/0.4.4/SemanticId.json"
+    },
+    "approval_ref": {
+      "type": "string",
+      "pattern": "\\S"
+    },
+    "expires_at": {
+      "not": {}
+    }
+  },
+  "required": [
+    "set",
+    "clause",
+    "responsible",
+    "rationale",
+    "decision",
+    "decision_owner",
+    "approval_ref"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "An accepted risk disposition without an expiry."
+}
