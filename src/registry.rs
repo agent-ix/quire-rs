@@ -118,6 +118,7 @@ impl Registry {
     /// (same as [`from_env`](Registry::from_env)). Module and archetype
     /// name collisions surface as [`Diagnostic`]s, not errors —
     /// see [`load_strict`](Registry::load_strict) for the strict variant.
+    #[implements("FR-013-AC-4")]
     pub fn load_from(paths: &[&Path]) -> Result<Self, QuireError> {
         let outcome = load_modules(paths);
         Self::finish_tolerant(outcome)
