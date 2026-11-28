@@ -1593,6 +1593,7 @@ fn merge_edge_types(modules: &[LoadedModule]) -> (BTreeMap<String, EdgeTypeDef>,
 /// with a *differing* body, the contributing module names (the original
 /// winner followed by each conflicting module) for a Duplicate
 /// diagnostic. Identical re-declarations are silently idempotent.
+#[implements("FR-074-AC-8")]
 fn merge_vocab<V: Clone + PartialEq>(
     modules: &[LoadedModule],
     pick: impl Fn(&LoadedModule) -> &BTreeMap<String, V>,

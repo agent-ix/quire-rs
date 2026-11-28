@@ -91,7 +91,7 @@ pub struct ExtractedEdge {
 }
 
 /// Evaluate `dsl` against `doc`.
-#[implements("FR-011-AC-5")]
+#[implements("FR-011-AC-5", "FR-016-AC-4")]
 pub fn extract(doc: &QuireDocument, dsl: &ExtractionDsl) -> Result<ExtractionResult, QuireError> {
     let mut diagnostics: Vec<Diagnostic> = Vec::new();
 

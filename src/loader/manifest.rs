@@ -26,6 +26,7 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
+use ix_trace_rs::implements;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
@@ -611,6 +612,7 @@ impl Archetype {
 ///
 /// Returns the typed [`Manifest`] or a `String` error message suitable
 /// for wrapping in `QuireError::ManifestError`.
+#[implements("FR-074-AC-7")]
 pub fn parse_manifest(bytes: &[u8]) -> Result<Manifest, String> {
     let (mut manifest, section_errors) = deserialize_manifest(bytes)?;
     note_explicit_nulls(bytes, &mut manifest)?;
