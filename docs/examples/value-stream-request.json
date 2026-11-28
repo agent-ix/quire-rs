@@ -1,0 +1,52 @@
+{
+  "markdown": "---\nid: VS-001\ntitle: Order Value Stream\nobject: value_stream\n---\n# Order Value Stream\n\n## Stages\n\n| Stage ID | Order | Name | Value |\n|---|---:|---|---|\n| intake | 1 | Intake | Capture the request |\n| fulfilment | 2 | Fulfilment | Deliver the order |\n\n## Stage Capability Bindings\n\n| Stage ID | Capability | Process |\n|---|---|---|\n| fulfilment | Order fulfilment | Fulfil Orders |\n\n## Stage Outcomes\n\n| Stage ID | Outcome ID | Name | Description |\n|---|---|---|---|\n| intake | delivered | Delivered | Intake is accepted |\n| fulfilment | delivered | Delivered | Order reaches the customer |\n",
+  "module": {
+    "contractVersion": "1.0.0",
+    "package": "agent-ix/spec-objects-fixture",
+    "exports": ["value_stream"]
+  },
+  "path": "spec/value-streams/VS-001.md",
+  "sourceIdentity": "ix://agent-ix/shop/spec",
+  "bundle": {
+    "package": "agent-ix/shop",
+    "objects": [
+      {"id": "CAP-001", "names": ["Order fulfilment"]},
+      {"id": "PROC-001", "names": ["Fulfil Orders"]}
+    ],
+    "artifacts": [
+      {"id": "CAP-001", "object": "capability", "operations": []},
+      {"id": "PROC-001", "object": "process", "operations": []}
+    ]
+  },
+  "bodyExtraction": {
+    "yield_pattern": {
+      "match": {
+        "stages": {
+          "from": "table_row",
+          "under_section": "Stages",
+          "assert": {"columns": ["Stage ID", "Order", "Name", "Value"], "optional_columns": []}
+        },
+        "stage_capability_bindings": {
+          "from": "table_row",
+          "under_section": "Stage Capability Bindings",
+          "assert": {"columns": ["Stage ID", "Capability", "Process"], "optional_columns": []}
+        },
+        "stage_outcomes": {
+          "from": "table_row",
+          "under_section": "Stage Outcomes",
+          "assert": {"columns": ["Stage ID", "Outcome ID", "Name", "Description"], "optional_columns": []}
+        }
+      }
+    }
+  },
+  "relationVocabulary": {
+    "objectType": "value_stream",
+    "roles": {},
+    "allowedLinks": {
+      "value_stream": {
+        "capability": ["capability"],
+        "process": ["process"]
+      }
+    }
+  }
+}

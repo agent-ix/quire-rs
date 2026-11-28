@@ -1,0 +1,45 @@
+{
+  "markdown": "---\nid: WF-1\nobject: Workflow\n---\n\n## Steps/Items\n| Name | Receiver~Primary |\n| --- | --- |\n| first | PR-1 |\n| second | PR-2 |\n",
+  "module": {
+    "contractVersion": "1.0.0",
+    "package": "acme/work",
+    "exports": [],
+    "mappings": ["record-sections"]
+  },
+  "path": "workflow.md",
+  "sourceIdentity": "ix://acme/work/WF-1",
+  "dataSchema": {
+    "$id": "https://example.test/Workflow.json",
+    "type": "object",
+    "properties": {
+      "Steps/Items": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "name": {"type": "string"},
+            "receiver~primary": {
+              "$ref": "https://schemas.agent-ix.org/semantic-core/0.1.0/SemanticId.json"
+            }
+          }
+        }
+      }
+    }
+  },
+  "schemaDocuments": {},
+  "bundle": {
+    "package": "acme/work",
+    "artifacts": [
+      {"id": "WF-1", "object": "Workflow", "operations": []},
+      {"id": "PR-1", "object": "Principal", "operations": []},
+      {"id": "PR-2", "object": "Principal", "operations": []}
+    ]
+  },
+  "relationVocabulary": {
+    "objectType": "Workflow",
+    "edgeTypes": {},
+    "roles": {},
+    "allowedLinks": {"Workflow": {"receiver~primary": ["Principal"]}}
+  },
+  "objectType": "Workflow"
+}

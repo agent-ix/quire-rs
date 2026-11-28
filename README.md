@@ -103,6 +103,9 @@ and as **WebAssembly**.
 
 ## Install & use
 
+See the [how-to guides](docs/index.md) for examples of semantic extraction,
+traceability, and Python binding output.
+
 **Rust crate** — add it as a dependency:
 
 ```toml
