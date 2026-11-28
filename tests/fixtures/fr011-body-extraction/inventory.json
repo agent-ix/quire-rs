@@ -847,12 +847,6 @@
       "source_path": "tests/fixtures/negative/type-token-not-identifier.md"
     },
     {
-      "path": "modules/security/documents/corporate-governance/wrong-target/policy.md",
-      "role": "document",
-      "sha256": "29bab098ea943baa1134a1331a7598703d998b6d2f72fc27863eb6698c5de720",
-      "source_path": "tests/fixtures/corporate-governance/wrong-target/policy.md"
-    },
-    {
       "path": "modules/security/documents/flow_rules/health-across-untrusted-boundary/fail/spec/BOUND-001.md",
       "role": "document",
       "sha256": "5bab39825d1d97191d88c1f1a5c155a47ce60a76322938976dca2ae24b7f670d",
@@ -3463,12 +3457,6 @@
       "role": "schema",
       "sha256": "922eed913ab4c2994fb5d19f2463c5846e8b6ceba551a59458158181dfc44795",
       "source_path": "spec_objects_security/schemas/VulnerabilityStatus.json"
-    },
-    {
-      "path": "modules/security/documents/corporate-governance/wrong-target/policy.md",
-      "role": "document",
-      "sha256": "29bab098ea943baa1134a1331a7598703d998b6d2f72fc27863eb6698c5de720",
-      "source_path": "tests/fixtures/corporate-governance/wrong-target/policy.md"
     },
     {
       "path": "modules/security/documents/flow_rules/health-across-untrusted-boundary/fail/spec/BOUND-001.md",
@@ -8707,7 +8695,6 @@
       "dsl_sha256_canonical_yaml": "777b24402dbdb46476cfe23d871d8f2892cf9fd81a4e02882c830460f6c82922",
       "fixture_status": "mapped",
       "fixtures": [
-        "modules/security/documents/corporate-governance/wrong-target/policy.md",
         "modules/security/documents/negative/policy-no-clauses.md"
       ],
       "generated_fixture": null,
