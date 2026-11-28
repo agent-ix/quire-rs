@@ -4039,6 +4039,438 @@
       "role": "generated_document",
       "sha256": "19704a81309d366a5bc3b25ee1903f83b711e5a8194a148841382cd2feeb4433",
       "source_path": "generated-from:agent-ix/spec-objects-security@817ae0e04e30e600ee3aaf8a47367c5d66573b50:spec_objects_security/manifest.yaml#vulnerability.body_extraction"
+    },
+    {
+      "path": "modules/architecture/generated/parity_action.md",
+      "source_path": "generated-from:parity-inputs.json#architecture::action",
+      "sha256": "294d1e26bcf9448e67dc6fd545bd88c308b4c7d1d6576b24e596f642df907e6a",
+      "role": "generated_document"
+    },
+    {
+      "path": "modules/architecture/generated/parity_allocation.md",
+      "source_path": "generated-from:parity-inputs.json#architecture::allocation",
+      "sha256": "bbd7f29a17a97988a0847227a75ea4d9088cb28c0565dce7ec54292bd5d0a8f1",
+      "role": "generated_document"
+    },
+    {
+      "path": "modules/architecture/generated/parity_api_endpoint.md",
+      "source_path": "generated-from:parity-inputs.json#architecture::api_endpoint",
+      "sha256": "1dc795f011bbbdd975dc632fa8633b724af1379515e488ef4e9c7cc2d407cd87",
+      "role": "generated_document"
+    },
+    {
+      "path": "modules/architecture/generated/parity_binary_format.md",
+      "source_path": "generated-from:parity-inputs.json#architecture::binary_format",
+      "sha256": "b8cfbecc3b3d59b27bc2e2674794833b3c32f36916ff24d86837169d2dc806af",
+      "role": "generated_document"
+    },
+    {
+      "path": "modules/architecture/generated/parity_connection.md",
+      "source_path": "generated-from:parity-inputs.json#architecture::connection",
+      "sha256": "9863960251bc9d9272e2ab5ef0e9a3f53633784ab909af351349ae0b8c95706c",
+      "role": "generated_document"
+    },
+    {
+      "path": "modules/architecture/generated/parity_data_schema.md",
+      "source_path": "generated-from:parity-inputs.json#architecture::data_schema",
+      "sha256": "4fc19e2ce4d28e3136177a8b62879f5d69c1000a1209cc8ba3abfc2f4c7dc14d",
+      "role": "generated_document"
+    },
+    {
+      "path": "modules/architecture/generated/parity_data_sink.md",
+      "source_path": "generated-from:parity-inputs.json#architecture::data_sink",
+      "sha256": "6a4a751c3fca4e0084b025d2a5d9b36edb396504f130cf2fc607eb29e708cd3a",
+      "role": "generated_document"
+    },
+    {
+      "path": "modules/architecture/generated/parity_extension_point.md",
+      "source_path": "generated-from:parity-inputs.json#architecture::extension_point",
+      "sha256": "ad37d597cafd499d793073f5b046f2cd8aca1c964d95f040fbe1aafe84233ce7",
+      "role": "generated_document"
+    },
+    {
+      "path": "modules/architecture/generated/parity_external_contract.md",
+      "source_path": "generated-from:parity-inputs.json#architecture::external_contract",
+      "sha256": "d46d3528f2ab6a88382609ba1db147061a838dbfe9c7c72fcac7415f5957d851",
+      "role": "generated_document"
+    },
+    {
+      "path": "modules/architecture/generated/parity_interface.md",
+      "source_path": "generated-from:parity-inputs.json#architecture::interface",
+      "sha256": "73db1ad90516ce23cbade55859a06c58a6cc328c5fc590a179d5ccfed5a9b278",
+      "role": "generated_document"
+    },
+    {
+      "path": "modules/architecture/generated/parity_part.md",
+      "source_path": "generated-from:parity-inputs.json#architecture::part",
+      "sha256": "e780702f0fbd33c3dd11e1d00a1c114e6e74a0f35a0569a015aaa79fbca5eec9",
+      "role": "generated_document"
+    },
+    {
+      "path": "modules/architecture/generated/parity_port.md",
+      "source_path": "generated-from:parity-inputs.json#architecture::port",
+      "sha256": "0131ccd5c3c70e07e75591eab848bbda14f86cfdaa12d12619612caec6dd2da2",
+      "role": "generated_document"
+    },
+    {
+      "path": "modules/architecture/generated/parity_queue.md",
+      "source_path": "generated-from:parity-inputs.json#architecture::queue",
+      "sha256": "c420561ee2cc9a05dff063a9459d201f811900a709fd795757f6e01884985252",
+      "role": "generated_document"
+    },
+    {
+      "path": "modules/architecture/generated/parity_rate_limit.md",
+      "source_path": "generated-from:parity-inputs.json#architecture::rate_limit",
+      "sha256": "033b09be7e4205ed6e6ba12fdccfd9b28f034b60f3d0e011cbb36dd4524dc260",
+      "role": "generated_document"
+    },
+    {
+      "path": "modules/architecture/generated/parity_ui_component.md",
+      "source_path": "generated-from:parity-inputs.json#architecture::ui_component",
+      "sha256": "d83eb13cc689daaf032cbbbbee6afe5f4fb7cb96185d1201430fd625b91b1aac",
+      "role": "generated_document"
+    },
+    {
+      "path": "modules/business/generated/parity_aggregate_root.md",
+      "source_path": "generated-from:parity-inputs.json#business::aggregate_root",
+      "sha256": "0bb628776e839d3a5c078a1a1d9a94dd7bd0b9def82172bb994e49eb94b17d97",
+      "role": "generated_document"
+    },
+    {
+      "path": "modules/business/generated/parity_domain.md",
+      "source_path": "generated-from:parity-inputs.json#business::domain",
+      "sha256": "67ffd90d1fc177ccf6711d1f5ce55c61602841883e01583fa93c7809c8a85509",
+      "role": "generated_document"
+    },
+    {
+      "path": "modules/business/generated/parity_entity.md",
+      "source_path": "generated-from:parity-inputs.json#business::entity",
+      "sha256": "88f919ae8b67c20069d8e2b2f65824fcfdfa5f29f07c48adef0b72e6e5d57c27",
+      "role": "generated_document"
+    },
+    {
+      "path": "modules/business/generated/parity_enumeration.md",
+      "source_path": "generated-from:parity-inputs.json#business::enumeration",
+      "sha256": "4176bd331ab9cc0f7360ad3f8a8e7eda8a6bb1a61e7041c58aa3a49f0e055243",
+      "role": "generated_document"
+    },
+    {
+      "path": "modules/business/generated/parity_event.md",
+      "source_path": "generated-from:parity-inputs.json#business::event",
+      "sha256": "a9f75bc0a8237a5e49a6e39a73d3669a360bb7f5c5005e8ebf96ae382fbf5966",
+      "role": "generated_document"
+    },
+    {
+      "path": "modules/business/generated/parity_graph.md",
+      "source_path": "generated-from:parity-inputs.json#business::graph",
+      "sha256": "75646b8251f9a5e64b4ebcd52f67eaac45fb3177cd15ca025e6562f8c4264345",
+      "role": "generated_document"
+    },
+    {
+      "path": "modules/business/generated/parity_nested_entity.md",
+      "source_path": "generated-from:parity-inputs.json#business::nested_entity",
+      "sha256": "f29de62ce2429d10582add434c2ad5951ed15634a07079ab3d67c0e2c1db5de5",
+      "role": "generated_document"
+    },
+    {
+      "path": "modules/business/generated/parity_population.md",
+      "source_path": "generated-from:parity-inputs.json#business::population",
+      "sha256": "d44eeabaf6bcc94092c96d90c8980ac29729c84078d4ee53748e1cae0437c6c8",
+      "role": "generated_document"
+    },
+    {
+      "path": "modules/business/generated/parity_process.md",
+      "source_path": "generated-from:parity-inputs.json#business::process",
+      "sha256": "e53cec086fda4eca2d86abfcb89196ce7ab8932e5a1fa38580032cce24648bd6",
+      "role": "generated_document"
+    },
+    {
+      "path": "modules/business/generated/parity_repository.md",
+      "source_path": "generated-from:parity-inputs.json#business::repository",
+      "sha256": "be57dec28c5b6e44500c6e4aa6aafb92e167a0d6891fb605fa5f592c259837c9",
+      "role": "generated_document"
+    },
+    {
+      "path": "modules/business/generated/parity_state_machine.md",
+      "source_path": "generated-from:parity-inputs.json#business::state_machine",
+      "sha256": "f57a22c1d5f7443bb03e4c861a0f5ba571025f062d094a42730f900d21209b91",
+      "role": "generated_document"
+    },
+    {
+      "path": "modules/business/generated/parity_value_object.md",
+      "source_path": "generated-from:parity-inputs.json#business::value_object",
+      "sha256": "ed41c397252964d1205cf3521fdf6e7519fef65c8397c2e61ce4a201469ef1ee",
+      "role": "generated_document"
+    },
+    {
+      "path": "modules/business/generated/parity_variant_set.md",
+      "source_path": "generated-from:parity-inputs.json#business::variant_set",
+      "sha256": "28b746b6221580c5c0c1bd2e8e4d2a39334375d47cfb9a36dd1f246c4cb3856e",
+      "role": "generated_document"
+    },
+    {
+      "path": "modules/enterprise/generated/parity_business_function.md",
+      "source_path": "generated-from:parity-inputs.json#enterprise::business_function",
+      "sha256": "48cd55eaa99139e6d7d6c0b9cb50819d04ad15cb3664ffbdc4b229761035fe3c",
+      "role": "generated_document"
+    },
+    {
+      "path": "modules/enterprise/generated/parity_capability.md",
+      "source_path": "generated-from:parity-inputs.json#enterprise::capability",
+      "sha256": "5b808240436abd92243649c3cc6cfd9537f0062674bce52d5a07ce5af0860306",
+      "role": "generated_document"
+    },
+    {
+      "path": "modules/enterprise/generated/parity_decision.md",
+      "source_path": "generated-from:parity-inputs.json#enterprise::decision",
+      "sha256": "1f3c50e80ebb3f25e1581362ce95e956440444f0474d0435628a75585d091702",
+      "role": "generated_document"
+    },
+    {
+      "path": "modules/enterprise/generated/parity_kpi.md",
+      "source_path": "generated-from:parity-inputs.json#enterprise::kpi",
+      "sha256": "8c93694aef21e472e9ffa7825461b27e2fc9d7dcc6b4d5bcc57b02d76350bf27",
+      "role": "generated_document"
+    },
+    {
+      "path": "modules/enterprise/generated/parity_objective.md",
+      "source_path": "generated-from:parity-inputs.json#enterprise::objective",
+      "sha256": "e71d985a24f4de2596eab0cd091f29406f4e446a4cc03585469a46022d4337c9",
+      "role": "generated_document"
+    },
+    {
+      "path": "modules/enterprise/generated/parity_principle.md",
+      "source_path": "generated-from:parity-inputs.json#enterprise::principle",
+      "sha256": "7d8c2c422e8aa9517eceec68320b16e57f7e308f0bba9819ab862450e3974b5a",
+      "role": "generated_document"
+    },
+    {
+      "path": "modules/enterprise/generated/parity_value_stream.md",
+      "source_path": "generated-from:parity-inputs.json#enterprise::value_stream",
+      "sha256": "42929b7ccac2671ef4e0e9a615167dce61cc47195da0575763af47967844d000",
+      "role": "generated_document"
+    },
+    {
+      "path": "modules/operational/generated/parity_alert.md",
+      "source_path": "generated-from:parity-inputs.json#operational::alert",
+      "sha256": "4f4ff2f78040829a670f525e518a1c4ae4c36001579f6813c6790ddb030f02da",
+      "role": "generated_document"
+    },
+    {
+      "path": "modules/operational/generated/parity_configuration.md",
+      "source_path": "generated-from:parity-inputs.json#operational::configuration",
+      "sha256": "f44f1a734c281d071aa04b50a823832c7cda0ec49c4e6fc41bf1a78ae8a5da99",
+      "role": "generated_document"
+    },
+    {
+      "path": "modules/operational/generated/parity_deployment.md",
+      "source_path": "generated-from:parity-inputs.json#operational::deployment",
+      "sha256": "34066ed19e090b156a6aefe8e975bd9b19f86600a498239085b076b7b6c7b732",
+      "role": "generated_document"
+    },
+    {
+      "path": "modules/operational/generated/parity_incident.md",
+      "source_path": "generated-from:parity-inputs.json#operational::incident",
+      "sha256": "5e52210e352658592805edf4850b1765c27a8245c7a72261ebfef7b0ae72cddb",
+      "role": "generated_document"
+    },
+    {
+      "path": "modules/operational/generated/parity_maintenance_plan.md",
+      "source_path": "generated-from:parity-inputs.json#operational::maintenance_plan",
+      "sha256": "c31da02509d41873235ebda743ad54e54504a5236c5a2e9260845fd79be878a4",
+      "role": "generated_document"
+    },
+    {
+      "path": "modules/operational/generated/parity_migration.md",
+      "source_path": "generated-from:parity-inputs.json#operational::migration",
+      "sha256": "6a49b78bbd471329e445b1eb5e5457d2fb96239fbdd358c407768981319b3542",
+      "role": "generated_document"
+    },
+    {
+      "path": "modules/operational/generated/parity_runbook.md",
+      "source_path": "generated-from:parity-inputs.json#operational::runbook",
+      "sha256": "2015f0d4ff0d8a7f1aa09d4836813d4107ba14b0160332cbadcb2481f2ff7b4b",
+      "role": "generated_document"
+    },
+    {
+      "path": "modules/operational/generated/parity_sli.md",
+      "source_path": "generated-from:parity-inputs.json#operational::sli",
+      "sha256": "20534e80477ab1287a79065a00fe88a13d5431926f2df26aee16a3d4027dd11a",
+      "role": "generated_document"
+    },
+    {
+      "path": "modules/operational/generated/parity_slo.md",
+      "source_path": "generated-from:parity-inputs.json#operational::slo",
+      "sha256": "7e9c93fc39aa7f12d29314b4f0574f3442dd963e2b9f44fa6e668ef17023ef26",
+      "role": "generated_document"
+    },
+    {
+      "path": "modules/security/generated/parity_anomaly.md",
+      "source_path": "generated-from:parity-inputs.json#security::anomaly",
+      "sha256": "fcf4a0de15b49cf25690ccacb3fce5c85489013295cdc6ab55e5d1522d8f9c7e",
+      "role": "generated_document"
+    },
+    {
+      "path": "modules/security/generated/parity_asset.md",
+      "source_path": "generated-from:parity-inputs.json#security::asset",
+      "sha256": "337b039f1aeaded6acb29fadfb21d6adfc4800d2a8d69ef8daf673d7415e689b",
+      "role": "generated_document"
+    },
+    {
+      "path": "modules/security/generated/parity_attack_surface.md",
+      "source_path": "generated-from:parity-inputs.json#security::attack_surface",
+      "sha256": "1a44d7fcaa0adba082dbb58eb64ddde981859e2897b8e71bce840a00d267fc04",
+      "role": "generated_document"
+    },
+    {
+      "path": "modules/security/generated/parity_audit_event.md",
+      "source_path": "generated-from:parity-inputs.json#security::audit_event",
+      "sha256": "4921f6e2988d4a651369f87db424d59cfe41ff57e71b6c4864c755b04328f938",
+      "role": "generated_document"
+    },
+    {
+      "path": "modules/security/generated/parity_audit_finding.md",
+      "source_path": "generated-from:parity-inputs.json#security::audit_finding",
+      "sha256": "c94afdca5d191179a3c6d1fd5f17538c2703c65d9f5c77bf728940ec2dbf3091",
+      "role": "generated_document"
+    },
+    {
+      "path": "modules/security/generated/parity_auth_flow.md",
+      "source_path": "generated-from:parity-inputs.json#security::auth_flow",
+      "sha256": "b8c1083079121a5d774150020ab817c27180743ba310f1158bb387b569e664d6",
+      "role": "generated_document"
+    },
+    {
+      "path": "modules/security/generated/parity_control.md",
+      "source_path": "generated-from:parity-inputs.json#security::control",
+      "sha256": "fd81877925fc1ad261a1ea37942a057682bf5fa83b5ff6b5ab0f8d31b63d19d8",
+      "role": "generated_document"
+    },
+    {
+      "path": "modules/security/generated/parity_cors_policy.md",
+      "source_path": "generated-from:parity-inputs.json#security::cors_policy",
+      "sha256": "af0053939c8716c0e809657eb6fe8af9437b4c52be2fcd98cd9c4bfbc786b6f1",
+      "role": "generated_document"
+    },
+    {
+      "path": "modules/security/generated/parity_csrf_token.md",
+      "source_path": "generated-from:parity-inputs.json#security::csrf_token",
+      "sha256": "bc3346b196a3690323c5f434e7b5fe16955950cb6b85258e527592283f4abbcd",
+      "role": "generated_document"
+    },
+    {
+      "path": "modules/security/generated/parity_data_classification.md",
+      "source_path": "generated-from:parity-inputs.json#security::data_classification",
+      "sha256": "c9d452fdd6d82456a6801210822ea108b2fad45392d1d4bda828051396fcdf01",
+      "role": "generated_document"
+    },
+    {
+      "path": "modules/security/generated/parity_encryption_key.md",
+      "source_path": "generated-from:parity-inputs.json#security::encryption_key",
+      "sha256": "36094a55a9f9dc214c816a85bfe587d4f26c77b3b6729aea7fe5dcef23a28ce6",
+      "role": "generated_document"
+    },
+    {
+      "path": "modules/security/generated/parity_jwt_claim.md",
+      "source_path": "generated-from:parity-inputs.json#security::jwt_claim",
+      "sha256": "ae170edc8873ff8e3af823a07ce826eef4e5e6a50ec2c20a83fa9157d97baaf5",
+      "role": "generated_document"
+    },
+    {
+      "path": "modules/security/generated/parity_mfa_method.md",
+      "source_path": "generated-from:parity-inputs.json#security::mfa_method",
+      "sha256": "b18b6038f0a71b28c76e2df721a398d39bf3f73fadb990d0f8f419d383d9c879",
+      "role": "generated_document"
+    },
+    {
+      "path": "modules/security/generated/parity_password_policy.md",
+      "source_path": "generated-from:parity-inputs.json#security::password_policy",
+      "sha256": "59ed5a362739fed15855832630df3c22f1b1f2ae350f5ef135b76b2d581dd5d2",
+      "role": "generated_document"
+    },
+    {
+      "path": "modules/security/generated/parity_permission.md",
+      "source_path": "generated-from:parity-inputs.json#security::permission",
+      "sha256": "61e51dd298ab1672360bcba6f947dc5938d41218268188fdc7b41b7dcf601a6d",
+      "role": "generated_document"
+    },
+    {
+      "path": "modules/security/generated/parity_policy.md",
+      "source_path": "generated-from:parity-inputs.json#security::policy",
+      "sha256": "2bd79d56d0dfdb58abf276edb8a68a035f322238382a9ef7d6d3f5471d4bdc06",
+      "role": "generated_document"
+    },
+    {
+      "path": "modules/security/generated/parity_processing_activity.md",
+      "source_path": "generated-from:parity-inputs.json#security::processing_activity",
+      "sha256": "9143ad5bbeca66dabc4322993515bd4240495b911b9ec3b3769ca08dc16e23cf",
+      "role": "generated_document"
+    },
+    {
+      "path": "modules/security/generated/parity_risk.md",
+      "source_path": "generated-from:parity-inputs.json#security::risk",
+      "sha256": "19011f591915f18e783115593dce430660be44bf3b1134e9f8853727318e1238",
+      "role": "generated_document"
+    },
+    {
+      "path": "modules/security/generated/parity_role.md",
+      "source_path": "generated-from:parity-inputs.json#security::role",
+      "sha256": "68c7d86b2dcab04b77a9dec3b7c7f3c47a32efd70ca4720ebed97b097884f3a1",
+      "role": "generated_document"
+    },
+    {
+      "path": "modules/security/generated/parity_scope.md",
+      "source_path": "generated-from:parity-inputs.json#security::scope",
+      "sha256": "b9b6255a3754c98abe9c61d33c2f7082f01beb65233b60308944de07a96a33a3",
+      "role": "generated_document"
+    },
+    {
+      "path": "modules/security/generated/parity_scope_exclusion.md",
+      "source_path": "generated-from:parity-inputs.json#security::scope_exclusion",
+      "sha256": "9880ca490d55d21777e5fe8296901f7b258ff58e459c3f56b63899d360cd6d79",
+      "role": "generated_document"
+    },
+    {
+      "path": "modules/security/generated/parity_secret.md",
+      "source_path": "generated-from:parity-inputs.json#security::secret",
+      "sha256": "4fca653ee1b9c09d886610afb1327d03eef8e39581bf70d2aecffa4ecbedf3f5",
+      "role": "generated_document"
+    },
+    {
+      "path": "modules/security/generated/parity_session_config.md",
+      "source_path": "generated-from:parity-inputs.json#security::session_config",
+      "sha256": "fbb9d439781dd456397f3f0a25853c1ebd617d98fd6421da45728e9370d7a6ea",
+      "role": "generated_document"
+    },
+    {
+      "path": "modules/security/generated/parity_soup_record.md",
+      "source_path": "generated-from:parity-inputs.json#security::soup_record",
+      "sha256": "606fc630d82cdd23e128d104573bb5663b35a1de60e22d2294ea45de33050f83",
+      "role": "generated_document"
+    },
+    {
+      "path": "modules/security/generated/parity_threat.md",
+      "source_path": "generated-from:parity-inputs.json#security::threat",
+      "sha256": "9451d821cbb02d676d5e9c966c15042e93885117ff63c3531d13bb3483cb689f",
+      "role": "generated_document"
+    },
+    {
+      "path": "modules/security/generated/parity_threat_model.md",
+      "source_path": "generated-from:parity-inputs.json#security::threat_model",
+      "sha256": "51ad28a2f3a58942e1557b31c14e48031783f538b67e59fdb1ae8e9625d6d513",
+      "role": "generated_document"
+    },
+    {
+      "path": "modules/security/generated/parity_trust_boundary.md",
+      "source_path": "generated-from:parity-inputs.json#security::trust_boundary",
+      "sha256": "7cbaeb940584bea76e9945b27b13439a97dcc47b3ae7af4a80d3b97249c70714",
+      "role": "generated_document"
+    },
+    {
+      "path": "modules/security/generated/parity_vulnerability.md",
+      "source_path": "generated-from:parity-inputs.json#security::vulnerability",
+      "sha256": "aa1653e764e8d1b795a0be7a97e4ef9dc5e834cdb510054fe552635d8e06f6c3",
+      "role": "generated_document"
     }
   ],
   "format_version": 1,

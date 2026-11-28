@@ -1,0 +1,753 @@
+{
+  "compatibility_adaptation": "under_section -> after_heading; assert ignored by extraction; section tree flattened to the historical evaluator AST; first fallback locator selected",
+  "input_count": 72,
+  "oracle_api": "filament_parser.tier2.extract_tier2",
+  "oracle_commit": "310d6744bd8fa90f261d888c0287818aa9308d8e",
+  "oracle_repository": "agent-ix/filament-parser-lib",
+  "records": {
+    "architecture::action": [
+      {
+        "id": "EXAMPLE-ACTION",
+        "inputs": "Example inputs content.",
+        "operations": "Example operations content.",
+        "title": "Example Action",
+        "type": "action"
+      }
+    ],
+    "architecture::allocation": [
+      {
+        "allocation": "example_source\texample_target",
+        "id": "EXAMPLE-ALLOCATION",
+        "title": "Example Allocation",
+        "type": "allocation"
+      }
+    ],
+    "architecture::api_endpoint": [
+      {
+        "api_contract": "Example api_contract content.",
+        "endpoint": "Example endpoint content.",
+        "id": "EXAMPLE-API_ENDPOINT",
+        "operations": "Example operations content.",
+        "routes": "Example routes content.",
+        "title": "Example Api Endpoint",
+        "type": "api_endpoint"
+      }
+    ],
+    "architecture::binary_format": [
+      {
+        "id": "EXAMPLE-BINARY_FORMAT",
+        "invariants": "Example invariants content.",
+        "layout_yaml": "example_layout_yaml",
+        "title": "Example Binary Format",
+        "type": "binary_format"
+      }
+    ],
+    "architecture::connection": [
+      {
+        "connection": "example_direction\texample_source\texample_source_multiplicity\texample_target\texample_target_multiplicity",
+        "id": "EXAMPLE-CONNECTION",
+        "title": "Example Connection",
+        "type": "connection"
+      }
+    ],
+    "architecture::data_schema": [
+      {
+        "id": "EXAMPLE-DATA_SCHEMA",
+        "properties": "Example properties content.",
+        "schema_json": "example_schema_json",
+        "title": "Example Data Schema",
+        "type": "data_schema"
+      }
+    ],
+    "architecture::data_sink": [
+      {
+        "audienceRoles": "example_audience_roles",
+        "id": "EXAMPLE-DATA_SINK",
+        "kind": "example_kind",
+        "processor": "example_processor",
+        "processorAgreement": "example_processor_agreement",
+        "purpose": "example_purpose",
+        "region": "example_region",
+        "title": "Example Data Sink",
+        "type": "data_sink"
+      }
+    ],
+    "architecture::extension_point": [
+      {
+        "contract": "Example contract content.",
+        "exposes": "Example exposes content.",
+        "id": "EXAMPLE-EXTENSION_POINT",
+        "invariants": "Example invariants content.",
+        "operations": "Example operations content.",
+        "registration": "Example registration content.",
+        "stability": "Example stability content.",
+        "title": "Example Extension Point",
+        "type": "extension_point"
+      }
+    ],
+    "architecture::external_contract": [
+      {
+        "behavior": "Example behavior content.",
+        "contract": "Example contract content.",
+        "endpoints": "Example endpoints content.",
+        "id": "EXAMPLE-EXTERNAL_CONTRACT",
+        "invariants": "Example invariants content.",
+        "operations": "Example operations content.",
+        "provider": "Example provider content.",
+        "title": "Example External Contract",
+        "type": "external_contract",
+        "versioning": "Example versioning content."
+      }
+    ],
+    "architecture::interface": [
+      {
+        "associated_types": "Example associated_types content.",
+        "contract_yaml": "example_contract_yaml",
+        "features": "example_feature\texample_kind",
+        "id": "EXAMPLE-INTERFACE",
+        "operations": "Example operations content.",
+        "title": "Example Interface",
+        "type": "interface"
+      }
+    ],
+    "architecture::part": [
+      {
+        "id": "EXAMPLE-PART",
+        "part": "example_declared_type\texample_multiplicity\texample_owner",
+        "softwareSafetyClass": "example_software_safety_class",
+        "softwareSafetyClassAssignedBy": "example_software_safety_class_assigned_by",
+        "softwareSafetyClassRationale": "example_software_safety_class_rationale",
+        "title": "Example Part",
+        "type": "part"
+      }
+    ],
+    "architecture::port": [
+      {
+        "id": "EXAMPLE-PORT",
+        "port": "example_direction\texample_interface\texample_multiplicity\texample_owner",
+        "title": "Example Port",
+        "type": "port"
+      }
+    ],
+    "architecture::queue": [
+      {
+        "delivery": "Example delivery content.",
+        "id": "EXAMPLE-QUEUE",
+        "message_schema": "example_message_schema",
+        "properties": "Example properties content.",
+        "title": "Example Queue",
+        "type": "queue"
+      }
+    ],
+    "architecture::rate_limit": [
+      {
+        "id": "EXAMPLE-RATE_LIMIT",
+        "invariants": "Example invariants content.",
+        "thresholds": "Example thresholds content.",
+        "title": "Example Rate Limit",
+        "type": "rate_limit"
+      }
+    ],
+    "architecture::ui_component": [
+      {
+        "id": "EXAMPLE-UI_COMPONENT",
+        "properties": "Example properties content.",
+        "props": "Example props content.",
+        "title": "Example Ui Component",
+        "type": "ui_component"
+      }
+    ],
+    "business::aggregate_root": [
+      {
+        "id": "EXAMPLE-AGGREGATE_ROOT",
+        "invariants": "Example invariants content.",
+        "members": "example_member\texample_multiplicity",
+        "properties": "Example properties content.",
+        "relationships": "example_multiplicity\texample_name\texample_target\texample_verb",
+        "title": "Example Aggregate Root",
+        "type": "aggregate_root"
+      }
+    ],
+    "business::domain": [
+      {
+        "bounded_context": "Example bounded_context content.",
+        "entities": "Example entities content.",
+        "erd": "example_erd",
+        "id": "EXAMPLE-DOMAIN",
+        "relationships": "example_multiplicity\texample_name\texample_target\texample_verb",
+        "title": "Example Domain",
+        "type": "domain",
+        "ubiquitous_language": "Example ubiquitous_language content.\n| Description | Term |\n| --- | --- |\n| example_description | example_term |",
+        "vocabulary": "example_description\texample_term"
+      }
+    ],
+    "business::entity": [
+      {
+        "id": "EXAMPLE-ENTITY",
+        "invariants": "Example invariants content.",
+        "properties": "Example properties content.",
+        "relationships": "example_multiplicity\texample_name\texample_target\texample_verb",
+        "title": "Example Entity",
+        "type": "entity"
+      }
+    ],
+    "business::enumeration": [
+      {
+        "id": "EXAMPLE-ENUMERATION",
+        "title": "Example Enumeration",
+        "type": "enumeration",
+        "values": "example_description\texample_value"
+      }
+    ],
+    "business::event": [
+      {
+        "id": "EXAMPLE-EVENT",
+        "invariants": "Example invariants content.",
+        "properties": "Example properties content.",
+        "schema_json": "example_schema_json",
+        "source": "Example source content.",
+        "title": "Example Event",
+        "type": "event"
+      }
+    ],
+    "business::graph": [
+      {
+        "graph": "example_graph",
+        "id": "EXAMPLE-GRAPH",
+        "title": "Example Graph",
+        "type": "graph"
+      }
+    ],
+    "business::nested_entity": [
+      {
+        "id": "EXAMPLE-NESTED_ENTITY",
+        "invariants": "Example invariants content.",
+        "parent": "Example parent content.",
+        "properties": "Example properties content.",
+        "title": "Example Nested Entity",
+        "type": "nested_entity"
+      }
+    ],
+    "business::population": [
+      {
+        "id": "EXAMPLE-POPULATION",
+        "invariants": "Example invariants content.",
+        "population": "example_type\texample_example",
+        "title": "Example Population",
+        "type": "population"
+      }
+    ],
+    "business::process": [
+      {
+        "algorithm": "Example algorithm content.",
+        "id": "EXAMPLE-PROCESS",
+        "invariants": "Example invariants content.",
+        "properties": "Example properties content.",
+        "relationships": "example_multiplicity\texample_name\texample_target\texample_verb",
+        "specification": "Example specification content.",
+        "states": "example_description\texample_state",
+        "steps": "example_consumes\texample_description\texample_emits\texample_kind\texample_step",
+        "title": "Example Process",
+        "type": "process"
+      }
+    ],
+    "business::repository": [
+      {
+        "id": "EXAMPLE-REPOSITORY",
+        "operations": "Example operations content.",
+        "relationships": "example_multiplicity\texample_name\texample_target\texample_verb",
+        "title": "Example Repository",
+        "type": "repository"
+      }
+    ],
+    "business::state_machine": [
+      {
+        "id": "EXAMPLE-STATE_MACHINE",
+        "invariants": "Example invariants content.",
+        "operations": "Example operations content.",
+        "properties": "Example properties content.",
+        "states": "example_description\texample_state",
+        "title": "Example State Machine",
+        "transitions": "example_emits\texample_from\texample_guard\texample_to\texample_trigger",
+        "type": "state_machine"
+      }
+    ],
+    "business::value_object": [
+      {
+        "fields": "Example fields content.",
+        "id": "EXAMPLE-VALUE_OBJECT",
+        "invariants": "Example invariants content.",
+        "properties": "Example properties content.",
+        "title": "Example Value Object",
+        "type": "value_object"
+      }
+    ],
+    "business::variant_set": [
+      {
+        "id": "EXAMPLE-VARIANT_SET",
+        "title": "Example Variant Set",
+        "type": "variant_set",
+        "variants": "example_description\texample_name\texample_payload"
+      }
+    ],
+    "enterprise::business_function": [
+      {
+        "description_body": "Example description_body content.",
+        "id": "EXAMPLE-BUSINESS_FUNCTION",
+        "invariants": "Example invariants content.",
+        "operations": "Example operations content.",
+        "properties": "Example properties content.",
+        "relationships": "example_multiplicity\texample_name\texample_target\texample_verb",
+        "title": "Example Business Function",
+        "type": "business_function"
+      }
+    ],
+    "enterprise::capability": [
+      {
+        "id": "EXAMPLE-CAPABILITY",
+        "invariants": "Example invariants content.",
+        "properties": "Example properties content.",
+        "relationships": "example_multiplicity\texample_name\texample_target\texample_verb",
+        "sub_capabilities": "Example sub_capabilities content.",
+        "title": "Example Capability",
+        "type": "capability"
+      }
+    ],
+    "enterprise::decision": [
+      {
+        "decision_body": "Example decision_body content.",
+        "id": "EXAMPLE-DECISION",
+        "invariants": "Example invariants content.",
+        "properties": "Example properties content.",
+        "relationships": "example_multiplicity\texample_name\texample_target\texample_verb",
+        "title": "Example Decision",
+        "type": "decision"
+      }
+    ],
+    "enterprise::kpi": [
+      {
+        "id": "EXAMPLE-KPI",
+        "invariants": "Example invariants content.",
+        "metric": "example_metric",
+        "properties": "Example properties content.",
+        "relationships": "example_multiplicity\texample_name\texample_target\texample_verb",
+        "target": "example_target",
+        "threshold": "example_threshold",
+        "title": "Example Kpi",
+        "type": "kpi"
+      }
+    ],
+    "enterprise::objective": [
+      {
+        "deadline": "example_deadline",
+        "id": "EXAMPLE-OBJECTIVE",
+        "invariants": "Example invariants content.",
+        "metric": "example_metric",
+        "properties": "Example properties content.",
+        "relationships": "example_multiplicity\texample_name\texample_target\texample_verb",
+        "target": "example_target",
+        "title": "Example Objective",
+        "type": "objective"
+      }
+    ],
+    "enterprise::principle": [
+      {
+        "id": "EXAMPLE-PRINCIPLE",
+        "invariants": "Example invariants content.",
+        "rationale": "Example rationale content.",
+        "relationships": "example_multiplicity\texample_name\texample_target\texample_verb",
+        "title": "Example Principle",
+        "type": "principle"
+      }
+    ],
+    "enterprise::value_stream": [
+      {
+        "id": "EXAMPLE-VALUE_STREAM",
+        "invariants": "Example invariants content.",
+        "properties": "Example properties content.",
+        "relationships": "example_multiplicity\texample_name\texample_target\texample_verb",
+        "stage_capability_bindings": "example_capability\texample_process\texample_stage_id",
+        "stage_outcomes": "example_description\texample_name\texample_outcome_id\texample_stage_id",
+        "stages": "example_name\texample_order\texample_stage_id\texample_value",
+        "title": "Example Value Stream",
+        "type": "value_stream"
+      }
+    ],
+    "operational::alert": [
+      {
+        "flow": "example_flow",
+        "id": "EXAMPLE-ALERT",
+        "invariants": "Example invariants content.",
+        "title": "Example Alert",
+        "type": "alert"
+      }
+    ],
+    "operational::configuration": [
+      {
+        "behavior": "Example behavior content.",
+        "configuration_table": "example_default\texample_description\texample_name\texample_scope\texample_type",
+        "id": "EXAMPLE-CONFIGURATION",
+        "invariants": "Example invariants content.",
+        "properties": "Example properties content.",
+        "title": "Example Configuration",
+        "type": "configuration"
+      }
+    ],
+    "operational::deployment": [
+      {
+        "id": "EXAMPLE-DEPLOYMENT",
+        "invariants": "Example invariants content.",
+        "operations": "Example operations content.",
+        "properties": "Example properties content.",
+        "title": "Example Deployment",
+        "topology": "example_topology",
+        "type": "deployment"
+      }
+    ],
+    "operational::incident": [
+      {
+        "id": "EXAMPLE-INCIDENT",
+        "invariants": "Example invariants content.",
+        "properties": "Example properties content.",
+        "timeline": "Example timeline content.",
+        "title": "Example Incident",
+        "type": "incident"
+      }
+    ],
+    "operational::maintenance_plan": [
+      {
+        "id": "EXAMPLE-MAINTENANCE_PLAN",
+        "invariants": "Example invariants content.",
+        "operations": "Example operations content.",
+        "procedure": "Example procedure content.",
+        "title": "Example Maintenance Plan",
+        "type": "maintenance_plan"
+      }
+    ],
+    "operational::migration": [
+      {
+        "id": "EXAMPLE-MIGRATION",
+        "invariants": "Example invariants content.",
+        "properties": "Example properties content.",
+        "sql": "example_sql",
+        "title": "Example Migration",
+        "type": "migration"
+      }
+    ],
+    "operational::runbook": [
+      {
+        "id": "EXAMPLE-RUNBOOK",
+        "invariants": "Example invariants content.",
+        "operations": "Example operations content.",
+        "steps": "Example steps content.",
+        "title": "Example Runbook",
+        "type": "runbook"
+      }
+    ],
+    "operational::sli": [
+      {
+        "id": "EXAMPLE-SLI",
+        "invariants": "Example invariants content.",
+        "properties": "Example properties content.",
+        "query": "example_query",
+        "title": "Example Sli",
+        "type": "sli"
+      }
+    ],
+    "operational::slo": [
+      {
+        "id": "EXAMPLE-SLO",
+        "invariants": "Example invariants content.",
+        "properties": "Example properties content.",
+        "target": "example_target",
+        "title": "Example Slo",
+        "type": "slo",
+        "window": "example_window"
+      }
+    ],
+    "security::anomaly": [
+      {
+        "id": "EXAMPLE-ANOMALY",
+        "properties": "Example properties content.",
+        "title": "Example Anomaly",
+        "type": "anomaly"
+      }
+    ],
+    "security::asset": [
+      {
+        "description_body": "Example description_body content.",
+        "id": "EXAMPLE-ASSET",
+        "properties": "Example properties content.",
+        "title": "Example Asset",
+        "type": "asset"
+      }
+    ],
+    "security::attack_surface": [
+      {
+        "entry_points": "Example entry_points content.",
+        "id": "EXAMPLE-ATTACK_SURFACE",
+        "properties": "Example properties content.",
+        "title": "Example Attack Surface",
+        "type": "attack_surface"
+      }
+    ],
+    "security::audit_event": [
+      {
+        "event_schema": "example_event_schema",
+        "id": "EXAMPLE-AUDIT_EVENT",
+        "properties": "Example properties content.",
+        "title": "Example Audit Event",
+        "type": "audit_event"
+      }
+    ],
+    "security::audit_finding": [
+      {
+        "id": "EXAMPLE-AUDIT_FINDING",
+        "properties": "Example properties content.",
+        "recommendation": "Example recommendation content.",
+        "title": "Example Audit Finding",
+        "type": "audit_finding"
+      }
+    ],
+    "security::auth_flow": [
+      {
+        "flow": "example_flow",
+        "id": "EXAMPLE-AUTH_FLOW",
+        "operations": "Example operations content.",
+        "title": "Example Auth Flow",
+        "type": "auth_flow"
+      }
+    ],
+    "security::control": [
+      {
+        "effectiveness": "Example effectiveness content.",
+        "id": "EXAMPLE-CONTROL",
+        "invariants": "Example invariants content.",
+        "mappings": "Example mappings content.",
+        "option_type": "example_option_type",
+        "properties": "Example properties content.",
+        "safeguards": "example_safeguards",
+        "title": "Example Control",
+        "type": "control"
+      }
+    ],
+    "security::cors_policy": [
+      {
+        "id": "EXAMPLE-CORS_POLICY",
+        "invariants": "Example invariants content.",
+        "origins": "Example origins content.",
+        "title": "Example Cors Policy",
+        "type": "cors_policy"
+      }
+    ],
+    "security::csrf_token": [
+      {
+        "id": "EXAMPLE-CSRF_TOKEN",
+        "properties": "Example properties content.",
+        "rotation_window": "example_rotation_window",
+        "title": "Example Csrf Token",
+        "type": "csrf_token"
+      }
+    ],
+    "security::data_classification": [
+      {
+        "handling": "Example handling content.",
+        "id": "EXAMPLE-DATA_CLASSIFICATION",
+        "properties": "Example properties content.",
+        "regulatedCategories": "example_regulated_categories",
+        "title": "Example Data Classification",
+        "type": "data_classification"
+      }
+    ],
+    "security::encryption_key": [
+      {
+        "algorithm": "example_algorithm",
+        "id": "EXAMPLE-ENCRYPTION_KEY",
+        "properties": "Example properties content.",
+        "rotation": "example_rotation",
+        "title": "Example Encryption Key",
+        "type": "encryption_key"
+      }
+    ],
+    "security::jwt_claim": [
+      {
+        "id": "EXAMPLE-JWT_CLAIM",
+        "properties": "Example properties content.",
+        "schema_json": "example_schema_json",
+        "title": "Example Jwt Claim",
+        "type": "jwt_claim"
+      }
+    ],
+    "security::mfa_method": [
+      {
+        "factor_kind": "example_factor",
+        "id": "EXAMPLE-MFA_METHOD",
+        "kind": "example_kind",
+        "properties": "Example properties content.",
+        "title": "Example Mfa Method",
+        "type": "mfa_method"
+      }
+    ],
+    "security::password_policy": [
+      {
+        "id": "EXAMPLE-PASSWORD_POLICY",
+        "invariants": "Example invariants content.",
+        "rules": "Example rules content.",
+        "title": "Example Password Policy",
+        "type": "password_policy"
+      }
+    ],
+    "security::permission": [
+      {
+        "id": "EXAMPLE-PERMISSION",
+        "properties": "Example properties content.",
+        "resource": "example_resource",
+        "title": "Example Permission",
+        "type": "permission",
+        "verb": "example_verb"
+      }
+    ],
+    "security::policy": [
+      {
+        "id": "EXAMPLE-POLICY",
+        "invariants": "Example invariants content.",
+        "policy_body": "Example policy_body content.",
+        "title": "Example Policy",
+        "type": "policy"
+      }
+    ],
+    "security::processing_activity": [
+      {
+        "controller": "example_controller",
+        "data_subject_categories": "example_data_subject_categories",
+        "dpo_contact": "example_dpo_contact",
+        "home_regions": "example_home_regions",
+        "id": "EXAMPLE-PROCESSING_ACTIVITY",
+        "joint_controllers": "example_joint_controllers",
+        "processor": "example_processor",
+        "purposes": "example_purposes",
+        "representative": "example_representative",
+        "retention": "example_retention",
+        "role": "example_role",
+        "title": "Example Processing Activity",
+        "type": "processing_activity"
+      }
+    ],
+    "security::risk": [
+      {
+        "decided_by": "example_decided_by",
+        "decision": "example_decision",
+        "id": "EXAMPLE-RISK",
+        "impact": "example_impact",
+        "likelihood": "example_likelihood",
+        "properties": "Example properties content.",
+        "title": "Example Risk",
+        "type": "risk"
+      }
+    ],
+    "security::role": [
+      {
+        "id": "EXAMPLE-ROLE",
+        "permissions": "Example permissions content.",
+        "properties": "Example properties content.",
+        "title": "Example Role",
+        "type": "role"
+      }
+    ],
+    "security::scope": [
+      {
+        "grants": "Example grants content.",
+        "id": "EXAMPLE-SCOPE",
+        "properties": "Example properties content.",
+        "title": "Example Scope",
+        "type": "scope"
+      }
+    ],
+    "security::scope_exclusion": [
+      {
+        "approval_ref": "Example approval_ref content.",
+        "clause": "Example clause content.",
+        "decision": "Example decision content.",
+        "decision_owner": "Example decision_owner content.",
+        "expires_at": "Example expires_at content.",
+        "id": "EXAMPLE-SCOPE_EXCLUSION",
+        "rationale": "Example rationale content.",
+        "responsible": "Example responsible content.",
+        "set": "Example set content.",
+        "title": "Example Scope Exclusion",
+        "type": "scope_exclusion"
+      }
+    ],
+    "security::secret": [
+      {
+        "id": "EXAMPLE-SECRET",
+        "properties": "Example properties content.",
+        "rotation": "Example rotation content.",
+        "title": "Example Secret",
+        "type": "secret"
+      }
+    ],
+    "security::session_config": [
+      {
+        "id": "EXAMPLE-SESSION_CONFIG",
+        "invariants": "Example invariants content.",
+        "settings": "Example settings content.",
+        "title": "Example Session Config",
+        "type": "session_config"
+      }
+    ],
+    "security::soup_record": [
+      {
+        "id": "EXAMPLE-SOUP_RECORD",
+        "properties": "Example properties content.",
+        "purl": "example_purl",
+        "title": "Example Soup Record",
+        "type": "soup_record"
+      }
+    ],
+    "security::threat": [
+      {
+        "id": "EXAMPLE-THREAT",
+        "properties": "Example properties content.",
+        "stride_category": "example_stride_category",
+        "title": "Example Threat",
+        "type": "threat",
+        "vector": "example_vector"
+      }
+    ],
+    "security::threat_model": [
+      {
+        "assumptions": "Example assumptions content.",
+        "id": "EXAMPLE-THREAT_MODEL",
+        "method": "example_method",
+        "out_of_scope": "Example out_of_scope content.",
+        "properties": "Example properties content.",
+        "reviewed_by": "example_reviewed_by",
+        "scope": "Example scope content.",
+        "title": "Example Threat Model",
+        "type": "threat_model"
+      }
+    ],
+    "security::trust_boundary": [
+      {
+        "boundary": "example_boundary",
+        "id": "EXAMPLE-TRUST_BOUNDARY",
+        "invariants": "Example invariants content.",
+        "properties": "Example properties content.",
+        "title": "Example Trust Boundary",
+        "trust_level": "example_trust_level",
+        "type": "trust_boundary"
+      }
+    ],
+    "security::vulnerability": [
+      {
+        "cve_id": "example_cve_id",
+        "id": "EXAMPLE-VULNERABILITY",
+        "properties": "Example properties content.",
+        "severity": "example_severity",
+        "title": "Example Vulnerability",
+        "type": "vulnerability"
+      }
+    ]
+  }
+}

@@ -3,8 +3,8 @@
 This directory snapshots only data from the five `spec-objects-*` repositories
 named by FR-011-AC-5. It contains the original module manifests, all tracked
 JSON schemas from those module packages, and the Markdown files under each
-repository's `tests/fixtures/`. It contains no source code and no generated
-`ExtractionResult` values.
+repository's `tests/fixtures/`. It also contains generated parity inputs and
+the independent reference records described below.
 
 `inventory.json` records the exact source commit, source path and SHA-256 for
 every copied file. Each body-extraction DSL is keyed by module and type, with a
@@ -32,7 +32,7 @@ required table columns where used. Their provenance comment records the source
 module commit, manifest path and hash, DSL hash, generated-only origin, and a
 payload content hash. The inventory records a separate hash over each complete
 generated file. Across source and generated inputs, all 72 DSLs now have an
-exercisable input. Generated inputs have no expected extraction records.
+exercisable input.
 
 All tracked module schema files are included. Direct manifest schema paths and
 relative schema `$ref`s resolve inside the snapshot. The inventory lists
@@ -41,9 +41,24 @@ as schema-closure gaps. They currently point into 27 distinct versioned
 `semantic-core` schema IDs. They are enumerated rather than fetched from an
 unversioned source.
 
-This is input data for a future independent oracle. It is not an oracle, does
-not assert parity, and does not close FR-011-AC-5. The test checks source and
-generated file hashes, manifest-to-inventory completeness, schema closure
-gaps, and whether generated documents provide concrete locator substrates. It
-does not assert extraction output. The independent Tier-2 DSL evaluator remains
-an external dependency.
+`parity-inputs.json` maps every module-qualified DSL to a minimal Markdown
+document that supplies concrete values for its locators. These generated
+documents isolate extraction behavior from schema validation. They are hashed
+individually and tested against the pinned independent reference outputs in
+`python-reference-records.json`.
+
+The reference records come from `agent-ix/filament-parser-lib` at commit
+`310d6744bd8fa90f261d888c0287818aa9308d8e`, using its independent
+`filament_parser.tier2.extract_tier2` implementation. The compatibility adapter
+maps `under_section` to the historical `after_heading` field, omits `assert`
+facets because they do not affect extraction, flattens section headings for the
+historical AST lookup, and uses the first process fallback locator (the input
+contains its `Workflow` table). The parity test verifies all 72 quire-rs
+`ExtractionResult.records` against those outputs. External semantic-core schema
+IDs do not participate because this test compares extraction before schema
+validation.
+
+The inventory test continues to verify source and original generated-file
+hashes, manifest-to-inventory completeness, schema closure gaps, and generated
+locator substrates. The parity test provides the separate extraction evidence
+required by FR-011-AC-5.
