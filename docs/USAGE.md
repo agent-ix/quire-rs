@@ -14,6 +14,9 @@ the body-extraction DSL → validation → lint → input contracts → corpus �
 > that reference templates are not supported. Schema = correctness; presentation lives
 > elsewhere.
 
+See the [how-to guides](index.md) for focused examples of semantic extraction,
+traceability, and Python binding output.
+
 ---
 
 ## 1. Mental model

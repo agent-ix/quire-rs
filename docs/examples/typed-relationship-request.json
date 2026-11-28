@@ -1,0 +1,35 @@
+{
+  "markdown": "---\nid: PROC-001\ntitle: Ship order\nobject: process\n---\n# Ship order\n\n## Relationships\n\n| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| completed | emits | event-001 | 0..1 |\n",
+  "module": {
+    "contractVersion": "1.0.0",
+    "package": "agent-ix/spec-objects-business",
+    "exports": ["process"],
+    "mappings": ["relationships"]
+  },
+  "path": "spec/processes/PROC-001.md",
+  "sourceIdentity": "ix://agent-ix/shop/spec",
+  "bundle": {
+    "package": "agent-ix/shop",
+    "objects": [{"id": "event-001", "names": ["OrderShipped"]}],
+    "artifacts": [
+      {"id": "event-001", "object": "event", "operations": []}
+    ]
+  },
+  "relationVocabulary": {
+    "objectType": "process",
+    "edgeTypes": {
+      "emits": {"category": "dataflow", "inverse": "emitted_by"}
+    },
+    "roles": {},
+    "allowedLinks": {"process": {"emits": ["event"]}}
+  },
+  "dataSchema": {
+    "type": "object",
+    "properties": {
+      "emits": {
+        "type": "array",
+        "items": {"$ref": "https://schemas.agent-ix.org/semantic-core/0.4.0/SemanticId.json"}
+      }
+    }
+  }
+}
