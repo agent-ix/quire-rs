@@ -19,7 +19,7 @@ Use quire-rs 0.63.5 and a module that enables the `relationships` mapping. The r
 
    | Name | Verb | Target | Multiplicity |
    |---|---|---|---|
-   | completed | emits | EVENT-001 | 0..1 |
+| completed | emits | event-001 | 0..1 |
    ```
 
 2. **Declare the mapping and allowed link.** The schema gives `emits` the semantic identifier type.
